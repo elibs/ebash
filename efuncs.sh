@@ -715,8 +715,6 @@ einstall()
         SUDOCMD=""
         [[ $EUID != 0 ]] && SUDOCMD="sudo"
         $SUDOCMD apt-get install -qq $@ >/dev/null || die "Failed to install $@"
-    else
-        die "Unsupported OS -- please install $@"
     fi
 }
 
