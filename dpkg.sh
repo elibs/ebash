@@ -35,7 +35,7 @@ dpkg_parsedeps()
     local deb=$1; argcheck deb
     local tag=$2; [[ -z "${tag}" ]] && tag="Depends"
 
-	dpkg -I "${deb}" | grep "^ ${tag}:" | sed -e "s| ${tag}:||" -e 's/ (\(>=\|<=\|<<\|>>\=\)\s*/\1/g' -e 's|)||g' -e 's|,||g'
+	dpkg -I "${deb}" | grep "^ ${tag}:" | sed -e "s| ${tag}:||" -e 's/ (\(>=\|<=\|<<\|>>\|\=\)\s*/\1/g' -e 's|)||g' -e 's|,||g'
 }
 
 dpkg_depends()
