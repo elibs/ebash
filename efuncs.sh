@@ -315,20 +315,50 @@ ekill()
     kill ${1} >/dev/null 2>&1 || die "Failed to kill ${1}"
 }
 
-__EPROGRESS_PID=-1
+spinout()
+{
+    local char="$1"
+    echo -n -e "\b${char}" >&2
+    sleep 0.10
+}
 
 do_eprogress()
 {
+    if [[ ! -t 2 ]]; then
+        while true; do
+            echo -n "." >&2
+            sleep 1
+        done
+        return
+    fi
+
+    local start=$(date +"%s")
     while true; do 
-        echo -n "." >&2
-        sleep 1
+        local now=$(date +"%s")
+        local diff=$(( ${now} - ${start} ))
+
+        echo -en "$(ecolor white)" >&2
+        printf "[%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
+        echo -en "$(ecolor none)"  >&2
+
+        spinout "/"
+        spinout "-"
+        spinout "\\"
+        spinout "|"
+        spinout "/"
+        spinout "-"
+        spinout "\\"
+        spinout "|"
+
+        echo -n -e "\b\b\b\b\b\b\b\b\b\b\b\b" >&2
     done
 }
 
+__EPROGRESS_PID=-1
 eprogress()
 {
-    einfon $@
-    do_eprogress &
+    einfon "$@"
+    do_eprogress&
     __EPROGRESS_PID=$!    
 }
 
@@ -337,6 +367,7 @@ eprogress_kill()
     local rc="${1}"; [[ -z "${rc}" ]] && rc="0"
     ekill ${__EPROGRESS_PID}
     wait  ${__EPROGRESS_PID} 2>/dev/null
+    echo -n -e "\b" >&2
     eend ${rc}
 }
 
@@ -608,8 +639,7 @@ etar()
 emounted()
 {
     [[ $(strip "${1}") == "" ]] && return 1
-
-    cat /proc/mounts /etc/mtab | grep --color=never --silent ${1} &>/dev/null && return 0
+    grep --color=never --silent $(readlink -f ${1}) /proc/mounts /etc/mtab &>/dev/null && return 0
     return 1
 }
 
@@ -637,7 +667,8 @@ eunmount()
     
     for m in $@; do
         emounted ${m} || continue
-        eval "umount ${m} &>/dev/null" || eval "umount -fl ${m} &>/dev/null" || die "umount ${m} failed"
+        local rdev=$(readlink -f ${m})
+        eval "umount ${rdev} &>/dev/null" || eval "umount -fl ${rdev} &>/dev/null" || die "umount ${m} (${rdev}) failed"
     done
 }
 
@@ -648,8 +679,9 @@ eunmount_recursive()
     einfo "Recursively unmounting ${@}"
 
     for m in $@; do
+        local rdev=$(readlink -f ${m})
         ifs_save; ifs_nl
-        for p in $(cat /proc/mounts /etc/mtab | grep "${m}" | awk '{print $2}' | sort -ur); do
+        for p in $(cat /proc/mounts /etc/mtab | grep "${rdev}" | awk '{print $2}' | sort -ur); do
             eunmount ${p}
         done
         ifs_restore
@@ -796,17 +828,17 @@ enslookup()
 netselect()
 {
     local hosts=$@; argcheck hosts
-    einfo "Finding host with lowest latency from [${hosts}]..."
+    eprogress "Finding host with lowest latency from [${hosts}]"
 
     declare -a results;
 
     for h in ${hosts}; do
-        local entry=$(ping -c5 -w5 -q $h 2>/dev/null | \
+        local entry=$(ping -c10 -w5 -q $h 2>/dev/null | \
             awk '/^PING / {host=$2}
                  /packet loss/ {loss=$6}
                  /min\/avg\/max/ {
                     split($4,stats,"/")
-                    printf("%s|%f|%f|%s|%f", host, stats[2], stats[4], loss, stats[2] * ( loss + 1))
+                    printf("%s|%f|%f|%s|%f", host, stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
                 }')
 
         results=("${results[@]}" "${entry}")
@@ -821,6 +853,7 @@ netselect()
 ${sorted[@]}
 EOF
     ifs_restore
+    eprogress_kill
 
     ## SHOW ALL RESULTS ##
     einfos "All results:"
