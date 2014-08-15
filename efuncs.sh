@@ -626,10 +626,8 @@ etar()
     local args="--checkpoint=1000 --checkpoint-action=dot"
 
     if [[ $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz") ]]; then
-        einstall pbzip2
         args+=" --use-compress-program=pbzip2"
     elif [[ $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz") ]]; then
-        einstall pigz
         args+=" --use-compress-program=pigz"
     else
         args+=" --auto-compress"
@@ -759,28 +757,8 @@ numcores()
     echo $(cat /proc/cpuinfo | grep "processor" | wc -l)
 }
 
-einstall()
-{
-    isgentoo && einfo "Skipping installation of ${@} on Gentoo" && return
-
-    # Check if already installed first
-    local missing=0
-    for pkg in "$@"; do
-        dpkg -s ${pkg} &>/dev/null || missing=$((missing+1))
-    done
-
-    [[ ${missing} -eq 0 ]] && return
-
-    einfo "Installing $@"
-    SUDOCMD=""
-    [[ $EUID != 0 ]] && SUDOCMD="sudo"
-    $SUDOCMD apt-get install -qq $@ >/dev/null || die "Failed to install $@"
-}
-
 efetch_try()
 {
-    einstall curl
-
     local dest=~/Downloads
     [[ ! -e ${dest} ]] && dest=/tmp
     dest+="/$(basename ${1})"
