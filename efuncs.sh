@@ -698,6 +698,25 @@ eunmount_recursive()
 }
 
 #-----------------------------------------------------------------------------
+# DISTRO-SPECIFIC
+#-----------------------------------------------------------------------------
+
+edistro()
+{
+    lsb_release -is
+}
+
+isubuntu()
+{
+    [[ "Ubuntu" == $(edistro) ]]
+}
+
+isgentoo()
+{
+    [[ "Gentoo" == $(edistro) ]]
+}
+
+#-----------------------------------------------------------------------------
 # MISC HELPERS
 #-----------------------------------------------------------------------------
 
@@ -742,20 +761,20 @@ numcores()
 
 einstall()
 {
-    if [[ -e "/etc/lsb-release" ]]; then
-        # Check if already installed first
-        local missing=0
-        for pkg in "$@"; do
-            dpkg -s ${pkg} &>/dev/null || missing=$((missing+1))
-        done
+    isgentoo && einfo "Skipping installation of ${@} on Gentoo" && return
 
-        [[ ${missing} -eq 0 ]] && return
+    # Check if already installed first
+    local missing=0
+    for pkg in "$@"; do
+        dpkg -s ${pkg} &>/dev/null || missing=$((missing+1))
+    done
 
-        einfo "Installing $@"
-        SUDOCMD=""
-        [[ $EUID != 0 ]] && SUDOCMD="sudo"
-        $SUDOCMD apt-get install -qq $@ >/dev/null || die "Failed to install $@"
-    fi
+    [[ ${missing} -eq 0 ]] && return
+
+    einfo "Installing $@"
+    SUDOCMD=""
+    [[ $EUID != 0 ]] && SUDOCMD="sudo"
+    $SUDOCMD apt-get install -qq $@ >/dev/null || die "Failed to install $@"
 }
 
 efetch_try()
