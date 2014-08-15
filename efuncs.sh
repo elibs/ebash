@@ -93,26 +93,26 @@ trap_add 'die [killed]' HUP INT QUIT BUS PIPE TERM
 ecolor()
 {
     [[ -z ${EFUNCS_COLOR} && ${INTERACTIVE} -eq 1 ]] && EFUNCS_COLOR=1
-    [[ ${EFUNCS_COLOR} -eq 1 ]] || return
+    [[ ${EFUNCS_COLOR} -eq 1 ]] || return 0
 
     local c=$1; argcheck c
 
     # For the colors see tput(1) and terminfo(5)
-    [[ ${c} == "none"    ]] && { echo -en $(tput sgr0);              return 0; }
-    [[ ${c} == "red"     ]] && { echo -en $(tput bold;tput setaf 1); return 0; }
-    [[ ${c} == "green"   ]] && { echo -en $(tput bold;tput setaf 2); return 0; }
-    [[ ${c} == "yellow"  ]] && { echo -en $(tput bold;tput setaf 3); return 0; }
-    [[ ${c} == "fawn"    ]] && { echo -en $(tput setaf 3);           return 0; }
-    [[ ${c} == "beige"   ]] && { echo -en $(tput setaf 3);           return 0; }
-    [[ ${c} == "blue"    ]] && { echo -en $(tput bold;tput setaf 4); return 0; }
-    [[ ${c} == "purple"  ]] && { echo -en $(tput setaf 5);           return 0; }
-    [[ ${c} == "magenta" ]] && { echo -en $(tput bold;tput setaf 5); return 0; }
-    [[ ${c} == "cyan"    ]] && { echo -en $(tput bold;tput setaf 6); return 0; }
-    [[ ${c} == "gray"    ]] && { echo -en $(tput setaf 7);           return 0; }
-    [[ ${c} == "white"   ]] && { echo -en $(tput bold;tput setaf 7); return 0; }
-    [[ ${c} == "bell"    ]] && { echo -en $(tput bel);               return 0; }
+    [[ ${c} == "none"     ]] && { echo -en $(tput sgr0);              return 0; }
+    [[ ${c} == "red"      ]] && { echo -en $(tput bold;tput setaf 1); return 0; }
+    [[ ${c} == "green"    ]] && { echo -en $(tput bold;tput setaf 2); return 0; }
+    [[ ${c} == "yellow"   ]] && { echo -en $(tput bold;tput setaf 3); return 0; }
+    [[ ${c} == "fawn"     ]] && { echo -en $(tput setaf 3);           return 0; }
+    [[ ${c} == "beige"    ]] && { echo -en $(tput setaf 3);           return 0; }
+    [[ ${c} == "dimblue"  ]] && { echo -en $(tput setaf 4);           return 0; }
+    [[ ${c} == "blue"     ]] && { echo -en $(tput bold;tput setaf 4); return 0; }
+    [[ ${c} == "purple"   ]] && { echo -en $(tput setaf 5);           return 0; }
+    [[ ${c} == "magenta"  ]] && { echo -en $(tput bold;tput setaf 5); return 0; }
+    [[ ${c} == "cyan"     ]] && { echo -en $(tput bold;tput setaf 6); return 0; }
+    [[ ${c} == "gray"     ]] && { echo -en $(tput setaf 7);           return 0; }
+    [[ ${c} == "white"    ]] && { echo -en $(tput bold;tput setaf 7); return 0; }
+    [[ ${c} == "bell"     ]] && { echo -en $(tput bel);               return 0; }
 }
-
 eclear()
 {
     tput clear >&2
@@ -152,6 +152,12 @@ einfo_prefix()
     local prefix=$(etimestamp)
     [[ -z ${prefix} ]] && prefix=" * "
     echo -en "${prefix}"
+}
+
+edebug()
+{
+    [[ -n ${EDEBUG} ]] && echo "$(ecolor dimblue)    - ${@}$(ecolor none)" >&2
+    return 0
 }
 
 einfo()
@@ -365,10 +371,12 @@ eprogress()
 eprogress_kill()
 {
     local rc="${1}"; [[ -z "${rc}" ]] && rc="0"
-    ekill ${__EPROGRESS_PID}
-    wait  ${__EPROGRESS_PID} 2>/dev/null
-    echo -n -e "\b" >&2
-    eend ${rc}
+    if (( ${__EPROGRESS_PID} != -1 )) ; then
+        ekill ${__EPROGRESS_PID} &>/dev/null
+        wait  ${__EPROGRESS_PID} &>/dev/null
+        __EPROGRESS_PID=-1
+        eend ${rc}
+    fi
 }
 
 #-----------------------------------------------------------------------------
