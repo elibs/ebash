@@ -398,8 +398,8 @@ mkchroot()
 
     ebanner "Making chroot [${CHROOT}]"
 
-    ## Install debootstrap if not installed
-    einstall debootstrap
+    ## Make sure that debootstrap is installed
+    which debootstrap > /dev/null || die "debootstrap must be installed"
 
     ## Setup chroot
     emkdir ${CHROOT}
