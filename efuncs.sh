@@ -45,8 +45,7 @@ die()
     done
 
     ifs_restore
-    trap - EXIT
-    kill 0
+    [[ ${EFUNCS_FATAL:=1} == 1 ]] && { trap - EXIT ;  kill 0 ; }
     exit 1
 }
 
