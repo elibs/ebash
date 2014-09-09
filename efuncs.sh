@@ -83,11 +83,13 @@ trap_add 'die [killed]' HUP INT QUIT BUS PIPE TERM
 # FANCY I/O ROUTINES
 #-----------------------------------------------------------------------------
 
-## If TERM is not set then all the tput commands fail
-[[ -z ${TERM} || ${TERM} == "unknown" ]] && export TERM=xterm
-
 ## If EFUNCS_COLOR is empty then set it based on if stdout is a terminal or not ##
 [[ -t 1 ]] && INTERACTIVE=1 || INTERACTIVE=0
+
+tput()
+{
+    TERM=${TERM:-xterm} /usr/bin/tput $@
+}
 
 ecolor()
 {
@@ -112,6 +114,7 @@ ecolor()
     [[ ${c} == "white"    ]] && { echo -en $(tput bold;tput setaf 7); return 0; }
     [[ ${c} == "bell"     ]] && { echo -en $(tput bel);               return 0; }
 }
+
 eclear()
 {
     tput clear >&2
