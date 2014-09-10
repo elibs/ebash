@@ -744,7 +744,7 @@ save_function()
 override_function()
 {
     local func=$1; shift; argcheck func
-    local body=$2; shift; # Body could be empty to make a function do nothing
+    local body=$2; shift; argcheck body
 
     save_function ${func}; shift
     eval "$func() ${body}"
