@@ -719,12 +719,13 @@ isgentoo()
 # MISC HELPERS
 #-----------------------------------------------------------------------------
 
-# Check to ensure an argument is non-zero
+# Check to ensure all the provided arguments are non-empty
 argcheck()
 {
-    local tag=$1 ; [[ -z "${tag}" ]] && die "Missing argument 'tag'"
-    eval "local val=\$${tag}"
-    [[ -z "${val}" ]] && die "Missing argument '${tag}'"
+    for arg in $@; do
+        eval "local val=\$${arg}"
+        [[ -z "${val}" ]] && die "Missing argument '${arg}'"
+    done
 }
 
 # save_function is used to safe off the contents of a previously declared
@@ -743,8 +744,8 @@ save_function()
 # mark this new function as readonly so that it cannot be overridden later.
 override_function()
 {
-    local func=$1; shift; argcheck func
-    local body=$2; shift; argcheck body
+    local func=$1; argcheck func
+    local body=$2; argcheck body
 
     save_function ${func}; shift
     eval "$func() ${body}"
