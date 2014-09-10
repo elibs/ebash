@@ -3,8 +3,7 @@
 # Copyright 2011-2013, SolidFire, Inc. All rights reserved.
 #
 
-# If already sourced then return otherwise automatically export all functions/variables
-[[ ${EFUNCS_SOURCED} == 1 ]] && return 0
+# Automatically export all functions/variables
 set -a
 
 #-----------------------------------------------------------------------------
@@ -720,6 +719,17 @@ isgentoo()
 # MISC HELPERS
 #-----------------------------------------------------------------------------
 
+# Check to ensure an argument is non-zero
+argcheck()
+{
+    local tag=$1 ; [[ -z "${tag}" ]] && die "Missing argument 'tag'"
+    eval "local val=\$${tag}"
+    [[ -z "${val}" ]] && die "Missing argument '${tag}'"
+}
+
+# save_function is used to safe off the contents of a previously declared
+# function into ${1}_real to aid in overridding a function or altering
+# it's behavior.
 save_function()
 {
     local orig=$(declare -f $1)
@@ -727,12 +737,18 @@ save_function()
     eval "${new}"
 }
 
-# Check to ensure an argument is non-zero
-argcheck()
+# override_function is a more powerful version of save_function in that it will
+# still save off the contents of a previously declared function into ${1}_real
+# but it will also define a new function with the provided body ${2} and
+# mark this new function as readonly so that it cannot be overridden later.
+override_function()
 {
-    local tag=$1 ; [[ -z "${tag}" ]] && die "Missing argument 'tag'"
-    eval "local val=\$${tag}"
-    [[ -z "${val}" ]] && die "Missing argument '${tag}'"
+    local func=$1; shift; argcheck func
+    local body=$2; shift; # Body could be empty to make a function do nothing
+
+    save_function ${func}; shift
+    eval "$func() ${body}"
+    eval "declare -rf ${func}"
 }
 
 ecmd()
@@ -875,5 +891,4 @@ EOF
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
-export EFUNCS_SOURCED=1
 return 0

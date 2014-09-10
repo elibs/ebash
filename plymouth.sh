@@ -3,8 +3,6 @@
 # Copyright 2013, SolidFire, Inc. All rights reserved.
 #
 
-[[ ${PLYMOUTH_SOURCED} == 1 ]] && return 0
-
 #-----------------------------------------------------------------------------
 # PULL IN DEPENDENT PACKAGES
 #-----------------------------------------------------------------------------
@@ -119,35 +117,38 @@ plymouth_prompt_timeout()
 #-----------------------------------------------------------------------------
 # Interposed functions
 #-----------------------------------------------------------------------------
-save_function einfo
-einfo() 
+
+override_function einfo '
 {
     einfo_real $@
     plymouth_message "$@"
-}
+}'
 
-save_function einfon
-einfon()
+override_function einfo '
+{
+    einfo_real $@
+    plymouth_message "$@"
+}'
+
+override_function einfon '
 {
     einfon_real $@
     plymouth_message "$@"
-}
+}'
 
-save_function ewarn
-ewarn()
+override_function ewarn '
 {
     ewarn_real $@
     plymouth_message "$@"
     sleep 2
-}
+}'
 
-save_function eerror
-eerror()
+override_function eerror '
 {
     eerror_real $@
     plymouth_message "$@"
     sleep 5
-}
+}'
 
 eprompt() 
 {
@@ -165,5 +166,4 @@ eprompt_timeout()
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
-export PLYMOUTH_SOURCED=1
 return 0
