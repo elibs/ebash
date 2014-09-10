@@ -747,7 +747,7 @@ override_function()
     local func=$1; argcheck func
     local body=$2; argcheck body
 
-    save_function ${func}; shift
+    save_function ${func}
     eval "$func() ${body}"
     eval "declare -rf ${func}"
 }
