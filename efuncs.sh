@@ -742,12 +742,17 @@ save_function()
 # still save off the contents of a previously declared function into ${1}_real
 # but it will also define a new function with the provided body ${2} and
 # mark this new function as readonly so that it cannot be overridden later.
+# If you call override_function multiple times we have to ensure it's idempotent.
+# The danger here is in calling save_function multiple tiems as it may cause
+# infinite recursion. So this guards against saving off the same function multiple
+# times.
 override_function()
 {
     local func=$1; argcheck func
     local body=$2; argcheck body
 
-    save_function ${func}
+    ## Don't save the function off it already exists to avoid infinite recursion
+    declare -f "${func}_real" >/dev/null || save_function ${func}
     eval "$func() ${body}"
     eval "declare -rf ${func}"
 }
