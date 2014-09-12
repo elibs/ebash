@@ -124,12 +124,6 @@ override_function einfo '
     plymouth_message "$@"
 }'
 
-override_function einfo '
-{
-    einfo_real $@
-    plymouth_message "$@"
-}'
-
 override_function einfon '
 {
     einfon_real $@
