@@ -1,10 +1,7 @@
 #!/bin/bash
 # 
-# Copyright 2011-2013, SolidFire, Inc. All rights reserved.
+# Copyright 2011-2014, SolidFire, Inc. All rights reserved.
 #
-
-# Automatically export all functions/variables
-set -a
 
 #-----------------------------------------------------------------------------
 # TRAPS / DIE / STACKTRACE 
@@ -19,7 +16,7 @@ stacktrace()
     done
 }
 
-DIE_IN_PROGRESS=0
+export DIE_IN_PROGRESS=0
 
 die()
 {
@@ -82,9 +79,6 @@ trap_add 'die [killed]' HUP INT QUIT BUS PIPE TERM
 # FANCY I/O ROUTINES
 #-----------------------------------------------------------------------------
 
-## If EFUNCS_COLOR is empty then set it based on if stdout is a terminal or not ##
-[[ -t 1 ]] && INTERACTIVE=1 || INTERACTIVE=0
-
 tput()
 {
     TERM=${TERM:-xterm} /usr/bin/tput $@
@@ -92,7 +86,8 @@ tput()
 
 ecolor()
 {
-    [[ -z ${EFUNCS_COLOR} && ${INTERACTIVE} -eq 1 ]] && EFUNCS_COLOR=1
+    ## If EFUNCS_COLOR is empty then set it based on if stdout is a terminal or not ##
+    [[ -z ${EFUNCS_COLOR} && -t 1 ]] && export EFUNCS_COLOR=1
     [[ ${EFUNCS_COLOR} -eq 1 ]] || return 0
 
     local c=$1; argcheck c
@@ -361,7 +356,7 @@ do_eprogress()
     done
 }
 
-__EPROGRESS_PID=-1
+export __EPROGRESS_PID=-1
 eprogress()
 {
     einfon "$@"
