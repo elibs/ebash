@@ -144,18 +144,18 @@ override_function eerror '
     sleep 5
 }'
 
-eprompt() 
+override_function eprompt '
 {
     local output=$(compress_spaces "$@")
     echo -en $(plymouth_prompt "${output}")
-}
+}'
 
-eprompt_timeout()
+override_function eprompt_timeout '
 {
     local timeout=$1 ; argcheck timeout
     local default=$1 ; argcheck default
     echo -en $(plymouth_prompt_timeout "${timeout}" "${default}" "$@")
-}
+}'
 
 #-----------------------------------------------------------------------------
 # SOURCING
