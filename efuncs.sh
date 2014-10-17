@@ -86,9 +86,10 @@ tput()
 
 ecolor()
 {
-    ## If EFUNCS_COLOR is empty then set it based on if stdout is a terminal or not ##
-    [[ -z ${EFUNCS_COLOR} && -t 1 ]] && export EFUNCS_COLOR=1
-    [[ ${EFUNCS_COLOR} -eq 1 ]] || return 0
+    ## If EFUNCS_COLOR is empty then set it based on if stderr is a terminal or not ##
+    local efuncs_color=${EFUNCS_COLOR}
+    [[ -z ${efuncs_color} && -t 2 ]] && efuncs_color=1
+    [[ ${efuncs_color} -eq 1 ]] || return 0
 
     local c=$1; argcheck c
 
