@@ -306,7 +306,7 @@ eend()
 {
     local rc=${1:-0} #sets rc to first arg if present otherwise defaults to 0
 
-    if [[ "${rc}" == "0" ]]; then
+    if [[ ${rc} -eq 0 ]]; then
         echo -e "$(ecolor blue)[$(ecolor green) ok $(ecolor blue)]$(ecolor none)" >&2
     else
         echo -e "$(ecolor blue)[$(ecolor red) !! $(ecolor blue)]$(ecolor none)" >&2
@@ -335,8 +335,12 @@ do_eprogress()
         return
     fi
 
+    # Sentinal for breaking out of the loop on signal from eprogress_kill
+    local done=0
+    trap "done=1" HUP INT QUIT BUS PIPE TERM
+
     local start=$(date +"%s")
-    while true; do 
+    while [[ ${done} -ne 1 ]]; do 
         local now=$(date +"%s")
         local diff=$(( ${now} - ${start} ))
 
@@ -353,7 +357,10 @@ do_eprogress()
         spinout "\\"
         spinout "|"
 
-        echo -n -e "\b\b\b\b\b\b\b\b\b\b\b\b" >&2
+        # If we're terminating just return immediately instead of resetting for next loop
+        [[ ${done} -eq 1 ]] && { echo -en "\b" >&2; return; }
+
+        echo -en "\b\b\b\b\b\b\b\b\b\b\b\b" >&2
     done
 }
 
@@ -361,13 +368,21 @@ export __EPROGRESS_PID=-1
 eprogress()
 {
     einfon "$@"
+
+    # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
+    [[ ${EPROGRESS:-1} -eq 0 ]] && return
+
     do_eprogress&
     __EPROGRESS_PID=$!    
 }
 
 eprogress_kill()
 {
-    local rc="${1}"; [[ -z "${rc}" ]] && rc="0"
+    local rc=${1:-0}
+
+    # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
+    [[ ${EPROGRESS:-1} -eq 0 ]] && { eend ${rc}; return; }
+
     if (( ${__EPROGRESS_PID} != -1 )) ; then
         ekill ${__EPROGRESS_PID} &>/dev/null
         wait  ${__EPROGRESS_PID} &>/dev/null
