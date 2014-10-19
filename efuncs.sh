@@ -22,6 +22,9 @@ die()
 {
     [[ ${DIE_IN_PROGRESS} -eq 1 ]] && exit 1
     DIE_IN_PROGRESS=1
+    
+    # Just in case eprogress is running let's kill it first to stop the spinner
+    eprogress_kill 1 KILL
 
     echo ""
     eerror "$@"
@@ -41,7 +44,7 @@ die()
     done
 
     ifs_restore
-    [[ ${EFUNCS_FATAL:=1} == 1 ]] && { trap - EXIT ;  kill 0 ; }
+    [[ ${EFUNCS_FATAL:-1} == 1 ]] && { trap - EXIT ;  kill 0 ; }
     exit 1
 }
 
@@ -315,7 +318,10 @@ eend()
 
 ekill()
 {
-    kill ${1} >/dev/null 2>&1 || die "Failed to kill ${1}"
+    local pid=${1}
+    local signal=${2:-KILL}
+    kill -${signal} ${pid} >/dev/null 2>&1 || die "Failed to kill pid=[${pid}] signal=[${signal}]"
+    wait  ${pid} &>/dev/null
 }
 
 spinout()
@@ -337,7 +343,7 @@ do_eprogress()
 
     # Sentinal for breaking out of the loop on signal from eprogress_kill
     local done=0
-    trap "done=1" HUP INT QUIT BUS PIPE TERM
+    trap "done=1" SIGINT SIGTERM
 
     local start=$(date +"%s")
     while [[ ${done} -ne 1 ]]; do 
@@ -379,13 +385,13 @@ eprogress()
 eprogress_kill()
 {
     local rc=${1:-0}
+    local signal=${2:-TERM}
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && { eend ${rc}; return; }
 
     if (( ${__EPROGRESS_PID} != -1 )) ; then
-        ekill ${__EPROGRESS_PID} &>/dev/null
-        wait  ${__EPROGRESS_PID} &>/dev/null
+        ekill ${__EPROGRESS_PID} ${signal} &>/dev/null
         __EPROGRESS_PID=-1
         eend ${rc}
     fi
