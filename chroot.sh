@@ -73,19 +73,27 @@ chroot_cmd_try()
     [[ $? -eq 0 ]] || ewarns "Failed to execute [$*]"
 }
 
-# Kill provided list of PID inside the CHROOT. This function checks the given PIDs 
-# to ensure they were actually started inside the CHROOT and will skip them if not.
-# If NO PIDs are provided, this will ==> KILL ALL PROCESS <== started inside the CHROOT.
+# Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT})
+# that match the given regex.  [note: regex support is identical to pgrep]
+#
+#    $1: Optional pgrep pattern that match the processes you'd like to signal.
+#        If no pattern is specified, ALL proceses in the chroot will be
+#        signalled.
+#    $2: Optional signal name or number.  Defaults to SIGKILL(9)
+# 
 chroot_kill()
 {
     argcheck CHROOT
 
-    einfo "Killing chroot [${CHROOT}] PIDS=[$*]"
+    local pids signal
 
-    local pids="$*"
-    [[ $# -eq 0 ]] && { ewarns "No pids provided -- killing all chroot processes"; pids=$(ps -eo "%p"); }
+    signal=${2:-KILL}
+
+    [[ -n $1 ]] && { pids=$(pgrep "${1}") ; edebug "Sending signal (${signal} to chroot processes matching \"${1}\"." ; }
+    [[ -z $1 ]] && { pids=$(ps -eo "%p")  ; edebug "Sending signal (${signal} to all chroot processes." ; }
 
     for pid in ${pids}; do
+        edebug "Processing pid ${pid}"
         local link=$(readlink "/proc/${pid}/root")
         
         # Skip processes started in NO chroot or ANOTHER chroot
@@ -93,7 +101,7 @@ chroot_kill()
 
         # Kill this process
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        kill -9 ${pid} 
+        kill -${signal} ${pid} 
     done
 }
 
