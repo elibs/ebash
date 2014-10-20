@@ -147,14 +147,14 @@ override_function eerror '
 override_function eprompt '
 {
     local output=$(compress_spaces "$@")
+    ewarn_real "${output}"
     echo -en $(plymouth_prompt "${output}")
 }'
 
 override_function eprompt_timeout '
 {
-    local timeout=$1 ; argcheck timeout
-    local default=$1 ; argcheck default
-    echo -en $(plymouth_prompt_timeout "${timeout}" "${default}" "$@")
+    ewarn_real "$@"
+    echo -en $(plymouth_prompt_timeout $@)
 }'
 
 #-----------------------------------------------------------------------------
