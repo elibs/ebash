@@ -23,14 +23,10 @@ die()
     [[ ${DIE_IN_PROGRESS} -eq 1 ]] && exit 1
     DIE_IN_PROGRESS=1
     
-    # Just in case eprogress is running let's kill it first to stop the spinner
-    eprogress_kill 1 KILL
-
     echo ""
     eerror "$@"
 
-    IFS="
-"
+    ifs_save; ifs_nl
     local frames=( $(stacktrace) )
 
     for f in ${frames[@]}; do
@@ -42,9 +38,11 @@ die()
         
         printf "$(ecolor red)   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
     done
-
     ifs_restore
-    [[ ${EFUNCS_FATAL:-1} == 1 ]] && { trap - EXIT ;  kill 0 ; }
+   
+    # If die() is fatal (via EFUNCS_FATAL) go ahead and kill everything in this process tree
+    [[ ${EFUNCS_FATAL:-1} == 1 ]] && { trap - EXIT ;  ekilltree $$; }
+
     exit 1
 }
 
@@ -319,9 +317,19 @@ eend()
 ekill()
 {
     local pid=${1}
-    local signal=${2:-KILL}
-    kill -${signal} ${pid} >/dev/null 2>&1 || die "Failed to kill pid=[${pid}] signal=[${signal}]"
+    local signal=${2:-TERM}
+    kill -${signal} ${pid} &>/dev/null || die "Failed to kill pid=[${pid}] signal=[${signal}]"
     wait  ${pid} &>/dev/null
+}
+
+ekilltree()
+{
+    local pid=$1
+    local signal=${2:-TERM}
+    for child in $(ps -o pid --no-headers --ppid ${pid}); do
+        ekilltree ${child} ${signal}
+    done
+    ekill ${pid} ${signal}
 }
 
 spinout()
@@ -390,7 +398,7 @@ eprogress_kill()
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && { eend ${rc}; return; }
 
-    if (( ${__EPROGRESS_PID} != -1 )) ; then
+    if [[ ${__EPROGRESS_PID} -ne -1 ]] ; then
         ekill ${__EPROGRESS_PID} ${signal} &>/dev/null
         __EPROGRESS_PID=-1
         eend ${rc}
