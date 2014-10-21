@@ -79,7 +79,7 @@ declare -f -t trap_add
 # to the key signals we generally want to die on. This is used as our
 # default signal handler but it's also very important to put this at the
 # start of any command substitution which you want to be interruptible. 
-# Otherwise, due to bash qwuirkiness, signals are ignored in command
+# Otherwise, due to bash quirkiness, signals are ignored in command
 # substitution: http://www.tldp.org/LDP/Bash-Beginners-Guide/html/sect_12_01.html.
 trap_and_die()
 {
