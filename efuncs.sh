@@ -832,9 +832,7 @@ efetch_try()
     local timecond=""
     [[ -f ${dest} ]] && timecond="--time-cond ${dest}"
 
-    sleep 10
-
-    #curl "${1}" ${timecond} --output "${dest}" --location --fail --silent --show-error
+    curl "${1}" ${timecond} --output "${dest}" --location --fail --silent --show-error
     local rc=$?
     eprogress_kill $rc
     [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch [${1}]"; return $rc; }
