@@ -401,7 +401,6 @@ eprogress()
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return
 
-    # Run do_eprogress in a subshell so the trap inside doesn't effect parent 
     do_eprogress&
     __EPROGRESS_PID=$!    
 }
