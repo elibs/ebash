@@ -22,7 +22,8 @@ die()
 {
     [[ ${DIE_IN_PROGRESS} -eq 1 ]] && exit 1
     DIE_IN_PROGRESS=1
-    
+    eprogress_kill
+
     echo ""
     eerror "$@"
 
@@ -73,8 +74,22 @@ trap_add()
 # inherit them unless the trace attribute is set
 declare -f -t trap_add
 
+# Trap specified signals and call die() which will kill the entire
+# process tree. Can optionally specify what signals to trap but defaults
+# to the key signals we generally want to die on. This is used as our
+# default signal handler but it's also very important to put this at the
+# start of any command substitution which you want to be interruptible. 
+# Otherwise, due to bash qwuirkiness, signals are ignored in command
+# substitution: http://www.tldp.org/LDP/Bash-Beginners-Guide/html/sect_12_01.html.
+trap_and_die()
+{
+    local signals=$@
+    [[ -z ${signals[@]} ]] && signals=( HUP INT QUIT BUS PIPE TERM )
+    trap 'die [killed]' ${signals[@]}
+}
+
 # Default trap
-trap_add 'die [killed]' HUP INT QUIT BUS PIPE TERM
+trap_and_die
 
 #-----------------------------------------------------------------------------
 # FANCY I/O ROUTINES
@@ -261,7 +276,7 @@ eprompt_timeout()
 epromptyn()
 {
     while true; do
-        response=$(eprompt "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
+        response=$(trap_and_die; eprompt "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
         if [[ ${response} == "Y" || ${response} == "N" ]]; then
             echo -en "${response}"
             return
@@ -277,7 +292,7 @@ epromptyn_timeout()
     local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
 
     while true; do
-        local response=$(eprompt_timeout "${timeout}" "${default}" "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
+        local response=$(trap_and_die; eprompt_timeout "${timeout}" "${default}" "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
         if [[ ${response} == "Y" || ${response} == "N" ]]; then
             echo -en "${response}"
             return
@@ -351,7 +366,7 @@ do_eprogress()
 
     # Sentinal for breaking out of the loop on signal from eprogress_kill
     local done=0
-    trap "done=1" SIGINT SIGTERM
+    trap_add "done=1" SIGINT SIGTERM
 
     local start=$(date +"%s")
     while [[ ${done} -ne 1 ]]; do 
@@ -386,6 +401,7 @@ eprogress()
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return
 
+    # Run do_eprogress in a subshell so the trap inside doesn't effect parent 
     do_eprogress&
     __EPROGRESS_PID=$!    
 }
@@ -817,7 +833,9 @@ efetch_try()
     local timecond=""
     [[ -f ${dest} ]] && timecond="--time-cond ${dest}"
 
-    curl "${1}" ${timecond} --output "${dest}" --location --fail --silent --show-error
+    sleep 10
+
+    #curl "${1}" ${timecond} --output "${dest}" --location --fail --silent --show-error
     local rc=$?
     eprogress_kill $rc
     [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch [${1}]"; return $rc; }
@@ -827,8 +845,10 @@ efetch_try()
 
 efetch()
 {
+    local url="${1}"; argcheck url
+
     local fetched=""
-    fetched=$(efetch_try $1) || die "Failed to fetch [${1}]"
+    fetched=$(trap_and_die; efetch_try ${url}) || die "Failed to fetch [${url}]"
     echo -n "${fetched}"
 }
 
@@ -842,7 +862,7 @@ efetch_with_md5_try()
     local img=""
     
     # Fetch the md5 before the payload as we don't need to bother fetching payload if md5 is missing
-    md5=$(efetch_try "${url}.md5") && img=$(efetch_try "${url}") || rc=1
+    md5=$(trap_and_die; efetch_try "${url}.md5") && img=$(trap_and_die; efetch_try "${url}") || rc=1
 
     ## Verify MD5 -- DELETE any corrupted images
     if [[ ${rc} -eq 0 ]]; then
@@ -870,13 +890,8 @@ efetch_with_md5_try()
 efetch_with_md5()
 {
     local fetched=""
-    fetched=$(efetch_with_md5_try $1) || die "Failed to fetch [${1}] with md5"
+    fetched=$(trap_and_die; efetch_with_md5_try $1) || die "Failed to fetch [${1}] with md5"
     echo -n "${fetched}"
-}
-
-enslookup()
-{
-    [[ $(nslookup -fail $1 | grep SERVFAIL | wc -l) ]] && echo -en "${1}" || echo -en "${2}"
 }
 
 netselect()
@@ -887,7 +902,7 @@ netselect()
     declare -a results;
 
     for h in ${hosts}; do
-        local entry=$(ping -c10 -w5 -q $h 2>/dev/null | \
+        local entry=$(trap_and_die; ping -c10 -w5 -q $h 2>/dev/null | \
             awk '/^PING / {host=$2}
                  /packet loss/ {loss=$6}
                  /min\/avg\/max/ {

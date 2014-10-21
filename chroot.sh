@@ -89,11 +89,10 @@ chroot_kill()
 
     signal=${2:-KILL}
 
-    [[ -n $1 ]] && { pids=$(pgrep "${1}") ; edebug "Sending signal (${signal} to chroot processes matching \"${1}\"." ; }
-    [[ -z $1 ]] && { pids=$(ps -eo "%p")  ; edebug "Sending signal (${signal} to all chroot processes." ; }
+    [[ -n $1 ]] && { pids=$(pgrep "${1}") ; edebug "Sending signal ${signal} to chroot processes matching \"${1}\"." ; }
+    [[ -z $1 ]] && { pids=$(ps -eo "%p")  ; edebug "Sending signal ${signal} to all chroot processes." ; }
 
     for pid in ${pids}; do
-        edebug "Processing pid ${pid}"
         local link=$(readlink "/proc/${pid}/root")
         
         # Skip processes started in NO chroot or ANOTHER chroot
@@ -178,7 +177,7 @@ chroot_install_internal()
 		fi
 
 		# Actually installed
-		local actual=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || { ewarn "Failed to install [${pn}]"; return 1; })
+		local actual=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || { ewarn "Failed to install [${pn}]"; return 1; })
 		local apn="${actual}"; apn=${apn%|*}
 		local apv="${actual}"; apv=${apv#*|}
 		
@@ -276,7 +275,7 @@ chroot_apt_try()
 chroot_listpkgs()
 {
     argcheck CHROOT
-    output=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W") || die "Failed to execute [$*]"
+    output=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W") || die "Failed to execute [$*]"
     echo -en "${output}"
 }
 
@@ -284,7 +283,7 @@ chroot_uninstall_filter()
 {
     argcheck CHROOT
     local filter=$@
-    pkgs=$(chroot_listpkgs)
+    pkgs=$(trap_and_die; chroot_listpkgs)
     chroot_uninstall $(eval "echo \"${pkgs}\" | ${filter} | awk '{print \$1}'")
 }
 
@@ -421,7 +420,7 @@ mkchroot()
     [[ ${LSB_RELEASE} == "lucid" ]] && GPG_FLAG=""
 
     local fetched=""
-    fetched=$(efetch_with_md5_try "http://${HOST}/images/${CHROOT_IMAGE}")
+    fetched=$(trap_and_die; efetch_with_md5_try "http://${HOST}/images/${CHROOT_IMAGE}")
     if [[ $? -eq 0 ]]; then
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${fetched}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
     else
