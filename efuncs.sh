@@ -89,7 +89,7 @@ trap_and_die()
 }
 
 # Default trap
-trap_and_die
+[[ ${EGLOBAL_TRAP} == 0 ]] || trap_and_die
 
 #-----------------------------------------------------------------------------
 # FANCY I/O ROUTINES
@@ -333,18 +333,19 @@ ekill()
 {
     local pid=${1}
     local signal=${2:-TERM}
-    kill -${signal} ${pid} &>/dev/null || die "Failed to kill pid=[${pid}] signal=[${signal}]"
-    wait  ${pid} &>/dev/null
+    kill -${signal} ${pid}
+    wait  ${pid}
 }
 
 ekilltree()
 {
     local pid=$1
     local signal=${2:-TERM}
+    edebug "Killing process tree of ${pid} [$(ps -p ${pid} -o comm=)] with ${signal}."
     for child in $(ps -o pid --no-headers --ppid ${pid}); do
         ekilltree ${child} ${signal}
     done
-    ekill ${pid} ${signal}
+    ekill ${pid} ${signal} &>/dev/null
 }
 
 spinout()

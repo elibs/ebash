@@ -100,7 +100,7 @@ chroot_kill()
 
         # Kill this process
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        kill -${signal} ${pid} 
+        ekilltree ${pid} ${signal}
     done
 }
 
