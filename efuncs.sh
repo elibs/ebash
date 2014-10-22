@@ -89,7 +89,7 @@ trap_and_die()
 }
 
 # Default trap
-[[ ${EGLOBAL_TRAP} == 0 ]] || trap_and_die
+trap_and_die
 
 #-----------------------------------------------------------------------------
 # FANCY I/O ROUTINES
