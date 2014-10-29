@@ -160,7 +160,7 @@ ebanner()
     echo -e "+${str}+$(ecolor none)" >&2
 }
 
-einfo_prefix()
+eprefix()
 {
     local prefix=$(etimestamp)
     [[ -z ${prefix} ]] && prefix=" * "
@@ -175,12 +175,12 @@ edebug()
 
 einfo()
 {
-    echo -e "$(ecolor green)$(einfo_prefix)$@ $(ecolor none)" >&2
+    echo -e "$(ecolor green)$(eprefix)$@ $(ecolor none)" >&2
 }
 
 einfon()
 {
-    echo -en "$(ecolor green)$(einfo_prefix)$@ $(ecolor none)" >&2
+    echo -en "$(ecolor green)$(eprefix)$@ $(ecolor none)" >&2
 }
 
 einfos()
@@ -190,7 +190,7 @@ einfos()
 
 ewarn()
 {
-    echo -e "$(ecolor yellow) * $@ $(ecolor none)" >&2
+    echo -e "$(ecolor yellow)$(eprefix)$@ $(ecolor none)" >&2
 }
 
 ewarns()
