@@ -729,7 +729,8 @@ eunmount_recursive()
     for m in $@; do
         local rdev=$(readlink -f ${m})
         ifs_save; ifs_nl
-        for p in $(cat /proc/mounts /etc/mtab | grep -P "(^| )${rdev}" | awk '{print $2}' | sort -ur); do
+        for p in $(cat /proc/mounts /etc/mtab | grep -P "(^| )${rdev}[/ ]" | awk '{print $2}' | sort -ur); do
+            edebug "Unmounting ${p}"
             eunmount ${p}
         done
         ifs_restore
