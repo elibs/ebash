@@ -360,8 +360,7 @@ chroot_setup()
 
     [[ ${NOBANNER} -eq 1 ]] || ebanner "Setting up chroot [${CHROOT}]"
     
-    # resolv.conf
-    echo "search users.solidfire.net lab.solidfire.net vwc.solidfire.net" >> ${CHROOT}/etc/resolv.conf
+    ecp /etc/resolv.conf ${CHROOT}/etc/resolv.conf
 
     ## MOUNT
     chroot_mount

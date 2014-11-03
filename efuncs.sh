@@ -505,6 +505,47 @@ valid_ip()
     return $stat
 }
 
+hostname_to_ip()
+{
+    local hostname=$1
+    argcheck hostname
+
+    local output hostrc ip
+    output=$(host $hostname)
+    hostrc=$?
+    edebug "hostname_to_ip hostname=${hostname} output=${output}"
+    [[ $hostrc -eq 0 ]] || die "Unable to resolve ${hostname}."
+
+    [[ $output =~ " has address " ]] || die "Unable to resolve ${hostname}."
+
+    ip=$(echo $output | awk '{print $4}')
+
+    valid_ip $ip || die "Resolved ${hostname} into invalid ip address ${ip}."
+
+    echo ${ip}
+    return 0
+}
+
+fully_qualify_hostname()
+{
+    local hostname=$1
+    argcheck hostname
+
+    local output hostrc fqhostname
+    output=$(host $hostname)
+    hostrc=$?
+    edebug "fully_qualify_hostname: hostname=${hostname} output=${output}"
+    [[ $hostrc -eq 0 ]] || die "Unable to resolve ${hostname}."
+
+    [[ $output =~ " has address " ]] || die "Unable to resolve ${hostname}."
+    fqhostname=$(echo $output | awk '{print $1}')
+
+    [[ $fqhostname =~ ${hostname} ]] || die "Invalid fully qualified name ${fqhostname} from ${hostname}."
+
+    echo ${fqhostname}
+    return 0
+}
+
 getipaddress()
 {
     local iface=$1; argcheck 'iface'; 
