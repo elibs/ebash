@@ -304,7 +304,7 @@ epromptyn_timeout()
 
 trim()
 {
-    echo "$1" | sed 's|^[ \t]\+||'
+    echo "$1" | sed -e 's/^[[:space:]]\+//' -e 's/[[:space:]]\+$//'
 }
 
 strip()
