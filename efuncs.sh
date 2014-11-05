@@ -514,13 +514,13 @@ hostname_to_ip()
     output=$(host ${hostname})
     hostrc=$?
     edebug "hostname_to_ip hostname=${hostname} output=${output}"
-    [[ ${hostrc} -eq 0 ]] || die "Unable to resolve ${hostname}."
+    [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
 
-    [[ ${output} =~ " has address " ]] || die "Unable to resolve ${hostname}."
+    [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
 
     ip=$(echo ${output} | awk '{print $4}')
 
-    valid_ip ${ip} || die "Resolved ${hostname} into invalid ip address ${ip}."
+    valid_ip ${ip} || { ewarn "Resolved ${hostname} into invalid ip address ${ip}." ; return 1 ; }
 
     echo ${ip}
     return 0
@@ -535,12 +535,12 @@ fully_qualify_hostname()
     output=$(host ${hostname})
     hostrc=$?
     edebug "fully_qualify_hostname: hostname=${hostname} output=${output}"
-    [[ ${hostrc} -eq 0 ]] || die "Unable to resolve ${hostname}."
+    [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
 
-    [[ ${output} =~ " has address " ]] || die "Unable to resolve ${hostname}."
+    [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
     fqhostname=$(echo ${output} | awk '{print $1}')
 
-    [[ ${fqhostname} =~ ${hostname} ]] || die "Invalid fully qualified name ${fqhostname} from ${hostname}."
+    [[ ${fqhostname} =~ ${hostname} ]] || { ewarn "Invalid fully qualified name ${fqhostname} from ${hostname}." ; return 1 ; }
 
     echo ${fqhostname}
     return 0
