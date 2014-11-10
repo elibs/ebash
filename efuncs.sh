@@ -256,7 +256,7 @@ eprompt()
     local opt=$2; opt=${opt^^}
     local opt_msg=""
     [[ -n ${opt} ]] && opt_msg=" ($(echo ${opt// //}))"
-    local txt=" ${msg}${opt_msg}"
+    local txt=" ${msg}${opt_msg}?"
 
     ## Keep reading input until a valid response is submitted
     while true; do
@@ -264,10 +264,11 @@ eprompt()
         echo -en "$(ecolor white) * ${txt}: $(ecolor none)" >&2
         local response=""
         read response < /dev/stdin
+        [[ -z ${opt} ]] && { echo -en "${response}"; return 0; }
+
+        ## Validate response
         response="${response^^}"
         edebug "Response=[${response}] valid=[${opt}]"
-
-        # Valid response?
         for o in ${opt}; do
             [[ ${response} == ${o} ]] && { echo -en "${response}"; return 0; }
         done
