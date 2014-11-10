@@ -567,6 +567,11 @@ getsubnet()
 #-----------------------------------------------------------------------------
 # MISC FS HELPERS
 #-----------------------------------------------------------------------------
+esource()
+{
+    source $@ || die "Failed to source $@"
+}
+
 epushd()
 {
     pushd $1 >/dev/null || die "pushd $1 failed"
@@ -657,6 +662,12 @@ erename()
     erm ${src}
 }
 
+etouch()
+{
+    [[ -z "$@" ]] && die "Missing argument(s)"
+    eval "touch $@" || die "touch $@ failed"
+}
+
 # Unmount (if mounted) and remove directory (if it exists) then create it anew
 efreshdir()
 {
@@ -698,6 +709,18 @@ etar()
     eval "tar ${args} $@" || die "[tar ${args} $@] failed"
     
     eend
+}
+
+esed()
+{
+    local fname=$1; argcheck fname; shift;
+    local cmd="sed -i"
+    for exp in "${@}"; do
+        cmd+=" -e $'${exp}'"
+    done
+
+    cmd+=" $'${fname}'"
+    eval "${cmd}" || die "${cmd} failed"
 }
 
 #-----------------------------------------------------------------------------                                    
