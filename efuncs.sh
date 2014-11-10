@@ -253,9 +253,9 @@ etable()
 eprompt()
 {
     local msg=$1; argcheck msg
-    local opt=$2; opt="${opt^^}"
+    local opt=$2
     local opt_msg=""
-    [[ -n ${opt} ]] && opt_msg=" ($(echo ${opt// //}))"
+    [[ -n ${opt} ]] && opt_msg=" ($(echo ${opt// /, }))"
     local txt=" ${msg}${opt_msg}"
 
     ## Keep reading input until a valid response is submitted
@@ -267,19 +267,18 @@ eprompt()
         [[ -z ${opt} ]] && { echo -en "${response}"; return 0; }
 
         ## Validate response
-        response="${response^^}"
         edebug "Response=[${response}] valid=[${opt}]"
         for o in ${opt}; do
-            [[ ${response} == ${o} ]] && { echo -en "${response}"; return 0; }
+            [[ ${response^^} == ${o^^} ]] && { echo -en "${o}"; return 0; }
         done
 
-        eerror "Invalid response=[${response}] -- please enter one of [${opt// //}]"
+        eerror "Invalid response=[${response}] -- please enter one of [${opt// /, }]"
     done
 }
 
 epromptyn()
 {
-    eprompt "$1" "y n"
+    eprompt "$1" "Y N"
 }
 
 trim()
