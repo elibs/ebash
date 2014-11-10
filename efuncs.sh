@@ -42,7 +42,7 @@ die()
     ifs_restore
    
     # If die() is fatal (via EFUNCS_FATAL) go ahead and kill everything in this process tree
-    [[ ${EFUNCS_FATAL:-1} -eq 1 ]] && { trap - EXIT ;  ekilltree $$; }
+    [[ ${EFUNCS_FATAL:-1} -eq 1 ]] && { trap - EXIT ;  kill 0 ; }
 
     exit 1
 }
