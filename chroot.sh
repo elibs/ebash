@@ -125,7 +125,7 @@ CHROOT_ENV="/usr/bin/env USER=root SUDO_USER=root HOME=/root DEBIAN_FRONTEND=non
 
 chroot_apt_update()
 {
-	chroot_cmd apt-get update >/dev/null
+    chroot_cmd apt-get update >/dev/null
 }
 
 chroot_apt_clean()
@@ -164,33 +164,33 @@ chroot_install_internal()
 
     # Post-install validation because ubuntu is entirely stupid and apt-get and aptitude can return
     # success even though the package is not installed successfully
-	for p in $@; do
-		
-		local pn=${p}
-		local pv=""
-		local op=""
+    for p in $@; do
+        
+        local pn=${p}
+        local pv=""
+        local op=""
 
-		if [[ ${p} =~ ([^>=<>]*)(>=|<=|<<|>>|=)(.*) ]]; then
-			pn="${BASH_REMATCH[1]}"
-			op="${BASH_REMATCH[2]}"
-			pv="${BASH_REMATCH[3]}"
-		fi
+        if [[ ${p} =~ ([^>=<>]*)(>=|<=|<<|>>|=)(.*) ]]; then
+            pn="${BASH_REMATCH[1]}"
+            op="${BASH_REMATCH[2]}"
+            pv="${BASH_REMATCH[3]}"
+        fi
 
-		# Actually installed
-		local actual=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || { ewarn "Failed to install [${pn}]"; return 1; })
-		local apn="${actual}"; apn=${apn%|*}
-		local apv="${actual}"; apv=${apv#*|}
-		
-		[[ ${pn} == ${apn} ]] || { ewarn "Mismatched package name wanted=[${pn}] actual=[${apn}]"; return 1; }
-	
-		## No explicit version check -- continue
-		[[ -z "${op}" || -z "${pv}" ]] && continue
+        # Actually installed
+        local actual=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || { ewarn "Failed to install [${pn}]"; return 1; })
+        local apn="${actual}"; apn=${apn%|*}
+        local apv="${actual}"; apv=${apv#*|}
+        
+        [[ ${pn} == ${apn} ]] || { ewarn "Mismatched package name wanted=[${pn}] actual=[${apn}]"; return 1; }
+    
+        ## No explicit version check -- continue
+        [[ -z "${op}" || -z "${pv}" ]] && continue
 
-		dpkg_compare_versions "${apv}" "${op}" "${pv}" || { ewarn "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"; return 1; }
-	
-	done
+        dpkg_compare_versions "${apv}" "${op}" "${pv}" || { ewarn "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"; return 1; }
+    
+    done
 
-	return 0
+    return 0
 }
 
 chroot_install()
@@ -359,8 +359,14 @@ chroot_setup()
     UBUNTU_ARCH=$5;    argcheck UBUNTU_ARCH
 
     [[ ${NOBANNER} -eq 1 ]] || ebanner "Setting up chroot [${CHROOT}]"
-    
-    ecp /etc/resolv.conf ${CHROOT}/etc/resolv.conf
+   
+    # Because of how we mount things while building up our chroot sometimes
+    # /etc/resolv.conf will be bind mounted into ${CHROOT}. When that happens
+    # calling 'cp' will fail b/c they refer to the same inodes. So we need
+    # to explicitly check for that here.
+    local src="/etc/resolv.conf"
+    local dst="${CHROOT}/etc/resolv.conf"
+    [[ "$(stat --format=%d.%i ${src})" != "$(stat --format=%d.%i ${dst})" ]] && ecp ${src} ${dst}
 
     ## MOUNT
     chroot_mount
