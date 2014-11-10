@@ -252,54 +252,33 @@ etable()
 
 eprompt()
 {
-    echo -en "$(ecolor white) * $@: $(ecolor none)" >&2
-    local result=""
+    local msg=$1; argcheck msg
+    local opt=$2; opt=${opt^^}
+    local opt_msg=""
+    [[ -n ${opt} ]] && opt_msg=" ($(echo ${opt// //}))"
+    local txt=" ${msg}${opt_msg}"
 
-    read result < /dev/stdin
-    
-    echo -en "${result}"
-}
+    ## Keep reading input until a valid response is submitted
+    while true; do
 
-eprompt_timeout()
-{
-    local timeout=$1 ; shift; [[ -z "${timeout}" ]] && die "Missing timeout value"
-    local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
-    
-    echo -en "$(ecolor white) * $@: $(ecolor none)" >&2
-    local result=""
+        echo -en "$(ecolor white) * ${txt}: $(ecolor none)" >&2
+        local response=""
+        read response < /dev/stdin
+        response="${response^^}"
+        edebug "Response=[${response}] valid=[${opt}]"
 
-    read result -t ${timeout} < /dev/stdin || result="${default}"
-    
-    echo -en "${result}"
+        # Valid response?
+        for o in ${opt}; do
+            [[ ${response} == ${o} ]] && { echo -en "${response}"; return 0; }
+        done
+
+        eerror "Invalid response (${response}) -- please enter one of [${opt// //}]"
+    done
 }
 
 epromptyn()
 {
-    while true; do
-        response=$(trap_and_die; eprompt "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
-        if [[ ${response} == "Y" || ${response} == "N" ]]; then
-            echo -en "${response}"
-            return
-        fi
-
-        eerror "Invalid response ($response) -- please enter Y or N"
-    done
-}
-
-epromptyn_timeout()
-{
-    local timeout=$1 ; shift; [[ -z "${timeout}" ]] && die "Missing timeout value"
-    local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
-
-    while true; do
-        local response=$(trap_and_die; eprompt_timeout "${timeout}" "${default}" "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
-        if [[ ${response} == "Y" || ${response} == "N" ]]; then
-            echo -en "${response}"
-            return
-        fi
-
-        eerror "Invalid response ($response) -- please enter Y or N"
-    done
+    eprompt "$1" "y n"
 }
 
 trim()
