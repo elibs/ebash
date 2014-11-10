@@ -854,11 +854,6 @@ ecmd_try()
     eval "${cmd}" || { rc=$?; ewarn "Failed to execute [$cmd]"; return $rc; }
 }
 
-etouch()
-{
-    ecmd "touch $@"
-}
-
 numcores()
 {
     [[ -e /proc/cpuinfo ]] || die "/proc/cpuinfo does not exist"
