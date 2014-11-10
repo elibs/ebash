@@ -665,7 +665,7 @@ erename()
 etouch()
 {
     [[ -z "$@" ]] && die "Missing argument(s)"
-    eval "touch $@" || die "touch $@ failed"
+    touch "$@" || die "touch $@ failed"
 }
 
 # Unmount (if mounted) and remove directory (if it exists) then create it anew
