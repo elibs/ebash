@@ -151,6 +151,12 @@ override_function eprompt '
     echo -en $(plymouth_prompt "${output}")
 }'
 
+override_function eprompt_timeout '
+{
+    ewarn_real "$@"
+    echo -en $(plymouth_prompt_timeout $@)
+}'
+
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
