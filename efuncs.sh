@@ -252,33 +252,54 @@ etable()
 
 eprompt()
 {
-    local msg=$1; argcheck msg
-    local opt=$2
-    local opt_msg=""
-    [[ -n ${opt} ]] && opt_msg=" ($(echo ${opt// /, }))"
-    local txt=" ${msg}${opt_msg}"
+    echo -en "$(ecolor white) * $@: $(ecolor none)" >&2
+    local result=""
 
-    ## Keep reading input until a valid response is submitted
-    while true; do
+    read result < /dev/stdin
+    
+    echo -en "${result}"
+}
 
-        echo -en "$(ecolor white) * ${txt}: $(ecolor none)" >&2
-        local response=""
-        read response < /dev/stdin
-        [[ -z ${opt} ]] && { echo -en "${response}"; return 0; }
+eprompt_timeout()
+{
+    local timeout=$1 ; shift; [[ -z "${timeout}" ]] && die "Missing timeout value"
+    local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
+    
+    echo -en "$(ecolor white) * $@: $(ecolor none)" >&2
+    local result=""
 
-        ## Validate response
-        edebug "Response=[${response}] valid=[${opt}]"
-        for o in ${opt}; do
-            [[ ${response^^} == ${o^^} ]] && { echo -en "${o}"; return 0; }
-        done
-
-        eerror "Invalid response=[${response}] -- please enter one of [${opt// /, }]"
-    done
+    read result -t ${timeout} < /dev/stdin || result="${default}"
+    
+    echo -en "${result}"
 }
 
 epromptyn()
 {
-    eprompt "$1" "Y N"
+    while true; do
+        response=$(trap_and_die; eprompt "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
+        if [[ ${response} == "Y" || ${response} == "N" ]]; then
+            echo -en "${response}"
+            return
+        fi
+
+        eerror "Invalid response ($response) -- please enter Y or N"
+    done
+}
+
+epromptyn_timeout()
+{
+    local timeout=$1 ; shift; [[ -z "${timeout}" ]] && die "Missing timeout value"
+    local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
+
+    while true; do
+        local response=$(trap_and_die; eprompt_timeout "${timeout}" "${default}" "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
+        if [[ ${response} == "Y" || ${response} == "N" ]]; then
+            echo -en "${response}"
+            return
+        fi
+
+        eerror "Invalid response ($response) -- please enter Y or N"
+    done
 }
 
 trim()
