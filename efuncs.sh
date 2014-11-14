@@ -260,39 +260,10 @@ eprompt()
     echo -en "${result}"
 }
 
-eprompt_timeout()
-{
-    local timeout=$1 ; shift; [[ -z "${timeout}" ]] && die "Missing timeout value"
-    local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
-    
-    echo -en "$(ecolor white) * $@: $(ecolor none)" >&2
-    local result=""
-
-    read result -t ${timeout} < /dev/stdin || result="${default}"
-    
-    echo -en "${result}"
-}
-
 epromptyn()
 {
     while true; do
         response=$(trap_and_die; eprompt "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
-        if [[ ${response} == "Y" || ${response} == "N" ]]; then
-            echo -en "${response}"
-            return
-        fi
-
-        eerror "Invalid response ($response) -- please enter Y or N"
-    done
-}
-
-epromptyn_timeout()
-{
-    local timeout=$1 ; shift; [[ -z "${timeout}" ]] && die "Missing timeout value"
-    local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
-
-    while true; do
-        local response=$(trap_and_die; eprompt_timeout "${timeout}" "${default}" "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
         if [[ ${response} == "Y" || ${response} == "N" ]]; then
             echo -en "${response}"
             return
