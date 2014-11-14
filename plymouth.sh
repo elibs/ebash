@@ -83,37 +83,6 @@ plymouth_prompt()
     echo -en "${result}"
 }
 
-plymouth_prompt_timeout()
-{
-    local timeout=$1 ; shift; [[ -z "${timeout}" ]] && die "Missing timeout value"
-    local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
-
-    local tmp="/tmp/.plymouth_prompt"
-    erm ${tmp}
-    plymouth ask-question --prompt="$@" --command="tee ${tmp}" &
-
-    local i=0
-    while true; do
-        if [[ -e ${tmp} ]]; then
-            break
-        fi
-
-        if [[ ${i} -gt ${timeout} ]]; then
-            plymouth_restart
-            echo -en "${default}"
-            break
-        fi
-
-        local left=$((timeout - $i))
-        plymouth_message "Will continue in ($left) seconds..."
-        sleep 1
-        i=$((i+1))
-    done
-
-    plymouth_message ""
-    erm ${tmp}
-}
-
 #-----------------------------------------------------------------------------
 # Interposed functions
 #-----------------------------------------------------------------------------
@@ -149,12 +118,6 @@ override_function eprompt '
     local output=$(compress_spaces "$@")
     ewarn_real "${output}"
     echo -en $(plymouth_prompt "${output}")
-}'
-
-override_function eprompt_timeout '
-{
-    ewarn_real "$@"
-    echo -en $(plymouth_prompt_timeout $@)
 }'
 
 #-----------------------------------------------------------------------------
