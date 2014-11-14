@@ -260,17 +260,33 @@ eprompt()
     echo -en "${result}"
 }
 
+# eprompt_with_options allows the caller to specify what options are valid
+# responses to the provided question. The caller can also optionally provide
+# a list of "secret" options which will not be displayed in the prompt to the
+# user but will be accepted as a valid response.
+eprompt_with_options()
+{
+    local msg="$1"; argcheck msg
+    local opt="$2"; argcheck opt
+    local secret="$3"
+    msg+=" ($(echo ${opt// /,}))"
+
+    ## Keep reading input until a valid response is given
+    while true; do
+        response=$(trap_and_die; eprompt "${msg}")
+        edebug "Response=[${response}] valid=[${opt}] secret=[${secret}]"
+        for o in ${opt} ${secret}; do
+            [[ ${response^^} == ${o^^} ]] && { echo -en "${o}"; return 0; }
+        done
+
+        eerror "Invalid response=[${response}] -- please enter one of [${opt// /,}]"
+    done
+}
+
 epromptyn()
 {
-    while true; do
-        response=$(trap_and_die; eprompt "$@ (Y/N)" | tr '[:lower:]' '[:upper:]')
-        if [[ ${response} == "Y" || ${response} == "N" ]]; then
-            echo -en "${response}"
-            return
-        fi
-
-        eerror "Invalid response ($response) -- please enter Y or N"
-    done
+    local msg="$1"; argcheck msg
+    eprompt_with_options "${msg}" "Y N"
 }
 
 trim()
