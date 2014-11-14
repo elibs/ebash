@@ -269,24 +269,25 @@ eprompt_with_options()
     local msg="$1"; argcheck msg
     local opt="$2"; argcheck opt
     local secret="$3"
+    local valid="$(echo ${opt} ${secret} | tr ' ' '\n' | sort --ignore-case --unique)"
     msg+=" ($(echo ${opt// /,}))"
 
     ## Keep reading input until a valid response is given
     while true; do
         response=$(trap_and_die; eprompt "${msg}")
-        edebug "Response=[${response}] valid=[${opt}] secret=[${secret}]"
-        for o in ${opt} ${secret}; do
-            [[ ${response^^} == ${o^^} ]] && { echo -en "${o}"; return 0; }
-        done
+        matches=( $(echo "${valid}" | grep -io "^${response}\S*") )
+        nmatches=${#matches[@]}
+        edebug "Response=[${response}] opt=[${opt}] secret=[${secret}] matches=[${matches[@]}] nmatches=[${#matches[@]}] valid=[${valid//\n/ }]"
+        [[ ${nmatches} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
 
-        eerror "Invalid response=[${response}] -- please enter one of [${opt// /,}]"
+        eerror "Invalid response=[${response}] -- use a unique prefix from options=[${opt// /,}]"
     done
 }
 
 epromptyn()
 {
     local msg="$1"; argcheck msg
-    eprompt_with_options "${msg}" "Y N"
+    eprompt_with_options "${msg}" "Yes No"
 }
 
 trim()
