@@ -269,7 +269,7 @@ eprompt_with_options()
     local msg="$1"; argcheck msg
     local opt="$2"; argcheck opt
     local secret="$3"
-    local valid="$(echo ${opt} ${secret} | tr ',' '\n' | sort --ignore-case --unique)"
+    local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"
 
     ## Keep reading input until a valid response is given
