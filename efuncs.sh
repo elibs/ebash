@@ -287,7 +287,7 @@ eprompt_with_options()
 epromptyn()
 {
     local msg="$1"; argcheck msg
-    eprompt_with_options "${msg}" "Yes No"
+    eprompt_with_options "${msg}" "Yes,No"
 }
 
 trim()
