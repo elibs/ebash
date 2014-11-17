@@ -269,8 +269,8 @@ eprompt_with_options()
     local msg="$1"; argcheck msg
     local opt="$2"; argcheck opt
     local secret="$3"
-    local valid="$(echo ${opt} ${secret} | tr ' ' '\n' | sort --ignore-case --unique)"
-    msg+=" ($(echo ${opt// /,}))"
+    local valid="$(echo ${opt} ${secret} | tr ',' '\n' | sort --ignore-case --unique)"
+    msg+=" (${opt})"
 
     ## Keep reading input until a valid response is given
     while true; do
@@ -280,7 +280,7 @@ eprompt_with_options()
         edebug "Response=[${response}] opt=[${opt}] secret=[${secret}] matches=[${matches[@]}] nmatches=[${#matches[@]}] valid=[${valid//\n/ }]"
         [[ ${nmatches} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
 
-        eerror "Invalid response=[${response}] -- use a unique prefix from options=[${opt// /,}]"
+        eerror "Invalid response=[${response}] -- use a unique prefix from options=[${opt}]"
     done
 }
 
