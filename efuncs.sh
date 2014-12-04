@@ -939,72 +939,74 @@ numcores()
 
 efetch_try()
 {
-    local dest=~/Downloads
-    [[ ! -e ${dest} ]] && dest=/tmp
-    dest+="/$(basename ${1})"
+    local url="${1}"
+    local dst="${2}"; [[ -z ${dst} ]] && dst="."
+    argcheck url dst
+    [[ -d ${dst} ]] && dst+="/$(basename ${url})"
 
-    eprogress "Fetching [${1}] to [${dest}]"
+    eprogress "Fetching $(lvalbr url dst)"
     
     local timecond=""
-    [[ -f ${dest} ]] && timecond="--time-cond ${dest}"
+    [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
-    curl "${1}" ${timecond} --output "${dest}" --location --fail --silent --show-error
+    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error
     local rc=$?
     eprogress_kill $rc
-    [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch [${1}]"; return $rc; }
+    [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch $(lvalbr url)"; return $rc; }
 
-    echo -n "${dest}"
+    return 0
 }
 
 efetch()
 {
-    local url="${1}"; argcheck url
+    local url="${1}"
+    local dst="${2}"; [[ -z ${dst} ]] && dst="."
+    argcheck url dst
 
-    local fetched=""
-    fetched=$(trap_and_die; efetch_try ${url}) || die "Failed to fetch [${url}]"
-    echo -n "${fetched}"
+    efetch_try "${url}" "${dst}" || die "Failed to fetch $(lvalbr url dst)"
 }
 
 efetch_with_md5_try()
 {
-    local url="${1}"; argcheck url
-
-    # Do not do both the declaration and assignment at same time or we fail to detect errors properly
     local rc=0
-    local md5=""
-    local img=""
-    
+    local url="${1}"
+    local dst="${2}"; [[ -z ${dst} ]] && dst="."
+    argcheck url dst
+    [[ -d ${dst} ]] && dst+="/$(basename ${url})"
+    local md5="${dst}.md5"
+
     # Fetch the md5 before the payload as we don't need to bother fetching payload if md5 is missing
-    md5=$(trap_and_die; efetch_try "${url}.md5") && img=$(trap_and_die; efetch_try "${url}") || rc=1
+    efetch_try "${url}.md5" "${md5}" && efetch_try "${url}" "${dst}" || rc=1
 
     ## Verify MD5 -- DELETE any corrupted images
     if [[ ${rc} -eq 0 ]]; then
-        argcheck img; argcheck md5
-
-        einfos "Verifying MD5 of [${img}] against [${md5}]"
-        epushd $(dirname ${img})
-        md5sum --check ${md5} >/dev/null
+        einfos "Verifying MD5 $(lvalbr dst md5)"
+        epushd $(dirname ${dst})
+        md5sum --check $(basename ${md5}) >/dev/null
         rc=$?
         epopd
     fi
 
     if [[ ${rc} -ne 0 ]]; then
-        ewarns "Removing ${md5} and ${img}"
-        [[ -n "${md5}" ]] && erm "${md5}" && md5=""
-        [[ -n "${img}" ]] && erm "${img}" && img=""
+        edebug "Removing $(lvalbr dst md5)"
+        erm "${dst}"
+        erm "${md5}"
     fi  
 
     [[ ${rc} -eq 0 ]] || return $rc
 
-    einfos "Successfully downloaded [${img}]"
-    echo -n "${img}"
+    einfos "Successfully downloaded $(lvalbr url dst)"
+
+    return 0
 }
 
 efetch_with_md5()
 {
-    local fetched=""
-    fetched=$(trap_and_die; efetch_with_md5_try $1) || die "Failed to fetch [${1}] with md5"
-    echo -n "${fetched}"
+    local url="${1}"
+    local dst="${2}"; [[ -z ${dst} ]] && dst="."
+    argcheck url dst
+ 
+    efetch_with_md5_try "${url}" "${dst}" || die "Failed to fetch $(lvalbr url dst)"
 }
 
 netselect()
