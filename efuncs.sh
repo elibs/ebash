@@ -430,8 +430,8 @@ eprogress_kill()
 lval()
 {
     # Setup delimiters
-    local ldelim="${LVAL_DELIM}"
-    local rdelim="${LVAL_DELIM}"
+    local ldelim="${LVAL_DELIM:-[}"
+    local rdelim="${LVAL_DELIM:-]}"
     [[ ${ldelim} == "[" ]] && rdelim="]"
     [[ ${ldelim} == "{" ]] && rdelim="}"
     [[ ${ldelim} == "(" ]] && rdelim=")"
