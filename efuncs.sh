@@ -385,7 +385,7 @@ do_eprogress()
 export __EPROGRESS_PID=-1
 eprogress()
 {
-    einfon "$@"
+    [[ -n $@ ]] && einfon "$@"
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return
@@ -771,9 +771,10 @@ erestore()
 
 etar()
 {
-    # Auto detect compression program based on extension but substitutde in pbzip2 for bzip and pigz for gzip
-    local args="--checkpoint=1000 --checkpoint-action=dot"
+    # Disable all tar warnings which are expected with unknown file types, sockets, etc.
+    local args="--warning=none"
 
+    # Auto detect compression program based on extension but substitutde in pbzip2 for bzip and pigz for gzip
     if [[ $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz") ]]; then
         args+=" --use-compress-program=pbzip2"
     elif [[ $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz") ]]; then
@@ -782,9 +783,9 @@ etar()
         args+=" --auto-compress"
     fi
 
-    eval "tar ${args} $@" || die "[tar ${args} $@] failed"
-    
-    eend
+    eprogress
+    ecmd tar ${args} $@
+    eprogress_kill $?
 }
 
 esed()
