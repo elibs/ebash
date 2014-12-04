@@ -385,7 +385,7 @@ do_eprogress()
 export __EPROGRESS_PID=-1
 eprogress()
 {
-    [[ -n $@ ]] && einfon "$@"
+    einfon "$@"
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return
@@ -783,9 +783,7 @@ etar()
         args+=" --auto-compress"
     fi
 
-    eprogress
-    ecmd tar ${args} $@
-    eprogress_kill $?
+    ecmd tar "${args}" "${@}"
 }
 
 esed()
