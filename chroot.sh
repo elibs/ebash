@@ -424,10 +424,14 @@ mkchroot()
     local GPG_FLAG="--no-check-gpg"
     [[ ${LSB_RELEASE} == "lucid" ]] && GPG_FLAG=""
 
-    local fetched=""
-    fetched=$(trap_and_die; efetch_with_md5_try "http://${HOST}/images/${CHROOT_IMAGE}")
+    # Try to download to /var/distbox/downloads if it exists. If it doesn't then fallback to /tmp
+    local dst="/tmp"
+    [[ -d "/var/distbox" ]] && dst="/var/distbox/downloads"
+    emkdir "${dst}"
+
+    efetch_with_md5_try "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
     if [[ $? -eq 0 ]]; then
-        debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${fetched}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
+        debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${dst}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
     else
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
     fi
