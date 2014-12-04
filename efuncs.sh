@@ -958,7 +958,7 @@ efetch_try()
 
 efetch()
 {
-    efetch_try $@ || die
+    efetch_try "${@}" || die
 }
 
 efetch_with_md5_try()
@@ -976,16 +976,16 @@ efetch_with_md5_try()
     ## Verify MD5 -- DELETE any corrupted images
     if [[ ${rc} -eq 0 ]]; then
         einfos "Verifying MD5 $(lvalbr dst md5)"
-        epushd $(dirname ${dst})
+        epushd $(dirname "${dst}")
         
         # If the requested destination was different than what was originally in the MD5 it will fail.
         # Or if the md5sum file was generated with a different path in it it will fail. This just
         # sanititizes it to have the current working directory and the name of the file we downloaded to.
         md5_raw=$(grep -v "#" "${md5}" | awk '{print $1}')
-        echo "${md5_raw} $(basename ${dst})" > "${md5}"
+        echo "${md5_raw} $(basename "${dst}")" > "${md5}"
         
         # Now we can perform the check
-        md5sum --check $(basename ${md5}) >/dev/null
+        md5sum --check $(basename "${md5}") >/dev/null
         rc=$?
         epopd
     fi
@@ -1005,7 +1005,7 @@ efetch_with_md5_try()
 
 efetch_with_md5()
 {
-    efetch_with_md5_try $@ || die
+    efetch_with_md5_try "${@}" || die
 }
 
 netselect()
