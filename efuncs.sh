@@ -416,13 +416,13 @@ eprogress_kill()
 # Log a list of variable in 'tag=value' form similar to our C++ logging idiom.
 # This function is variadic (takes variable number of arguments) and will log
 # the tag=value for each of them. If multiple arguments are given, they will 
-# be separated by a space, as in: 'tag=value tag2=value tag3=value3'
+# be separated by a space, as in: 'tag=[value] tag2=[value] tag3=[value3]'
 #
 # The global variable LVAL_DELIM controls what delimter is used around the
-# value portion. By default this is an empty string so that each value is not
-# delimited. But you can set this to anything you like to more easily delimit
-# the value portion. A few special symmetrical delimiters are recognized so 
-# if you give one of these it will use the corresponding closing symbols:
+# value portion. By default this uses [ ] as delimiters around the value.
+# You can set this to anything you like to more easily delimit the value 
+# portion. A few special symmetrical delimiters are recognized so if you give
+# one of these it will use the corresponding closing symbols:
 # [ ]
 # { }
 # ( )
