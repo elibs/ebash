@@ -22,7 +22,7 @@ die()
 {
     [[ ${DIE_IN_PROGRESS} -eq 1 ]] && exit 1
     DIE_IN_PROGRESS=1
-    eprogress_kill
+    eprogress_killall
 
     echo ""
     eerror "$@"
@@ -382,7 +382,7 @@ do_eprogress()
     done
 }
 
-export __EPROGRESS_PID=-1
+export __EPROGRESS_PIDS=""
 eprogress()
 {
     einfon "$@"
@@ -390,15 +390,13 @@ eprogress()
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return
 
-    # If another eprogress is already running just return as having nested tickers isn't useful
-    if [[ ${__EPROGRESS_PID} -ne -1 && $(kill -0 ${__EPROGRESS_PID}) -eq 0 ]]; then
-        return;
-    fi
-
-    do_eprogress&
-    __EPROGRESS_PID=$!    
+    ## Prepend this new eprogress pid to the front of our list of eprogress PIDs
+    do_eprogress &
+    export __EPROGRESS_PIDS="$! ${__EPROGRESS_PIDS}"
+    edebug "After starting eprogress $(lval __EPROGRESS_PIDS)"
 }
 
+# Kill the most recent eprogress in the event multiple ones are queued up.
 eprogress_kill()
 {
     local rc=${1:-0}
@@ -407,11 +405,23 @@ eprogress_kill()
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && { eend ${rc}; return; }
 
-    if [[ ${__EPROGRESS_PID} -ne -1 ]] ; then
-        ekill ${__EPROGRESS_PID} ${signal} &>/dev/null
-        __EPROGRESS_PID=-1
+    # Get the most recent pid
+    local pids=( ${__EPROGRESS_PIDS} )
+    edebug "Killing most recent $(lval __EPROGRESS_PIDS)"
+    if [[ ${#pids} -gt 0 ]]; then
+        ekill ${pids[0]} ${signal} &>/dev/null
+        export __EPROGRESS_PIDS="${pids[@]:1}"
+        edebug "After pid kill and removal $(lval __EPROGRESS_PIDS)"
         eend ${rc}
     fi
+}
+
+# Kill all eprogress pids
+eprogress_killall()
+{
+    while [[ -n ${__EPROGRESS_PIDS} ]]; do
+        eprogress_kill
+    done
 }
 
 #-----------------------------------------------------------------------------
