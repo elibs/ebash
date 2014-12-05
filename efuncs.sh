@@ -939,7 +939,7 @@ numcores()
 efetch_try()
 {
     local url="${1}"
-    local dst="${2}"; [[ -z ${dst} ]] && dst="."
+    local dst="${2}"; [[ -z ${dst} ]] && dst="/tmp"
     argcheck url dst
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
 
@@ -952,6 +952,10 @@ efetch_try()
     local rc=$?
     eprogress_kill $rc
     [[ ${rc} -eq 0 ]] || { eerror "Failed to fetch $(lvalbr url)"; return $rc; }
+
+    # For backwards compatibility with older scripts this will echo out the downloaded path
+    # if the newer syntax wasn't used
+    [[ -z ${2} ]] && echo -n "${dst}"
 
     return 0
 }
@@ -999,6 +1003,10 @@ efetch_with_md5_try()
     [[ ${rc} -eq 0 ]] || return $rc
 
     einfos "Successfully downloaded $(lvalbr url dst)"
+
+    # For backwards compatibility with older scripts this will echo out the downloaded path
+    # if the newer syntax wasn't used
+    [[ -z ${2} ]] && echo -n "${dst}"
 
     return 0
 }
