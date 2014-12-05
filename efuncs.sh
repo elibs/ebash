@@ -390,6 +390,11 @@ eprogress()
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return
 
+    # If another eprogress is already running just return as having nested tickers isn't useful
+    if [[ ${__EPROGRESS_PID} -ne -1 && $(kill -0 ${__EPROGRESS_PID}) -eq 0 ]]; then
+        return;
+    fi
+
     do_eprogress&
     __EPROGRESS_PID=$!    
 }
