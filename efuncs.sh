@@ -931,7 +931,7 @@ efetch_try()
     argcheck url dst
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
 
-    eprogress "Fetching $(lvalbr url dst)"
+    eprogress "Fetching $(lval url dst)"
     
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
@@ -939,7 +939,7 @@ efetch_try()
     curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error
     local rc=$?
     eprogress_kill $rc
-    [[ ${rc} -eq 0 ]] || { eerror "Failed to fetch $(lvalbr url)"; return $rc; }
+    [[ ${rc} -eq 0 ]] || { eerror "Failed to fetch $(lval url)"; return $rc; }
 
     # For backwards compatibility with older scripts this will echo out the downloaded path
     # if the newer syntax wasn't used
@@ -967,7 +967,7 @@ efetch_with_md5_try()
 
     ## Verify MD5 -- DELETE any corrupted images
     if [[ ${rc} -eq 0 ]]; then
-        einfos "Verifying MD5 $(lvalbr dst md5)"
+        einfos "Verifying MD5 $(lval dst md5)"
         epushd $(dirname "${dst}")
         
         # If the requested destination was different than what was originally in the MD5 it will fail.
@@ -983,14 +983,14 @@ efetch_with_md5_try()
     fi
 
     if [[ ${rc} -ne 0 ]]; then
-        edebug "Removing $(lvalbr dst md5)"
+        edebug "Removing $(lval dst md5)"
         erm "${dst}"
         erm "${md5}"
     fi  
 
     [[ ${rc} -eq 0 ]] || return $rc
 
-    einfos "Successfully downloaded $(lvalbr url dst)"
+    einfos "Successfully downloaded $(lval url dst)"
 
     # For backwards compatibility with older scripts this will echo out the downloaded path
     # if the newer syntax wasn't used
