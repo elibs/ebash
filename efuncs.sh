@@ -969,7 +969,7 @@ efetch_with_md5_try()
 {
     local rc=0
     local url="${1}"
-    local dst="${2}"; [[ -z ${dst} ]] && dst="."
+    local dst="${2}"; [[ -z ${dst} ]] && dst="/tmp"
     argcheck url dst
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     local md5="${dst}.md5"
