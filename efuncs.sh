@@ -428,67 +428,40 @@ eprogress_killall()
 # LOGGING
 #-----------------------------------------------------------------------------
 
-# Log a list of variable in 'tag=value' form similar to our C++ logging idiom.
+# Log a list of variable in tag="value" form similar to our C++ logging idiom.
 # This function is variadic (takes variable number of arguments) and will log
-# the tag=value for each of them. If multiple arguments are given, they will 
-# be separated by a space, as in: 'tag=[value] tag2=[value] tag3=[value3]'
+# the tag="value" for each of them. If multiple arguments are given, they will 
+# be separated by a space, as in: tag="value" tag2="value" tag3="value3"
 #
-# The global variable LVAL_DELIM controls what delimter is used around the
-# value portion. By default this uses [ ] as delimiters around the value.
-# You can set this to anything you like to more easily delimit the value 
-# portion. A few special symmetrical delimiters are recognized so if you give
-# one of these it will use the corresponding closing symbols:
-# [ ]
-# { }
-# ( )
-# < >
+# The type of the variable will dictate the delimiter used around the value
+# portion. Wherever possible this is meant to generally mimic how the types
+# are declared and defined. Specifically:
+#
+# - Strings: delimited by double quotes.
+# - Arrays: Delimited by ( ).
+# - Associative Arrays: Delimited by { }
+#
+# Examples:
+# String: tag="value1"
+# Arrays: tag=("value1" "value2 with spaces" "another")
+# Associative Arrays: tag={[key1]="value1" [key2]="value2 with spaces"}
+# 
 lval()
 {
-    # Setup delimiters
-    local ldelim="${LVAL_DELIM:-[}"
-    local rdelim="${LVAL_DELIM:-]}"
-    [[ ${ldelim} == "[" ]] && rdelim="]"
-    [[ ${ldelim} == "{" ]] && rdelim="}"
-    [[ ${ldelim} == "(" ]] && rdelim=")"
-    [[ ${ldelim} == "<" ]] && rdelim=">"
-
     local idx=0
     for arg in $@; do
-        local val="${!arg}"
+       
+        # The tag to display
+        local tag="${arg}"
+
+        [[ "$(declare -p ${tag})" =~ "declare --" ]] && { val=$(declare -p ${arg} | awk -F= '{print $2}'); } 
+        [[ "$(declare -p ${tag})" =~ "declare -a" ]] && { val=$(declare -p ${arg} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
+        [[ "$(declare -p ${tag})" =~ "declare -A" ]] && { val=$(declare -p ${arg} | sed -e "s/[^=]*='(\(.*\))'/{\1}/"); }
+        
         [[ ${idx} -gt 0 ]] && echo -n " "
-        echo -n "${arg}=${ldelim}${val}${rdelim}"
+        echo -n "${tag}=${val}"
         idx=$((idx+1))
     done
-}
-
-# lval with [ ] delimiters
-lvalbr()
-{
-    LVAL_DELIM="[" lval $@
-}
-
-# lval with { } delimiters
-lvalcb()
-{
-    LVAL_DELIM="{" lval $@
-}
-
-# lval with ( ) delimiters
-lvalp()
-{
-    LVAL_DELIM="(" lval $@
-}
-
-# lval with "" delimiters
-lvalq()
-{
-    LVAL_DELIM='"' lval $@
-}
-
-# lval with '' delimiters
-lvalsq()
-{
-    LVAL_DELIM="'" lval $@
 }
 
 #-----------------------------------------------------------------------------
