@@ -451,12 +451,15 @@ lval()
     local idx=0
     for arg in $@; do
        
-        # The tag to display
+        # The tag and default value to display
         local tag="${arg}"
+        local val="$(declare -p ${arg} | awk -F= '{print $2}')"
 
-        [[ "$(declare -p ${tag})" =~ "declare --" ]] && { val=$(declare -p ${arg} | awk -F= '{print $2}'); } 
+        # Special handling for arrays and associative arrays
         [[ "$(declare -p ${tag})" =~ "declare -a" ]] && { val=$(declare -p ${arg} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
         [[ "$(declare -p ${tag})" =~ "declare -A" ]] && { val=$(declare -p ${arg} | sed -e "s/[^=]*='(\(.*\))'/{\1}/"); }
+
+    	edebug "idx=[${idx}] arg=[${arg}] tag=[${tag}] val=[${val}] declare_tag=[$(declare -p ${tag})] declare_arg=[$(declare -p ${arg})]"
         
         [[ ${idx} -gt 0 ]] && echo -n " "
         echo -n "${tag}=${val}"
