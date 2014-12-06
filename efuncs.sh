@@ -554,7 +554,7 @@ hostname_to_ip()
     argcheck hostname
 
     local output hostrc ip
-    output="$(host ${hostname} | ' has address ')"
+    output="$(host ${hostname} | grep ' has address ')"
     hostrc=$?
     edebug "hostname_to_ip $(lval hostname output)"
     [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
