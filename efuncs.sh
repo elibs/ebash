@@ -977,7 +977,7 @@ efetch_with_md5_try()
         # Or if the md5sum file was generated with a different path in it it will fail. This just
         # sanititizes it to have the current working directory and the name of the file we downloaded to.
         md5_raw=$(grep -v "#" "${md5}" | awk '{print $1}')
-        echo "${md5_raw} $(basename \"${dst}\")" > "${md5}"
+        echo "${md5_raw} $(basename ${dst})" > "${md5}"
         
         # Now we can perform the check
         md5sum --check $(basename "${md5}") >/dev/null
