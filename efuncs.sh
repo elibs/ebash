@@ -245,7 +245,7 @@ etable()
         if [[ ${lnum} -eq 1 || ${lnum} -eq $# ]]; then
             printf "%s\n" ${divider}
         else
-            printf "%s\n" ${divider//+/|}
+            [[ ${ETABLE_ROW_LINES} != 0 ]] && printf "%s\n" ${divider//+/|}
         fi
     done
 }
@@ -831,7 +831,7 @@ emd5sum_check()
 emounted()
 {
     [[ $(strip "${1}") == "" ]] && return 1
-    grep --color=never --silent $(readlink -f ${1}) /proc/mounts /etc/mtab &>/dev/null && return 0
+    grep --color=never --silent $(readlink -f ${1}) /proc/mounts &>/dev/null && return 0
     return 1
 }
 
@@ -873,7 +873,7 @@ eunmount_recursive()
     for m in $@; do
         local rdev=$(readlink -f ${m})
         ifs_save; ifs_nl
-        for p in $(cat /proc/mounts /etc/mtab | grep -P "(^| )${rdev}[/ ]" | awk '{print $2}' | sort -ur); do
+        for p in $(grep -P "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur); do
             edebug "Unmounting ${p}"
             eunmount ${p}
         done
