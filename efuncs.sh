@@ -810,7 +810,7 @@ emd5sum()
 # Wrapper around checking an md5sum file by pushd into the directory that contains
 # the md5 file so that paths to the file don't affect the md5sum check. This
 # assumes that the md5 file is a sibling next to the source file with the suffix
-# 'md5'. This method does NOT die on failure but returns 0 on success.
+# 'md5'. This method will die() on failure.
 emd5sum_check()
 {
     local path=$1
@@ -820,13 +820,8 @@ emd5sum_check()
     local dname=$(dirname  "${path}")
 
     epushd "${dname}"
-    md5sum -c "${fname}.md5"
-    rc=$?
+    ecmd md5sum -c "${fname}.md5"
     epopd
-
-    [[ ${rc} -eq 0 ]] || ewarn "md5sum check failed $(lval path)"
-    
-    return ${rc}
 }
 
 #-----------------------------------------------------------------------------                                    
