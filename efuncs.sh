@@ -459,7 +459,7 @@ lval()
         [[ "$(declare -p ${tag})" =~ "declare -a" ]] && { val=$(declare -p ${arg} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
         [[ "$(declare -p ${tag})" =~ "declare -A" ]] && { val=$(declare -p ${arg} | sed -e "s/[^=]*='(\(.*\))'/{\1}/"); }
 
-    	edebug "idx=[${idx}] arg=[${arg}] tag=[${tag}] val=[${val}] declare_tag=[$(declare -p ${tag})] declare_arg=[$(declare -p ${arg})]"
+        edebug "idx=[${idx}] arg=[${arg}] tag=[${tag}] val=[${val}] declare_tag=[$(declare -p ${tag})] declare_arg=[$(declare -p ${arg})]"
         
         [[ ${idx} -gt 0 ]] && echo -n " "
         echo -n "${tag}=${val}"
@@ -787,6 +787,45 @@ esed()
 
     cmd+=" $'${fname}'"
     eval "${cmd}" || die "${cmd} failed"
+}
+
+# Wrapper around creating an md5sum file to pushd into the directory we're creating
+# the file in so that there are no paths in the created md5sum file. The created 
+# md5 file will be located as a sibling next to the provided file path with an 
+# md5 extension. This method will die() on failure.
+emd5sum()
+{
+    local path=$1
+    argcheck path
+    
+    local fname=$(basename "${path}")
+    local dname=$(dirname  "${path}")
+
+    epushd "${dname}"
+    md5sum "${fname}" > "${fname}.md5" || die "Failed to create ${fname}.md5"
+    epopd
+}
+
+# Wrapper around checking an md5sum file by pushd into the directory that contains
+# the md5 file so that paths to the file don't affect the md5sum check. This
+# assumes that the md5 file is a sibling next to the source file with the suffix
+# 'md5'. This method does NOT die on failure but returns 0 on success.
+emd5sum_check()
+{
+    local path=$1
+    argcheck path
+    
+    local fname=$(basename "${path}")
+    local dname=$(dirname  "${path}")
+
+    epushd "${dname}"
+    md5sum -c "${fname}.md5"
+    rc=$?
+    epopd
+
+    [[ ${rc} -eq 0 ]] || ewarn "md5sum check failed $(lval path)"
+    
+    return ${rc}
 }
 
 #-----------------------------------------------------------------------------                                    
