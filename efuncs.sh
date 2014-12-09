@@ -789,20 +789,21 @@ esed()
     eval "${cmd}" || die "${cmd} failed"
 }
 
-# Wrapper around creating an md5sum file to pushd into the directory we're creating
-# the file in so that there are no paths in the created md5sum file. The created 
-# md5 file will be located as a sibling next to the provided file path with an 
-# md5 extension. This method will die() on failure.
+# Wrapper around computing the md5sum of a file to output just the filename
+# instead of the full path to the filename. This is a departure from normal
+# md5sum for good reason. If you download an md5 file with a path embedded into
+# it then the md5sum can only be validated if you put it in the exact same path.
+# This function will die() on failure.
 emd5sum()
 {
     local path=$1
     argcheck path
-    
-    local fname=$(basename "${path}")
+   
     local dname=$(dirname  "${path}")
+    local fname=$(basename "${path}")
 
     epushd "${dname}"
-    md5sum "${fname}" > "${fname}.md5" || die "Failed to create ${fname}.md5"
+    md5sum "${fname}" || die "Failed to compute md5 $(lval path)"
     epopd
 }
 
