@@ -393,7 +393,6 @@ eprogress()
     ## Prepend this new eprogress pid to the front of our list of eprogress PIDs
     do_eprogress &
     export __EPROGRESS_PIDS="$! ${__EPROGRESS_PIDS}"
-    edebug "After starting eprogress $(lval __EPROGRESS_PIDS)"
 }
 
 # Kill the most recent eprogress in the event multiple ones are queued up.
@@ -407,11 +406,9 @@ eprogress_kill()
 
     # Get the most recent pid
     local pids=( ${__EPROGRESS_PIDS} )
-    edebug "Killing most recent $(lval __EPROGRESS_PIDS)"
     if [[ ${#pids} -gt 0 ]]; then
         ekill ${pids[0]} ${signal} &>/dev/null
         export __EPROGRESS_PIDS="${pids[@]:1}"
-        edebug "After pid kill and removal $(lval __EPROGRESS_PIDS)"
         eend ${rc}
     fi
 }
@@ -830,8 +827,11 @@ emd5sum_check()
 
 emounted()
 {
-    [[ $(strip "${1}") == "" ]] && return 1
-    grep --color=never --silent $(readlink -f ${1}) /proc/mounts &>/dev/null && return 0
+    local path=$(strip $(readlink -f ${1} 2>/dev/null))
+    edebug "Checking if $(lval path) is mounted"
+    [[ -z ${path} ]] && return 1
+
+    grep --color=never --silent "${path}" /proc/mounts &>/dev/null && return 0
     return 1
 }
 
