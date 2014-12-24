@@ -139,6 +139,13 @@ etimestamp()
     echo -en "[$(date '+%b %d %T')] "
 }
 
+# Display a very prominent banner with a provided message which may be multi-line
+# and an optional timestamp as well as the ability to provide any number of extra
+# arguments which will be included in the banner in a pretty printed tag=value
+# format. Additionally, you can utilize the global EBANNER_DETAILS associative
+# array which will get automatically expanded with each entry in the associative
+# array being logged in the same tag=value form. All of this is implemented with
+# print_value to give consistency in how we log and present information.
 ebanner()
 {
     echo "" >&2
@@ -148,15 +155,57 @@ ebanner()
     echo -e "$(ecolor magenta)+${str}+" >&2
     echo -e "|" >&2
 
+    # Print the first message honoring any newlines
+    local message="$1"; shift
     ifs_save; ifs_nl
-    for line in $@; do
+    for line in "${message}"; do
         echo -e "| $line" >&2
     done
-    ifs_restore
-    
-    echo -e "|" >&2
+
+    # Timestamp
     local stamp=$(etimestamp)
-    [[ -n ${stamp} ]] && { echo -e "| Time=${stamp}" >&2; echo -e "|" >&2; }
+    [[ -n ${stamp} ]] && { echo -e "|\n| Time=${stamp}" >&2; }
+
+    # Grab contents of optional EBANNER_DETAILS associative array
+    declare -A details;
+    for key in ${!EBANNER_DETAILS[@]}; do
+        details[${key}]=$(print_value EBANNER_DETAILS[${key}])
+    done
+
+    # Iterate over all other arguments and stick them into an associative array
+    # If a custom key was requested via "key=value" format then use the provided
+    # key and lookup value via print_value.
+    for k in $@; do
+        local _ktag="${k%%=*}"; [[ -z ${_ktag} ]] && _ktag="${k}"
+        local _kval="${k#*=}";
+        details[${_ktag}]=$(print_value ${_kval})
+    done
+  
+    # Now output all the details (if any)
+    if [[ ${#details[@]} -ne 0 ]]; then
+        echo -e "|" >&2
+
+        # Sort the keys and store into an array
+        local keys=( $(for key in ${!details[@]}; do echo "${key}"; done | sort) )
+
+        # Figure out the longest key
+        local longest=0
+        for key in ${keys[@]}; do
+            local len=${#key}
+            (( len > longest )) && longest=$len
+        done
+
+        # Iterate over the keys of the associative array and print out the values
+        for key in ${keys[@]}; do
+            local pad=$((longest-${#key}+1))
+            printf "| • %s%${pad}s :: %s\n" ${key} " " ${details[$key]} >&2
+        done
+    fi
+
+    ifs_restore
+
+    # Close the banner
+    echo -e "|" >&2
     echo -e "+${str}+$(ecolor none)" >&2
 }
 
