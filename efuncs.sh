@@ -426,41 +426,93 @@ eprogress_killall()
 # LOGGING
 #-----------------------------------------------------------------------------
 
-# Log a list of variable in tag="value" form similar to our C++ logging idiom.
-# This function is variadic (takes variable number of arguments) and will log
-# the tag="value" for each of them. If multiple arguments are given, they will 
-# be separated by a space, as in: tag="value" tag2="value" tag3="value3"
+# Print the value for the corresponding variable using a slightly modified
+# version of what is returned by declare -p. This is the lower level function
+# called by lval in order to easily print tag=value for the provided arguments
+# to lval. The type of the variable will dictate the delimiter used around the
+# value portion. Wherever possible this is meant to generally mimic how the
+# types are declared and defined.
 #
-# The type of the variable will dictate the delimiter used around the value
-# portion. Wherever possible this is meant to generally mimic how the types
-# are declared and defined. Specifically:
+# Specifically:
 #
 # - Strings: delimited by double quotes.
 # - Arrays: Delimited by ( ).
 # - Associative Arrays: Delimited by { }
 #
 # Examples:
-# String: tag="value1"
-# Arrays: tag=("value1" "value2 with spaces" "another")
-# Associative Arrays: tag={[key1]="value1" [key2]="value2 with spaces"}
-# 
+# String: "value1"
+# Arrays: ("value1" "value2 with spaces" "another")
+# Associative Arrays: {[key1]="value1" [key2]="value2 with spaces"}
+print_value()
+{
+    local __input="${1}"
+    [[ -z ${__input} ]] && return
+
+    # Magically expand things of the form MYARRAY[key] to allow more natural
+    # logging of elements within an array or an associative array. The
+    # implementation of this terrible because bash doesn't actually support
+    # natrual things like exporting an array or passing an array between
+    # functions. Worse, you can't just say something simple like:
+    # eval ${!MYARRAY[${key}]} because that would just be too simple.
+    # SO... the way this works is to use declare -p to create a new local
+    # array to this function from the named one that was passed in and then
+    # lookup the requested key in _THAT_ array. Magic.
+    if [[ ${__input} =~ (.*)\[(.*)\] ]] ; then
+        local array_name="${BASH_REMATCH[1]}"
+        local key_name="${BASH_REMATCH[2]}"
+        local code="$(declare -p ${array_name})"
+        code=${code/${array_name}/array}
+        eval "${code}"
+
+        # FINALLY we can lookup the requested key from our new local array.
+        echo -n "\"${array[$key_name]}\""
+
+        return
+    fi
+
+    local decl=$(declare -p ${__input} 2>/dev/null)
+    local val=$(echo ${decl} | cut -d= -f2-)
+
+    # If decl is empty just print out it's raw value as it's NOT a variable!!
+    # This is really important so that you can do simple things like
+    # $(print_value /home/marshall) and it'll just pass through that value
+    # as is but with the proper formatting and quoting.
+    [[ -z ${decl} ]] && val='"'${__input}'"'
+
+    # Deal with properly delcared variables which are empty
+    [[ -z ${val} ]] && val='""'
+
+    # Special handling for arrays and associative arrays
+    [[ ${decl} =~ "declare -a" ]] && { val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
+    [[ ${decl} =~ "declare -A" ]] && { val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/{\1}/"); }
+
+    echo -n "${val}"
+}
+
+# Log a list of variable in tag="value" form similar to our C++ logging idiom.
+# This function is variadic (takes variable number of arguments) and will log
+# the tag="value" for each of them. If multiple arguments are given, they will 
+# be separated by a space, as in: tag="value" tag2="value" tag3="value3"
+#
+# This is implemented via calling print_value on each entry in the argument
+# list. The one other really handy thing this does is understand our C++
+# LVAL2 idiom where you want to log something with a _different_ key. So
+# you can say nice things like:
+#
+# $(lval PWD=$(pwd) VARS=myuglylocalvariablename)
 lval()
 {
     local idx=0
-    for arg in $@; do
-       
-        # The tag and default value to display
-        local tag="${arg}"
-        local decl=$(declare -p ${tag} 2>/dev/null)
-        local val=$(echo ${decl} | awk -F= '{print $2}')
-        [[ -z ${val} ]] && val='""'
-
-        # Special handling for arrays and associative arrays
-        [[ ${decl} =~ "declare -a" ]] && { val=$(declare -p ${arg} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
-        [[ ${decl} =~ "declare -A" ]] && { val=$(declare -p ${arg} | sed -e "s/[^=]*='(\(.*\))'/{\1}/"); }
-
+    for __arg in $@; do
+        
+        # Tag provided?
+        local __arg_tag="${__arg%%=*}"; [[ -z ${__arg_tag} ]] && __arg_tag="${__arg}"
+        local __arg_val="${__arg#*=}";
+        __arg_val="$(print_value ${__arg_val})"
+        
         [[ ${idx} -gt 0 ]] && echo -n " "
-        echo -n "${tag}=${val}"
+        echo -n "${__arg_tag}=${__arg_val}"
+        
         idx=$((idx+1))
     done
 }
