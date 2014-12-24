@@ -156,9 +156,9 @@ ebanner()
     echo -e "|" >&2
 
     # Print the first message honoring any newlines
-    local message="$1"; shift
     ifs_save; ifs_nl
-    for line in "${message}"; do
+    local lines=( "$1" ); shift
+    for line in ${lines[@]}; do
         echo -e "| $line" >&2
     done
 
