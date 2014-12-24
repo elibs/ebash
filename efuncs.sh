@@ -162,8 +162,9 @@ ebanner()
 
 eprefix()
 {
+    local default="${1:- *}"
     local prefix=$(etimestamp)
-    [[ -z ${prefix} ]] && prefix=" * "
+    [[ -z ${prefix} ]] && prefix="${default} "
     echo -en "${prefix}"
 }
 
@@ -200,7 +201,7 @@ ewarns()
 
 eerror()
 {
-    echo -e "$(ecolor red)!! $@ !! $(ecolor none)" >&2
+    echo -e "$(ecolor red)$(eprefix '!!')$@ !! $(ecolor none)" >&2
 }
 
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
