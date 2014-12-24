@@ -1090,6 +1090,72 @@ EOF
     echo -en "${best}"
 }
 
+# eretry executes arbitrary shell commands for you, enforcing a timeout in
+# seconds and retrying up to a specified count.  If the command is successful,
+# retries stop.  If not, eretry will "die".
+#
+# If you use EFUNCS_FATAL=0, rather than calling die, eretry will return the
+# error code from the last attempt. Commands that timeout will return exit code
+# 124, unless they die from sigkill in which case they'll return exit code 137.
+#
+# TIMEOUT=<duration>
+#   After this duration, command will be killed (and retried if that's the
+#   right thing to do).  If unspecified, commands may run as long as they like
+#   and eretry will simply wait for them to finish.
+#
+#   If it's a simple number, the duration will be a number in seconds.  You may
+#   also specify suffixes in the same format the timeout command accepts them.
+#   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
+#   days, respectively.
+#
+# SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
+#   When ${TIMEOUT} seconds have passed since running the command, this will be
+#   the signal to send to the process to make it stop.  The default is TERM.
+#   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
+#   signal doesn't do its job]
+#
+# RETRIES=<number>
+#   Command will be attempted <number> times total.
+#
+# All direct parameters to eretry are assumed to be the command to execute, and
+# eretry is careful to retain your quoting.
+#
+eretry()
+{
+    local try rc cmd exit_codes
+
+    argcheck RETRIES
+    [[ ${RETRIES} -le 0 ]] && RETRIES=1
+
+    SIGNAL=${SIGNAL:-TERM}
+
+    cmd=("${@}")
+    argcheck cmd
+
+    rc=1
+    exit_codes=()
+    for (( try=0 ; $rc != 0 && try < RETRIES ; try++ )) ; do
+        if [[ -n ${TIMEOUT} ]] ; then
+            timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
+            rc=$?
+        else
+            "${@}"
+            rc=$?
+        fi
+        exit_codes+=(${rc})
+
+        [[ ${rc} -ne 0 ]] && edebug "eretry: trying again $(lval rc try cmd)"
+    done
+
+    if [[ ${rc} -ne 0 ]] ; then
+        # Return last exit code if EFUNCS_FATAL isn't supposed to kill the process
+        [[ ${EFUNCS_FATAL:-1} -ne 1 ]] && { ewarn "eretry: failed $(lval cmd exit_codes)" ; return ${rc} ; }
+
+        # Or go ahead and die if EFUNCS_FATAL is set
+        die "eretry: failed $(lval cmd exit_codes)"
+    fi
+}
+
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
