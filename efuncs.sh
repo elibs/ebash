@@ -142,10 +142,16 @@ etimestamp()
 # Display a very prominent banner with a provided message which may be multi-line
 # and an optional timestamp as well as the ability to provide any number of extra
 # arguments which will be included in the banner in a pretty printed tag=value
-# format. Additionally, you can utilize the global EBANNER_DETAILS associative
-# array which will get automatically expanded with each entry in the associative
-# array being logged in the same tag=value form. All of this is implemented with
-# print_value to give consistency in how we log and present information.
+# format. Additionally, for any argument which is an associative array, you can 
+# choose if you want it logged as a signale parameter or expanded into tag=value
+# within the details section. If you want it logged as a single parameter inside
+# the details section just pass it by name as you always would. If instead you want
+# the associative array expanded for you into multiple tag=value pairs to be each
+# included individually in the details section precede the parameter name with a '!'
+# as in !ARRAY.
+# 
+# All of this is implemented with print_value to give consistency in how we log
+# and present information.
 ebanner()
 {
     echo "" >&2
@@ -166,19 +172,37 @@ ebanner()
     local stamp=$(etimestamp)
     [[ -n ${stamp} ]] && { echo -e "|\n| Time=${stamp}" >&2; }
 
-    # Grab contents of optional EBANNER_DETAILS associative array
-    declare -A details;
-    for key in ${!EBANNER_DETAILS[@]}; do
-        details[${key}]=$(print_value EBANNER_DETAILS[${key}])
-    done
-
     # Iterate over all other arguments and stick them into an associative array
     # If a custom key was requested via "key=value" format then use the provided
     # key and lookup value via print_value.
+    declare -A details;
     for k in $@; do
-        local _ktag="${k%%=*}"; [[ -z ${_ktag} ]] && _ktag="${k}"
-        local _kval="${k#*=}";
-        details[${_ktag}]=$(print_value ${_kval})
+
+        # Magically expand arrays prefixed with bang operator ('!') to allow
+        # more natural logging of elements within an array or an associative
+        # array individiaually within the details section instead of all on
+        # one line. The implementation of this terrible because bash doesn't
+        # actually support natural things like exporting an array or passing
+        # an array between functions. Worse, you can't just say something
+        # simple like: eval ${!MYARRAY[${key}]} because that would just be
+        # too simple. SO... the way this works is to use declare -p to create
+        # a new local array to this function from the named one that was passed
+        # in and then lookup the requested key in _THAT_ array. Magic.
+        if [[ ${k:0:1} == "!" ]]; then
+            
+            local array_name="${k:1}"
+            local code="$(declare -p ${array_name})"
+            code=${code/${array_name}/array}
+            eval "${code}"
+
+            for akey in ${!array[@]}; do
+                details[${akey}]=$(print_value "${array[$akey]}")
+            done
+        else
+            local _ktag="${k%%=*}"; [[ -z ${_ktag} ]] && _ktag="${k}"
+            local _kval="${k#*=}";
+            details[${_ktag}]=$(print_value ${_kval})
+        fi
     done
   
     # Now output all the details (if any)
@@ -500,7 +524,7 @@ print_value()
     # Magically expand things of the form MYARRAY[key] to allow more natural
     # logging of elements within an array or an associative array. The
     # implementation of this terrible because bash doesn't actually support
-    # natrual things like exporting an array or passing an array between
+    # natural things like exporting an array or passing an array between
     # functions. Worse, you can't just say something simple like:
     # eval ${!MYARRAY[${key}]} because that would just be too simple.
     # SO... the way this works is to use declare -p to create a new local
