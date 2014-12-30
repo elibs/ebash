@@ -175,7 +175,7 @@ ebanner()
     # Iterate over all other arguments and stick them into an associative array
     # If a custom key was requested via "key=value" format then use the provided
     # key and lookup value via print_value.
-    declare -A details;
+    declare -A __details;
     for k in $@; do
 
         # Magically expand arrays prefixed with bang operator ('!') to allow
@@ -196,21 +196,21 @@ ebanner()
             eval "${code}"
 
             for akey in ${!array[@]}; do
-                details[${akey}]=$(print_value "${array[$akey]}")
+                __details[${akey}]=$(print_value "${array[$akey]}")
             done
         else
             local _ktag="${k%%=*}"; [[ -z ${_ktag} ]] && _ktag="${k}"
             local _kval="${k#*=}";
-            details[${_ktag}]=$(print_value ${_kval})
+            __details[${_ktag}]=$(print_value ${_kval})
         fi
     done
   
     # Now output all the details (if any)
-    if [[ ${#details[@]} -ne 0 ]]; then
+    if [[ ${#__details[@]} -ne 0 ]]; then
         echo -e "|" >&2
 
         # Sort the keys and store into an array
-        local keys=( $(for key in ${!details[@]}; do echo "${key}"; done | sort) )
+        local keys=( $(for key in ${!__details[@]}; do echo "${key}"; done | sort) )
 
         # Figure out the longest key
         local longest=0
@@ -222,7 +222,7 @@ ebanner()
         # Iterate over the keys of the associative array and print out the values
         for key in ${keys[@]}; do
             local pad=$((longest-${#key}+1))
-            printf "| • %s%${pad}s :: %s\n" ${key} " " ${details[$key]} >&2
+            printf "| • %s%${pad}s :: %s\n" ${key} " " ${__details[$key]} >&2
         done
     fi
 
