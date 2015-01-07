@@ -1246,8 +1246,6 @@ eretry()
 # setvars takes a template file with optional variables inside the file which 
 # are surrounded on both sides by two underscores.  It will replace the variable
 # (and surrounding underscores) with a value you specify in the environment.
-# You specify that value by setting an environment variable of the same name
-# (without the surrounding underscores).
 #
 # For example, if the input file looks like this:
 #   Hi __NAME__, my name is __OTHERNAME__.
@@ -1256,12 +1254,24 @@ eretry()
 # The inputfile will be modified IN PLACE to contain:
 #   Hi Bill, my name is Ted.
 #
-# After all variables have been expanded in the provided file, a final check
-# is performed to see if all variables were set properly. If SETVARS_FATAL is
-# 1 (the default) it will call die() and dump the contents of the file to more
-# easily see what values were not set properly. Recall by default die() will
-# cause the process to be killed unless you set EFUNCS_FATAL to 0 in which case
-# it will just exit with a non-zero error code.
+# SETVARS_ALLOW_EMPTY=(0|1)
+#   By default, empty values are NOT allowed. Meaning that if the provided key
+#   evaluates to an empty string, it will NOT replace the __key__ in the file.
+#   if you require that functionality, simply use SETVARS_ALLOW_EMPTY=1 and it
+#   will happily allow you to replace __key__ with an empty string.
+#
+# SETVARS_FATAL=(0|1)
+#   After all variables have been expanded in the provided file, a final check
+#   is performed to see if all variables were set properly. If SETVARS_FATAL is
+#   1 (the default) it will call die() and dump the contents of the file to more
+#   easily see what values were not set properly. Recall by default die() will
+#   cause the process to be killed unless you set EFUNCS_FATAL to 0 in which case
+#   it will just exit with a non-zero error code.
+#
+# SETVARS_WARN=(0|1)
+#   Even if SETVARS_FATAL is 0, it's sometimes still useful to see a warning on
+#   any unset variables. If SETVARS_WARN is set to 1 it will display a warning
+#   in the event it did not call die() due to SETVARS_FATAL being set to 0.
 setvars()
 {
     local filename=$1
@@ -1269,10 +1279,9 @@ setvars()
     argcheck filename
     edebug "Setting variables $(lval filename callback)"
 
-    local key val
-    for key in $(grep -o "__\S\+__" ${filename} | sort --unique); do
-        key="${key//__/}"
-        val="${!key}"
+    for arg in $(grep -o "__\S\+__" ${filename} | sort --unique); do
+        local key="${arg//__/}"
+        local val="${!key}"
     
         # Call provided callback if one was provided which by contract should print
         # the new resulting value to be used
@@ -1283,16 +1292,22 @@ setvars()
 
         edebug "   ${key} => $(print_value val)"
 
-        # Don't call die if the value isn't set but instead just continue to the next
-        # one. At the very end we'll call die() if needed. This allows a best effort
-        # to set all variables we could in the event SETVARS_FATAL=0.
-        [[ -z ${val} ]] && continue
+        # If we got an empty value back and empty values aren't allowed then continue.
+        # We do NOT call die here as we'll deal with that at the end after we have
+        # tried to expand all variables. This way we can properly support SETVARS_WARN
+        # and SETVARS_FATAL.
+        [[ -n ${val} || ${SETVARS_ALLOW_EMPTY:-0} -eq 1 ]] || continue
 
         sed -i -e "s/__${key}__/${val}/g" "${filename}" || die "Failed to set $(lval key val filename)"
     done
 
-    # Ensure nothing left over if SETVARS_FATAL is true
-    [[ ${SETVARS_FATAL:-1} -eq 1 ]] && grep -qs "__\S\+__" "${filename}" && die "Failed to set all variables in $(lval filename) unset=[$(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ')]\n\n$(cat ${filename})"
+    # Ensure nothing left over if SETVARS_FATAL is true. If SETVARS_WARN is true it will still warn in this case.
+    if grep -qs "__\S\+__" "${filename}"; then
+        local onerror=""
+        [[ ${SETVARS_WARN:-1}  -eq 1 ]] && onerror=ewarn
+        [[ ${SETVARS_FATAL:-1} -eq 1 ]] && onerror=die
+        [[ -n ${onerror} ]] &&  ${onerror} "Failed to set all variables in $(lval filename) unset=[$(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ')]\n\n$(cat ${filename})"
+    fi
 }
 
 #-----------------------------------------------------------------------------
