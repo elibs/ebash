@@ -1283,6 +1283,116 @@ eretry()
 }
 
 #-----------------------------------------------------------------------------
+# PUBLIC PACK FUNCTIONS
+#-----------------------------------------------------------------------------
+
+#
+# For a (new or existing) variable whose contents are formatted as a pack, set
+# one or more keys to values.  For example, the following will create a new
+# variable packvar that will contain three keys (alpha, beta, n) with
+# associated values (a, b, 7)
+#
+#  pack_set packvar alpha=a beta=b n=7
+#
+pack_set()
+{
+    local _pack=$1 ; shift
+
+    for arg in "${@}" ; do
+        local key=${arg%%=*}
+        local val=${arg##*=}
+
+        _pack_set ${_pack} ${key} "${val}"
+    done
+}
+
+#
+# Get the last value assigned to a particular key in this pack.
+#
+pack_get()
+{
+    local _pack=$1
+    local _tag=$2
+
+    argcheck _pack _tag
+
+    local _unpacked=$(echo ${!_pack} | _unpack)
+    local _out=$(echo ${!_pack} | _unpack | awk -F= '$1 == "'${_tag}'"  {print $2}')
+    [[ -n ${_out} ]] && echo ${_out}
+}
+
+#
+# For a given pack, execute a given callback function.  The callback function
+# should take two arguments, and it will be called once for each item in the
+# pack and passed the key as the first value and its value as the second value.
+#
+pack_iterate()
+{
+    local _pack=$1
+    local _func=$2
+    argcheck _pack _func
+
+    local _unpacked=$(echo ${!_pack} | _unpack)
+
+    for _line in ${_unpacked} ; do
+
+        local _key=${_line%%=*}
+        local _val=${_line##*=}
+
+        ${_func} "${_key}" "${_val}"
+
+    done
+}
+
+pack_print()
+{
+    local _pack=$1
+    argcheck _pack
+
+    pack_iterate ${_pack} _pack_print_item
+    echo
+}
+
+#-----------------------------------------------------------------------------
+# INTERNAL PACK FUNCTIONS
+#-----------------------------------------------------------------------------
+
+_pack_set()
+{
+    local _pack=$1
+    local _tag=$2
+    local _val="$3"
+
+    argcheck _pack _tag
+    [[ ${_tag} =~ = ]] && die "Tag ${_tag} cannot contain equal sign"
+    [[ ${_val} =~ = ]] && die "Value ${_val} cannot contain equal sign"
+    [[ -z ${_val} ]] && _val="${_tag}"
+
+    local _tmp=$(echo ${!_pack} | _unpack | grep -v '^'${_tag}'=' ; echo ${_tag}="${_val}")
+    _tmp=$(echo ${_tmp} | _pack)
+    eval "${_pack}=\${_tmp}"
+}
+
+_pack_print_item()
+{
+    echo -n "$1=$(print_value "$2") "
+}
+
+_unpack()
+{
+    # Replace separators with newlines and replace keys with no assigned value
+    # to instead have a value identical to the key.
+    tr ' ' '\n' | sed 's/^\([^=]*\)$/\1=\1/g'
+}
+
+_pack()
+{
+    # Opposite of unpack -- replace key=key with just key, and put separators
+    # back instead of newlines.
+    sed 's/^\([^=]*\)=\1/\1/g' | tr '\n' ' '
+}
+
+#-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
 return 0
