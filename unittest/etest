@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+cd $(dirname $0)
+source ../efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
+esource *.sh
+
+[[ -n ${2} ]] && die "etest only accepts one argument"
+
+# Get all function names that begin with ETEST_ (and optionally match $1)
+TEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'$1'" {print $3}') )
+
+# And execute them
+for testfunc in "${TEST_FUNCTIONS[@]}" ; do
+
+    einfon "${testfunc}"
+    ${testfunc}
+    eend $?
+
+done
