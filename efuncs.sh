@@ -720,7 +720,9 @@ getsubnet()
 #-----------------------------------------------------------------------------
 esource()
 {
-    source $@ || die "Failed to source $@"
+    for file in "${@}" ; do
+        source "${file}" || die "Failed to source $@"
+    done
 }
 
 epushd()
@@ -1308,6 +1310,36 @@ setvars()
         [[ ${SETVARS_FATAL:-1} -eq 1 ]] && onerror=die
         [[ -n ${onerror} ]] &&  ${onerror} "Failed to set all variables in $(lval filename) unset=[$(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ')]\n\n$(cat ${filename})"
     fi
+}
+
+#
+# Generate a unique symbol (i.e. for a variable name or function name) that can
+# be used safely without worrying about collisions with the calling
+# environment.
+#
+# "local" can protect you from most situations where collisions are a concern,
+# but if you're evaluating code or using indirection to read things out of the
+# caller environment (e.g. ${!var}), you may need a way to have a variable that
+# won't collide.  This will generate the name for you, based on a string that
+# you specify.
+#
+# For example, calling "gensym key" will generate you a variable name that
+# contains the word key and some other stuff to make it unique.
+#
+gensym()
+{
+    argcheck 1
+
+    # Grab the source line number and function number of the direct caller of
+    # gensym
+    local c=$(caller 0)
+    c=${c% *}
+
+    # Replace spaces with underscores
+    c=${c// /_}
+
+    # Append to caller's chosen name
+    echo "_$1_$c"
 }
 
 #-----------------------------------------------------------------------------
