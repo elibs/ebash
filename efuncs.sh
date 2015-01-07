@@ -591,34 +591,8 @@ lval()
 }
 
 #-----------------------------------------------------------------------------
-# MISC PARSING FUNCTIONS
+# IFS
 #-----------------------------------------------------------------------------
-parse_tag_value_internal()
-{
-    local input=$1
-    local array=()
-    tag=$(echo ${input} | cut -d= -f1)
-    val=$(echo ${input} | cut -d= -f2 | tr -d '\"')
-
-    array=( ${tag} ${val} )
-    rtr=(${array[@]})
-    
-    parts=(${rtr[@]})
-    echo -n "${parts[1]}"
-}
-
-parse_tag_value()
-{
-    local path=$1
-    local tag=$2
-    local prefix=$3
-    local output=$(cat ${path} | grep "^${tag}=")
-    
-    if [[ "${output}" != "" ]]; then
-        echo -n "${prefix}$(parse_tag_value_internal ${output})"
-    fi
-}
-
 ifs_save()
 {
     export IFS_SAVE=${IFS}
@@ -645,22 +619,9 @@ ifs_set()
     export IFS="${1}"
 }
 
-config_set_value()
-{
-    local tag=$1 ; argcheck 'tag'; shift
-    eval "local val=$(trim \${$tag})" || die
-    for cfg in $@; do
-        sed -i "s|\${$tag}|${val}|g" "${cfg}" || die "Failed to update ${tag} in ${cfg}"
-    done
-}
-
-# Check no unexpanded variables in given config file or else die
-config_check()
-{
-    local cfg=$1 ; argcheck 'cfg'; shift
-    grep "\${" "${cfg}" -qs && die "Failed to replace all variables in ${cfg}"
-}
-
+#-----------------------------------------------------------------------------
+# NETWORKING FUNCTIONS
+#-----------------------------------------------------------------------------
 valid_ip()
 {
     local ip=$1
@@ -755,7 +716,7 @@ getsubnet()
 }
 
 #-----------------------------------------------------------------------------
-# MISC FS HELPERS
+# FILESYSTEM HELPERS
 #-----------------------------------------------------------------------------
 esource()
 {
@@ -1280,6 +1241,58 @@ eretry()
         # Or go ahead and die if EFUNCS_FATAL is set
         die "eretry: failed $(lval cmd exit_codes)"
     fi
+}
+
+# setvars takes a template file with optional variables inside the file which 
+# are surrounded on both sides by two underscores.  It will replace the variable
+# (and surrounding underscores) with a value you specify in the environment.
+# You specify that value by setting an environment variable of the same name
+# (without the surrounding underscores).
+#
+# For example, if the input file looks like this:
+#   Hi __NAME__, my name is __OTHERNAME__.
+# And you call setvars like this
+#   NAME=Bill OTHERNAME=Ted setvars intputfile
+# The inputfile will be modified IN PLACE to contain:
+#   Hi Bill, my name is Ted.
+#
+# After all variables have been expanded in the provided file, a final check
+# is performed to see if all variables were set properly. If SETVARS_FATAL is
+# 1 (the default) it will call die() and dump the contents of the file to more
+# easily see what values were not set properly. Recall by default die() will
+# cause the process to be killed unless you set EFUNCS_FATAL to 0 in which case
+# it will just exit with a non-zero error code.
+setvars()
+{
+    local filename=$1
+    local callback=$2
+    argcheck filename
+    edebug "Setting variables $(lval filename callback)"
+
+    local key val
+    for key in $(grep -o "__\S\+__" ${filename} | sort --unique); do
+        key="${key//__/}"
+        val="${!key}"
+    
+        # Call provided callback if one was provided which by contract should print
+        # the new resulting value to be used
+        [[ -n ${callback} ]] && val=$(callback "${key}" "${val}")
+
+        # Also escape forward slashes with a backslash before them in the value for sed
+        val=${val//\//\\/}
+
+        edebug "   ${key} => $(print_value val)"
+
+        # Don't call die if the value isn't set but instead just continue to the next
+        # one. At the very end we'll call die() if needed. This allows a best effort
+        # to set all variables we could in the event SETVARS_FATAL=0.
+        [[ -z ${val} ]] && continue
+
+        sed -i -e "s/__${key}__/${val}/g" "${filename}" || die "Failed to set $(lval key val filename)"
+    done
+
+    # Ensure nothing left over if SETVARS_FATAL is true
+    [[ ${SETVARS_FATAL:-1} -eq 1 ]] && grep -qs "__\S\+__" "${filename}" && die "Failed to set all variables in $(lval filename) unset=[$(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ')]\n\n$(cat ${filename})"
 }
 
 #-----------------------------------------------------------------------------
