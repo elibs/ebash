@@ -6,6 +6,52 @@ esource *.sh
 
 [[ -n ${2} ]] && die "etest only accepts one argument"
 
+#-----------------------------------------------------------------------------
+# TEST UTILITY FUNCTIONS
+#-----------------------------------------------------------------------------
+
+expect_true()
+{
+    local expression="${@}"
+    edebug "$(lval expression)"
+
+    eval "${expression}" || { eerror "Expect failed :: $(lval expression)"; return 1; }
+    return 0
+}
+
+expect_false()
+{
+    local expression="${@}"
+    edebug "$(lval expression)"
+
+    eval "${expression}" && { eerror "Expect failed :: ! $(lval expression)"; return 1; }
+    return 0
+}
+
+expect_op()
+{
+    compare "${@}" || { eerror "expect_op failed :: ${@}"; return 1; }
+    return 0
+}
+
+expect_eq()
+{
+    local lh=$1
+    local rh=$2
+    expect_op "\"${lh}\"" "==" "\"${rh}\""
+}
+
+expect_ne()
+{
+    local lh=$1
+    local rh=$2
+    expect_op "\"${lh}\"" "!=" "\"${rh}\""
+}
+
+#-----------------------------------------------------------------------------
+# MAIN
+#-----------------------------------------------------------------------------
+
 # Get all function names that begin with ETEST_ (and optionally match $1)
 TEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'$1'" {print $3}') )
 
