@@ -992,6 +992,60 @@ isgentoo()
 }
 
 #-----------------------------------------------------------------------------
+# COMPARISON FUNCTIONS
+#-----------------------------------------------------------------------------
+
+# Generic comparison function using awk which doesn't suffer from bash stupidity
+# with regards to having to do use separate comparison operators for integers and
+# strings and even worse being completely incapable of comparing floats.
+compare()
+{
+    local lh="$1"
+    local op="$2"
+    local rh="$3"
+
+    ## Degenerate case where actual and expect are both empty strings
+    [[ -z ${lh} && -z ${rh} ]] && return 0
+    [[ -z ${lh} && -n ${rh} ]] && return 1
+    [[ -n ${lh} && -z ${rh} ]] && return 1
+
+    ## =~
+    if [[ ${op} == "=~" ]]; then
+        [[ ${lh} =~ ${rh} ]] && return 0
+        return 1
+    fi
+    if [[ ${op} == "!~" ]]; then
+        [[ ! ${lh} =~ ${rh} ]] && return 0
+        return 1
+    fi
+
+    ## Escape a few special characters that trip up awk
+    lh=${lh//[@()]/_} 
+    rh=${rh//[@()]/_} 
+    awk -v lh="${lh}" -v rh="${rh}" "BEGIN { if ( lh ${op} rh ) exit(0) ; else exit(1) ; }" && return 0 || return 1
+}
+
+# Specialized comparision helper to properly compare versions
+compare_version()
+{
+    local lh=${1}
+    local op=${2}
+    local rh=${3}
+
+    ## EQUALS
+    [[ ${op} == "!=" ]] && [[ ${lh} != ${rh} ]] && return 0
+    [[ ${op} == "==" || ${op} == "<=" || ${op} == ">=" ]] && [[ ${lh} == ${rh} ]] && return 0
+    [[ ${op} == "<"  || ${op} == ">" ]] && [[ ${lh} == ${rh} ]] && return 1
+    op=${op/<=/<}
+    op=${op/>=/>}
+
+    [[ ${op} == "<"  ]] && [[ ${lh} == $(printf "${lh}\n${rh}" | sort -V | head -n1) ]] && return 0
+    [[ ${op} == ">"  ]] && [[ ${lh} == $(printf "${lh}\n${rh}" | sort -V | tail -n1) ]] && return 0
+
+    return 1
+}
+
+#-----------------------------------------------------------------------------
 # MISC HELPERS
 #-----------------------------------------------------------------------------
 
@@ -1274,6 +1328,13 @@ eretry()
 #   Even if SETVARS_FATAL is 0, it's sometimes still useful to see a warning on
 #   any unset variables. If SETVARS_WARN is set to 1 it will display a warning
 #   in the event it did not call die() due to SETVARS_FATAL being set to 0.
+#
+# OPTIONAL CALLBACK:
+#   You may provided an optional callback as the second parameter to this function.
+#   The callback will be called with the key and the value it obtained from the
+#   environment (if any). The callback is then free to make whatever modifications
+#   or filtering it desires and then echo the new value to stdout. This value
+#   will then be used by setvars as the replacement value.
 setvars()
 {
     local filename=$1
@@ -1292,14 +1353,14 @@ setvars()
         # Also escape forward slashes with a backslash before them in the value for sed
         val=${val//\//\\/}
 
-        edebug "   ${key} => $(print_value val)"
-
         # If we got an empty value back and empty values aren't allowed then continue.
         # We do NOT call die here as we'll deal with that at the end after we have
         # tried to expand all variables. This way we can properly support SETVARS_WARN
         # and SETVARS_FATAL.
         [[ -n ${val} || ${SETVARS_ALLOW_EMPTY:-0} -eq 1 ]] || continue
 
+        edebug "   ${key} => $(print_value val)"
+        
         sed -i -e "s/__${key}__/${val}/g" "${filename}" || die "Failed to set $(lval key val filename)"
     done
 
@@ -1308,8 +1369,14 @@ setvars()
         local onerror=""
         [[ ${SETVARS_WARN:-1}  -eq 1 ]] && onerror=ewarn
         [[ ${SETVARS_FATAL:-1} -eq 1 ]] && onerror=die
-        [[ -n ${onerror} ]] &&  ${onerror} "Failed to set all variables in $(lval filename) unset=[$(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ')]\n\n$(cat ${filename})"
+
+        local -a notset=( $(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ') )
+        local content="$(cat ${filename})"
+        [[ -n ${onerror} ]] && ${onerror} "Failed to set all variables in $(lval filename notset content)"
+        return 1
     fi
+
+    return 0
 }
 
 #
