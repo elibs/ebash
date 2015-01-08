@@ -56,10 +56,14 @@ expect_ne()
 TEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'$1'" {print $3}') )
 
 # And execute them
+ETEST_RC=0
 for testfunc in "${TEST_FUNCTIONS[@]}" ; do
 
     einfon "${testfunc}"
     ${testfunc}
-    eend $?
-
+    rc=$?
+    ETEST_RC+=$rc
+    eend $rc
 done
+
+exit ${ETEST_RC}
