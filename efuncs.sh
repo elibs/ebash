@@ -1348,7 +1348,7 @@ setvars()
     
         # Call provided callback if one was provided which by contract should print
         # the new resulting value to be used
-        [[ -n ${callback} ]] && val=$(callback "${key}" "${val}")
+        [[ -n ${callback} ]] && val=$(${callback} "${key}" "${val}")
 
         # Also escape forward slashes with a backslash before them in the value for sed
         val=${val//\//\\/}
