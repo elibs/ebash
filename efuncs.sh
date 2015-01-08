@@ -1371,8 +1371,7 @@ setvars()
         [[ ${SETVARS_FATAL:-1} -eq 1 ]] && onerror=die
 
         local -a notset=( $(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ') )
-        local content="$(cat ${filename})"
-        [[ -n ${onerror} ]] && ${onerror} "Failed to set all variables in $(lval filename notset content)"
+        [[ -n ${onerror} ]] && ${onerror} "Failed to set all variables in $(lval filename notset)"
         return 1
     fi
 
