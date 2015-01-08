@@ -1379,39 +1379,17 @@ setvars()
     return 0
 }
 
-#
-# Generate a unique symbol (i.e. for a variable name or function name) that can
-# be used safely without worrying about collisions with the calling
-# environment.
-#
-# "local" can protect you from most situations where collisions are a concern,
-# but if you're evaluating code or using indirection to read things out of the
-# caller environment (e.g. ${!var}), you may need a way to have a variable that
-# won't collide.  This will generate the name for you, based on a string that
-# you specify.
-#
-# For example, calling "gensym key" will generate you a variable name that
-# contains the word key and some other stuff to make it unique.
-#
-gensym()
-{
-    argcheck 1
-
-    # Grab the source line number and function number of the direct caller of
-    # gensym
-    local c=$(caller 0)
-    c=${c% *}
-
-    # Replace spaces with underscores
-    c=${c// /_}
-
-    # Append to caller's chosen name
-    echo "_$1_$c"
-}
 
 #-----------------------------------------------------------------------------
 # PUBLIC PACK FUNCTIONS
 #-----------------------------------------------------------------------------
+
+# NOTE: Many of these pack functions have wonky names like _pack_pack_set
+# which are intended to hold the name of the pack to operate on.  The crazy
+# variable name is intended to prevent collisions, which is important because
+# these functions need to read or set the variable provided such that it's the
+# way the caller would have seen it (i.e. unaffected by locals that might
+# shadow it)
 
 #
 # For a (new or existing) variable whose contents are formatted as a pack, set
@@ -1423,13 +1401,14 @@ gensym()
 #
 pack_set()
 {
-    local _pack=$1 ; shift
+    # See NOTE above about _pack_pack variables
+    local _pack_pack_set=$1 ; shift
 
     for arg in "${@}" ; do
         local key=${arg%%=*}
-        local val=${arg##*=}
+        local val=${arg#*=}
 
-        _pack_set ${_pack} ${key} "${val}"
+        pack_set_internal ${_pack_pack_set} ${key} "${val}"
     done
 }
 
@@ -1438,14 +1417,14 @@ pack_set()
 #
 pack_get()
 {
-    local _pack=$1
+    # See NOTE on _pack_pack variables
+    local _pack_pack_get=$1
     local _tag=$2
 
-    argcheck _pack _tag
+    argcheck _pack_pack_get _tag
 
-    local _unpacked=$(echo ${!_pack} | _unpack)
-    local _out=$(echo ${!_pack} | _unpack | awk -F= '$1 == "'${_tag}'"  {print $2}')
-    [[ -n ${_out} ]] && echo ${_out}
+    local _unpacked=$(echo ${!_pack_pack_get} | _unpack | grep "^${_tag}=")
+    [[ -n ${_unpacked#*=} ]] && echo ${_unpacked#*=}
 }
 
 #
@@ -1455,16 +1434,17 @@ pack_get()
 #
 pack_iterate()
 {
-    local _pack=$1
+    # See NOTE on _pack_pack variables
+    local _pack_pack_iterate=$1
     local _func=$2
-    argcheck _pack _func
+    argcheck _pack_pack_iterate _func
 
-    local _unpacked=$(echo ${!_pack} | _unpack)
+    local _unpacked=$(echo ${!_pack_pack_iterate} | _unpack)
 
     for _line in ${_unpacked} ; do
 
-        local _key=${_line%%=*}
-        local _val=${_line##*=}
+        local _key=${_line%%=*$}
+        local _val=${_line#^*=}
 
         ${_func} "${_key}" "${_val}"
 
@@ -1473,10 +1453,11 @@ pack_iterate()
 
 pack_print()
 {
-    local _pack=$1
-    argcheck _pack
+    # See NOTE on _pack_pack variables
+    local _pack_pack_print=$1
+    argcheck _pack_pack_print
 
-    pack_iterate ${_pack} _pack_print_item
+    pack_iterate ${_pack_pack_print} _pack_print_item
     echo
 }
 
@@ -1484,20 +1465,20 @@ pack_print()
 # INTERNAL PACK FUNCTIONS
 #-----------------------------------------------------------------------------
 
-_pack_set()
+pack_set_internal()
 {
-    local _pack=$1
+    # See NOTE on _pack_pack variables
+    local _pack_pack_set_internal=$1
     local _tag=$2
     local _val="$3"
 
-    argcheck _pack _tag
+    # See NOTE on _pack_pack variables
+    argcheck _pack_pack_set_internal _tag
     [[ ${_tag} =~ = ]] && die "Tag ${_tag} cannot contain equal sign"
-    [[ ${_val} =~ = ]] && die "Value ${_val} cannot contain equal sign"
-    [[ -z ${_val} ]] && _val="${_tag}"
 
-    local _tmp=$(echo ${!_pack} | _unpack | grep -v '^'${_tag}'=' ; echo ${_tag}="${_val}")
+    local _tmp=$(echo ${!_pack_pack_set_internal} | _unpack | grep -v '^'${_tag}'=' ; echo ${_tag}="${_val}")
     _tmp=$(echo ${_tmp} | _pack)
-    eval "${_pack}=\${_tmp}"
+    printf -v ${_pack_pack_set_internal} "${_tmp}"
 }
 
 _pack_print_item()
@@ -1507,16 +1488,14 @@ _pack_print_item()
 
 _unpack()
 {
-    # Replace separators with newlines and replace keys with no assigned value
-    # to instead have a value identical to the key.
-    tr ' ' '\n' | sed 's/^\([^=]*\)$/\1=\1/g'
+    # Replace separators with newlines
+    tr ' ' '\n'
 }
 
 _pack()
 {
-    # Opposite of unpack -- replace key=key with just key, and put separators
-    # back instead of newlines.
-    sed 's/^\([^=]*\)=\1/\1/g' | tr '\n' ' '
+    # Opposite of unpack -- put separators back instead of newlines.
+    tr '\n' ' '
 }
 
 #-----------------------------------------------------------------------------
