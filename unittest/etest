@@ -36,16 +36,36 @@ expect_op()
 
 expect_eq()
 {
-    local lh=$1
-    local rh=$2
+    local lh="$1"
+    local rh="$2"
     expect_op "\"${lh}\"" "==" "\"${rh}\""
 }
 
 expect_ne()
 {
-    local lh=$1
-    local rh=$2
+    local lh="$1"
+    local rh="$2"
     expect_op "\"${lh}\"" "!=" "\"${rh}\""
+}
+
+expect_zero()
+{
+    [[ $1 -eq 0 ]] || { eerror "expect_zero received $1 instead of zero." ; return 1 ; }
+}
+
+expect_not_zero()
+{
+    [[ $1 -ne 0 ]] || { eerror "expect_not_zero received ${1}." ; return 1 ; }
+}
+
+expect_empty()
+{
+    [[ $1 == "" ]] || { eerror "expect_empty received \"$1\"." ; return 1 ; }
+}
+
+expect_not_empty()
+{
+    [[ $1 != "" ]] || { eerror "expect_not_empty received an empty string." ; return 1 ; }
 }
 
 #-----------------------------------------------------------------------------
@@ -70,10 +90,11 @@ for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
     msg=$(printf "%s%${pad}s" "${testfunc}" " ")
 
     einfon "${msg}"
-    ${testfunc}
+    ( ${testfunc} )
     rc=$?
     ETEST_RC+=$rc
     eend $rc
+
 done
 
 exit ${ETEST_RC}

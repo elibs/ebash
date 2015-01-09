@@ -544,7 +544,8 @@ print_value()
     fi
 
     local decl=$(declare -p ${__input} 2>/dev/null)
-    local val=$(echo ${decl} | cut -d= -f2-)
+    local val=$(echo "${decl}")
+    val="${val#*=}"
 
     # If decl is empty just print out it's raw value as it's NOT a variable!!
     # This is really important so that you can do simple things like
@@ -576,12 +577,12 @@ print_value()
 lval()
 {
     local idx=0
-    for __arg in $@; do
+    for __arg in "${@}"; do
         
         # Tag provided?
         local __arg_tag="${__arg%%=*}"; [[ -z ${__arg_tag} ]] && __arg_tag="${__arg}"
         local __arg_val="${__arg#*=}";
-        __arg_val="$(print_value ${__arg_val})"
+        __arg_val="$(print_value "${__arg_val}")"
         
         [[ ${idx} -gt 0 ]] && echo -n " "
         echo -n "${__arg_tag}=${__arg_val}"
@@ -684,7 +685,8 @@ getipaddress()
 }
 
 getnetmask()
-{    local iface=$1; argcheck 'iface'; 
+{
+    local iface=$1; argcheck 'iface'; 
     local netmask=$(strip $(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2))
     echo -n "${netmask}"
 }
@@ -1052,9 +1054,9 @@ compare_version()
 # Check to ensure all the provided arguments are non-empty
 argcheck()
 {
-    for arg in $@; do
-        eval "local val=\$${arg}"
-        [[ -z "${val}" ]] && die "Missing argument '${arg}'"
+    local _argcheck_arg
+    for _argcheck_arg in $@; do
+        [[ -z "${!_argcheck_arg}" ]] && die "Missing argument '${_argcheck_arg}'"
     done
 }
 
@@ -1380,15 +1382,19 @@ setvars()
 
 
 #-----------------------------------------------------------------------------
-# PUBLIC PACK FUNCTIONS
+# PACK 
 #-----------------------------------------------------------------------------
-
-# NOTE: Many of these pack functions have wonky names like _pack_pack_set
-# which are intended to hold the name of the pack to operate on.  The crazy
-# variable name is intended to prevent collisions, which is important because
-# these functions need to read or set the variable provided such that it's the
-# way the caller would have seen it (i.e. unaffected by locals that might
-# shadow it)
+#
+# Consider a "pack" to be a "new" data type for bash.  It stores a set of
+# key/value pairs in an arbitrary format inside a normal bash (string)
+# variable.  This is much like an associative array, but has a few differences
+#
+#   1) You can store packs INSIDE associative arrays (example in unit tests)
+#   2) It treats keys case insensitively (which may not be a benefit in your
+#      case, but there it is)
+#   3) The "keys" in a pack may not contain an equal sign.
+#
+#
 
 #
 # For a (new or existing) variable whose contents are formatted as a pack, set
@@ -1401,14 +1407,54 @@ setvars()
 pack_set()
 {
     # See NOTE above about _pack_pack variables
-    local _pack_pack_set=$1 ; shift
+    local _pack_set_pack=$1 ; shift
 
-    for arg in "${@}" ; do
-        local key=${arg%%=*}
-        local val=${arg#*=}
+    for _pack_set_arg in "${@}" ; do
+        local _pack_set_key="${_pack_set_arg%%=*}"
+        local _pack_set_val="${_pack_set_arg#*=}"
 
-        pack_set_internal ${_pack_pack_set} ${key} "${val}"
+        #edebug "pack setting: $(lval pack="${!_pack_set_pack}" _pack_set_key _pack_set_val)"
+        pack_set_internal ${_pack_set_pack} "${_pack_set_key}" "${_pack_set_val}"
     done
+}
+
+#
+# Much like pack_set, and takes arguments of the same form.  The difference is
+# that pack_update will create no new keys -- it will only update keys that
+# already exist.
+#
+pack_update()
+{
+    # See NOTE above about _pack_pack variables
+    local _pack_update_pack=$1 ; shift
+
+    for _pack_update_arg in "${@}" ; do
+        local _pack_update_key="${_pack_update_arg%%=*}"
+        local _pack_update_val="${_pack_update_arg#*=}"
+
+        local _pack_update_regex="${_pack_update_key}"
+
+        #edebug "$(lval _pack_update_key _pack_update_val _pack_update_regex)"
+        [[ "$(pack_keys ${_pack_update_pack})" =~ ${_pack_update_regex} ]] \
+            && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" ;
+    done
+}
+
+pack_set_internal()
+{
+    # $1 is used to name the pack to work on
+    local _tag=$2
+    local _val="$3"
+
+    argcheck _tag
+    [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
+
+    local _removeOld="$(echo -n "${!1}" | _unpack | grep -iv '^'${_tag}'=')"
+    local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
+    local _packed=$(printf "${_addNew}" | _pack)
+
+    #edebug "pack_set_internal: $(lval pack=${!1} _tag _val _removeOld _addNew _packed)"
+    printf -v ${1} "${_packed}"
 }
 
 #
@@ -1416,14 +1462,16 @@ pack_set()
 #
 pack_get()
 {
-    # See NOTE on _pack_pack variables
     local _pack_pack_get=$1
     local _tag=$2
 
     argcheck _pack_pack_get _tag
 
-    local _unpacked=$(echo ${!_pack_pack_get} | _unpack | grep "^${_tag}=")
-    [[ -n ${_unpacked#*=} ]] && echo ${_unpacked#*=}
+    local _unpacked="$(echo -n "${!_pack_pack_get}" | _unpack)"
+    local _found="$(echo -n "${_unpacked}" | grep -i "^${_tag}=")"
+    #edebug "Getting: $(lval pack="${!_pack_pack_get}" _tag _unpacked _found)"
+    echo "${_found#*=}"
+    [[ -n ${_found} ]]
 }
 
 #
@@ -1433,51 +1481,50 @@ pack_get()
 #
 pack_iterate()
 {
-    # See NOTE on _pack_pack variables
     local _pack_pack_iterate=$1
     local _func=$2
     argcheck _pack_pack_iterate _func
 
-    local _unpacked=$(echo ${!_pack_pack_iterate} | _unpack)
+    local _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
 
-    for _line in ${_unpacked} ; do
+    ifs_save ; ifs_nl
+    local _lines=(${_unpacked})
+    ifs_restore
 
-        local _key=${_line%%=*$}
-        local _val=${_line#^*=}
+    edebug "iterate: $(lval _unpacked _lines)"
+
+    for _line in "${_lines[@]}" ; do
+
+        local _key="${_line%%=*}"
+        local _val="${_line#*=}"
 
         ${_func} "${_key}" "${_val}"
 
     done
 }
 
+pack_size()
+{
+    argcheck 1
+    echo -n "${!1}" | _unpack | wc -l
+}
+
+#
+# Echo a whitespace-separated list of the keys in the specified pack to stdout.
+#
+pack_keys()
+{
+    argcheck 1
+    echo "${!1}" | _unpack | sed 's/=.*$//'
+}
+
 pack_print()
 {
-    # See NOTE on _pack_pack variables
     local _pack_pack_print=$1
     argcheck _pack_pack_print
 
     pack_iterate ${_pack_pack_print} _pack_print_item
     echo
-}
-
-#-----------------------------------------------------------------------------
-# INTERNAL PACK FUNCTIONS
-#-----------------------------------------------------------------------------
-
-pack_set_internal()
-{
-    # See NOTE on _pack_pack variables
-    local _pack_pack_set_internal=$1
-    local _tag=$2
-    local _val="$3"
-
-    # See NOTE on _pack_pack variables
-    argcheck _pack_pack_set_internal _tag
-    [[ ${_tag} =~ = ]] && die "Tag ${_tag} cannot contain equal sign"
-
-    local _tmp=$(echo ${!_pack_pack_set_internal} | _unpack | grep -v '^'${_tag}'=' ; echo ${_tag}="${_val}")
-    _tmp=$(echo ${_tmp} | _pack)
-    printf -v ${_pack_pack_set_internal} "${_tmp}"
 }
 
 _pack_print_item()
@@ -1488,13 +1535,13 @@ _pack_print_item()
 _unpack()
 {
     # Replace separators with newlines
-    tr ' ' '\n'
+    tr '|' '\n'
 }
 
 _pack()
 {
     # Opposite of unpack -- put separators back instead of newlines.
-    tr '\n' ' '
+    grep -v '^$' | tr '\n' '|'
 }
 
 #-----------------------------------------------------------------------------
