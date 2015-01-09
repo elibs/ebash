@@ -241,9 +241,33 @@ eprefix()
     echo -en "${prefix}"
 }
 
+edebug_enabled()
+{
+    [[ ${EDEBUG} == "1" ]] && return 0
+    [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
+
+    local _edebug_enabled_caller=( $(caller 0) )
+    [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebugf" ]] \
+        && _edebug_enabled_caller=( $(caller 1) )
+
+    local _edebug_enabled_tmp
+    for _edebug_enabled_tmp in ${EDEBUG} ; do
+        [[ "${_edebug_enabled_caller[@]:1}" =~ ${_edebug_enabled_tmp} ]] && return 0
+    done
+
+    return 1
+}
+
 edebug()
 {
-    [[ -n ${EDEBUG} ]] && echo "$(ecolor dimblue)    - ${@}$(ecolor none)" >&2
+    edebug_enabled && echo "$(ecolor dimblue)    - ${@}$(ecolor none)" >&2
+    return 0
+}
+
+edebugf()
+{
+    local _edebug_caller=$(caller 0 | awk '{print $2, $1}')
+    edebug_enabled && echo "$(ecolor dimblue)    - [${_edebug_caller/ /:}]  ${@}$(ecolor none)" >&2
     return 0
 }
 
@@ -1406,14 +1430,13 @@ setvars()
 #
 pack_set()
 {
-    # See NOTE above about _pack_pack variables
     local _pack_set_pack=$1 ; shift
 
     for _pack_set_arg in "${@}" ; do
         local _pack_set_key="${_pack_set_arg%%=*}"
         local _pack_set_val="${_pack_set_arg#*=}"
 
-        #edebug "pack setting: $(lval pack="${!_pack_set_pack}" _pack_set_key _pack_set_val)"
+        edebugf "$(lval pack="${!_pack_set_pack}" _pack_set_key _pack_set_val)"
         pack_set_internal ${_pack_set_pack} "${_pack_set_key}" "${_pack_set_val}"
     done
 }
@@ -1425,7 +1448,6 @@ pack_set()
 #
 pack_update()
 {
-    # See NOTE above about _pack_pack variables
     local _pack_update_pack=$1 ; shift
 
     for _pack_update_arg in "${@}" ; do
@@ -1434,7 +1456,7 @@ pack_update()
 
         local _pack_update_regex="${_pack_update_key}"
 
-        #edebug "$(lval _pack_update_key _pack_update_val _pack_update_regex)"
+        edebugf "$(lval _pack_update_key _pack_update_val _pack_update_regex)"
         [[ "$(pack_keys ${_pack_update_pack})" =~ ${_pack_update_regex} ]] \
             && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" ;
     done
@@ -1453,7 +1475,7 @@ pack_set_internal()
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(printf "${_addNew}" | _pack)
 
-    #edebug "pack_set_internal: $(lval pack=${!1} _tag _val _removeOld _addNew _packed)"
+    edebugf "$(lval pack=${!1} _tag _val _removeOld _addNew _packed)"
     printf -v ${1} "${_packed}"
 }
 
@@ -1469,7 +1491,7 @@ pack_get()
 
     local _unpacked="$(echo -n "${!_pack_pack_get}" | _unpack)"
     local _found="$(echo -n "${_unpacked}" | grep -i "^${_tag}=")"
-    #edebug "Getting: $(lval pack="${!_pack_pack_get}" _tag _unpacked _found)"
+    edebugf "$(lval pack="${!_pack_pack_get}" _tag _unpacked _found)"
     echo "${_found#*=}"
     [[ -n ${_found} ]]
 }
@@ -1491,7 +1513,7 @@ pack_iterate()
     local _lines=(${_unpacked})
     ifs_restore
 
-    edebug "iterate: $(lval _unpacked _lines)"
+    edebugf "$(lval _unpacked _lines)"
 
     for _line in "${_lines[@]}" ; do
 
