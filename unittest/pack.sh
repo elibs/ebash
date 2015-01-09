@@ -162,9 +162,9 @@ ETEST_pack_update_updates_values()
     expect_empty   $(pack_get P d)
 }
 
-ETEST_avoid_common_variable_conflicts()
+ETEST_pack_avoid_common_variable_conflicts()
 {
-    POTENTIAL_VARS=(_argcheck_arg arg val key tag)
+    POTENTIAL_VARS=(arg val key tag)
     for VAR in ${POTENTIAL_VARS[@]} ; do
         edebug "Testing for conflicts in variable name ${VAR}"
 
@@ -176,6 +176,19 @@ ETEST_avoid_common_variable_conflicts()
         expect_eq 30 $(pack_get ${VAR} c)
 
     done
-
 }
 
+ETEST_pack_no_newlines()
+{
+    EFUNCS_FATAL=0
+    output=$(
+        (
+            pack_set P "a=$(printf "\na\nb\n")" 2>&1
+
+            # Should never get here, because the above should blow up
+            expect_true false
+        )
+    )
+    expect_not_zero $?
+    expect_true '[[ "${output}" =~ newlines ]]'
+}

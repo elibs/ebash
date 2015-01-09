@@ -1417,6 +1417,7 @@ setvars()
 #   2) It treats keys case insensitively (which may not be a benefit in your
 #      case, but there it is)
 #   3) The "keys" in a pack may not contain an equal sign.
+#   4) Packed values cannot contain newlines.
 #
 #
 
@@ -1470,6 +1471,8 @@ pack_set_internal()
 
     argcheck _tag
     [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
+    [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
+    [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
 
     local _removeOld="$(echo -n "${!1}" | _unpack | grep -iv '^'${_tag}'=')"
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
@@ -1556,14 +1559,12 @@ _pack_print_item()
 
 _unpack()
 {
-    # Replace separators with newlines
-    tr '|' '\n'
+    xxd -r -p | tr '\0' '\n'
 }
 
 _pack()
 {
-    # Opposite of unpack -- put separators back instead of newlines.
-    grep -v '^$' | tr '\n' '|'
+    grep -v '^$' | tr '\n' '\0' | xxd -p 
 }
 
 #-----------------------------------------------------------------------------
