@@ -201,6 +201,7 @@ ebanner()
         else
             local _ktag="${k%%=*}"; [[ -z ${_ktag} ]] && _ktag="${k}"
             local _kval="${k#*=}";
+            _ktag=${_ktag#+}
             __details[${_ktag}]=$(print_value ${_kval})
         fi
     done
@@ -535,6 +536,7 @@ eprogress_killall()
 # - Strings: delimited by double quotes.
 # - Arrays: Delimited by ( ).
 # - Associative Arrays: Delimited by { }
+# - Packs: You must preceed the pack name with a plus sign (i.e. +pack)
 #
 # Examples:
 # String: "value1"
@@ -544,6 +546,13 @@ print_value()
 {
     local __input="${1}"
     [[ -z ${__input} ]] && return
+
+    # Special handling for packs, as long as their name is specified with a
+    # plus character in front of it
+    if [[ "${__input:0:1}" == '+' ]] ; then
+        pack_print "${__input:1}"
+        return
+    fi
 
     # Magically expand things of the form MYARRAY[key] to allow more natural
     # logging of elements within an array or an associative array. The
@@ -582,7 +591,6 @@ print_value()
 
     # Special handling for arrays and associative arrays
     [[ ${decl} =~ "declare -a" ]] && { val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
-    [[ ${decl} =~ "declare -A" ]] && { val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/{\1}/"); }
 
     echo -n "${val}"
 }
@@ -606,6 +614,7 @@ lval()
         # Tag provided?
         local __arg_tag="${__arg%%=*}"; [[ -z ${__arg_tag} ]] && __arg_tag="${__arg}"
         local __arg_val="${__arg#*=}";
+        __arg_tag=${__arg_tag#+}
         __arg_val="$(print_value "${__arg_val}")"
         
         [[ ${idx} -gt 0 ]] && echo -n " "
@@ -1462,7 +1471,8 @@ setvars()
 #   1) You can store packs INSIDE associative arrays (example in unit tests)
 #   2) It treats keys case insensitively (which may not be a benefit in your
 #      case, but there it is)
-#   3) The "keys" in a pack may not contain an equal sign.
+#   3) The "keys" in a pack may not contain an equal sign, nor may they contain
+#      whitespace"
 #   4) Packed values cannot contain newlines.
 #
 #
@@ -1483,7 +1493,6 @@ pack_set()
         local _pack_set_key="${_pack_set_arg%%=*}"
         local _pack_set_val="${_pack_set_arg#*=}"
 
-        edebugf "$(lval pack="${!_pack_set_pack}" _pack_set_key _pack_set_val)"
         pack_set_internal ${_pack_set_pack} "${_pack_set_key}" "${_pack_set_val}"
     done
 }
@@ -1503,7 +1512,6 @@ pack_update()
 
         local _pack_update_regex="${_pack_update_key}"
 
-        edebugf "$(lval _pack_update_key _pack_update_val _pack_update_regex)"
         [[ "$(pack_keys ${_pack_update_pack})" =~ ${_pack_update_regex} ]] \
             && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" ;
     done
@@ -1511,7 +1519,7 @@ pack_update()
 
 pack_set_internal()
 {
-    # $1 is used to name the pack to work on
+    local _pack_pack_set_internal=$1
     local _tag=$2
     local _val="$3"
 
@@ -1524,7 +1532,7 @@ pack_set_internal()
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(printf "${_addNew}" | _pack)
 
-    edebugf "$(lval pack=${!1} _tag _val _removeOld _addNew _packed)"
+    edebugf "$(lval _pack_pack_set_internal _tag _val)"
     printf -v ${1} "${_packed}"
 }
 
@@ -1540,7 +1548,7 @@ pack_get()
 
     local _unpacked="$(echo -n "${!_pack_pack_get}" | _unpack)"
     local _found="$(echo -n "${_unpacked}" | grep -i "^${_tag}=")"
-    edebugf "$(lval pack="${!_pack_pack_get}" _tag _unpacked _found)"
+    edebugf "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
     [[ -n ${_found} ]]
 }
@@ -1562,7 +1570,7 @@ pack_iterate()
     local _lines=(${_unpacked})
     ifs_restore
 
-    edebugf "$(lval _unpacked _lines)"
+    edebugf "$(lval _pack_pack_iterate _unpacked _lines)"
 
     for _line in "${_lines[@]}" ; do
 
@@ -1589,28 +1597,31 @@ pack_keys()
     echo "${!1}" | _unpack | sed 's/=.*$//'
 }
 
+# Note: To support working with print_value, pack_print does NOT print a
+# newline at the end of its output
 pack_print()
 {
     local _pack_pack_print=$1
     argcheck _pack_pack_print
 
+    echo -n '('
     pack_iterate ${_pack_pack_print} _pack_print_item
-    echo
+    echo -n ')'
 }
 
 _pack_print_item()
 {
-    echo -n "$1=$(print_value "$2") "
+    echo -n "[$1]=$(print_value "$2") "
 }
 
 _unpack()
 {
-    xxd -r -p | tr '\0' '\n'
+    base64 -d | tr '\0' '\n'
 }
 
 _pack()
 {
-    grep -v '^$' | tr '\n' '\0' | xxd -p 
+    grep -v '^$' | tr '\n' '\0' | base64
 }
 
 #-----------------------------------------------------------------------------
