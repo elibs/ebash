@@ -192,3 +192,19 @@ ETEST_pack_no_newlines()
     expect_not_zero $?
     expect_true '[[ "${output}" =~ newlines ]]'
 }
+
+ETEST_pack_lots_of_data()
+{
+    A="http://bdr-distbox.engr.solidfire.net:8080/jobs/dtest_modell/10234"
+    pack_set P A=${A} B=${A} C=${A}
+
+    expect_eq "${A}" "$(pack_get P A)"
+    expect_eq "${A}" "$(pack_get P B)"
+    expect_eq "${A}" "$(pack_get P C)"
+}
+
+ETEST_pack_lval()
+{
+    pack_set P A=1 B=2
+    expect_eq 'P=([A]="1" [B]="2" )' "$(lval +P)"
+}
