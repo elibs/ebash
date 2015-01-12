@@ -625,52 +625,6 @@ lval()
 }
 
 #-----------------------------------------------------------------------------
-# DEPRECATED CONFIG_SET* FUNCTIONS
-#-----------------------------------------------------------------------------
-
-parse_tag_value_internal()
-{
-    local input=$1
-    local array=()
-    tag=$(echo ${input} | cut -d= -f1)
-    val=$(echo ${input} | cut -d= -f2 | tr -d '\"')
-
-    array=( ${tag} ${val} )
-    rtr=(${array[@]})
-    
-    parts=(${rtr[@]})
-    echo -n "${parts[1]}"
-}
-
-parse_tag_value()
-{
-    local path=$1
-    local tag=$2
-    local prefix=$3
-    local output=$(cat ${path} | grep "^${tag}=")
-    
-    if [[ "${output}" != "" ]]; then
-        echo -n "${prefix}$(parse_tag_value_internal ${output})"
-    fi
-}
-
-config_set_value()
-{
-    local tag=$1 ; argcheck 'tag'; shift
-    eval "local val=$(trim \${$tag})" || die
-    for cfg in $@; do
-        sed -i "s|\${$tag}|${val}|g" "${cfg}" || die "Failed to update ${tag} in ${cfg}"
-    done
-}
-
-# Check no unexpanded variables in given config file or else die
-config_check()
-{
-    local cfg=$1 ; argcheck 'cfg'; shift
-    grep "\${" "${cfg}" -qs && die "Failed to replace all variables in ${cfg}"
-}
-
-#-----------------------------------------------------------------------------
 # IFS
 #-----------------------------------------------------------------------------
 ifs_save()
