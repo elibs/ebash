@@ -232,5 +232,30 @@ ETEST_pack_update_key_insensitive()
     expect_eq 10 $(pack_get P A)
     expect_eq 20 $(pack_get P b)
     expect_eq 20 $(pack_get P B)
-
 }
+
+ETEST_pack_copy_empty()
+{
+    A=""
+    B=""
+    expect_true pack_copy A B
+}
+
+ETEST_pack_copy_over()
+{
+    pack_set P A=1 B=2
+    declare -A B
+    pack_set B[alpha] C=10 D=20
+
+    edebugf $(lval +P +B[alpha])
+    expect_eq 1 $(pack_get P A)
+    expect_eq 2 $(pack_get P B)
+
+    pack_copy P B[alpha]
+    edebugf $(lval +P +B[alpha])
+    expect_eq 1 $(pack_get B[alpha] A)
+    expect_eq 2 $(pack_get B[alpha] B)
+    expect_eq 1 $(pack_get P A)
+    expect_eq 2 $(pack_get P B)
+}
+
