@@ -1554,6 +1554,22 @@ pack_get()
 }
 
 #
+# Copy a packed value from one variable to another.  Either variable may be
+# part of an associative array, if you're so inclined.
+#
+# Examples:
+#   pack_copy A B
+#   pack_copy B A["alpha"]
+#   pack_copy A["alpha"] B[1]
+#
+pack_copy()
+{
+    [[ -z $1 || -z $2 || -n $3 ]] && die "pack_copy requires two arguments"
+
+    eval "${2}=\"\${!1}\"" 
+}
+
+#
 # For a given pack, execute a given callback function.  The callback function
 # should take two arguments, and it will be called once for each item in the
 # pack and passed the key as the first value and its value as the second value.
