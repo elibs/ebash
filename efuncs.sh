@@ -1510,9 +1510,9 @@ pack_update()
         local _pack_update_key="${_pack_update_arg%%=*}"
         local _pack_update_val="${_pack_update_arg#*=}"
 
-        local _pack_update_regex="\b${_pack_update_key}\b"
+        local _pack_update_regex="\b${_pack_update_key,,}\b"
 
-        [[ "$(pack_keys ${_pack_update_pack})" =~ ${_pack_update_regex} ]] \
+        pack_keys ${_pack_update_pack} | grep -Pqi "\b${_pack_update_key}\b" \
             && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" ;
     done
 }
@@ -1584,7 +1584,7 @@ pack_iterate()
 
 pack_size()
 {
-    argcheck 1
+    [[ -z ${1} ]] && die "pack_size requires a pack to be specified as \$1"
     echo -n "${!1}" | _unpack | wc -l
 }
 
@@ -1593,7 +1593,7 @@ pack_size()
 #
 pack_keys()
 {
-    argcheck 1
+    [[ -z ${1} ]] && die "pack_keys requires a pack to be specified as \$1"
     echo "${!1}" | _unpack | sed 's/=.*$//'
 }
 

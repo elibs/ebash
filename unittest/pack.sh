@@ -221,3 +221,16 @@ ETEST_pack_update_only_complete_matches()
     pack_update P ALPHA_=1
     expect_eq 1 $(pack_size P)
 }
+
+ETEST_pack_update_key_insensitive()
+{
+    pack_set P A=1 B=2
+
+    pack_update P a=10 b=20
+
+    expect_eq 10 $(pack_get P a)
+    expect_eq 10 $(pack_get P A)
+    expect_eq 20 $(pack_get P b)
+    expect_eq 20 $(pack_get P B)
+
+}
