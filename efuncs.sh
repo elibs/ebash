@@ -1510,7 +1510,7 @@ pack_update()
         local _pack_update_key="${_pack_update_arg%%=*}"
         local _pack_update_val="${_pack_update_arg#*=}"
 
-        local _pack_update_regex="${_pack_update_key}"
+        local _pack_update_regex="\b${_pack_update_key}\b"
 
         [[ "$(pack_keys ${_pack_update_pack})" =~ ${_pack_update_regex} ]] \
             && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" ;
