@@ -933,9 +933,9 @@ etar()
     local args="--warning=none"
 
     # Auto detect compression program based on extension but substitute in pbzip2 for bzip and pigz for gzip
-    if [[ $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz") ]]; then
+    if [[ -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz") ]]; then
         args+=" --use-compress-program=pbzip2"
-    elif [[ $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz") ]]; then
+    elif [[ -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz") ]]; then
         args+=" --use-compress-program=pigz"
     else
         args+=" --auto-compress"
