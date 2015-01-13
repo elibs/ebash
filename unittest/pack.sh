@@ -208,3 +208,16 @@ ETEST_pack_lval()
     pack_set P A=1 B=2
     expect_eq 'P=([A]="1" [B]="2" )' "$(lval +P)"
 }
+
+ETEST_pack_update_only_complete_matches()
+{
+    pack_set P ALPHA=1
+    expect_eq 1 $(pack_size P)
+
+    pack_update P A=1
+    pack_update P AL=1
+    pack_update P ALP=1
+    pack_update P ALPH=1
+    pack_update P ALPHA_=1
+    expect_eq 1 $(pack_size P)
+}
