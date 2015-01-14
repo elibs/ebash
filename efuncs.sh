@@ -738,7 +738,7 @@ hostname_to_ip()
 
 fully_qualify_hostname()
 {
-    local hostname=$1
+    local hostname=${1,,}
     argcheck hostname
 
     local output hostrc fqhostname
@@ -749,6 +749,7 @@ fully_qualify_hostname()
 
     [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
     fqhostname=$(echo ${output} | awk '{print $1}')
+    fqhostname=${fqhostname,,}
 
     [[ ${fqhostname} =~ ${hostname} ]] || { ewarn "Invalid fully qualified name ${fqhostname} from ${hostname}." ; return 1 ; }
 
