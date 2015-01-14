@@ -48,3 +48,13 @@ ETEST_edebug_enabled_skips_edebug_in_stack_frame()
     output=$(EDEBUG="ETEST_edebug_enabled_skips_edebug_in_stack_frame" edebug "hello" 2>&1)
     expect_true '[[ ${output} =~ hello ]]'
 }
+
+ETEST_fully_qualify_hostname_ignores_case()
+{
+    expect_eq 'bdr-jenkins.eng.solidfire.net' $(fully_qualify_hostname bdr-jenkins)
+    expect_eq 'bdr-jenkins.eng.solidfire.net' $(fully_qualify_hostname BDR-JENKINS)
+
+    # This host has its name in all caps (BDR-ES56 in DNS)
+    expect_eq 'bdr-es56.eng.solidfire.net' $(fully_qualify_hostname bdr-es56)
+    expect_eq 'bdr-es56.eng.solidfire.net' $(fully_qualify_hostname BDR-ES56)
+}
