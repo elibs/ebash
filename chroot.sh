@@ -230,7 +230,7 @@ chroot_install_retry()
     for (( i=0; i<${max}; ++i )); do
         chroot_install_internal $* \
             && { [[ $i > 0 ]] && ewarns "Successfully installed packages (tries=${i}/${max})"; return; }
-        ewarn "Failed to install packages (tries=${i}/${max}) -- retrying..."
+        ewarns "Failed to install packages (tries=${i}/${max}) -- retrying..."
     done
 
     die "Failed to install [$@]"
