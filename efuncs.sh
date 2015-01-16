@@ -546,7 +546,7 @@ eprogress_killall()
 # Associative Arrays: {[key1]="value1" [key2]="value2 with spaces"}
 print_value()
 {
-    local __input="${1}"
+    local __input=${1}
     [[ -z ${__input} ]] && return
 
     # Special handling for packs, as long as their name is specified with a
@@ -566,9 +566,9 @@ print_value()
     # array to this function from the named one that was passed in and then
     # lookup the requested key in _THAT_ array. Magic.
     if [[ ${__input} =~ (.*)\[(.*)\] ]] ; then
-        local array_name="${BASH_REMATCH[1]}"
-        local key_name="${BASH_REMATCH[2]}"
-        local code="$(declare -p ${array_name})"
+        local array_name=${BASH_REMATCH[1]}
+        local key_name=${BASH_REMATCH[2]}
+        local code=$(declare -p ${array_name})
         code=${code/${array_name}/array}
         eval "${code}"
 
@@ -580,7 +580,7 @@ print_value()
 
     local decl=$(declare -p ${__input} 2>/dev/null)
     local val=$(echo "${decl}")
-    val="${val#*=}"
+    val=${val#*=}
 
     # If decl is empty just print out it's raw value as it's NOT a variable!!
     # This is really important so that you can do simple things like
@@ -614,10 +614,10 @@ lval()
     for __arg in "${@}"; do
         
         # Tag provided?
-        local __arg_tag="${__arg%%=*}"; [[ -z ${__arg_tag} ]] && __arg_tag="${__arg}"
-        local __arg_val="${__arg#*=}";
+        local __arg_tag=${__arg%%=*}; [[ -z ${__arg_tag} ]] && __arg_tag=${__arg}
+        local __arg_val=${__arg#*=}
         __arg_tag=${__arg_tag#+}
-        __arg_val="$(print_value "${__arg_val}")"
+        __arg_val=$(print_value "${__arg_val}")
         
         [[ ${idx} -gt 0 ]] && echo -n " "
         echo -n "${__arg_tag}=${__arg_val}"
