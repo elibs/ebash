@@ -107,6 +107,8 @@ ecolor()
     [[ -z ${efuncs_color} && -t 2 ]] && efuncs_color=1
     [[ ${efuncs_color} -eq 1 ]] || return 0
 
+    # NOTE: Do NOT use declare_args here to pull c out of the argument list.
+    # Otherwise you cause indirect infinite recursion if you enable EDEBUG!!
     local c=$1; argcheck c
 
     # For the colors see tput(1) and terminfo(5)
@@ -305,7 +307,7 @@ eerror()
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
 etable()
 {
-    columns=$1
+    eval $(declare_args columns)
     lengths=()
     for line in "$@"; do
         ifs_save; ifs_set "|"; parts=(${line}); ifs_restore
@@ -365,9 +367,7 @@ eprompt()
 # user but will be accepted as a valid response.
 eprompt_with_options()
 {
-    local msg="$1"; argcheck msg
-    local opt="$2"; argcheck opt
-    local secret="$3"
+    eval $(declare_args msg opt ?secret)
     local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"
 
@@ -385,7 +385,7 @@ eprompt_with_options()
 
 epromptyn()
 {
-    local msg="$1"; argcheck msg
+    eval $(declare_args msg)
     eprompt_with_options "${msg}" "Yes,No"
 }
 
@@ -418,16 +418,18 @@ eend()
 
 ekill()
 {
-    local pid=${1}
-    local signal=${2:-TERM}
+    eval $(declare_args pid ?signal)
+    : ${signal:=TERM}
+
     kill -${signal} ${pid}
     wait  ${pid}
 }
 
 ekilltree()
 {
-    local pid=$1
-    local signal=${2:-TERM}
+    eval $(declare_args pid ?signal)
+    : ${signal:=TERM}
+
     edebug "Killing process tree of ${pid} [$(ps -p ${pid} -o comm=)] with ${signal}."
     for child in $(ps -o pid --no-headers --ppid ${pid}); do
         ekilltree ${child} ${signal}
@@ -704,7 +706,7 @@ ifs_set()
 #-----------------------------------------------------------------------------
 valid_ip()
 {
-    local ip=$1
+    eval $(declare_args ip)
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -717,8 +719,7 @@ valid_ip()
 
 hostname_to_ip()
 {
-    local hostname=$1
-    argcheck hostname
+    eval $(declare_args hostname)
 
     local output hostrc ip
     output="$(host ${hostname} | grep ' has address ')"
@@ -759,21 +760,21 @@ fully_qualify_hostname()
 
 getipaddress()
 {
-    local iface=$1; argcheck 'iface'; 
+    eval $(declare_args iface)
     local ip=$(strip $(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2))
     echo -n "${ip}"
 }
 
 getnetmask()
 {
-    local iface=$1; argcheck 'iface'; 
+    eval $(declare_args iface)
     local netmask=$(strip $(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2))
     echo -n "${netmask}"
 }
 
 getbroadcast()
 {
-    local iface=$1; argcheck 'iface'; 
+    eval $(declare_args iface)
     local bcast=$(strip $(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2))
     echo -n "${bcast}"
 }
@@ -788,8 +789,7 @@ getgateway()
 # Compute the subnet given the current IPAddress (ip) and Netmask (nm)
 getsubnet()
 {
-    local ip=$1; argcheck 'ip'
-    local nm=$2; argcheck 'nm'
+    eval $(declare_args ip nm)
 
     IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
     IFS=. read -r m1 m2 m3 m4 <<< "${nm}"
@@ -814,7 +814,7 @@ epushd()
 
 epopd()
 {
-    popd $1 >/dev/null    || die "popd failed"
+    popd $1 >/dev/null  || die "popd $1 failed"
 }
 
 emkdir()
@@ -836,10 +836,7 @@ echown()
 echmodown()
 {
     [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
-    local mode="$1"; argcheck mode
-    shift
-    local owner="$1"; argcheck owner
-    shift
+    eval $(declare_args mode owner)
 
     echmod ${mode} $@
     echown ${owner} $@
@@ -889,12 +886,11 @@ ersync()
 
 erename()
 {
-    local src=$1
-    local dst=$2
+    eval $(declare_args src dest)
 
-    emkdir $dst
-    ersync "${src}/" "${dst}/"
-    erm ${src}
+    emkdir "${dest}"
+    ersync "${src}/" "${dest}/"
+    erm "${src}"
 }
 
 etouch()
@@ -906,7 +902,7 @@ etouch()
 # Unmount (if mounted) and remove directory (if it exists) then create it anew
 efreshdir()
 {
-    local mnt=${1}
+    eval $(declare_args mnt)
 
     eunmount_recursive ${mnt}
     erm ${mnt}
@@ -916,14 +912,14 @@ efreshdir()
 # Copies the given file to *.bak if it doesn't already exist
 ebackup()
 {
-    local src=$1
-
+    eval $(declare_args src)
+    
     [[ -e "${src}" && ! -e "${src}.bak" ]] && ecp "${src}" "${src}.bak"
 }
 
 erestore()
 {
-    local src=$1
+    eval $(declare_args src)
     
     [[ -e "${src}.bak" ]] && emv "${src}.bak" "${src}"
 }
@@ -948,7 +944,8 @@ etar()
 
 esed()
 {
-    local fname=$1; argcheck fname; shift;
+    eval $(declare_args fname)
+    
     local cmd="sed -i"
     for exp in "${@}"; do
         cmd+=" -e $'${exp}'"
@@ -965,8 +962,7 @@ esed()
 # This function will die() on failure.
 emd5sum()
 {
-    local path=$1
-    argcheck path
+    eval $(declare_args path)
    
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
@@ -982,8 +978,7 @@ emd5sum()
 # 'md5'. This method will die() on failure.
 emd5sum_check()
 {
-    local path=$1
-    argcheck path
+    eval $(declare_args path)
     
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
@@ -1082,9 +1077,7 @@ isgentoo()
 # strings and even worse being completely incapable of comparing floats.
 compare()
 {
-    local lh="$1"
-    local op="$2"
-    local rh="$3"
+    eval $(declare_args ?lh op ?rh)
 
     ## Degenerate case where actual and expect are both empty strings
     [[ -z ${lh} && -z ${rh} ]] && return 0
@@ -1128,7 +1121,7 @@ compare_version()
 }
 
 #-----------------------------------------------------------------------------
-# MISC HELPERS
+# ARGUMENT HELPERS
 #-----------------------------------------------------------------------------
 
 # Check to ensure all the provided arguments are non-empty
@@ -1139,6 +1132,72 @@ argcheck()
         [[ -z "${!_argcheck_arg}" ]] && die "Missing argument '${_argcheck_arg}'"
     done
 }
+
+# Internal helper method used by both declare_args and declare_globals that
+# takes a list of names and declares a variable for each name from the positional
+# arguments in the CALLER's context. This is done by having the caller eval the
+# output geneated from declare_args, as in:
+#
+# eval $(declare_args a b)
+#
+# This gets turned into:
+#
+# "declare a=$1; shift; argcheck a1; declare b=$2; shift; argcheck b; "
+# 
+# The required first argument to this internal helper method indicates the
+# qualifier that should be used for the scope of the variable. For a local
+# varibale it should be "local" and for global variables it should be an empty
+# string.
+#
+# There are various special meta characters that can precede the variable name
+# that act as instructions to declare_args. Specifically:
+#
+# ?  The named argument is OPTIONAL. If it's empty do NOT call argcheck.
+#
+# _  The argument is anonymous and we should not not assign the value to anything.
+#
+declare_args_internal()
+{
+    local _declare_args_qualifier=$1
+    local _declare_args_optional=0
+    local _declare_args_variable=""
+    
+    while shift; do
+        [[ $# -eq 0 ]] && break
+
+        # If the variable name is "_" then don't bother assigning it to anything
+        [[ $1 == "_" ]] && echo "shift; " && continue
+
+        # Check if the argument is optional or not
+        [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
+        _declare_args_variable="${1#\?}"
+        edebugf "$1: $(lval _declare_args_variable _declare_args_optional)"
+
+        # Declare the variable and then call argcheck if required
+        local _declare_args_cmd="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift; "
+        [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
+        edebugf "$(lval _declare_args_cmd)"
+        echo "${_declare_args_cmd}"
+    done
+}
+
+# Public method which just calls into declare_args_internal with "local" keyword.
+# See declare_args_internal
+declare_args()
+{
+    declare_args_internal "local" "${@}"
+}
+
+# Public method which just calls into declare_args_internal with "" keyword.
+# See declare_args_internal.
+declare_globals()
+{
+    declare_args_internal "" "${@}"
+}
+
+#-----------------------------------------------------------------------------
+# MISC HELPERS
+#-----------------------------------------------------------------------------
 
 # save_function is used to safe off the contents of a previously declared
 # function into ${1}_real to aid in overridding a function or altering
@@ -1160,8 +1219,7 @@ save_function()
 # times.
 override_function()
 {
-    local func=$1; argcheck func
-    local body=$2; argcheck body
+    eval $(declare_args func body)
 
     ## Don't save the function off it already exists to avoid infinite recursion
     declare -f "${func}_real" >/dev/null || save_function ${func}
@@ -1419,9 +1477,7 @@ eretry()
 #   will then be used by setvars as the replacement value.
 setvars()
 {
-    local filename=$1
-    local callback=$2
-    argcheck filename
+    eval $(declare_args filename ?callback)
     edebug "Setting variables $(lval filename callback)"
 
     for arg in $(grep -o "__\S\+__" ${filename} | sort --unique); do
