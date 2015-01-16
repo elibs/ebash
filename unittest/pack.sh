@@ -162,7 +162,7 @@ ETEST_pack_update_updates_values()
     expect_empty   $(pack_get P d)
 }
 
-ETEST_pack_avoid_common_variable_conflicts()
+DISABLED_ETEST_pack_avoid_common_variable_conflicts()
 {
     POTENTIAL_VARS=(arg val key tag)
     for VAR in ${POTENTIAL_VARS[@]} ; do
