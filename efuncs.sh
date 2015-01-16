@@ -1135,11 +1135,15 @@ argcheck()
 
 # Internal helper method used by both declare_args and declare_globals that
 # takes a list of names and declares a variable for each name from the positional
-# arguments in the CALLER's context. Essentially it will iterate over each given
-# variable names (a b) it will echo "declare a=$1; declare b=$2;". By default it
-# will also check if the resulting assignment resulted in an empty string or not
-# via a call to argcheck. 
+# arguments in the CALLER's context. This is done by having the caller eval the
+# output geneated from declare_args, as in:
 #
+# eval $(declare_args a b)
+#
+# This gets turned into:
+#
+# "declare a=$1; shift; argcheck a1; declare b=$2; shift; argcheck b; "
+# 
 # The required first argument to this internal helper method indicates the
 # qualifier that should be used for the scope of the variable. For a local
 # varibale it should be "local" and for global variables it should be an empty
