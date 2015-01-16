@@ -1155,6 +1155,9 @@ argcheck()
 # ?  The named argument is OPTIONAL. If it's empty do NOT call argcheck.
 #
 # _  The argument is anonymous and we should not not assign the value to anything.
+#    NOTE: The argument must be exactly '_' not just prefixed with '_'. Thus if
+#    the argument is literally '_' it will be anonymous but if it is '_a' it is
+#    NOT an anonymous variable.
 #
 declare_args_internal()
 {
@@ -1168,7 +1171,9 @@ declare_args_internal()
         # If the variable name is "_" then don't bother assigning it to anything
         [[ $1 == "_" ]] && echo "shift; " && continue
 
-        # Check if the argument is optional or not
+        # Check if the argument is optional or not as indicated by a leading '?'.
+        # If the leading '?' is present then REMOVE It so that code after it can
+        # correctly use the key name as the variable to assign it to.
         [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
         _declare_args_variable="${1#\?}"
         edebugf "$1: $(lval _declare_args_variable _declare_args_optional)"

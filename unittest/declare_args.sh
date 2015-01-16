@@ -44,7 +44,7 @@ ETEST_declare_args_basic()
 
 ETEST_declare_args_whitespace()
 {
-    do_declare_args "a1 a2 a3" "arg1 with spaces" "arg2 prefers Gentoo 2-1!" "arg3 is an ubunut lover"
+    do_declare_args "a1 a2 a3" "arg1 with spaces" "arg2 prefers Gentoo 2-1!" "arg3 is an stubuntu lover"
 }
 
 ETEST_declare_args_noargs()
