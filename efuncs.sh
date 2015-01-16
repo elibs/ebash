@@ -309,7 +309,7 @@ etable()
 {
     eval $(declare_args columns)
     lengths=()
-    for line in "$@"; do
+    for line in "${columns}" "$@"; do
         ifs_save; ifs_set "|"; parts=(${line}); ifs_restore
         idx=0
         for p in "${parts[@]}"; do
@@ -332,7 +332,7 @@ etable()
     printf "%s\n" ${divider}
 
     lnum=0
-    for line in "$@"; do
+    for line in "${columns}" "$@"; do
         IFS="|"; parts=(${line}); IFS=" "
         idx=0
         printf "|"
