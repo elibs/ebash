@@ -110,7 +110,7 @@ ecolor()
     local c=$1; argcheck c
 
     # For the colors see tput(1) and terminfo(5)
-    [[ ${c} == "none"     ]] && { echo -en $(tput sgr0);              return 0; }
+    [[ ${c} == "none"     ]] && { echo -en "\033[m";                  return 0; }
     [[ ${c} == "red"      ]] && { echo -en $(tput bold;tput setaf 1); return 0; }
     [[ ${c} == "green"    ]] && { echo -en $(tput bold;tput setaf 2); return 0; }
     [[ ${c} == "yellow"   ]] && { echo -en $(tput bold;tput setaf 3); return 0; }
