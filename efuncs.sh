@@ -1504,7 +1504,7 @@ setvars()
 
         edebug "   ${key} => $(print_value val)"
         
-        sed -i -e "s/__${key}__/${val}/g" "${filename}" || die "Failed to set $(lval key val filename)"
+        perl -pi -e "s/__${key}__/${val}/g" "${filename}" || die "Failed to set $(lval key val filename)"
     done
 
     # Ensure nothing left over if SETVARS_FATAL is true. If SETVARS_WARN is true it will still warn in this case.

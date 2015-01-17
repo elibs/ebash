@@ -57,3 +57,23 @@ ETEST_setvars_callback()
     setvars "${file}" adjust_version
     expect_eq "1.7.2-p1 1.7.2 1.7.2" "$(cat ${file})"
 }
+
+ETEST_setvars_with_newlines()
+{
+    local file="setvars_with_newlines.txt"
+
+    echo "A __B__ C" > ${file}
+    trap_add "erm ${file}"
+
+    B="a
+b
+c"
+
+    expected="A a
+b
+c C"
+
+    setvars "${file}"
+
+    expect_eq "${expected}" "$(cat $file)"
+}
