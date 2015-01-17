@@ -1493,18 +1493,18 @@ setvars()
         # the new resulting value to be used
         [[ -n ${callback} ]] && val=$(${callback} "${key}" "${val}")
 
-        # Also escape forward slashes with a backslash before them in the value for sed
-        val=${val//\//\\/}
-
         # If we got an empty value back and empty values aren't allowed then continue.
         # We do NOT call die here as we'll deal with that at the end after we have
         # tried to expand all variables. This way we can properly support SETVARS_WARN
         # and SETVARS_FATAL.
         [[ -n ${val} || ${SETVARS_ALLOW_EMPTY:-0} -eq 1 ]] || continue
 
-        edebug "   ${key} => $(print_value val)"
+        edebug "   ${key} => ${val}"
         
-        perl -pi -e "s/__${key}__/${val}/g" "${filename}" || die "Failed to set $(lval key val filename)"
+        # Put val into perl's environment and let _perl_ pull it out of that
+        # environment.  This has the benefit of causing it to not try to
+        # interpret any of it, but to treat it as a raw string
+        VAL="${val}" perl -pi -e "s/__${key}__/\$ENV{VAL}/g" "${filename}" || die "Failed to set $(lval key val filename)"
     done
 
     # Ensure nothing left over if SETVARS_FATAL is true. If SETVARS_WARN is true it will still warn in this case.
