@@ -77,3 +77,34 @@ c C"
 
     expect_eq "${expected}" "$(cat $file)"
 }
+
+ETEST_setvars_punctuation()
+{
+    PUNCT="!@#$%^&*()-=[]{};'\",.<>/?|"
+
+    local file="setvars_punctuation.txt"
+    trap_add "erm ${file}"
+
+    # Iterate over the above string of punctuation marks
+    for (( i=0 ; i < ${#PUNCT} ; ++i )) ; do
+        local mark=${PUNCT:$i:1}
+        local endmark=${mark}
+
+        [[ $mark == "(" ]] && endmark=")"
+        [[ $mark == "[" ]] && endmark="]"
+        [[ $mark == "{" ]] && endmark="}"
+        [[ $mark == "<" ]] && endmark=">"
+
+        edebug "$(lval mark endmark)"
+
+        # Create a simple file to setvars in, and replace part of it with a
+        # string containing that punctuation mark
+        echo "A __B__ C" > ${file}
+        B=jan${mark}feb${endmark}march
+        setvars "${file}"
+
+        expect_eq "A jan${mark}feb${endmark}march C" "$(cat ${file})"
+
+        edebug_enabled && cat "${file}" || true
+    done
+}
