@@ -1660,6 +1660,58 @@ pack_iterate()
     done
 }
 
+#
+# Spews bash commands that, when eval-ed will declare a local in your
+# environment for every item in the pack.  For instance, if your pack contains
+# keys a and b with respective values 1 and 2, you can create locals a=1 and
+# b=2 by running:
+#
+#   eval "$(pack_import pack)"
+#
+# If you don't want the pack's entire contents, but only a limited subset, you
+# may specify them.  For instance, in the same example scenario, the following
+# will create a local a=1, but not a local for b.
+#
+#  eval "$(pack_import pack a)"
+#
+pack_import()
+{
+    eval $(declare_args _pack_import_pack)
+    local _pack_import_keys=("${@}")
+    [[ ${#_pack_import_keys} -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
+
+    edebugf $(lval _pack_import_keys)
+
+    for _pack_import_key in "${_pack_import_keys[@]}" ; do
+        local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
+        echo "local $_pack_import_key=${_pack_import_val}"
+    done
+}
+
+#
+# Assigns values into a pack by extracting them from the caller environment.
+# For instance, if you have locals a=1 and b=2 and run the following:
+#
+#    pack_export pack a b
+#
+# You will be left with the same pack as if you instead said:
+#
+#   pack_set pack a=${a} b=${b}
+#
+pack_export()
+{
+    local _pack_export_pack=$1
+    shift
+
+    local _pack_export_args=()
+    for _pack_export_arg in "${@}" ; do
+        _pack_export_args+=("${_pack_export_arg}=${!_pack_export_arg}")
+    done
+
+    edebugf "$(lval _pack_export_pack _pack_export_args)"
+    pack_set "${_pack_export_pack}" "${_pack_export_args[@]}"
+}
+
 pack_size()
 {
     [[ -z ${1} ]] && die "pack_size requires a pack to be specified as \$1"
