@@ -259,3 +259,42 @@ ETEST_pack_copy_over()
     expect_eq 2 $(pack_get P B)
 }
 
+ETEST_pack_import_all()
+{
+    expect_empty ${a}
+    expect_empty ${b}
+
+    pack_set P a=10 b=20
+    eval "$(pack_import P)"
+
+    expect_eq 10 ${a}
+    expect_eq 20 ${b}
+}
+
+ETEST_pack_import_specific()
+{
+    expect_empty ${a}
+    expect_empty ${b}
+    expect_empty ${c}
+
+    pack_set P a=1 b=2 c=3
+    eval "$(pack_import P a b)"
+
+    expect_eq 1  ${a}
+    expect_eq 2  ${b}
+    expect_empty ${c}
+}
+
+ETEST_pack_export()
+{
+    a=1
+    b=2
+    c=3
+
+    pack_export P a b c
+
+    expect_eq ${a} "$(pack_get P a)"
+    expect_eq ${b} "$(pack_get P b)"
+    expect_eq ${c} "$(pack_get P c)"
+
+}
