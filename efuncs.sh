@@ -803,6 +803,7 @@ getsubnet()
 esource()
 {
     for file in "${@}" ; do
+        edebugf "$(lval file)"
         source "${file}" || die "Failed to source $@"
     done
 }
@@ -1427,6 +1428,7 @@ eretry()
             timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
             rc=$?
         else
+            edebugf "$(lval try rc cmd)"
             "${@}"
             rc=$?
         fi
