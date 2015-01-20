@@ -1145,9 +1145,11 @@ argcheck()
 # "declare a=$1; shift; argcheck a1; declare b=$2; shift; argcheck b; "
 # 
 # The required first argument to this internal helper method indicates the
-# qualifier that should be used for the scope of the variable. For a local
-# varibale it should be "local" and for global variables it should be an empty
-# string.
+# qualifier that should be used for the scope of the variable which is one of:
+#
+# "local"  Local variables with function scope
+# ""       Global variables with file scope
+# "export" Global variables with external scope in caller's environment 
 #
 # There are various special meta characters that can precede the variable name
 # that act as instructions to declare_args. Specifically:
@@ -1198,6 +1200,13 @@ declare_args()
 declare_globals()
 {
     declare_args_internal "" "${@}"
+}
+
+# Public method which just calls into declare_args_internal with "export" keyword.
+# See declare_args_internal.
+declare_exports()
+{
+    declare_args_internal "export" "${@}"
 }
 
 #-----------------------------------------------------------------------------
