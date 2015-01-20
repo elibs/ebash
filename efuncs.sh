@@ -343,7 +343,7 @@ etable()
         done
         printf "\n"
         lnum=$((lnum+1))
-        if [[ ${lnum} -eq 1 || ${lnum} -eq $# ]]; then
+        if [[ ${lnum} -eq 1 || ${lnum} -eq $(( $# + 1 )) ]]; then
             printf "%s\n" ${divider}
         else
             [[ ${ETABLE_ROW_LINES} != 0 ]] && printf "%s\n" ${divider//+/|}
