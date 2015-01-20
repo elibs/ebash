@@ -44,7 +44,7 @@ ETEST_declare_args_basic()
 
 ETEST_declare_args_whitespace()
 {
-    do_declare_args "a1 a2 a3" "arg1 with spaces" "arg2 prefers Gentoo 2-1!" "arg3 is an stubuntu lover"
+    do_declare_args "a1 a2 a3" "arg1 with spaces" "arG2 prefers Gentoo 2-1!" "arg3 is an stubuntu lover"
 }
 
 ETEST_declare_args_noargs()
@@ -67,12 +67,33 @@ ETEST_declare_args_anonymous()
 # Verify if we declare a GLOBAL variable in one function we can see it in another.
 do_declare_global()
 {
-    eval $(declare_globals ?g1)
-    g1="GLOBAL1"
+    eval $(declare_globals ?G1)
+    G1="GLOBAL1"
 }
 
 ETEST_declare_args_global()
 {
     do_declare_global
-    expect_eq "GLOBAL1" ${g1}
+    expect_eq "GLOBAL1" ${G1}
+}
+
+do_declare_export()
+{
+    eval $(declare_exports ?G2)
+    G2="GLOBAL2"
+}
+
+# Verify if we declare a GLOBAL EXPORTED variable it can be seen in a external process
+ETEST_declare_args_export()
+{
+    local file="declare_args_export.sh"
+    echo "[[ -z \${G1} ]] || { echo 'G1=[\${G1}] should not be exported'; exit 1; }" >  ${file}
+    echo "[[ -n \${G2} ]] || { echo 'G2=[\${G2}] should be exported';     exit 2; }" >> ${file}
+    echmod +x ${file}
+    trap_add "erm ${file}" EXIT
+    edebugf "$(cat ${file})"
+
+    do_declare_global
+    do_declare_export
+    ./${file}
 }
