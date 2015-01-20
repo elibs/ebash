@@ -119,14 +119,14 @@ ETEST_pack_iterate()
     expect_eq 4 ${_pack_iterate_count}
 }
 
-ETEST_pack_keys_are_case_insensitive()
+ETEST_pack_keys_are_not_case_insensitive()
 {
     pack_set P a="alpha"
     expect_eq "alpha" $(pack_get P a)
-    expect_eq "alpha" $(pack_get P A)
+    expect_empty      $(pack_get P A)
 
     pack_set P A="beta"
-    expect_eq "beta"  $(pack_get P a)
+    expect_eq "alpha" $(pack_get P a)
     expect_eq "beta"  $(pack_get P A)
 }
 
@@ -222,16 +222,16 @@ ETEST_pack_update_only_complete_matches()
     expect_eq 1 $(pack_size P)
 }
 
-ETEST_pack_update_key_insensitive()
+ETEST_pack_update_key_not_insensitive()
 {
     pack_set P A=1 B=2
 
     pack_update P a=10 b=20
 
-    expect_eq 10 $(pack_get P a)
-    expect_eq 10 $(pack_get P A)
-    expect_eq 20 $(pack_get P b)
-    expect_eq 20 $(pack_get P B)
+    expect_eq 1  $(pack_get P A)
+    expect_eq 2  $(pack_get P B)
+    expect_empty $(pack_get P a)
+    expect_empty $(pack_get P b)
 }
 
 ETEST_pack_copy_empty()
@@ -259,3 +259,42 @@ ETEST_pack_copy_over()
     expect_eq 2 $(pack_get P B)
 }
 
+ETEST_pack_import_all()
+{
+    expect_empty ${a}
+    expect_empty ${b}
+
+    pack_set P a=10 b=20
+    eval "$(pack_import P)"
+
+    expect_eq 10 ${a}
+    expect_eq 20 ${b}
+}
+
+ETEST_pack_import_specific()
+{
+    expect_empty ${a}
+    expect_empty ${b}
+    expect_empty ${c}
+
+    pack_set P a=1 b=2 c=3
+    eval "$(pack_import P a b)"
+
+    expect_eq 1  ${a}
+    expect_eq 2  ${b}
+    expect_empty ${c}
+}
+
+ETEST_pack_export()
+{
+    a=1
+    b=2
+    c=3
+
+    pack_export P a b c
+
+    expect_eq ${a} "$(pack_get P a)"
+    expect_eq ${b} "$(pack_get P b)"
+    expect_eq ${c} "$(pack_get P c)"
+
+}

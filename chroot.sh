@@ -6,8 +6,8 @@
 #-----------------------------------------------------------------------------
 # PULL IN DEPENDENT PACKAGES
 #-----------------------------------------------------------------------------
-source "${BASHUTILS_PATH}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
-source "${BASHUTILS_PATH}/dpkg.sh"     || die "Failed to source dpkg.sh"
+source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
+esource "${BASHUTILS}/dpkg.sh"
 
 #-----------------------------------------------------------------------------                                    
 # CORE CHROOT FUNCTIONS

@@ -343,7 +343,7 @@ etable()
         done
         printf "\n"
         lnum=$((lnum+1))
-        if [[ ${lnum} -eq 1 || ${lnum} -eq $# ]]; then
+        if [[ ${lnum} -eq 1 || ${lnum} -eq $(( $# + 1 )) ]]; then
             printf "%s\n" ${divider}
         else
             [[ ${ETABLE_ROW_LINES} != 0 ]] && printf "%s\n" ${divider//+/|}
@@ -546,7 +546,7 @@ eprogress_killall()
 # Associative Arrays: {[key1]="value1" [key2]="value2 with spaces"}
 print_value()
 {
-    local __input="${1}"
+    local __input=${1}
     [[ -z ${__input} ]] && return
 
     # Special handling for packs, as long as their name is specified with a
@@ -566,9 +566,9 @@ print_value()
     # array to this function from the named one that was passed in and then
     # lookup the requested key in _THAT_ array. Magic.
     if [[ ${__input} =~ (.*)\[(.*)\] ]] ; then
-        local array_name="${BASH_REMATCH[1]}"
-        local key_name="${BASH_REMATCH[2]}"
-        local code="$(declare -p ${array_name})"
+        local array_name=${BASH_REMATCH[1]}
+        local key_name=${BASH_REMATCH[2]}
+        local code=$(declare -p ${array_name})
         code=${code/${array_name}/array}
         eval "${code}"
 
@@ -580,7 +580,7 @@ print_value()
 
     local decl=$(declare -p ${__input} 2>/dev/null)
     local val=$(echo "${decl}")
-    val="${val#*=}"
+    val=${val#*=}
 
     # If decl is empty just print out it's raw value as it's NOT a variable!!
     # This is really important so that you can do simple things like
@@ -614,10 +614,10 @@ lval()
     for __arg in "${@}"; do
         
         # Tag provided?
-        local __arg_tag="${__arg%%=*}"; [[ -z ${__arg_tag} ]] && __arg_tag="${__arg}"
-        local __arg_val="${__arg#*=}";
+        local __arg_tag=${__arg%%=*}; [[ -z ${__arg_tag} ]] && __arg_tag=${__arg}
+        local __arg_val=${__arg#*=}
         __arg_tag=${__arg_tag#+}
-        __arg_val="$(print_value "${__arg_val}")"
+        __arg_val=$(print_value "${__arg_val}")
         
         [[ ${idx} -gt 0 ]] && echo -n " "
         echo -n "${__arg_tag}=${__arg_val}"
@@ -803,6 +803,7 @@ getsubnet()
 esource()
 {
     for file in "${@}" ; do
+        edebugf "$(lval file)"
         source "${file}" || die "Failed to source $@"
     done
 }
@@ -1436,6 +1437,7 @@ eretry()
             timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
             rc=$?
         else
+            edebugf "$(lval try rc cmd)"
             "${@}"
             rc=$?
         fi
@@ -1502,18 +1504,18 @@ setvars()
         # the new resulting value to be used
         [[ -n ${callback} ]] && val=$(${callback} "${key}" "${val}")
 
-        # Also escape forward slashes with a backslash before them in the value for sed
-        val=${val//\//\\/}
-
         # If we got an empty value back and empty values aren't allowed then continue.
         # We do NOT call die here as we'll deal with that at the end after we have
         # tried to expand all variables. This way we can properly support SETVARS_WARN
         # and SETVARS_FATAL.
         [[ -n ${val} || ${SETVARS_ALLOW_EMPTY:-0} -eq 1 ]] || continue
 
-        edebug "   ${key} => $(print_value val)"
+        edebug "   ${key} => ${val}"
         
-        sed -i -e "s/__${key}__/${val}/g" "${filename}" || die "Failed to set $(lval key val filename)"
+        # Put val into perl's environment and let _perl_ pull it out of that
+        # environment.  This has the benefit of causing it to not try to
+        # interpret any of it, but to treat it as a raw string
+        VAL="${val}" perl -pi -e "s/__${key}__/\$ENV{VAL}/g" "${filename}" || die "Failed to set $(lval key val filename)"
     done
 
     # Ensure nothing left over if SETVARS_FATAL is true. If SETVARS_WARN is true it will still warn in this case.
@@ -1581,7 +1583,7 @@ pack_update()
         local _pack_update_key="${_pack_update_arg%%=*}"
         local _pack_update_val="${_pack_update_arg#*=}"
 
-        pack_keys ${_pack_update_pack} | grep -Pqi "\b${_pack_update_key}\b" \
+        pack_keys ${_pack_update_pack} | grep -Pq "\b${_pack_update_key}\b" \
             && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" ;
     done
 }
@@ -1597,7 +1599,7 @@ pack_set_internal()
     [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
     [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
 
-    local _removeOld="$(echo -n "${!1}" | _unpack | grep -iv '^'${_tag}'=')"
+    local _removeOld="$(echo -n "${!1}" | _unpack | grep -v '^'${_tag}'=')"
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(printf "${_addNew}" | _pack)
 
@@ -1616,7 +1618,7 @@ pack_get()
     argcheck _pack_pack_get _tag
 
     local _unpacked="$(echo -n "${!_pack_pack_get}" | _unpack)"
-    local _found="$(echo -n "${_unpacked}" | grep -i "^${_tag}=")"
+    local _found="$(echo -n "${_unpacked}" | grep "^${_tag}=")"
     edebugf "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
     [[ -n ${_found} ]]
@@ -1665,6 +1667,58 @@ pack_iterate()
         ${_func} "${_key}" "${_val}"
 
     done
+}
+
+#
+# Spews bash commands that, when eval-ed will declare a local in your
+# environment for every item in the pack.  For instance, if your pack contains
+# keys a and b with respective values 1 and 2, you can create locals a=1 and
+# b=2 by running:
+#
+#   eval "$(pack_import pack)"
+#
+# If you don't want the pack's entire contents, but only a limited subset, you
+# may specify them.  For instance, in the same example scenario, the following
+# will create a local a=1, but not a local for b.
+#
+#  eval "$(pack_import pack a)"
+#
+pack_import()
+{
+    eval $(declare_args _pack_import_pack)
+    local _pack_import_keys=("${@}")
+    [[ ${#_pack_import_keys} -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
+
+    edebugf $(lval _pack_import_keys)
+
+    for _pack_import_key in "${_pack_import_keys[@]}" ; do
+        local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
+        echo "local $_pack_import_key=${_pack_import_val}"
+    done
+}
+
+#
+# Assigns values into a pack by extracting them from the caller environment.
+# For instance, if you have locals a=1 and b=2 and run the following:
+#
+#    pack_export pack a b
+#
+# You will be left with the same pack as if you instead said:
+#
+#   pack_set pack a=${a} b=${b}
+#
+pack_export()
+{
+    local _pack_export_pack=$1
+    shift
+
+    local _pack_export_args=()
+    for _pack_export_arg in "${@}" ; do
+        _pack_export_args+=("${_pack_export_arg}=${!_pack_export_arg}")
+    done
+
+    edebugf "$(lval _pack_export_pack _pack_export_args)"
+    pack_set "${_pack_export_pack}" "${_pack_export_args[@]}"
 }
 
 pack_size()
