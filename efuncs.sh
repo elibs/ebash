@@ -136,9 +136,9 @@ eclear()
 etimestamp()
 {
     ## Show timestamps before einfo messages and in ebanner ##
-    [[ ${EFUNCS_TIME} -eq 1 ]] || return
+    [[ ${EFUNCS_TIME} -eq 1 || ${EFUNCS_TIME} -eq 2 ]] || return
 
-    echo -en "[$(date '+%b %d %T')] "
+    echo -en "[$(date '+%b %d %T')]"
 }
 
 # Display a very prominent banner with a provided message which may be multi-line
@@ -238,10 +238,24 @@ ebanner()
 
 eprefix()
 {
-    local default="${1:- *}"
-    local prefix=$(etimestamp)
-    [[ -z ${prefix} ]] && prefix="${default} "
-    echo -en "${prefix}"
+    eval $(declare_args prefix_color ?prefix_symbol prefix_level)
+    : ${EFUNCS_LEVEL:="WARN ERROR"}
+    
+    # Don't show timestamps on EINFOS and EWARNS
+    #[[ ${prefix_level} =~ INFOS|WARNS ]] && local prefix_time="" || local prefix_time=$(etimestamp)
+    local prefix_time=$(etimestamp)
+    local prefix=""
+    edebugf "$(lval prefix_color prefix_symbol prefix_level EFUNCS_LEVEL)"
+
+    [[ -n ${prefix_time} ]] && prefix=${prefix_time}
+   
+    # Optionally add the level (if requested)
+    [[ ${EFUNCS_LEVEL} =~ ${prefix_level} ]] && prefix+=$(printf [%-5s] ${prefix_level})
+
+    # If it's still empty put in the default
+    [[ -z ${prefix} ]] && prefix=${prefix_symbol}
+
+    echo -en "$(ecolor ${prefix_color})${prefix}$(ecolor none)"
 }
 
 edebug_enabled()
@@ -263,7 +277,7 @@ edebug_enabled()
 
 edebug()
 {
-    edebug_enabled && echo "$(ecolor dimblue)    - ${@}$(ecolor none)" >&2
+    edebug_enabled && echo "$(ecolor dimblue)    + ${@}$(ecolor none)" >&2
     return 0
 }
 
@@ -276,32 +290,32 @@ edebugf()
 
 einfo()
 {
-    echo -e "$(ecolor green)$(eprefix)$@ $(ecolor none)" >&2
+    echo -e  "$(eprefix 'green' ' *' 'INFO') $@ " >&2
 }
 
 einfon()
 {
-    echo -en "$(ecolor green)$(eprefix)$@ $(ecolor none)" >&2
+    echo -en "$(eprefix 'green' ' *' 'INFO') $@ " >&2
 }
 
 einfos()
 {
-    echo -e "$(ecolor cyan)   >> $@ $(ecolor none)" >&2
+    echo -e "$(eprefix 'cyan' '   -' 'INFOS') $@ " >&2
 }
 
 ewarn()
 {
-    echo -e "$(ecolor yellow)$(eprefix)$@ $(ecolor none)" >&2
+    echo -e "$(eprefix 'yellow' '>>' 'WARN') $(ecolor yellow)$@$(ecolor none) " >&2
 }
 
 ewarns()
 {
-    echo -e "$(ecolor yellow)   >> $@ $(ecolor none)" >&2
+    echo -e "$(eprefix 'yellow' '   -' 'WARNS') $(ecolor yellow)$@$(ecolor none) " >&2
 }
 
 eerror()
 {
-    echo -e "$(ecolor red)$(eprefix '!!')$@ !! $(ecolor none)" >&2
+    echo -e "$(eprefix 'red' '>>' 'ERROR') $(ecolor red)$@$(ecolor none) " >&2
 }
 
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
