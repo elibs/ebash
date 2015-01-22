@@ -223,23 +223,33 @@ emsg()
     eval $(declare_args color ?symbol level)
     [[ ${EFUNCS_TIME} -eq 1 ]] && EMSG_PREFIX+=time
 
-    # Build up the prefix for the log message. The following are supported:
+    # Determine color values for each field used below.
+    : ${EMSG_COLOR:="time level caller"} 
+    local time_color level_color caller_color
+    [[ ${EMSG_COLOR} =~ all|time   ]] && time_color=$(ecolor ${color})   || time_color=$(ecolor none)
+    [[ ${EMSG_COLOR} =~ all|level  ]] && level_color=$(ecolor ${color})  || level_color=$(ecolor none)
+    [[ ${EMSG_COLOR} =~ all|caller ]] && caller_color=$(ecolor ${color}) || caller_color=$(ecolor none)
+
+    # Build up the prefix for the log message. Each of these may optionally be in color or not. This is 
+    # controlled vai EMSG_COLOR which is a list of fields to color. By default this is set to all fields.
+    # The following fields are supported:
     # (1) time    : Timetamp
     # (2) level   : Log Level
-    # (4) caller  : method:line
+    # (3) caller  : file:line:method
+    local delim="$(ecolor none)|"
     local prefix=""
-    [[ ${EMSG_PREFIX} =~ time   ]] && prefix+="$(etimestamp)"
-    [[ ${EMSG_PREFIX} =~ level  ]] && prefix+="|$(printf "%-5s"  ${level})"
-    [[ ${EMSG_PREFIX} =~ caller ]] && prefix+="|$(printf "%-10s" $(caller 1 | awk '{print $2, $1}' | tr ' ' ':'))"
-    
-    # Strip of extra leading '|' if present
-    prefix="${prefix#|}"
+    [[ ${EMSG_PREFIX} =~ time   ]] && prefix+="${time_color}$(etimestamp)"
+    [[ ${EMSG_PREFIX} =~ level  ]] && prefix+="${delim}${level_color}$(printf "%-5s"  ${level%%S})"
+    [[ ${EMSG_PREFIX} =~ caller ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
+
+    # Strip of extra leading delimiter if present
+    prefix="${prefix#${delim}}"
 
     # If it's still empty put in the default
-    [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="[${prefix}]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
-
+    [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
+    
     # Color Policy
-    [[ ${EMSG_COLOR_FULL} -eq 1 || ${level} =~ DEBUG|WARN|ERROR ]] \
+    [[ ${EMSG_COLOR} =~ all|msg || ${level} =~ DEBUG|WARN|ERROR ]] \
         && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " >&2 \
         || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@ " >&2
 }
@@ -263,37 +273,37 @@ edebug_enabled()
 edebug()
 {
     edebug_enabled || return 0
-    echo -e "$(emsg 'dimblue' '   -' 'DEBUG' $@)" >&2
+    echo -e "$(emsg 'dimblue' '   -' 'DEBUG' "$@")" >&2
 }
 
 einfo()
 {
-    echo -e  "$(emsg 'green' ' *' 'INFO' $@)" >&2
+    echo -e  "$(emsg 'green' ' *' 'INFO' "$@")" >&2
 }
 
 einfon()
 {
-    echo -en "$(emsg 'green' ' *' 'INFO' $@)" >&2
+    echo -en "$(emsg 'green' ' *' 'INFO' "$@")" >&2
 }
 
 einfos()
 {
-    echo -e "$(emsg 'green' '   •' 'INFOS' $@)" >&2
+    echo -e "$(emsg 'green' '   •' 'INFOS' "$@")" >&2
 }
 
 ewarn()
 {
-    echo -e "$(emsg 'yellow' '>>' 'WARN' $@)" >&2
+    echo -e "$(emsg 'yellow' '>>' 'WARN' "$@")" >&2
 }
 
 ewarns()
 {
-    echo -e "$(emsg 'yellow' '   •' 'WARNS' $@)" >&2
+    echo -e "$(emsg 'yellow' '   •' 'WARNS' "$@")" >&2
 }
 
 eerror()
 {
-    echo -e "$(emsg 'red' '>>' 'ERROR' $@)" >&2
+    echo -e "$(emsg 'red' '>>' 'ERROR' "$@")" >&2
 }
 
 eerror_stacktrace()
@@ -596,6 +606,12 @@ print_value()
     local decl=$(declare -p ${__input} 2>/dev/null)
     local val=$(echo "${decl}")
     val=${val#*=}
+
+    # If decl is empty just print out it's raw value as it's NOT a variable!!
+    # This is really important so that you can do simple things like
+    # $(print_value /home/marshall) and it'll just pass through that value
+    # as is but with the proper formatting and quoting.
+    [[ -z ${decl} ]] && val='"'${__input}'"'
 
     # Deal with properly delcared variables which are empty
     [[ -z ${val} ]] && val='""'

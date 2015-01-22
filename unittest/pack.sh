@@ -247,12 +247,12 @@ ETEST_pack_copy_over()
     declare -A B
     pack_set B[alpha] C=10 D=20
 
-    edebugf $(lval +P +B[alpha])
+    edebug $(lval +P +B[alpha])
     expect_eq 1 $(pack_get P A)
     expect_eq 2 $(pack_get P B)
 
     pack_copy P B[alpha]
-    edebugf $(lval +P +B[alpha])
+    edebug $(lval +P +B[alpha])
     expect_eq 1 $(pack_get B[alpha] A)
     expect_eq 2 $(pack_get B[alpha] B)
     expect_eq 1 $(pack_get P A)
