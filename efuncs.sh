@@ -9,7 +9,7 @@
 
 stacktrace()
 {
-    local frame=1
+    local frame=${1:-1}
 
     while caller ${frame}; do
         ((frame++));
@@ -24,22 +24,7 @@ die()
     DIE_IN_PROGRESS=1
     eprogress_killall
 
-    echo ""
-    eerror "$@"
-
-    ifs_save; ifs_nl
-    local frames=( $(stacktrace) )
-
-    for f in ${frames[@]}; do
-        local line=$(echo ${f} | awk '{print $1}')
-        local func=$(echo ${f} | awk '{print $2}')
-        local file=$(basename $(echo ${f} | awk '{print $3}'))
-
-        [[ ${file} == "efuncs.sh" && ${func} == "die" ]] && break
-        
-        printf "$(ecolor red)   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
-    done
-    ifs_restore
+    eerror_stacktrace 2 "${@}"
    
     # If die() is fatal (via EFUNCS_FATAL) go ahead and kill everything in this process tree
     [[ ${EFUNCS_FATAL:-1} -eq 1 ]] && { trap - EXIT ;  kill 0 ; }
@@ -135,10 +120,7 @@ eclear()
 
 etimestamp()
 {
-    ## Show timestamps before einfo messages and in ebanner ##
-    [[ ${EFUNCS_TIME} -eq 1 ]] || return
-
-    echo -en "[$(date '+%b %d %T')] "
+    echo -en "$(date '+%b %d %T')"
 }
 
 # Display a very prominent banner with a provided message which may be multi-line
@@ -171,7 +153,7 @@ ebanner()
     done
 
     # Timestamp
-    local stamp=$(etimestamp)
+    [[ ${EFUNCS_TIME} -eq 1 ]] && local stamp="[$(etimestamp)]" || local stamp=""
     [[ -n ${stamp} ]] && { echo -e "|\n| Time=${stamp}" >&2; }
 
     # Iterate over all other arguments and stick them into an associative array
@@ -236,12 +218,40 @@ ebanner()
     echo -e "+${str}+$(ecolor none)" >&2
 }
 
-eprefix()
+emsg()
 {
-    local default="${1:- *}"
-    local prefix=$(etimestamp)
-    [[ -z ${prefix} ]] && prefix="${default} "
-    echo -en "${prefix}"
+    eval $(declare_args color ?symbol level)
+    [[ ${EFUNCS_TIME} -eq 1 ]] && EMSG_PREFIX+=time
+
+    # Determine color values for each field used below.
+    : ${EMSG_COLOR:="time level caller"} 
+    local time_color level_color caller_color
+    [[ ${EMSG_COLOR} =~ all|time   ]] && time_color=$(ecolor ${color})   || time_color=$(ecolor none)
+    [[ ${EMSG_COLOR} =~ all|level  ]] && level_color=$(ecolor ${color})  || level_color=$(ecolor none)
+    [[ ${EMSG_COLOR} =~ all|caller ]] && caller_color=$(ecolor ${color}) || caller_color=$(ecolor none)
+
+    # Build up the prefix for the log message. Each of these may optionally be in color or not. This is 
+    # controlled vai EMSG_COLOR which is a list of fields to color. By default this is set to all fields.
+    # The following fields are supported:
+    # (1) time    : Timetamp
+    # (2) level   : Log Level
+    # (3) caller  : file:line:method
+    local delim="$(ecolor none)|"
+    local prefix=""
+    [[ ${EMSG_PREFIX} =~ time   ]] && prefix+="${time_color}$(etimestamp)"
+    [[ ${EMSG_PREFIX} =~ level  ]] && prefix+="${delim}${level_color}$(printf "%-5s"  ${level%%S})"
+    [[ ${EMSG_PREFIX} =~ caller ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
+
+    # Strip of extra leading delimiter if present
+    prefix="${prefix#${delim}}"
+
+    # If it's still empty put in the default
+    [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
+    
+    # Color Policy
+    [[ ${EMSG_COLOR} =~ all|msg || ${level} =~ DEBUG|WARN|ERROR ]] \
+        && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " >&2 \
+        || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@ " >&2
 }
 
 edebug_enabled()
@@ -250,8 +260,7 @@ edebug_enabled()
     [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
 
     local _edebug_enabled_caller=( $(caller 0) )
-    [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebugf" ]] \
-        && _edebug_enabled_caller=( $(caller 1) )
+    [[ ${_edebug_enabled_caller[1]} == "edebug" ]] && _edebug_enabled_caller=( $(caller 1) )
 
     local _edebug_enabled_tmp
     for _edebug_enabled_tmp in ${EDEBUG} ; do
@@ -263,8 +272,8 @@ edebug_enabled()
 
 edebug()
 {
-    edebug_enabled && echo "$(ecolor dimblue)    - ${@}$(ecolor none)" >&2
-    return 0
+    edebug_enabled || return 0
+    echo -e "$(emsg 'dimblue' '   -' 'DEBUG' "$@")" >&2
 }
 
 edebug_out()
@@ -272,41 +281,57 @@ edebug_out()
     edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
-edebugf()
-{
-    local _edebug_caller=$(caller 0 | awk '{print $2, $1}')
-    edebug_enabled && echo "$(ecolor dimblue)    - [${_edebug_caller/ /:}]  ${@}$(ecolor none)" >&2
-    return 0
-}
-
 einfo()
 {
-    echo -e "$(ecolor green)$(eprefix)$@ $(ecolor none)" >&2
+    echo -e  "$(emsg 'green' ' *' 'INFO' "$@")" >&2
 }
 
 einfon()
 {
-    echo -en "$(ecolor green)$(eprefix)$@ $(ecolor none)" >&2
+    echo -en "$(emsg 'green' ' *' 'INFO' "$@")" >&2
 }
 
 einfos()
 {
-    echo -e "$(ecolor cyan)   >> $@ $(ecolor none)" >&2
+    echo -e "$(emsg 'green' '   •' 'INFOS' "$@")" >&2
 }
 
 ewarn()
 {
-    echo -e "$(ecolor yellow)$(eprefix)$@ $(ecolor none)" >&2
+    echo -e "$(emsg 'yellow' '>>' 'WARN' "$@")" >&2
 }
 
 ewarns()
 {
-    echo -e "$(ecolor yellow)   >> $@ $(ecolor none)" >&2
+    echo -e "$(emsg 'yellow' '   •' 'WARNS' "$@")" >&2
 }
 
 eerror()
 {
-    echo -e "$(ecolor red)$(eprefix '!!')$@ !! $(ecolor none)" >&2
+    echo -e "$(emsg 'red' '>>' 'ERROR' "$@")" >&2
+}
+
+eerror_stacktrace()
+{
+    local skip_frames=1
+    [[ $(caller 0 | awk '{print $2}') == "die" ]] && local skip_frames=2 
+
+    echo "" >&2
+    eerror "$@"
+
+    ifs_save; ifs_nl
+    local frames=( $(stacktrace ${skip_frames}) )
+
+    for f in ${frames[@]}; do
+        local line=$(echo ${f} | awk '{print $1}')
+        local func=$(echo ${f} | awk '{print $2}')
+        local file=$(basename $(echo ${f} | awk '{print $3}'))
+
+        [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
+        
+        printf "$(ecolor red)   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
+    done
+    ifs_restore
 }
 
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
@@ -808,7 +833,7 @@ getsubnet()
 esource()
 {
     for file in "${@}" ; do
-        edebugf "$(lval file)"
+        edebug "$(lval file)"
         source "${file}" || die "Failed to source $@"
     done
 }
@@ -1184,12 +1209,12 @@ declare_args_internal()
         # correctly use the key name as the variable to assign it to.
         [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
         _declare_args_variable="${1#\?}"
-        edebugf "$1: $(lval _declare_args_variable _declare_args_optional)"
+        edebug "$1: $(lval _declare_args_variable _declare_args_optional)"
 
         # Declare the variable and then call argcheck if required
         local _declare_args_cmd="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
-        edebugf "$(lval _declare_args_cmd)"
+        edebug "$(lval _declare_args_cmd)"
         echo "${_declare_args_cmd}"
     done
 }
@@ -1442,7 +1467,7 @@ eretry()
             timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
             rc=$?
         else
-            edebugf "$(lval try rc cmd)"
+            edebug "$(lval try rc cmd)"
             "${@}"
             rc=$?
         fi
@@ -1611,7 +1636,7 @@ pack_set_internal()
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(printf "${_addNew}" | _pack)
 
-    edebugf "$(lval _pack_pack_set_internal _tag _val)"
+    edebug "$(lval _pack_pack_set_internal _tag _val)"
     printf -v ${1} "${_packed}"
 }
 
@@ -1627,7 +1652,7 @@ pack_get()
 
     local _unpacked="$(echo -n "${!_pack_pack_get}" | _unpack)"
     local _found="$(echo -n "${_unpacked}" | grep "^${_tag}=")"
-    edebugf "$(lval _pack_pack_get _tag _found)"
+    edebug "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
     [[ -n ${_found} ]]
 }
@@ -1665,7 +1690,7 @@ pack_iterate()
     local _lines=(${_unpacked})
     ifs_restore
 
-    edebugf "$(lval _pack_pack_iterate _unpacked _lines)"
+    edebug "$(lval _pack_pack_iterate _unpacked _lines)"
 
     for _line in "${_lines[@]}" ; do
 
@@ -1697,7 +1722,7 @@ pack_import()
     local _pack_import_keys=("${@}")
     [[ ${#_pack_import_keys} -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 
-    edebugf $(lval _pack_import_keys)
+    edebug $(lval _pack_import_keys)
 
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
         local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
@@ -1725,7 +1750,7 @@ pack_export()
         _pack_export_args+=("${_pack_export_arg}=${!_pack_export_arg}")
     done
 
-    edebugf "$(lval _pack_export_pack _pack_export_args)"
+    edebug "$(lval _pack_export_pack _pack_export_args)"
     pack_set "${_pack_export_pack}" "${_pack_export_args[@]}"
 }
 
