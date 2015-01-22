@@ -267,6 +267,11 @@ edebug()
     return 0
 }
 
+edebug_out()
+{
+    edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
+}
+
 edebugf()
 {
     local _edebug_caller=$(caller 0 | awk '{print $2, $1}')
