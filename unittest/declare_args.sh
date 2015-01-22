@@ -4,7 +4,7 @@ do_declare_args()
 {
     local args=( ${1} ); shift
     local vals=( "${@}" )
-    edebugf "$(lval args vals)"
+    edebug "$(lval args vals)"
     eval $(declare_args ${args[@]})
     
     # declare_args should be consuming positional arguments
@@ -18,7 +18,7 @@ do_declare_args()
     for (( idx=0; idx <= ${#args}; idx++ )); do
         arg=${args[$idx]}; arg=${arg#\?}
         val=${vals[$idx]}
-        edebugf "$(lval idx arg val)"
+        edebug "$(lval idx arg val)"
         
         [[ ${arg} == "_" ]] && continue
         
@@ -91,7 +91,7 @@ ETEST_declare_args_export()
     echo "[[ -n \${G2} ]] || { echo 'G2=[\${G2}] should be exported';     exit 2; }" >> ${file}
     echmod +x ${file}
     trap_add "erm ${file}" EXIT
-    edebugf "$(cat ${file})"
+    edebug "$(cat ${file})"
 
     do_declare_global
     do_declare_export
