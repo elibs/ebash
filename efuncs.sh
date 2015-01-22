@@ -260,7 +260,8 @@ edebug_enabled()
     [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
 
     local _edebug_enabled_caller=( $(caller 0) )
-    [[ ${_edebug_enabled_caller[1]} == "edebug" ]] && _edebug_enabled_caller=( $(caller 1) )
+    [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebug_out" ]] \
+        && _edebug_enabled_caller=( $(caller 1) )
 
     local _edebug_enabled_tmp
     for _edebug_enabled_tmp in ${EDEBUG} ; do
