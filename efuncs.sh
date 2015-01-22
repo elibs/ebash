@@ -135,10 +135,7 @@ eclear()
 
 etimestamp()
 {
-    ## Show timestamps before einfo messages and in ebanner ##
-    [[ ${EFUNCS_TIME} -eq 1 || ${EFUNCS_TIME} -eq 2 ]] || return
-
-    echo -en "[$(date '+%b %d %T')]"
+    echo -en "$(date '+%b %d %T')"
 }
 
 # Display a very prominent banner with a provided message which may be multi-line
@@ -171,7 +168,7 @@ ebanner()
     done
 
     # Timestamp
-    local stamp=$(etimestamp)
+    [[ ${EFUNCS_TIME} -eq 1 ]] && local stamp="[$(etimestamp)]" || local stamp=""
     [[ -n ${stamp} ]] && { echo -e "|\n| Time=${stamp}" >&2; }
 
     # Iterate over all other arguments and stick them into an associative array
@@ -236,26 +233,27 @@ ebanner()
     echo -e "+${str}+$(ecolor none)" >&2
 }
 
-eprefix()
+elog_prefix()
 {
-    eval $(declare_args prefix_color ?prefix_symbol prefix_level)
-    : ${EFUNCS_LEVEL:="WARN ERROR"}
-    
-    # Don't show timestamps on EINFOS and EWARNS
-    #[[ ${prefix_level} =~ INFOS|WARNS ]] && local prefix_time="" || local prefix_time=$(etimestamp)
-    local prefix_time=$(etimestamp)
-    local prefix=""
-    edebugf "$(lval prefix_color prefix_symbol prefix_level EFUNCS_LEVEL)"
+    eval $(declare_args color ?symbol level)
+    [[ ${EFUNCS_TIME} -eq 1 ]] && ELOG_PREFIX+=time
 
-    [[ -n ${prefix_time} ]] && prefix=${prefix_time}
-   
-    # Optionally add the level (if requested)
-    [[ ${EFUNCS_LEVEL} =~ ${prefix_level} ]] && prefix+=$(printf [%-5s] ${prefix_level})
+    # Build up the prefix for the log message. The following are supported:
+    # (1) time    : Timetamp
+    # (2) level   : Log Level
+    # (4) caller  : method:line
+    local prefix=""
+    [[ ${ELOG_PREFIX} =~ time   ]] && prefix+="$(etimestamp)"
+    [[ ${ELOG_PREFIX} =~ level  ]] && prefix+="|$(printf "%-5s"  ${level})"
+    [[ ${ELOG_PREFIX} =~ caller ]] && prefix+="|$(printf "%-10s" $(caller 1 | awk '{print $2, $1}' | tr ' ' ':'))"
+    
+    # Strip of extra leading '|' if present
+    prefix="${prefix#|}"
 
     # If it's still empty put in the default
-    [[ -z ${prefix} ]] && prefix=${prefix_symbol}
+    [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="[${prefix}]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
 
-    echo -en "$(ecolor ${prefix_color})${prefix}$(ecolor none)"
+    echo -en "$(ecolor ${color})${prefix}$(ecolor none)"
 }
 
 edebug_enabled()
@@ -264,8 +262,7 @@ edebug_enabled()
     [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
 
     local _edebug_enabled_caller=( $(caller 0) )
-    [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebugf" ]] \
-        && _edebug_enabled_caller=( $(caller 1) )
+    [[ ${_edebug_enabled_caller[1]} == "edebug" ]] && _edebug_enabled_caller=( $(caller 1) )
 
     local _edebug_enabled_tmp
     for _edebug_enabled_tmp in ${EDEBUG} ; do
@@ -277,45 +274,38 @@ edebug_enabled()
 
 edebug()
 {
-    edebug_enabled && echo "$(ecolor dimblue)    + ${@}$(ecolor none)" >&2
-    return 0
-}
-
-edebugf()
-{
-    local _edebug_caller=$(caller 0 | awk '{print $2, $1}')
-    edebug_enabled && echo "$(ecolor dimblue)    - [${_edebug_caller/ /:}]  ${@}$(ecolor none)" >&2
-    return 0
+    edebug_enabled || return 0
+    echo -e "$(elog_prefix 'dimblue' '   -' 'DEBUG') $(ecolor dimblue)$@$(ecolor none) " >&2
 }
 
 einfo()
 {
-    echo -e  "$(eprefix 'green' ' *' 'INFO') $@ " >&2
+    echo -e  "$(elog_prefix 'green' ' *' 'INFO') $@ " >&2
 }
 
 einfon()
 {
-    echo -en "$(eprefix 'green' ' *' 'INFO') $@ " >&2
+    echo -en "$(elog_prefix 'green' ' *' 'INFO') $@ " >&2
 }
 
 einfos()
 {
-    echo -e "$(eprefix 'cyan' '   -' 'INFOS') $@ " >&2
+    echo -e "$(elog_prefix 'green' '   •' 'INFOS') $@ " >&2
 }
 
 ewarn()
 {
-    echo -e "$(eprefix 'yellow' '>>' 'WARN') $(ecolor yellow)$@$(ecolor none) " >&2
+    echo -e "$(elog_prefix 'yellow' '>>' 'WARN') $(ecolor yellow)$@$(ecolor none) " >&2
 }
 
 ewarns()
 {
-    echo -e "$(eprefix 'yellow' '   -' 'WARNS') $(ecolor yellow)$@$(ecolor none) " >&2
+    echo -e "$(elog_prefix 'yellow' '   •' 'WARNS') $(ecolor yellow)$@$(ecolor none) " >&2
 }
 
 eerror()
 {
-    echo -e "$(eprefix 'red' '>>' 'ERROR') $(ecolor red)$@$(ecolor none) " >&2
+    echo -e "$(elog_prefix 'red' '>>' 'ERROR') $(ecolor red)$@$(ecolor none) " >&2
 }
 
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
@@ -817,7 +807,7 @@ getsubnet()
 esource()
 {
     for file in "${@}" ; do
-        edebugf "$(lval file)"
+        edebug "$(lval file)"
         source "${file}" || die "Failed to source $@"
     done
 }
@@ -1193,12 +1183,12 @@ declare_args_internal()
         # correctly use the key name as the variable to assign it to.
         [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
         _declare_args_variable="${1#\?}"
-        edebugf "$1: $(lval _declare_args_variable _declare_args_optional)"
+        edebug "$1: $(lval _declare_args_variable _declare_args_optional)"
 
         # Declare the variable and then call argcheck if required
         local _declare_args_cmd="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
-        edebugf "$(lval _declare_args_cmd)"
+        edebug "$(lval _declare_args_cmd)"
         echo "${_declare_args_cmd}"
     done
 }
@@ -1451,7 +1441,7 @@ eretry()
             timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
             rc=$?
         else
-            edebugf "$(lval try rc cmd)"
+            edebug "$(lval try rc cmd)"
             "${@}"
             rc=$?
         fi
@@ -1617,7 +1607,7 @@ pack_set_internal()
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(printf "${_addNew}" | _pack)
 
-    edebugf "$(lval _pack_pack_set_internal _tag _val)"
+    edebug "$(lval _pack_pack_set_internal _tag _val)"
     printf -v ${1} "${_packed}"
 }
 
@@ -1633,7 +1623,7 @@ pack_get()
 
     local _unpacked="$(echo -n "${!_pack_pack_get}" | _unpack)"
     local _found="$(echo -n "${_unpacked}" | grep "^${_tag}=")"
-    edebugf "$(lval _pack_pack_get _tag _found)"
+    edebug "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
     [[ -n ${_found} ]]
 }
@@ -1671,7 +1661,7 @@ pack_iterate()
     local _lines=(${_unpacked})
     ifs_restore
 
-    edebugf "$(lval _pack_pack_iterate _unpacked _lines)"
+    edebug "$(lval _pack_pack_iterate _unpacked _lines)"
 
     for _line in "${_lines[@]}" ; do
 
@@ -1703,7 +1693,7 @@ pack_import()
     local _pack_import_keys=("${@}")
     [[ ${#_pack_import_keys} -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 
-    edebugf $(lval _pack_import_keys)
+    edebug $(lval _pack_import_keys)
 
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
         local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
@@ -1731,7 +1721,7 @@ pack_export()
         _pack_export_args+=("${_pack_export_arg}=${!_pack_export_arg}")
     done
 
-    edebugf "$(lval _pack_export_pack _pack_export_args)"
+    edebug "$(lval _pack_export_pack _pack_export_args)"
     pack_set "${_pack_export_pack}" "${_pack_export_args[@]}"
 }
 

@@ -2,42 +2,50 @@
 
 source efuncs.sh
 
-display()
+show_text()
 {
-    ## EINFO ##
-    einfo "Building RTFI"
-    einfos "Copying file1"
-    einfos "Copying file2"
-
-    ## WARN ##
-    ewarn "OOPS -- there was a potential problem"
-    ewarns "On file1"
-    ewarns "Or file2"
-
-    ## ERROR ##
-    eerror "Aieee! Something terrible happened"
+    [[ ${TEXT} -eq 1 ]] || return
+    head /etc/fstab 
 }
 
-# Defaults
+msg()
+{
+    ## EINFO ##
+    einfo "Building RTFI";  show_text
+    einfos "Copying file1"; show_text
+    einfos "Copying file2"; show_text
+
+    ## WARN ##
+    ewarn "OOPS -- there was a potential problem"; show_text
+    ewarns "On file1"; show_text
+    ewarns "Or file2"; show_text
+
+    ## ERROR ##
+    eerror "Aieee! Something terrible happened"; show_text
+    ## DEBUG ##
+    EDEBUG=msg edebug  "This is a debugging message"; show_text
+}
+
 ebanner "Defaults"
-display
+msg
 
-# Timestamps added
-ebanner "Timestamps"
-EFUNCS_TIME=1 display
+ebanner "Time"
+ELOG_PREFIX="time" msg
 
-# Timestamps and more log level indicators
-ebanner "Timestamps + INFO,WARN,ERROR"
-EFUNCS_TIME=1 EFUNCS_LEVEL="INFO WARN ERROR" display
+ebanner "Time via EFUNCS_TIME"
+EFUNCS_TIME=1 msg
 
-# Timestamps + ALL log level indicators
-ebanner "Timestamps + ALL levels"
-EFUNCS_TIME=1 EFUNCS_LEVEL="INFO INFOS WARN WARNS ERROR" display
+ebanner "Level only"
+ELOG_PREFIX="level" msg
 
-# No time + more log levels
-ebanner "NO Time, INFO, INFOS, WARN, WARNS"
-EFUNCS_TIME=0 EFUNCS_LEVEL="INFO INFOS WARN WARNS ERROR" display
+ebanner "Caller only"
+ELOG_PREFIX="caller" msg
 
-# NO color
-EFUNCS_COLOR=0 ebanner "Everything without color"
-EFUNCS_COLOR=0 EFUNCS_TIME=1 EFUNCS_LEVEL="INFO INFOS WARN WARNS ERROR" display
+ebanner "Time + Level"
+ELOG_PREFIX="time level" msg
+
+ebanner "Time + caller"
+ELOG_PREFIX="time caller" msg
+
+ebanner "Time + level + caller"
+ELOG_PREFIX="time level caller" msg
