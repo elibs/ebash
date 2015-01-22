@@ -240,7 +240,7 @@ emsg()
     local prefix=""
     [[ ${EMSG_PREFIX} =~ time   ]] && prefix+="${time_color}$(etimestamp)"
     [[ ${EMSG_PREFIX} =~ level  ]] && prefix+="${delim}${level_color}$(printf "%-5s"  ${level%%S})"
-    [[ ${EMSG_PREFIX} =~ caller ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
+    [[ ${EMSG_PREFIX} =~ caller ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
 
     # Strip of extra leading delimiter if present
     prefix="${prefix#${delim}}"
@@ -249,8 +249,9 @@ emsg()
     [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
     
     # Color Policy
-    [[ ${EMSG_COLOR} =~ all|msg || ${level} =~ DEBUG|WARN|ERROR ]] \
-        && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " >&2 \
+    local emsg_color_re="\ball|msg\b"
+    [[ ${EMSG_COLOR} =~ ${emsg_color_re} || ${level} =~ DEBUG|WARN|ERROR ]] \
+    	&& echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " \
         || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@ " >&2
 }
 
