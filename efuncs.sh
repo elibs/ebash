@@ -9,7 +9,7 @@
 
 stacktrace()
 {
-    local frame=1
+    local frame=${1:-1}
 
     while caller ${frame}; do
         ((frame++));
@@ -24,22 +24,7 @@ die()
     DIE_IN_PROGRESS=1
     eprogress_killall
 
-    echo ""
-    eerror "$@"
-
-    ifs_save; ifs_nl
-    local frames=( $(stacktrace) )
-
-    for f in ${frames[@]}; do
-        local line=$(echo ${f} | awk '{print $1}')
-        local func=$(echo ${f} | awk '{print $2}')
-        local file=$(basename $(echo ${f} | awk '{print $3}'))
-
-        [[ ${file} == "efuncs.sh" && ${func} == "die" ]] && break
-        
-        printf "$(ecolor red)   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
-    done
-    ifs_restore
+    eerror_stacktrace 2 "${@}"
    
     # If die() is fatal (via EFUNCS_FATAL) go ahead and kill everything in this process tree
     [[ ${EFUNCS_FATAL:-1} -eq 1 ]] && { trap - EXIT ;  kill 0 ; }
@@ -309,6 +294,29 @@ ewarns()
 eerror()
 {
     echo -e "$(emsg 'red' '>>' 'ERROR' $@)" >&2
+}
+
+eerror_stacktrace()
+{
+    local skip_frames=1
+    [[ $(caller 0 | awk '{print $2}') == "die" ]] && local skip_frames=2 
+
+    echo "" >&2
+    eerror "$@"
+
+    ifs_save; ifs_nl
+    local frames=( $(stacktrace ${skip_frames}) )
+
+    for f in ${frames[@]}; do
+        local line=$(echo ${f} | awk '{print $1}')
+        local func=$(echo ${f} | awk '{print $2}')
+        local file=$(basename $(echo ${f} | awk '{print $3}'))
+
+        [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
+        
+        printf "$(ecolor red)   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
+    done
+    ifs_restore
 }
 
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
