@@ -233,19 +233,19 @@ ebanner()
     echo -e "+${str}+$(ecolor none)" >&2
 }
 
-elog_prefix()
+emsg()
 {
     eval $(declare_args color ?symbol level)
-    [[ ${EFUNCS_TIME} -eq 1 ]] && ELOG_PREFIX+=time
+    [[ ${EFUNCS_TIME} -eq 1 ]] && EMSG_PREFIX+=time
 
     # Build up the prefix for the log message. The following are supported:
     # (1) time    : Timetamp
     # (2) level   : Log Level
     # (4) caller  : method:line
     local prefix=""
-    [[ ${ELOG_PREFIX} =~ time   ]] && prefix+="$(etimestamp)"
-    [[ ${ELOG_PREFIX} =~ level  ]] && prefix+="|$(printf "%-5s"  ${level})"
-    [[ ${ELOG_PREFIX} =~ caller ]] && prefix+="|$(printf "%-10s" $(caller 1 | awk '{print $2, $1}' | tr ' ' ':'))"
+    [[ ${EMSG_PREFIX} =~ time   ]] && prefix+="$(etimestamp)"
+    [[ ${EMSG_PREFIX} =~ level  ]] && prefix+="|$(printf "%-5s"  ${level})"
+    [[ ${EMSG_PREFIX} =~ caller ]] && prefix+="|$(printf "%-10s" $(caller 1 | awk '{print $2, $1}' | tr ' ' ':'))"
     
     # Strip of extra leading '|' if present
     prefix="${prefix#|}"
@@ -253,7 +253,10 @@ elog_prefix()
     # If it's still empty put in the default
     [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="[${prefix}]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
 
-    echo -en "$(ecolor ${color})${prefix}$(ecolor none)"
+    # Color Policy
+    [[ ${EMSG_COLOR_FULL} -eq 1 || ${level} =~ DEBUG|WARN|ERROR ]] \
+        && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " >&2 \
+        || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@ " >&2
 }
 
 edebug_enabled()
@@ -275,37 +278,37 @@ edebug_enabled()
 edebug()
 {
     edebug_enabled || return 0
-    echo -e "$(elog_prefix 'dimblue' '   -' 'DEBUG') $(ecolor dimblue)$@$(ecolor none) " >&2
+    echo -e "$(emsg 'dimblue' '   -' 'DEBUG' $@)" >&2
 }
 
 einfo()
 {
-    echo -e  "$(elog_prefix 'green' ' *' 'INFO') $@ " >&2
+    echo -e  "$(emsg 'green' ' *' 'INFO' $@)" >&2
 }
 
 einfon()
 {
-    echo -en "$(elog_prefix 'green' ' *' 'INFO') $@ " >&2
+    echo -en "$(emsg 'green' ' *' 'INFO' $@)" >&2
 }
 
 einfos()
 {
-    echo -e "$(elog_prefix 'green' '   •' 'INFOS') $@ " >&2
+    echo -e "$(emsg 'green' '   •' 'INFOS' $@)" >&2
 }
 
 ewarn()
 {
-    echo -e "$(elog_prefix 'yellow' '>>' 'WARN') $(ecolor yellow)$@$(ecolor none) " >&2
+    echo -e "$(emsg 'yellow' '>>' 'WARN' $@)" >&2
 }
 
 ewarns()
 {
-    echo -e "$(elog_prefix 'yellow' '   •' 'WARNS') $(ecolor yellow)$@$(ecolor none) " >&2
+    echo -e "$(emsg 'yellow' '   •' 'WARNS' $@)" >&2
 }
 
 eerror()
 {
-    echo -e "$(elog_prefix 'red' '>>' 'ERROR') $(ecolor red)$@$(ecolor none) " >&2
+    echo -e "$(emsg 'red' '>>' 'ERROR' $@)" >&2
 }
 
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)

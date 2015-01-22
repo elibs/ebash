@@ -30,22 +30,28 @@ ebanner "Defaults"
 msg
 
 ebanner "Time"
-ELOG_PREFIX="time" msg
+EMSG_PREFIX="time" msg
 
 ebanner "Time via EFUNCS_TIME"
 EFUNCS_TIME=1 msg
 
 ebanner "Level only"
-ELOG_PREFIX="level" msg
+EMSG_PREFIX="level" msg
 
 ebanner "Caller only"
-ELOG_PREFIX="caller" msg
+EMSG_PREFIX="caller" msg
 
 ebanner "Time + Level"
-ELOG_PREFIX="time level" msg
+EMSG_PREFIX="time level" msg
 
 ebanner "Time + caller"
-ELOG_PREFIX="time caller" msg
+EMSG_PREFIX="time caller" msg
 
 ebanner "Time + level + caller"
-ELOG_PREFIX="time level caller" msg
+EMSG_PREFIX="time level caller" msg
+
+ebanner "No color"
+EFUNCS_COLOR=0 EMSG_PREFIX="time level caller" msg
+
+ebanner "Full color"
+EMSG_COLOR_FULL=1 EMSG_PREFIX="time level caller" msg
