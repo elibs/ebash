@@ -589,12 +589,6 @@ print_value()
     local val=$(echo "${decl}")
     val=${val#*=}
 
-    # If decl is empty just print out it's raw value as it's NOT a variable!!
-    # This is really important so that you can do simple things like
-    # $(print_value /home/marshall) and it'll just pass through that value
-    # as is but with the proper formatting and quoting.
-    [[ -z ${decl} ]] && val='"'${__input}'"'
-
     # Deal with properly delcared variables which are empty
     [[ -z ${val} ]] && val='""'
 
