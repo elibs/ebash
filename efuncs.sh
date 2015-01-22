@@ -1457,7 +1457,7 @@ eretry()
 
     rc=1
     exit_codes=()
-    for (( try=0 ; $rc != 0 && try < RETRIES ; try++ )) ; do
+    for (( try=0 ; try < RETRIES ; try++ )) ; do
         if [[ -n ${TIMEOUT} ]] ; then
             timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
             rc=$?
@@ -1468,7 +1468,10 @@ eretry()
         fi
         exit_codes+=(${rc})
 
-        [[ ${rc} -ne 0 ]] && edebug "eretry: trying again $(lval rc try cmd)"
+        [[ ${rc} -eq 0 ]] && break
+
+        [[ -n ${SLEEP} ]] && { edebug "Sleeping $(lval SLEEP)" ; sleep ${SLEEP} ; }
+        edebug "eretry: trying again $(lval rc try cmd)"
     done
 
     if [[ ${rc} -ne 0 ]] ; then
