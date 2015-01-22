@@ -1192,6 +1192,8 @@ argcheck()
 #    the argument is literally '_' it will be anonymous but if it is '_a' it is
 #    NOT an anonymous variable.
 #
+#
+# WARNING: DO NOT CALL EDEBUG INSIDE THIS FUNCTION OR YOU WILL CAUSE INFINITE RECURSION!!
 declare_args_internal()
 {
     local _declare_args_qualifier=$1
@@ -1209,12 +1211,10 @@ declare_args_internal()
         # correctly use the key name as the variable to assign it to.
         [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
         _declare_args_variable="${1#\?}"
-        edebug "$1: $(lval _declare_args_variable _declare_args_optional)"
 
         # Declare the variable and then call argcheck if required
         local _declare_args_cmd="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
-        edebug "$(lval _declare_args_cmd)"
         echo "${_declare_args_cmd}"
     done
 }
