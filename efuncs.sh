@@ -254,8 +254,8 @@ emsg()
     [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
     
     # Color Policy
-    [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]] \
-    	&& echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) "  \
+    [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]]    \
+        && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " >&2 \
         || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@ " >&2
 }
 
