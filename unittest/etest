@@ -89,7 +89,7 @@ for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
     pad=$((ETEST_LONGEST-${#testfunc}+1))
     msg=$(printf "%s%${pad}s" "${testfunc}" " ")
 
-    edebug_enabled && einfo "${msg}" || einfon "${msg}"
+    [[ -n ${EDEBUG} ]] && einfo "${msg}" || einfon "${msg}"
     ( ${testfunc} )
     rc=$?
     ETEST_RC+=$rc
