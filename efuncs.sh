@@ -223,12 +223,17 @@ emsg()
     eval $(declare_args color ?symbol level)
     [[ ${EFUNCS_TIME} -eq 1 ]] && EMSG_PREFIX+=time
 
+    # Local args to hold the color and regexs for each field
+    for field in time level caller msg; do
+        eval "local ${field}_color=$(ecolor none)"
+        eval "local ${field}_re='\ball|${field}\b'"
+    done
+
     # Determine color values for each field used below.
     : ${EMSG_COLOR:="time level caller"} 
-    local time_color level_color caller_color
-    [[ ${EMSG_COLOR} =~ all|time   ]] && time_color=$(ecolor ${color})   || time_color=$(ecolor none)
-    [[ ${EMSG_COLOR} =~ all|level  ]] && level_color=$(ecolor ${color})  || level_color=$(ecolor none)
-    [[ ${EMSG_COLOR} =~ all|caller ]] && caller_color=$(ecolor ${color}) || caller_color=$(ecolor none)
+    [[ ${EMSG_COLOR} =~ ${time_re}   ]] && time_color=$(ecolor ${color})
+    [[ ${EMSG_COLOR} =~ ${level_re}  ]] && level_color=$(ecolor ${color})
+    [[ ${EMSG_COLOR} =~ ${caller_re} ]] && caller_color=$(ecolor ${color})
 
     # Build up the prefix for the log message. Each of these may optionally be in color or not. This is 
     # controlled vai EMSG_COLOR which is a list of fields to color. By default this is set to all fields.
@@ -238,9 +243,9 @@ emsg()
     # (3) caller  : file:line:method
     local delim="$(ecolor none)|"
     local prefix=""
-    [[ ${EMSG_PREFIX} =~ time   ]] && prefix+="${time_color}$(etimestamp)"
-    [[ ${EMSG_PREFIX} =~ level  ]] && prefix+="${delim}${level_color}$(printf "%-5s"  ${level%%S})"
-    [[ ${EMSG_PREFIX} =~ caller ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
+    [[ ${EMSG_PREFIX} =~ ${time_re}   ]] && prefix+="${time_color}$(etimestamp)"
+    [[ ${EMSG_PREFIX} =~ ${level_re}  ]] && prefix+="${delim}${level_color}$(printf "%s"  ${level%%S})"
+    [[ ${EMSG_PREFIX} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
 
     # Strip of extra leading delimiter if present
     prefix="${prefix#${delim}}"
@@ -249,9 +254,8 @@ emsg()
     [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
     
     # Color Policy
-    local emsg_color_re="\ball|msg\b"
-    [[ ${EMSG_COLOR} =~ ${emsg_color_re} || ${level} =~ DEBUG|WARN|ERROR ]] \
-    	&& echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " \
+    [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]] \
+    	&& echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) "  \
         || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@ " >&2
 }
 
@@ -285,17 +289,17 @@ edebug_out()
 
 einfo()
 {
-    echo -e  "$(emsg 'green' ' *' 'INFO' "$@")" >&2
+    echo -e  "$(emsg 'green' '>>' 'INFO' "$@")" >&2
 }
 
 einfon()
 {
-    echo -en "$(emsg 'green' ' *' 'INFO' "$@")" >&2
+    echo -en "$(emsg 'green' '>>' 'INFO' "$@")" >&2
 }
 
 einfos()
 {
-    echo -e "$(emsg 'green' '   •' 'INFOS' "$@")" >&2
+    echo -e "$(emsg 'green' '   -' 'INFOS' "$@")" >&2
 }
 
 ewarn()
@@ -305,7 +309,7 @@ ewarn()
 
 ewarns()
 {
-    echo -e "$(emsg 'yellow' '   •' 'WARNS' "$@")" >&2
+    echo -e "$(emsg 'yellow' '   -' 'WARNS' "$@")" >&2
 }
 
 eerror()
