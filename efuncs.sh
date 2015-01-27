@@ -220,8 +220,11 @@ ebanner()
 
 emsg()
 {
+    # Only take known prefix settings
+    local emsg_prefix=$(echo ${EMSG_PREFIX} | egrep -o "(time|times|level|caller|all)")
+
     eval $(declare_args color ?symbol level)
-    [[ ${EFUNCS_TIME} -eq 1 ]] && EMSG_PREFIX+=time
+    [[ ${EFUNCS_TIME} -eq 1 ]] && emsg_prefix+=time
 
     # Local args to hold the color and regexs for each field
     for field in time level caller msg; do
@@ -243,9 +246,15 @@ emsg()
     # (3) caller  : file:line:method
     local delim="$(ecolor none)|"
     local prefix=""
-    [[ ${EMSG_PREFIX} =~ ${time_re}   ]] && prefix+="${time_color}$(etimestamp)"
-    [[ ${EMSG_PREFIX} =~ ${level_re}  ]] && prefix+="${delim}${level_color}$(printf "%s"  ${level%%S})"
-    [[ ${EMSG_PREFIX} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
+
+    if [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} == "time" ]]; then
+        :
+    else
+        local times_re="\ball|times\b"
+        [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} =~ ${times_re} || ${emsg_prefix} =~ ${time_re} ]] && prefix+="${time_color}$(etimestamp)"
+        [[ ${emsg_prefix} =~ ${level_re}  ]] && prefix+="${delim}${level_color}$(printf "%s"  ${level%%S})"
+        [[ ${emsg_prefix} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
+    fi
 
     # Strip of extra leading delimiter if present
     prefix="${prefix#${delim}}"
