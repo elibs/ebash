@@ -1289,8 +1289,9 @@ override_function()
 
 ecmd()
 {
-    local cmd="$@"
-    eval "${cmd}" || die "Failed to execute [$cmd]"
+    local cmd=("$@")
+    edebug "Executing $(lval cmd)"
+    "${cmd[@]}" || die "Failed to execute $(lval cmd)"
 }
 
 ecmd_try()
