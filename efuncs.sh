@@ -1296,8 +1296,9 @@ ecmd()
 
 ecmd_try()
 {
-    local cmd="$@"
-    eval "${cmd}" || { rc=$?; ewarn "Failed to execute [$cmd]"; return $rc; }
+    local cmd=("$@")
+    edebug "Executing $(lval cmd)"
+    "${cmd[@]}" || { rc=$?; ewarn "Failed to execute [$cmd]"; return $rc; }
 }
 
 numcores()
