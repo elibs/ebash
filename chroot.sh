@@ -28,7 +28,7 @@ chroot_mount()
         emount --bind ${m} ${CHROOT}${m}
     done
 
-    ecmd "grep -v rootfs ${CHROOT}/proc/mounts | sort -u > ${CHROOT}/etc/mtab"
+    ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
 }
 
 chroot_unmount()

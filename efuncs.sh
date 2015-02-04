@@ -985,7 +985,7 @@ etar()
     fi
 
     edebug 'etar' "${args}" "${@}"
-    ecmd tar "${args}" "${@}"
+    ecmd tar ${args} "${@}"
 }
 
 esed()
