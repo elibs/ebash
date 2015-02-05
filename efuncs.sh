@@ -973,19 +973,18 @@ erestore()
 etar()
 {
     # Disable all tar warnings which are expected with unknown file types, sockets, etc.
-    local args="--warning=none"
+    local args=("--warning=none")
 
     # Auto detect compression program based on extension but substitute in pbzip2 for bzip and pigz for gzip
     if [[ -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz") ]]; then
-        args+=" --use-compress-program=pbzip2"
+        args+=("--use-compress-program=pbzip2")
     elif [[ -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz") ]]; then
-        args+=" --use-compress-program=pigz"
+        args+=("--use-compress-program=pigz")
     else
-        args+=" --auto-compress"
+        args+=("--auto-compress")
     fi
 
-    edebug 'etar' "${args}" "${@}"
-    ecmd tar ${args} "${@}"
+    ecmd tar "${args[@]}" "${@}"
 }
 
 esed()
