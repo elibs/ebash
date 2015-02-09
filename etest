@@ -86,7 +86,6 @@ for testfunc in "${ETEST_FUNCTIONS[@]}"; do
     (( ETEST_LEN > ETEST_LONGEST )) && ETEST_LONGEST=${ETEST_LEN}
 done
 
-edebug "FUNCS: $(declare -F)"
 edebug "Running tests $(lval ETEST_FUNCTIONS)"
 # And execute them
 ETEST_RC=0
