@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
-cd $(dirname $0)
-source ../efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
-esource *.sh
+: ${BASHUTILS:=/usr/local/share/bashutils}
+source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
 
-[[ -n ${2} ]] && die "etest only accepts one argument"
+[[ -z ${1} || -n ${3} ]] && die "etest only accepts one or two arguments"
+
+TEST_DIR=$1
+esource ${TEST_DIR}/*.sh
 
 #-----------------------------------------------------------------------------
 # TEST UTILITY FUNCTIONS
@@ -72,8 +74,9 @@ expect_not_empty()
 # MAIN
 #-----------------------------------------------------------------------------
 
-# Get all function names that begin with ETEST_ (and optionally match $1)
-ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'$1'" {print $3}') )
+# Get all function names that begin with ETEST_ (and optionally match $2)
+ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'$2'" {print $3}') )
+
 
 # Figure out longest test name
 ETEST_LONGEST=0
@@ -83,6 +86,8 @@ for testfunc in "${ETEST_FUNCTIONS[@]}"; do
     (( ETEST_LEN > ETEST_LONGEST )) && ETEST_LONGEST=${ETEST_LEN}
 done
 
+edebug "FUNCS: $(declare -F)"
+edebug "Running tests $(lval ETEST_FUNCTIONS)"
 # And execute them
 ETEST_RC=0
 for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
