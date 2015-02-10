@@ -328,7 +328,7 @@ chroot_apt_setup()
 
         chroot_cmd wget -q http://${HOST}/${keyname} -O /tmp/${keyname} &>/dev/null
         chroot_cmd apt-key add /tmp/${keyname}                          &>/dev/null
-        chroot_cmd rm -f /tmp/${keyname}chroot_cmd                      &>/dev/null
+        chroot_cmd rm -f /tmp/${keyname}                                &>/dev/null
     done
 
     # Add SolidFire entries after adding SolidFire APT public keys then
