@@ -26,3 +26,20 @@ ETEST_eretry_exit_124_on_timeout()
     RETRIES=0 TIMEOUT=0.1s eretry sleep 3 &>$(edebug_out)
     expect_eq 124 $?
 }
+
+ETEST_eretry_warn_every()
+{
+    EFUNCS_FATAL=0
+
+    output=$(RETRIES=10 WARN_EVERY=2 eretry false 2>&1)
+    expect_eq 5 $(echo "$output" | wc -l)
+
+    output=$(RETRIES=30 WARN_EVERY=3 eretry false 2>&1)
+    expect_eq 10 $(echo "$output" | wc -l)
+
+    output=$(RETRIES=3 WARN_EVERY=1 eretry false 2>&1)
+    expect_eq 3 $(echo "$output" | wc -l)
+
+    output=$(RETRIES=0 WARN_EVERY=1 eretry false 2>&1)
+    expect_eq 1 $(echo "$output" | wc -l)
+}

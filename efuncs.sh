@@ -1452,6 +1452,10 @@ EOF
 #   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
 #   days, respectively.
 #
+# SLEEP=<time to pass to sleep command>
+#   Amount of time to wait after failed attempts before retrying.  Note that
+#   this value can accept sub-second values, just as the sleep command does.
+#
 # SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
 #   When ${TIMEOUT} seconds have passed since running the command, this will be
 #   the signal to send to the process to make it stop.  The default is TERM.
@@ -1460,6 +1464,10 @@ EOF
 #
 # RETRIES=<number>
 #   Command will be attempted <number> times total.
+#
+# WARN_EVERY=<number>
+#   A warning will be generated every time <number> of retries have been
+#   attemped and failed.
 #
 # All direct parameters to eretry are assumed to be the command to execute, and
 # eretry is careful to retain your quoting.
@@ -1491,13 +1499,16 @@ eretry()
 
         [[ ${rc} -eq 0 ]] && break
 
+        [[ ${WARN_EVERY} -ne 0 ]] && (( (try+1) % WARN_EVERY == 0 && (try+1) < RETRIES )) \
+            && ewarn "Command has failed $((try+1)) times.  Still trying.  $(lval cmd RETRIES TIMEOUT exit_codes)"
+
         [[ -n ${SLEEP} ]] && { edebug "Sleeping $(lval SLEEP)" ; sleep ${SLEEP} ; }
         edebug "eretry: trying again $(lval rc try cmd)"
     done
 
     if [[ ${rc} -ne 0 ]] ; then
         # Return last exit code if EFUNCS_FATAL isn't supposed to kill the process
-        [[ ${EFUNCS_FATAL:-1} -ne 1 ]] && { ewarn "eretry: failed $(lval cmd exit_codes)" ; return ${rc} ; }
+        [[ ${EFUNCS_FATAL:-1} -ne 1 ]] && { ewarn "Command failed $(lval cmd RETRIES TIMEOUT exit_codes)" ; return ${rc} ; }
 
         # Or go ahead and die if EFUNCS_FATAL is set
         die "eretry: failed $(lval cmd exit_codes)"

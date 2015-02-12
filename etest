@@ -96,7 +96,7 @@ for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
     [[ -n ${EDEBUG} ]] && einfo "${msg}" || einfon "${msg}"
     ( ${testfunc} )
     rc=$?
-    ETEST_RC+=$rc
+    (( ETEST_RC += $rc ))
     eend $rc
 
 done
