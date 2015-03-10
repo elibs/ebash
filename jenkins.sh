@@ -15,8 +15,6 @@ source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1;
 #
 jenkins_url()
 {
-    [[ -z ${JENKINS_URL} ]] && { echo -n "${JENKINS_URL}"; return; }
-
     argcheck JENKINS JENKINS_PORT
     echo -n "http://${JENKINS}:${JENKINS_PORT}"
 }
