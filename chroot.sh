@@ -3,13 +3,11 @@
 # Copyright 2012-2013, SolidFire, Inc. All rights reserved.
 #
 
-[[ ${CHROOT_SOURCED} == 1 ]] && return 0
-
 #-----------------------------------------------------------------------------
 # PULL IN DEPENDENT PACKAGES
 #-----------------------------------------------------------------------------
-source "${BASHUTILS_PATH}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
-source "${BASHUTILS_PATH}/dpkg.sh"     || die "Failed to source dpkg.sh"
+source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
+esource "${BASHUTILS}/dpkg.sh"
 
 #-----------------------------------------------------------------------------                                    
 # CORE CHROOT FUNCTIONS
@@ -30,7 +28,7 @@ chroot_mount()
         emount --bind ${m} ${CHROOT}${m}
     done
 
-    ecmd "grep -v rootfs ${CHROOT}/proc/mounts | sort -u > ${CHROOT}/etc/mtab"
+    ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
 }
 
 chroot_unmount()
@@ -75,17 +73,24 @@ chroot_cmd_try()
     [[ $? -eq 0 ]] || ewarns "Failed to execute [$*]"
 }
 
-# Kill provided list of PID inside the CHROOT. This function checks the given PIDs 
-# to ensure they were actually started inside the CHROOT and will skip them if not.
-# If NO PIDs are provided, this will ==> KILL ALL PROCESS <== started inside the CHROOT.
+# Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT})
+# that match the given regex.  [note: regex support is identical to pgrep]
+#
+#    $1: Optional pgrep pattern that match the processes you'd like to signal.
+#        If no pattern is specified, ALL proceses in the chroot will be
+#        signalled.
+#    $2: Optional signal name or number.  Defaults to SIGKILL(9)
+# 
 chroot_kill()
 {
     argcheck CHROOT
 
-    einfo "Killing chroot [${CHROOT}] PIDS=[$*]"
+    local pids signal
 
-    local pids="$*"
-    [[ $# -eq 0 ]] && { ewarns "No pids provided -- killing all chroot processes"; pids=$(ps -eo "%p"); }
+    signal=${2:-KILL}
+
+    [[ -n $1 ]] && { pids=$(pgrep "${1}") ; edebug "Sending signal ${signal} to chroot processes matching \"${1}\"." ; }
+    [[ -z $1 ]] && { pids=$(ps -eo "%p")  ; edebug "Sending signal ${signal} to all chroot processes." ; }
 
     for pid in ${pids}; do
         local link=$(readlink "/proc/${pid}/root")
@@ -95,7 +100,7 @@ chroot_kill()
 
         # Kill this process
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        kill -9 ${pid} 
+        ekilltree ${pid} ${signal}
     done
 }
 
@@ -120,7 +125,7 @@ CHROOT_ENV="/usr/bin/env USER=root SUDO_USER=root HOME=/root DEBIAN_FRONTEND=non
 
 chroot_apt_update()
 {
-	chroot_cmd apt-get update >/dev/null
+    chroot_cmd apt-get update >/dev/null
 }
 
 chroot_apt_clean()
@@ -159,33 +164,33 @@ chroot_install_internal()
 
     # Post-install validation because ubuntu is entirely stupid and apt-get and aptitude can return
     # success even though the package is not installed successfully
-	for p in $@; do
-		
-		local pn=${p}
-		local pv=""
-		local op=""
+    for p in $@; do
+        
+        local pn=${p}
+        local pv=""
+        local op=""
 
-		if [[ ${p} =~ ([^>=<>]*)(>=|<=|<<|>>|=)(.*) ]]; then
-			pn="${BASH_REMATCH[1]}"
-			op="${BASH_REMATCH[2]}"
-			pv="${BASH_REMATCH[3]}"
-		fi
+        if [[ ${p} =~ ([^>=<>]*)(>=|<=|<<|>>|=)(.*) ]]; then
+            pn="${BASH_REMATCH[1]}"
+            op="${BASH_REMATCH[2]}"
+            pv="${BASH_REMATCH[3]}"
+        fi
 
-		# Actually installed
-		local actual=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || { ewarn "Failed to install [${pn}]"; return 1; })
-		local apn="${actual}"; apn=${apn%|*}
-		local apv="${actual}"; apv=${apv#*|}
-		
-		[[ ${pn} == ${apn} ]] || { ewarn "Mismatched package name wanted=[${pn}] actual=[${apn}]"; return 1; }
-	
-		## No explicit version check -- continue
-		[[ -z "${op}" || -z "${pv}" ]] && continue
+        # Actually installed
+        local actual=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || { ewarn "Failed to install [${pn}]"; return 1; })
+        local apn="${actual}"; apn=${apn%|*}
+        local apv="${actual}"; apv=${apv#*|}
+        
+        [[ ${pn} == ${apn} ]] || { ewarn "Mismatched package name wanted=[${pn}] actual=[${apn}]"; return 1; }
+    
+        ## No explicit version check -- continue
+        [[ -z "${op}" || -z "${pv}" ]] && continue
 
-		dpkg_compare_versions "${apv}" "${op}" "${pv}" || { ewarn "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"; return 1; }
-	
-	done
+        dpkg_compare_versions "${apv}" "${op}" "${pv}" || { ewarn "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"; return 1; }
+    
+    done
 
-	return 0
+    return 0
 }
 
 chroot_install()
@@ -225,7 +230,7 @@ chroot_install_retry()
     for (( i=0; i<${max}; ++i )); do
         chroot_install_internal $* \
             && { [[ $i > 0 ]] && ewarns "Successfully installed packages (tries=${i}/${max})"; return; }
-        eerror "Failed to install packages (tries=${i}/${max}) -- retrying..."
+        ewarns "Failed to install packages (tries=${i}/${max}) -- retrying..."
     done
 
     die "Failed to install [$@]"
@@ -270,7 +275,7 @@ chroot_apt_try()
 chroot_listpkgs()
 {
     argcheck CHROOT
-    output=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W") || die "Failed to execute [$*]"
+    output=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W") || die "Failed to execute [$*]"
     echo -en "${output}"
 }
 
@@ -278,7 +283,7 @@ chroot_uninstall_filter()
 {
     argcheck CHROOT
     local filter=$@
-    pkgs=$(chroot_listpkgs)
+    pkgs=$(trap_and_die; chroot_listpkgs)
     chroot_uninstall $(eval "echo \"${pkgs}\" | ${filter} | awk '{print \$1}'")
 }
 
@@ -323,7 +328,7 @@ chroot_apt_setup()
 
         chroot_cmd wget -q http://${HOST}/${keyname} -O /tmp/${keyname} &>/dev/null
         chroot_cmd apt-key add /tmp/${keyname}                          &>/dev/null
-        chroot_cmd rm -f /tmp/${keyname}chroot_cmd                      &>/dev/null
+        chroot_cmd rm -f /tmp/${keyname}                                &>/dev/null
     done
 
     # Add SolidFire entries after adding SolidFire APT public keys then
@@ -354,9 +359,14 @@ chroot_setup()
     UBUNTU_ARCH=$5;    argcheck UBUNTU_ARCH
 
     [[ ${NOBANNER} -eq 1 ]] || ebanner "Setting up chroot [${CHROOT}]"
-    
-    # resolv.conf
-    echo "search users.solidfire.net lab.solidfire.net vwc.solidfire.net" >> ${CHROOT}/etc/resolv.conf
+   
+    # Because of how we mount things while building up our chroot sometimes
+    # /etc/resolv.conf will be bind mounted into ${CHROOT}. When that happens
+    # calling 'cp' will fail b/c they refer to the same inodes. So we need
+    # to explicitly check for that here.
+    local src="/etc/resolv.conf"
+    local dst="${CHROOT}/etc/resolv.conf"
+    [[ "$(stat --format=%d.%i ${src})" != "$(stat --format=%d.%i ${dst})" ]] && ecp ${src} ${dst}
 
     ## MOUNT
     chroot_mount
@@ -364,7 +374,7 @@ chroot_setup()
     ## LOCALES/TIMEZONE
     einfo "Configuring locale and timezone"
     local LANG="en_US.UTF-8"
-    local TZ="America/Denver"
+    local TZ="Etc/UTC"
     echo "LANG=\"${LANG}\"" > "${CHROOT}/etc/default/locale" || die "Failed to set /etc/default/locale"
     chroot_cmd locale-gen ${LANG}
     chroot_cmd /usr/sbin/update-locale
@@ -398,8 +408,8 @@ mkchroot()
 
     ebanner "Making chroot [${CHROOT}]"
 
-    ## Install debootstrap if not installed
-    einstall debootstrap
+    ## Make sure that debootstrap is installed
+    which debootstrap > /dev/null || die "debootstrap must be installed"
 
     ## Setup chroot
     emkdir ${CHROOT}
@@ -414,10 +424,14 @@ mkchroot()
     local GPG_FLAG="--no-check-gpg"
     [[ ${LSB_RELEASE} == "lucid" ]] && GPG_FLAG=""
 
-    local fetched=""
-    fetched=$(efetch_with_md5_try "http://${HOST}/images/${CHROOT_IMAGE}")
+    # Try to download to /var/distbox/downloads if it exists. If it doesn't then fallback to /tmp
+    local dst="/tmp"
+    [[ -d "/var/distbox" ]] && dst="/var/distbox/downloads"
+    emkdir "${dst}"
+
+    efetch_with_md5_try "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
     if [[ $? -eq 0 ]]; then
-        debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${fetched}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
+        debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${dst}/${CHROOT_IMAGE}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
     else
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
     fi
@@ -437,5 +451,4 @@ mkchroot()
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
-export CHROOT_SOURCED=1
 return 0

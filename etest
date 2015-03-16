@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+
+: ${BASHUTILS:=/usr/local/share/bashutils}
+source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
+
+[[ -z ${1} || -n ${3} ]] && die "etest only accepts one or two arguments"
+
+TEST_DIR=$1
+esource ${TEST_DIR}/*.sh
+
+#-----------------------------------------------------------------------------
+# TEST UTILITY FUNCTIONS
+#-----------------------------------------------------------------------------
+
+expect_true()
+{
+    local expression="${@}"
+    edebug "$(lval expression)"
+
+    eval "${expression}" || { eerror "Expect failed :: $(lval expression)"; return 1; }
+    return 0
+}
+
+expect_false()
+{
+    local expression="${@}"
+    edebug "$(lval expression)"
+
+    eval "${expression}" && { eerror "Expect failed :: ! $(lval expression)"; return 1; }
+    return 0
+}
+
+expect_op()
+{
+    compare "${@}" || { eerror "expect_op failed :: ${@}"; return 1; }
+    return 0
+}
+
+expect_eq()
+{
+    local lh="$1"
+    local rh="$2"
+    expect_op "\"${lh}\"" "==" "\"${rh}\""
+}
+
+expect_ne()
+{
+    local lh="$1"
+    local rh="$2"
+    expect_op "\"${lh}\"" "!=" "\"${rh}\""
+}
+
+expect_zero()
+{
+    [[ $1 -eq 0 ]] || { eerror "expect_zero received $1 instead of zero." ; return 1 ; }
+}
+
+expect_not_zero()
+{
+    [[ $1 -ne 0 ]] || { eerror "expect_not_zero received ${1}." ; return 1 ; }
+}
+
+expect_empty()
+{
+    [[ $1 == "" ]] || { eerror "expect_empty received \"$1\"." ; return 1 ; }
+}
+
+expect_not_empty()
+{
+    [[ $1 != "" ]] || { eerror "expect_not_empty received an empty string." ; return 1 ; }
+}
+
+#-----------------------------------------------------------------------------
+# MAIN
+#-----------------------------------------------------------------------------
+
+# Get all function names that begin with ETEST_ (and optionally match $2)
+ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'$2'" {print $3}') )
+
+
+# Figure out longest test name
+ETEST_LONGEST=0
+ETEST_LEN=0
+for testfunc in "${ETEST_FUNCTIONS[@]}"; do
+    ETEST_LEN=${#testfunc}
+    (( ETEST_LEN > ETEST_LONGEST )) && ETEST_LONGEST=${ETEST_LEN}
+done
+
+edebug "Running tests $(lval ETEST_FUNCTIONS)"
+# And execute them
+ETEST_RC=0
+for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
+    pad=$((ETEST_LONGEST-${#testfunc}+1))
+    msg=$(printf "%s%${pad}s" "${testfunc}" " ")
+
+    [[ -n ${EDEBUG} ]] && einfo "${msg}" || einfon "${msg}"
+    ( ${testfunc} )
+    rc=$?
+    (( ETEST_RC += $rc ))
+    eend $rc
+
+done
+
+exit ${ETEST_RC}
