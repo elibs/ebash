@@ -3,12 +3,10 @@
 # Copyright 2012-2013, SolidFire, Inc. All rights reserved.
 #
 
-[[ ${DPKG_SOURCED} == 1 ]] && return 0
-
 #-----------------------------------------------------------------------------
 # PULL IN DEPENDENT PACKAGES
 #-----------------------------------------------------------------------------
-source "${BASHUTILS_PATH}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
+source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
 
 dpkg_compare_versions()
 {
@@ -100,5 +98,4 @@ dpkg_depends_apt()
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
-export DPKG_SOURCED=1
 return 0

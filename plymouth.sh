@@ -3,12 +3,10 @@
 # Copyright 2013, SolidFire, Inc. All rights reserved.
 #
 
-[[ ${PLYMOUTH_SOURCED} == 1 ]] && return 0
-
 #-----------------------------------------------------------------------------
 # PULL IN DEPENDENT PACKAGES
 #-----------------------------------------------------------------------------
-source "${BASHUTILS_PATH}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
+source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
 
 #-----------------------------------------------------------------------------
 # PLYMOUTH
@@ -85,85 +83,44 @@ plymouth_prompt()
     echo -en "${result}"
 }
 
-plymouth_prompt_timeout()
-{
-    local timeout=$1 ; shift; [[ -z "${timeout}" ]] && die "Missing timeout value"
-    local default=$1 ; shift; [[ -z "${default}" ]] && die "Missing default value"
-
-    local tmp="/tmp/.plymouth_prompt"
-    erm ${tmp}
-    plymouth ask-question --prompt="$@" --command="tee ${tmp}" &
-
-    local i=0
-    while true; do
-        if [[ -e ${tmp} ]]; then
-            break
-        fi
-
-        if [[ ${i} -gt ${timeout} ]]; then
-            plymouth_restart
-            echo -en "${default}"
-            break
-        fi
-
-        local left=$((timeout - $i))
-        plymouth_message "Will continue in ($left) seconds..."
-        sleep 1
-        i=$((i+1))
-    done
-
-    plymouth_message ""
-    erm ${tmp}
-}
-
 #-----------------------------------------------------------------------------
 # Interposed functions
 #-----------------------------------------------------------------------------
-save_function einfo
-einfo() 
+
+override_function einfo '
 {
     einfo_real $@
     plymouth_message "$@"
-}
+}'
 
-save_function einfon
-einfon()
+override_function einfon '
 {
     einfon_real $@
     plymouth_message "$@"
-}
+}'
 
-save_function ewarn
-ewarn()
+override_function ewarn '
 {
     ewarn_real $@
     plymouth_message "$@"
     sleep 2
-}
+}'
 
-save_function eerror
-eerror()
+override_function eerror '
 {
     eerror_real $@
     plymouth_message "$@"
     sleep 5
-}
+}'
 
-eprompt() 
+override_function eprompt '
 {
     local output=$(compress_spaces "$@")
+    ewarn_real "${output}"
     echo -en $(plymouth_prompt "${output}")
-}
-
-eprompt_timeout()
-{
-    local timeout=$1 ; argcheck timeout
-    local default=$1 ; argcheck default
-    echo -en $(plymouth_prompt_timeout "${timeout}" "${default}" "$@")
-}
+}'
 
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
-export PLYMOUTH_SOURCED=1
 return 0
