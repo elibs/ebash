@@ -3,7 +3,6 @@ ETEST_setvars_basic()
     local file="setvars_basic.txt"
     local name="Immanual Kant"
     echo "name=[__name__]" > "${file}"
-    trap_add "erm ${file}" EXIT
 
     setvars "${file}"
     expect_eq "name=[${name}]" "$(cat ${file})"
@@ -15,7 +14,6 @@ ETEST_setvars_multi()
     local arg1="Foo"
     local arg2="Bar"
     echo "__arg1__ __arg2__" > "${file}"
-    trap_add "erm ${file}" EXIT
 
     setvars "${file}"
     expect_eq "${arg1} ${arg2}" "$(cat ${file})"
@@ -27,7 +25,6 @@ ETEST_setvars_error()
     local file="setvars_multi.txt"
     local arg1="Foo"
     echo "__arg1__ __arg2__" > "${file}"
-    trap_add "erm ${file}" EXIT
 
     expect_false SETVARS_FATAL=0 SETVARS_WARN=0 setvars "${file}"
 }
@@ -52,7 +49,6 @@ ETEST_setvars_callback()
     local MARVELL_DRIVER_VERSION=${MARVELL_VERSION}
     local MARVELL_FIRMWARE_VERSION=${MARVELL_VERSION}
     echo "__MARVELL_VERSION__ __MARVELL_DRIVER_VERSION__ __MARVELL_FIRMWARE_VERSION__" > "${file}"
-    trap_add "erm ${file}" EXIT
 
     setvars "${file}" adjust_version
     expect_eq "1.7.2-p1 1.7.2 1.7.2" "$(cat ${file})"
@@ -63,7 +59,6 @@ ETEST_setvars_with_newlines()
     local file="setvars_with_newlines.txt"
 
     echo "A __B__ C" > ${file}
-    trap_add "erm ${file}"
 
     B="a
 b
@@ -83,7 +78,6 @@ ETEST_setvars_punctuation()
     PUNCT="!@#$%^&*()-=[]{};'\",.<>/?|"
 
     local file="setvars_punctuation.txt"
-    trap_add "erm ${file}"
 
     # Iterate over the above string of punctuation marks
     for (( i=0 ; i < ${#PUNCT} ; ++i )) ; do
