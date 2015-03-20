@@ -90,7 +90,6 @@ ETEST_declare_args_export()
     echo "[[ -z \${G1} ]] || { echo 'G1=[\${G1}] should not be exported'; exit 1; }" >  ${file}
     echo "[[ -n \${G2} ]] || { echo 'G2=[\${G2}] should be exported';     exit 2; }" >> ${file}
     echmod +x ${file}
-    trap_add "erm ${file}" EXIT
     edebug "$(cat ${file})"
 
     do_declare_global
