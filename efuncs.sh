@@ -1265,7 +1265,7 @@ save_function()
 {
     local orig=$(declare -f $1)
     local new="${1}_real${orig#$1}"
-    eval "${new}"
+    eval "${new}" &>/dev/null
 }
 
 # override_function is a more powerful version of save_function in that it will
