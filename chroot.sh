@@ -374,7 +374,7 @@ chroot_setup()
     ## LOCALES/TIMEZONE
     einfo "Configuring locale and timezone"
     local LANG="en_US.UTF-8"
-    local TZ="America/Denver"
+    local TZ="Etc/UTC"
     echo "LANG=\"${LANG}\"" > "${CHROOT}/etc/default/locale" || die "Failed to set /etc/default/locale"
     chroot_cmd locale-gen ${LANG}
     chroot_cmd /usr/sbin/update-locale
