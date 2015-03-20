@@ -1643,7 +1643,7 @@ pack_update()
         local _pack_update_key="${_pack_update_arg%%=*}"
         local _pack_update_val="${_pack_update_arg#*=}"
 
-        pack_keys ${_pack_update_pack} | grep -Pq "\b${_pack_update_key}\b" \
+        pack_keys ${_pack_update_pack} | grep -aPq "\b${_pack_update_key}\b" \
             && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" ;
     done
 }
@@ -1656,12 +1656,11 @@ pack_set_internal()
 
     argcheck _tag
     [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
-    [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
     [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
 
-    local _removeOld="$(echo -n "${!1}" | _unpack | grep -v '^'${_tag}'=')"
+    local _removeOld="$(echo -n "${!1}" | _unpack | grep -av '^'${_tag}'=')"
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
-    local _packed=$(printf "${_addNew}" | _pack)
+    local _packed=$(echo "${_addNew}" | _pack)
 
     edebug "$(lval _pack_pack_set_internal _tag _val)"
     printf -v ${1} "${_packed}"
@@ -1678,7 +1677,7 @@ pack_get()
     argcheck _pack_pack_get _tag
 
     local _unpacked="$(echo -n "${!_pack_pack_get}" | _unpack)"
-    local _found="$(echo -n "${_unpacked}" | grep "^${_tag}=")"
+    local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=")"
     edebug "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
     [[ -n ${_found} ]]
@@ -1820,7 +1819,7 @@ _unpack()
 
 _pack()
 {
-    grep -v '^$' | tr '\n' '\0' | base64 -w0
+    grep -av '^$' | tr '\n' '\0' | base64 -w0
 }
 
 #-----------------------------------------------------------------------------

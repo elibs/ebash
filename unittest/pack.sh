@@ -298,3 +298,21 @@ ETEST_pack_export()
     expect_eq ${c} "$(pack_get P c)"
 
 }
+
+# Make sure pack values can contain the full character set (excluding null)
+ETEST_pack_full_character_set()
+{
+    # Get all the characters except null
+    CHARSET=""
+    for char in $(seq 1 255) ; do
+        CHARSET+=$(perl -e 'printf "%c", '$char' ;')
+    done
+
+    # Set a pack entry to contain all of them
+    pack_set P charset="${CHARSET}"
+
+    # And make sure it does
+    [[ "$CHARSET" == "$(pack_get P charset)" ]] || { eerror "P/charset not as expected [$(pack_get P charset)]" ; return 1 ; }
+}
+
+
