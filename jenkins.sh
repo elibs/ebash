@@ -134,7 +134,7 @@ jenkins_update()
 # can be inserted into an xml file
 setvars_escape_xml()
 {
-    eval $(declare_args _ ?val)
+    $(declare_args _ ?val)
     echo "${val}" | xmlstarlet esc
 }
 

@@ -5,7 +5,7 @@ do_declare_args()
     local args=( ${1} ); shift
     local vals=( "${@}" )
     edebug "$(lval args vals)"
-    eval $(declare_args ${args[@]})
+    $(declare_args ${args[@]})
     
     # declare_args should be consuming positional arguments
     # This assumes none of the unit tests are passing more than
@@ -95,4 +95,37 @@ ETEST_declare_args_export()
     do_declare_global
     do_declare_export
     ./${file}
+}
+
+do_declare_args_legacy()
+{
+    local args=( ${1} ); shift
+    local vals=( "${@}" )
+    edebug "$(lval args vals)"
+    eval $(declare_args ${args[@]})
+    
+    # declare_args should be consuming positional arguments
+    # This assumes none of the unit tests are passing more than
+    # ten arguments into this helper method.
+    expect_eq 0 ${#@}
+
+    [[ ${#args} -eq 0 ]] && return 0
+
+    local arg val idx
+    for (( idx=0; idx <= ${#args}; idx++ )); do
+        arg=${args[$idx]}; arg=${arg#\?}
+        val=${vals[$idx]}
+        edebug "$(lval idx arg val)"
+        
+        [[ ${arg} == "_" ]] && continue
+        
+        eval "expect_eq \"${val}\" \"\$${arg}\""
+    done
+}
+
+# Verify if legacy code calls eval $(declare_args ...) it still does the right thing
+ETEST_declare_args_legacy()
+{
+    do_declare_args_legacy "a1 a2 a3" 1 2 3
+    do_declare_args_legacy "a1 a2 a3 a4" aristotle kant hobbes rosseau
 }

@@ -38,13 +38,13 @@ expect_op()
 
 expect_eq()
 {
-    eval $(declare_args ?lh ?rh)
+    $(declare_args ?lh ?rh)
     [[ "${lh}" == "${rh}" ]] || { eerror "expect_eq failed :: $(lval lh rh)"; return 1; } 
 }
 
 expect_ne()
 {
-    eval $(declare_args ?lh ?rh)
+    $(declare_args ?lh ?rh)
     [[ ! "${lh}" == "${rh}" ]] || { error "expect_ne failed :: $(lval lh rh)"; return 1; }
 }
 

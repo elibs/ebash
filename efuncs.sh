@@ -223,7 +223,7 @@ emsg()
     # Only take known prefix settings
     local emsg_prefix=$(echo ${EMSG_PREFIX} | egrep -o "(time|times|level|caller|all)")
 
-    eval $(declare_args color ?symbol level)
+    $(declare_args color ?symbol level)
     [[ ${EFUNCS_TIME} -eq 1 ]] && emsg_prefix+=time
 
     # Local args to hold the color and regexs for each field
@@ -352,7 +352,7 @@ eerror_stacktrace()
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
 etable()
 {
-    eval $(declare_args columns)
+    $(declare_args columns)
     lengths=()
     for line in "${columns}" "$@"; do
         ifs_save; ifs_set "|"; parts=(${line}); ifs_restore
@@ -412,7 +412,7 @@ eprompt()
 # user but will be accepted as a valid response.
 eprompt_with_options()
 {
-    eval $(declare_args msg opt ?secret)
+    $(declare_args msg opt ?secret)
     local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"
 
@@ -430,7 +430,7 @@ eprompt_with_options()
 
 epromptyn()
 {
-    eval $(declare_args msg)
+    $(declare_args msg)
     eprompt_with_options "${msg}" "Yes,No"
 }
 
@@ -463,7 +463,7 @@ eend()
 
 ekill()
 {
-    eval $(declare_args pid ?signal)
+    $(declare_args pid ?signal)
     : ${signal:=TERM}
 
     kill -${signal} ${pid}
@@ -472,7 +472,7 @@ ekill()
 
 ekilltree()
 {
-    eval $(declare_args pid ?signal)
+    $(declare_args pid ?signal)
     : ${signal:=TERM}
 
     edebug "Killing process tree of ${pid} [$(ps -p ${pid} -o comm=)] with ${signal}."
@@ -751,7 +751,7 @@ ifs_set()
 #-----------------------------------------------------------------------------
 valid_ip()
 {
-    eval $(declare_args ip)
+    $(declare_args ip)
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -764,7 +764,7 @@ valid_ip()
 
 hostname_to_ip()
 {
-    eval $(declare_args hostname)
+    $(declare_args hostname)
 
     local output hostrc ip
     output="$(host ${hostname} | grep ' has address ')"
@@ -805,21 +805,21 @@ fully_qualify_hostname()
 
 getipaddress()
 {
-    eval $(declare_args iface)
+    $(declare_args iface)
     local ip=$(strip $(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2))
     echo -n "${ip}"
 }
 
 getnetmask()
 {
-    eval $(declare_args iface)
+    $(declare_args iface)
     local netmask=$(strip $(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2))
     echo -n "${netmask}"
 }
 
 getbroadcast()
 {
-    eval $(declare_args iface)
+    $(declare_args iface)
     local bcast=$(strip $(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2))
     echo -n "${bcast}"
 }
@@ -834,7 +834,7 @@ getgateway()
 # Compute the subnet given the current IPAddress (ip) and Netmask (nm)
 getsubnet()
 {
-    eval $(declare_args ip nm)
+    $(declare_args ip nm)
 
     IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
     IFS=. read -r m1 m2 m3 m4 <<< "${nm}"
@@ -900,7 +900,7 @@ echown()
 echmodown()
 {
     [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
-    eval $(declare_args mode owner)
+    $(declare_args mode owner)
 
     echmod ${mode} $@
     echown ${owner} $@
@@ -950,7 +950,7 @@ ersync()
 
 erename()
 {
-    eval $(declare_args src dest)
+    $(declare_args src dest)
 
     emkdir "${dest}"
     ersync "${src}/" "${dest}/"
@@ -966,7 +966,7 @@ etouch()
 # Unmount (if mounted) and remove directory (if it exists) then create it anew
 efreshdir()
 {
-    eval $(declare_args mnt)
+    $(declare_args mnt)
 
     eunmount_recursive ${mnt}
     erm ${mnt}
@@ -976,14 +976,14 @@ efreshdir()
 # Copies the given file to *.bak if it doesn't already exist
 ebackup()
 {
-    eval $(declare_args src)
+    $(declare_args src)
     
     [[ -e "${src}" && ! -e "${src}.bak" ]] && ecp "${src}" "${src}.bak"
 }
 
 erestore()
 {
-    eval $(declare_args src)
+    $(declare_args src)
     
     [[ -e "${src}.bak" ]] && emv "${src}.bak" "${src}"
 }
@@ -1007,7 +1007,7 @@ etar()
 
 esed()
 {
-    eval $(declare_args fname)
+    $(declare_args fname)
     
     local cmd="sed -i"
     for exp in "${@}"; do
@@ -1025,7 +1025,7 @@ esed()
 # This function will die() on failure.
 emd5sum()
 {
-    eval $(declare_args path)
+    $(declare_args path)
    
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
@@ -1041,7 +1041,7 @@ emd5sum()
 # 'md5'. This method will die() on failure.
 emd5sum_check()
 {
-    eval $(declare_args path)
+    $(declare_args path)
     
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
@@ -1140,7 +1140,7 @@ isgentoo()
 # strings and even worse being completely incapable of comparing floats.
 compare()
 {
-    eval $(declare_args ?lh op ?rh)
+    $(declare_args ?lh op ?rh)
 
     ## Degenerate case where actual and expect are both empty strings
     [[ -z ${lh} && -z ${rh} ]] && return 0
@@ -1198,10 +1198,13 @@ argcheck()
 
 # Internal helper method used by both declare_args and declare_globals that
 # takes a list of names and declares a variable for each name from the positional
-# arguments in the CALLER's context. This is done by having the caller eval the
-# output geneated from declare_args, as in:
+# arguments in the CALLER's context. Similar to what we do in esource, we want
+# to code to be invoked in the caller's environment instead of within this function.
+# BUT, we don't want to have to use clumsy eval $(declare_args...). So instead we
+# employ the same trick of emitting a 'eval command invocation string' which the
+# caller executes via:
 #
-# eval $(declare_args a b)
+# $(declare_args a b)
 #
 # This gets turned into:
 #
@@ -1231,12 +1234,13 @@ declare_args_internal()
     local _declare_args_qualifier=$1
     local _declare_args_optional=0
     local _declare_args_variable=""
-    
+    local _declare_args_cmd=""
+
     while shift; do
         [[ $# -eq 0 ]] && break
 
         # If the variable name is "_" then don't bother assigning it to anything
-        [[ $1 == "_" ]] && echo "shift; " && continue
+        [[ $1 == "_" ]] && _declare_args_cmd+="shift; " && continue
 
         # Check if the argument is optional or not as indicated by a leading '?'.
         # If the leading '?' is present then REMOVE It so that code after it can
@@ -1245,31 +1249,32 @@ declare_args_internal()
         _declare_args_variable="${1#\?}"
 
         # Declare the variable and then call argcheck if required
-        local _declare_args_cmd="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift; "
+        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
-        echo "${_declare_args_cmd}"
     done
+    
+    echo "eval "${_declare_args_cmd}""
 }
 
 # Public method which just calls into declare_args_internal with "local" keyword.
 # See declare_args_internal
 declare_args()
 {
-    declare_args_internal "local" "${@}"
+    echo $(declare_args_internal "local" "${@}")
 }
 
 # Public method which just calls into declare_args_internal with "" keyword.
 # See declare_args_internal.
 declare_globals()
 {
-    declare_args_internal "" "${@}"
+    echo $(declare_args_internal "" "${@}")
 }
 
 # Public method which just calls into declare_args_internal with "export" keyword.
 # See declare_args_internal.
 declare_exports()
 {
-    declare_args_internal "export" "${@}"
+    echo $(declare_args_internal "export" "${@}")
 }
 
 #-----------------------------------------------------------------------------
@@ -1296,7 +1301,7 @@ save_function()
 # times.
 override_function()
 {
-    eval $(declare_args func body)
+    $(declare_args func body)
 
     ## Don't save the function off it already exists to avoid infinite recursion
     declare -f "${func}_real" >/dev/null || save_function ${func}
@@ -1571,7 +1576,7 @@ eretry()
 #   will then be used by setvars as the replacement value.
 setvars()
 {
-    eval $(declare_args filename ?callback)
+    $(declare_args filename ?callback)
     edebug "Setting variables $(lval filename callback)"
 
     for arg in $(grep -o "__\S\+__" ${filename} | sort --unique); do
@@ -1762,7 +1767,7 @@ pack_iterate()
 #
 pack_import()
 {
-    eval $(declare_args _pack_import_pack)
+    $(declare_args _pack_import_pack)
     local _pack_import_keys=("${@}")
     [[ ${#_pack_import_keys} -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 
