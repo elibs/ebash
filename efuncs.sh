@@ -1751,19 +1751,20 @@ pack_iterate()
     done
 }
 
+# Spews bash commands that, when executed will declare a series of variables 
+# in the caller's environment for each and every item in the pack. This uses
+# the same tactic as esource and declare_args by emitting an "eval command
+# invocation string" which the caller then executes in order to manifest the
+# commands. For instance, if your pack contains keys a and b with respective
+# values 1 and 2, you can create locals a=1 and b=2 by running:
 #
-# Spews bash commands that, when eval-ed will declare a local in your
-# environment for every item in the pack.  For instance, if your pack contains
-# keys a and b with respective values 1 and 2, you can create locals a=1 and
-# b=2 by running:
-#
-#   eval "$(pack_import pack)"
+#   $(pack_import pack)
 #
 # If you don't want the pack's entire contents, but only a limited subset, you
 # may specify them.  For instance, in the same example scenario, the following
 # will create a local a=1, but not a local for b.
 #
-#  eval "$(pack_import pack a)"
+#  $(pack_import pack a)
 #
 pack_import()
 {
@@ -1773,10 +1774,13 @@ pack_import()
 
     edebug $(lval _pack_import_keys)
 
+    local _pack_import_cmd=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
         local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
-        echo "local $_pack_import_key=${_pack_import_val}"
+        _pack_import_cmd+="local $_pack_import_key=${_pack_import_val}; "
     done
+
+    echo "eval "${_pack_import_cmd}""
 }
 
 #

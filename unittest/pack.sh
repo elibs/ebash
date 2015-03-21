@@ -265,7 +265,7 @@ ETEST_pack_import_all()
     expect_empty ${b}
 
     pack_set P a=10 b=20
-    eval "$(pack_import P)"
+    $(pack_import P)
 
     expect_eq 10 ${a}
     expect_eq 20 ${b}
@@ -278,7 +278,7 @@ ETEST_pack_import_specific()
     expect_empty ${c}
 
     pack_set P a=1 b=2 c=3
-    eval "$(pack_import P a b)"
+    $(pack_import P a b)
 
     expect_eq 1  ${a}
     expect_eq 2  ${b}
