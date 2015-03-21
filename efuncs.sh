@@ -334,7 +334,9 @@ eerror_stacktrace()
     echo "" >&2
     eerror "$@"
 
+    ifs_save; ifs_nl
     local frames=( $(stacktrace ${skip_frames}) )
+    ifs_restore
 
     for f in "${frames[@]}"; do
         local line=$(echo ${f} | awk '{print $1}')
