@@ -35,7 +35,11 @@ chroot_unmount()
     argcheck CHROOT
     local first=1
 
-    for m in "$(echo ${CHROOT_MOUNTS} | sed 's| |\n|g' | sort -r)"; do
+    ifs_save; ifs_nl
+    local mounts=( $(echo ${CHROOT_MOUNTS} | sed 's| |\n|g' | sort -r) )
+    ifs_restore
+
+    for m in ${mounts}; do
         emounted "${CHROOT}${m}" || continue
 
         [[ ${first} -eq 1 ]] && { einfo "Unmounting $(lval CHROOT)"; first=0; }
