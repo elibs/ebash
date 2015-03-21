@@ -334,10 +334,9 @@ eerror_stacktrace()
     echo "" >&2
     eerror "$@"
 
-    ifs_save; ifs_nl
     local frames=( $(stacktrace ${skip_frames}) )
 
-    for f in ${frames[@]}; do
+    for f in "${frames[@]}"; do
         local line=$(echo ${f} | awk '{print $1}')
         local func=$(echo ${f} | awk '{print $2}')
         local file=$(basename $(echo ${f} | awk '{print $3}'))
@@ -346,7 +345,6 @@ eerror_stacktrace()
         
         printf "$(ecolor red)   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
     done
-    ifs_restore
 }
 
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
@@ -1102,12 +1100,10 @@ eunmount_recursive()
 
     for m in $@; do
         local rdev=$(readlink -f ${m})
-        ifs_save; ifs_nl
         for p in $(grep -P "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur); do
             edebug "Unmounting ${p}"
             eunmount ${p}
         done
-        ifs_restore
     done
 
 }
@@ -1253,28 +1249,28 @@ declare_args_internal()
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
     done
     
-    echo "eval "${_declare_args_cmd}""
+    echo "eval ${_declare_args_cmd}"
 }
 
 # Public method which just calls into declare_args_internal with "local" keyword.
 # See declare_args_internal
 declare_args()
 {
-    echo $(declare_args_internal "local" "${@}")
+    declare_args_internal "local" "${@}"
 }
 
 # Public method which just calls into declare_args_internal with "" keyword.
 # See declare_args_internal.
 declare_globals()
 {
-    echo $(declare_args_internal "" "${@}")
+    declare_args_internal "" "${@}"
 }
 
 # Public method which just calls into declare_args_internal with "export" keyword.
 # See declare_args_internal.
 declare_exports()
 {
-    echo $(declare_args_internal "export" "${@}")
+    declare_args_internal "export" "${@}"
 }
 
 #-----------------------------------------------------------------------------
@@ -1792,14 +1788,14 @@ pack_import_internal()
 # See pack_import_internal.
 pack_import()
 {
-    echo $(pack_import_internal "local" "${@}")
+    pack_import_internal "local" "${@}"
 }
 
 # Public method which just calls into pack_import_internal with "" scope keyword.
 # See pack_import_internal.
 pack_import_global()
 {
-    echo $(pack_import_internal "" "${@}")
+    pack_import_internal "" "${@}"
 }
 
 #
