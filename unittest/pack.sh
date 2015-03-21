@@ -296,7 +296,6 @@ ETEST_pack_export()
     expect_eq ${a} "$(pack_get P a)"
     expect_eq ${b} "$(pack_get P b)"
     expect_eq ${c} "$(pack_get P c)"
-
 }
 
 # Make sure pack values can contain the full character set (excluding null)
@@ -314,5 +313,3 @@ ETEST_pack_full_character_set()
     # And make sure it does
     [[ "$CHARSET" == "$(pack_get P charset)" ]] || { eerror "P/charset not as expected [$(pack_get P charset)]" ; return 1 ; }
 }
-
-

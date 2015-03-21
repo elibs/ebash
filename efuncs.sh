@@ -1751,6 +1751,11 @@ pack_iterate()
     done
 }
 
+# Internal helper method used by pack_import and pack_import_global where 
+# these two wrappers specify the scope of the imports as the required first
+# argument. pack_import provides the scope 'local' and pack_import_global
+# uses no scope specifier.
+#
 # Spews bash commands that, when executed will declare a series of variables 
 # in the caller's environment for each and every item in the pack. This uses
 # the same tactic as esource and declare_args by emitting an "eval command
@@ -1766,9 +1771,9 @@ pack_iterate()
 #
 #  $(pack_import pack a)
 #
-pack_import()
+pack_import_internal()
 {
-    $(declare_args _pack_import_pack)
+    $(declare_args ?_pack_import_scope _pack_import_pack)
     local _pack_import_keys=("${@}")
     [[ ${#_pack_import_keys} -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 
@@ -1783,14 +1788,27 @@ pack_import()
     echo "eval "${_pack_import_cmd}""
 }
 
+# Public method which just calls into pack_import_internal with "local" scope keyword.
+# See pack_import_internal.
+pack_import()
+{
+    echo $(pack_import_internal "local" "${@}")
+}
+
+# Public method which just calls into pack_import_internal with "" scope keyword.
+# See pack_import_internal.
+pack_import_global()
+{
+    echo $(pack_import_internal "" "${@}")
+}
+
 #
 # Assigns values into a pack by extracting them from the caller environment.
 # For instance, if you have locals a=1 and b=2 and run the following:
 #
 #    pack_export pack a b
 #
-# You will be left with the same pack as if you instead said:
-#
+# You will be left with the same pack as if you instead said#
 #   pack_set pack a=${a} b=${b}
 #
 pack_export()
@@ -1850,6 +1868,4 @@ _pack()
 }
 
 #-----------------------------------------------------------------------------
-# SOURCING
-#-----------------------------------------------------------------------------
-return 0
+# return 0
