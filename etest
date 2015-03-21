@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 : ${BASHUTILS:=/usr/local/share/bashutils}
-source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
+PATH=".:${PATH}:${BASHUTILS}"
+source efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
 
 [[ -z ${1} || -n ${3} ]] && die "etest only accepts one or two arguments"
 

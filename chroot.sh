@@ -17,13 +17,12 @@ CHROOT_MOUNTS="/dev /dev/pts /proc /sys"
 chroot_mount()
 {
     argcheck CHROOT
-
     local first=1
  
     for m in ${CHROOT_MOUNTS}; do 
         emounted "${CHROOT}${m}" && continue
 
-        [[ ${first} -eq 1 ]] && { einfo "Mounting chroot [${CHROOT}]"; first=0; }
+        [[ ${first} -eq 1 ]] && { einfo "Mounting $(lval CHROOT)"; first=0; }
         emkdir ${CHROOT}${m}
         emount --bind ${m} ${CHROOT}${m}
     done
@@ -36,14 +35,12 @@ chroot_unmount()
     argcheck CHROOT
     local first=1
 
-    ifs_save; ifs_nl
-    for m in $(echo ${CHROOT_MOUNTS} | sed 's| |\n|g' | sort -r); do
+    for m in "$(echo ${CHROOT_MOUNTS} | sed 's| |\n|g' | sort -r)"; do
         emounted "${CHROOT}${m}" || continue
 
-        [[ ${first} -eq 1 ]] && { einfo "Unmounting chroot [${CHROOT}]"; first=0; }
+        [[ ${first} -eq 1 ]] && { einfo "Unmounting $(lval CHROOT)"; first=0; }
         eunmount ${CHROOT}${m}
     done
-    ifs_restore
 
     erm ${CHROOT}/etc/mtab
 }
@@ -289,11 +286,7 @@ chroot_uninstall_filter()
 
 chroot_apt_setup()
 {
-    local CHROOT=$1;         argcheck CHROOT
-    local UBUNTU_RELEASE=$2; argcheck UBUNTU_RELEASE
-    local RELEASE=$3;        argcheck RELEASE
-    local HOST=$4;           argcheck HOST
-    local UBUNTU_ARCH=$5;    argcheck UBUNTU_ARCH
+    $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
 
     ## Set up DPKG options so we don't get prompted for anything
     einfo "Setting up dpkg.cfg"
@@ -352,11 +345,7 @@ chroot_setup()
     ## Below to use these settings.
     (
 
-    CHROOT=$1;         argcheck CHROOT
-    UBUNTU_RELEASE=$2; argcheck UBUNTU_RELEASE
-    RELEASE=$3;        argcheck RELEASE
-    HOST=$4;           argcheck HOST
-    UBUNTU_ARCH=$5;    argcheck UBUNTU_ARCH
+    $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
 
     [[ ${NOBANNER} -eq 1 ]] || ebanner "Setting up chroot [${CHROOT}]"
    
@@ -383,7 +372,7 @@ chroot_setup()
     chroot_cmd dpkg-reconfigure tzdata
     
     ## SETUP
-    chroot_apt_setup $@
+    chroot_apt_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
 
     ## CLEANUP
     chroot_apt_clean
@@ -400,13 +389,8 @@ chroot_setup()
 #/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
 mkchroot()
 {
-    local CHROOT=$1;         argcheck CHROOT
-    local UBUNTU_RELEASE=$2; argcheck UBUNTU_RELEASE
-    local RELEASE=$3;        argcheck RELEASE
-    local HOST=$4;           argcheck HOST
-    local UBUNTU_ARCH=$5;    argcheck UBUNTU_ARCH
-
-    ebanner "Making chroot [${CHROOT}]"
+    $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
+    ebanner "Making chroot" CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH
 
     ## Make sure that debootstrap is installed
     which debootstrap > /dev/null || die "debootstrap must be installed"
@@ -418,7 +402,7 @@ mkchroot()
     # DEBOOTSTRAP IMAGE
     #-----------------------------------------------------------------------------                                    
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
-    einfo "Creating CHROOT=[${CHROOT}] UBUNTU_RELEASE=[${UBUNTU_RELEASE}] RELEASE=[${RELEASE}] HOST=[${HOST}] UBUNTU_ARCH=[${UBUNTU_ARCH}]"
+    einfo "Creating $(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
 
     local LSB_RELEASE=$(cat /etc/lsb-release | grep "CODENAME" | awk -F= '{print $2}')
     local GPG_FLAG="--no-check-gpg"
@@ -439,7 +423,7 @@ mkchroot()
     #-----------------------------------------------------------------------------        
     # MODIFY CHROOT IMAGE
     #-----------------------------------------------------------------------------
-    NOBANNER=1 chroot_setup $@
+    NOBANNER=1 chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
 
     ebanner "Finished making chroot [${CHROOT}]"
     echo ""
