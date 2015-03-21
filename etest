@@ -6,7 +6,7 @@ source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unabl
 [[ -z ${1} || -n ${3} ]] && die "etest only accepts one or two arguments"
 
 TEST_DIR=$1
-esource ${TEST_DIR}/*.sh
+$(esource ${TEST_DIR}/*.sh)
 
 #-------------------------------------------------------------------------------------------------------------------------
 # TEST UTILITY FUNCTIONS
