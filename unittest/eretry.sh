@@ -1,7 +1,7 @@
 FAIL_TIMES=0
 fail_then_pass()
 {
-    eval "$(declare_args failCount)"
+    $(declare_args failCount)
     edebug "$(lval failCount FAIL_TIMES)"
     (( FAIL_TIMES += 1 ))
     (( ${FAIL_TIMES} <= ${failCount} )) && return 15 || return 0
