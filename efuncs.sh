@@ -1780,7 +1780,7 @@ pack_import_internal()
     local _pack_import_cmd=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
         local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
-        _pack_import_cmd+="local $_pack_import_key=${_pack_import_val}; "
+        _pack_import_cmd+="$_pack_import_scope $_pack_import_key=${_pack_import_val}; "
     done
 
     echo "eval "${_pack_import_cmd}""
