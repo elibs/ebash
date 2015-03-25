@@ -23,21 +23,23 @@ check_mounts()
 
 ETEST_chroot_create_mount()
 {
-    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
-    trap_add chroot_exit HUP INT QUIT BUS PIPE TERM EXIT
+    {
+        mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
+        trap_add chroot_exit HUP INT QUIT BUS PIPE TERM EXIT
 
-    # Verify chroot paths not mounted
-    check_mounts 0
+        # Verify chroot paths not mounted
+        check_mounts 0
 
-    # Mount a few times and verify counts go up
-    for (( i=0; i<3; ++i )); do
-        chroot_mount
-        check_mounts $((i+1))
-    done
+        # Mount a few times and verify counts go up
+        for (( i=0; i<3; ++i )); do
+            chroot_mount
+            check_mounts $((i+1))
+        done
 
-    # Unmount and verify counts go down
-    for (( i=3; i>0; --i )); do
-        chroot_unmount
-        check_mounts $((i-1))
-    done
+        # Unmount and verify counts go down
+        for (( i=3; i>0; --i )); do
+            chroot_unmount
+            check_mounts $((i-1))
+        done
+    } &> $(edebug_out)
 }
