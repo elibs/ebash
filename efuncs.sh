@@ -1059,17 +1059,28 @@ emd5sum_check()
 # MOUNT / UMOUNT UTILS
 #-----------------------------------------------------------------------------                                    
 
+# Echo the number of times a given directory is mounted and return 0 (success)
+# if it's mounted at least once.
+emounted_count()
+{
+    local path=$(strip $(readlink -f ${1} 2>/dev/null))
+    local num_mounts=$(grep --count --perl-regexp "(^| )${path}[/ ]" /proc/mounts)
+    echo -n ${num_mounts}
+    return ${num_mounts}
+}
+
 emounted()
 {
     local path=$(strip $(readlink -f ${1} 2>/dev/null))
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
     local regex="(^| )${path} "
-    edebug "Checking if $(lval path) is mounted: [$(grep --perl-regexp "${regex}" /proc/mounts)]"
+    edebug "Checking if $(lval path) is mounted:
+$(grep --perl-regexp "${regex}" /proc/mounts)"
 
-    grep --color=never --silent --perl-regexp "${regex}" /proc/mounts &>/dev/null \
-        && { edebug "$(lval path) is mounted";     return 0; }                    \
-        || { edebug "$(lval path) is NOT mounted"; return 1; }
+    grep --color=never --silent --perl-regexp "${regex}" /proc/mounts &>/dev/null          \
+        && { edebug "$(lval path) is mounted ($(emounted_count ${path}))";     return 0; } \
+        || { edebug "$(lval path) is NOT mounted ($(emounted_count ${path}))"; return 1; }
 }
 
 emount()
