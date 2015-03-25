@@ -41,5 +41,5 @@ ETEST_chroot_create_mount()
             chroot_unmount
             check_mounts $((i-1))
         done
-    } &> $(edebug_out)
+    } #&> $(edebug_out)
 }
