@@ -5,9 +5,9 @@ ETEST_esource_multiple_files()
     echo "C=3" > s3.sh
 
     $(esource s1.sh s2.sh s3.sh)
-    expect_eq 1 $A
-    expect_eq 2 $B
-    expect_eq 3 $C
+    assert_eq 1 $A
+    assert_eq 2 $B
+    assert_eq 3 $C
 }
 
 ETEST_esource_multiple_files_and_values()
@@ -17,12 +17,12 @@ ETEST_esource_multiple_files_and_values()
     echo "C=3; CC=30" > s3.sh
 
     $(esource s1.sh s2.sh s3.sh)
-    expect_eq 1  $A
-    expect_eq 10 $AA
-    expect_eq 2  $B
-    expect_eq 20 $BB
-    expect_eq 3  $C
-    expect_eq 30 $CC
+    assert_eq 1  $A
+    assert_eq 10 $AA
+    assert_eq 2  $B
+    assert_eq 20 $BB
+    assert_eq 3  $C
+    assert_eq 30 $CC
 }
 
 ETEST_esource_missing_file()
@@ -38,12 +38,12 @@ ETEST_esource_override_value()
     echo "A=2" > s2.sh
 
     $(esource s1.sh s2.sh)
-    expect_eq 2 $A
+    assert_eq 2 $A
 }
 
 ETEST_esource_associative_array()
 {
     echo "declare -A PMAP; PMAP['boot']=1;" > common.sh
     $(esource common.sh)
-    expect_eq 1 ${PMAP[boot]}
+    assert_eq 1 ${PMAP[boot]}
 }

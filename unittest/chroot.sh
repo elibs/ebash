@@ -12,12 +12,12 @@ CHROOT_MOUNTS=( /dev /proc /sys )
 
 check_mounts()
 {
-    $(declare_args expect_count)
+    $(declare_args assert_count)
 
     # Verify chroot paths not mounted
     for path in ${CHROOT_MOUNTS[@]}; do
-        [[ ${expect_count} -eq 0 ]] && expect_false emounted ${CHROOT}${path} || expect_true emounted ${CHROOT}${path}
-        expect_eq ${expect_count} $(emounted_count ${CHROOT}${path})
+        [[ ${assert_count} -eq 0 ]] && assert_false emounted ${CHROOT}${path} || assert_true emounted ${CHROOT}${path}
+        assert_eq ${assert_count} $(emounted_count ${CHROOT}${path})
     done
 }
 
