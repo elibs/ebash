@@ -25,6 +25,7 @@ chroot_mount()
         # NOTE: We need to disable automatic mount propagation for shared
         # subtrees via --make-rslave otherwise we end up with multiple
         # (expoential!) extra mounts each time we remount /dev into the chroot.
+        # See: https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
         emount --rbind --make-rslave ${m} ${CHROOT}${m}
     done
 
