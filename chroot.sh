@@ -21,7 +21,11 @@ chroot_mount()
 
     for m in ${CHROOT_MOUNTS[@]}; do 
         emkdir ${CHROOT}${m}
-        emount --rbind ${m} ${CHROOT}${m}
+
+        # NOTE: We need to disable automatic mount propagation for shared
+        # subtrees via --make-rslave otherwise we end up with multiple
+        # (expoential!) extra mounts each time we remount /dev into the chroot.
+        emount --rbind --make-rslave ${m} ${CHROOT}${m}
     done
 
     ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
