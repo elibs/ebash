@@ -1799,7 +1799,8 @@ pack_import_global()
 #
 #    pack_export pack a b
 #
-# You will be left with the same pack as if you instead said#
+# You will be left with the same pack as if you instead said:
+#
 #   pack_set pack a=${a} b=${b}
 #
 pack_export()
