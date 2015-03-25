@@ -1058,46 +1058,35 @@ emd5sum_check()
 emounted()
 {
     local path=$(strip $(readlink -f ${1} 2>/dev/null))
-    edebug "Checking if $(lval path) is mounted"
-    [[ -z ${path} ]] && return 1
+    [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
-    grep --color=never --silent "${path}" /proc/mounts &>/dev/null && return 0
-    return 1
-}
+    local regex="(^| )${path} "
+    edebug "Checking if $(lval path) is mounted: [$(grep --perl-regexp "${regex}" /proc/mounts)]"
 
-# Is SOMETHING in this list mounted?
-emounted_list()
-{
-    for m in $@; do
-        emounted ${m} && return 0
-    done
-
-    return 1
+    grep --color=never --silent --perl-regexp "${regex}" /proc/mounts &>/dev/null \
+        && { edebug "$(lval path) is mounted";     return 0; }                    \
+        || { edebug "$(lval path) is NOT mounted"; return 1; }
 }
 
 emount()
 {
     einfos "Mounting $@"
-    eval "mount $@" || die "mount $@ failed"
+    ecmd mount $@
 }
 
 eunmount()
 {
-    emounted_list $@ || return
-    
     einfos "Unmounting ${@}"
     
     for m in $@; do
         emounted ${m} || continue
         local rdev=$(readlink -f ${m})
-        eval "umount ${rdev} &>/dev/null" || eval "umount -fl ${rdev} &>/dev/null" || die "umount ${m} (${rdev}) failed"
+        umount "${rdev}" || umount -fl "${rdev}" || die "umount ${m} (${rdev}) failed"
     done
 }
 
 eunmount_recursive()
 {
-    emounted_list $@ || return
-    
     einfo "Recursively unmounting ${@}"
 
     for m in $@; do
