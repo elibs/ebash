@@ -10,7 +10,7 @@ do_declare_args()
     # declare_args should be consuming positional arguments
     # This assumes none of the unit tests are passing more than
     # ten arguments into this helper method.
-    expect_eq 0 ${#@}
+    assert_eq 0 ${#@}
 
     [[ ${#args} -eq 0 ]] && return 0
 
@@ -22,7 +22,7 @@ do_declare_args()
         
         [[ ${arg} == "_" ]] && continue
         
-        eval "expect_eq \"${val}\" \"\$${arg}\""
+        eval "assert_eq \"${val}\" \"\$${arg}\""
     done
 }
 
@@ -33,7 +33,7 @@ do_declare_args()
 ETEST_declare_args_fatal()
 {
     ( EFUNCS_FATAL=0 ETEST_DECLARE_ARGS_OPTIONAL=0 do_declare_args "a1"; ) &>/dev/null
-    expect_not_zero $?
+    assert_not_zero $?
 }
 
 ETEST_declare_args_basic()
@@ -74,7 +74,7 @@ do_declare_global()
 ETEST_declare_args_global()
 {
     do_declare_global
-    expect_eq "GLOBAL1" ${G1}
+    assert_eq "GLOBAL1" ${G1}
 }
 
 do_declare_export()
@@ -107,7 +107,7 @@ do_declare_args_legacy()
     # declare_args should be consuming positional arguments
     # This assumes none of the unit tests are passing more than
     # ten arguments into this helper method.
-    expect_eq 0 ${#@}
+    assert_eq 0 ${#@}
 
     [[ ${#args} -eq 0 ]] && return 0
 
@@ -119,7 +119,7 @@ do_declare_args_legacy()
         
         [[ ${arg} == "_" ]] && continue
         
-        eval "expect_eq \"${val}\" \"\$${arg}\""
+        eval "assert_eq \"${val}\" \"\$${arg}\""
     done
 }
 

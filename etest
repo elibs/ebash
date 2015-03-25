@@ -13,7 +13,7 @@ $(esource ${TEST_DIR}/*.sh)
 # TEST UTILITY FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------------------
 
-expect_true()
+assert_true()
 {
     local expression="${@}"
     edebug "$(lval expression)"
@@ -22,7 +22,7 @@ expect_true()
     return 0
 }
 
-expect_false()
+assert_false()
 {
     local expression="${@}"
     edebug "$(lval expression)"
@@ -31,42 +31,42 @@ expect_false()
     return 0
 }
 
-expect_op()
+assert_op()
 {
-    compare "${@}" || { die "expect_op failed :: ${@}"; return 1; }
+    compare "${@}" || { die "assert_op failed :: ${@}"; return 1; }
     return 0
 }
 
-expect_eq()
+assert_eq()
 {
     $(declare_args ?lh ?rh)
-    [[ "${lh}" == "${rh}" ]] || { die "expect_eq failed :: $(lval lh rh)"; return 1; } 
+    [[ "${lh}" == "${rh}" ]] || { die "assert_eq failed :: $(lval lh rh)"; return 1; } 
 }
 
-expect_ne()
+assert_ne()
 {
     $(declare_args ?lh ?rh)
-    [[ ! "${lh}" == "${rh}" ]] || { error "expect_ne failed :: $(lval lh rh)"; return 1; }
+    [[ ! "${lh}" == "${rh}" ]] || { error "assert_ne failed :: $(lval lh rh)"; return 1; }
 }
 
-expect_zero()
+assert_zero()
 {
-    [[ $1 -eq 0 ]] || { die "expect_zero received $1 instead of zero." ; return 1 ; }
+    [[ $1 -eq 0 ]] || { die "assert_zero received $1 instead of zero." ; return 1 ; }
 }
 
-expect_not_zero()
+assert_not_zero()
 {
-    [[ $1 -ne 0 ]] || { die "expect_not_zero received ${1}." ; return 1 ; }
+    [[ $1 -ne 0 ]] || { die "assert_not_zero received ${1}." ; return 1 ; }
 }
 
-expect_empty()
+assert_empty()
 {
-    [[ $1 == "" ]] || { die "expect_empty received \"$1\"." ; return 1 ; }
+    [[ $1 == "" ]] || { die "assert_empty received \"$1\"." ; return 1 ; }
 }
 
-expect_not_empty()
+assert_not_empty()
 {
-    [[ $1 != "" ]] || { die "expect_not_empty received an empty string." ; return 1 ; }
+    [[ $1 != "" ]] || { die "assert_not_empty received an empty string." ; return 1 ; }
 }
 
 #-------------------------------------------------------------------------------------------------------------------------

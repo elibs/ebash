@@ -5,7 +5,7 @@ ETEST_setvars_basic()
     echo "name=[__name__]" > "${file}"
 
     setvars "${file}"
-    expect_eq "name=[${name}]" "$(cat ${file})"
+    assert_eq "name=[${name}]" "$(cat ${file})"
 }
 
 ETEST_setvars_multi()
@@ -16,7 +16,7 @@ ETEST_setvars_multi()
     echo "__arg1__ __arg2__" > "${file}"
 
     setvars "${file}"
-    expect_eq "${arg1} ${arg2}" "$(cat ${file})"
+    assert_eq "${arg1} ${arg2}" "$(cat ${file})"
 }
 
 # Test when variables are not fully expanded that setvars fails.
@@ -26,7 +26,7 @@ ETEST_setvars_error()
     local arg1="Foo"
     echo "__arg1__ __arg2__" > "${file}"
 
-    expect_false SETVARS_FATAL=0 SETVARS_WARN=0 setvars "${file}"
+    assert_false SETVARS_FATAL=0 SETVARS_WARN=0 setvars "${file}"
 }
 
 adjust_version()
@@ -51,7 +51,7 @@ ETEST_setvars_callback()
     echo "__MARVELL_VERSION__ __MARVELL_DRIVER_VERSION__ __MARVELL_FIRMWARE_VERSION__" > "${file}"
 
     setvars "${file}" adjust_version
-    expect_eq "1.7.2-p1 1.7.2 1.7.2" "$(cat ${file})"
+    assert_eq "1.7.2-p1 1.7.2 1.7.2" "$(cat ${file})"
 }
 
 ETEST_setvars_with_newlines()
@@ -70,7 +70,7 @@ c C"
 
     setvars "${file}"
 
-    expect_eq "${expected}" "$(cat $file)"
+    assert_eq "${expected}" "$(cat $file)"
 }
 
 ETEST_setvars_punctuation()
@@ -97,7 +97,7 @@ ETEST_setvars_punctuation()
         B=jan${mark}feb${endmark}march
         setvars "${file}"
 
-        expect_eq "A jan${mark}feb${endmark}march C" "$(cat ${file})"
+        assert_eq "A jan${mark}feb${endmark}march C" "$(cat ${file})"
 
         edebug_enabled && cat "${file}" || true
     done
