@@ -1081,7 +1081,7 @@ eunmount()
     for m in $@; do
         emounted ${m} || continue
         local rdev=$(readlink -f ${m})
-        umount "${rdev}" || umount -fl "${rdev}" || die "umount ${m} (${rdev}) failed"
+        umount -fl "${rdev}" || die "umount ${m} (${rdev}) failed"
     done
 }
 
