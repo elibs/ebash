@@ -25,7 +25,7 @@ ETEST_chroot_create_mount()
 {
     {
         mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
-        trap_add chroot_exit HUP INT QUIT BUS PIPE TERM EXIT
+        trap_add "chroot_exit &>/dev/null" HUP INT QUIT BUS PIPE TERM EXIT
 
         # Verify chroot paths not mounted
         check_mounts 0
