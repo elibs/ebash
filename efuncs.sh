@@ -849,16 +849,20 @@ getsubnet()
 # esource allows you to source multiple files at a time with proper error
 # checking after each file sourcing. If any of the files cannot be sourced it
 # will call die(). This still internally calls 'source' so all the rules still
-# apply with regard to how the files around found via PATH, etc.
+# apply with regard to how the files are found via PATH, etc.
 #
-# NOTE: As it turns out, bash's 'source' function behaves very differently if
-# called within a function versus called normally in global scope. Lovely. To
-# workaround this problem, we have to make sure this is called in the caller's
+# NOTE: As it turns out, bash's 'source' function can behave very differently
+# if called within a function versus called normally in global scope. The most
+# important distinction here is if the sourced file contains any "declare"
+# statements if these are invoked in function scope they are **LOCAL** variables
+# rather than global variables as the caller would expect with "source". 
+#
+# To workaround this problem, we have to make sure this is called in the caller's
 # native environment rather than invoked immediately within this function call.
-# But toa void having the caller have to use eval $(esource ...) we can actually
-# be a bit more clever and embed the call to eval into the command esource 
-# eventually invokes. This is called an "eval command invocation string" and it
-# is invoked in the caller's envionment as in $(esource ...). 
+# But to avoid forcing the caller to use nasty eval syntax we can actually be a 
+# bit more clever and embed the call to eval into the command esource eventually
+# invokes. This is called an "eval command invocation string" and is invoked in
+# the caller's envionment as in $(esource ...). 
 esource()
 {
     [[ $# -eq 0 ]] && return
