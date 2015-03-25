@@ -1071,7 +1071,7 @@ emounted()
 emount()
 {
     einfos "Mounting $@"
-    ecmd mount $@
+    ecmd mount "${@}"
 }
 
 eunmount()
