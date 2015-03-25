@@ -106,7 +106,7 @@ for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
     # If the test succeeded remove it's contents
     [[ ${ETEST_CLEAN:-1} -eq 1 && ${rc} -eq 0 ]] \
-        && { edebug "Cleaning up ${TEST_DIR_OUTPUT}"; eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out); erm ${TEST_DIR_OUTPUT}; }
+        && { edebug "Cleaning ${TEST_DIR_OUTPUT}"; eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out); erm ${TEST_DIR_OUTPUT}; }
 
     (( ETEST_RC += $rc ))
     eend $rc
