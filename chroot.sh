@@ -12,19 +12,16 @@ $(esource ${BASHUTILS}/dpkg.sh)
 #-----------------------------------------------------------------------------                                    
 # CORE CHROOT FUNCTIONS
 #-----------------------------------------------------------------------------                                    
-CHROOT_MOUNTS="/dev /dev/pts /proc /sys"
+CHROOT_MOUNTS=( /dev /proc /sys )
 
 chroot_mount()
 {
     argcheck CHROOT
-    local first=1
- 
-    for m in ${CHROOT_MOUNTS}; do 
-        emounted "${CHROOT}${m}" && continue
+    einfo "Mounting $(lval CHROOT CHROOT_MOUNTS)"
 
-        [[ ${first} -eq 1 ]] && { einfo "Mounting $(lval CHROOT)"; first=0; }
+    for m in ${CHROOT_MOUNTS[@]}; do 
         emkdir ${CHROOT}${m}
-        emount --bind ${m} ${CHROOT}${m}
+        emount --rbind ${m} ${CHROOT}${m}
     done
 
     ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
@@ -33,20 +30,11 @@ chroot_mount()
 chroot_unmount()
 {
     argcheck CHROOT
-    local first=1
-
-    ifs_save; ifs_nl
-    local mounts=( $(echo ${CHROOT_MOUNTS} | sed 's| |\n|g' | sort -r) )
-    ifs_restore
-
-    for m in ${mounts[@]}; do
-        emounted "${CHROOT}${m}" || continue
-
-        [[ ${first} -eq 1 ]] && { einfo "Unmounting $(lval CHROOT)"; first=0; }
+    einfo "Unmounting $(lval CHROOT CHROOT_MOUNTS)"
+    
+    for m in ${CHROOT_MOUNTS[@]}; do
         eunmount ${CHROOT}${m}
     done
-
-    erm ${CHROOT}/etc/mtab
 }
 
 chroot_shell()
@@ -114,6 +102,7 @@ chroot_exit()
     chroot_kill
     chroot_unmount
     eunmount_recursive ${CHROOT}
+    erm ${CHROOT}/etc/mtab
 }
 
 #-----------------------------------------------------------------------------                                    

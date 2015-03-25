@@ -18,7 +18,7 @@ expect_true()
     local expression="${@}"
     edebug "$(lval expression)"
 
-    eval "${expression}" || { eerror "Expect failed :: $(lval expression)"; return 1; }
+    eval "${expression}" || { die "Expect failed :: $(lval expression)"; return 1; }
     return 0
 }
 
@@ -27,20 +27,20 @@ expect_false()
     local expression="${@}"
     edebug "$(lval expression)"
 
-    eval "${expression}" && { eerror "Expect failed :: ! $(lval expression)"; return 1; }
+    eval "${expression}" && { die "Expect failed :: ! $(lval expression)"; return 1; }
     return 0
 }
 
 expect_op()
 {
-    compare "${@}" || { eerror "expect_op failed :: ${@}"; return 1; }
+    compare "${@}" || { die "expect_op failed :: ${@}"; return 1; }
     return 0
 }
 
 expect_eq()
 {
     $(declare_args ?lh ?rh)
-    [[ "${lh}" == "${rh}" ]] || { eerror "expect_eq failed :: $(lval lh rh)"; return 1; } 
+    [[ "${lh}" == "${rh}" ]] || { die "expect_eq failed :: $(lval lh rh)"; return 1; } 
 }
 
 expect_ne()
@@ -51,22 +51,22 @@ expect_ne()
 
 expect_zero()
 {
-    [[ $1 -eq 0 ]] || { eerror "expect_zero received $1 instead of zero." ; return 1 ; }
+    [[ $1 -eq 0 ]] || { die "expect_zero received $1 instead of zero." ; return 1 ; }
 }
 
 expect_not_zero()
 {
-    [[ $1 -ne 0 ]] || { eerror "expect_not_zero received ${1}." ; return 1 ; }
+    [[ $1 -ne 0 ]] || { die "expect_not_zero received ${1}." ; return 1 ; }
 }
 
 expect_empty()
 {
-    [[ $1 == "" ]] || { eerror "expect_empty received \"$1\"." ; return 1 ; }
+    [[ $1 == "" ]] || { die "expect_empty received \"$1\"." ; return 1 ; }
 }
 
 expect_not_empty()
 {
-    [[ $1 != "" ]] || { eerror "expect_not_empty received an empty string." ; return 1 ; }
+    [[ $1 != "" ]] || { die "expect_not_empty received an empty string." ; return 1 ; }
 }
 
 #-------------------------------------------------------------------------------------------------------------------------
