@@ -1059,14 +1059,12 @@ emd5sum_check()
 # MOUNT / UMOUNT UTILS
 #-----------------------------------------------------------------------------                                    
 
-# Echo the number of times a given directory is mounted and return 0 (success)
-# if it's mounted at least once.
+# Echo the number of times a given directory is mounted.
 emounted_count()
 {
     local path=$(strip $(readlink -f ${1} 2>/dev/null))
     local num_mounts=$(grep --count --perl-regexp "(^| )${path}[/ ]" /proc/mounts)
     echo -n ${num_mounts}
-    return ${num_mounts}
 }
 
 emounted()
