@@ -3,7 +3,7 @@ ecmd_quoting_func()
 {
     local args
     args=("${@}")
-    edebug "$(lval args)"
+    einfo "$(lval args)"
     assert_eq "a"     "$1"
     assert_eq "b c"   "$2"
     assert_eq "d e f" "$3"

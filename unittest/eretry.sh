@@ -2,7 +2,7 @@ FAIL_TIMES=0
 fail_then_pass()
 {
     $(declare_args failCount)
-    edebug "$(lval failCount FAIL_TIMES)"
+    einfo "$(lval failCount FAIL_TIMES)"
     (( FAIL_TIMES += 1 ))
     (( ${FAIL_TIMES} <= ${failCount} )) && return 15 || return 0
 }
@@ -10,7 +10,7 @@ fail_then_pass()
 ETEST_eretry_preserve_exit_code()
 {
     EFUNCS_FATAL=0
-    RETRIES=3 eretry fail_then_pass 3 &>$(edebug_out)
+    RETRIES=3 eretry fail_then_pass 3
     assert_eq 15 $?
 }
 
@@ -23,7 +23,7 @@ ETEST_eretry_fail_till_last()
 ETEST_eretry_exit_124_on_timeout()
 {
     EFUNCS_FATAL=0
-    RETRIES=0 TIMEOUT=0.1s eretry sleep 3 &>$(edebug_out)
+    RETRIES=0 TIMEOUT=0.1s eretry sleep 3
     assert_eq 124 $?
 }
 

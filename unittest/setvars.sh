@@ -33,7 +33,7 @@ adjust_version()
 {
     local key=$1
     local val=$2
-    edebug "$(lval key val)"
+    einfo "$(lval key val)"
 
     # If we've patched the firmware package itself it's version will change but the underlying version of the reported firmware
     # itself is unchanged. So we need to strip off any -pXXX on the version string.
@@ -89,7 +89,7 @@ ETEST_setvars_punctuation()
         [[ $mark == "{" ]] && endmark="}"
         [[ $mark == "<" ]] && endmark=">"
 
-        edebug "$(lval mark endmark)"
+        einfo "$(lval mark endmark)"
 
         # Create a simple file to setvars in, and replace part of it with a
         # string containing that punctuation mark
@@ -99,6 +99,6 @@ ETEST_setvars_punctuation()
 
         assert_eq "A jan${mark}feb${endmark}march C" "$(cat ${file})"
 
-        edebug_enabled && cat "${file}" || true
+        cat "${file}"
     done
 }
