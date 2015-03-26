@@ -273,9 +273,13 @@ edebug_enabled()
     [[ ${EDEBUG} == "1" ]] && return 0
     [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
 
-    local _edebug_enabled_caller=( $(caller 0) )
-    [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebug_out" ]] \
-        && _edebug_enabled_caller=( $(caller 1) )
+    $(declare_args ?_edebug_enabled_caller)
+
+    if [[ -z ${_edebug_enabled_caller} ]]; then
+        _edebug_enabled_caller=( $(caller 0) )
+        [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebug_out" ]] \
+            && _edebug_enabled_caller=( $(caller 1) )
+    fi
 
     local _edebug_enabled_tmp
     for _edebug_enabled_tmp in ${EDEBUG} ; do

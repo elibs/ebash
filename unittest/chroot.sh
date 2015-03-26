@@ -21,15 +21,16 @@ check_mounts()
     done
 }
 
-DISABLED_ETEST_chroot_create_mount()
+ETEST_chroot_create_mount()
 {
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
-    trap_add "chroot_exit &>/dev/null" HUP INT QUIT BUS PIPE TERM EXIT
+    trap_add "chroot_exit" HUP INT QUIT BUS PIPE TERM EXIT
 
     # Verify chroot paths not mounted
     check_mounts 0
 
     # Mount a few times and verify counts go up
+    local nmounts=10
     for (( i=0; i<3; ++i )); do
         chroot_mount
         check_mounts $((i+1))
