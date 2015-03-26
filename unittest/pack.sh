@@ -102,7 +102,7 @@ _pack_iterate_checker()
     local key=$1
     local val=$2
 
-    edebug "_pack_iterate_checker: $(lval key val _pack_iterate_count)"
+    einfo "_pack_iterate_checker: $(lval key val _pack_iterate_count)"
     assert_true '[[ $key == "a" || $key == "b" || $key == "c" || $key == "white" ]]'
 
     [[ $key != "white" ]] && assert_eq  "val" "$val"
@@ -166,7 +166,7 @@ ETEST_pack_avoid_common_variable_conflicts()
 {
     POTENTIAL_VARS=(arg val key tag)
     for VAR in ${POTENTIAL_VARS[@]} ; do
-        edebug "Testing for conflicts in variable name ${VAR}"
+        einfo "Testing for conflicts in variable name ${VAR}"
 
         pack_set ${VAR} a=1 b=2 c=3
         pack_update ${VAR} a=10 b=20 c=30 d=40
@@ -247,12 +247,12 @@ ETEST_pack_copy_over()
     declare -A B
     pack_set B[alpha] C=10 D=20
 
-    edebug $(lval +P +B[alpha])
+    einfo $(lval +P +B[alpha])
     assert_eq 1 $(pack_get P A)
     assert_eq 2 $(pack_get P B)
 
     pack_copy P B[alpha]
-    edebug $(lval +P +B[alpha])
+    einfo $(lval +P +B[alpha])
     assert_eq 1 $(pack_get B[alpha] A)
     assert_eq 2 $(pack_get B[alpha] B)
     assert_eq 1 $(pack_get P A)

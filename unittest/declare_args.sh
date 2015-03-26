@@ -4,7 +4,7 @@ do_declare_args()
 {
     local args=( ${1} ); shift
     local vals=( "${@}" )
-    edebug "$(lval args vals)"
+    einfo "$(lval args vals)"
     $(declare_args ${args[@]})
     
     # declare_args should be consuming positional arguments
@@ -18,7 +18,7 @@ do_declare_args()
     for (( idx=0; idx <= ${#args}; idx++ )); do
         arg=${args[$idx]}; arg=${arg#\?}
         val=${vals[$idx]}
-        edebug "$(lval idx arg val)"
+        einfo "$(lval idx arg val)"
         
         [[ ${arg} == "_" ]] && continue
         
@@ -90,7 +90,7 @@ ETEST_declare_args_export()
     echo "[[ -z \${G1} ]] || { echo 'G1=[\${G1}] should not be exported'; exit 1; }" >  ${file}
     echo "[[ -n \${G2} ]] || { echo 'G2=[\${G2}] should be exported';     exit 2; }" >> ${file}
     echmod +x ${file}
-    edebug "$(cat ${file})"
+    einfo "$(cat ${file})"
 
     do_declare_global
     do_declare_export
@@ -101,7 +101,7 @@ do_declare_args_legacy()
 {
     local args=( ${1} ); shift
     local vals=( "${@}" )
-    edebug "$(lval args vals)"
+    einfo "$(lval args vals)"
     eval $(declare_args ${args[@]})
     
     # declare_args should be consuming positional arguments
@@ -115,7 +115,7 @@ do_declare_args_legacy()
     for (( idx=0; idx <= ${#args}; idx++ )); do
         arg=${args[$idx]}; arg=${arg#\?}
         val=${vals[$idx]}
-        edebug "$(lval idx arg val)"
+        einfo "$(lval idx arg val)"
         
         [[ ${arg} == "_" ]] && continue
         

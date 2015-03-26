@@ -88,20 +88,29 @@ edebug "Running tests $(lval ETEST_FUNCTIONS)"
 # And execute them
 ETEST_RC=0
 for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
-    pad=$((ETEST_LONGEST-${#testfunc}+1))
-    msg=$(printf "%s%${pad}s" "${testfunc}" " ")
 
-    [[ -n ${EDEBUG} ]] && einfo "${msg}" || einfon "${msg}"
+    # If debugging is not enabled for testfunc just show a brief message with test name
+    if edebug_enabled ${testfunc}; then
+        ebanner ${testfunc}
+    else
+        pad=$((ETEST_LONGEST-${#testfunc}+1))
+        msg=$(printf "%s%${pad}s" "${testfunc}" " ")
+        einfon "${msg}"
+    fi
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
     TEST_DIR_OUTPUT="${TEST_DIR}/output/${testfunc}"
+    
+    eval "${testfunc}_internal() { 
     (
         emkdir ${TEST_DIR_OUTPUT}
         cd ${TEST_DIR_OUTPUT}
-        edebug "Running ${testfunc} in $(pwd)"
         ${testfunc}
-    )
+    ) &> \$(edebug_out)
+    }"
+
+    ${testfunc}_internal
     rc=$?
 
     # If the test succeeded remove it's contents
@@ -109,7 +118,7 @@ for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
         && { edebug "Cleaning ${TEST_DIR_OUTPUT}"; eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out); erm ${TEST_DIR_OUTPUT}; }
 
     (( ETEST_RC += $rc ))
-    eend $rc
+    edebug_enabled ${testfunc} || eend ${rc}
 
 done
 
