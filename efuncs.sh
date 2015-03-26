@@ -873,7 +873,7 @@ esource()
 
     local cmd=""
     for file in "${@}" ; do
-        cmd+='source "'${file}'" || die "Failed to source '${file}'"; '
+        cmd+='source "'${file}'" &>$(edebug_out) || die "Failed to source '${file}'"; '
     done
 
     echo -n "eval "${cmd}""
