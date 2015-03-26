@@ -1060,7 +1060,7 @@ emd5sum_check()
 #-----------------------------------------------------------------------------                                    
 
 # Echo the number of times a given directory is mounted.
-emounted_count()
+emount_count()
 {
     local path=$(strip $(readlink -f ${1} 2>/dev/null))
     local num_mounts=$(grep --count --perl-regexp "(^| )${path}[/ ]" /proc/mounts)
@@ -1077,8 +1077,8 @@ emounted()
 $(grep --perl-regexp "${regex}" /proc/mounts)"
 
     grep --color=never --silent --perl-regexp "${regex}" /proc/mounts &>/dev/null          \
-        && { edebug "$(lval path) is mounted ($(emounted_count ${path}))";     return 0; } \
-        || { edebug "$(lval path) is NOT mounted ($(emounted_count ${path}))"; return 1; }
+        && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
+        || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
 }
 
 emount()
