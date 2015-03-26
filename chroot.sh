@@ -22,11 +22,10 @@ chroot_mount()
     for m in ${CHROOT_MOUNTS[@]}; do 
         emkdir ${CHROOT}${m}
 
-        # NOTE: We need to disable automatic mount propagation for shared
-        # subtrees via --make-rslave otherwise we end up with multiple
-        # (expoential!) extra mounts each time we remount /dev into the chroot.
-        # See: https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
-        emount --rbind --make-rslave ${m} ${CHROOT}${m}
+        # NOTE: We mark this mount point as unbindable in case we double chroot
+        # as this can cause runaway mounts that sometimes become orphaned and
+        # later unmountable.
+        emount --rbind --make-runbindable ${m} ${CHROOT}${m}
     done
 
     ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
