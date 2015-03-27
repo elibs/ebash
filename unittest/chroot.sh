@@ -10,14 +10,14 @@ $(esource chroot.sh)
 CHROOT=build
 CHROOT_MOUNTS=( /dev /proc /sys )
 
-check_mounts()
+assert_chroot_not_mounted()
 {
-    $(declare_args count)
+    assert_false emounted ${CHROOT}
 
     # Verify chroot paths not mounted
     for path in ${CHROOT_MOUNTS[@]}; do
-        [[ ${count} -eq 0 ]] && assert_false emounted ${CHROOT}${path} || assert_true emounted ${CHROOT}${path}
-        assert_eq ${count} $(emount_count ${CHROOT}${path})
+        assert_false emounted ${CHROOT}${path}
+        assert_eq 0 $(emount_count ${CHROOT}${path})
     done
 }
 
@@ -27,18 +27,18 @@ ETEST_chroot_create_mount()
     trap_add "chroot_exit" HUP INT QUIT BUS PIPE TERM EXIT
 
     # Verify chroot paths not mounted
-    check_mounts 0
+    assert_chroot_not_mounted
 
     # Mount a few times and verify counts go up
     local nmounts=10
-    for (( i=0; i<3; ++i )); do
+    for (( i=0; i<${nmounts}; ++i )); do
         chroot_mount
-        check_mounts $((i+1))
     done
 
     # Unmount and verify counts go down
-    for (( i=3; i>0; --i )); do
+    for (( i=${nmounts}; i>0; --i )); do
         chroot_unmount
-        check_mounts $((i-1))
     done
+
+    assert_chroot_not_mounted
 }
