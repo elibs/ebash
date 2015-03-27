@@ -75,7 +75,7 @@ ETEST_emount_partial_match()
     return 0
 }
 
-check_mounts()
+emount_check_mounts()
 {
     $(declare_args path count)
 
@@ -93,13 +93,13 @@ ETEST_emount_bind_count_separate()
         emkdir dst${i}
         emount --bind src dst${i}
         trap_add "eunmount dst${i}" HUP INT QUIT BUS PIPE TERM EXIT
-        check_mounts dst${i} 1
+        emount_check_mounts dst${i} 1
     done
 
     # Umount and verify counts go down properly
     for (( i=${nmounts}; i>0; --i )); do
         eunmount dst${i}
-        check_mounts dst${i} 0
+        emount_check_mounts dst${i} 0
     done
 
     # Success
@@ -116,13 +116,13 @@ ETEST_emount_bind_count_shared()
     for (( i=0; i<${nmounts}; ++i )); do
         emount --bind --make-unbindable src dst
         trap_add "eunmount dst &>/dev/null" HUP INT QUIT BUS PIPE TERM EXIT
-        check_mounts dst $((i+1))
+        emount_check_mounts dst $((i+1))
     done
 
     # Umount and verify counts go down properly
     for (( i=${nmounts}; i>0; --i )); do
         eunmount dst
-        check_mounts dst $((i-1))
+        emount_check_mounts dst $((i-1))
     done
 
     # Success

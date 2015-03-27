@@ -1080,7 +1080,7 @@ emounted()
     edebug "Checking if $(lval path) is mounted:
 $(grep --perl-regexp "${regex}" /proc/mounts)"
 
-    grep --color=never --silent --perl-regexp "${regex}" /proc/mounts &>/dev/null          \
+    grep --color=never --silent --perl-regexp "${regex}" /proc/mounts &>/dev/null        \
         && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
         || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
 }
@@ -1088,7 +1088,7 @@ $(grep --perl-regexp "${regex}" /proc/mounts)"
 emount()
 {
     einfos "Mounting $@"
-    ecmd mount "${@}"
+    ecmd mount --no-mtab "${@}"
 }
 
 eunmount()
@@ -1098,7 +1098,7 @@ eunmount()
     for m in $@; do
         emounted ${m} || continue
         local rdev=$(readlink -f ${m})
-        umount -fl "${rdev}" || die "umount -fl ${m} (${rdev}) failed"
+        ecmd umount --no-mtab --force --lazy "${rdev}"
     done
 }
 
