@@ -1088,7 +1088,7 @@ $(grep --perl-regexp "${regex}" /proc/mounts)"
 emount()
 {
     einfos "Mounting $@"
-    ecmd mount --no-mtab "${@}"
+    ecmd mount -n "${@}"
 }
 
 eunmount()
@@ -1098,7 +1098,7 @@ eunmount()
     for m in $@; do
         emounted ${m} || continue
         local rdev=$(readlink -f ${m})
-        ecmd umount --no-mtab --force --lazy "${rdev}"
+        ecmd umount -nfl "${rdev}"
     done
 }
 
