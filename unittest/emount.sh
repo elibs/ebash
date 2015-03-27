@@ -106,7 +106,7 @@ ETEST_emount_bind_count_separate()
     return 0
 }
 
-ETEST_emount_bind_count_shared()
+DISABLED_ETEST_emount_bind_count_shared()
 {
     emkdir src
     emkdir dst
