@@ -1,9 +1,3 @@
-## Check if we're root and re-execute if we're not through sudo ##
-if [[ $(id -u) != "0" ]]; then
-    sudo -E "$0" "$@"
-    exit $?
-fi
-
 ETEST_emount_bind()
 {
     emkdir src

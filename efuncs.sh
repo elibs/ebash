@@ -458,11 +458,22 @@ eend()
 {
     local rc=${1:-0} #sets rc to first arg if present otherwise defaults to 0
 
+    # Terminal magic that:
+    #    1) Gets the number of columns on the screen, minus 6 because that's
+    #       how many we're about to output
+    #    2) Saves current cursor position
+    #    3) Moves up a line
+    #    4) Moves right the number of columns from #1
+    #    5) (at end of func) restores the saves cursor position
+    local startcol=$(( $(tput cols) - 6 ))
+    echo -en "$(tput sc)$(tput cuu1)$(tput cuf ${startcol})" >&2
+
     if [[ ${rc} -eq 0 ]]; then
         echo -e "$(ecolor blue)[$(ecolor green) ok $(ecolor blue)]$(ecolor none)" >&2
     else
         echo -e "$(ecolor blue)[$(ecolor red) !! $(ecolor blue)]$(ecolor none)" >&2
     fi
+    echo -en "$(tput rc)"
 }
 
 ekill()
@@ -1066,14 +1077,14 @@ emd5sum_check()
 # Echo the number of times a given directory is mounted.
 emount_count()
 {
-    local path=$(strip $(readlink -f ${1} 2>/dev/null))
+    local path=$(strip $(readlink -m ${1} 2>/dev/null))
     local num_mounts=$(grep --count --perl-regexp "(^| )${path}[/ ]" /proc/mounts)
     echo -n ${num_mounts}
 }
 
 emounted()
 {
-    local path=$(strip $(readlink -f ${1} 2>/dev/null))
+    local path=$(strip $(readlink -m ${1} 2>/dev/null))
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
     local regex="(^| )${path} "
@@ -1097,7 +1108,7 @@ eunmount()
     
     for m in $@; do
         emounted ${m} || continue
-        local rdev=$(readlink -f ${m})
+        local rdev=$(readlink -m ${m})
         ecmd umount -nfl "${rdev}"
     done
 }
@@ -1107,7 +1118,8 @@ eunmount_recursive()
     einfo "Recursively unmounting ${@}"
 
     for m in $@; do
-        local rdev=$(readlink -f ${m})
+        local rdev=$(readlink -m ${m})
+        [[ -z ${rdev} ]] && die
         for p in $(grep -P "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur); do
             edebug "Unmounting ${p}"
             eunmount ${p}
