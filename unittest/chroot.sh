@@ -1,11 +1,5 @@
-## Check if we're root and re-execute if we're not through sudo ##
-if [[ $(id -u) != "0" ]]; then
-    sudo -E "$0" "$@"
-    exit $?
-fi
 
 # Global settings
-BASHUTILS=.
 $(esource chroot.sh)
 CHROOT=build
 CHROOT_MOUNTS=( /dev /proc /sys )
@@ -21,7 +15,7 @@ assert_chroot_not_mounted()
     done
 }
 
-ETEST_chroot_create_mount()
+DISABLED_ETEST_chroot_create_mount()
 {
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
     trap_add "chroot_exit" HUP INT QUIT BUS PIPE TERM EXIT
