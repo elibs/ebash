@@ -88,7 +88,7 @@ global_teardown()
     argcheck TEST_DIR_OUTPUT
 
     # If the test succeeded remove it's contents
-    if [[ ${ETEST_CLEAN:-1} -eq 1 && ${rc} -eq 0 ]] ; then
+    if [[ ${ETEST_CLEAN:-1} -eq 1 && ${ETEST_RC} -eq 0 ]] ; then
         edebug "Cleaning ${TEST_DIR_OUTPUT}"
 
         [[ $(id -u) == 0 ]] && eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out)
@@ -116,19 +116,11 @@ run_teardown()
 for testfile in ${TEST_DIR}/*.sh ; do
     # Each test file gets its own subshell
     (
-        ETEST_RC=0
+        FILE_RC=0
         $(esource ${testfile})
 
         # Get all function names that begin with ETEST_ (and optionally match $2)
         ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
-
-        # Figure out longest test name
-        ETEST_LONGEST=0
-        ETEST_LEN=0
-        for testfunc in "${ETEST_FUNCTIONS[@]}"; do
-            ETEST_LEN=${#testfunc}
-            (( ETEST_LEN > ETEST_LONGEST )) && ETEST_LONGEST=${ETEST_LEN}
-        done
 
         if [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] ; then
             einfo "Skipping ${testfile}.  No tests found.\n"
@@ -138,38 +130,34 @@ for testfile in ${TEST_DIR}/*.sh ; do
         einfo "Starting tests in ${testfile}"
 
         edebug "Running tests $(lval ETEST_FUNCTIONS)"
-        # And execute them
-        ETEST_RC=0
         for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
             # If debugging is not enabled for testfunc just show a brief message with test name
             if edebug_enabled ${testfunc}; then
                 ebanner ${testfunc}
             else
-                pad=$((ETEST_LONGEST-${#testfunc}+1))
-                msg=$(printf "%s%${pad}s" "${testfunc}" " ")
-                einfos "${msg}"
+                einfos "${testfunc}"
             fi
 
             eval "${testfunc}_internal() { 
             (
                 run_setup
                 ${testfunc}
-                rc=\$?
+                ETEST_RC=\$?
                 run_teardown
-                exit \$rc
+                exit \$ETEST_RC
             ) &> \$(edebug_out)
             }"
 
             ${testfunc}_internal
-            rc=$?
+            ETEST_RC=$?
 
-            (( ETEST_RC += $rc ))
-            edebug_enabled ${testfunc} || eend ${rc}
+            (( FILE_RC += ${ETEST_RC} ))
+            edebug_enabled ${testfunc} || eend ${ETEST_RC}
 
         done
 
-        if [[ ${ETEST_RC} -eq 0 ]] ; then
+        if [[ ${FILE_RC} -eq 0 ]] ; then
             einfo "Tests passed: ${testfile}\n"
         else
             eerror "Tests failed: ${testfile}\n"
@@ -178,4 +166,4 @@ for testfile in ${TEST_DIR}/*.sh ; do
     )
 done
 
-exit ${ETEST_RC}
+exit ${FILE_RC}
