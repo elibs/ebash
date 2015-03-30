@@ -1087,11 +1087,14 @@ emounted()
     local path=$(strip $(readlink -m ${1} 2>/dev/null))
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
-    local regex="(^| )${path} "
-    edebug "Checking if $(lval path) is mounted:
-$(grep --perl-regexp "${regex}" /proc/mounts)"
+    local output="" rc=0
+    output=$(grep --perl-regexp "(^| )${path} " /proc/mounts)
+    rc=$?
 
-    grep --color=never --silent --perl-regexp "${regex}" /proc/mounts &>/dev/null        \
+    edebug "Checking if $(lval path) is mounted (${rc})
+${output}"
+
+    ${rc} \
         && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
         || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
 }
