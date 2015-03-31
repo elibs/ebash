@@ -93,12 +93,6 @@ override_function einfo '
     plymouth_message "$@"
 }'
 
-override_function einfon '
-{
-    einfon_real $@
-    plymouth_message "$@"
-}'
-
 override_function ewarn '
 {
     ewarn_real $@

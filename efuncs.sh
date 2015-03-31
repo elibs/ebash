@@ -305,11 +305,6 @@ einfo()
     echo -e  "$(emsg 'green' '>>' 'INFO' "$@")" >&2
 }
 
-einfon()
-{
-    echo -en "$(emsg 'green' '>>' 'INFO' "$@")" >&2
-}
-
 einfos()
 {
     echo -e "$(emsg 'green' '   -' 'INFOS' "$@")" >&2
@@ -546,7 +541,7 @@ do_eprogress()
 export __EPROGRESS_PIDS=""
 eprogress()
 {
-    einfon "$@"
+    echo -en "$(emsg 'green' '>>' 'INFO' "$@")" >&2
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return
