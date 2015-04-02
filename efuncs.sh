@@ -451,16 +451,19 @@ eend()
     # Terminal magic that:
     #    1) Gets the number of columns on the screen, minus 6 because that's
     #       how many we're about to output
-    #    2) Moves up a line
-    #    3) Moves right the number of columns from #1
+    #    2) Saves current cursor position
+    #    3) Moves up a line
+    #    4) Moves right the number of columns from #1
+    #    5) (at end of func) restores the saved cursor position
     local startcol=$(( $(tput cols) - 6 ))
-    echo -en "\n$(tput cuu1)$(tput cuf ${startcol})" >&2
+    echo -en "$(tput sc)$(tput cuu1)$(tput cuf ${startcol})" >&2
 
     if [[ ${rc} -eq 0 ]]; then
         echo -e "$(ecolor blue)[$(ecolor green) ok $(ecolor blue)]$(ecolor none)" >&2
     else
         echo -e "$(ecolor blue)[$(ecolor red) !! $(ecolor blue)]$(ecolor none)" >&2
     fi
+    echo -en "$(tput rc)" >&2
 }
 
 ekill()
@@ -558,6 +561,7 @@ eprogress_kill()
     if [[ ${#pids} -gt 0 ]]; then
         ekill ${pids[0]} ${signal} &>/dev/null
         export __EPROGRESS_PIDS="${pids[@]:1}"
+        echo "" >&2
         eend ${rc}
     fi
 }
