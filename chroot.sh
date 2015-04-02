@@ -127,7 +127,7 @@ chroot_apt_clean()
 chroot_install_with_apt_get()
 {
     argcheck CHROOT
-    [[ $(strip "$@") == "" ]] && return
+    [[ $# -eq 0 ]] && return
     
     einfos "Installing $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "apt-get -f -qq -y --force-yes install $*"
@@ -186,7 +186,7 @@ chroot_install_internal()
 chroot_install()
 {
     argcheck CHROOT
-    [[ $(strip "$@") == "" ]] && return
+    [[ $# -eq 0 ]] && return
     
     einfos "Installing $@"
 
@@ -197,7 +197,7 @@ chroot_install()
 chroot_install_try()
 {
     argcheck CHROOT
-    [[ $(strip "$@") == "" ]] && return
+    [[ $# -eq 0 ]] && return
 
     einfos "Installing $@"
    
@@ -208,7 +208,7 @@ chroot_install_try()
 chroot_install_retry()
 {
     argcheck CHROOT
-    [[ $(strip "$@") == "" ]] && return
+    [[ $# -eq 0 ]] && return
     
     einfos "Installing $@"
 
@@ -229,7 +229,7 @@ chroot_install_retry()
 chroot_uninstall()
 {
     argcheck CHROOT
-    [[ $(strip "$@") == "" ]] && return
+    [[ $# -eq 0 ]] && return
     
     einfos "Uninstalling $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge $*" || die "Failed to remove [$*]"
@@ -238,7 +238,7 @@ chroot_uninstall()
 chroot_dpkg()
 {
     argcheck CHROOT
-    [[ $(strip "$@") == "" ]] && return
+    [[ $# -eq 0 ]] && return
     
     einfos "dpkg $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*" || die "Failed to run dpkg [$*]"
@@ -247,7 +247,7 @@ chroot_dpkg()
 chroot_apt()
 {
     argcheck CHROOT
-    [[ $(strip "$@") == "" ]] && return
+    [[ $# -eq 0 ]] && return
     
     einfos "${CHROOT_APT} $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*" || die "Failed to run apt-get [$*]"
@@ -256,7 +256,7 @@ chroot_apt()
 chroot_apt_try()
 {
     argcheck CHROOT
-    [[ $(strip "$@") == "" ]] && return
+    [[ $# -eq 0 ]] && return
     
     einfos "${CHROOT_APT} $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*" || ewarns "Failed to run apt-get [$*]"

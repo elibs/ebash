@@ -123,7 +123,6 @@ for testfile in ${TEST_DIR}/*.sh ; do
         ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
 
         if [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] ; then
-            edebug "Skipping ${testfile}.  No tests found.\n"
             continue
         fi
 
