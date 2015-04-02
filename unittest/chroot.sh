@@ -15,7 +15,7 @@ assert_chroot_not_mounted()
     done
 }
 
-DISABLED_ETEST_chroot_create_mount()
+ETEST_chroot_create_mount()
 {
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
     trap_add "chroot_exit" HUP INT QUIT BUS PIPE TERM EXIT

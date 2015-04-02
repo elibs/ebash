@@ -1089,7 +1089,7 @@ emounted()
     edebug "Checking if $(lval path) is mounted (${rc})
 ${output}"
 
-    ${rc} \
+    [[ ${rc} -eq 0 ]] \
         && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
         || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
 }
