@@ -451,8 +451,8 @@ eend()
     # Terminal magic that:
     #    1) Gets the number of columns on the screen, minus 6 because that's
     #       how many we're about to output
-    #    3) Moves up a line
-    #    4) Moves right the number of columns from #1
+    #    2) Moves up a line
+    #    3) Moves right the number of columns from #1
     local startcol=$(( $(tput cols) - 6 ))
     echo -en "$(tput cuu1)$(tput cuf ${startcol})" >&2
 
