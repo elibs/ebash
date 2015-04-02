@@ -78,7 +78,7 @@ global_setup()
 {
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
-    TEST_DIR_OUTPUT="${TEST_DIR}/output/${testfunc}"
+    TEST_DIR_OUTPUT="${TEST_DIR}/${testfunc}"
     emkdir ${TEST_DIR_OUTPUT}
     cd ${TEST_DIR_OUTPUT}
 }
@@ -89,9 +89,9 @@ global_teardown()
 
     # If the test succeeded remove it's contents
     if [[ ${ETEST_CLEAN:-1} -eq 1 ]] ; then
-        edebug "Cleaning ${TEST_DIR}/output"
-        eunmount_recursive ${TEST_DIR}/output
-        erm ${TEST_DIR}/output
+        edebug "Cleaning ${TEST_DIR_OUTPUT}"
+        eunmount_recursive ${TEST_DIR_OUTPUT}
+        erm ${TEST_DIR_OUTPUT}
     fi
 }
 

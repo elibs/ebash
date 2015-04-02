@@ -21,7 +21,11 @@ chroot_mount()
 
     for m in ${CHROOT_MOUNTS[@]}; do 
         emkdir ${CHROOT}${m}
-        emount --rbind ${m} ${CHROOT}${m}
+
+        # NOTE: We mark this mount point as unbindable in case we double chroot
+        # as this can cause runaway mounts that sometimes become orphaned and
+        # later unmountable.
+        emount --rbind --make-runbindable ${m} ${CHROOT}${m}
     done
 
     ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
