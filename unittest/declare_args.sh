@@ -12,7 +12,7 @@ do_declare_args()
     # ten arguments into this helper method.
     assert_eq 0 ${#@}
 
-    [[ ${#args} -eq 0 ]] && return 0
+    [[ ${#args} -eq 0 ]] && return
 
     local arg val idx
     for (( idx=0; idx <= ${#args}; idx++ )); do
@@ -109,7 +109,7 @@ do_declare_args_legacy()
     # ten arguments into this helper method.
     assert_eq 0 ${#@}
 
-    [[ ${#args} -eq 0 ]] && return 0
+    [[ ${#args} -eq 0 ]] && return
 
     local arg val idx
     for (( idx=0; idx <= ${#args}; idx++ )); do

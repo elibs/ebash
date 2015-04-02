@@ -9,9 +9,6 @@ ETEST_emount_bind()
     emount --bind src dst
     assert_true emounted dst
     assert_true diff src/file dst/file
-
-    # Success
-    return 0
 }
 
 ETEST_emount_unmount()
@@ -24,9 +21,6 @@ ETEST_emount_unmount()
     emounted dst || die
     eunmount dst
     emounted dst && die
-
-    # Success
-    return 0
 }
 
 ETEST_emount_unmount_recursive()
@@ -45,9 +39,6 @@ ETEST_emount_unmount_recursive()
     eunmount_recursive dst
     emounted dst/dst1 && die
     emounted dst/dst2 && die
-
-    # Success
-    return 0
 }
 
 ETEST_emount_partial_match()
@@ -64,9 +55,6 @@ ETEST_emount_partial_match()
 
     # Use a partial match -- should NOT find any mounts
     emounted dst/d    && die
-
-    # Success
-    return 0
 }
 
 emount_check_mounts()
@@ -95,9 +83,6 @@ ETEST_emount_bind_count_separate()
         eunmount dst${i}
         emount_check_mounts dst${i} 0
     done
-
-    # Success
-    return 0
 }
 
 DISABLED_ETEST_emount_bind_count_shared()
@@ -118,7 +103,4 @@ DISABLED_ETEST_emount_bind_count_shared()
         eunmount dst
         emount_check_mounts dst $((i-1))
     done
-
-    # Success
-    return 0
 }

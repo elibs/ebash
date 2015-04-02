@@ -29,6 +29,7 @@ ETEST_eretry_exit_124_on_timeout()
 
 ETEST_eretry_warn_every()
 {
+    EDEBUG=
     EFUNCS_FATAL=0
 
     output=$(RETRIES=10 WARN_EVERY=2 eretry false 2>&1)

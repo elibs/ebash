@@ -13,9 +13,6 @@ assert_chroot_not_mounted()
         assert_false emounted ${CHROOT}${path}
         assert_eq 0 $(emount_count ${CHROOT}${path})
     done
-
-    ## Success ##
-    return 0
 }
 
 ETEST_chroot_create_mount()
@@ -37,7 +34,4 @@ ETEST_chroot_create_mount()
     done
 
     assert_chroot_not_mounted
-
-    ## Success ##
-    return 0
 }

@@ -28,8 +28,7 @@ ETEST_esource_multiple_files_and_values()
 ETEST_esource_missing_file()
 {
     erm missing.sh
-    ( EFUNCS_FATAL=0 $(esource missing.sh) && return 1 )
-    return 0
+    ( EFUNCS_FATAL=0 $(esource missing.sh) && die )
 }
 
 ETEST_esource_override_value()

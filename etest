@@ -88,9 +88,8 @@ global_teardown()
     argcheck TEST_DIR_OUTPUT
 
     # If the test succeeded remove it's contents
-    if [[ ${ETEST_CLEAN:-1} -eq 1 && ${ETEST_TEST_RC} -eq 0 ]] ; then
+    if [[ ${ETEST_CLEAN:-1} -eq 1 ]] ; then
         edebug "Cleaning ${TEST_DIR}/output"
-
         eunmount_recursive ${TEST_DIR}/output
         erm ${TEST_DIR}/output
     fi
@@ -145,11 +144,10 @@ for testfile in ${TEST_DIR}/*.sh ; do
 
             eval "${testfunc}_internal() { 
             (
+                EFUNCS_FATAL=0
                 run_setup
                 ${testfunc}
-                ETEST_TEST_RC=\$?
                 run_teardown
-                exit \$ETEST_TEST_RC
             ) &> \$(edebug_out)
             }"
 

@@ -20,8 +20,6 @@ emsg_aux()
     eerror "Aieee! Something terrible happened"; show_text
     ## DEBUG ##
     EDEBUG=emsg_aux edebug  "This is a debugging message"; show_text
-
-    return 0
 }
 
 ETEST_emsg_defaults()
