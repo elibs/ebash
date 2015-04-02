@@ -438,11 +438,6 @@ trim()
     echo "$1" | sed -e 's/^[[:space:]]\+//' -e 's/[[:space:]]\+$//'
 }
 
-strip()
-{
-    echo ${1//[[:space:]]}
-}
-
 compress_spaces()
 {
     local output=$(echo -en "$@" | tr -s "[:space:]" " ")
@@ -816,29 +811,29 @@ fully_qualify_hostname()
 getipaddress()
 {
     $(declare_args iface)
-    local ip=$(strip $(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2))
-    echo -n "${ip}"
+    local ip=$(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2)
+    echo -n "${ip//[[:space:]]}"
 }
 
 getnetmask()
 {
     $(declare_args iface)
-    local netmask=$(strip $(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2))
-    echo -n "${netmask}"
+    local netmask=$(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2)
+    echo -n "${netmask//[[:space:]]}"
 }
 
 getbroadcast()
 {
     $(declare_args iface)
-    local bcast=$(strip $(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2))
-    echo -n "${bcast}"
+    local bcast=$(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2)
+    echo -n "${bcast//[[:space:]]}"
 }
 
 # Gets the default gateway that is currently in use
 getgateway()
 {
     local gw=$(route -n | grep 'UG[ \t]' | awk '{print $2}')
-    echo -n "${gw}"
+    echo -n "${gw//[[:space:]]}"
 }
 
 # Compute the subnet given the current IPAddress (ip) and Netmask (nm)
@@ -1072,14 +1067,18 @@ emd5sum_check()
 # Echo the number of times a given directory is mounted.
 emount_count()
 {
-    local path=$(strip $(readlink -m ${1} 2>/dev/null))
+    $(declare_args path)
+    path=$(readlink -m ${path} 2>/dev/null)
+    path=${path//[[:space:]]}
     local num_mounts=$(grep --count --perl-regexp "(^| )${path}[/ ]" /proc/mounts)
     echo -n ${num_mounts}
 }
 
 emounted()
 {
-    local path=$(strip $(readlink -m ${1} 2>/dev/null))
+    $(declare_args path)
+    edebug "Checking if $(lval path) is mounted -- pwd=$(pwd)"
+    path=$(readlink -m ${path} 2>/dev/null)
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
     local output="" rc=0
@@ -1105,6 +1104,7 @@ eunmount()
     einfos "Unmounting ${@}"
     
     for m in $@; do
+        edebug "Calling emounted ${m}"
         emounted ${m} || continue
         local rdev=$(readlink -m ${m})
         ecmd umount -nfl "${rdev}"
@@ -1119,7 +1119,7 @@ eunmount_recursive()
         local rdev=$(readlink -m ${m})
         [[ -z ${rdev} ]] && die
         for p in $(grep -P "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur); do
-            edebug "Unmounting ${p}"
+            edebug "Unmounting $(lval p)"
             eunmount ${p}
         done
     done

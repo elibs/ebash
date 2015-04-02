@@ -13,12 +13,14 @@ assert_chroot_not_mounted()
         assert_false emounted ${CHROOT}${path}
         assert_eq 0 $(emount_count ${CHROOT}${path})
     done
+
+    ## Success ##
+    return 0
 }
 
 ETEST_chroot_create_mount()
 {
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
-    trap_add "chroot_exit" HUP INT QUIT BUS PIPE TERM EXIT
 
     # Verify chroot paths not mounted
     assert_chroot_not_mounted
@@ -35,4 +37,7 @@ ETEST_chroot_create_mount()
     done
 
     assert_chroot_not_mounted
+
+    ## Success ##
+    return 0
 }
