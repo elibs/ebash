@@ -11,7 +11,7 @@ PATH=".:${PATH}:${BASHUTILS}"
 source efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
 
 [[ -z ${1} || -n ${3} ]] && die "etest only accepts one or two arguments"
-TEST_DIR=$1
+TEST_DIR=$(readlink -m $1)
 FILTER=$2
 
 #-------------------------------------------------------------------------------------------------------------------------
@@ -89,10 +89,10 @@ global_teardown()
 
     # If the test succeeded remove it's contents
     if [[ ${ETEST_CLEAN:-1} -eq 1 && ${ETEST_RC} -eq 0 ]] ; then
-        edebug "Cleaning ${TEST_DIR_OUTPUT}"
+        edebug "Cleaning ${TEST_DIR}/output"
 
-        [[ $(id -u) == 0 ]] && eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out)
-        erm ${TEST_DIR_OUTPUT}
+        eunmount_recursive ${TEST_DIR}/output
+        erm ${TEST_DIR}/output
     fi
 }
 
@@ -123,7 +123,7 @@ for testfile in ${TEST_DIR}/*.sh ; do
         ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
 
         if [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] ; then
-            einfo "Skipping ${testfile}.  No tests found.\n"
+            edebug "Skipping ${testfile}.  No tests found.\n"
             continue
         fi
 
@@ -133,11 +133,7 @@ for testfile in ${TEST_DIR}/*.sh ; do
         for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
             # If debugging is not enabled for testfunc just show a brief message with test name
-            if edebug_enabled ${testfunc}; then
-                ebanner ${testfunc}
-            else
-                einfos "${testfunc}"
-            fi
+            edebug_enabled ${testfunc} && ebanner ${testfunc} || einfos "${testfunc}"
 
             eval "${testfunc}_internal() { 
             (
