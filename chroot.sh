@@ -22,10 +22,10 @@ chroot_mount()
     for m in ${CHROOT_MOUNTS[@]}; do 
         emkdir ${CHROOT}${m}
 
-        # NOTE: We mark this mount point as unbindable in case we double chroot
-        # as this can cause runaway mounts that sometimes become orphaned and
-        # later unmountable.
-        emount --rbind --make-runbindable ${m} ${CHROOT}${m}
+        # NOTE: We mark this mount point as private so that anything we do 
+        # in or to the bind mounted destination directory doesn't affect the
+        # source directory we bind mounted from.
+        emount --rbind --make-rprivate ${m} ${CHROOT}${m}
     done
 
     ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
