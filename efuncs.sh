@@ -551,7 +551,7 @@ eprogress_kill()
     local signal=${2:-TERM}
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
-    [[ ${EPROGRESS:-1} -eq 0 ]] && { eend ${rc}; return; }
+    [[ ${EPROGRESS:-1} -eq 0 ]] && { echo "" >&2; eend ${rc}; return; }
 
     # Get the most recent pid
     local pids=( ${__EPROGRESS_PIDS} )
