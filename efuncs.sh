@@ -1096,7 +1096,7 @@ ${output}"
 emount()
 {
     einfos "Mounting $@"
-    ecmd mount -n "${@}"
+    ecmd mount "${@}"
 }
 
 eunmount()
@@ -1107,7 +1107,7 @@ eunmount()
         edebug "Calling emounted ${m}"
         emounted ${m} || continue
         local rdev=$(readlink -m ${m})
-        ecmd umount -nfl "${rdev}"
+        ecmd umount -fl "${rdev}"
     done
 }
 

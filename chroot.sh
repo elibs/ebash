@@ -25,7 +25,8 @@ chroot_mount()
         # NOTE: We mark this mount point as private so that anything we do 
         # in or to the bind mounted destination directory doesn't affect the
         # source directory we bind mounted from.
-        emount --rbind --make-rprivate ${m} ${CHROOT}${m}
+        emount --rbind ${m}    ${CHROOT}${m}
+        emount --make-rprivate ${CHROOT}${m}
     done
 
     ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
