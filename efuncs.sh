@@ -451,19 +451,16 @@ eend()
     # Terminal magic that:
     #    1) Gets the number of columns on the screen, minus 6 because that's
     #       how many we're about to output
-    #    2) Saves current cursor position
-    #    3) Moves up a line
-    #    4) Moves right the number of columns from #1
-    #    5) (at end of func) restores the saves cursor position
+    #    2) Moves up a line
+    #    3) Moves right the number of columns from #1
     local startcol=$(( $(tput cols) - 6 ))
-    echo -en "$(tput sc)$(tput cuu1)$(tput cuf ${startcol})" >&2
+    echo -en "\n$(tput cuu1)$(tput cuf ${startcol})" >&2
 
     if [[ ${rc} -eq 0 ]]; then
         echo -e "$(ecolor blue)[$(ecolor green) ok $(ecolor blue)]$(ecolor none)" >&2
     else
         echo -e "$(ecolor blue)[$(ecolor red) !! $(ecolor blue)]$(ecolor none)" >&2
     fi
-    echo -en "$(tput rc)"
 }
 
 ekill()
@@ -526,8 +523,9 @@ do_eprogress()
         spinout "\\"
         spinout "|"
 
-        # If we're terminating just return immediately instead of resetting for next loop
-        [[ ${done} -eq 1 ]] && { echo -en "\b" >&2; return; }
+        # If we're terminating delete whatever character was lost displayed and print a blank space over it
+        # then return immediately instead of resetting for next loop
+        [[ ${done} -eq 1 ]] && { echo -en "\b " >&2; return; }
 
         echo -en "\b\b\b\b\b\b\b\b\b\b\b\b" >&2
     done
@@ -568,7 +566,7 @@ eprogress_kill()
 eprogress_killall()
 {
     while [[ -n ${__EPROGRESS_PIDS} ]]; do
-        eprogress_kill
+        eprogress_kill 1
     done
 }
 
