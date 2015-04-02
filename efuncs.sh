@@ -463,7 +463,7 @@ eend()
     else
         echo -e "$(ecolor blue)[$(ecolor red) !! $(ecolor blue)]$(ecolor none)" >&2
     fi
-    echo -en "$(tput rc)"
+    echo -en "$(tput rc)" >&2
 }
 
 ekill()
