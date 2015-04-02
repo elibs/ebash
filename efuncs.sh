@@ -851,9 +851,10 @@ getsubnet()
 #-----------------------------------------------------------------------------
 
 # esource allows you to source multiple files at a time with proper error
-# checking after each file sourcing. If any of the files cannot be sourced it
-# will call die(). This still internally calls 'source' so all the rules still
-# apply with regard to how the files are found via PATH, etc.
+# checking after each file sourcing. If any of the files cannot be sourced
+# either because the file cannot be found or it contains invalid bash syntax, 
+# esource will call die(). This still internally calls 'source' so all the
+# rules still apply with regard to how the files are found via PATH, etc.
 #
 # NOTE: As it turns out, bash's 'source' function can behave very differently
 # if called within a function versus called normally in global scope. The most
