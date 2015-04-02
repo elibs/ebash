@@ -88,7 +88,7 @@ global_teardown()
     argcheck TEST_DIR_OUTPUT
 
     # If the test succeeded remove it's contents
-    if [[ ${ETEST_CLEAN:-1} -eq 1 && ${ETEST_RC} -eq 0 ]] ; then
+    if [[ ${ETEST_CLEAN:-1} -eq 1 && ${ETEST_TEST_RC} -eq 0 ]] ; then
         edebug "Cleaning ${TEST_DIR}/output"
 
         eunmount_recursive ${TEST_DIR}/output
@@ -113,10 +113,19 @@ run_teardown()
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
+
+# Various return codes:
+# - ETEST_RC:      Global return code for entire etest run.
+# - ETEST_ETEST_FILE_RC: Return code for all the tests in a given file (e.g. the text fixture)
+# - ETEST_TEST_RC: Return code for a signle test.
+ETEST_RC=0
+ETEST_FILE_RC=0
+ETEST_TEST_RC=0
+
 for testfile in ${TEST_DIR}/*.sh ; do
     # Each test file gets its own subshell
     (
-        FILE_RC=0
+        ETEST_FILE_RC=0
         $(esource ${testfile})
 
         # Get all function names that begin with ETEST_ (and optionally match $2)
@@ -138,27 +147,33 @@ for testfile in ${TEST_DIR}/*.sh ; do
             (
                 run_setup
                 ${testfunc}
-                ETEST_RC=\$?
+                ETEST_TEST_RC=\$?
                 run_teardown
-                exit \$ETEST_RC
+                exit \$ETEST_TEST_RC
             ) &> \$(edebug_out)
             }"
 
             ${testfunc}_internal
-            ETEST_RC=$?
+            ETEST_TEST_RC=$?
 
-            (( FILE_RC += ${ETEST_RC} ))
-            edebug_enabled ${testfunc} || eend ${ETEST_RC}
-
+            (( ETEST_FILE_RC += ${ETEST_TEST_RC} ))
+            edebug_enabled ${testfunc} || eend ${ETEST_TEST_RC}
         done
 
-        if [[ ${FILE_RC} -eq 0 ]] ; then
+        if [[ ${ETEST_FILE_RC} -eq 0 ]] ; then
             einfo "Tests passed: ${testfile}\n"
         else
             eerror "Tests failed: ${testfile}\n"
         fi
 
+        exit ${ETEST_FILE_RC}
     )
+
+    (( ETEST_RC += $? ))
+
+    edebug "$(lval ETEST_RC)"
 done
 
-exit ${FILE_RC}
+edebug "Exiting $(lval ETEST_RC)"
+
+exit ${ETEST_RC}
