@@ -74,7 +74,6 @@ ETEST_emount_bind_count_separate()
     for (( i=0; i<${nmounts}; ++i )); do
         emkdir dst${i}
         emount --bind src dst${i}
-        trap_add "eunmount dst${i}" HUP INT QUIT BUS PIPE TERM EXIT
         check_mounts dst${i} 1
     done
 
@@ -93,9 +92,8 @@ ETEST_emount_bind_count_shared()
     # Mount a few times and ensure counter goes up correctly
     local nmounts=10
     for (( i=0; i<${nmounts}; ++i )); do
-        emount --rbind src dst
-        emount --make-runbindable dst
-        trap_add "eunmount dst &>/dev/null" HUP INT QUIT BUS PIPE TERM EXIT
+        emount --bind src dst
+        emount --make-private dst
         check_mounts dst $((i+1))
     done
 
