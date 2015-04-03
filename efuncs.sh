@@ -1077,7 +1077,6 @@ emount_count()
 emounted()
 {
     $(declare_args path)
-    edebug "Checking if $(lval path) is mounted"
     path=$(readlink -m ${path} 2>/dev/null)
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
@@ -1085,7 +1084,7 @@ emounted()
     output=$(grep --perl-regexp "(^| )${path} " /proc/mounts)
     rc=$?
 
-    edebug "Checking if $(lval path) is mounted...
+    edebug "Checking if $(lval path) is mounted:
 ${output}"
 
     [[ ${rc} -eq 0 ]] \
