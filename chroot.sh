@@ -12,7 +12,7 @@ $(esource ${BASHUTILS}/dpkg.sh)
 #-----------------------------------------------------------------------------                                    
 # CORE CHROOT FUNCTIONS
 #-----------------------------------------------------------------------------                                    
-CHROOT_MOUNTS=( /dev /proc /sys )
+CHROOT_MOUNTS=( /dev /dev/pts /proc /sys )
 
 chroot_mount()
 {
@@ -25,8 +25,8 @@ chroot_mount()
         # NOTE: We mark this mount point as private so that anything we do 
         # in or to the bind mounted destination directory doesn't affect the
         # source directory we bind mounted from.
-        emount --rbind ${m}    ${CHROOT}${m}
-        emount --make-rprivate ${CHROOT}${m}
+        emount --bind ${m}     ${CHROOT}${m}
+        emount --make-private  ${CHROOT}${m}
     done
 
     ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
@@ -36,8 +36,12 @@ chroot_unmount()
 {
     argcheck CHROOT
     einfo "Unmounting $(lval CHROOT CHROOT_MOUNTS)"
+   
+    ifs_save; ifs_nl
+    local mounts=( $(echo ${CHROOT_MOUNTS[@]} | sed 's| |\n|g' | sort -r) )
+    ifs_restore
     
-    for m in ${CHROOT_MOUNTS[@]}; do
+    for m in ${mounts[@]}; do
         eunmount ${CHROOT}${m}
     done
 }

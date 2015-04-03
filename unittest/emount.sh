@@ -94,7 +94,7 @@ ETEST_emount_bind_count_shared()
     local nmounts=10
     for (( i=0; i<${nmounts}; ++i )); do
         emount --rbind src dst
-        emount --make-rprivate dst
+        emount --make-runbindable dst
         trap_add "eunmount dst &>/dev/null" HUP INT QUIT BUS PIPE TERM EXIT
         check_mounts dst $((i+1))
     done
