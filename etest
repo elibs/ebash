@@ -134,9 +134,8 @@ for testfile in ${TEST_DIR}/*.sh ; do
             continue
         fi
 
-        einfo "Starting tests in ${testfile}"
+        ! edebug_enabled ${testfunc} && einfo "Starting tests in ${testfile}"
 
-        edebug "Running tests $(lval ETEST_FUNCTIONS)"
         for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
             # If debugging is not enabled for testfunc just show a brief message with test name

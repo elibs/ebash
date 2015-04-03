@@ -1070,7 +1070,7 @@ emount_count()
     $(declare_args path)
     path=$(readlink -m ${path} 2>/dev/null)
     path=${path//[[:space:]]}
-    local num_mounts=$(grep --count --perl-regexp "(^| )${path}[/ ]" /proc/mounts)
+    local num_mounts=$(grep --count --perl-regexp "(^| )${path} " /proc/mounts)
     echo -n ${num_mounts}
 }
 
@@ -1085,7 +1085,7 @@ emounted()
     output=$(grep --perl-regexp "(^| )${path} " /proc/mounts)
     rc=$?
 
-    edebug "Checking if $(lval path) is mounted (${rc})
+    edebug "Checking if $(lval path) is mounted...
 ${output}"
 
     [[ ${rc} -eq 0 ]] \
@@ -1104,10 +1104,9 @@ eunmount()
     einfos "Unmounting ${@}"
     
     for m in $@; do
-        edebug "Calling emounted ${m}"
         emounted ${m} || continue
         local rdev=$(readlink -m ${m})
-        ecmd umount -fl "${rdev}"
+        ecmd umount -l "${rdev}"
     done
 }
 
@@ -1118,8 +1117,7 @@ eunmount_recursive()
     for m in $@; do
         local rdev=$(readlink -m ${m})
         [[ -z ${rdev} ]] && die
-        for p in $(grep -P "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur); do
-            edebug "Unmounting $(lval p)"
+        for p in $(grep --perl-regexp "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur); do
             eunmount ${p}
         done
     done
