@@ -78,7 +78,7 @@ ETEST_emount_bind_count_separate()
     done
 
     # Umount and verify counts go down properly
-    for (( i=${nmounts}; i>0; --i )); do
+    for (( i=${nmounts}-1; i>=0; --i )); do
         eunmount dst${i}
         check_mounts dst${i} 0
     done
