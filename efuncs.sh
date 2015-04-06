@@ -377,7 +377,7 @@ etable()
 
     lnum=0
     for line in "${columns}" "$@"; do
-        IFS="|"; parts=(${line}); IFS=" "
+        ifs_save; ifs_set "|"; parts=(${line}); ifs_restore
         idx=0
         printf "|"
         for p in "${parts[@]}"; do
