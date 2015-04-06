@@ -1100,23 +1100,29 @@ emount()
 
 eunmount()
 {
-    einfos "Unmounting ${@}"
-    
+    local first=1
+
     for m in $@; do
         emounted ${m} || continue
+        
         local rdev=$(readlink -m ${m})
+        [[ -z ${rdev} ]] && die
+
+        [[ ${first} -eq 1 ]] && { first=0; einfos "Unmounting ${@}"; }
         ecmd umount -l "${rdev}"
     done
 }
 
 eunmount_recursive()
 {
-    einfo "Recursively unmounting ${@}"
+    local first=1
 
     for m in $@; do
         local rdev=$(readlink -m ${m})
         [[ -z ${rdev} ]] && die
+        
         for p in $(grep --perl-regexp "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur); do
+            [[ ${first} -eq 1 ]] && { first=0; einfo "Recursively unmounting ${@}"; }
             eunmount ${p}
         done
     done
