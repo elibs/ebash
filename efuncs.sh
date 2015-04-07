@@ -448,13 +448,15 @@ eend()
 {
     local rc=${1:-0} #sets rc to first arg if present otherwise defaults to 0
 
-    # Terminal magic that:
-    #    1) Gets the number of columns on the screen, minus 6 because that's
-    #       how many we're about to output
-    #    2) Moves up a line
-    #    3) Moves right the number of columns from #1
-    local startcol=$(( $(tput cols) - 6 ))
-    echo -en "$(tput cuu1)$(tput cuf ${startcol})" >&2
+    if [[ -t 1 ]] ; then
+        # Terminal magic that:
+        #    1) Gets the number of columns on the screen, minus 6 because that's
+        #       how many we're about to output
+        #    2) Moves up a line
+        #    3) Moves right the number of columns from #1
+        local startcol=$(( $(tput cols) - 6 ))
+        echo -en "$(tput cuu1)$(tput cuf ${startcol})" >&2
+    fi
 
     if [[ ${rc} -eq 0 ]]; then
         echo -e "$(ecolor blue)[$(ecolor green) ok $(ecolor blue)]$(ecolor none)" >&2
@@ -551,14 +553,18 @@ eprogress_kill()
     local signal=${2:-TERM}
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
-    [[ ${EPROGRESS:-1} -eq 0 ]] && { echo "" >&2; eend ${rc}; return; }
+    if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
+        [[ -t 1 ]] && echo "" >&2
+        eend ${rc}
+        return
+    fi
 
     # Get the most recent pid
     local pids=( ${__EPROGRESS_PIDS} )
     if [[ ${#pids} -gt 0 ]]; then
         ekill ${pids[0]} ${signal} &>/dev/null
         export __EPROGRESS_PIDS="${pids[@]:1}"
-        echo "" >&2
+        [[ -t 1 ]] && echo "" >&2
         eend ${rc}
     fi
 }
