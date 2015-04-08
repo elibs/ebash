@@ -1480,6 +1480,28 @@ EOF
     echo -en "${best}"
 }
 
+# array_set will split a string on any characters you specify, placing the
+# results in an array for you.
+#
+#  $1: name of array to assign to (i.e. "array")
+#  $2: string to be split
+#  $3: (optional) character(s) to be used as delimiters.
+#
+array_set()
+{
+    $(declare_args __array __string ?__delim)
+    IFS="${__delim}" eval "${__array}=(\${__string})"
+}
+
+# Print the size of any array.  Yes, you can also do this with ${#array[@]}.
+# But this functions makes for symmertry with pack (i.e. pack_size).
+#
+array_size()
+{
+    $(declare_args __array)
+    eval "echo \${#${__array}[@]}"
+}
+
 # eretry executes arbitrary shell commands for you, enforcing a timeout in
 # seconds and retrying up to a specified count.  If the command is successful,
 # retries stop.  If not, eretry will "die".
