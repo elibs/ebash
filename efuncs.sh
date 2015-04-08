@@ -146,7 +146,7 @@ ebanner()
     echo -e "|" >&2
 
     # Print the first message honoring any newlines
-    local lines=(); array_set lines "${1}" "\n"; shift
+    local lines=(); array_set_nl lines "${1}" ; shift
     for line in "${lines[@]}"; do
         echo -e "| ${line}" >&2
     done
@@ -161,7 +161,7 @@ ebanner()
     declare -A __details;
     
     local entries=()
-    array_set entries "$*" "\n"
+    array_set_nl entries "$*"
     for k in "${entries[@]}"; do
 
         # Magically expand arrays prefixed with bang operator ('!') to allow
@@ -334,7 +334,7 @@ eerror_stacktrace()
     eerror "$@"
 
     local frames=()
-    array_set frames "$(stacktrace ${skip_frames})" "\n"
+    array_set_nl frames "$(stacktrace ${skip_frames})"
 
     for f in "${frames[@]}"; do
         local line=$(echo ${f} | awk '{print $1}')
@@ -386,7 +386,7 @@ etable()
             printf " %s%${pad}s|" "${p}" " "
             idx=$((idx+1))
         done
-        printf "\n"
+        printf $'\n'
         lnum=$((lnum+1))
         if [[ ${lnum} -eq 1 || ${lnum} -eq $(( $# + 1 )) ]]; then
             printf "%s\n" ${divider}
@@ -1679,11 +1679,22 @@ setvars()
 array_set()
 {
     $(declare_args __array ?__string ?__delim)
-    
+
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && return
 
+    # Default bash IFS is space, tab, newline, so this will default to that
+    [[ -z ${__delim} ]] && __delim=$' \t\n'
+
     IFS="${__delim}" eval "${__array}=(\${__string})"
+}
+
+# This function works like array_set, but always specifies that the delimiter
+# be a newline.
+array_set_nl()
+{
+    [[ $# -ne 2 ]] && die "array_set_nl only takes two parameters"
+    array_set "$1" "$2" $'\n'
 }
 
 # Print the size of any array.  Yes, you can also do this with ${#array[@]}.
@@ -1813,9 +1824,7 @@ pack_iterate()
     argcheck _pack_pack_iterate _func
 
     local _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
-
-    local lines=()
-    array_set lines "${_unpacked}" "\n"
+    local _lines ; array_set_nl _lines "${_unpacked}"
 
     edebug "$(lval _pack_pack_iterate _unpacked _lines)"
 
