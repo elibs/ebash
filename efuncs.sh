@@ -146,10 +146,9 @@ ebanner()
     echo -e "|" >&2
 
     # Print the first message honoring any newlines
-    ifs_save; ifs_nl
-    local lines=( "$1" ); shift
-    for line in ${lines[@]}; do
-        echo -e "| $line" >&2
+    local lines=(); array_set lines "${1}" "\n"; shift
+    for line in "${lines[@]}"; do
+        echo -e "| ${line}" >&2
     done
 
     # Timestamp
@@ -160,7 +159,10 @@ ebanner()
     # If a custom key was requested via "key=value" format then use the provided
     # key and lookup value via print_value.
     declare -A __details;
-    for k in $@; do
+    
+    local entries=()
+    array_set entries "$*" "\n"
+    for k in "${entries[@]}"; do
 
         # Magically expand arrays prefixed with bang operator ('!') to allow
         # more natural logging of elements within an array or an associative
@@ -210,8 +212,6 @@ ebanner()
             printf "| • %s%${pad}s :: %s\n" ${key} " " ${__details[$key]} >&2
         done
     fi
-
-    ifs_restore
 
     # Close the banner
     echo -e "|" >&2
@@ -333,9 +333,8 @@ eerror_stacktrace()
     echo "" >&2
     eerror "$@"
 
-    ifs_save; ifs_nl
-    local frames=( $(stacktrace ${skip_frames}) )
-    ifs_restore
+    local frames=()
+    array_set frames "$(stacktrace ${skip_frames})" "\n"
 
     for f in "${frames[@]}"; do
         local line=$(echo ${f} | awk '{print $1}')
@@ -352,9 +351,11 @@ eerror_stacktrace()
 etable()
 {
     $(declare_args columns)
-    lengths=()
+    local lengths=()
+    local parts=()
+
     for line in "${columns}" "$@"; do
-        ifs_save; ifs_set "|"; parts=(${line}); ifs_restore
+        array_set parts "${line}" "|"
         idx=0
         for p in "${parts[@]}"; do
             mlen=${#p}
@@ -364,7 +365,7 @@ etable()
     done
 
     divider="+"
-    ifs_save; ifs_set "|"; parts=(${columns}); ifs_restore
+    array_set parts "${columns}" "|"
     idx=0
     for p in "${parts[@]}"; do
         len=$((lengths[$idx]+2))
@@ -377,7 +378,7 @@ etable()
 
     lnum=0
     for line in "${columns}" "$@"; do
-        ifs_save; ifs_set "|"; parts=(${line}); ifs_restore
+        array_set parts "${line}" "|"
         idx=0
         printf "|"
         for p in "${parts[@]}"; do
@@ -730,27 +731,53 @@ config_check()
 #-----------------------------------------------------------------------------
 # IFS
 #-----------------------------------------------------------------------------
+
+# IFS is the Internal Field Separator. This GLOBAL variable determines how Bash
+# recognizes fields, or word boundaries, when it interprets character strings.
+# This is most often used to modify how an array will parse a given string into
+# its individual entries of the array.IFS defaults to whitespace (space, tab,
+# and newline), but may be changed, for example, to parse a comma-separated data
+# file. Note that $* uses the first character held in $IFS.
+#
+# WARNING: Using IFS in general is dangerous and should be avoided whenever 
+# possible. The reason it's dangerous is it's a global variable and will affect
+# any code you call while it's in a non-default state which can cause the called
+# code to fail in horrible ways. A slightly safer way than modifying the global
+# variable directly is to use these helper methods to save it's existing value
+# and set it to something temporarily and then restore it afterwards. The
+# best rule of thumb here is to keep the scope of the modified IFS to only the
+# code that needs it set and do NOT call anything in that code path that may
+# break.
+#
+# NOTE: In general, this is really only used for array parsing. As such it's
+# generally a MUCH better idea to use array_set to perform this routine task.
+
+# Save the current IFS to global variable IFS_SAVE.
 ifs_save()
 {
     export IFS_SAVE=${IFS}
 }
 
+# Retore IFS from previously saved IFS_SAVE global variable.
 ifs_restore()
 {
     export IFS=${IFS_SAVE}
 }
 
+# Set IFS to a newline.
 ifs_nl()
 {
     export IFS="
 "
 }
 
+# Set IFS to a single space.
 ifs_space()
 {
     export IFS=" "
 }
 
+# Set IFS to an arbitrary delimiter.
 ifs_set()
 {
     export IFS="${1}"
@@ -765,7 +792,7 @@ valid_ip()
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        ifs_save; ifs_set '.'; ip=($ip); ifs_restore
+        array_set ip "${ip}" "."        
         [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
         stat=$?
     fi
@@ -1480,28 +1507,6 @@ EOF
     echo -en "${best}"
 }
 
-# array_set will split a string on any characters you specify, placing the
-# results in an array for you.
-#
-#  $1: name of array to assign to (i.e. "array")
-#  $2: string to be split
-#  $3: (optional) character(s) to be used as delimiters.
-#
-array_set()
-{
-    $(declare_args __array __string ?__delim)
-    IFS="${__delim}" eval "${__array}=(\${__string})"
-}
-
-# Print the size of any array.  Yes, you can also do this with ${#array[@]}.
-# But this functions makes for symmertry with pack (i.e. pack_size).
-#
-array_size()
-{
-    $(declare_args __array)
-    eval "echo \${#${__array}[@]}"
-}
-
 # eretry executes arbitrary shell commands for you, enforcing a timeout in
 # seconds and retrying up to a specified count.  If the command is successful,
 # retries stop.  If not, eretry will "die".
@@ -1660,6 +1665,35 @@ setvars()
     return 0
 }
 
+#-----------------------------------------------------------------------------
+# ARRAYS
+#-----------------------------------------------------------------------------
+
+# array_set will split a string on any characters you specify, placing the
+# results in an array for you.
+#
+#  $1: name of array to assign to (i.e. "array")
+#  $2: string to be split
+#  $3: (optional) character(s) to be used as delimiters.
+#
+array_set()
+{
+    $(declare_args __array ?__string ?__delim)
+    
+    # If nothing was provided to split on just return immediately
+    [[ -z ${__string} ]] && return
+
+    IFS="${__delim}" eval "${__array}=(\${__string})"
+}
+
+# Print the size of any array.  Yes, you can also do this with ${#array[@]}.
+# But this functions makes for symmertry with pack (i.e. pack_size).
+#
+array_size()
+{
+    $(declare_args __array)
+    eval "echo \${#${__array}[@]}"
+}
 
 #-----------------------------------------------------------------------------
 # PACK 
@@ -1780,9 +1814,8 @@ pack_iterate()
 
     local _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
 
-    ifs_save ; ifs_nl
-    local _lines=(${_unpacked})
-    ifs_restore
+    local lines=()
+    array_set lines "${_unpacked}" "\n"
 
     edebug "$(lval _pack_pack_iterate _unpacked _lines)"
 
