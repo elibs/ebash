@@ -1,3 +1,9 @@
+ETEST_array_empty()
+{
+    array_set arr "" "\n"
+    assert_eq 0 $(array_size arr)
+}
+
 ETEST_array_set()
 {
     array_set arr "alpha|beta|delta" "|"
@@ -7,6 +13,28 @@ ETEST_array_set()
     assert_eq "delta" "${arr[2]}"
     assert_eq 3       "${#arr[@]}"
     assert_eq 3       $(array_size arr)
+}
+
+ETEST_array_set_nl1()
+{
+    array_set arr "$(printf alpha\nbeta\ndelta)" "\n"
+
+    assert_eq "alpha" "${arr[0]}"
+    assert_eq "beta"  "${arr[1]}"
+    assert_eq "delta" "${arr[2]}"
+    assert_eq 3       "${#arr[@]}"
+    assert_eq 3       $(array_size arr)
+}
+
+ETEST_array_set_nl2()
+{
+    array_set arr "Foo
+Bar" "\n"
+
+    assert_eq "Foo" "${arr[0]}"
+    assert_eq "Bar" "${arr[1]}"
+    assert_eq 2     "${#arr[@]}"
+    assert_eq 2     $(array_size arr)
 }
 
 ETEST_array_set_multiple_delim()
@@ -19,7 +47,7 @@ ETEST_array_set_multiple_delim()
     assert_eq "d" "${arr[3]}"
     assert_eq "e" "${arr[4]}"
     assert_eq 5   "${#arr[@]}"
-    assert_eq 5       $(array_size arr)
+    assert_eq 5   $(array_size arr)
 }
 
 ETEST_array_set_ulgy_delim()
@@ -30,7 +58,7 @@ ETEST_array_set_ulgy_delim()
     assert_eq "b" "${arr[1]}"
     assert_eq "c" "${arr[2]}"
     assert_eq 3   "${#arr[@]}"
-    assert_eq 3       $(array_size arr)
+    assert_eq 3   $(array_size arr)
 }
 
 ETEST_array_set_quote_delim()
@@ -40,7 +68,7 @@ ETEST_array_set_quote_delim()
     assert_eq "a" "${arr[0]}"
     assert_eq "b" "${arr[1]}"
     assert_eq 2   "${#arr[@]}"
-    assert_eq 2       $(array_size arr)
+    assert_eq 2   $(array_size arr)
 
 
     array_set arr 'a"b' '"'
@@ -48,5 +76,5 @@ ETEST_array_set_quote_delim()
     assert_eq "a" "${arr[0]}"
     assert_eq "b" "${arr[1]}"
     assert_eq 2   "${#arr[@]}"
-    assert_eq 2       $(array_size arr)
+    assert_eq 2   $(array_size arr)
 }
