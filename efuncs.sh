@@ -1637,7 +1637,7 @@ array_init()
 # be a newline.
 array_init_nl()
 {
-    [[ $# -ne 2 ]] && die "array_init_nl only takes two parameters"
+    [[ $# -ne 2 ]] && die "array_init_nl requires exactly two parameters"
     array_init "$1" "$2" $'\n'
 }
 
@@ -1672,7 +1672,7 @@ array_add()
 # Identical to array_add only hard codes the delimter to be a newline.
 array_add_nl()
 {
-    [[ $# -ne 2 ]] && die "array_add_nl only takes two parameters"
+    [[ $# -ne 2 ]] && die "array_add_nl requires exactly two parameters"
     array_add "$1" "$2" $'\n'
 }
 
