@@ -160,9 +160,10 @@ ebanner()
     # Iterate over all other arguments and stick them into an associative array
     # If a custom key was requested via "key=value" format then use the provided
     # key and lookup value via print_value.
-    declare -A __details;
+    declare -A __details
     
-    array_init_nl entries "$*"
+    array_init entries "$*"
+
     for k in "${entries[@]}"; do
 
         # Magically expand arrays prefixed with bang operator ('!') to allow
@@ -210,7 +211,7 @@ ebanner()
         # Iterate over the keys of the associative array and print out the values
         for key in ${keys[@]}; do
             local pad=$((longest-${#key}+1))
-            printf "| • %s%${pad}s :: %s\n" ${key} " " ${__details[$key]} >&2
+            printf "| • %s%${pad}s :: %s\n" ${key} " " "${__details[$key]}" >&2
         done
     fi
 
@@ -1418,7 +1419,7 @@ netselect()
     local hosts=$@; argcheck hosts
     eprogress "Finding host with lowest latency from [${hosts}]"
 
-    declare -a results sorted rows;
+    declare -a results sorted rows
 
     for h in ${hosts}; do
         local entry=$(trap_and_die; ping -c10 -w5 -q $h 2>/dev/null | \
