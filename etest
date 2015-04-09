@@ -74,34 +74,45 @@ global_setup()
 {
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
-    TEST_DIR_OUTPUT="${TEST_DIR}/${testfunc}"
+    TEST_DIR_OUTPUT="${TEST_DIR}/output"
     emkdir ${TEST_DIR_OUTPUT}
-    cd ${TEST_DIR_OUTPUT}
 }
 
 global_teardown()
 {
-    argcheck TEST_DIR_OUTPUT
-
-    # If the test succeeded remove it's contents
     if [[ ${ETEST_CLEAN:-1} -eq 1 ]] ; then
-        edebug "Cleaning ${TEST_DIR_OUTPUT}"
+        argcheck TEST_DIR_OUTPUT
         eunmount_recursive ${TEST_DIR_OUTPUT}
         erm ${TEST_DIR_OUTPUT}
     fi
 }
 
-run_setup()
+test_setup()
 {
-    global_setup
+    # Unit test infrastructure setup
+    argcheck TEST_DIR_OUTPUT
+    emkdir ${TEST_DIR_OUTPUT}/${testfunc}
+    epushd ${TEST_DIR_OUTPUT}/${testfunc}
+
+    # Unit test provided setup
     declare -f setup &>/dev/null && { setup || die "Setup failed." ; }
+    
     return 0
 }
 
-run_teardown()
+test_teardown()
 {
+    # Unit test provided teardown
     declare -f teardown &>/dev/null && { teardown || die "Setup failed." ; }
-    global_teardown
+
+    # Unit test infrastructure teardown
+    epopd
+    if [[ ${ETEST_CLEAN:-1} -eq 1 ]]; then
+        argcheck testfunc
+        eunmount_recursive ${testfunc}
+        erm ${testfunc}
+    fi
+
     return 0
 }
 
@@ -116,6 +127,8 @@ run_teardown()
 ETEST_RC=0
 ETEST_FILE_RC=0
 ETEST_TEST_RC=0
+
+global_setup
 
 for testfile in ${TEST_DIR}/*.sh ; do
     # Each test file gets its own subshell
@@ -140,9 +153,9 @@ for testfile in ${TEST_DIR}/*.sh ; do
             eval "${testfunc}_internal() { 
             (
                 EFUNCS_FATAL=0
-                run_setup
+                test_setup
                 ${testfunc}
-                run_teardown
+                test_teardown
             ) &> \$(edebug_out)
             }"
 
@@ -164,5 +177,7 @@ for testfile in ${TEST_DIR}/*.sh ; do
 
     (( ETEST_RC += $? ))
 done
+
+global_teardown
 
 exit ${ETEST_RC}
