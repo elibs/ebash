@@ -141,7 +141,7 @@ ebanner()
     local cols lines entries
 
     echo "" >&2
-    local cols=$(tput cols)
+    cols=$(tput cols)
     cols=$((cols-2))
     eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
     echo -e "$(ecolor magenta)+${str}+" >&2
