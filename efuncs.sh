@@ -138,6 +138,8 @@ etimestamp()
 # and present information.
 ebanner()
 {
+    local cols lines entries
+
     echo "" >&2
     local cols=$(tput cols)
     cols=$((cols-2))
@@ -146,7 +148,7 @@ ebanner()
     echo -e "|" >&2
 
     # Print the first message honoring any newlines
-    local lines=(); array_set_nl lines "${1}" ; shift
+    array_init_nl lines "${1}" ; shift
     for line in "${lines[@]}"; do
         echo -e "| ${line}" >&2
     done
@@ -160,8 +162,7 @@ ebanner()
     # key and lookup value via print_value.
     declare -A __details;
     
-    local entries=()
-    array_set_nl entries "$*"
+    array_init_nl entries "$*"
     for k in "${entries[@]}"; do
 
         # Magically expand arrays prefixed with bang operator ('!') to allow
@@ -334,7 +335,7 @@ eerror_stacktrace()
     eerror "$@"
 
     local frames=()
-    array_set_nl frames "$(stacktrace ${skip_frames})"
+    array_init_nl frames "$(stacktrace ${skip_frames})"
 
     for f in "${frames[@]}"; do
         local line=$(echo ${f} | awk '{print $1}')
@@ -355,7 +356,7 @@ etable()
     local parts=()
 
     for line in "${columns}" "$@"; do
-        array_set parts "${line}" "|"
+        array_init parts "${line}" "|"
         idx=0
         for p in "${parts[@]}"; do
             mlen=${#p}
@@ -365,7 +366,7 @@ etable()
     done
 
     divider="+"
-    array_set parts "${columns}" "|"
+    array_init parts "${columns}" "|"
     idx=0
     for p in "${parts[@]}"; do
         len=$((lengths[$idx]+2))
@@ -378,7 +379,7 @@ etable()
 
     lnum=0
     for line in "${columns}" "$@"; do
-        array_set parts "${line}" "|"
+        array_init parts "${line}" "|"
         idx=0
         printf "|"
         for p in "${parts[@]}"; do
@@ -729,61 +730,6 @@ config_check()
 }
 
 #-----------------------------------------------------------------------------
-# IFS
-#-----------------------------------------------------------------------------
-
-# IFS is the Internal Field Separator. This GLOBAL variable determines how Bash
-# recognizes fields, or word boundaries, when it interprets character strings.
-# This is most often used to modify how an array will parse a given string into
-# its individual entries of the array.IFS defaults to whitespace (space, tab,
-# and newline), but may be changed, for example, to parse a comma-separated data
-# file. Note that $* uses the first character held in $IFS.
-#
-# WARNING: Using IFS in general is dangerous and should be avoided whenever 
-# possible. The reason it's dangerous is it's a global variable and will affect
-# any code you call while it's in a non-default state which can cause the called
-# code to fail in horrible ways. A slightly safer way than modifying the global
-# variable directly is to use these helper methods to save it's existing value
-# and set it to something temporarily and then restore it afterwards. The
-# best rule of thumb here is to keep the scope of the modified IFS to only the
-# code that needs it set and do NOT call anything in that code path that may
-# break.
-#
-# NOTE: In general, this is really only used for array parsing. As such it's
-# generally a MUCH better idea to use array_set to perform this routine task.
-
-# Save the current IFS to global variable IFS_SAVE.
-ifs_save()
-{
-    export IFS_SAVE=${IFS}
-}
-
-# Retore IFS from previously saved IFS_SAVE global variable.
-ifs_restore()
-{
-    export IFS=${IFS_SAVE}
-}
-
-# Set IFS to a newline.
-ifs_nl()
-{
-    export IFS="
-"
-}
-
-# Set IFS to a single space.
-ifs_space()
-{
-    export IFS=" "
-}
-
-# Set IFS to an arbitrary delimiter.
-ifs_set()
-{
-    export IFS="${1}"
-}
-
-#-----------------------------------------------------------------------------
 # NETWORKING FUNCTIONS
 #-----------------------------------------------------------------------------
 valid_ip()
@@ -792,7 +738,7 @@ valid_ip()
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        array_set ip "${ip}" "."        
+        array_init ip "${ip}" "."        
         [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
         stat=$?
     fi
@@ -1472,7 +1418,7 @@ netselect()
     local hosts=$@; argcheck hosts
     eprogress "Finding host with lowest latency from [${hosts}]"
 
-    declare -a results;
+    declare -a results sorted rows;
 
     for h in ${hosts}; do
         local entry=$(trap_and_die; ping -c10 -w5 -q $h 2>/dev/null | \
@@ -1483,18 +1429,17 @@ netselect()
                     printf("%s|%f|%f|%s|%f", host, stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
                 }')
 
-        results=("${results[@]}" "${entry}")
+        results+=("${entry}")
     done
 
-    declare -a sorted=($(printf '%s\n' "${results[@]}" | sort -t\| -k5 -n))
-    declare -a rows=("Server|Latency|Jitter|Loss|Score")
-    ifs_save; ifs_set "|";
-    while read server latency jitter loss score; do
-        rows=("${rows[@]}" "${server}|${latency}|${jitter}|${loss}|${score}")
-    done << EOF
-${sorted[@]}
-EOF
-    ifs_restore
+    array_init_nl sorted "$(printf '%s\n' "${results[@]}" | sort -t\| -k5 -n)"
+    array_init_nl rows "Server|Latency|Jitter|Loss|Score"
+
+    for entry in "${sorted[@]}"; do
+        array_init parts "${entry}" "|"
+        array_add_nl rows "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${parts[4]}"
+    done
+    
     eprogress_kill
 
     ## SHOW ALL RESULTS ##
@@ -1669,14 +1614,48 @@ setvars()
 # ARRAYS
 #-----------------------------------------------------------------------------
 
-# array_set will split a string on any characters you specify, placing the
+# array_init will split a string on any characters you specify, placing the
 # results in an array for you.
 #
 #  $1: name of array to assign to (i.e. "array")
 #  $2: string to be split
 #  $3: (optional) character(s) to be used as delimiters.
+array_init()
+{
+    $(declare_args __array ?__string ?__delim)
+
+    # If nothing was provided to split on just return immediately
+    [[ -z ${__string} ]] && { eval "${__array}=()"; return; }
+
+    # Default bash IFS is space, tab, newline, so this will default to that
+    [[ -z ${__delim} ]] && __delim=$' \t\n'
+
+    IFS="${__delim}" eval "${__array}=(\${__string})"
+}
+
+# This function works like array_init, but always specifies that the delimiter
+# be a newline.
+array_init_nl()
+{
+    [[ $# -ne 2 ]] && die "array_init_nl only takes two parameters"
+    array_init "$1" "$2" $'\n'
+}
+
+# Print the size of any array.  Yes, you can also do this with ${#array[@]}.
+# But this functions makes for symmertry with pack (i.e. pack_size).
+array_size()
+{
+    $(declare_args __array)
+    eval "echo \${#${__array}[@]}"
+}
+
+# array_add will split a given input string on requested delimiters and add them
+# to the given array (which may or may not already exist).
 #
-array_set()
+# $1: name of the array to add the new elements to
+# $2: string to be split
+# $3: (optional) character(s) to be used as delimiters.
+array_add()
 {
     $(declare_args __array ?__string ?__delim)
 
@@ -1686,24 +1665,48 @@ array_set()
     # Default bash IFS is space, tab, newline, so this will default to that
     [[ -z ${__delim} ]] && __delim=$' \t\n'
 
-    IFS="${__delim}" eval "${__array}=(\${__string})"
+    # Parse the input given the delimiter and append to the array.
+    IFS="${__delim}" eval "${__array}+=(\${__string})"
 }
 
-# This function works like array_set, but always specifies that the delimiter
-# be a newline.
-array_set_nl()
+# Identical to array_add only hard codes the delimter to be a newline.
+array_add_nl()
 {
-    [[ $# -ne 2 ]] && die "array_set_nl only takes two parameters"
-    array_set "$1" "$2" $'\n'
+    [[ $# -ne 2 ]] && die "array_add_nl only takes two parameters"
+    array_add "$1" "$2" $'\n'
 }
 
-# Print the size of any array.  Yes, you can also do this with ${#array[@]}.
-# But this functions makes for symmertry with pack (i.e. pack_size).
+# array_contains will check if an array contains a given value or not. This
+# will return success (0) if it contains the requested element and failure (1)
+# if it does not.
 #
-array_size()
+# $1: name of the array to search
+# $2: value to check for existance in the array
+array_contains()
+{
+    $(declare_args __array __value)
+
+    for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
+        eval "local entry=\${${__array}[$idx]}"
+        [[ "${entry}" == "${__value}" ]] && return 0
+    done
+
+    return 1
+}
+
+array_quote()
 {
     $(declare_args __array)
-    eval "echo \${#${__array}[@]}"
+
+    local __output=()
+    local __entry=""
+
+    for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
+        eval "local entry=\${${__array}[$idx]}"
+        __output+=( "$(printf %q "${entry}")" )
+    done
+
+    echo "${__output[@]}"
 }
 
 #-----------------------------------------------------------------------------
@@ -1824,7 +1827,7 @@ pack_iterate()
     argcheck _pack_pack_iterate _func
 
     local _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
-    local _lines ; array_set_nl _lines "${_unpacked}"
+    local _lines ; array_init_nl _lines "${_unpacked}"
 
     edebug "$(lval _pack_pack_iterate _unpacked _lines)"
 
