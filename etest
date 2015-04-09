@@ -20,15 +20,19 @@ FILTER=$2
 
 assert_true()
 {
-    local expression="${@}"
-    eval "${expression}" || { die "Expect failed :: $(lval expression)"; return 1; }
+    local array=( "${@}" )
+    local cmd=$(array_quote array)
+    
+    eval ${cmd} || { die "Expect failed :: $(lval cmd)"; return 1; }
     return 0
 }
 
 assert_false()
 {
-    local expression="${@}"
-    eval "${expression}" && { die "Expect failed :: ! $(lval expression)"; return 1; }
+    local array=( "${@}" )
+    local cmd=$(array_quote array)
+
+    eval ${cmd} && { die "Expect failed :: ! $(lval cmd)"; return 1; }
     return 0
 }
 
@@ -80,11 +84,9 @@ global_setup()
 
 global_teardown()
 {
-    if [[ ${ETEST_CLEAN:-1} -eq 1 ]] ; then
-        argcheck TEST_DIR_OUTPUT
-        eunmount_recursive ${TEST_DIR_OUTPUT}
-        erm ${TEST_DIR_OUTPUT}
-    fi
+    argcheck TEST_DIR_OUTPUT
+    eunmount_recursive ${TEST_DIR_OUTPUT}
+    [[ ${ETEST_CLEAN:-1} -eq 1 ]] && erm ${TEST_DIR_OUTPUT}
 }
 
 test_setup()
@@ -92,7 +94,6 @@ test_setup()
     # Unit test infrastructure setup
     argcheck TEST_DIR_OUTPUT
     emkdir ${TEST_DIR_OUTPUT}/${testfunc}
-    epushd ${TEST_DIR_OUTPUT}/${testfunc}
 
     # Unit test provided setup
     declare -f setup &>/dev/null && { setup || die "Setup failed." ; }
@@ -106,12 +107,9 @@ test_teardown()
     declare -f teardown &>/dev/null && { teardown || die "Setup failed." ; }
 
     # Unit test infrastructure teardown
-    epopd
-    if [[ ${ETEST_CLEAN:-1} -eq 1 ]]; then
-        argcheck testfunc
-        eunmount_recursive ${testfunc}
-        erm ${testfunc}
-    fi
+    argcheck testfunc
+    eunmount_recursive ${TEST_DIR_OUTPUT}/${testfunc}
+    [[ ${ETEST_CLEAN:-1} -eq 1 ]] && erm ${TEST_DIR_OUTPUT}/${testfunc}
 
     return 0
 }
@@ -128,8 +126,10 @@ ETEST_RC=0
 ETEST_FILE_RC=0
 ETEST_TEST_RC=0
 
+FAILURES=()
 global_setup
-
+trap_add "{ global_teardown; exit 1; }" HUP INT QUIT BUS PIPE TERM
+ 
 for testfile in ${TEST_DIR}/*.sh ; do
     # Each test file gets its own subshell
     (
@@ -152,9 +152,10 @@ for testfile in ${TEST_DIR}/*.sh ; do
 
             eval "${testfunc}_internal() { 
             (
-                EFUNCS_FATAL=0
                 test_setup
-                ${testfunc}
+                trap_add \"{ test_teardown; exit 1; }\" HUP INT QUIT BUS PIPE TERM
+                cd ${TEST_DIR_OUTPUT}/${testfunc}
+                EFUNCS_FATAL=0 ${testfunc}
                 test_teardown
             ) &> \$(edebug_out)
             }"
@@ -175,9 +176,11 @@ for testfile in ${TEST_DIR}/*.sh ; do
         exit ${ETEST_FILE_RC}
     )
 
-    (( ETEST_RC += $? ))
+    [[ $? -eq 0 ]] || { FAILURES+=( ${testfile} ); (( ETEST_RC += $? )); }
 done
 
 global_teardown
+
+[[ ${#FAILURES[@]} -ne 0 ]] && die "$(lval FAILURES)"
 
 exit ${ETEST_RC}
