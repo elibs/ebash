@@ -1695,6 +1695,36 @@ array_contains()
     return 1
 }
 
+# array_join will join an array into one flat string with the provided delimeter
+# between each element in the resulting string.
+#
+# $1: name of the array to join
+# $2: (optional) delimiter
+array_join()
+{
+    $(declare_args __array ?__delim)
+
+    # If the array is empty return empty string
+    [[ $(array_size __array) -eq 0 ]] && { echo -n ""; return 0; }
+
+    # Default bash IFS is space, tab, newline, so this will default to that
+    [[ -z ${__delim} ]] && __delim=$' \t\n'
+
+    # Otherwise use IFS to join the array. This must be in a subshell so that
+    # the change to IFS doesn't persist after this function call.
+    ( IFS="${__delim}"; eval "echo -n \"\${${__array}[*]}\"" )
+}
+
+# Identical to array_join only it hardcodes the dilimter to a newline.
+array_join_nl()
+{
+    [[ $# -ne 1 ]] && die "array_join_nl requires exactly one parameter"
+    array_join "$1" $'\n'
+}
+
+# array_quote creates a single flat string representation of an array with
+# an extra level of proper bash quoting around everything so it's suitable
+# to be eval'd.
 array_quote()
 {
     $(declare_args __array)
@@ -1707,7 +1737,7 @@ array_quote()
         __output+=( "$(printf %q "${entry}")" )
     done
 
-    echo "${__output[@]}"
+    echo -n "${__output[@]}"
 }
 
 #-----------------------------------------------------------------------------
