@@ -226,3 +226,33 @@ ETEST_array_add_different_delim_noresplit()
     assert_true array_contains arr "f"
     assert_eq 4 $(array_size arr)
 }
+
+ETEST_array_join()
+{
+    local input="a b c d"
+    array_init arr "${input}"
+    declare -p arr
+
+    local output=$(array_join arr)
+    assert_eq "${input}" "${output}"
+}
+
+ETEST_array_join_nl()
+{
+    local input=$'a\nb\tc d  e'
+    array_init_nl arr "${input}"
+    declare -p arr
+
+    local output=$(array_join_nl arr)
+    assert_eq "${input}" "${output}"
+}
+
+ETEST_array_join_custom()
+{
+    local input="a b|c d|e f"
+    array_init arr "${input}" "|"
+    declare -p arr
+
+    local output=$(array_join arr "|")
+    assert_eq "${input}" "${output}"
+}
