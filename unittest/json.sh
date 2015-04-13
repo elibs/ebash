@@ -5,14 +5,14 @@ ETEST_json_escape()
     string=$'escape " these \n chars'
     escaped=$(json_escape "${string}")
 
-    assert_true [[ ${escaped} =~ escape ]]
-    assert_true [[ ${escaped} =~ these ]]
-    assert_true [[ ${escaped} =~ chars ]]
+    [[ ${escaped} =~ escape ]]   || die
+    [[ ${escaped} =~ these ]]    || die
+    [[ ${escaped} =~ chars ]]    || die
 
-    assert_true [[ ${escaped} =~ \\\\n ]]
+    [[ ${escaped} =~ \\n ]]    || die
 
     quote='\"'
-    assert_true [[ ${escaped} =~ ${quote} ]]
+    [[ ${escaped} =~ ${quote} ]] || die
 
     # Make sure there isn't still a newline in the string
     assert_eq 1 $(echo "${escaped}" | wc -l)
@@ -36,4 +36,15 @@ ETEST_pack_to_json()
 
     json=$(pack_to_json P)
     echo "json ${json}"
+}
+
+ETEST_stacktrace_to_json()
+{
+    array_init_nl frames "$(stacktrace)"
+    echo "${frames[@]}"
+    echo ""
+
+    # Make sure this ends up being valid json
+    array_to_json frames | jq --monochrome-output .
+    assert_zero $?
 }
