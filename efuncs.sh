@@ -1706,6 +1706,24 @@ array_size()
     eval "echo \${#${__array}[@]}"
 }
 
+array_to_json()
+{
+    # The parameter was an array name (i.e. ARRAY not ${ARRAY} or ${ARRAY[@]}.
+    # This will store a copy of that array's contents into __array
+    $(declare_args __array)
+    eval "local __array=(\"\${${__array}[@]}\")"
+
+    echo -n "["
+    local i notfirst
+    for i in "${__array[@]}" ; do
+        [[ -n ${notfirst} ]] && echo -n ","
+        echo -n $(json_escape "$i")
+        notfirst=true
+    done
+
+    echo "]"
+}
+
 #-----------------------------------------------------------------------------
 # PACK 
 #-----------------------------------------------------------------------------
@@ -1945,6 +1963,20 @@ _pack_print_item()
     echo -n "[$1]=$(print_value "$2") "
 }
 
+pack_to_json()
+{
+    [[ -z ${1} ]] && die "pack_to_json requires a pack to be specified as \$1"
+
+    local _key _notfirst
+    echo -n "{"
+    for _key in $(pack_keys ${1}) ; do
+        [[ -n ${_notfirst} ]] && echo -n ","
+        echo -n '"'${_key}'":'"$(json_escape "$(pack_get ${1} ${_key})")"
+        _notfirst=true
+    done
+    echo -n "}"
+}
+
 _unpack()
 {
     base64 -d -w0 | tr '\0' '\n'
@@ -1953,6 +1985,16 @@ _unpack()
 _pack()
 {
     grep -av '^$' | tr '\n' '\0' | base64 -w0
+}
+
+#-----------------------------------------------------------------------------
+# JSON
+#-----------------------------------------------------------------------------
+
+json_escape()
+{
+    echo -n "$1" \
+        | python -c 'import json,sys; print json.dumps(sys.stdin.read())'
 }
 
 #-----------------------------------------------------------------------------
