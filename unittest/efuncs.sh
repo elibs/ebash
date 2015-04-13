@@ -12,8 +12,8 @@ ETEST_argcheck()
     )
 
     assert_not_zero $?
-    assert_true  'echo "$output" | grep -q beta'
-    assert_false 'echo "$output" | grep -q alpha'
+    echo "$output" | grep -q beta  || die
+    echo "$output" | grep -q alpha && die
 }
 
 ETEST_edebug_one_and_zero()
@@ -46,7 +46,7 @@ ETEST_edebug_enabled_matcher()
 ETEST_edebug_enabled_skips_edebug_in_stack_frame()
 {
     output=$(EDEBUG="ETEST_edebug_enabled_skips_edebug_in_stack_frame" edebug "hello" 2>&1)
-    assert_true '[[ ${output} =~ hello ]]'
+    [[ ${output} =~ hello ]] || die
 }
 
 ETEST_fully_qualify_hostname_ignores_case()

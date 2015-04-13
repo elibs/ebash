@@ -103,7 +103,7 @@ _pack_iterate_checker()
     local val=$2
 
     einfo "_pack_iterate_checker: $(lval key val _pack_iterate_count)"
-    assert_true '[[ $key == "a" || $key == "b" || $key == "c" || $key == "white" ]]'
+    [[ $key == "a" || $key == "b" || $key == "c" || $key == "white" ]] || die
 
     [[ $key != "white" ]] && assert_eq  "val" "$val"
     [[ $key == "white" ]] && assert_eq  "val with spaces" "$val"
@@ -190,7 +190,7 @@ ETEST_pack_no_newlines()
         )
     )
     assert_not_zero $?
-    assert_true '[[ "${output}" =~ newlines ]]'
+    [[ "${output}" =~ newlines ]] || die
 }
 
 ETEST_pack_lots_of_data()

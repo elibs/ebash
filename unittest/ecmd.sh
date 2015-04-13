@@ -1,8 +1,7 @@
 
 ecmd_quoting_func()
 {
-    local args
-    args=("${@}")
+    local args=("${@}")
     einfo "$(lval args)"
     assert_eq "a"     "$1"
     assert_eq "b c"   "$2"
@@ -32,7 +31,8 @@ ETEST_ecmd_dies_on_failure()
     )
 
     assert_eq 1 $?
-    assert_true 'echo "$output" | grep -q ecmd_dies_on_failure_func'
+    einfo $(lval output)
+    echo "$output" | grep -q ecmd_dies_on_failure_func || die
 }
 
 ETEST_ecmd_try_quoting()
