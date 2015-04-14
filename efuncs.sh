@@ -162,36 +162,14 @@ ebanner()
     # key and lookup value via print_value.
     declare -A __details
     
-    array_init entries "$*"
-
+    local entries=("${@}")
     for k in "${entries[@]}"; do
 
-        # Magically expand arrays prefixed with bang operator ('!') to allow
-        # more natural logging of elements within an array or an associative
-        # array individiaually within the details section instead of all on
-        # one line. The implementation of this terrible because bash doesn't
-        # actually support natural things like exporting an array or passing
-        # an array between functions. Worse, you can't just say something
-        # simple like: eval ${!MYARRAY[${key}]} because that would just be
-        # too simple. SO... the way this works is to use declare -p to create
-        # a new local array to this function from the named one that was passed
-        # in and then lookup the requested key in _THAT_ array. Magic.
-        if [[ ${k:0:1} == "!" ]]; then
-            
-            local array_name="${k:1}"
-            local code="$(declare -p ${array_name})"
-            code=${code/${array_name}/array}
-            eval "${code}"
+        local _ktag="${k%%=*}"; [[ -z ${_ktag} ]] && _ktag="${k}"
+        local _kval="${k#*=}";
+        _ktag=${_ktag#+}
+        __details[${_ktag}]=$(print_value ${_kval})
 
-            for akey in ${!array[@]}; do
-                __details[${akey}]=$(print_value "${array[$akey]}")
-            done
-        else
-            local _ktag="${k%%=*}"; [[ -z ${_ktag} ]] && _ktag="${k}"
-            local _kval="${k#*=}";
-            _ktag=${_ktag#+}
-            __details[${_ktag}]=$(print_value ${_kval})
-        fi
     done
   
     # Now output all the details (if any)
@@ -594,14 +572,13 @@ eprogress_killall()
 # Specifically:
 #
 # - Strings: delimited by double quotes.
-# - Arrays: Delimited by ( ).
-# - Associative Arrays: Delimited by { }
+# - Arrays and associative arrays: Delimited by ( ).
 # - Packs: You must preceed the pack name with a plus sign (i.e. +pack)
 #
 # Examples:
 # String: "value1"
 # Arrays: ("value1" "value2 with spaces" "another")
-# Associative Arrays: {[key1]="value1" [key2]="value2 with spaces"}
+# Associative Arrays: ([key1]="value1" [key2]="value2 with spaces" )
 print_value()
 {
     local __input=${1}
@@ -614,43 +591,16 @@ print_value()
         return
     fi
 
-    # Magically expand things of the form MYARRAY[key] to allow more natural
-    # logging of elements within an array or an associative array. The
-    # implementation of this terrible because bash doesn't actually support
-    # natural things like exporting an array or passing an array between
-    # functions. Worse, you can't just say something simple like:
-    # eval ${!MYARRAY[${key}]} because that would just be too simple.
-    # SO... the way this works is to use declare -p to create a new local
-    # array to this function from the named one that was passed in and then
-    # lookup the requested key in _THAT_ array. Magic.
-    if [[ ${__input} =~ (.*)\[(.*)\] ]] ; then
-        local array_name=${BASH_REMATCH[1]}
-        local key_name=${BASH_REMATCH[2]}
-        local code=$(declare -p ${array_name})
-        code=${code/${array_name}/array}
-        eval "${code}"
-
-        # FINALLY we can lookup the requested key from our new local array.
-        echo -n "\"${array[$key_name]}\""
-
-        return
-    fi
-
     local decl=$(declare -p ${__input} 2>/dev/null)
     local val=$(echo "${decl}")
     val=${val#*=}
 
-    # If decl is empty just print out it's raw value as it's NOT a variable!!
-    # This is really important so that you can do simple things like
-    # $(print_value /home/marshall) and it'll just pass through that value
-    # as is but with the proper formatting and quoting.
-    [[ -z ${decl} ]] && val='"'${__input}'"'
-
-    # Deal with properly delcared variables which are empty
+    # Deal with properly declared variables which are empty
     [[ -z ${val} ]] && val='""'
 
     # Special handling for arrays and associative arrays
-    [[ ${decl} =~ "declare -a" ]] && { val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
+    regex="declare -[aA]"
+    [[ ${decl} =~ ${regex} ]] && { val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
 
     echo -n "${val}"
 }
@@ -1935,8 +1885,7 @@ pack_import_global()
 #
 pack_export()
 {
-    local _pack_export_pack=$1
-    shift
+    local _pack_export_pack=$1 ; shift
 
     local _pack_export_args=()
     for _pack_export_arg in "${@}" ; do
@@ -1976,7 +1925,8 @@ pack_print()
 
 _pack_print_item()
 {
-    echo -n "[$1]=$(print_value "$2") "
+    edebug "_pack_print_item $1 $2"
+    echo -n "[$1]=\"$2\" "
 }
 
 _unpack()
@@ -1992,6 +1942,36 @@ _pack()
 #-----------------------------------------------------------------------------
 # JSON
 #-----------------------------------------------------------------------------
+
+# Convert each argument, in turn, to json in an appropriate way and drop them
+# all in a single json blob.
+#
+to_json()
+{
+    echo -n "{"
+    local _notfirst _arg
+    for _arg in "${@}" ; do
+        [[ -n ${_notfirst} ]] && echo -n ","
+
+        local _arg_noqual=$(discard_qualifiers ${_arg})
+        echo -n "$(json_escape ${_arg_noqual}):"
+        if is_pack ${_arg} ; then
+            pack_to_json ${_arg}
+
+        elif is_array ${_arg} ; then
+            array_to_json ${_arg}
+
+        elif is_associative_array ${_arg} ; then
+            associative_array_to_json ${_arg}
+
+        else
+            json_escape "$(eval echo \${${_arg}})"
+        fi
+
+        _notfirst=true
+    done
+    echo -n "}"
+}
 
 # Convert an array specified by name (i.e ARRAY not ${ARRAY} or ${ARRAY[@]})
 # into a json array containing the same data.
@@ -2013,6 +1993,24 @@ array_to_json()
     echo "]"
 }
 
+associative_array_to_json()
+{
+    echo -n "{"
+    local _notfirst _key
+    edebug "1=$1"
+    for _key in $(eval echo "\${!$1[@]}") ; do
+        edebug $(lval _key)
+        [[ -n ${_notfirst} ]] && echo -n ","
+
+        echo -n $(json_escape ${_key})
+        echo -n ':' 
+        echo -n $(json_escape "$(eval echo \${$1[$_key]})")
+
+        _notfirst=true
+    done
+    echo -n "}"
+}
+
 # Convert a single pack into a json blob where the keys are the same as the
 # keys from the pack (and so are the values)
 #
@@ -2020,11 +2018,12 @@ pack_to_json()
 {
     [[ -z ${1} ]] && die "pack_to_json requires a pack to be specified as \$1"
 
-    local _key _notfirst
+    local _pack _key _notfirst
+    _pack=$(discard_qualifiers $1)
     echo -n "{"
-    for _key in $(pack_keys ${1}) ; do
+    for _key in $(pack_keys ${_pack}) ; do
         [[ -n ${_notfirst} ]] && echo -n ","
-        echo -n '"'${_key}'":'"$(json_escape "$(pack_get ${1} ${_key})")"
+        echo -n '"'${_key}'":'"$(json_escape "$(pack_get ${_pack} ${_key})")"
         _notfirst=true
     done
     echo -n "}"
@@ -2037,6 +2036,36 @@ json_escape()
 {
     echo -n "$1" \
         | python -c 'import json,sys; print json.dumps(sys.stdin.read())'
+}
+
+#-----------------------------------------------------------------------------
+# Type detection
+#-----------------------------------------------------------------------------
+
+# These functions take a parameter that is a variable NAME and allow you to
+# determine information about that variable name.
+#
+# Detecting packs relies on the bashutils convention of "if the first character
+# of the name is a +, consider it a pack)
+
+is_array()
+{
+    [[ "$(declare -p $1 2>/dev/null)" =~ ^declare\ -a ]]
+}
+
+is_associative_array()
+{
+    [[ "$(declare -p $1 2>/dev/null)" =~ ^declare\ -A ]]
+}
+
+is_pack()
+{
+    [[ "${1:0:1}" == '+' ]] 
+}
+
+discard_qualifiers()
+{
+    echo "${1##+}"
 }
 
 #-----------------------------------------------------------------------------
