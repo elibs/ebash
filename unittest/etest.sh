@@ -1,5 +1,4 @@
 
-
 ETEST_etest_no_cross_contamination_A()
 {
     CROSS_CONTAMINATION_A=1

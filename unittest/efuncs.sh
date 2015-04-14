@@ -58,3 +58,54 @@ ETEST_fully_qualify_hostname_ignores_case()
     assert_eq 'bdr-es56.eng.solidfire.net' $(fully_qualify_hostname bdr-es56)
     assert_eq 'bdr-es56.eng.solidfire.net' $(fully_qualify_hostname BDR-ES56)
 }
+
+ETEST_print_value()
+{
+    VAR=a
+    assert_eq '"a"' "$(print_value VAR)"
+
+    VAR="A[b]"
+    assert_eq '"A[b]"' "$(print_value VAR)"
+
+    ARRAY=(a b "c d")
+    assert_eq '("a" "b" "c d")' "$(print_value ARRAY)"
+
+    declare -A AA
+    AA[alpha]="1 2 3"
+    AA[beta]="4 5 6"
+
+    assert_eq '([alpha]="1 2 3" [beta]="4 5 6" )' "$(print_value AA)"
+
+    unset V
+    assert_eq '""' "$(print_value V)"
+
+    assert_eq '""' "$(print_value /usr/local/share)"
+}
+
+ETEST_detect_var_types()
+{
+    A=a
+    ARRAY=(1 2 3)
+
+    declare -A AA
+    AA[alpha]=1
+    AA[beta]=2
+
+    pack_set P A=1
+
+    is_array A && die
+    is_associative_array A && die
+    is_pack A && die
+
+    is_array               ARRAY || die
+    is_associative_array   ARRAY && die
+    is_pack                ARRAY && dei
+
+    is_array               AA && die
+    is_associative_array   AA || die
+    is_pack                AA && die
+
+    is_array               +P && die
+    is_associative_array   +P && die
+    is_pack                +P || die
+}
