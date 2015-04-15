@@ -126,16 +126,8 @@ etimestamp()
 # Display a very prominent banner with a provided message which may be multi-line
 # and an optional timestamp as well as the ability to provide any number of extra
 # arguments which will be included in the banner in a pretty printed tag=value
-# format. Additionally, for any argument which is an associative array, you can 
-# choose if you want it logged as a signale parameter or expanded into tag=value
-# within the details section. If you want it logged as a single parameter inside
-# the details section just pass it by name as you always would. If instead you want
-# the associative array expanded for you into multiple tag=value pairs to be each
-# included individually in the details section precede the parameter name with a '!'
-# as in !ARRAY.
-# 
-# All of this is implemented with print_value to give consistency in how we log
-# and present information.
+# format. All of this is implemented with print_value to give consistency in how
+# we log and present information.
 ebanner()
 {
     local cols lines entries
