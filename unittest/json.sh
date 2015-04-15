@@ -15,7 +15,7 @@ ETEST_json_escape()
     [[ ${escaped} =~ ${quote} ]] || die
 
     # Make sure there isn't still a newline in the string
-    assert_eq 1 $(echo "${escaped}" | wc -l)
+    assert_eq 0 $(echo -n "${escaped}" | wc -l)
 }
 
 ETEST_array_to_json()
@@ -75,6 +75,10 @@ ETEST_all_to_json()
 
     assert_eq "${AA[alpha]}" "$(echo ${json} | jq .AA.alpha --raw-output)"
     assert_eq "${AA[beta]}"  "$(echo ${json} | jq .AA.beta --raw-output)"
+
+    # NOTE: We can't check $json here, because the $( ) that we used when we
+    # assigned to it will strip off any newlines at the end.
+    assert_eq 0 $(to_json AA A ARRAY +P | wc -l)
 }
 
 ETEST_AA_to_json()
