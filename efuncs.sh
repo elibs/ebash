@@ -1965,7 +1965,7 @@ to_json()
             associative_array_to_json ${_arg}
 
         else
-            json_escape "$(eval echo \${${_arg}})"
+            json_escape "$(eval echo -n \${${_arg}})"
         fi
 
         _notfirst=true
@@ -1990,7 +1990,7 @@ array_to_json()
         notfirst=true
     done
 
-    echo "]"
+    echo -n "]"
 }
 
 associative_array_to_json()
@@ -1998,13 +1998,13 @@ associative_array_to_json()
     echo -n "{"
     local _notfirst _key
     edebug "1=$1"
-    for _key in $(eval echo "\${!$1[@]}") ; do
+    for _key in $(eval echo -n "\${!$1[@]}") ; do
         edebug $(lval _key)
         [[ -n ${_notfirst} ]] && echo -n ","
 
         echo -n $(json_escape ${_key})
         echo -n ':' 
-        echo -n $(json_escape "$(eval echo \${$1[$_key]})")
+        echo -n $(json_escape "$(eval echo -n \${$1[$_key]})")
 
         _notfirst=true
     done
@@ -2035,7 +2035,7 @@ pack_to_json()
 json_escape()
 {
     echo -n "$1" \
-        | python -c 'import json,sys; print json.dumps(sys.stdin.read())'
+        | python -c 'import json,sys; sys.stdout.write(json.dumps(sys.stdin.read()))'
 }
 
 #-----------------------------------------------------------------------------
