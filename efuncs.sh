@@ -1022,7 +1022,7 @@ eunmount_recursive()
         local rdev=$(readlink -m ${m})
         [[ -z ${rdev} ]] && die
         
-        for p in $(grep --perl-regexp "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur); do
+        for p in $(grep --perl-regexp "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -r); do
             [[ ${first} -eq 1 ]] && { first=0; einfo "Recursively unmounting ${@}"; }
             eunmount ${p}
         done
