@@ -84,8 +84,10 @@ global_setup()
 global_teardown()
 {
     argcheck TEST_DIR_OUTPUT
-    eunmount_recursive ${TEST_DIR_OUTPUT}
-    [[ ${ETEST_CLEAN:-1} -eq 1 ]] && erm ${TEST_DIR_OUTPUT}
+    if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
+        eunmount_recursive ${TEST_DIR_OUTPUT}
+        erm ${TEST_DIR_OUTPUT}
+    fi
 }
 
 test_setup()
@@ -107,8 +109,10 @@ test_teardown()
 
     # Unit test infrastructure teardown
     argcheck testfunc
-    eunmount_recursive ${TEST_DIR_OUTPUT}/${testfunc}
-    [[ ${ETEST_CLEAN:-1} -eq 1 ]] && erm ${TEST_DIR_OUTPUT}/${testfunc}
+    if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
+        eunmount_recursive ${TEST_DIR_OUTPUT}/${testfunc}
+        erm ${TEST_DIR_OUTPUT}/${testfunc}
+    fi
 
     return 0
 }
@@ -154,7 +158,9 @@ for testfile in ${TEST_DIR}/*.sh ; do
                 test_setup
                 trap_add \"{ test_teardown; exit 1; }\" HUP INT QUIT BUS PIPE TERM
                 cd ${TEST_DIR_OUTPUT}/${testfunc}
-                EFUNCS_FATAL=0 ${testfunc}
+                (
+                    EFUNCS_FATAL=0 ${testfunc}
+                )
                 test_teardown
             ) &> \$(edebug_out)
             }"
