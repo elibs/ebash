@@ -9,7 +9,6 @@ ETEST_emount_bind()
     ebindmount src dst
     assert_true emounted dst
     assert_true diff src/file dst/file
-    ecmd umount dst
 }
 
 ETEST_emount_unmount()
@@ -90,7 +89,7 @@ ETEST_emount_bind_count_shared()
     emkdir src
     emkdir dst
 
-    mount --make-shared src
+    emount --make-shared src
 
     # Mount a few times and ensure counter goes up correctly
     local nmounts=10
