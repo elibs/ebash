@@ -35,3 +35,34 @@ ETEST_chroot_create_mount()
 
     check_mounts 0
 }
+
+
+# A problem that we've had repeatedly is after using chroot_mount, our root
+# system gets honked up.  This seems to be related to shared/private mounts.
+# Here we create a file on the root system in /dev/shm, which will go away if
+# that problem occurs.  This seems to occur only on systems that mount /dev as
+# shared initially (e.g. those running systemd)
+ETEST_dont_honk_up_slash_dev_via_shared_mounts()
+{
+    TESTFILE=/dev/shm/ETEST_michael_file_$$
+
+    touch ${TESTFILE}
+    [[ -f ${TESTFILE} ]] || die "Unable to create ${TESTFILE}"
+    trap_add "rm ${TESTFILE}" HUP INT QUIT BUS PIPE TERM EXIT
+
+    # Force /dev to be mounted "shared" so that the following code can test
+    # whether it actually works that way.  This is the default on systemd
+    # boxes, but not others
+    mount --make-shared /dev
+
+    emkdir dev
+
+    ebindmount /dev dev
+    trap_add "ewarn trap ; eunmount dev" HUP INT QUIT BUS PIPE TERM EXIT
+
+    ebindmount /dev dev
+    trap_add "ewarn trap ; eunmount dev" HUP INT QUIT BUS PIPE TERM EXIT
+
+    # So now, while we've done a pair of bind mounts, the file should be missing
+    [[ -f ${TESTFILE} ]] || die "File is missing"
+}

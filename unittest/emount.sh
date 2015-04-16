@@ -6,16 +6,17 @@ ETEST_emount_bind()
 
     # Bind mount and verify mounted and verify content
     emkdir dst
-    emount --bind src dst
+    ebindmount src dst
     assert_true emounted dst
     assert_true diff src/file dst/file
+    ecmd umount dst
 }
 
 ETEST_emount_unmount()
 {
     # Bind mount src to dst
     emkdir src dst
-    emount --bind src dst
+    ebindmount src dst
 
     # Verify mounted, unmount, then verify unmounted
     emounted dst || die
@@ -27,8 +28,8 @@ ETEST_emount_unmount_recursive()
 {
     # Bind mount a couple of nested directories
     emkdir src1 src2 dst/dst1 dst/dst2
-    emount --bind src1 dst/dst1
-    emount --bind src2 dst/dst2
+    ebindmount  src1 dst/dst1
+    ebindmount  src2 dst/dst2
 
     # Verify state
     emounted dst      && die
@@ -45,8 +46,8 @@ ETEST_emount_partial_match()
 {
     # Bind mount a couple of nested directories
     emkdir src1 src2 dst/dst1 dst/dst2
-    emount --bind src1 dst/dst1
-    emount --bind src2 dst/dst2
+    ebindmount  src1 dst/dst1
+    ebindmount  src2 dst/dst2
 
     # Verify state
     emounted dst      && die
@@ -89,10 +90,12 @@ ETEST_emount_bind_count_shared()
     emkdir src
     emkdir dst
 
+    mount --make-shared src
+
     # Mount a few times and ensure counter goes up correctly
     local nmounts=10
     for (( i=0; i<${nmounts}; ++i )); do
-        emount --bind src dst
+        emount --bind  src dst
         emount --make-private dst
         check_mounts dst $((i+1))
     done

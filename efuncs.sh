@@ -968,6 +968,31 @@ ${output}"
         || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
 }
 
+# Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of
+# your mounts are private so that we don't see different behavior between
+# systemd machines (where shared mounts are the default) and everywhere else
+# (where private mounts are the default)
+#
+# Source and destination MUST be the first two parameters of this function.
+# You may specify any other mount options after them.
+#
+ebindmount()
+{
+    $(declare_args src dest)
+
+    # The make-private commands are best effort.  We'll try to mark them as
+    # private so that nothing, for example, inside a chroot can mess up the
+    # machine outside that chroot.
+    #
+    mount --make-private "${src}" &>/dev/null
+    emount --bind "${@}" "${src}" "${dest}"
+    mount --make-private "${target}" &>/dev/null
+
+    # We don't care about the exit status of the make-private call and emount
+    # will die if it fails.
+    return 0
+}
+
 emount()
 {
     einfos "Mounting $@"
