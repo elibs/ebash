@@ -2,7 +2,7 @@
 # Global settings
 $(esource chroot.sh)
 CHROOT=build
-CHROOT_MOUNTS=( /dev /proc /sys )
+CHROOT_MOUNTS=( /dev /dev/pts /proc /sys )
 
 check_mounts()
 {
@@ -36,6 +36,24 @@ ETEST_chroot_create_mount()
     check_mounts 0
 }
 
+# Ensure if we have multiple chroot_mounts going on that we can successfully
+# unmount them properly using a single call to eunmount_recursive. 
+ETEST_chroot_create_mount_unmount_recursive()
+{
+    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
+    check_mounts 0
+
+    # Mount a few times and verify counts go up
+    local nmounts=10
+    for (( i=0; i<${nmounts}; ++i )); do
+        chroot_mount
+        check_mounts $((i+1))
+    done
+
+    # One eunmount_recursive should clean everything up.
+    eunmount_recursive ${CHROOT}
+    check_mounts 0
+}
 
 # A problem that we've had repeatedly is after using chroot_mount, our root
 # system gets honked up.  This seems to be related to shared/private mounts.

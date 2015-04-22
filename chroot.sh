@@ -21,7 +21,6 @@ chroot_mount()
 
     for m in ${CHROOT_MOUNTS[@]}; do 
         emkdir ${CHROOT}${m}
-
         ebindmount ${m} ${CHROOT}${m}
     done
 

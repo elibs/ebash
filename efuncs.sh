@@ -1001,33 +1001,36 @@ emount()
 
 eunmount()
 {
-    local first=1
+    local mnt
+    for mnt in $@; do
+        emounted ${mnt} || continue
+        local rdev=$(readlink -m ${mnt})
+        argcheck rdev
 
-    for m in $@; do
-        emounted ${m} || continue
-        
-        local rdev=$(readlink -m ${m})
-        [[ -z ${rdev} ]] && die
-
-        [[ ${first} -eq 1 ]] && { first=0; einfos "Unmounting ${@}"; }
+        einfos "Unmounting ${mnt}"
         ecmd umount -l "${rdev}"
     done
 }
 
 eunmount_recursive()
 {
-    local first=1
+    local mnt
+    for mnt in $@; do
+        local rdev=$(readlink -m ${mnt})
+        argcheck rdev
 
-    for m in $@; do
-        local rdev=$(readlink -m ${m})
-        [[ -z ${rdev} ]] && die
-        
-        for p in $(grep --perl-regexp "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -r); do
-            [[ ${first} -eq 1 ]] && { first=0; einfo "Recursively unmounting ${@}"; }
-            eunmount ${p}
+        while [[ true ]]; do
+            local matches=$(grep --perl-regexp "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur)
+            edebug "$(lval mnt rdev matches)"
+            [[ -z ${matches} ]] && break
+
+            einfo "Recursively unmounting ${mnt}"
+            local match
+            for match in "${matches}"; do
+                eunmount ${match//${rdev}/${mnt}}
+            done
         done
     done
-
 }
 
 #-----------------------------------------------------------------------------
