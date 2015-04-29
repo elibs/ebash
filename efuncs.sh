@@ -140,7 +140,7 @@ ebanner()
     echo -e "|" >&2
 
     # Print the first message honoring any newlines
-    array_init_nl lines "${1}" ; shift
+    array_init_nl lines "${1}"; shift
     for line in "${lines[@]}"; do
         echo -e "| ${line}" >&2
     done
@@ -1307,8 +1307,7 @@ efetch_with_md5_try()
         # If the requested destination was different than what was originally in the MD5 it will fail.
         # Or if the md5sum file was generated with a different path in it it will fail. This just
         # sanititizes it to have the current working directory and the name of the file we downloaded to.
-        local md5_raw=$(grep -v "#" "${md5_fname}" | awk '{print $1}')
-        echo "${md5_raw}  ${dst_fname}" > "${md5_fname}"
+        sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${dst_fname}|" "${md5_fname}"
         
         # Now we can perform the check
         md5sum --check "${md5_fname}" >/dev/null
