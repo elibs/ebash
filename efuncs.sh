@@ -1498,6 +1498,9 @@ setvars()
     $(declare_args filename ?callback)
     edebug "Setting variables $(lval filename callback)"
 
+    # If this file is a binary file skip it
+    file ${filename} | grep -q ELF && continue
+
     for arg in $(grep -o "__\S\+__" ${filename} | sort --unique); do
         local key="${arg//__/}"
         local val="${!key}"
