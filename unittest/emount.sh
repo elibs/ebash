@@ -89,12 +89,10 @@ ETEST_emount_bind_count_shared()
     emkdir src
     emkdir dst
 
-    emount --make-shared src
-
     # Mount a few times and ensure counter goes up correctly
     local nmounts=10
     for (( i=0; i<${nmounts}; ++i )); do
-        emount --bind  src dst
+        emount --bind src dst
         emount --make-private dst
         check_mounts dst $((i+1))
     done

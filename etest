@@ -158,10 +158,10 @@ for testfile in ${TEST_DIR}/*.sh ; do
                 test_setup
                 trap_add \"{ test_teardown; exit 1; }\" HUP INT QUIT BUS PIPE TERM
                 cd ${TEST_DIR_OUTPUT}/${testfunc}
-                (
-                    EFUNCS_FATAL=0 ${testfunc}
-                )
+                ( EFUNCS_FATAL=0 ${testfunc}; return 0; )
+                local rc=\$?
                 test_teardown
+                exit \${rc}
             ) &> \$(edebug_out)
             }"
 
