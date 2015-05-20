@@ -2133,7 +2133,7 @@ import_json()
         local val=$(echo "${json}" | jq -r .${key})
         opt_enabled "u" && key=$(echo "${key}" | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))')
 
-        cmd+="${_json_import_qualifier} ${key}=${val};"
+        cmd+="${_json_import_qualifier} ${key}=\"${val}\";"
     done
 
     echo -n "eval ${cmd}"
