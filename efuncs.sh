@@ -2122,8 +2122,8 @@ json_escape()
 import_json()
 {
     $(declare_args json)
-    local _json_import_qualifier=""
-    opt_true "e" && _json_import_qualifer="export"
+    local _import_json_qualifier=""
+    opt_true "e" && _import_json_qualifier="export"
 
     local _json_import_keys=("${@}")
     [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(echo "${json}" | jq -c -r keys)"
@@ -2133,7 +2133,7 @@ import_json()
         local val=$(echo "${json}" | jq -r .${key})
         opt_true "u" && key=$(echo "${key}" | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))')
 
-        cmd+="${_json_import_qualifier} ${key}=\"${val}\";"
+        cmd+="${_import_json_qualifier} ${key}=\"${val}\";"
     done
 
     echo -n "eval ${cmd}"

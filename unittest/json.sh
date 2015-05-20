@@ -132,15 +132,10 @@ ETEST_import_json_upper_snake_case()
 
 ETEST_import_json_export()
 {
-    local file="import_json_export.sh"
-    cat <<-EOF > ${file}
 	json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
-	\$(import_json -ue "\${json}")
+	$(import_json -ue "${json}")
 	argcheck DRIVE_SIZE LSI_FIRMWARE
-	return 0
-	EOF
-    einfo "$(cat ${file})"
-
-    $(esource ${file})
-	argcheck DRIVE_SIZE LSI_FIRMWARE
+    
+    assert_eq 'declare -x DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
+    assert_eq 'declare -x LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
 }
