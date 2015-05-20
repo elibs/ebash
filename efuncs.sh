@@ -722,6 +722,64 @@ getsubnet()
     printf "%d.%d.%d.%d" "$((i1 & m1))" "$(($i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
 }
 
+# Get list of network interfaces
+get_network_interfaces()
+{
+    ls -1 /sys/class/net | egrep -v '(bonding_masters|Bond)' | tr '\n' ' '
+}
+
+# Get list network interfaces with specified "Supported Ports" query.
+get_network_interfaces_with_port()
+{
+    local query="$1"
+    local ifname port
+    local results=()
+
+    for ifname in $(get_network_interfaces); do
+        port=$(ethtool ${ifname} | grep "Supported ports:")
+        [[ ${port} =~ "${query}" ]] && results+=( ${ifname} )
+    done
+
+    echo -n "${results[@]}"
+}
+
+# Get list of 1G network interfaces
+get_network_interfaces_1g()
+{
+    get_network_interfaces_with_port "TP"
+}
+
+# Get list of 10G network interfaces
+get_network_interfaces_10g()
+{
+    get_network_interfaces_with_port "FIBRE"
+}
+
+# Get the permanent MAC address for given ifname via ethtool
+get_permanent_mac_address()
+{
+    local ifname="$1"
+    ethtool -P ${ifname} | sed 's|Permanent address: ||'
+}
+
+# Export ethernet device names in the form ETH_1G_0=eth0, etc.
+export_network_interface_names()
+{
+    local idx=0
+    local ifname
+
+    for ifname in $(get_network_interfaces_10g); do
+        eval "ETH_10G_${idx}=${ifname}"
+        ((idx++))
+    done
+
+    idx=0
+    for ifname in $(get_network_interfaces_1g); do
+        eval "ETH_1G_${idx}=${ifname}"
+        ((idx++))
+    done
+}
+
 #-----------------------------------------------------------------------------
 # FILESYSTEM HELPERS
 #-----------------------------------------------------------------------------
