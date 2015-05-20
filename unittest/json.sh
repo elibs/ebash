@@ -101,3 +101,46 @@ ETEST_to_json_single()
     echo ${json} | jq .
     assert_eq "${A}" "$(echo ${json} | jq --raw-output .A)"
 }
+
+ETEST_import_json()
+{
+    json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
+    $(import_json "${json}")
+    argcheck driveSize lsiFirmware
+    assert_eq "100"     "${driveSize}"
+    assert_eq "1.0.2.3" "${lsiFirmware}"
+}
+
+ETEST_import_json_explicit_keys()
+{
+    json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }'
+    $(import_json "${json}" driveSize lsiFirmware)
+    argcheck driveSize lsiFirmware
+    assert_eq "100"     "${driveSize}"
+    assert_eq "1.0.2.3" "${lsiFirmware}"
+    assert_empty        "${sliceDriveSize}"
+}
+
+ETEST_import_json_upper_snake_case()
+{
+    json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
+    $(import_json -u "${json}")
+    argcheck DRIVE_SIZE LSI_FIRMWARE
+    assert_eq "100"     "${DRIVE_SIZE}"
+    assert_eq "1.0.2.3" "${LSI_FIRMWARE}"
+}
+
+ETEST_import_json_export()
+{
+    local file="import_json_export.sh"
+    cat <<-EOF > ${file}
+	json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
+	\$(import_json -ue "\${json}")
+	argcheck DRIVE_SIZE LSI_FIRMWARE
+	return 0
+	EOF
+    einfo "$(cat ${file})"
+
+    $(esource ${file})
+	argcheck DRIVE_SIZE LSI_FIRMWARE
+}
