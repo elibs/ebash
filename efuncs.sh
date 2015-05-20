@@ -1229,7 +1229,7 @@ declare_args_internal()
     local _declare_args_caller=( $(caller 1) )
     local _declare_args_options="_${_declare_args_caller[1]}_options"
     _declare_args_cmd+="declare ${_declare_args_options}='';"
-    _declare_args_cmd+="[[ \${1:0:1} == '-' ]] && { pack_set ${_declare_args_options} \"\$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' ')\"; shift; };"
+    _declare_args_cmd+="[[ \${1:0:1} == '-' ]] && { pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' '); shift; };"
 
     while shift; do
         [[ $# -eq 0 ]] && break
