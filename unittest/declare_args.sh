@@ -67,7 +67,7 @@ ETEST_declare_args_anonymous()
 # Verify if we declare a GLOBAL variable in one function we can see it in another.
 do_declare_global()
 {
-    $(declare_globals ?G1)
+    $(declare_args -g ?G1)
     G1="GLOBAL1"
 }
 
@@ -79,7 +79,7 @@ ETEST_declare_args_global()
 
 do_declare_export()
 {
-    $(declare_exports ?G2)
+    $(declare_args -e ?G2)
     G2="GLOBAL2"
 }
 

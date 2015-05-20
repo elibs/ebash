@@ -117,13 +117,13 @@ ETEST_array_init_default_delim()
 
 ETEST_array_init_json()
 {
-    array_init_json arr '[ "Kant", "Hobbes", "Locke" ]'
+    array_init_json arr '[ "Immanual Kant", "Thomas Hobbes", "John Locke" ]'
     declare -p arr
     assert_eq 3 $(array_size arr)
 
-    assert_eq "Kant"   "${arr[0]}"
-    assert_eq "Hobbes" "${arr[1]}"
-    assert_eq "Locke"  "${arr[2]}"
+    assert_eq "Immanual Kant" "${arr[0]}"
+    assert_eq "Thomas Hobbes" "${arr[1]}"
+    assert_eq "John Locke"    "${arr[2]}"
 }
 
 ETEST_array_contains()
