@@ -1212,9 +1212,17 @@ argcheck()
 
 # declare_args takes a list of names and declares a variable for each name from
 # the positional arguments in the CALLER's context. It also implicitly looks for
-# any options which may have been passed into the called function in the first argument.
-# Options MUST be in the first argument and they must begin with a single '-'. All
-# of these options will get exported into an internal pack named after the caller's
+# any options which may have been passed into the called function in the initial
+# arguments and stores them into an internal pack for later inspection.
+#
+# Options Rules:
+# (0) Will repeatedily parse first argument and shift so long as first arg contains
+#     options.
+# (1) Only single character arguments are supported
+# (2) Options may be grouped if they do not take arguments (e.g. -abc == -a -b -c)
+# (3) Options may take arguments by using an equal sign (e.g. -a=foobar -b="x y z")
+# 
+# All options will get exported into an internal pack named after the caller's
 # function. If the caller's function name is 'foo' then the internal pack is named
 # '_foo_options'. Instead of interacting with this pack direclty simply use the
 # helper methods: opt_true, opt_false, opt_get.
@@ -1277,7 +1285,13 @@ declare_args()
     local _declare_args_options="_${_declare_args_caller[1]}_options"
     _declare_args_cmd+="declare ${_declare_args_options}='';"
     if [[ ${_declare_args_parse_options} -eq 1 ]]; then
-        _declare_args_cmd+="[[ \${1:0:1} == '-' ]] && { pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' '); shift; };"
+        _declare_args_cmd+="
+        while [[ \${1:0:1} == '-' ]]; do  
+            [[ \${1:1} =~ '=' ]] 
+                && pack_set ${_declare_args_options} \${1:1}
+                || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' ');
+        shift;
+        done;"
     fi
 
     while [[ $# -gt 0 ]]; do
@@ -2154,11 +2168,15 @@ json_escape()
 # OPTIONS:
 # -u: If this option is present, all keys will be converted into upper snake case.
 # -e: If this option is present, all variables will be exported.
+# -p: Prefix all keys with provided key
 import_json()
 {
     $(declare_args json)
     local _import_json_qualifier=""
     opt_true "e" && _import_json_qualifier="export"
+
+    # Lookup optional prefix to use
+    local _import_json_prefix=$(opt_get p)
 
     local _json_import_keys=("${@}")
     [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(echo "${json}" | jq -c -r keys)"
@@ -2168,7 +2186,7 @@ import_json()
         local val=$(echo "${json}" | jq -r .${key})
         opt_true "u" && key=$(echo "${key}" | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))')
 
-        cmd+="${_import_json_qualifier} ${key}=\"${val}\";"
+        cmd+="${_import_json_qualifier} ${_import_json_prefix}${key}=\"${val}\";"
     done
 
     echo -n "eval ${cmd}"

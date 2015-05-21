@@ -139,3 +139,13 @@ ETEST_import_json_export()
     assert_eq 'declare -x DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
     assert_eq 'declare -x LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
 }
+
+ETEST_import_json_prefix()
+{
+	json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
+    $(import_json -u -p=FOO_ "${json}")
+    argcheck FOO_DRIVE_SIZE FOO_LSI_FIRMWARE
+
+    assert_eq "100"     "${FOO_DRIVE_SIZE}"
+    assert_eq "1.0.2.3" "${FOO_LSI_FIRMWARE}"
+}
