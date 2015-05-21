@@ -1250,10 +1250,10 @@ argcheck()
 #    NOT an anonymous variable.
 #
 # OPTIONS:
-# -n Do not parse options at all
-# -l Emit local variables with 'local' scope qualifier
-# -g Emit global variables with no scope qualifier
-# -e Emit exported variables with 'export' keyword
+# -n: Do not parse options at all
+# -l: Emit local variables with 'local' scope qualifier (default)
+# -g: Emit global variables with no scope qualifier
+# -e: Emit exported variables with 'export' keyword
 #
 # WARNING: DO NOT CALL EDEBUG INSIDE THIS FUNCTION OR YOU WILL CAUSE INFINITE RECURSION!!
 declare_args()
@@ -1967,9 +1967,9 @@ pack_iterate()
 #  $(pack_import pack a)
 #
 # OPTIONS:
-# -l Emit local variables
-# -g Emit global (non-local) variables
-# -e Emit exported variables
+# -l: Emit local variables with 'local' scope qualifier (default)
+# -g: Emit global variables with no scope qualifier
+# -e: Emit exported variables with 'export' keyword
 pack_import()
 {
     $(declare_args _pack_import_pack)
@@ -2166,13 +2166,19 @@ json_escape()
 # $(import_json "${json}")
 #
 # OPTIONS:
-# -u: If this option is present, all keys will be converted into upper snake case.
-# -e: If this option is present, all variables will be exported.
-# -p: Prefix all keys with provided key
+# -l: Emit local variables with 'local' scope qualifier (default)
+# -g: Emit global variables with no scope qualifier
+# -e: Emit exported variables with 'export' keyword
+# -u: Convert all keys into upper snake case.
+# -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
 import_json()
 {
     $(declare_args json)
-    local _import_json_qualifier=""
+    
+    # Determine requested scope for the variables
+    local _import_json_qualifier="local"
+    opt_true "l" && _import_json_qualifier="local"
+    opt_true "g" && _import_json_qualifier=""
     opt_true "e" && _import_json_qualifier="export"
 
     # Lookup optional prefix to use
