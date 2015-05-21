@@ -45,8 +45,8 @@ ETEST_emount_partial_match()
 {
     # Bind mount a couple of nested directories
     emkdir src1 src2 dst/dst1 dst/dst2
-    ebindmount  src1 dst/dst1
-    ebindmount  src2 dst/dst2
+    ebindmount src1 dst/dst1
+    ebindmount src2 dst/dst2
 
     # Verify state
     emounted dst      && die
@@ -102,4 +102,57 @@ ETEST_emount_bind_count_shared()
         eunmount dst
         check_mounts dst $((i-1))
     done
+}
+
+# Test bugfix where if you bind mount a directory (or file) and later 
+# remove the source of the bind mount then we were unable to unmount
+# the destination mount point and it would get caught in an infinite
+# loop.
+ETEST_emount_deleted()
+{
+    einfo "Creating src and dst"
+    emkdir src
+    emkdir dst
+    einfo "Bind mounting src to dst"
+    emount --bind src dst
+    emounted dst || die
+    assert_eq 1 $(emount_count dst)
+
+    # Remove the source of the bind mount and verify we still
+    # recongize it's mounted (as we had a bug in emounted as well).
+    einfo "Remove src and verify still mounted"
+    erm src
+    emounted dst || die
+    assert_eq 1 $(emount_count dst)
+
+    # Ensure eunmount_recursive can unmount it and doesn't hang.
+    einfo "Unmount dst and verify not mounted"
+    eunmount dst
+    emounted dst && die
+    assert_eq 0 $(emount_count dst)
+}
+
+# Same as above but explicitly test eunmount_recursive
+ETEST_emount_deleted_recursive()
+{
+    einfo "Creating src and dst"
+    emkdir src
+    emkdir dst
+    einfo "Bind mounting src to dst"
+    emount --bind src dst
+    emounted dst || die
+    assert_eq 1 $(emount_count dst)
+
+    # Remove the source of the bind mount and verify we still
+    # recongize it's mounted (as we had a bug in emounted as well).
+    einfo "Remove src and verify still mounted"
+    erm src
+    emounted dst || die
+    assert_eq 1 $(emount_count dst)
+
+    # Ensure eunmount_recursive can unmount it and doesn't hang.
+    einfo "Unmount dst and verify not mounted"
+    eunmount_recursive dst
+    emounted dst && die
+    assert_eq 0 $(emount_count dst)
 }

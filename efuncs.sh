@@ -998,28 +998,45 @@ emd5sum_check()
 # MOUNT / UMOUNT UTILS
 #-----------------------------------------------------------------------------                                    
 
+# Helper method to take care of resolving a given path or mount point to its
+# realpath as well as remove any errant '\040(deleted)' which may be suffixed
+# on the path. This can happen if a device's source mount point is deleted
+# while the destination path is still mounted.
+emount_realpath()
+{
+    $(declare_args path)
+    path="${path//\\040\(deleted\)/}"
+    echo -n "$(readlink -m ${path} 2>/dev/null)"
+}
+
+# Echo the emount regex for a given path
+emount_regex()
+{
+    $(declare_args path)
+    echo -n "(^| )${path}(\\\\040\\(deleted\\))* "
+}
+
 # Echo the number of times a given directory is mounted.
 emount_count()
 {
     $(declare_args path)
-    path=$(readlink -m ${path} 2>/dev/null)
-    path=${path//[[:space:]]}
-    local num_mounts=$(grep --count --perl-regexp "(^| )${path} " /proc/mounts)
+    path=$(emount_realpath ${path})
+    local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts)
     echo -n ${num_mounts}
 }
 
 emounted()
 {
     $(declare_args path)
-    path=$(readlink -m ${path} 2>/dev/null)
+    path=$(emount_realpath ${path})
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
     local output="" rc=0
-    output=$(grep --perl-regexp "(^| )${path} " /proc/mounts)
+    output=$(grep --perl-regexp "$(emount_regex ${path})" /proc/mounts)
     rc=$?
 
-    edebug "Checking if $(lval path) is mounted:
-${output}"
+    [[ -n ${output} ]] && output="\n${output}"
+    edebug "Checking if $(lval path) is mounted:${output}"
 
     [[ ${rc} -eq 0 ]] \
         && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
@@ -1041,10 +1058,9 @@ ebindmount()
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
     # machine outside that chroot.
-    #
-    mount --make-private "${src}" &>/dev/null
+    mount --make-private "${src}" &>$(edebug_out)
     emount --bind "${@}" "${src}" "${dest}"
-    mount --make-private "${target}" &>/dev/null
+    mount --make-private "${dest}" &>$(edebug_out)
 
     # We don't care about the exit status of the make-private call and emount
     # will die if it fails.
@@ -1062,7 +1078,7 @@ eunmount()
     local mnt
     for mnt in $@; do
         emounted ${mnt} || continue
-        local rdev=$(readlink -m ${mnt})
+        local rdev=$(emount_realpath ${mnt})
         argcheck rdev
 
         einfos "Unmounting ${mnt}"
@@ -1070,19 +1086,38 @@ eunmount()
     done
 }
 
+# Recursively find all mount points beneath a given root.
+# This is like findmnt with a few additional enhancements:
+# (1) Automatically recusrive
+# (2) findmnt doesn't find mount points beneath a non-root directory
+efindmnt()
+{
+    $(declare_args path)
+    path=$(emount_realpath ${path})
+
+    # First check if the requested path itself is mounted
+    emounted "${path}" && echo "${path}"
+
+    # Now look for anything beneath that directory
+    grep --perl-regexp "(^| )${path}[/ ]" /proc/mounts | awk '{print $2}' | sed '/^$/d'
+}
+
 eunmount_recursive()
 {
     local mnt
     for mnt in $@; do
-        local rdev=$(readlink -m ${mnt})
+        local rdev=$(emount_realpath ${mnt})
         argcheck rdev
 
         while [[ true ]]; do
-            local matches=$(grep --perl-regexp "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur)
+
+            # If this path is directly mounted or anything BENEATH it is mounted then proceed
+            local matches="$(efindmnt ${mnt} | sort -ur)"
             edebug "$(lval mnt rdev matches)"
             [[ -z ${matches} ]] && break
 
-            einfo "Recursively unmounting ${mnt}"
+            local nmatches=$(echo "${matches}" | wc -l)
+            einfo "Recursively unmounting ${mnt} (${nmatches})"
             local match
             for match in "${matches}"; do
                 eunmount ${match//${rdev}/${mnt}}
