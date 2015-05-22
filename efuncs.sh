@@ -2163,13 +2163,13 @@ json_escape()
 # methods inside bashutils, this uses the 'eval command invocation string' idom.
 # So, the proper calling convention for this is:
 #
-# $(import_json)
+# $(json_import)
 #
 # By default this function operates on stdin. Alternatively you can change it to
 # operate on a file via -f. To use via STDIN use one of these idioms:
 #
-# $(import_json <<< ${json})
-# $(curl ... | $(import_json)
+# $(json_import <<< ${json})
+# $(curl ... | $(json_import)
 #
 # OPTIONS:
 # -l: Emit local variables with 'local' scope qualifier (default)
@@ -2179,43 +2179,43 @@ json_escape()
 # -u: Convert all keys into upper snake case.
 # -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
 # -q: Use JQ style query expression on given JSON before parsing.
-import_json()
+json_import()
 {
     $(declare_args)
 
     # Determine requested scope for the variables
-    local _import_json_qualifier="local"
-    opt_true "l" && _import_json_qualifier="local"
-    opt_true "g" && _import_json_qualifier=""
-    opt_true "e" && _import_json_qualifier="export"
+    local _json_import_qualifier="local"
+    opt_true "l" && _json_import_qualifier="local"
+    opt_true "g" && _json_import_qualifier=""
+    opt_true "e" && _json_import_qualifier="export"
 
     # Lookup optional prefix to use
-    local _import_json_prefix="$(opt_get p)"
+    local _json_import_prefix="$(opt_get p)"
 
     # Lookup optional jq query to use
-    local _import_json_query="$(opt_get q)"
-    : ${_import_json_query:=.}
+    local _json_import_query="$(opt_get q)"
+    : ${_json_import_query:=.}
 
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
     # In either case read into a local variable so we can parse it repeatedly in this function.
-    local _import_json_filename="$(opt_get f)"
-    : ${_import_json_filename:=-}
-    local _import_json_data=$(cat ${_import_json_filename} | jq -r "${_import_json_query}")
+    local _json_import_filename="$(opt_get f)"
+    : ${_json_import_filename:=-}
+    local _json_import_data=$(cat ${_json_import_filename} | jq -r "${_json_import_query}")
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
-    local _import_json_keys=("${@}")
-    [[ ${#_import_json_keys} -eq 0 ]] && array_init_json _import_json_keys "$(jq -c -r keys <<< ${_import_json_data})"
+    local _json_import_keys=("${@}")
+    [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
 
     # Debugging
-    edebug $(lval _import_json_prefix _import_json_query _import_json_filename _import_json_data)
+    edebug $(lval _json_import_prefix _json_import_query _json_import_filename _json_import_data)
 
     local cmd key val
-    for key in "${_import_json_keys[@]}"; do
-        local val=$(jq -r .${key} <<< ${_import_json_data})
+    for key in "${_json_import_keys[@]}"; do
+        local val=$(jq -r .${key} <<< ${_json_import_data})
         edebug $(lval key val)
         opt_true "u" && key=$(echo "${key}" | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))')
 
-        cmd+="${_import_json_qualifier} ${_import_json_prefix}${key}=\"${val}\";"
+        cmd+="${_json_import_qualifier} ${_json_import_prefix}${key}=\"${val}\";"
     done
 
     echo -n "eval ${cmd}"
