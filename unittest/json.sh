@@ -102,91 +102,91 @@ ETEST_to_json_single()
     assert_eq "${A}" "$(echo ${json} | jq --raw-output .A)"
 }
 
-ETEST_import_json()
+ETEST_json_import()
 {
-    $(import_json <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    $(json_import <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
     argcheck driveSize lsiFirmware
     assert_eq "100"     "${driveSize}"
     assert_eq "1.0.2.3" "${lsiFirmware}"
 }
 
-ETEST_import_json_explicit_keys()
+ETEST_json_import_explicit_keys()
 {
-    $(import_json driveSize lsiFirmware <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
+    $(json_import driveSize lsiFirmware <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
     argcheck driveSize lsiFirmware
     assert_eq "100"     "${driveSize}"
     assert_eq "1.0.2.3" "${lsiFirmware}"
     assert_empty        "${sliceDriveSize}"
 }
 
-ETEST_import_json_upper_snake_case()
+ETEST_json_import_upper_snake_case()
 {
-    $(import_json -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    $(json_import -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
 
     argcheck DRIVE_SIZE LSI_FIRMWARE
     assert_eq "100"     "${DRIVE_SIZE}"
     assert_eq "1.0.2.3" "${LSI_FIRMWARE}"
 }
 
-ETEST_import_json_default_local()
+ETEST_json_import_default_local()
 {
-    $(import_json -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    $(json_import -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
 	argcheck DRIVE_SIZE LSI_FIRMWARE
     
     assert_eq 'declare -- DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
     assert_eq 'declare -- LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
 }
 
-ETEST_import_json_local()
+ETEST_json_import_local()
 {
-    $(import_json -ul <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    $(json_import -ul <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
 	argcheck DRIVE_SIZE LSI_FIRMWARE
     
     assert_eq 'declare -- DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
     assert_eq 'declare -- LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
 }
 
-ETEST_import_json_export()
+ETEST_json_import_export()
 {
-    $(import_json -ue <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    $(json_import -ue <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
 	argcheck DRIVE_SIZE LSI_FIRMWARE
     
     assert_eq 'declare -x DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
     assert_eq 'declare -x LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
 }
 
-ETEST_import_json_prefix()
+ETEST_json_import_prefix()
 {
-    $(import_json -u -p=FOO_ <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    $(json_import -u -p=FOO_ <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
     argcheck FOO_DRIVE_SIZE FOO_LSI_FIRMWARE
 
     assert_eq "100"     "${FOO_DRIVE_SIZE}"
     assert_eq "1.0.2.3" "${FOO_LSI_FIRMWARE}"
 }
 
-ETEST_import_json_query()
+ETEST_json_import_query()
 {
-    $(import_json -q=".R620.SF6010" <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    $(json_import -q=".R620.SF6010" <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
     argcheck driveSize foo
 
     assert_eq "200" "${driveSize}"
     assert_eq "2"   "${foo}"
 }
 
-ETEST_import_json_query_keys()
+ETEST_json_import_query_keys()
 {
-    $(import_json -q=".R620.SF6010" driveSize <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    $(json_import -q=".R620.SF6010" driveSize <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
     argcheck driveSize
 
     assert_eq "200" "${driveSize}"
     assert_empty    "${foo}"
 }
 
-ETEST_import_json_query_keys_file()
+ETEST_json_import_query_keys_file()
 {
     echo '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }' > file.json
     cat file.json
-    $(import_json -q=".R620.SF6010" -f=file.json driveSize)
+    $(json_import -q=".R620.SF6010" -f=file.json driveSize)
 
     argcheck driveSize
 
@@ -194,7 +194,7 @@ ETEST_import_json_query_keys_file()
     assert_empty    "${foo}"
 }
 
-ETEST_import_json_query_platform()
+ETEST_json_import_query_platform()
 {
     local json='
     { "hardwareConfig": [
@@ -262,7 +262,7 @@ ETEST_import_json_query_platform()
 
     local CHASSIS_TYPE="R620"
     local NODE_TYPE="SF3010"
-    $(import_json -u -q='.hardwareConfig[]|select(.chassisType == "'${CHASSIS_TYPE}'" and .nodeType == "'${NODE_TYPE}'")' blockDriveSize sliceBufferCacheGb <<< ${json})
+    $(json_import -u -q='.hardwareConfig[]|select(.chassisType == "'${CHASSIS_TYPE}'" and .nodeType == "'${NODE_TYPE}'")' blockDriveSize sliceBufferCacheGb <<< ${json})
     argcheck BLOCK_DRIVE_SIZE SLICE_BUFFER_CACHE_GB
 
     assert_eq "300069052416" "${BLOCK_DRIVE_SIZE}"
