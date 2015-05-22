@@ -104,8 +104,7 @@ ETEST_to_json_single()
 
 ETEST_import_json()
 {
-    json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
-    $(import_json "${json}")
+    $(import_json <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
     argcheck driveSize lsiFirmware
     assert_eq "100"     "${driveSize}"
     assert_eq "1.0.2.3" "${lsiFirmware}"
@@ -113,8 +112,7 @@ ETEST_import_json()
 
 ETEST_import_json_explicit_keys()
 {
-    json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }'
-    $(import_json "${json}" driveSize lsiFirmware)
+    $(import_json driveSize lsiFirmware <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
     argcheck driveSize lsiFirmware
     assert_eq "100"     "${driveSize}"
     assert_eq "1.0.2.3" "${lsiFirmware}"
@@ -123,8 +121,8 @@ ETEST_import_json_explicit_keys()
 
 ETEST_import_json_upper_snake_case()
 {
-    json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
-    $(import_json -u "${json}")
+    $(import_json -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+
     argcheck DRIVE_SIZE LSI_FIRMWARE
     assert_eq "100"     "${DRIVE_SIZE}"
     assert_eq "1.0.2.3" "${LSI_FIRMWARE}"
@@ -132,8 +130,7 @@ ETEST_import_json_upper_snake_case()
 
 ETEST_import_json_default_local()
 {
-	json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
-	$(import_json -u "${json}")
+    $(import_json -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
 	argcheck DRIVE_SIZE LSI_FIRMWARE
     
     assert_eq 'declare -- DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
@@ -142,8 +139,7 @@ ETEST_import_json_default_local()
 
 ETEST_import_json_local()
 {
-	json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
-	$(import_json -ul "${json}")
+    $(import_json -ul <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
 	argcheck DRIVE_SIZE LSI_FIRMWARE
     
     assert_eq 'declare -- DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
@@ -152,8 +148,7 @@ ETEST_import_json_local()
 
 ETEST_import_json_export()
 {
-	json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
-	$(import_json -ue "${json}")
+    $(import_json -ue <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
 	argcheck DRIVE_SIZE LSI_FIRMWARE
     
     assert_eq 'declare -x DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
@@ -162,10 +157,114 @@ ETEST_import_json_export()
 
 ETEST_import_json_prefix()
 {
-	json='{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }'
-    $(import_json -u -p=FOO_ "${json}")
+    $(import_json -u -p=FOO_ <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
     argcheck FOO_DRIVE_SIZE FOO_LSI_FIRMWARE
 
     assert_eq "100"     "${FOO_DRIVE_SIZE}"
     assert_eq "1.0.2.3" "${FOO_LSI_FIRMWARE}"
+}
+
+ETEST_import_json_query()
+{
+    $(import_json -q=".R620.SF6010" <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    argcheck driveSize foo
+
+    assert_eq "200" "${driveSize}"
+    assert_eq "2"   "${foo}"
+}
+
+ETEST_import_json_query_keys()
+{
+    $(import_json -q=".R620.SF6010" driveSize <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    argcheck driveSize
+
+    assert_eq "200" "${driveSize}"
+    assert_empty    "${foo}"
+}
+
+ETEST_import_json_query_keys_file()
+{
+    echo '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }' > file.json
+    cat file.json
+    $(import_json -q=".R620.SF6010" -f=file.json driveSize)
+
+    argcheck driveSize
+
+    assert_eq "200" "${driveSize}"
+    assert_empty    "${foo}"
+}
+
+ETEST_import_json_query_platform()
+{
+    local json='
+    { "hardwareConfig": [
+        {   
+            "chassisType": "R620",
+            "nodeType": "SF3010",
+            "biosRevision": "1.0",
+            "biosVendor": "SolidFire",
+            "biosVersion": "1.1.2",
+            "blockDriveSize": "300069052416",
+            "bmcFirmwareRevision": "1.6",
+            "bmcIpmiVersion": "2.0",
+            "cpu": "Intel(R) Xeon(R) CPU E5-2640 0 @ 2.50GHz",
+            "cpuCores": "6",
+            "cpuCoresEnabled": "6",
+            "cpuThreads": "12",
+            "driveSizeInternal": "400088457216",
+            "idracVersion": "1.06.06",
+            "lifecycleVersion": "1.0.0.5747",
+            "memoryGbPretty": "72",
+            "memoryKb": "70000000",
+            "memoryMhz": "1333",
+            "networkDriver": "^bnx2x$",
+            "numCpu": "2",
+            "numDrives": "10",
+            "numDrivesInternal": "1",
+            "rootDrive": "/dev/sdimm0",
+            "rpcPostCallbackThreads": "8",
+            "scsiBusExternalDriver": "mpt2sas",
+            "scsiBusInternalDriver": "ahci",
+            "sliceBufferCacheGb": "16",
+            "sliceDriveSize": "299992412160"
+        },  
+        {   
+            "chassisType": "R620",
+            "nodeType": "SF6010",
+            "biosRevision": "1.0",
+            "biosVendor": "SolidFire",
+            "biosVersion": "1.1.2",
+            "blockDriveSize": "600127266816",
+            "bmcFirmwareRevision": "1.6",
+            "bmcIpmiVersion": "2.0",
+            "cpu": "Intel(R) Xeon(R) CPU E5-2640 0 @ 2.50GHz",
+            "cpuCores": "6",
+            "cpuCoresEnabled": "6",
+            "cpuThreads": "12",
+            "driveSizeInternal": "100030242816",
+            "idracVersion": "1.06.06",
+            "lifecycleVersion": "1.0.0.5747",
+            "memoryGbPretty": "72",
+            "memoryKb": "70000000",
+            "memoryMhz": "1333",
+            "networkDriver": "^bnx2x$",
+            "numCpu": "2",
+            "numDrives": "10",
+            "numDrivesInternal": "1",
+            "rootDrive": "/dev/sdimm0",
+            "rpcPostCallbackThreads": "8",
+            "scsiBusExternalDriver": "mpt2sas",
+            "scsiBusInternalDriver": "ahci",
+            "sliceBufferCacheGb": "64",
+            "sliceDriveSize": "299992412160"
+        }
+    ]}'
+
+    local CHASSIS_TYPE="R620"
+    local NODE_TYPE="SF3010"
+    $(import_json -u -q='.hardwareConfig[]|select(.chassisType == "'${CHASSIS_TYPE}'" and .nodeType == "'${NODE_TYPE}'")' blockDriveSize sliceBufferCacheGb <<< ${json})
+    argcheck BLOCK_DRIVE_SIZE SLICE_BUFFER_CACHE_GB
+
+    assert_eq "300069052416" "${BLOCK_DRIVE_SIZE}"
+    assert_eq "16"           "${SLICE_BUFFER_CACHE_GB}"
 }

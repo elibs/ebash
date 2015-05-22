@@ -1288,7 +1288,7 @@ declare_args()
         _declare_args_cmd+="
         while [[ \${1:0:1} == '-' ]]; do  
             [[ \${1:1} =~ '=' ]] 
-                && pack_set ${_declare_args_options} \${1:1}
+                && pack_set ${_declare_args_options} \"\${1:1}\"
                 || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' ');
         shift;
         done;"
@@ -2163,18 +2163,26 @@ json_escape()
 # methods inside bashutils, this uses the 'eval command invocation string' idom.
 # So, the proper calling convention for this is:
 #
-# $(import_json "${json}")
+# $(import_json)
+#
+# By default this function operates on stdin. Alternatively you can change it to
+# operate on a file via -f. To use via STDIN use one of these idioms:
+#
+# $(import_json <<< ${json})
+# $(curl ... | $(import_json)
 #
 # OPTIONS:
 # -l: Emit local variables with 'local' scope qualifier (default)
 # -g: Emit global variables with no scope qualifier
 # -e: Emit exported variables with 'export' keyword
+# -f: Parse the contents of provided file instead of stdin (e.g. -f=MyFile)
 # -u: Convert all keys into upper snake case.
 # -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
+# -q: Use JQ style query expression on given JSON before parsing.
 import_json()
 {
-    $(declare_args json)
-    
+    $(declare_args)
+
     # Determine requested scope for the variables
     local _import_json_qualifier="local"
     opt_true "l" && _import_json_qualifier="local"
@@ -2182,14 +2190,29 @@ import_json()
     opt_true "e" && _import_json_qualifier="export"
 
     # Lookup optional prefix to use
-    local _import_json_prefix=$(opt_get p)
+    local _import_json_prefix="$(opt_get p)"
 
-    local _json_import_keys=("${@}")
-    [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(echo "${json}" | jq -c -r keys)"
+    # Lookup optional jq query to use
+    local _import_json_query="$(opt_get q)"
+    : ${_import_json_query:=.}
+
+    # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
+    # In either case read into a local variable so we can parse it repeatedly in this function.
+    local _import_json_filename="$(opt_get f)"
+    : ${_import_json_filename:=-}
+    local _import_json_data=$(cat ${_import_json_filename} | jq -r "${_import_json_query}")
+
+    # Check if explicit keys are requested. If not, slurp all keys in from provided data.
+    local _import_json_keys=("${@}")
+    [[ ${#_import_json_keys} -eq 0 ]] && array_init_json _import_json_keys "$(jq -c -r keys <<< ${_import_json_data})"
+
+    # Debugging
+    edebug $(lval _import_json_prefix _import_json_query _import_json_filename _import_json_data)
 
     local cmd key val
-    for key in "${_json_import_keys[@]}"; do
-        local val=$(echo "${json}" | jq -r .${key})
+    for key in "${_import_json_keys[@]}"; do
+        local val=$(jq -r .${key} <<< ${_import_json_data})
+        edebug $(lval key val)
         opt_true "u" && key=$(echo "${key}" | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))')
 
         cmd+="${_import_json_qualifier} ${_import_json_prefix}${key}=\"${val}\";"
