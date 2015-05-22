@@ -1641,6 +1641,7 @@ setvars()
 {
     $(declare_args filename ?callback)
     edebug "Setting variables $(lval filename callback)"
+    [[ -f ${filename} ]] || die "$(lval filename) does not exist"
 
     # If this file is a binary file skip it
     file ${filename} | grep -q ELF && continue
