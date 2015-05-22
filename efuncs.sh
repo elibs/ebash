@@ -990,7 +990,7 @@ emd5sum_check()
     local dname=$(dirname  "${path}")
 
     epushd "${dname}"
-    ecmd md5sum -c "${fname}.md5"
+    ecmd md5sum -c "${fname}.md5" >$(edebug_out)
     epopd
 }
 
