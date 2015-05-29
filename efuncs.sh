@@ -2061,6 +2061,39 @@ _pack()
 }
 
 #-----------------------------------------------------------------------------
+# STRING MANIPULATION
+#-----------------------------------------------------------------------------
+
+# Convert a given input string into "upper snake case". This is generally most
+# useful when converting a "CamelCase" string although it will work just as
+# well on non-camel case input. Essentially it looks for all upper case letters
+# and puts an underscore before it, then uppercase the entire input string.
+#
+# For example:
+# 
+# sliceDriveSize => SLICE_DRIVE_SIZE
+# slicedrivesize => SLICEDRIVESIZE
+#
+# It has some special handling for some common corner cases where the normal
+# camel case idiom isn't well followed. The best example for this is around
+# units (e.g. MB, GB). Consider "sliceDriveSizeGB" where SLICE_DRIVE_SIZE_GB
+# is preferable to SLICE_DRIVE_SIZE_G_B.
+# 
+# The current list of translation corner cases this handles:
+# KB, MB, GB, TB
+to_upper_snake_case()
+{
+    $(declare_args input)
+
+    echo "${input}"         \
+        | sed -e 's|KB|Kb|' \
+              -e 's|MB|Mb|' \
+              -e 's|GB|Gb|' \
+              -e 's|TB|Tb|' \
+        | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))'
+}
+
+#-----------------------------------------------------------------------------
 # JSON
 #-----------------------------------------------------------------------------
 
@@ -2180,6 +2213,7 @@ json_escape()
 # -u: Convert all keys into upper snake case.
 # -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
 # -q: Use JQ style query expression on given JSON before parsing.
+# -x: Keys to exclude while importing
 json_import()
 {
     $(declare_args)
@@ -2207,14 +2241,20 @@ json_import()
     local _json_import_keys=("${@}")
     [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
 
+    # Get list of optional keys to exclude
+    local _json_import_keys_excluded
+    array_init _json_import_keys_excluded "$(opt_get x)"
+
     # Debugging
-    edebug $(lval _json_import_prefix _json_import_query _json_import_filename _json_import_data)
+    edebug $(lval _json_import_prefix _json_import_query _json_import_filename _json_import_data _json_import_keys _json_import_keys_excluded)
 
     local cmd key val
     for key in "${_json_import_keys[@]}"; do
+        array_contains _json_import_keys_excluded ${key} && continue
+
         local val=$(jq -r .${key} <<< ${_json_import_data})
         edebug $(lval key val)
-        opt_true "u" && key=$(echo "${key}" | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))')
+        opt_true "u" && key=$(to_upper_snake_case "${key}")
 
         cmd+="${_json_import_qualifier} ${_json_import_prefix}${key}=\"${val}\";"
     done
