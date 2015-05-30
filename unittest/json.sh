@@ -192,6 +192,16 @@ ETEST_json_import_exclude_keys()
     assert_empty  "${driveSize}"
 }
 
+ETEST_json_import_exclude_multiple_keys()
+{
+    $(json_import -q=".R620.SF3010" -x="driveSize bar" <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1, "bar": 3 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    argcheck foo
+
+    assert_eq "1" "${foo}"
+    assert_empty  "${bar}"
+    assert_empty  "${driveSize}"
+}
+
 ETEST_json_import_query_keys_file()
 {
     echo '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }' > file.json
