@@ -2213,7 +2213,8 @@ json_escape()
 # -u: Convert all keys into upper snake case.
 # -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
 # -q: Use JQ style query expression on given JSON before parsing.
-# -x: Keys to exclude while importing
+# -x: Whitespace sparated list of keys to exclude while importing. If using multiple
+#     keys use quotes around them: -x "foo bar"
 json_import()
 {
     $(declare_args)
