@@ -39,10 +39,44 @@ chroot_unmount()
     done
 }
 
+chroot_prompt()
+{
+    $(declare_args ?name)
+    argcheck CHROOT
+
+    # If no name given use basename of CHROOT
+    : ${name:=CHROOT-$(basename ${CHROOT})}
+
+    # Determine what shell to generate chroot prompt for
+    local shell="$(opt_get s)"
+    : ${shell:=${SHELL}}
+    local shellrc="${HOME}/.$(basename ${shell})rc"
+    local shellrc_prompt="${shellrc}.prompt"
+
+    # Check if already sourcing promptrc
+    grep -q "${shellrc_prompt}" ${CHROOT}${shellrc} && { edebug "Already sourcing promptrc in ${shellrc}"; return 0; }
+
+    edebug "Creating chroot_prompt $(lval shell shellrc shellrc_prompt)"
+
+    # ZSH just HAS to be different
+    if [[ ${shell} =~ zsh ]]; then
+        echo "prompt off"
+        echo "PS1=\"%F{green}%n@%M %F{blue}%d%f\\n\$ \""
+        echo "PS1=\"%F{red}[${name}]%f \$PS1\""
+    else
+        echo "PS1=\"\[$(ecolor green)\]\u@\h \[$(ecolor blue)\]\w$(ecolor none)\\n\$ \""
+        echo "PS1=\"\[$(ecolor red)\][${name}] \$PS1\""
+    fi > ${CHROOT}${shellrc_prompt}
+
+    echo ". ${shellrc_prompt}" >> ${CHROOT}${shellrc}
+}
+
 chroot_shell()
 {
+    $(declare_args ?name)
     argcheck CHROOT
     
+    chroot_prompt ${name}
     chroot ${CHROOT} ${CHROOT_ENV}
 }
 
@@ -377,6 +411,111 @@ chroot_setup()
     echo ""
 
     ) || { chroot_unmount; die "chroot_setup failed"; }
+}
+
+#-----------------------------------------------------------------------------
+# CHROOT_DAEMON FUCNTIONS
+#-----------------------------------------------------------------------------
+
+chroot_daemon_start()
+{
+    # Parse required arguments. Any remaining options will be passed to the daemon.
+    $(declare_args exe)
+    argcheck CHROOT
+
+    # Determine pretty name to display from optional -n
+    local name="$(opt_get n)"
+    : ${name:=$(basename ${exe})}
+
+    # Determmine optional pidfile
+    local pidfile="$(opt_get p)"
+    : ${pidfile:=/var/run/$(basename ${exe})}
+
+    ## Info
+    einfo "Starting ${name}"
+    edebug "Starting $(lval CHROOT name exe pidfile) args=${@}"
+
+    # Construct a subprocess which bind mounds chroot mount points then executes
+    # requested daemon. After the daemon complets automatically unmount chroot.
+    ( chroot_mount && chroot_cmd_try ${exe} "${@}"; chroot_unmount ) &>$(edebug_out) &
+
+    # Get the PID of the process we just created and store into requested pid file.
+    local pid=$!
+    emkdir $(dirname ${pidfile})
+    echo "${pid}" > "${pidfile}"
+
+    # Give the daemon a second to startup and then check its status. If it blows
+    # up immediately we'll catch the error immediately and be able to let the
+    # caller know that startup failed.
+    sleep 1
+    chroot_daemon_status -n="${name}" "${pidfile}" &>$(edebug_out) \
+        || die "Failed to start chroot daemon $(lval name exe pidfile)"
+   
+    eend 0
+    return 0
+}
+
+chroot_daemon_stop()
+{
+    # Parse required arguments.
+    $(declare_args exe)
+    argcheck CHROOT
+
+    # Determine pretty name to display from optional -n
+    local name="$(opt_get n)"
+    : ${name:=$(basename ${exe})}
+
+    # Determmine optional pidfile
+    local pidfile="$(opt_get p)"
+    : ${pidfile:=/var/run/$(basename ${exe})}
+
+    # Determine optional signal to use
+    local signal="$(opt_get s)"
+    : ${signal:=TERM}
+
+    # Info
+    einfo "Stopping ${name}"
+    edebug "Stopping $(lval CHROOT name exe pidfile signal)"
+
+    # If it's not running just return (with failure)
+    chroot_daemon_status -n="${name}" "${pidfile}" &>$(edebug_out) \
+        || { eend 1; ewarns "Already stopped"; eend 1; return 0; }
+
+    # If it is running stop it with optional signal
+    local pid=$(cat ${pidfile} 2>/dev/null)
+    ekilltree ${pid} ${signal}
+    erm ${pidfile}
+    eend 0
+}
+
+chroot_daemon_status()
+{
+    # Parse required arguments
+    $(declare_args)
+    argcheck CHROOT
+
+    # Determine pretty name to display from optional -n
+    local name="$(opt_get n)"
+    : ${name:=$(basename ${exe})}
+
+    # Determmine optional pidfile
+    local pidfile="$(opt_get p)"
+    argcheck pidfile
+
+    einfo "Checking ${name}"
+    edebug "Checking $(lval CHROOT name pidfile)"
+
+    # Check pidfile
+    [[ -e ${pidfile} ]] || { eend 1; ewarns "Not Running (no pidfile)"; return 1; }
+    local pid=$(cat ${pidfile} 2>/dev/null)
+    [[ -z ${pid}     ]] && { eend 1; ewarns "Not Running (no pid)"; return 1; } 
+   
+    # Send a signal to process to see if it's running
+    kill -0 ${pid} &>/dev/null || { eend 1; ewarns "Not Running"; return 1; }
+
+    # OK -- It's running
+    eend 0
+    return 0
 }
 
 #/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
