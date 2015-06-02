@@ -75,9 +75,13 @@ chroot_shell()
 {
     $(declare_args ?name)
     argcheck CHROOT
-    
+
+    # Setup CHROOT prompt
     chroot_prompt ${name}
-    chroot ${CHROOT} ${CHROOT_ENV}
+
+    # Mount then enter chroot. Do it all in a subshell so that we ensure we properly
+    # unmount when we're finished.
+    ( chroot_mount && chroot ${CHROOT} ${CHROOT_ENV}; chroot_unmount; )
 }
 
 chroot_cmd()
