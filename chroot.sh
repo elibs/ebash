@@ -448,7 +448,7 @@ chroot_daemon_start()
     # up immediately we'll catch the error immediately and be able to let the
     # caller know that startup failed.
     sleep 1
-    chroot_daemon_status -n="${name}" "${pidfile}" &>$(edebug_out) \
+    chroot_daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out) \
         || die "Failed to start chroot daemon $(lval name exe pidfile)"
    
     eend 0
@@ -478,7 +478,7 @@ chroot_daemon_stop()
     edebug "Stopping $(lval CHROOT name exe pidfile signal)"
 
     # If it's not running just return (with failure)
-    chroot_daemon_status -n="${name}" "${pidfile}" &>$(edebug_out) \
+    chroot_daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out) \
         || { eend 1; ewarns "Already stopped"; eend 1; return 0; }
 
     # If it is running stop it with optional signal
@@ -494,13 +494,13 @@ chroot_daemon_status()
     $(declare_args)
     argcheck CHROOT
 
-    # Determine pretty name to display from optional -n
-    local name="$(opt_get n)"
-    : ${name:=$(basename ${exe})}
-
-    # Determmine optional pidfile
-    local pidfile="$(opt_get p)"
+    # pidfile is required
+    local pidfile=$(opt_get p)
     argcheck pidfile
+
+    # Determine pretty name to display from optional -n
+    local name=$(opt_get n)
+    : ${name:=$(basename ${pidfile})}
 
     einfo "Checking ${name}"
     edebug "Checking $(lval CHROOT name pidfile)"
