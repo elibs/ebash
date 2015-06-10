@@ -533,7 +533,8 @@ eprogress_kill()
     fi
 
     # Get the most recent pid
-    local pids=( ${__EPROGRESS_PIDS} )
+    local pids=()
+    array_init pids "${__EPROGRESS_PIDS}"
     if [[ ${#pids} -gt 0 ]]; then
         ekill ${pids[0]} ${signal} &>/dev/null
         export __EPROGRESS_PIDS="${pids[@]:1}"
