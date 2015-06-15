@@ -919,6 +919,16 @@ esource()
     echo -n "eval "${cmd}""
 }
 
+pushd()
+{
+    builtin pushd "${@}" >/dev/null
+}
+
+popd()
+{
+    builtin popd "${@}" >/dev/null
+}
+
 # chmod + chown
 echmodown()
 {
@@ -983,9 +993,9 @@ emd5sum()
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
 
-    pushd -n "${dname}"
+    pushd "${dname}"
     md5sum "${fname}"
-    popd -n
+    popd
 }
 
 # Wrapper around checking an md5sum file by pushd into the directory that contains
@@ -999,9 +1009,9 @@ emd5sum_check()
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
 
-    pushd -n "${dname}"
+    pushd "${dname}"
     md5sum -c "${fname}.md5" >$(edebug_out)
-    popd -n
+    popd
 }
 
 #-----------------------------------------------------------------------------                                    
