@@ -1,12 +1,106 @@
 #!/bin/bash
 # 
-# Copyright 2011-2014, SolidFire, Inc. All rights reserved.
+# Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
+
+#-----------------------------------------------------------------------------
+# GLOBAL EFUNCS SETTINGS
+#-----------------------------------------------------------------------------
+set -o pipefail
+shopt -s expand_aliases
+
+#-----------------------------------------------------------------------------
+# TRY / CATCH
+#-----------------------------------------------------------------------------
+
+# The below aliases allow us to support rich error handling through the use
+# of the try/catch idom typically found in highler level languages. Essentially
+# the 'try' alias creates a subshell and then turns on implicit error handling
+# through "die_on_error" (which essentially just enables 'set -e'). Since this
+# runs in a subshell with fatal error handling enabled, the subshell will
+# immediately exit on failure. The catch block which immediately follows the
+# try block captures the exit status of the subshell and if it's not '0' it 
+# will invoke the catch block to handle the error.
+#
+# Aliases are used in this context instead of functions for several reasons.
+# First, it allows identical constructs to what you find in higher level 
+# languages such as: "try { ... } catch { ... }". Secondly, the ERR trap 
+# cannot be enabled/disabled from within functions but instead must be done
+# at the same level in the call stack. This limitation could be circumvented
+# with "set -E" but then fatal error handling gets inherited by ALL subshells
+# and process substitutions which is extraordinally awful. Without "set -E" the
+# ERR trap is NOT inherited by subshells!
+#
+# One clever trick employed here is to keep track of what level of the try/catch
+# stack we are in so that the parent's ERR trap won't get triggered and cause 
+# the process to exit. Because we WANT the try subshell to exit and allow the
+# failure to be handled inside the catch block. This is also used inside die()
+# so that instead of calling "kill 0" to destroy the whole process tree on
+# failure we instead just exit.
+alias try="
+    [[ \${__EFUNCS_TRY_CATCH_LEVEL} -gt 0 ]] && nodie_on_error
+    (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
+    ( 
+        die_on_error
+    "
+
+# Catch block attached to a preceeding try block. This is a rather complex 
+# alias and it's probably not readily obvious why it jumps through the hoops
+# it is jumping through but trust me they are all important. A few important
+# notes about this alias:
+#
+# (1) Note that the ");" ends the preceeding subshell created by the "try" 
+#     block. Which means that a try block on it's own will be invalid syntax
+#     to try to force try/catch to always be used properly.
+#
+# (2) All of the "|| true" stuff in this alias is extremely important. Without
+#     it the implicit error handling will kick in and the process will be 
+#     terminated immediately instead of allowing the catch() block to handle
+#     the error.
+#
+# (3) It's often really convenient for the catch block to know what the error
+#     code was inside the try block. But that's actually kinda of hard to get
+#     right. So here we capture the error code, and then we employ a curious
+#     "( exit $rc; ) ||" to create a NEW subshell which exits with the original
+#     try block's status. If it was 0 this will do nothing. Otherwise it will
+#     call the catch block handling code. If we didn't care about the nesting
+#     levels this wouldn't be necessary and we could just simplify the catch
+#     alias to "); ||". But knowing the nesting level is really important.
+#
+# (4) The dangling "||" here requries the caller to put something after the
+#     catch block which sufficiently handles the error or the code won't be
+#     valid.
+alias catch=" ); 
+    __EFUNCS_TRY_CATCH_RC=\$? || true 
+    (( __EFUNCS_TRY_CATCH_LEVEL+=-1 || true ))
+    ( exit \${__EFUNCS_TRY_CATCH_RC}; ) || "
+
+# Throw is just a simple wrapper around exit but it looks a little nicer inside
+# a 'try' block to see 'throw' instead of 'exit'.
+declare -r throw
+throw()
+{
+    exit $1
+}
+
+# die_on_error is a simple alias to register our trap handler for ERR. It is
+# extremely important that we use this mechanism instead of the expected
+# 'set -e' so that we have control over how the process exit is handled by
+# calling our own internal 'die' handler. This allows us to either exit or
+# kill the entire process tree as needed.
+#
+# NOTE: This is extremely unobvious, but setting a traip on ERR implicitly
+# enables 'set -e'.
+alias die_on_error="trap 'die [UnhandledError]' ERR"
+
+# Disable calling die() on ERROR.
+alias nodie_on_error="trap - ERR"
 
 #-----------------------------------------------------------------------------
 # TRAPS / DIE / STACKTRACE 
 #-----------------------------------------------------------------------------
 
+declare -r stacktrace
 stacktrace()
 {
     local frame=${1:-1}
@@ -16,18 +110,20 @@ stacktrace()
     done
 }
 
-export DIE_IN_PROGRESS=0
-
+declare -r die
 die()
 {
-    [[ ${DIE_IN_PROGRESS} -eq 1 ]] && exit 1
-    DIE_IN_PROGRESS=1
+    [[ ${__EFUNCS_DIE_IN_PROGRESS} -eq 1 ]] && exit 1 || true
+    __EFUNCS_DIE_IN_PROGRESS=1
     eprogress_killall
 
     eerror_stacktrace "${@}"
-   
-    # If die() is fatal (via EFUNCS_FATAL) go ahead and kill everything in this process tree
-    [[ ${EFUNCS_FATAL:-1} -eq 1 ]] && { trap - EXIT ;  kill 0 ; }
+
+    # Clear our exit handler so we don't cause infinite recursion on suicide
+    trap - EXIT
+    
+    # If this is the outermost try/catch level then kill entire process
+    [[ ${__EFUNCS_TRY_CATCH_LEVEL} -eq 0 ]] && kill 0
 
     exit 1
 }
@@ -37,6 +133,7 @@ die()
 # - 1st arg:  code to add
 # - remaining args:  names of traps to modify
 #
+declare -r trap_add
 trap_add()
 {
     trap_add_cmd=$1; shift || die "${FUNCNAME} usage error"
@@ -66,15 +163,17 @@ declare -f -t trap_add
 # start of any command substitution which you want to be interruptible. 
 # Otherwise, due to bash quirkiness, signals are ignored in command
 # substitution: http://www.tldp.org/LDP/Bash-Beginners-Guide/html/sect_12_01.html.
-trap_and_die()
+declare -r die_on_abort
+die_on_abort()
 {
     local signals=$@
     [[ -z ${signals[@]} ]] && signals=( HUP INT QUIT BUS PIPE TERM )
     trap 'die [killed]' ${signals[@]}
 }
 
-# Default trap
-trap_and_die
+# Default traps
+die_on_abort
+die_on_error
 
 #-----------------------------------------------------------------------------
 # FANCY I/O ROUTINES
@@ -193,7 +292,7 @@ ebanner()
 emsg()
 {
     # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX} | egrep -o "(time|times|level|caller|all)")
+    local emsg_prefix=$(echo ${EMSG_PREFIX} | egrep -o "(time|times|level|caller|all)") || true
 
     $(declare_args color ?symbol level)
     [[ ${EFUNCS_TIME} -eq 1 ]] && emsg_prefix+=time
@@ -261,6 +360,11 @@ edebug_enabled()
     return 1
 }
 
+edebug_disabled()
+{
+    edebug_enabled && return 1 || return 0
+}
+
 edebug()
 {
     edebug_enabled || return 0
@@ -299,8 +403,8 @@ eerror()
 
 eerror_stacktrace()
 {
-    local skip_frames=1
-    [[ $(caller 0 | awk '{print $2}') == "die" ]] && local skip_frames=2 
+    local skip_frames=0
+    [[ $(caller 0 | awk '{print $2}') == "die" ]] && skip_frames=2 || skip_frames=1
 
     echo "" >&2
     eerror "$@"
@@ -390,8 +494,8 @@ eprompt_with_options()
 
     ## Keep reading input until a valid response is given
     while true; do
-        response=$(trap_and_die; eprompt "${msg}")
-        matches=( $(echo "${valid}" | grep -io "^${response}\S*") )
+        response=$(die_on_abort; eprompt "${msg}")
+        matches=( $(echo "${valid}" | grep -io "^${response}\S*") ) || true
         nmatches=${#matches[@]}
         edebug "Response=[${response}] opt=[${opt}] secret=[${secret}] matches=[${matches[@]}] nmatches=[${#matches[@]}] valid=[${valid//\n/ }]"
         [[ ${nmatches} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
@@ -815,96 +919,14 @@ esource()
     echo -n "eval "${cmd}""
 }
 
-epushd()
-{
-    pushd $1 >/dev/null || die "pushd $1 failed"
-}
-
-epopd()
-{
-    popd $1 >/dev/null  || die "popd $1 failed"
-}
-
-emkdir()
-{
-    eval "mkdir -p $@" || die "emkdir $@ failed"
-}
-
-echmod()
-{
-    eval "chmod $@" || die "echmod $@ failed"
-}
-
-echown()
-{
-    eval "chown $@" || die "echown $@ failed"
-}
-
 # chmod + chown
 echmodown()
 {
     [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
     $(declare_args mode owner)
 
-    echmod ${mode} $@
-    echown ${owner} $@
-}
-
-ecp()
-{
-    eval "cp -arL $@" || die "ecp $@ failed"
-}
-
-ecp_try()
-{
-    eval "cp -arL $@" || { rc=$?; ewarn "ecp $@ failed"; return $rc; }
-}
-
-erm()
-{
-    eval "rm -rf $@" || die "rm -rf $@ failed"
-}
-
-erm_try()
-{
-    eval "rm -rf $@" || { rc=$?; ewarn "rm -rf $@ failed"; return $rc; }
-}
-
-ermdir()
-{
-    eval "rmdir $@" || die "rmdir $@ failed"
-}
-
-emv()
-{
-    eval "mv $@" || die "emv $@ failed"
-}
-
-eln()
-{
-    eval "ln $@" || die "eln $@ failed"
-}
-
-ersync()
-{
-    local flags="-azl"
-    [[ ${V} -eq 1 ]] && flags+="vh"
-    eval "rsync ${flags} $@" || die "rsync $@ failed"
-}
-
-erename()
-{
-    $(declare_args src dest)
-
-    emkdir "${dest}"
-    ersync "${src}/" "${dest}/"
-    erm "${src}"
-}
-
-etouch()
-{
-    [[ -z "$@" ]] && die "Missing argument(s)"
-    touch "$@" || die "touch $@ failed"
+    chmod ${mode} $@
+    chown ${owner} $@
 }
 
 # Unmount (if mounted) and remove directory (if it exists) then create it anew
@@ -913,8 +935,8 @@ efreshdir()
     $(declare_args mnt)
 
     eunmount_recursive ${mnt}
-    erm ${mnt}
-    emkdir ${mnt}
+    rm -rf ${mnt}
+    mkdir -p ${mnt}
 }
 
 # Copies the given file to *.bak if it doesn't already exist
@@ -922,14 +944,14 @@ ebackup()
 {
     $(declare_args src)
     
-    [[ -e "${src}" && ! -e "${src}.bak" ]] && ecp "${src}" "${src}.bak"
+    [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak"
 }
 
 erestore()
 {
     $(declare_args src)
     
-    [[ -e "${src}.bak" ]] && emv "${src}.bak" "${src}"
+    [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
 }
 
 etar()
@@ -946,20 +968,7 @@ etar()
         args+=("--auto-compress")
     fi
 
-    ecmd tar "${args[@]}" "${@}"
-}
-
-esed()
-{
-    $(declare_args fname)
-    
-    local cmd="sed -i"
-    for exp in "${@}"; do
-        cmd+=" -e $'${exp}'"
-    done
-
-    cmd+=" $'${fname}'"
-    eval "${cmd}" || die "${cmd} failed"
+    tar "${args[@]}" "${@}"
 }
 
 # Wrapper around computing the md5sum of a file to output just the filename
@@ -974,9 +983,9 @@ emd5sum()
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
 
-    epushd "${dname}"
-    md5sum "${fname}" || die "Failed to compute md5 $(lval path)"
-    epopd
+    pushd -n "${dname}"
+    md5sum "${fname}"
+    popd -n
 }
 
 # Wrapper around checking an md5sum file by pushd into the directory that contains
@@ -990,9 +999,9 @@ emd5sum_check()
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
 
-    epushd "${dname}"
-    ecmd md5sum -c "${fname}.md5" >$(edebug_out)
-    epopd
+    pushd -n "${dname}"
+    md5sum -c "${fname}.md5" >$(edebug_out)
+    popd -n
 }
 
 #-----------------------------------------------------------------------------                                    
@@ -1032,16 +1041,20 @@ emounted()
     path=$(emount_realpath ${path})
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
-    local output="" rc=0
-    output=$(grep --perl-regexp "$(emount_regex ${path})" /proc/mounts)
-    rc=$?
+    (
+        nodie_on_error
+        
+        local output="" rc=0
+        output=$(grep --perl-regexp "$(emount_regex ${path})" /proc/mounts)
+        rc=$?
 
-    [[ -n ${output} ]] && output="\n${output}"
-    edebug "Checking if $(lval path) is mounted:${output}"
+        [[ -n ${output} ]] && output="\n${output}"
+        edebug "Checking if $(lval path) is mounted:${output}"
 
-    [[ ${rc} -eq 0 ]] \
-        && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
-        || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
+        [[ ${rc} -eq 0 ]] \
+            && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
+            || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
+    )
 }
 
 # Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of
@@ -1059,19 +1072,15 @@ ebindmount()
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
     # machine outside that chroot.
-    mount --make-private "${src}" &>$(edebug_out)
+    mount --make-private "${src}" &>$(edebug_out)  || true
     emount --bind "${@}" "${src}" "${dest}"
-    mount --make-private "${dest}" &>$(edebug_out)
-
-    # We don't care about the exit status of the make-private call and emount
-    # will die if it fails.
-    return 0
+    mount --make-private "${dest}" &>$(edebug_out) || true
 }
 
 emount()
 {
     einfos "Mounting $@"
-    ecmd mount "${@}"
+    mount "${@}"
 }
 
 eunmount()
@@ -1083,7 +1092,7 @@ eunmount()
         argcheck rdev
 
         einfos "Unmounting ${mnt}"
-        ecmd umount -l "${rdev}"
+        umount -l "${rdev}"
     done
 }
 
@@ -1097,10 +1106,10 @@ efindmnt()
     path=$(emount_realpath ${path})
 
     # First check if the requested path itself is mounted
-    emounted "${path}" && echo "${path}"
+    emounted "${path}" && echo "${path}" || true
 
     # Now look for anything beneath that directory
-    grep --perl-regexp "(^| )${path}[/ ]" /proc/mounts | awk '{print $2}' | sed '/^$/d'
+    grep --perl-regexp "(^| )${path}[/ ]" /proc/mounts | awk '{print $2}' | sed '/^$/d' || true
 }
 
 eunmount_recursive()
@@ -1207,7 +1216,7 @@ argcheck()
 {
     local _argcheck_arg
     for _argcheck_arg in $@; do
-        [[ -z "${!_argcheck_arg}" ]] && die "Missing argument '${_argcheck_arg}'"
+        [[ -n "${!_argcheck_arg}" ]] || die "Missing argument '${_argcheck_arg}'"
     done
 }
 
@@ -1290,7 +1299,7 @@ declare_args()
         while [[ \${1:0:1} == '-' ]]; do  
             [[ \${1:1} =~ '=' ]] 
                 && pack_set ${_declare_args_options} \"\${1:1}\"
-                || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' ');
+                || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' '; true);
         shift;
         done;"
     fi
@@ -1306,7 +1315,7 @@ declare_args()
         _declare_args_variable="${1#\?}"
 
         # Declare the variable and then call argcheck if required
-        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift; "
+        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift || true; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
 
         shift
@@ -1375,20 +1384,6 @@ override_function()
     eval "declare -rf ${func}"
 }
 
-ecmd()
-{
-    local cmd=("$@")
-    edebug "Executing $(lval cmd)"
-    "${cmd[@]}" || die "Failed to execute $(lval cmd)"
-}
-
-ecmd_try()
-{
-    local cmd=("$@")
-    edebug "Executing $(lval cmd)"
-    "${cmd[@]}" || { rc=$?; ewarn "Failed to execute [$cmd]"; return $rc; }
-}
-
 numcores()
 {
     [[ -e /proc/cpuinfo ]] || die "/proc/cpuinfo does not exist"
@@ -1396,50 +1391,34 @@ numcores()
     echo $(cat /proc/cpuinfo | grep "processor" | wc -l)
 }
 
-efetch_try()
+efetch()
 {
-    local url="${1}"
-    local dst="${2}"; [[ -z ${dst} ]] && dst="/tmp"
-    argcheck url dst
+    $(declare_args url ?dst)
+    [[ -z ${dst} ]] && dst="/tmp"
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
-
-    eprogress "Fetching $(lval url dst)"
     
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
+    eprogress "Fetching $(lval url dst)"
     curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error
-    local rc=$?
-    eprogress_kill $rc
-    [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch $(lval url)"; return $rc; }
-
-    # For backwards compatibility with older scripts this will echo out the downloaded path
-    # if the newer syntax wasn't used
-    [[ -z ${2} ]] && echo -n "${dst}"
-
-    return 0
+    eprogress_kill
 }
 
-efetch()
+efetch_with_md5()
 {
-    efetch_try "${@}" || die
-}
-
-efetch_with_md5_try()
-{
-    local rc=0
-    local url="${1}"
-    local dst="${2}"; [[ -z ${dst} ]] && dst="/tmp"
-    argcheck url dst
+    $(declare_args url ?dst)
+    [[ -z ${dst} ]] && dst="/tmp"
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     local md5="${dst}.md5"
 
     # Fetch the md5 before the payload as we don't need to bother fetching payload if md5 is missing
-    efetch_try "${url}.md5" "${md5}" && efetch_try "${url}" "${dst}" || rc=1
+    try
+    {
+        efetch "${url}.md5" "${md5}"
+        efetch "${url}"     "${dst}"
 
-    ## Verify MD5 -- DELETE any corrupted images
-    if [[ ${rc} -eq 0 ]]; then
-        
+        # Verify MD5 -- DELETE any corrupted images
         einfos "Verifying MD5 $(lval dst md5)"
     
         local dst_dname=$(dirname  "${dst}")
@@ -1447,7 +1426,7 @@ efetch_with_md5_try()
         local md5_dname=$(dirname  "${md5}")
         local md5_fname=$(basename "${md5}")
 
-        epushd "${dst_dname}"
+        cd "${dst_dname}"
         
         # If the requested destination was different than what was originally in the MD5 it will fail.
         # Or if the md5sum file was generated with a different path in it it will fail. This just
@@ -1456,30 +1435,17 @@ efetch_with_md5_try()
         
         # Now we can perform the check
         md5sum --check "${md5_fname}" >/dev/null
-        rc=$?
-        epopd
-    fi
-
-    if [[ ${rc} -ne 0 ]]; then
+    } 
+    catch
+    {
+        local rc=$?
         edebug "Removing $(lval dst md5)"
-        erm "${dst}"
-        erm "${md5}"
-    fi  
-
-    [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch $(lval url)"; return $rc; }
+        rm -rf "${dst}"
+        rm -rf "${md5}"
+        return ${rc}
+    }
 
     einfos "Successfully downloaded $(lval url dst)"
-
-    # For backwards compatibility with older scripts this will echo out the downloaded path
-    # if the newer syntax wasn't used
-    [[ -z ${2} ]] && echo -n "${dst}"
-
-    return 0
-}
-
-efetch_with_md5()
-{
-    efetch_with_md5_try "${@}" || die
 }
 
 netselect()
@@ -1490,7 +1456,7 @@ netselect()
     declare -a results sorted rows
 
     for h in ${hosts}; do
-        local entry=$(trap_and_die; ping -c10 -w5 -q $h 2>/dev/null | \
+        local entry=$(die_on_abort; ping -c10 -w5 -q $h 2>/dev/null | \
             awk '/^PING / {host=$2}
                  /packet loss/ {loss=$6}
                  /min\/avg\/max/ {
@@ -1525,9 +1491,8 @@ netselect()
 # seconds and retrying up to a specified count.  If the command is successful,
 # retries stop.  If not, eretry will "die".
 #
-# If you use EFUNCS_FATAL=0, rather than calling die, eretry will return the
-# error code from the last attempt. Commands that timeout will return exit code
-# 124, unless they die from sigkill in which case they'll return exit code 137.
+# Commands that timeout will return exit code 124, unless they die from sigkill
+# in which case they'll return exit code 137.
 #
 # TIMEOUT=<duration>
 #   After this duration, command will be killed (and retried if that's the
@@ -1561,7 +1526,7 @@ netselect()
 #
 eretry()
 {
-    local try rc cmd exit_codes
+    local attempt rc cmd exit_codes
 
     argcheck RETRIES
     [[ ${RETRIES} -le 0 ]] && RETRIES=1
@@ -1573,12 +1538,12 @@ eretry()
 
     rc=1
     exit_codes=()
-    for (( try=0 ; try < RETRIES ; try++ )) ; do
+    for (( attempt=0 ; attempt < RETRIES ; attempt++ )) ; do
         if [[ -n ${TIMEOUT} ]] ; then
             timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
             rc=$?
         else
-            edebug "$(lval try rc cmd)"
+            edebug "$(lval attempt rc cmd)"
             "${@}"
             rc=$?
         fi
@@ -1586,11 +1551,11 @@ eretry()
 
         [[ ${rc} -eq 0 ]] && break
 
-        [[ ${WARN_EVERY} -ne 0 ]] && (( (try+1) % WARN_EVERY == 0 && (try+1) < RETRIES )) \
-            && ewarn "Command has failed $((try+1)) times.  Still trying.  $(lval cmd RETRIES TIMEOUT exit_codes)"
+        [[ ${WARN_EVERY} -ne 0 ]] && (( (attempt+1) % WARN_EVERY == 0 && (attempt+1) < RETRIES )) \
+            && ewarn "Command has failed $((attempt+1)) times.  Still trying.  $(lval cmd RETRIES TIMEOUT exit_codes)"
 
         [[ -n ${SLEEP} ]] && { edebug "Sleeping $(lval SLEEP)" ; sleep ${SLEEP} ; }
-        edebug "eretry: trying again $(lval rc try cmd)"
+        edebug "eretry: trying again $(lval rc attempt cmd)"
     done
 
     if [[ ${rc} -ne 0 ]] ; then
@@ -1645,7 +1610,7 @@ setvars()
     [[ -f ${filename} ]] || die "$(lval filename) does not exist"
 
     # If this file is a binary file skip it
-    file ${filename} | grep -q ELF && continue
+    file ${filename} | grep -q ELF && continue || true
 
     for arg in $(grep -o "__\S\+__" ${filename} | sort --unique); do
         local key="${arg//__/}"
@@ -1683,6 +1648,11 @@ setvars()
     return 0
 }
 
+check()
+{
+    einfos "\n$(caller 0)"
+}
+
 #-----------------------------------------------------------------------------
 # ARRAYS
 #-----------------------------------------------------------------------------
@@ -1696,9 +1666,9 @@ setvars()
 array_init()
 {
     $(declare_args __array ?__string ?__delim)
-
+    
     # If nothing was provided to split on just return immediately
-    [[ -z ${__string} ]] && { eval "${__array}=()"; return; }
+    [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
 
     # Default bash IFS is space, tab, newline, so this will default to that
     [[ -z ${__delim} ]] && __delim=$' \t\n'
@@ -1710,7 +1680,7 @@ array_init()
 # be a newline.
 array_init_nl()
 {
-    [[ $# -ne 2 ]] && die "array_init_nl requires exactly two parameters"
+    [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters"
     array_init "$1" "$2" $'\n'
 }
 
@@ -1786,10 +1756,10 @@ array_join()
     $(declare_args __array ?__delim)
 
     # If the array is empty return empty string
-    [[ $(array_size __array) -eq 0 ]] && { echo -n ""; return 0; }
+    [[ $(array_size __array) -eq 0 ]] && { echo -n ""; return 0; } || true
 
     # Default bash IFS is space, tab, newline, so this will default to that
-    [[ -z ${__delim} ]] && __delim=$' \t\n'
+    [[ -z ${__delim} ]] && __delim=$' \t\n' || true
 
     # Otherwise use IFS to join the array. This must be in a subshell so that
     # the change to IFS doesn't persist after this function call.
@@ -1908,7 +1878,11 @@ pack_get()
     local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=")"
     edebug "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
-    [[ -n ${_found} ]]
+}
+
+pack_contains()
+{
+    [[ -n $(pack_get $@) ]] && return 0 || return 1
 }
 
 #

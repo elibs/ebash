@@ -9,7 +9,7 @@ fi
 : ${BASHUTILS:=$(dirname $0)}
 source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
 
-[[ -z ${1} || -n ${3} ]] && die "etest only accepts one or two arguments"
+[[ "$#" -eq 1 || "$#" -eq 2 ]] || die "etest only accepts one or two arguments"
 TEST_DIR=$(readlink -m $1)
 FILTER=$2
 
@@ -22,8 +22,13 @@ assert_true()
     local array=( "${@}" )
     local cmd=$(array_quote array)
     
-    eval ${cmd} || { die "Expect failed :: $(lval cmd)"; return 1; }
+    eval ${cmd} || { die "assert_true failed :: $(lval cmd)"; return 1; }
     return 0
+}
+
+assert()
+{
+    assert_true "${@}"
 }
 
 assert_false()
@@ -31,7 +36,7 @@ assert_false()
     local array=( "${@}" )
     local cmd=$(array_quote array)
 
-    eval ${cmd} && { die "Expect failed :: ! $(lval cmd)"; return 1; }
+    eval ${cmd} && { die "assert_false failed :: ! $(lval cmd)"; return 1; }
     return 0
 }
 
@@ -50,7 +55,7 @@ assert_eq()
 assert_ne()
 {
     $(declare_args ?lh ?rh)
-    [[ ! "${lh}" == "${rh}" ]] || { error "assert_ne failed :: $(lval lh rh)"; return 1; }
+    [[ ! "${lh}" == "${rh}" ]] || { die "assert_ne failed :: $(lval lh rh)"; return 1; }
 }
 
 assert_zero()
@@ -78,7 +83,7 @@ global_setup()
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
-    emkdir ${TEST_DIR_OUTPUT}
+    mkdir -p ${TEST_DIR_OUTPUT}
 }
 
 global_teardown()
@@ -86,7 +91,7 @@ global_teardown()
     argcheck TEST_DIR_OUTPUT
     if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
         eunmount_recursive ${TEST_DIR_OUTPUT}
-        erm ${TEST_DIR_OUTPUT}
+        rm -rf ${TEST_DIR_OUTPUT}
     fi
 }
 
@@ -94,11 +99,11 @@ test_setup()
 {
     # Unit test infrastructure setup
     argcheck TEST_DIR_OUTPUT
-    emkdir ${TEST_DIR_OUTPUT}/${testfunc}
+    mkdir -p ${TEST_DIR_OUTPUT}/${testfunc}
 
     # Unit test provided setup
-    declare -f setup &>/dev/null && { setup || die "Setup failed." ; }
-    
+    declare -f setup &>/dev/null && { setup || die "Setup failed." ; } 
+
     return 0
 }
 
@@ -111,7 +116,7 @@ test_teardown()
     argcheck testfunc
     if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
         eunmount_recursive ${TEST_DIR_OUTPUT}/${testfunc}
-        erm ${TEST_DIR_OUTPUT}/${testfunc}
+        rm -rf ${TEST_DIR_OUTPUT}/${testfunc}
     fi
 
     return 0
@@ -121,71 +126,60 @@ test_teardown()
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
 
-# Various return codes:
-# - ETEST_RC:      Global return code for entire etest run.
-# - ETEST_ETEST_FILE_RC: Return code for all the tests in a given file (e.g. the text fixture)
-# - ETEST_TEST_RC: Return code for a signle test.
-ETEST_RC=0
-ETEST_FILE_RC=0
-ETEST_TEST_RC=0
-
-FAILURES=()
+FAILED_FILES=()
 global_setup
 trap_add "{ global_teardown; exit 1; }" HUP INT QUIT BUS PIPE TERM
- 
-for testfile in ${TEST_DIR}/*.sh ; do
+
+for testfile in $(find ${TEST_DIR}/*.sh); do
+
     # Each test file gets its own subshell
-    (
-        ETEST_FILE_RC=0
+    try
+    {
+        FAILED_TESTS=()
         $(esource ${testfile})
 
         # Get all function names that begin with ETEST_ (and optionally match $2)
-        ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
+        [[ ${testfile} =~ ${FILTER} ]] && ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" {print $3}' ) ) \
+                                       || ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
 
-        if [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] ; then
-            continue
-        fi
+        [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] && continue
 
-        ! edebug_enabled ${testfunc} && einfo "Starting tests in ${testfile}"
+        edebug_enabled ${testfunc} || einfo "Starting tests in ${testfile}"
 
         for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
             # If debugging is not enabled for testfunc just show a brief message with test name
-            edebug_enabled ${testfunc} && ebanner ${testfunc} || einfos "${testfunc}"
+            testfunc_rc=0 
+            edebug_enabled ${testfunc} && ebanner ${testfunc} || einfos ${testfunc}
 
-            eval "${testfunc}_internal() { 
-            (
+            try
+            {
                 test_setup
-                trap_add \"{ test_teardown; exit 1; }\" HUP INT QUIT BUS PIPE TERM
+                trap_add "{ test_teardown; exit 1; }" HUP INT QUIT BUS PIPE TERM
                 cd ${TEST_DIR_OUTPUT}/${testfunc}
-                ( EFUNCS_FATAL=0 ${testfunc}; return 0; )
-                local rc=\$?
+                EFUNCS_FATAL=0 ${testfunc}
                 test_teardown
-                exit \${rc}
-            ) &> \$(edebug_out)
-            }"
+            } &> $(edebug_out) 
+            catch
+            {
+                testfunc_rc=$?
+                FAILED_TESTS+=( ${testfunc/ETEST_/} )
+            }
 
-            ${testfunc}_internal
-            ETEST_TEST_RC=$?
-
-            (( ETEST_FILE_RC += ${ETEST_TEST_RC} ))
-            edebug_enabled ${testfunc} || eend ${ETEST_TEST_RC}
+            edebug_enabled ${testfunc} || eend ${testfunc_rc}
+           
         done
 
-        if [[ ${ETEST_FILE_RC} -eq 0 ]] ; then
-            einfo "Tests passed: ${testfile}\n"
-        else
-            eerror "Tests failed: ${testfile}\n"
-        fi
+        [[ ${#FAILED_TESTS[@]} -eq 0 ]] || die "$(lval FAILED_TESTS)"
+    } 
+    catch
+    {
+        FAILED_FILES+=( $(basename ${testfile}) ) || true
+    }
 
-        exit ${ETEST_FILE_RC}
-    )
-
-    [[ $? -eq 0 ]] || { FAILURES+=( ${testfile} ); (( ETEST_RC += $? )); }
 done
 
 global_teardown
+[[ ${#FAILED_FILES[@]} -eq 0 ]] || die "$(lval FAILED_FILES)"
 
-[[ ${#FAILURES[@]} -ne 0 ]] && die "$(lval FAILURES)"
-
-exit ${ETEST_RC}
+exit 0
