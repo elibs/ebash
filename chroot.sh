@@ -201,7 +201,7 @@ chroot_install()
         fi
 
         # Actually installed
-        local actual=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || die "Failed to install [${pn}]")
+        local actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || die "Failed to install [${pn}]")
         local apn="${actual}"; apn=${apn%|*}
         local apv="${actual}"; apv=${apv#*|}
         
@@ -244,7 +244,7 @@ chroot_apt()
 chroot_listpkgs()
 {
     argcheck CHROOT
-    output=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W") || die "Failed to execute [$*]"
+    output=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W") || die "Failed to execute [$*]"
     echo -en "${output}"
 }
 
@@ -252,7 +252,7 @@ chroot_uninstall_filter()
 {
     argcheck CHROOT
     local filter=$@
-    pkgs=$(trap_and_die; chroot_listpkgs)
+    pkgs=$(die_on_abort; chroot_listpkgs)
     chroot_uninstall $(eval "echo \"${pkgs}\" | ${filter} | awk '{print \$1}'")
 }
 
@@ -312,46 +312,46 @@ chroot_apt_setup()
 
 chroot_setup()
 {
-    ## Mount chroot and run all commands in subshell in case anything fails
-    ## Also note the arguments are NOT local variables as want any functions call 
-    ## Below to use these settings.
-    (
-
     $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
-
     einfo "Setting up $(lval CHROOT)"
-   
-    # Because of how we mount things while building up our chroot sometimes
-    # /etc/resolv.conf will be bind mounted into ${CHROOT}. When that happens
-    # calling 'cp' will fail b/c they refer to the same inodes. So we need
-    # to explicitly check for that here.
-    for src in /etc/resolv.conf /etc/hosts; do
-        local dst="${CHROOT}${src}"
-        [[ "$(stat --format=%d.%i ${src})" != "$(stat --format=%d.%i ${dst})" ]] && cp -arL ${src} ${dst}
-    done
-
-    ## MOUNT
-    chroot_mount
-
-    ## LOCALES/TIMEZONE
-    einfo "Configuring locale and timezone"
-    local LANG="en_US.UTF-8"
-    local TZ="Etc/UTC"
-    echo "LANG=\"${LANG}\"" > "${CHROOT}/etc/default/locale" || die "Failed to set /etc/default/locale"
-    chroot_cmd locale-gen ${LANG}
-    chroot_cmd /usr/sbin/update-locale
-    echo "${TZ}" > "${CHROOT}/etc/timezone"                  || die "Failed to set /etc/timezone"
-    chroot_install_with_apt_get tzdata
-    chroot_cmd dpkg-reconfigure tzdata
     
-    ## SETUP
-    chroot_apt_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
+    try
+    {
+        # Because of how we mount things while building up our chroot sometimes
+        # /etc/resolv.conf will be bind mounted into ${CHROOT}. When that happens
+        # calling 'cp' will fail b/c they refer to the same inodes. So we need
+        # to explicitly check for that here.
+        for src in /etc/resolv.conf /etc/hosts; do
+            local dst="${CHROOT}${src}"
+            [[ "$(stat --format=%d.%i ${src})" != "$(stat --format=%d.%i ${dst})" ]] && cp -arL ${src} ${dst}
+        done
 
-    ## CLEANUP
-    chroot_apt_clean
-    chroot_unmount
+        ## MOUNT
+        chroot_mount
 
-    ) || { chroot_unmount; die "chroot_setup failed"; }
+        ## LOCALES/TIMEZONE
+        einfo "Configuring locale and timezone"
+        local LANG="en_US.UTF-8"
+        local TZ="Etc/UTC"
+        echo "LANG=\"${LANG}\"" > "${CHROOT}/etc/default/locale" || die "Failed to set /etc/default/locale"
+        chroot_cmd locale-gen ${LANG}
+        chroot_cmd /usr/sbin/update-locale
+        echo "${TZ}" > "${CHROOT}/etc/timezone"                  || die "Failed to set /etc/timezone"
+        chroot_install_with_apt_get tzdata
+        chroot_cmd dpkg-reconfigure tzdata
+        
+        ## SETUP
+        chroot_apt_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
+
+        ## CLEANUP
+        chroot_apt_clean
+        chroot_unmount
+    }
+    catch
+    {
+        chroot_unmount
+        die "chroot_setup failed"
+    }
 }
 
 #-----------------------------------------------------------------------------
