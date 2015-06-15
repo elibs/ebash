@@ -14,7 +14,7 @@ shopt -s expand_aliases
 #-----------------------------------------------------------------------------
 
 # The below aliases allow us to support rich error handling through the use
-# of the try/catch idom typically found in highler level languages. Essentially
+# of the try/catch idom typically found in higher level languages. Essentially
 # the 'try' alias creates a subshell and then turns on implicit error handling
 # through "die_on_error" (which essentially just enables 'set -e'). Since this
 # runs in a subshell with fatal error handling enabled, the subshell will
