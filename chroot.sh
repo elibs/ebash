@@ -20,11 +20,11 @@ chroot_mount()
     einfo "Mounting $(lval CHROOT CHROOT_MOUNTS)"
 
     for m in ${CHROOT_MOUNTS[@]}; do 
-        emkdir ${CHROOT}${m}
+        mkdir -p ${CHROOT}${m}
         ebindmount ${m} ${CHROOT}${m}
     done
 
-    ecmd grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
+    grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
 }
 
 chroot_unmount()
@@ -89,17 +89,7 @@ chroot_cmd()
     argcheck CHROOT
     
     einfos $@
-    chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
-    [[ $? -eq 0 ]] || die "Failed to execute [$*]"
-}
-
-chroot_cmd_try()
-{
-    argcheck CHROOT
-    
-    einfos $@
-    chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
-    [[ $? -eq 0 ]] || ewarns "Failed to execute [$*]"
+    chroot ${CHROOT} ${CHROOT_ENV} -c "$*" || die "Failed to execute [$*]"
 }
 
 # Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT})
@@ -142,7 +132,7 @@ chroot_exit()
     chroot_kill
     chroot_unmount
     eunmount_recursive ${CHROOT}
-    erm ${CHROOT}/etc/mtab
+    rm -rf ${CHROOT}/etc/mtab
 }
 
 #-----------------------------------------------------------------------------                                    
@@ -183,9 +173,13 @@ chroot_install_check()
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} show $(echo $* | sed -e 's/\(>=\|<=\)/=/g')" >/dev/null || return 1
 }
 
-# Internal chroot_install method which will do a post-install check to ensure the package was installed
-chroot_install_internal()
+chroot_install()
 {
+    argcheck CHROOT
+    [[ $# -eq 0 ]] && return
+
+    einfos "Installing $@"
+
     # Check if all packages are installable
     chroot_install_check $* || return 1
     
@@ -207,63 +201,17 @@ chroot_install_internal()
         fi
 
         # Actually installed
-        local actual=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || { ewarn "Failed to install [${pn}]"; return 1; })
+        local actual=$(trap_and_die; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || die "Failed to install [${pn}]")
         local apn="${actual}"; apn=${apn%|*}
         local apv="${actual}"; apv=${apv#*|}
         
-        [[ ${pn} == ${apn} ]] || { ewarn "Mismatched package name wanted=[${pn}] actual=[${apn}]"; return 1; }
+        [[ ${pn} == ${apn} ]] || die "Mismatched package name $(lval wanted=pn actual=apn)"
     
         ## No explicit version check -- continue
         [[ -z "${op}" || -z "${pv}" ]] && continue
 
-        dpkg_compare_versions "${apv}" "${op}" "${pv}" || { ewarn "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"; return 1; }
-    
+        dpkg_compare_versions "${apv}" "${op}" "${pv}" || die "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"
     done
-
-    return 0
-}
-
-chroot_install()
-{
-    argcheck CHROOT
-    [[ $# -eq 0 ]] && return
-    
-    einfos "Installing $@"
-
-    chroot_install_check $*    || die "Failed to resolve requested package list"
-    chroot_install_internal $* || die "Failed to install [$@]"
-}
-
-chroot_install_try()
-{
-    argcheck CHROOT
-    [[ $# -eq 0 ]] && return
-
-    einfos "Installing $@"
-   
-    chroot_install_check $@    || { ewarns "Failed to resolve [$@]"; return 1; }
-    chroot_install_internal $@ || { ewarns "Failed to install [$@]"; return 1; } 
-}
-
-chroot_install_retry()
-{
-    argcheck CHROOT
-    [[ $# -eq 0 ]] && return
-    
-    einfos "Installing $@"
-
-    chroot_install_check $* || die "Failed to resolve requested package list"
-
-    # Try to install up to 5 times. This deals with unconfigured packages that can only be fully installed
-    # on a second installation. 
-    local max=5
-    for (( i=0; i<${max}; ++i )); do
-        chroot_install_internal $* \
-            && { [[ $i > 0 ]] && ewarns "Successfully installed packages (tries=${i}/${max})"; return; }
-        ewarns "Failed to install packages (tries=${i}/${max}) -- retrying..."
-    done
-
-    die "Failed to install [$@]"
 }
 
 chroot_uninstall()
@@ -291,15 +239,6 @@ chroot_apt()
     
     einfos "${CHROOT_APT} $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*" || die "Failed to run apt-get [$*]"
-}
-
-chroot_apt_try()
-{
-    argcheck CHROOT
-    [[ $# -eq 0 ]] && return
-    
-    einfos "${CHROOT_APT} $@"
-    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*" || ewarns "Failed to run apt-get [$*]"
 }
 
 chroot_listpkgs()
@@ -380,15 +319,16 @@ chroot_setup()
 
     $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
 
-    [[ ${NOBANNER} -eq 1 ]] || ebanner "Setting up chroot [${CHROOT}]"
+    einfo "Setting up $(lval CHROOT)"
    
     # Because of how we mount things while building up our chroot sometimes
     # /etc/resolv.conf will be bind mounted into ${CHROOT}. When that happens
     # calling 'cp' will fail b/c they refer to the same inodes. So we need
     # to explicitly check for that here.
-    local src="/etc/resolv.conf"
-    local dst="${CHROOT}/etc/resolv.conf"
-    [[ "$(stat --format=%d.%i ${src})" != "$(stat --format=%d.%i ${dst})" ]] && ecp ${src} ${dst}
+    for src in /etc/resolv.conf /etc/hosts; do
+        local dst="${CHROOT}${src}"
+        [[ "$(stat --format=%d.%i ${src})" != "$(stat --format=%d.%i ${dst})" ]] && cp -arL ${src} ${dst}
+    done
 
     ## MOUNT
     chroot_mount
@@ -410,9 +350,6 @@ chroot_setup()
     ## CLEANUP
     chroot_apt_clean
     chroot_unmount
-
-    [[ ${NOBANNER} -eq 1 ]] || ebanner "Finished setting up chroot [${CHROOT}]"
-    echo ""
 
     ) || { chroot_unmount; die "chroot_setup failed"; }
 }
@@ -441,11 +378,15 @@ chroot_daemon_start()
 
     # Construct a subprocess which bind mounds chroot mount points then executes
     # requested daemon. After the daemon complets automatically unmount chroot.
-    ( chroot_mount && chroot_cmd_try ${exe} "${@}"; chroot_unmount ) &>$(edebug_out) &
+    (
+        nodie_on_error    
+        chroot_mount && chroot_cmd ${exe} "${@}"
+        chroot_unmount
+    ) &>$(edebug_out) &
 
     # Get the PID of the process we just created and store into requested pid file.
     local pid=$!
-    emkdir $(dirname ${pidfile})
+    mkdir -p $(dirname ${pidfile})
     echo "${pid}" > "${pidfile}"
 
     # Give the daemon a second to startup and then check its status. If it blows
@@ -488,7 +429,7 @@ chroot_daemon_stop()
     # If it is running stop it with optional signal
     local pid=$(cat ${pidfile} 2>/dev/null)
     ekilltree ${pid} ${signal}
-    erm ${pidfile}
+    rm -rf ${pidfile}
     eend 0
 }
 
@@ -528,13 +469,13 @@ chroot_daemon_status()
 mkchroot()
 {
     $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
-    ebanner "Making chroot" CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH
+    edebug "$(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
 
     ## Make sure that debootstrap is installed
     which debootstrap > /dev/null || die "debootstrap must be installed"
 
     ## Setup chroot
-    emkdir ${CHROOT}
+    mkdir -p ${CHROOT}
 
     #-----------------------------------------------------------------------------                                    
     # DEBOOTSTRAP IMAGE
@@ -549,25 +490,19 @@ mkchroot()
     # Try to download to /var/distbox/downloads if it exists. If it doesn't then fallback to /tmp
     local dst="/tmp"
     [[ -d "/var/distbox" ]] && dst="/var/distbox/downloads"
-    emkdir "${dst}"
+    mkdir -p "${dst}"
 
-    efetch_with_md5_try "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
-    if [[ $? -eq 0 ]]; then
+    try
+    {
+        efetch_with_md5 "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${dst}/${CHROOT_IMAGE}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
-    else
+    } 
+    catch
+    {
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
-    fi
+    }
 
-    #-----------------------------------------------------------------------------        
-    # MODIFY CHROOT IMAGE
-    #-----------------------------------------------------------------------------
-    NOBANNER=1 chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
-
-    ebanner "Finished making chroot [${CHROOT}]"
-    echo ""
-    
-    # DONE
-    return 0
+    chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
 }
 
 #-----------------------------------------------------------------------------

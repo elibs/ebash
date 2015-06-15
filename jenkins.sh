@@ -76,17 +76,17 @@ jenkins_update()
     [[ -n ${scriptTemplate} ]] && scriptFile=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_script_XXXX")
     local newConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_XXXX")
     local oldConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_old_XXXX")
-    trap_add "erm ${scriptFile} ${newConfig} ${oldConfig}" EXIT
+    trap_add "rm -rf ${scriptFile} ${newConfig} ${oldConfig}" EXIT
 
     # Expand parameters in the script (if one was found), and place its
     # contents into a variable so that it can be plunked into the XML file
     if [[ -n ${scriptTemplate} ]] ; then
-        ecp "${scriptTemplate}" "${scriptFile}"
+        cp -arL "${scriptTemplate}" "${scriptFile}"
         setvars "${scriptFile}"
         export JENKINS_UPDATE_SCRIPT=$(cat "${scriptFile}")
     fi
 
-    ecp "${xmlTemplate}" "${newConfig}"
+    cp -arL "${xmlTemplate}" "${newConfig}"
     setvars "${newConfig}" setvars_escape_xml
 
     # Look to see if the item already exists on jenkins, with minimal retries

@@ -2,7 +2,7 @@ ETEST_DECLARE_ARGS_OPTIONAL=1
 
 do_declare_args()
 {
-    local args=( ${1} ); shift
+    local args=( ${1} ); shift || true
     local vals=( "${@}" )
     einfo "$(lval args vals)"
     $(declare_args ${args[@]})
@@ -32,8 +32,19 @@ do_declare_args()
 # so that our helper method will not prefix each argument with a '?'
 ETEST_declare_args_fatal()
 {
-    ( EFUNCS_FATAL=0 ETEST_DECLARE_ARGS_OPTIONAL=0 do_declare_args "a1"; ) &>/dev/null
-    assert_not_zero $?
+    try
+    {
+        ETEST_DECLARE_ARGS_OPTIONAL=0 do_declare_args "a1"
+    
+        # Should never get here!
+        die "declare_args should have thrown an error due to missing arguments"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "should have returned"
 }
 
 ETEST_declare_args_basic()
@@ -64,37 +75,24 @@ ETEST_declare_args_anonymous()
     do_declare_args "a1 _ a3" apples foobar pillows
 }
 
-# Verify if we declare a GLOBAL variable in one function we can see it in another.
-do_declare_global()
-{
-    $(declare_args -g ?G1)
-    G1="GLOBAL1"
-}
-
 ETEST_declare_args_global()
 {
-    do_declare_global
-    assert_eq "GLOBAL1" ${G1}
-}
+    $(declare_args -g ?V1)
+    V1="VAR1"
 
-do_declare_export()
-{
-    $(declare_args -e ?G2)
-    G2="GLOBAL2"
+    assert_eq 'declare -- V1="VAR1"' "$(declare -p V1)"
 }
 
 # Verify if we declare a GLOBAL EXPORTED variable it can be seen in a external process
 ETEST_declare_args_export()
 {
-    local file="declare_args_export.sh"
-    echo "[[ -z \${G1} ]] || { echo 'G1=[\${G1}] should not be exported'; exit 1; }" >  ${file}
-    echo "[[ -n \${G2} ]] || { echo 'G2=[\${G2}] should be exported';     exit 2; }" >> ${file}
-    echmod +x ${file}
-    einfo "$(cat ${file})"
+    $(declare_args -g ?V1)
+    $(declare_args -e ?V2)
+    V1="VAR1"
+    V2="VAR2"
 
-    do_declare_global
-    do_declare_export
-    ./${file}
+    assert_eq 'declare -- V1="VAR1"' "$(declare -p V1)"
+    assert_eq 'declare -x V2="VAR2"' "$(declare -p V2)"
 }
 
 do_declare_args_legacy()

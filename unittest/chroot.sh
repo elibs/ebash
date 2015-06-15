@@ -15,7 +15,7 @@ check_mounts()
     done
 }
 
-ETEST_chroot_create_mount()
+DISABLED_ETEST_chroot_create_mount()
 {
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
     check_mounts 0
@@ -38,7 +38,7 @@ ETEST_chroot_create_mount()
 
 # Ensure if we have multiple chroot_mounts going on that we can successfully
 # unmount them properly using a single call to eunmount_recursive. 
-ETEST_chroot_create_mount_unmount_recursive()
+DISABLED_ETEST_chroot_create_mount_unmount_recursive()
 {
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
     check_mounts 0
@@ -60,9 +60,9 @@ ETEST_chroot_create_mount_unmount_recursive()
 # Here we create a file on the root system in /dev/shm, which will go away if
 # that problem occurs.  This seems to occur only on systems that mount /dev as
 # shared initially (e.g. those running systemd)
-ETEST_dont_honk_up_slash_dev_via_shared_mounts()
+DISABLED_ETEST_chroot_slash_dev_shared_mounts()
 {
-    TESTFILE=/dev/shm/ETEST_michael_file_$$
+    TESTFILE=/dev/shm/${FUNCNAME}_$$
 
     touch ${TESTFILE}
     [[ -f ${TESTFILE} ]] || die "Unable to create ${TESTFILE}"
@@ -73,7 +73,7 @@ ETEST_dont_honk_up_slash_dev_via_shared_mounts()
     # boxes, but not others
     mount --make-shared /dev
 
-    emkdir dev
+    mkdir dev
 
     ebindmount /dev dev
     trap_add "ewarn trap ; eunmount dev" HUP INT QUIT BUS PIPE TERM EXIT
