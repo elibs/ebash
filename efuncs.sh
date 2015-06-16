@@ -1052,8 +1052,6 @@ emounted()
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
     (
-        nodie_on_error
-        
         local output="" rc=0
         output=$(grep --perl-regexp "$(emount_regex ${path})" /proc/mounts)
         rc=$?

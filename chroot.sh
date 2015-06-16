@@ -379,7 +379,6 @@ chroot_daemon_start()
     # Construct a subprocess which bind mounds chroot mount points then executes
     # requested daemon. After the daemon complets automatically unmount chroot.
     (
-        nodie_on_error    
         chroot_mount && chroot_cmd ${exe} "${@}"
         chroot_unmount
     ) &>$(edebug_out) &

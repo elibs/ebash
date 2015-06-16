@@ -63,10 +63,18 @@ ETEST_try_exit_code()
 }
 
 # Verify we can disable trap/die on error
-ETEST_notrap_error()
+ETEST_nodie_on_error()
 {
     nodie_on_error
     false
+    return 0
+}
+
+# Verify nodie_on_error is not needed inside a subshell
+# since ERR trap is not inherited by subshells.
+ETEST_nodie_inside_subshell()
+{
+    ( false )
     return 0
 }
 
