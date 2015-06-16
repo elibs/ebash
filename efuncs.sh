@@ -1592,18 +1592,12 @@ eretry()
 #   if you require that functionality, simply use SETVARS_ALLOW_EMPTY=1 and it
 #   will happily allow you to replace __key__ with an empty string.
 #
-# SETVARS_FATAL=(0|1)
 #   After all variables have been expanded in the provided file, a final check
-#   is performed to see if all variables were set properly. If SETVARS_FATAL is
-#   1 (the default) it will call die() and dump the contents of the file to more
-#   easily see what values were not set properly. Recall by default die() will
-#   cause the process to be killed unless you set EFUNCS_FATAL to 0 in which case
-#   it will just exit with a non-zero error code.
+#   is performed to see if all variables were set properly. It will return 0 if
+#   all variables have been successfully set and 1 otherwise.
 #
 # SETVARS_WARN=(0|1)
-#   Even if SETVARS_FATAL is 0, it's sometimes still useful to see a warning on
-#   any unset variables. If SETVARS_WARN is set to 1 it will display a warning
-#   in the event it did not call die() due to SETVARS_FATAL being set to 0.
+#   To aid in debugging this will display a warning on any unset variables.
 #
 # OPTIONAL CALLBACK:
 #   You may provided an optional callback as the second parameter to this function.
@@ -1630,8 +1624,7 @@ setvars()
 
         # If we got an empty value back and empty values aren't allowed then continue.
         # We do NOT call die here as we'll deal with that at the end after we have
-        # tried to expand all variables. This way we can properly support SETVARS_WARN
-        # and SETVARS_FATAL.
+        # tried to expand all variables.
         [[ -n ${val} || ${SETVARS_ALLOW_EMPTY:-0} -eq 1 ]] || continue
 
         edebug "   ${key} => ${val}"
@@ -1642,14 +1635,10 @@ setvars()
         VAL="${val}" perl -pi -e "s/__${key}__/\$ENV{VAL}/g" "${filename}" || die "Failed to set $(lval key val filename)"
     done
 
-    # Ensure nothing left over if SETVARS_FATAL is true. If SETVARS_WARN is true it will still warn in this case.
+    # Check if anything is left over and return correct return value accordingly.
     if grep -qs "__\S\+__" "${filename}"; then
-        local onerror=""
-        [[ ${SETVARS_WARN:-1}  -eq 1 ]] && onerror=ewarn
-        [[ ${SETVARS_FATAL:-1} -eq 1 ]] && onerror=die
-
         local -a notset=( $(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ') )
-        [[ -n ${onerror} ]] && ${onerror} "Failed to set all variables in $(lval filename notset)"
+        [[ ${SETVARS_WARN:-1}  -eq 1 ]] && ewarn "Failed to set all variables in $(lval filename notset)"
         return 1
     fi
 
