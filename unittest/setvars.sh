@@ -26,7 +26,7 @@ ETEST_setvars_error()
     local arg1="Foo"
     echo "__arg1__ __arg2__" > "${file}"
 
-    assert_false SETVARS_FATAL=0 SETVARS_WARN=0 setvars "${file}"
+    assert_false SETVARS_WARN=0 setvars "${file}"
 }
 
 adjust_version()
