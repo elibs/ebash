@@ -1264,7 +1264,7 @@ efetch_try()
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
-    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error
+    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure
     local rc=$?
     eprogress_kill $rc
     [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch $(lval url)"; return $rc; }
