@@ -27,8 +27,18 @@ ETEST_esource_multiple_files_and_values()
 
 ETEST_esource_missing_file()
 {
-    erm missing.sh
-    ( EFUNCS_FATAL=0 $(esource missing.sh) && die )
+    [[ -e missing.h ]] && die "missing.sh shouldn't be here"
+    try
+    {
+        $(esource missing.sh)
+        die "esource missing.sh should have thrown"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "esource missing.sh should have thrown"
 }
 
 ETEST_esource_override_value()

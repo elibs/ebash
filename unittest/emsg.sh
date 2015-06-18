@@ -1,7 +1,8 @@
 show_text()
 {
-    [[ ${TEXT} -eq 1 ]] || return
+    [[ ${TEXT} -eq 1 ]] || return 0
     head /etc/fstab 
+    return 0
 }
 
 emsg_aux()

@@ -1,12 +1,106 @@
 #!/bin/bash
 # 
-# Copyright 2011-2014, SolidFire, Inc. All rights reserved.
+# Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
+
+#-----------------------------------------------------------------------------
+# GLOBAL EFUNCS SETTINGS
+#-----------------------------------------------------------------------------
+set -o pipefail
+shopt -s expand_aliases
+
+#-----------------------------------------------------------------------------
+# TRY / CATCH
+#-----------------------------------------------------------------------------
+
+# The below aliases allow us to support rich error handling through the use
+# of the try/catch idom typically found in higher level languages. Essentially
+# the 'try' alias creates a subshell and then turns on implicit error handling
+# through "die_on_error" (which essentially just enables 'set -e'). Since this
+# runs in a subshell with fatal error handling enabled, the subshell will
+# immediately exit on failure. The catch block which immediately follows the
+# try block captures the exit status of the subshell and if it's not '0' it 
+# will invoke the catch block to handle the error.
+#
+# Aliases are used in this context instead of functions for several reasons.
+# First, it allows identical constructs to what you find in higher level 
+# languages such as: "try { ... } catch { ... }". Secondly, the ERR trap 
+# cannot be enabled/disabled from within functions but instead must be done
+# at the same level in the call stack. This limitation could be circumvented
+# with "set -E" but then fatal error handling gets inherited by ALL subshells
+# and process substitutions which is extraordinally awful. Without "set -E" the
+# ERR trap is NOT inherited by subshells!
+#
+# One clever trick employed here is to keep track of what level of the try/catch
+# stack we are in so that the parent's ERR trap won't get triggered and cause 
+# the process to exit. Because we WANT the try subshell to exit and allow the
+# failure to be handled inside the catch block. This is also used inside die()
+# so that instead of calling "kill 0" to destroy the whole process tree on
+# failure we instead just exit.
+alias try="
+    [[ \${__EFUNCS_TRY_CATCH_LEVEL} -gt 0 ]] && nodie_on_error
+    (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
+    ( 
+        die_on_error
+    "
+
+# Catch block attached to a preceeding try block. This is a rather complex 
+# alias and it's probably not readily obvious why it jumps through the hoops
+# it is jumping through but trust me they are all important. A few important
+# notes about this alias:
+#
+# (1) Note that the ");" ends the preceeding subshell created by the "try" 
+#     block. Which means that a try block on it's own will be invalid syntax
+#     to try to force try/catch to always be used properly.
+#
+# (2) All of the "|| true" stuff in this alias is extremely important. Without
+#     it the implicit error handling will kick in and the process will be 
+#     terminated immediately instead of allowing the catch() block to handle
+#     the error.
+#
+# (3) It's often really convenient for the catch block to know what the error
+#     code was inside the try block. But that's actually kinda of hard to get
+#     right. So here we capture the error code, and then we employ a curious
+#     "( exit $rc; ) ||" to create a NEW subshell which exits with the original
+#     try block's status. If it was 0 this will do nothing. Otherwise it will
+#     call the catch block handling code. If we didn't care about the nesting
+#     levels this wouldn't be necessary and we could just simplify the catch
+#     alias to "); ||". But knowing the nesting level is really important.
+#
+# (4) The dangling "||" here requries the caller to put something after the
+#     catch block which sufficiently handles the error or the code won't be
+#     valid.
+alias catch=" ); 
+    __EFUNCS_TRY_CATCH_RC=\$? || true 
+    (( __EFUNCS_TRY_CATCH_LEVEL+=-1 || true ))
+    ( exit \${__EFUNCS_TRY_CATCH_RC}; ) || "
+
+# Throw is just a simple wrapper around exit but it looks a little nicer inside
+# a 'try' block to see 'throw' instead of 'exit'.
+declare -r throw
+throw()
+{
+    exit $1
+}
+
+# die_on_error is a simple alias to register our trap handler for ERR. It is
+# extremely important that we use this mechanism instead of the expected
+# 'set -e' so that we have control over how the process exit is handled by
+# calling our own internal 'die' handler. This allows us to either exit or
+# kill the entire process tree as needed.
+#
+# NOTE: This is extremely unobvious, but setting a traip on ERR implicitly
+# enables 'set -e'.
+alias die_on_error="trap 'die [UnhandledError]' ERR"
+
+# Disable calling die() on ERROR.
+alias nodie_on_error="trap - ERR"
 
 #-----------------------------------------------------------------------------
 # TRAPS / DIE / STACKTRACE 
 #-----------------------------------------------------------------------------
 
+declare -r stacktrace
 stacktrace()
 {
     local frame=${1:-1}
@@ -16,18 +110,20 @@ stacktrace()
     done
 }
 
-export DIE_IN_PROGRESS=0
-
+declare -r die
 die()
 {
-    [[ ${DIE_IN_PROGRESS} -eq 1 ]] && exit 1
-    DIE_IN_PROGRESS=1
+    [[ ${__EFUNCS_DIE_IN_PROGRESS} -eq 1 ]] && exit 1 || true
+    __EFUNCS_DIE_IN_PROGRESS=1
     eprogress_killall
 
     eerror_stacktrace "${@}"
-   
-    # If die() is fatal (via EFUNCS_FATAL) go ahead and kill everything in this process tree
-    [[ ${EFUNCS_FATAL:-1} -eq 1 ]] && { trap - EXIT ;  kill 0 ; }
+
+    # Clear our exit handler so we don't cause infinite recursion on suicide
+    trap - EXIT
+    
+    # If this is the outermost try/catch level then kill entire process
+    [[ ${__EFUNCS_TRY_CATCH_LEVEL} -eq 0 ]] && kill 0
 
     exit 1
 }
@@ -37,6 +133,7 @@ die()
 # - 1st arg:  code to add
 # - remaining args:  names of traps to modify
 #
+declare -r trap_add
 trap_add()
 {
     trap_add_cmd=$1; shift || die "${FUNCNAME} usage error"
@@ -66,15 +163,17 @@ declare -f -t trap_add
 # start of any command substitution which you want to be interruptible. 
 # Otherwise, due to bash quirkiness, signals are ignored in command
 # substitution: http://www.tldp.org/LDP/Bash-Beginners-Guide/html/sect_12_01.html.
-trap_and_die()
+declare -r die_on_abort
+die_on_abort()
 {
     local signals=$@
     [[ -z ${signals[@]} ]] && signals=( HUP INT QUIT BUS PIPE TERM )
     trap 'die [killed]' ${signals[@]}
 }
 
-# Default trap
-trap_and_die
+# Default traps
+die_on_abort
+die_on_error
 
 #-----------------------------------------------------------------------------
 # FANCY I/O ROUTINES
@@ -193,7 +292,7 @@ ebanner()
 emsg()
 {
     # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX} | egrep -o "(time|times|level|caller|all)")
+    local emsg_prefix=$(echo ${EMSG_PREFIX} | egrep -o "(time|times|level|caller|all)") || true
 
     $(declare_args color ?symbol level)
     [[ ${EFUNCS_TIME} -eq 1 ]] && emsg_prefix+=time
@@ -261,6 +360,11 @@ edebug_enabled()
     return 1
 }
 
+edebug_disabled()
+{
+    edebug_enabled && return 1 || return 0
+}
+
 edebug()
 {
     edebug_enabled || return 0
@@ -299,8 +403,8 @@ eerror()
 
 eerror_stacktrace()
 {
-    local skip_frames=1
-    [[ $(caller 0 | awk '{print $2}') == "die" ]] && local skip_frames=2 
+    local skip_frames=0
+    [[ $(caller 0 | awk '{print $2}') == "die" ]] && skip_frames=2 || skip_frames=1
 
     echo "" >&2
     eerror "$@"
@@ -390,8 +494,8 @@ eprompt_with_options()
 
     ## Keep reading input until a valid response is given
     while true; do
-        response=$(trap_and_die; eprompt "${msg}")
-        matches=( $(echo "${valid}" | grep -io "^${response}\S*") )
+        response=$(die_on_abort; eprompt "${msg}")
+        matches=( $(echo "${valid}" | grep -io "^${response}\S*") ) || true
         nmatches=${#matches[@]}
         edebug "Response=[${response}] opt=[${opt}] secret=[${secret}] matches=[${matches[@]}] nmatches=[${#matches[@]}] valid=[${valid//\n/ }]"
         [[ ${nmatches} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
@@ -723,6 +827,64 @@ getsubnet()
     printf "%d.%d.%d.%d" "$((i1 & m1))" "$(($i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
 }
 
+# Get list of network interfaces
+get_network_interfaces()
+{
+    ls -1 /sys/class/net | egrep -v '(bonding_masters|Bond)' | tr '\n' ' '
+}
+
+# Get list network interfaces with specified "Supported Ports" query.
+get_network_interfaces_with_port()
+{
+    local query="$1"
+    local ifname port
+    local results=()
+
+    for ifname in $(get_network_interfaces); do
+        port=$(ethtool ${ifname} | grep "Supported ports:")
+        [[ ${port} =~ "${query}" ]] && results+=( ${ifname} )
+    done
+
+    echo -n "${results[@]}"
+}
+
+# Get list of 1G network interfaces
+get_network_interfaces_1g()
+{
+    get_network_interfaces_with_port "TP"
+}
+
+# Get list of 10G network interfaces
+get_network_interfaces_10g()
+{
+    get_network_interfaces_with_port "FIBRE"
+}
+
+# Get the permanent MAC address for given ifname via ethtool
+get_permanent_mac_address()
+{
+    local ifname="$1"
+    ethtool -P ${ifname} | sed 's|Permanent address: ||'
+}
+
+# Export ethernet device names in the form ETH_1G_0=eth0, etc.
+export_network_interface_names()
+{
+    local idx=0
+    local ifname
+
+    for ifname in $(get_network_interfaces_10g); do
+        eval "ETH_10G_${idx}=${ifname}"
+        ((idx++))
+    done
+
+    idx=0
+    for ifname in $(get_network_interfaces_1g); do
+        eval "ETH_1G_${idx}=${ifname}"
+        ((idx++))
+    done
+}
+
 #-----------------------------------------------------------------------------
 # FILESYSTEM HELPERS
 #-----------------------------------------------------------------------------
@@ -757,29 +919,14 @@ esource()
     echo -n "eval "${cmd}""
 }
 
-epushd()
+pushd()
 {
-    pushd $1 >/dev/null || die "pushd $1 failed"
+    builtin pushd "${@}" >/dev/null
 }
 
-epopd()
+popd()
 {
-    popd $1 >/dev/null  || die "popd $1 failed"
-}
-
-emkdir()
-{
-    eval "mkdir -p $@" || die "emkdir $@ failed"
-}
-
-echmod()
-{
-    eval "chmod $@" || die "echmod $@ failed"
-}
-
-echown()
-{
-    eval "chown $@" || die "echown $@ failed"
+    builtin popd "${@}" >/dev/null
 }
 
 # chmod + chown
@@ -788,65 +935,8 @@ echmodown()
     [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
     $(declare_args mode owner)
 
-    echmod ${mode} $@
-    echown ${owner} $@
-}
-
-ecp()
-{
-    eval "cp -arL $@" || die "ecp $@ failed"
-}
-
-ecp_try()
-{
-    eval "cp -arL $@" || { rc=$?; ewarn "ecp $@ failed"; return $rc; }
-}
-
-erm()
-{
-    eval "rm -rf $@" || die "rm -rf $@ failed"
-}
-
-erm_try()
-{
-    eval "rm -rf $@" || { rc=$?; ewarn "rm -rf $@ failed"; return $rc; }
-}
-
-ermdir()
-{
-    eval "rmdir $@" || die "rmdir $@ failed"
-}
-
-emv()
-{
-    eval "mv $@" || die "emv $@ failed"
-}
-
-eln()
-{
-    eval "ln $@" || die "eln $@ failed"
-}
-
-ersync()
-{
-    local flags="-azl"
-    [[ ${V} -eq 1 ]] && flags+="vh"
-    eval "rsync ${flags} $@" || die "rsync $@ failed"
-}
-
-erename()
-{
-    $(declare_args src dest)
-
-    emkdir "${dest}"
-    ersync "${src}/" "${dest}/"
-    erm "${src}"
-}
-
-etouch()
-{
-    [[ -z "$@" ]] && die "Missing argument(s)"
-    touch "$@" || die "touch $@ failed"
+    chmod ${mode} $@
+    chown ${owner} $@
 }
 
 # Unmount (if mounted) and remove directory (if it exists) then create it anew
@@ -855,8 +945,8 @@ efreshdir()
     $(declare_args mnt)
 
     eunmount_recursive ${mnt}
-    erm ${mnt}
-    emkdir ${mnt}
+    rm -rf ${mnt}
+    mkdir -p ${mnt}
 }
 
 # Copies the given file to *.bak if it doesn't already exist
@@ -864,14 +954,14 @@ ebackup()
 {
     $(declare_args src)
     
-    [[ -e "${src}" && ! -e "${src}.bak" ]] && ecp "${src}" "${src}.bak"
+    [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak"
 }
 
 erestore()
 {
     $(declare_args src)
     
-    [[ -e "${src}.bak" ]] && emv "${src}.bak" "${src}"
+    [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
 }
 
 etar()
@@ -888,20 +978,7 @@ etar()
         args+=("--auto-compress")
     fi
 
-    ecmd tar "${args[@]}" "${@}"
-}
-
-esed()
-{
-    $(declare_args fname)
-    
-    local cmd="sed -i"
-    for exp in "${@}"; do
-        cmd+=" -e $'${exp}'"
-    done
-
-    cmd+=" $'${fname}'"
-    eval "${cmd}" || die "${cmd} failed"
+    tar "${args[@]}" "${@}"
 }
 
 # Wrapper around computing the md5sum of a file to output just the filename
@@ -916,9 +993,9 @@ emd5sum()
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
 
-    epushd "${dname}"
-    md5sum "${fname}" || die "Failed to compute md5 $(lval path)"
-    epopd
+    pushd "${dname}"
+    md5sum "${fname}"
+    popd
 }
 
 # Wrapper around checking an md5sum file by pushd into the directory that contains
@@ -932,41 +1009,60 @@ emd5sum_check()
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
 
-    epushd "${dname}"
-    ecmd md5sum -c "${fname}.md5"
-    epopd
+    pushd "${dname}"
+    md5sum -c "${fname}.md5" >$(edebug_out)
+    popd
 }
 
 #-----------------------------------------------------------------------------                                    
 # MOUNT / UMOUNT UTILS
 #-----------------------------------------------------------------------------                                    
 
+# Helper method to take care of resolving a given path or mount point to its
+# realpath as well as remove any errant '\040(deleted)' which may be suffixed
+# on the path. This can happen if a device's source mount point is deleted
+# while the destination path is still mounted.
+emount_realpath()
+{
+    $(declare_args path)
+    path="${path//\\040\(deleted\)/}"
+    echo -n "$(readlink -m ${path} 2>/dev/null)"
+}
+
+# Echo the emount regex for a given path
+emount_regex()
+{
+    $(declare_args path)
+    echo -n "(^| )${path}(\\\\040\\(deleted\\))* "
+}
+
 # Echo the number of times a given directory is mounted.
 emount_count()
 {
     $(declare_args path)
-    path=$(readlink -m ${path} 2>/dev/null)
-    path=${path//[[:space:]]}
-    local num_mounts=$(grep --count --perl-regexp "(^| )${path} " /proc/mounts)
+    path=$(emount_realpath ${path})
+    local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts)
     echo -n ${num_mounts}
 }
 
 emounted()
 {
     $(declare_args path)
-    path=$(readlink -m ${path} 2>/dev/null)
+    path=$(emount_realpath ${path})
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
-    local output="" rc=0
-    output=$(grep --perl-regexp "(^| )${path} " /proc/mounts)
-    rc=$?
+    (
+        local output="" rc=0
+        output=$(grep --perl-regexp "$(emount_regex ${path})" /proc/mounts)
+        rc=$?
 
-    edebug "Checking if $(lval path) is mounted:
-${output}"
+        [[ -n ${output} ]] && output="\n${output}"
+        edebug "Checking if $(lval path) is mounted:${output}"
 
-    [[ ${rc} -eq 0 ]] \
-        && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
-        || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
+        [[ ${rc} -eq 0 ]] \
+            && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
+            || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
+    )
 }
 
 # Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of
@@ -984,20 +1080,15 @@ ebindmount()
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
     # machine outside that chroot.
-    #
-    mount --make-private "${src}" &>/dev/null
+    mount --make-private "${src}" &>$(edebug_out)  || true
     emount --bind "${@}" "${src}" "${dest}"
-    mount --make-private "${target}" &>/dev/null
-
-    # We don't care about the exit status of the make-private call and emount
-    # will die if it fails.
-    return 0
+    mount --make-private "${dest}" &>$(edebug_out) || true
 }
 
 emount()
 {
     einfos "Mounting $@"
-    ecmd mount "${@}"
+    mount "${@}"
 }
 
 eunmount()
@@ -1005,27 +1096,46 @@ eunmount()
     local mnt
     for mnt in $@; do
         emounted ${mnt} || continue
-        local rdev=$(readlink -m ${mnt})
+        local rdev=$(emount_realpath ${mnt})
         argcheck rdev
 
         einfos "Unmounting ${mnt}"
-        ecmd umount -l "${rdev}"
+        umount -l "${rdev}"
     done
+}
+
+# Recursively find all mount points beneath a given root.
+# This is like findmnt with a few additional enhancements:
+# (1) Automatically recusrive
+# (2) findmnt doesn't find mount points beneath a non-root directory
+efindmnt()
+{
+    $(declare_args path)
+    path=$(emount_realpath ${path})
+
+    # First check if the requested path itself is mounted
+    emounted "${path}" && echo "${path}" || true
+
+    # Now look for anything beneath that directory
+    grep --perl-regexp "(^| )${path}[/ ]" /proc/mounts | awk '{print $2}' | sed '/^$/d' || true
 }
 
 eunmount_recursive()
 {
     local mnt
     for mnt in $@; do
-        local rdev=$(readlink -m ${mnt})
+        local rdev=$(emount_realpath ${mnt})
         argcheck rdev
 
         while [[ true ]]; do
-            local matches=$(grep --perl-regexp "(^| )${rdev}[/ ]" /proc/mounts | awk '{print $2}' | sort -ur)
+
+            # If this path is directly mounted or anything BENEATH it is mounted then proceed
+            local matches="$(efindmnt ${mnt} | sort -ur)"
             edebug "$(lval mnt rdev matches)"
             [[ -z ${matches} ]] && break
 
-            einfo "Recursively unmounting ${mnt}"
+            local nmatches=$(echo "${matches}" | wc -l)
+            einfo "Recursively unmounting ${mnt} (${nmatches})"
             local match
             for match in "${matches}"; do
                 eunmount ${match//${rdev}/${mnt}}
@@ -1114,14 +1224,29 @@ argcheck()
 {
     local _argcheck_arg
     for _argcheck_arg in $@; do
-        [[ -z "${!_argcheck_arg}" ]] && die "Missing argument '${_argcheck_arg}'"
+        [[ -n "${!_argcheck_arg}" ]] || die "Missing argument '${_argcheck_arg}'"
     done
 }
 
-# Internal helper method used by both declare_args and declare_globals that
-# takes a list of names and declares a variable for each name from the positional
-# arguments in the CALLER's context. Similar to what we do in esource, we want
-# to code to be invoked in the caller's environment instead of within this function.
+# declare_args takes a list of names and declares a variable for each name from
+# the positional arguments in the CALLER's context. It also implicitly looks for
+# any options which may have been passed into the called function in the initial
+# arguments and stores them into an internal pack for later inspection.
+#
+# Options Rules:
+# (0) Will repeatedily parse first argument and shift so long as first arg contains
+#     options.
+# (1) Only single character arguments are supported
+# (2) Options may be grouped if they do not take arguments (e.g. -abc == -a -b -c)
+# (3) Options may take arguments by using an equal sign (e.g. -a=foobar -b="x y z")
+# 
+# All options will get exported into an internal pack named after the caller's
+# function. If the caller's function name is 'foo' then the internal pack is named
+# '_foo_options'. Instead of interacting with this pack direclty simply use the
+# helper methods: opt_true, opt_false, opt_get.
+#
+# Similar to what we do in esource, we want all code generated by this function
+# to be invoked in the caller's environment instead of within this function.
 # BUT, we don't want to have to use clumsy eval $(declare_args...). So instead we
 # employ the same trick of emitting a 'eval command invocation string' which the
 # caller executes via:
@@ -1132,13 +1257,6 @@ argcheck()
 #
 # "declare a=$1; shift; argcheck a1; declare b=$2; shift; argcheck b; "
 # 
-# The required first argument to this internal helper method indicates the
-# qualifier that should be used for the scope of the variable which is one of:
-#
-# "local"  Local variables with function scope
-# ""       Global variables with file scope
-# "export" Global variables with external scope in caller's environment 
-#
 # There are various special meta characters that can precede the variable name
 # that act as instructions to declare_args. Specifically:
 #
@@ -1149,20 +1267,54 @@ argcheck()
 #    the argument is literally '_' it will be anonymous but if it is '_a' it is
 #    NOT an anonymous variable.
 #
+# OPTIONS:
+# -n: Do not parse options at all
+# -l: Emit local variables with 'local' scope qualifier (default)
+# -g: Emit global variables with no scope qualifier
+# -e: Emit exported variables with 'export' keyword
 #
 # WARNING: DO NOT CALL EDEBUG INSIDE THIS FUNCTION OR YOU WILL CAUSE INFINITE RECURSION!!
-declare_args_internal()
+declare_args()
 {
-    local _declare_args_qualifier=$1
+    local _declare_args_parse_options=1
+    local _declare_args_qualifier="local"
     local _declare_args_optional=0
     local _declare_args_variable=""
     local _declare_args_cmd=""
 
-    while shift; do
-        [[ $# -eq 0 ]] && break
+    # Check the internal declare_args options. We cannot at present reuse the code 
+    # below which parses options as that's baked into the internal implementation
+    # of delcare_args itself and cannot at present be extracted usefully.
+    # This is a MUCH more limited version of option parsing.
+    if [[ ${1:0:1} == "-" ]]; then
+        [[ $1 =~ "n" ]] && _declare_args_parse_options=0
+        [[ $1 =~ "l" ]] && _declare_args_qualifier="local"
+        [[ $1 =~ "g" ]] && _declare_args_qualifier=""
+        [[ $1 =~ "e" ]] && _declare_args_qualifier="export"
+        shift
+    fi
 
+    # Look at the first argument and see if it starts with a '-'. If so, then grab each
+    # character in the first argument and store them into an array so caller can check
+    # if particular flags were passed in or not.
+    # NOTE: We always declare the _options pack in the caller's environment so code 
+    #       doesn't have to handle any error cases where it's not defined.
+    local _declare_args_caller=( $(caller 0) )
+    local _declare_args_options="_${_declare_args_caller[1]}_options"
+    _declare_args_cmd+="declare ${_declare_args_options}='';"
+    if [[ ${_declare_args_parse_options} -eq 1 ]]; then
+        _declare_args_cmd+="
+        while [[ \${1:0:1} == '-' ]]; do  
+            [[ \${1:1} =~ '=' ]] 
+                && pack_set ${_declare_args_options} \"\${1:1}\"
+                || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' '; true);
+        shift;
+        done;"
+    fi
+
+    while [[ $# -gt 0 ]]; do
         # If the variable name is "_" then don't bother assigning it to anything
-        [[ $1 == "_" ]] && _declare_args_cmd+="shift; " && continue
+        [[ $1 == "_" ]] && _declare_args_cmd+="shift; " && { shift; continue; }
 
         # Check if the argument is optional or not as indicated by a leading '?'.
         # If the leading '?' is present then REMOVE It so that code after it can
@@ -1171,32 +1323,41 @@ declare_args_internal()
         _declare_args_variable="${1#\?}"
 
         # Declare the variable and then call argcheck if required
-        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift; "
+        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift || true; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
+
+        shift
     done
     
     echo "eval ${_declare_args_cmd}"
 }
 
-# Public method which just calls into declare_args_internal with "local" keyword.
-# See declare_args_internal
-declare_args()
+# Helper method to print the options after calling declare_args.
+opt_print()
 {
-    declare_args_internal "local" "${@}"
+    local _caller=( $(caller 0) )
+    pack_print _${_caller[1]}_options
 }
 
-# Public method which just calls into declare_args_internal with "" keyword.
-# See declare_args_internal.
-declare_globals()
+# Helper method to be used after declare_args to check if a given option is true (1).
+opt_true()
 {
-    declare_args_internal "" "${@}"
+    local _caller=( $(caller 0) )
+    [[ $(pack_get _${_caller[1]}_options ${1}) -eq 1 ]]
 }
 
-# Public method which just calls into declare_args_internal with "export" keyword.
-# See declare_args_internal.
-declare_exports()
+# Helper method to be used after declare_args to check if a given option is false (0).
+opt_false()
 {
-    declare_args_internal "export" "${@}"
+    local _caller=( $(caller 0) )
+    [[ $(pack_get _${_caller[1]}_options ${1}) -eq 0 ]]
+}
+
+# Helper method to be used after declare_args to extract the value of an option
+opt_get()
+{
+    local _caller=( $(caller 0) )
+    pack_get _${_caller[1]}_options ${1}
 }
 
 #-----------------------------------------------------------------------------
@@ -1231,20 +1392,6 @@ override_function()
     eval "declare -rf ${func}"
 }
 
-ecmd()
-{
-    local cmd=("$@")
-    edebug "Executing $(lval cmd)"
-    "${cmd[@]}" || die "Failed to execute $(lval cmd)"
-}
-
-ecmd_try()
-{
-    local cmd=("$@")
-    edebug "Executing $(lval cmd)"
-    "${cmd[@]}" || { rc=$?; ewarn "Failed to execute [$cmd]"; return $rc; }
-}
-
 numcores()
 {
     [[ -e /proc/cpuinfo ]] || die "/proc/cpuinfo does not exist"
@@ -1252,50 +1399,33 @@ numcores()
     echo $(cat /proc/cpuinfo | grep "processor" | wc -l)
 }
 
-efetch_try()
+efetch()
 {
-    local url="${1}"
-    local dst="${2}"; [[ -z ${dst} ]] && dst="/tmp"
-    argcheck url dst
+    $(declare_args url ?dst)
+    [[ -z ${dst} ]] && dst="/tmp"
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
-
-    eprogress "Fetching $(lval url dst)"
     
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
     curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure
-    local rc=$?
-    eprogress_kill $rc
-    [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch $(lval url)"; return $rc; }
-
-    # For backwards compatibility with older scripts this will echo out the downloaded path
-    # if the newer syntax wasn't used
-    [[ -z ${2} ]] && echo -n "${dst}"
-
-    return 0
+    eprogress_kill
 }
 
-efetch()
+efetch_with_md5()
 {
-    efetch_try "${@}" || die
-}
-
-efetch_with_md5_try()
-{
-    local rc=0
-    local url="${1}"
-    local dst="${2}"; [[ -z ${dst} ]] && dst="/tmp"
-    argcheck url dst
+    $(declare_args url ?dst)
+    [[ -z ${dst} ]] && dst="/tmp"
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     local md5="${dst}.md5"
 
     # Fetch the md5 before the payload as we don't need to bother fetching payload if md5 is missing
-    efetch_try "${url}.md5" "${md5}" && efetch_try "${url}" "${dst}" || rc=1
+    try
+    {
+        efetch "${url}.md5" "${md5}"
+        efetch "${url}"     "${dst}"
 
-    ## Verify MD5 -- DELETE any corrupted images
-    if [[ ${rc} -eq 0 ]]; then
-        
+        # Verify MD5 -- DELETE any corrupted images
         einfos "Verifying MD5 $(lval dst md5)"
     
         local dst_dname=$(dirname  "${dst}")
@@ -1303,7 +1433,7 @@ efetch_with_md5_try()
         local md5_dname=$(dirname  "${md5}")
         local md5_fname=$(basename "${md5}")
 
-        epushd "${dst_dname}"
+        cd "${dst_dname}"
         
         # If the requested destination was different than what was originally in the MD5 it will fail.
         # Or if the md5sum file was generated with a different path in it it will fail. This just
@@ -1312,30 +1442,17 @@ efetch_with_md5_try()
         
         # Now we can perform the check
         md5sum --check "${md5_fname}" >/dev/null
-        rc=$?
-        epopd
-    fi
-
-    if [[ ${rc} -ne 0 ]]; then
+    } 
+    catch
+    {
+        local rc=$?
         edebug "Removing $(lval dst md5)"
-        erm "${dst}"
-        erm "${md5}"
-    fi  
-
-    [[ ${rc} -eq 0 ]] || { ewarn "Failed to fetch $(lval url)"; return $rc; }
+        rm -rf "${dst}"
+        rm -rf "${md5}"
+        return ${rc}
+    }
 
     einfos "Successfully downloaded $(lval url dst)"
-
-    # For backwards compatibility with older scripts this will echo out the downloaded path
-    # if the newer syntax wasn't used
-    [[ -z ${2} ]] && echo -n "${dst}"
-
-    return 0
-}
-
-efetch_with_md5()
-{
-    efetch_with_md5_try "${@}" || die
 }
 
 netselect()
@@ -1346,7 +1463,7 @@ netselect()
     declare -a results sorted rows
 
     for h in ${hosts}; do
-        local entry=$(trap_and_die; ping -c10 -w5 -q $h 2>/dev/null | \
+        local entry=$(die_on_abort; ping -c10 -w5 -q $h 2>/dev/null | \
             awk '/^PING / {host=$2}
                  /packet loss/ {loss=$6}
                  /min\/avg\/max/ {
@@ -1381,9 +1498,8 @@ netselect()
 # seconds and retrying up to a specified count.  If the command is successful,
 # retries stop.  If not, eretry will "die".
 #
-# If you use EFUNCS_FATAL=0, rather than calling die, eretry will return the
-# error code from the last attempt. Commands that timeout will return exit code
-# 124, unless they die from sigkill in which case they'll return exit code 137.
+# Commands that timeout will return exit code 124, unless they die from sigkill
+# in which case they'll return exit code 137.
 #
 # TIMEOUT=<duration>
 #   After this duration, command will be killed (and retried if that's the
@@ -1417,7 +1533,7 @@ netselect()
 #
 eretry()
 {
-    local try rc cmd exit_codes
+    local attempt rc cmd exit_codes
 
     argcheck RETRIES
     [[ ${RETRIES} -le 0 ]] && RETRIES=1
@@ -1429,12 +1545,12 @@ eretry()
 
     rc=1
     exit_codes=()
-    for (( try=0 ; try < RETRIES ; try++ )) ; do
+    for (( attempt=0 ; attempt < RETRIES ; attempt++ )) ; do
         if [[ -n ${TIMEOUT} ]] ; then
             timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
             rc=$?
         else
-            edebug "$(lval try rc cmd)"
+            edebug "$(lval attempt rc cmd)"
             "${@}"
             rc=$?
         fi
@@ -1442,11 +1558,11 @@ eretry()
 
         [[ ${rc} -eq 0 ]] && break
 
-        [[ ${WARN_EVERY} -ne 0 ]] && (( (try+1) % WARN_EVERY == 0 && (try+1) < RETRIES )) \
-            && ewarn "Command has failed $((try+1)) times.  Still trying.  $(lval cmd RETRIES TIMEOUT exit_codes)"
+        [[ ${WARN_EVERY} -ne 0 ]] && (( (attempt+1) % WARN_EVERY == 0 && (attempt+1) < RETRIES )) \
+            && ewarn "Command has failed $((attempt+1)) times.  Still trying.  $(lval cmd RETRIES TIMEOUT exit_codes)"
 
         [[ -n ${SLEEP} ]] && { edebug "Sleeping $(lval SLEEP)" ; sleep ${SLEEP} ; }
-        edebug "eretry: trying again $(lval rc try cmd)"
+        edebug "eretry: trying again $(lval rc attempt cmd)"
     done
 
     if [[ ${rc} -ne 0 ]] ; then
@@ -1475,18 +1591,12 @@ eretry()
 #   if you require that functionality, simply use SETVARS_ALLOW_EMPTY=1 and it
 #   will happily allow you to replace __key__ with an empty string.
 #
-# SETVARS_FATAL=(0|1)
 #   After all variables have been expanded in the provided file, a final check
-#   is performed to see if all variables were set properly. If SETVARS_FATAL is
-#   1 (the default) it will call die() and dump the contents of the file to more
-#   easily see what values were not set properly. Recall by default die() will
-#   cause the process to be killed unless you set EFUNCS_FATAL to 0 in which case
-#   it will just exit with a non-zero error code.
+#   is performed to see if all variables were set properly. It will return 0 if
+#   all variables have been successfully set and 1 otherwise.
 #
 # SETVARS_WARN=(0|1)
-#   Even if SETVARS_FATAL is 0, it's sometimes still useful to see a warning on
-#   any unset variables. If SETVARS_WARN is set to 1 it will display a warning
-#   in the event it did not call die() due to SETVARS_FATAL being set to 0.
+#   To aid in debugging this will display a warning on any unset variables.
 #
 # OPTIONAL CALLBACK:
 #   You may provided an optional callback as the second parameter to this function.
@@ -1498,6 +1608,10 @@ setvars()
 {
     $(declare_args filename ?callback)
     edebug "Setting variables $(lval filename callback)"
+    [[ -f ${filename} ]] || die "$(lval filename) does not exist"
+
+    # If this file is a binary file skip it
+    file ${filename} | grep -q ELF && continue || true
 
     for arg in $(grep -o "__\S\+__" ${filename} | sort --unique); do
         local key="${arg//__/}"
@@ -1509,8 +1623,7 @@ setvars()
 
         # If we got an empty value back and empty values aren't allowed then continue.
         # We do NOT call die here as we'll deal with that at the end after we have
-        # tried to expand all variables. This way we can properly support SETVARS_WARN
-        # and SETVARS_FATAL.
+        # tried to expand all variables.
         [[ -n ${val} || ${SETVARS_ALLOW_EMPTY:-0} -eq 1 ]] || continue
 
         edebug "   ${key} => ${val}"
@@ -1521,14 +1634,10 @@ setvars()
         VAL="${val}" perl -pi -e "s/__${key}__/\$ENV{VAL}/g" "${filename}" || die "Failed to set $(lval key val filename)"
     done
 
-    # Ensure nothing left over if SETVARS_FATAL is true. If SETVARS_WARN is true it will still warn in this case.
+    # Check if anything is left over and return correct return value accordingly.
     if grep -qs "__\S\+__" "${filename}"; then
-        local onerror=""
-        [[ ${SETVARS_WARN:-1}  -eq 1 ]] && onerror=ewarn
-        [[ ${SETVARS_FATAL:-1} -eq 1 ]] && onerror=die
-
         local -a notset=( $(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ') )
-        [[ -n ${onerror} ]] && ${onerror} "Failed to set all variables in $(lval filename notset)"
+        [[ ${SETVARS_WARN:-1}  -eq 1 ]] && ewarn "Failed to set all variables in $(lval filename notset)"
         return 1
     fi
 
@@ -1548,9 +1657,9 @@ setvars()
 array_init()
 {
     $(declare_args __array ?__string ?__delim)
-
+    
     # If nothing was provided to split on just return immediately
-    [[ -z ${__string} ]] && { eval "${__array}=()"; return; }
+    [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
 
     # Default bash IFS is space, tab, newline, so this will default to that
     [[ -z ${__delim} ]] && __delim=$' \t\n'
@@ -1562,8 +1671,17 @@ array_init()
 # be a newline.
 array_init_nl()
 {
-    [[ $# -ne 2 ]] && die "array_init_nl requires exactly two parameters"
+    [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters"
     array_init "$1" "$2" $'\n'
+}
+
+# Initialize an array from a Json array. This will essentially just strip
+# of the brackets from around the Json array and then remove the internal
+# quotes on each value since they are unecessary in bash.
+array_init_json()
+{
+    [[ $# -ne 2 ]] && die "array_init_json requires exactly two parameters"
+    array_init "$1" "$(echo "${2}" | sed -e 's|^\[\s*||' -e 's|\s*\]$||' -e 's|",\s*"|","|g' -e 's|"||g')" ","
 }
 
 # Print the size of any array.  Yes, you can also do this with ${#array[@]}.
@@ -1629,10 +1747,10 @@ array_join()
     $(declare_args __array ?__delim)
 
     # If the array is empty return empty string
-    [[ $(array_size __array) -eq 0 ]] && { echo -n ""; return 0; }
+    [[ $(array_size __array) -eq 0 ]] && { echo -n ""; return 0; } || true
 
     # Default bash IFS is space, tab, newline, so this will default to that
-    [[ -z ${__delim} ]] && __delim=$' \t\n'
+    [[ -z ${__delim} ]] && __delim=$' \t\n' || true
 
     # Otherwise use IFS to join the array. This must be in a subshell so that
     # the change to IFS doesn't persist after this function call.
@@ -1751,7 +1869,11 @@ pack_get()
     local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=")"
     edebug "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
-    [[ -n ${_found} ]]
+}
+
+pack_contains()
+{
+    [[ -n $(pack_get $@) ]] && return 0 || return 1
 }
 
 #
@@ -1796,11 +1918,6 @@ pack_iterate()
     done
 }
 
-# Internal helper method used by pack_import and pack_import_global where 
-# these two wrappers specify the scope of the imports as the required first
-# argument. pack_import provides the scope 'local' and pack_import_global
-# uses no scope specifier.
-#
 # Spews bash commands that, when executed will declare a series of variables 
 # in the caller's environment for each and every item in the pack. This uses
 # the same tactic as esource and declare_args by emitting an "eval command
@@ -1816,13 +1933,23 @@ pack_iterate()
 #
 #  $(pack_import pack a)
 #
-pack_import_internal()
+# OPTIONS:
+# -l: Emit local variables with 'local' scope qualifier (default)
+# -g: Emit global variables with no scope qualifier
+# -e: Emit exported variables with 'export' keyword
+pack_import()
 {
-    $(declare_args ?_pack_import_scope _pack_import_pack)
+    $(declare_args _pack_import_pack)
     local _pack_import_keys=("${@}")
     [[ ${#_pack_import_keys} -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
+    
+    # Determine requested scope for the variables
+    local _pack_import_scope="local"
+    opt_true "l" && _pack_import_scope="local"
+    opt_true "g" && _pack_import_scope=""
+    opt_true "e" && _pack_import_scope="export"
 
-    edebug $(lval _pack_import_keys)
+    edebug $(lval _pack_import_scope _pack_import_keys)
 
     local _pack_import_cmd=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
@@ -1831,20 +1958,6 @@ pack_import_internal()
     done
 
     echo "eval "${_pack_import_cmd}""
-}
-
-# Public method which just calls into pack_import_internal with "local" scope keyword.
-# See pack_import_internal.
-pack_import()
-{
-    pack_import_internal "local" "${@}"
-}
-
-# Public method which just calls into pack_import_internal with "" scope keyword.
-# See pack_import_internal.
-pack_import_global()
-{
-    pack_import_internal "" "${@}"
 }
 
 #
@@ -1911,6 +2024,39 @@ _unpack()
 _pack()
 {
     grep -av '^$' | tr '\n' '\0' | base64 -w0
+}
+
+#-----------------------------------------------------------------------------
+# STRING MANIPULATION
+#-----------------------------------------------------------------------------
+
+# Convert a given input string into "upper snake case". This is generally most
+# useful when converting a "CamelCase" string although it will work just as
+# well on non-camel case input. Essentially it looks for all upper case letters
+# and puts an underscore before it, then uppercase the entire input string.
+#
+# For example:
+# 
+# sliceDriveSize => SLICE_DRIVE_SIZE
+# slicedrivesize => SLICEDRIVESIZE
+#
+# It has some special handling for some common corner cases where the normal
+# camel case idiom isn't well followed. The best example for this is around
+# units (e.g. MB, GB). Consider "sliceDriveSizeGB" where SLICE_DRIVE_SIZE_GB
+# is preferable to SLICE_DRIVE_SIZE_G_B.
+# 
+# The current list of translation corner cases this handles:
+# KB, MB, GB, TB
+to_upper_snake_case()
+{
+    $(declare_args input)
+
+    echo "${input}"         \
+        | sed -e 's|KB|Kb|' \
+              -e 's|MB|Mb|' \
+              -e 's|GB|Gb|' \
+              -e 's|TB|Tb|' \
+        | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))'
 }
 
 #-----------------------------------------------------------------------------
@@ -2012,6 +2158,77 @@ json_escape()
         | python -c 'import json,sys; sys.stdout.write(json.dumps(sys.stdin.read()))'
 }
 
+# Import all of the key:value pairs from a non-nested Json object directly into
+# the caller's environment as proper bash variables. Similar to a lot of other
+# methods inside bashutils, this uses the 'eval command invocation string' idom.
+# So, the proper calling convention for this is:
+#
+# $(json_import)
+#
+# By default this function operates on stdin. Alternatively you can change it to
+# operate on a file via -f. To use via STDIN use one of these idioms:
+#
+# $(json_import <<< ${json})
+# $(curl ... | $(json_import)
+#
+# OPTIONS:
+# -l: Emit local variables with 'local' scope qualifier (default)
+# -g: Emit global variables with no scope qualifier
+# -e: Emit exported variables with 'export' keyword
+# -f: Parse the contents of provided file instead of stdin (e.g. -f=MyFile)
+# -u: Convert all keys into upper snake case.
+# -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
+# -q: Use JQ style query expression on given JSON before parsing.
+# -x: Whitespace sparated list of keys to exclude while importing. If using multiple
+#     keys use quotes around them: -x "foo bar"
+json_import()
+{
+    $(declare_args)
+
+    # Determine requested scope for the variables
+    local _json_import_qualifier="local"
+    opt_true "l" && _json_import_qualifier="local"
+    opt_true "g" && _json_import_qualifier=""
+    opt_true "e" && _json_import_qualifier="export"
+
+    # Lookup optional prefix to use
+    local _json_import_prefix="$(opt_get p)"
+
+    # Lookup optional jq query to use
+    local _json_import_query="$(opt_get q)"
+    : ${_json_import_query:=.}
+
+    # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
+    # In either case read into a local variable so we can parse it repeatedly in this function.
+    local _json_import_filename="$(opt_get f)"
+    : ${_json_import_filename:=-}
+    local _json_import_data=$(cat ${_json_import_filename} | jq -r "${_json_import_query}")
+
+    # Check if explicit keys are requested. If not, slurp all keys in from provided data.
+    local _json_import_keys=("${@}")
+    [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
+
+    # Get list of optional keys to exclude
+    local _json_import_keys_excluded
+    array_init _json_import_keys_excluded "$(opt_get x)"
+
+    # Debugging
+    edebug $(lval _json_import_prefix _json_import_query _json_import_filename _json_import_data _json_import_keys _json_import_keys_excluded)
+
+    local cmd key val
+    for key in "${_json_import_keys[@]}"; do
+        array_contains _json_import_keys_excluded ${key} && continue
+
+        local val=$(jq -r .${key} <<< ${_json_import_data})
+        edebug $(lval key val)
+        opt_true "u" && key=$(to_upper_snake_case "${key}")
+
+        cmd+="${_json_import_qualifier} ${_json_import_prefix}${key}=\"${val}\";"
+    done
+
+    echo -n "eval ${cmd}"
+}
+
 #-----------------------------------------------------------------------------
 # Type detection
 #-----------------------------------------------------------------------------
@@ -2021,7 +2238,6 @@ json_escape()
 #
 # Detecting packs relies on the bashutils convention of "if the first character
 # of the name is a +, consider it a pack)
-
 is_array()
 {
     [[ "$(declare -p $1 2>/dev/null)" =~ ^declare\ -a ]]

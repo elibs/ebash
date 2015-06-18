@@ -84,37 +84,6 @@ plymouth_prompt()
 }
 
 #-----------------------------------------------------------------------------
-# Interposed functions
-#-----------------------------------------------------------------------------
-
-override_function einfo '
-{
-    einfo_real $@
-    plymouth_message "$@"
-}'
-
-override_function ewarn '
-{
-    ewarn_real $@
-    plymouth_message "$@"
-    sleep 2
-}'
-
-override_function eerror '
-{
-    eerror_real $@
-    plymouth_message "$@"
-    sleep 5
-}'
-
-override_function eprompt '
-{
-    local output=$(compress_spaces "$@")
-    ewarn_real "${output}"
-    echo -en $(plymouth_prompt "${output}")
-}'
-
-#-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
 return 0
