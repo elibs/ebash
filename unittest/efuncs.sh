@@ -1,46 +1,32 @@
-
 ETEST_argcheck()
 {
-    EFUNCS_FATAL=0
+    try
+    {
+        alpha="notempty"
+        output=$((argcheck alpha beta 2>&1))
+        die "argcheck should have thrown"
+    }
+    catch
+    {
+        return 0
+    }
 
-    alpha="notempty"
-    output=$(
-        ( 
-            argcheck alpha beta 2>&1
-            assert_true false
-        )
-    )
-
-    assert_not_zero $?
-    echo "$output" | grep -q beta  || die
-    echo "$output" | grep -q alpha && die
+    die "argcheck should have thrown"
 }
 
 ETEST_edebug_one_and_zero()
 {
-    EDEBUG=1 edebug_enabled
-    assert_zero $?
-
-    EDEBUG=0 edebug_enabled
-    assert_not_zero $?
+    EDEBUG=1 edebug_enabled || die "edebug should be enabled"
+    EDEBUG=0 edebug_enabled && die "edebug should not be enabled" || true
 }
 
 ETEST_edebug_enabled_matcher()
 {
-    EDEBUG="ETEST_edebug_enabled_matcher" edebug_enabled
-    assert_zero $?
-
-    EDEBUG="efuncs"                       edebug_enabled
-    assert_zero $?
-
-    EDEBUG="something else entirely"      edebug_enabled
-    assert_not_zero $?
-
-    EDEBUG="else and edebug"              edebug_enabled
-    assert_zero $?
-
-    EDEBUG=""                             edebug_enabled
-    assert_not_zero $?
+    EDEBUG="ETEST_edebug_enabled_matcher" edebug_enabled  || die
+    EDEBUG="efuncs"                       edebug_enabled  || die
+    EDEBUG="something else entirely"      edebug_disabled || die
+    EDEBUG="else and edebug"              edebug_enabled  || die
+    EDEBUG=""                             edebug_disabled || die
 }
 
 ETEST_edebug_enabled_skips_edebug_in_stack_frame()

@@ -115,6 +115,17 @@ ETEST_array_init_default_delim()
     assert_eq 5   $(array_size arr)
 }
 
+ETEST_array_init_json()
+{
+    array_init_json arr '[ "Immanual Kant", "Thomas Hobbes", "John Locke" ]'
+    declare -p arr
+    assert_eq 3 $(array_size arr)
+
+    assert_eq "Immanual Kant" "${arr[0]}"
+    assert_eq "Thomas Hobbes" "${arr[1]}"
+    assert_eq "John Locke"    "${arr[2]}"
+}
+
 ETEST_array_contains()
 {
     array_init arr "a b c d"

@@ -55,8 +55,8 @@ ETEST_pack_nonexistent()
     pack_set P a=1
 
     b=$(pack_get P b)
-    assert_eq 1  $?
     assert_empty "${b}"
+    assert_false pack_contains P b
 }
 
 ETEST_pack_into_associative_array()
@@ -83,7 +83,7 @@ ETEST_pack_get_from_empty()
 {
     a=$(pack_get P a)
 
-    assert_not_zero $?
+    assert_false pack_contains P a
     assert_empty "${a}"
 }
 
@@ -180,17 +180,19 @@ ETEST_pack_avoid_common_variable_conflicts()
 
 ETEST_pack_no_newlines()
 {
-    EFUNCS_FATAL=0
-    output=$(
-        (
-            pack_set P "a=$(printf "\na\nb\n")" 2>&1
+    try
+    {
+        output=$(pack_set P "a=$(printf "\na\nb\n")" 2>&1)
+        
+        # Should never get here
+        die "pack_set should have failed due to newlines"
+    }
+    catch
+    {
+        return 0
+    }
 
-            # Should never get here, because the above should blow up
-            assert_true false
-        )
-    )
-    assert_not_zero $?
-    [[ "${output}" =~ newlines ]] || die
+    die "unit test should have returned"
 }
 
 ETEST_pack_lots_of_data()
