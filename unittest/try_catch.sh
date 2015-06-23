@@ -46,6 +46,33 @@ ETEST_try_catch_rethrow()
     die "Exception was not rethrown"
 }
 
+# Verify aborts are handled correctly inside internal try/catch subshell
+ETEST_try_catch_abort()
+{
+    (
+        try
+        {
+            sleep infinity
+        }
+        catch
+        {
+            return 0
+        }
+
+        die "catch block should have returned"
+    ) &
+
+    # Give it a second to get going then kill it
+    local pid=$!
+    einfo "Waiting for $(lval pid)"
+    sleep 1s
+    kill -TERM ${pid}
+    wait ${pid}
+    local rc=$?
+    einfo "Process killed $(lval pid rc)"
+    assert_eq 143 ${rc}
+}
+
 # Verify catch gets the exit code the try block throws
 ETEST_try_exit_code()
 {
