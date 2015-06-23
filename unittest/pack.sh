@@ -13,11 +13,11 @@ ETEST_pack_empty_values()
 
     local val=$(pack_get P a)
     assert_zero $?
-    assert_empty ${val}
+    assert_empty val
 
     local val=$(pack_get P b)
     assert_zero $?
-    assert_empty ${val}
+    assert_empty val
 
     assert_eq 2 $(pack_size P)
 }
@@ -26,7 +26,7 @@ ETEST_pack_many()
 {
     pack_set P a= b=3 c=7 n=1 x=alpha y=beta z=10
 
-    assert_empty      $(pack_get P a)
+    assert_false      pack_contains P a
     assert_eq "3"     $(pack_get P b)
     assert_eq "7"     $(pack_get P c)
     assert_eq "1"     $(pack_get P n)
@@ -55,7 +55,7 @@ ETEST_pack_nonexistent()
     pack_set P a=1
 
     b=$(pack_get P b)
-    assert_empty "${b}"
+    assert_empty b
     assert_false pack_contains P b
 }
 
@@ -84,7 +84,7 @@ ETEST_pack_get_from_empty()
     a=$(pack_get P a)
 
     assert_false pack_contains P a
-    assert_empty "${a}"
+    assert_empty a
 }
 
 ETEST_pack_last_of_dupes()
@@ -123,7 +123,7 @@ ETEST_pack_keys_are_not_case_insensitive()
 {
     pack_set P a="alpha"
     assert_eq "alpha" $(pack_get P a)
-    assert_empty      $(pack_get P A)
+    assert_false      pack_contains P A
 
     pack_set P A="beta"
     assert_eq "alpha" $(pack_get P a)
@@ -146,8 +146,7 @@ ETEST_pack_values_can_contain_whitespace()
 ETEST_pack_update_empty_stays_empty()
 {
     pack_update P a=1 b=2 c=3
-
-    assert_empty "${P}"
+    assert_empty P
 }
 
 ETEST_pack_update_updates_values()
@@ -159,7 +158,7 @@ ETEST_pack_update_updates_values()
     assert_eq "10" $(pack_get P a)
     assert_eq "20" $(pack_get P b)
     assert_eq "3"  $(pack_get P c)
-    assert_empty   $(pack_get P d)
+    assert_false   pack_contains P d
 }
 
 ETEST_pack_avoid_common_variable_conflicts()
@@ -185,7 +184,7 @@ ETEST_pack_no_newlines()
         output=$(pack_set P "a=$(printf "\na\nb\n")" 2>&1)
         
         # Should never get here
-        die "pack_set should have failed due to newlines"
+        die "pack_set should have failed due to newlines: $(lval output)"
     }
     catch
     {
@@ -232,8 +231,8 @@ ETEST_pack_update_key_not_insensitive()
 
     assert_eq 1  $(pack_get P A)
     assert_eq 2  $(pack_get P B)
-    assert_empty $(pack_get P a)
-    assert_empty $(pack_get P b)
+    assert_false pack_contains P a
+    assert_false pack_contains P b
 }
 
 ETEST_pack_copy_empty()
@@ -263,8 +262,7 @@ ETEST_pack_copy_over()
 
 ETEST_pack_import_all()
 {
-    assert_empty ${a}
-    assert_empty ${b}
+    assert_empty a b
 
     pack_set P a=10 b=20
     $(pack_import P)
@@ -275,16 +273,14 @@ ETEST_pack_import_all()
 
 ETEST_pack_import_specific()
 {
-    assert_empty ${a}
-    assert_empty ${b}
-    assert_empty ${c}
+    assert_empty a b c
 
     pack_set P a=1 b=2 c=3
     $(pack_import P a b)
 
     assert_eq 1  ${a}
     assert_eq 2  ${b}
-    assert_empty ${c}
+    assert_empty c
 }
 
 ETEST_pack_export()

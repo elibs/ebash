@@ -7,6 +7,7 @@
 # GLOBAL EFUNCS SETTINGS
 #-----------------------------------------------------------------------------
 set -o pipefail
+set -o nounset
 shopt -s expand_aliases
 
 #-----------------------------------------------------------------------------
@@ -38,7 +39,7 @@ shopt -s expand_aliases
 # so that instead of calling "kill 0" to destroy the whole process tree on
 # failure we instead just exit.
 alias try="
-    [[ \${__EFUNCS_TRY_CATCH_LEVEL} -gt 0 ]] && nodie_on_error
+    [[ \${__EFUNCS_TRY_CATCH_LEVEL:=0} -gt 0 ]] && nodie_on_error
     (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
     ( 
         die_on_error
@@ -113,7 +114,7 @@ stacktrace()
 declare -r die
 die()
 {
-    [[ ${__EFUNCS_DIE_IN_PROGRESS} -eq 1 ]] && exit 1 || true
+    [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -eq 1 ]] && exit 1 || true
     __EFUNCS_DIE_IN_PROGRESS=1
     eprogress_killall
 
@@ -141,7 +142,7 @@ trap_add()
         trap -- "$(
             # helper fn to get existing trap command from output
             # of trap -p
-            extract_trap_cmd() { printf '%s\n' "$3"; }
+            extract_trap_cmd() { printf '%s\n' "${3:-}"; }
             # print the new trap command
             printf '%s\n' "${trap_add_cmd}"
             # print existing trap command with newline
@@ -187,7 +188,7 @@ tput()
 ecolor()
 {
     ## If EFUNCS_COLOR is empty then set it based on if stderr is a terminal or not ##
-    local efuncs_color=${EFUNCS_COLOR}
+    local efuncs_color=${EFUNCS_COLOR:=}
     [[ -z ${efuncs_color} && -t 2 ]] && efuncs_color=1
     [[ ${efuncs_color} -eq 1 ]] || return 0
 
@@ -245,18 +246,20 @@ ebanner()
     done
 
     # Timestamp
-    [[ ${EFUNCS_TIME} -eq 1 ]] && local stamp="[$(etimestamp)]" || local stamp=""
+    [[ ${EFUNCS_TIME:=0} -eq 1 ]] && local stamp="[$(etimestamp)]" || local stamp=""
     [[ -n ${stamp} ]] && { echo -e "|\n| Time=${stamp}" >&2; }
 
     # Iterate over all other arguments and stick them into an associative array
     # If a custom key was requested via "key=value" format then use the provided
     # key and lookup value via print_value.
     declare -A __details
-    
+   
     local entries=("${@}")
-    for k in "${entries[@]}"; do
+    for k in "${entries[@]:-}"; do
+        [[ -z ${k} ]] && continue
 
-        local _ktag="${k%%=*}"; [[ -z ${_ktag} ]] && _ktag="${k}"
+        local _ktag="${k%%=*}";
+        : ${_ktag:=${k}}
         local _kval="${k#*=}";
         _ktag=${_ktag#+}
         __details[${_ktag}]=$(print_value ${_kval})
@@ -264,7 +267,7 @@ ebanner()
     done
   
     # Now output all the details (if any)
-    if [[ ${#__details[@]} -ne 0 ]]; then
+    if [[ -n ${__details[@]:-} ]]; then
         echo -e "|" >&2
 
         # Sort the keys and store into an array
@@ -292,10 +295,10 @@ ebanner()
 emsg()
 {
     # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX} | egrep -o "(time|times|level|caller|all)") || true
+    local emsg_prefix=$(echo ${EMSG_PREFIX:=} | egrep -o "(time|times|level|caller|all)") || true
 
     $(declare_args color ?symbol level)
-    [[ ${EFUNCS_TIME} -eq 1 ]] && emsg_prefix+=time
+    [[ ${EFUNCS_TIME:=0} -eq 1 ]] && emsg_prefix+=time
 
     # Local args to hold the color and regexs for each field
     for field in time level caller msg; do
@@ -341,7 +344,7 @@ emsg()
 
 edebug_enabled()
 {
-    [[ ${EDEBUG} == "1" ]] && return 0
+    [[ ${EDEBUG:=} == "1" ]] && return 0
     [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
 
     $(declare_args ?_edebug_enabled_caller)
@@ -639,7 +642,7 @@ eprogress_kill()
     # Get the most recent pid
     local pids=()
     array_init pids "${__EPROGRESS_PIDS}"
-    if [[ ${#pids} -gt 0 ]]; then
+    if [[ $(array_size pids) -gt 0 ]]; then
         ekill ${pids[0]} ${signal} &>/dev/null
         export __EPROGRESS_PIDS="${pids[@]:1}"
         [[ -t 1 ]] && echo "" >&2
@@ -678,7 +681,7 @@ eprogress_killall()
 # Associative Arrays: ([key1]="value1" [key2]="value2 with spaces" )
 print_value()
 {
-    local __input=${1}
+    local __input=${1:-}
     [[ -z ${__input} ]] && return
 
     # Special handling for packs, as long as their name is specified with a
@@ -1286,7 +1289,7 @@ declare_args()
     # below which parses options as that's baked into the internal implementation
     # of delcare_args itself and cannot at present be extracted usefully.
     # This is a MUCH more limited version of option parsing.
-    if [[ ${1:0:1} == "-" ]]; then
+    if [[ $# -gt 0 && ${1:0:1} == "-" ]]; then
         [[ $1 =~ "n" ]] && _declare_args_parse_options=0
         [[ $1 =~ "l" ]] && _declare_args_qualifier="local"
         [[ $1 =~ "g" ]] && _declare_args_qualifier=""
@@ -1304,7 +1307,7 @@ declare_args()
     _declare_args_cmd+="declare ${_declare_args_options}='';"
     if [[ ${_declare_args_parse_options} -eq 1 ]]; then
         _declare_args_cmd+="
-        while [[ \${1:0:1} == '-' ]]; do  
+        while [[ \$# -gt 0 && \${1:0:1} == '-' ]]; do  
             [[ \${1:1} =~ '=' ]] 
                 && pack_set ${_declare_args_options} \"\${1:1}\"
                 || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' '; true);
@@ -1323,12 +1326,12 @@ declare_args()
         _declare_args_variable="${1#\?}"
 
         # Declare the variable and then call argcheck if required
-        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\$1; shift || true; "
+        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\${1:-}; shift || true; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
 
         shift
     done
-    
+   
     echo "eval ${_declare_args_cmd}"
 }
 
@@ -1546,8 +1549,8 @@ eretry()
     rc=1
     exit_codes=()
     for (( attempt=0 ; attempt < RETRIES ; attempt++ )) ; do
-        if [[ -n ${TIMEOUT} ]] ; then
-            timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT} "${@}"
+        if [[ -n ${TIMEOUT:-0} ]] ; then
+            timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT:-0} "${@}"
             rc=$?
         else
             edebug "$(lval attempt rc cmd)"
@@ -1558,10 +1561,10 @@ eretry()
 
         [[ ${rc} -eq 0 ]] && break
 
-        [[ ${WARN_EVERY} -ne 0 ]] && (( (attempt+1) % WARN_EVERY == 0 && (attempt+1) < RETRIES )) \
+        [[ ${WARN_EVERY:-0} -ne 0 ]] && (( (attempt+1) % WARN_EVERY == 0 && (attempt+1) < RETRIES )) \
             && ewarn "Command has failed $((attempt+1)) times.  Still trying.  $(lval cmd RETRIES TIMEOUT exit_codes)"
 
-        [[ -n ${SLEEP} ]] && { edebug "Sleeping $(lval SLEEP)" ; sleep ${SLEEP} ; }
+        [[ -n ${SLEEP:-0} ]] && { edebug "Sleeping $(lval SLEEP)" ; sleep ${SLEEP:-0} ; }
         edebug "eretry: trying again $(lval rc attempt cmd)"
     done
 
@@ -1662,7 +1665,7 @@ array_init()
     [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
 
     # Default bash IFS is space, tab, newline, so this will default to that
-    [[ -z ${__delim} ]] && __delim=$' \t\n'
+    : ${__delim:=$' \t\n'}
 
     IFS="${__delim}" eval "${__array}=(\${__string})"
 }
@@ -1689,7 +1692,9 @@ array_init_json()
 array_size()
 {
     $(declare_args __array)
+    set +u
     eval "echo \${#${__array}[@]}"
+    set -u
 }
 
 # array_add will split a given input string on requested delimiters and add them
@@ -1750,7 +1755,7 @@ array_join()
     [[ $(array_size __array) -eq 0 ]] && { echo -n ""; return 0; } || true
 
     # Default bash IFS is space, tab, newline, so this will default to that
-    [[ -z ${__delim} ]] && __delim=$' \t\n' || true
+    : ${__delim:=$' \t\n'}
 
     # Otherwise use IFS to join the array. This must be in a subshell so that
     # the change to IFS doesn't persist after this function call.
@@ -1847,7 +1852,7 @@ pack_set_internal()
     [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
     [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
 
-    local _removeOld="$(echo -n "${!1}" | _unpack | grep -av '^'${_tag}'=')"
+    local _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=')"
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(echo "${_addNew}" | _pack)
 
@@ -1865,7 +1870,7 @@ pack_get()
 
     argcheck _pack_pack_get _tag
 
-    local _unpacked="$(echo -n "${!_pack_pack_get}" | _unpack)"
+    local _unpacked="$(echo -n "${!_pack_pack_get:-}" | _unpack)"
     local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=")"
     edebug "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
@@ -1887,8 +1892,7 @@ pack_contains()
 #
 pack_copy()
 {
-    [[ -z $1 || -z $2 || -n $3 ]] && die "pack_copy requires two arguments"
-
+    argcheck 1 2
     eval "${2}=\"\${!1}\"" 
 }
 
@@ -1941,7 +1945,7 @@ pack_import()
 {
     $(declare_args _pack_import_pack)
     local _pack_import_keys=("${@}")
-    [[ ${#_pack_import_keys} -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
+    [[ $(array_size _pack_import_keys) -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
     
     # Determine requested scope for the variables
     local _pack_import_scope="local"
@@ -1995,7 +1999,7 @@ pack_size()
 pack_keys()
 {
     [[ -z ${1} ]] && die "pack_keys requires a pack to be specified as \$1"
-    echo "${!1}" | _unpack | sed 's/=.*$//'
+    echo "${!1:-}" | _unpack | sed 's/=.*$//'
 }
 
 # Note: To support working with print_value, pack_print does NOT print a
@@ -2069,7 +2073,7 @@ to_upper_snake_case()
 to_json()
 {
     echo -n "{"
-    local _notfirst _arg
+    local _notfirst="" _arg
     for _arg in "${@}" ; do
         [[ -n ${_notfirst} ]] && echo -n ","
 
@@ -2103,7 +2107,7 @@ array_to_json()
     eval "local __array=(\"\${${__array}[@]}\")"
 
     echo -n "["
-    local i notfirst
+    local i notfirst=""
     for i in "${__array[@]}" ; do
         [[ -n ${notfirst} ]] && echo -n ","
         echo -n $(json_escape "$i")
@@ -2116,7 +2120,7 @@ array_to_json()
 associative_array_to_json()
 {
     echo -n "{"
-    local _notfirst _key
+    local _notfirst="" _key
     edebug "1=$1"
     for _key in $(eval echo -n "\${!$1[@]}") ; do
         edebug $(lval _key)
@@ -2138,7 +2142,7 @@ pack_to_json()
 {
     [[ -z ${1} ]] && die "pack_to_json requires a pack to be specified as \$1"
 
-    local _pack _key _notfirst
+    local _pack _key _notfirst=""
     _pack=$(discard_qualifiers $1)
     echo -n "{"
     for _key in $(pack_keys ${_pack}) ; do
@@ -2205,7 +2209,7 @@ json_import()
     local _json_import_data=$(cat ${_json_import_filename} | jq -r "${_json_import_query}")
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
-    local _json_import_keys=("${@}")
+    local _json_import_keys=("${@:-}")
     [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
 
     # Get list of optional keys to exclude

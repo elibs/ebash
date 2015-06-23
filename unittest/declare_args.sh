@@ -2,17 +2,17 @@ ETEST_DECLARE_ARGS_OPTIONAL=1
 
 do_declare_args()
 {
-    local args=( ${1} ); shift || true
+    local args=( ${1:-} ); shift || true
     local vals=( "${@}" )
     einfo "$(lval args vals)"
-    $(declare_args ${args[@]})
+    $(declare_args ${args[@]:-})
     
     # declare_args should be consuming positional arguments
     # This assumes none of the unit tests are passing more than
     # ten arguments into this helper method.
     assert_eq 0 ${#@}
 
-    [[ ${#args} -eq 0 ]] && return
+    [[ $(array_size args) -eq 0 ]] && return 
 
     local arg val idx
     for (( idx=0; idx <= ${#args}; idx++ )); do
