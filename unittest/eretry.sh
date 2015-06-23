@@ -25,10 +25,10 @@ ETEST_eretry_fail_till_last()
     assert_eq 3 ${FAIL_TIMES}
 }
 
-ETEST_eretry_exit_143_on_timeout()
+ETEST_eretry_exit_124_on_timeout()
 {
     eretry -r=0 -t=0.1s sleep 3
-    assert_eq 143 $?
+    assert_eq 124 $?
 }
 
 ETEST_eretry_warn_every()
