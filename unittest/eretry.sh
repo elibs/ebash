@@ -11,18 +11,24 @@ ETEST_eretry_preserve_exit_code()
 {
     RETRIES=3 eretry fail_then_pass 3
     assert_eq 15 $?
+
+    # Ensure fail_then_pass was actually called specified number of times
+    assert_eq 3 ${FAIL_TIMES}
 }
 
 ETEST_eretry_fail_till_last()
 {
     RETRIES=3 eretry fail_then_pass 2
     assert_zero $?
+
+    # Ensure fail_then_pass was actually called specified number of times
+    assert_eq 3 ${FAIL_TIMES}
 }
 
-ETEST_eretry_exit_124_on_timeout()
+ETEST_eretry_exit_143_on_timeout()
 {
     RETRIES=0 TIMEOUT=0.1s eretry sleep 3
-    assert_eq 124 $?
+    assert_eq 143 $?
 }
 
 ETEST_eretry_warn_every()
