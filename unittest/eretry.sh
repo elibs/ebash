@@ -51,3 +51,9 @@ ETEST_eretry_warn_every()
     einfo "$(lval output)"
     assert_eq 1 $(echo "$output" | wc -l)
 }
+
+ETEST_eretry_hang()
+{
+    eretry -t=1s -r=0 sleep infinity
+    assert_eq 124 $?
+}

@@ -42,6 +42,7 @@ alias try="
     [[ \${__EFUNCS_TRY_CATCH_LEVEL:=0} -gt 0 ]] && nodie_on_error
     (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
     ( 
+        die_on_abort
         die_on_error
     "
 
@@ -1584,6 +1585,7 @@ eretry()
             local pid=$!
 
             (
+                die_on_abort
                 sleep ${_eretry_timeout}
                 kill -0 ${pid} || exit 0
 
