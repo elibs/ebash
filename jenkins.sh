@@ -31,7 +31,7 @@ jenkins()
 
     local cmd=("${@}")
     edebug "Sending jenkins command $(lval cmd JENKINS_CLI_JAR)"
-    EFUNCS_FATAL=0 RETRIES=${JENKINS_RETRIES:-20} TIMEOUT=${JENKINS_TIMEOUT:-5s} WARN_EVERY=${JENKINS_WARN_EVERY:-5} eretry \
+    eretry -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-5s} -w=${JENKINS_WARN_EVERY:-5} \
         java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) \
         "${@}"
 }
