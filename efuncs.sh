@@ -1500,11 +1500,13 @@ netselect()
 # seconds and retrying up to a specified count.  If the command is successful,
 # retries stop.  If not, eretry will "die".
 #
-# Commands that timeout will return exit code 124, unless they die from sigkill
-# in which case they'll return exit code 137.
+# If the command eventually completes successfully eretry will return 0. Otherwise
+# if it is prematurely terminated via the requested SIGNAL it will return 128+SIGNAL.
+# For example, if SIGNAL is SIGTERM, this will return 143. If it is killed via SIGKILL
+# this will return 137.
 #
-# TIMEOUT=<duration>
-#   After this duration, command will be killed (and retried if that's the
+# OPTIONS:
+# -t TIMEOUT. After this duration, command will be killed (and retried if that's the
 #   right thing to do).  If unspecified, commands may run as long as they like
 #   and eretry will simply wait for them to finish.
 #
@@ -1513,20 +1515,19 @@ netselect()
 #   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
 #   days, respectively.
 #
-# SLEEP=<time to pass to sleep command>
-#   Amount of time to wait after failed attempts before retrying.  Note that
+# -s SLEEP. Amount of time to wait after failed attempts before retrying.  Note that
 #   this value can accept sub-second values, just as the sleep command does.
 #
-# SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
+# -k KILL SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
 #   When ${TIMEOUT} seconds have passed since running the command, this will be
 #   the signal to send to the process to make it stop.  The default is TERM.
 #   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
 #   signal doesn't do its job]
 #
-# RETRIES=<number>
+# -r RETRIES=<number>
 #   Command will be attempted <number> times total.
 #
-# WARN_EVERY=<number>
+# -w WARN=<number>
 #   A warning will be generated every time <number> of retries have been
 #   attemped and failed.
 #
@@ -1535,30 +1536,43 @@ netselect()
 #
 eretry()
 {
-    local attempt rc cmd exit_codes
+    # Parse options
+    $(declare_args)
+    local _eretry_timeout=$(opt_get t)
+    local _eretry_sleep=$(opt_get s)
+    local _eretry_kill=$(opt_get k)
+    local _eretry_retries=$(opt_get r)
+    local _eretry_warn=$(opt_get w)
 
-    argcheck RETRIES
-    [[ ${RETRIES} -le 0 ]] && RETRIES=1
+    # Defaults
+    : ${_eretry_timeout:-""}
+    : ${_eretry_sleep:=0}
+    : ${_eretry_kill:=TERM}
+    : ${_eretry_retries:=5}
+    [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
+    : ${_eretry_warn:=0}
 
-    SIGNAL=${SIGNAL:-TERM}
+    # Command
+    local cmd=("${@}")
 
-    cmd=("${@}")
-    argcheck cmd
-
-    rc=1
-    exit_codes=()
-    for (( attempt=0 ; attempt < RETRIES ; attempt++ )) ; do
+    # Tries
+    local attempt=0
+    local rc=1
+    local exit_codes=()
+    for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
         
-        if [[ -n ${TIMEOUT:-} ]] ; then
-           
+        edebug "$(lval attempt rc cmd timeout=_eretry_timeout)"
+        
+        if [[ -n ${_eretry_timeout} ]] ; then
+          
             "${@}" &
             local pid=$!
 
             (
-                sleep ${TIMEOUT}
+                sleep ${_eretry_timeout}
                 kill -0 ${pid} || exit 0
 
-                kill -${SIGNAL} ${pid}
+                kill -${_eretry_kill} ${pid}
                 sleep 2
                 kill -KILL ${pid}
             ) &
@@ -1567,8 +1581,8 @@ eretry()
             wait ${pid}
             rc=$?
             ekill ${watcher} KILL
+
         else
-            edebug "$(lval attempt rc cmd)"
             "${@}"
             rc=$?
         fi
@@ -1576,20 +1590,16 @@ eretry()
 
         [[ ${rc} -eq 0 ]] && break
 
-        [[ ${WARN_EVERY:-0} -ne 0 ]] && (( (attempt+1) % WARN_EVERY == 0 && (attempt+1) < RETRIES )) \
-            && ewarn "Command has failed $((attempt+1)) times.  Still trying.  $(lval cmd RETRIES TIMEOUT exit_codes)"
+        [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
+            && ewarn "Command has failed $((attempt+1)) times.  Still trying.  $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
 
-        [[ -n ${SLEEP:-0} ]] && { edebug "Sleeping $(lval SLEEP)" ; sleep ${SLEEP:-0} ; }
+        [[ ${_eretry_sleep} -ne 0 ]] && { edebug "Sleeping $(lval sleep=_eretry_sleep)" ; sleep ${_eretry_sleep} ; }
         edebug "eretry: trying again $(lval rc attempt cmd)"
     done
 
-    if [[ ${rc} -ne 0 ]] ; then
-        # Return last exit code if EFUNCS_FATAL isn't supposed to kill the process
-        [[ ${EFUNCS_FATAL:-1} -ne 1 ]] && { ewarn "Command failed $(lval cmd RETRIES TIMEOUT exit_codes)" ; return ${rc} ; }
+    [[ ${rc} -eq 0 ]] || ewarn "Command failed $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
 
-        # Or go ahead and die if EFUNCS_FATAL is set
-        die "eretry: failed $(lval cmd exit_codes)"
-    fi
+    return ${rc}
 }
 
 # setvars takes a template file with optional variables inside the file which 

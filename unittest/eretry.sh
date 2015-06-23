@@ -9,7 +9,7 @@ fail_then_pass()
 
 ETEST_eretry_preserve_exit_code()
 {
-    RETRIES=3 eretry fail_then_pass 3
+    eretry -r=3 fail_then_pass 3
     assert_eq 15 $?
 
     # Ensure fail_then_pass was actually called specified number of times
@@ -18,7 +18,7 @@ ETEST_eretry_preserve_exit_code()
 
 ETEST_eretry_fail_till_last()
 {
-    RETRIES=3 eretry fail_then_pass 2
+    eretry -r=3 fail_then_pass 2
     assert_zero $?
 
     # Ensure fail_then_pass was actually called specified number of times
@@ -27,7 +27,7 @@ ETEST_eretry_fail_till_last()
 
 ETEST_eretry_exit_143_on_timeout()
 {
-    RETRIES=0 TIMEOUT=0.1s eretry sleep 3
+    eretry -r=0 -t=0.1s sleep 3
     assert_eq 143 $?
 }
 
@@ -35,19 +35,19 @@ ETEST_eretry_warn_every()
 {
     EDEBUG=
 
-    output=$(RETRIES=10 WARN_EVERY=2 eretry false 2>&1)
+    output=$(eretry -r=10 -w=2 false 2>&1)
     einfo "$(lval output)"
     assert_eq 5 $(echo "$output" | wc -l)
 
-    output=$(RETRIES=30 WARN_EVERY=3 eretry false 2>&1)
+    output=$(eretry -r=30 -w=3 false 2>&1)
     einfo "$(lval output)"
     assert_eq 10 $(echo "$output" | wc -l)
 
-    output=$(RETRIES=3 WARN_EVERY=1 eretry false 2>&1)
+    output=$(eretry -r=3 -w=1 false 2>&1)
     einfo "$(lval output)"
     assert_eq 3 $(echo "$output" | wc -l)
 
-    output=$(RETRIES=0 WARN_EVERY=1 eretry false 2>&1)
+    output=$(eretry -r=0 -w=1 false 2>&1)
     einfo "$(lval output)"
     assert_eq 1 $(echo "$output" | wc -l)
 }
