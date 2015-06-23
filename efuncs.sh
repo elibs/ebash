@@ -550,8 +550,7 @@ ekill()
     $(declare_args pid ?signal)
     : ${signal:=TERM}
 
-    kill -${signal} ${pid}
-    wait  ${pid}
+    { kill -${signal} ${pid}; wait ${pid}; } &>/dev/null
 }
 
 ekilltree()
@@ -563,7 +562,7 @@ ekilltree()
     for child in $(ps -o pid --no-headers --ppid ${pid}); do
         ekilltree ${child} ${signal}
     done
-    ekill ${pid} ${signal} &>/dev/null
+    ekill ${pid} ${signal}
 }
 
 spinout()
@@ -643,7 +642,7 @@ eprogress_kill()
     local pids=()
     array_init pids "${__EPROGRESS_PIDS}"
     if [[ $(array_size pids) -gt 0 ]]; then
-        ekill ${pids[0]} ${signal} &>/dev/null
+        ekill ${pids[0]} ${signal}
         export __EPROGRESS_PIDS="${pids[@]:1}"
         [[ -t 1 ]] && echo "" >&2
         eend ${rc}
@@ -1549,9 +1548,25 @@ eretry()
     rc=1
     exit_codes=()
     for (( attempt=0 ; attempt < RETRIES ; attempt++ )) ; do
-        if [[ -n ${TIMEOUT:-0} ]] ; then
-            timeout --signal=${SIGNAL} --kill-after=2s ${TIMEOUT:-0} "${@}"
+        
+        if [[ -n ${TIMEOUT:-} ]] ; then
+           
+            "${@}" &
+            local pid=$!
+
+            (
+                sleep ${TIMEOUT}
+                kill -0 ${pid} || exit 0
+
+                kill -${SIGNAL} ${pid}
+                sleep 2
+                kill -KILL ${pid}
+            ) &
+            
+            local watcher=$!
+            wait ${pid}
             rc=$?
+            ekill ${watcher} KILL
         else
             edebug "$(lval attempt rc cmd)"
             "${@}"
