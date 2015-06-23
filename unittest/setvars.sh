@@ -23,10 +23,19 @@ ETEST_setvars_multi()
 ETEST_setvars_error()
 {
     local file="setvars_multi.txt"
-    local arg1="Foo"
-    echo "__arg1__ __arg2__" > "${file}"
+    
+    try
+    {
+        local arg1="Foo"
+        echo "__arg1__ __arg2__" > "${file}"
+        setvars "${file}"
+    }
+    catch
+    {
+        return 0
+    }
 
-    assert_false SETVARS_WARN=0 setvars "${file}"
+    die "catch block should have returned"
 }
 
 adjust_version()

@@ -1,6 +1,6 @@
 show_text()
 {
-    [[ ${TEXT} -eq 1 ]] || return 0
+    [[ ${TEXT:-0} -eq 1 ]] || return 0
     head /etc/fstab 
     return 0
 }

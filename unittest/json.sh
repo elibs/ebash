@@ -116,7 +116,7 @@ ETEST_json_import_explicit_keys()
     argcheck driveSize lsiFirmware
     assert_eq "100"     "${driveSize}"
     assert_eq "1.0.2.3" "${lsiFirmware}"
-    assert_empty        "${sliceDriveSize}"
+    assert_empty        sliceDriveSize
 }
 
 ETEST_json_import_upper_snake_case()
@@ -179,7 +179,7 @@ ETEST_json_import_query_keys()
     argcheck driveSize
 
     assert_eq "200" "${driveSize}"
-    assert_empty    "${foo}"
+    assert_empty    foo
 }
 
 ETEST_json_import_exclude_keys()
@@ -189,7 +189,7 @@ ETEST_json_import_exclude_keys()
 
     assert_eq "1" "${foo}"
     assert_eq "3" "${bar}"
-    assert_empty  "${driveSize}"
+    assert_empty  driveSize
 }
 
 ETEST_json_import_exclude_multiple_keys()
@@ -198,8 +198,8 @@ ETEST_json_import_exclude_multiple_keys()
     argcheck foo
 
     assert_eq "1" "${foo}"
-    assert_empty  "${bar}"
-    assert_empty  "${driveSize}"
+    assert_empty  bar
+    assert_empty  driveSize
 }
 
 ETEST_json_import_query_keys_file()
@@ -211,7 +211,7 @@ ETEST_json_import_query_keys_file()
     argcheck driveSize
 
     assert_eq "200" "${driveSize}"
-    assert_empty    "${foo}"
+    assert_empty    foo
 }
 
 ETEST_json_import_query_platform()

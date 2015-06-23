@@ -11,7 +11,7 @@ source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unabl
 
 [[ "$#" -eq 1 || "$#" -eq 2 ]] || die "etest only accepts one or two arguments"
 TEST_DIR=$(readlink -m $1)
-FILTER=$2
+FILTER=${2:-}
 
 #-------------------------------------------------------------------------------------------------------------------------
 # TEST UTILITY FUNCTIONS
@@ -60,22 +60,28 @@ assert_ne()
 
 assert_zero()
 {
-    [[ $1 -eq 0 ]] || { die "assert_zero received $1 instead of zero." ; return 1 ; }
+    [[ ${1:-0} -eq 0 ]] || { die "assert_zero received $1 instead of zero." ; return 1 ; }
 }
 
 assert_not_zero()
 {
-    [[ $1 -ne 0 ]] || { die "assert_not_zero received ${1}." ; return 1 ; }
+    [[ ${1:-1} -ne 0 ]] || { die "assert_not_zero received ${1}." ; return 1 ; }
 }
 
 assert_empty()
 {
-    [[ $1 == "" ]] || { die "assert_empty received \"$1\"." ; return 1 ; }
+    local _arg
+    for _arg in $@; do
+        [[ "${!_arg:-""}" == "" ]] || die "assert_empty received $(lval _arg)"
+    done
 }
 
 assert_not_empty()
 {
-    [[ $1 != "" ]] || { die "assert_not_empty received an empty string." ; return 1 ; }
+    local _arg
+    for _arg in $@; do
+        [[ "${!_arg}" != "" ]] || die "assert_not_empty received $(lval _arg)"
+    done
 }
 
 global_setup()
@@ -144,7 +150,7 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
 
         [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] && continue
 
-        edebug_enabled ${testfunc} || einfo "Starting tests in ${testfile}"
+        edebug_enabled ${testfile} || einfo "Starting tests in ${testfile}"
 
         for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
