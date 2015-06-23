@@ -1362,6 +1362,21 @@ opt_get()
     pack_get _${_caller[1]}_options ${1}
 }
 
+# Helper method to be used after declare_args to extract the value of an option.
+# Unlike opt_get this one allows you to specify a default value to be used in
+# the event the requested option was not provided.
+opt_get_default()
+{
+    $(declare_args key ?default)
+    local _caller=( $(caller 0) )
+    local _value=$(pack_get _${_caller[1]}_options ${key})
+    : ${_value:=${default}}
+    
+    edebug "$(lval _caller key default _value)"
+
+    echo -n "${_value}"
+}
+
 #-----------------------------------------------------------------------------
 # MISC HELPERS
 #-----------------------------------------------------------------------------
@@ -1501,9 +1516,10 @@ netselect()
 # retries stop.  If not, eretry will "die".
 #
 # If the command eventually completes successfully eretry will return 0. Otherwise
-# if it is prematurely terminated via the requested SIGNAL it will return 128+SIGNAL.
-# For example, if SIGNAL is SIGTERM, this will return 143. If it is killed via SIGKILL
-# this will return 137.
+# if it is prematurely terminated via the requested SIGNAL it will return 124 to match
+# earlier behavior with timeout based implementations. If the process fails to exit
+# after receiving requested signal it will send SIGKILL to the process. If this
+# happens the return code of eretry will be 137 (128+SIGKILL).
 #
 # OPTIONS:
 # -t TIMEOUT. After this duration, command will be killed (and retried if that's the
@@ -1515,10 +1531,10 @@ netselect()
 #   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
 #   days, respectively.
 #
-# -s SLEEP. Amount of time to wait after failed attempts before retrying.  Note that
-#   this value can accept sub-second values, just as the sleep command does.
+# -d DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
+#   Note that this value can accept sub-second values, just as the sleep command does.
 #
-# -k KILL SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
+# -s SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
 #   When ${TIMEOUT} seconds have passed since running the command, this will be
 #   the signal to send to the process to make it stop.  The default is TERM.
 #   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
@@ -1538,19 +1554,18 @@ eretry()
 {
     # Parse options
     $(declare_args)
-    local _eretry_timeout=$(opt_get t)
-    local _eretry_sleep=$(opt_get s)
-    local _eretry_kill=$(opt_get k)
-    local _eretry_retries=$(opt_get r)
-    local _eretry_warn=$(opt_get w)
-
-    # Defaults
-    : ${_eretry_timeout:-""}
-    : ${_eretry_sleep:=0}
-    : ${_eretry_kill:=TERM}
-    : ${_eretry_retries:=5}
+    local _eretry_timeout=$(opt_get_default t "")
+    local _eretry_delay=$(opt_get_default d 0)
+    local _eretry_signal=$(opt_get_default s SIGTERM)
+    local _eretry_retries=$(opt_get_default r 5)
+    local _eretry_warn=$(opt_get_default w 0)
     [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
-    : ${_eretry_warn:=0}
+    edebug "$(lval _eretry_timeout _eretry_delay _eretry_signal _eretry_retries _eretry_warn)"
+
+    # Convert signal name to number so we can use it's numerical value
+    if [[ ! ${_eretry_signal} =~ ^[[:digit:]]$ ]]; then
+        _eretry_signal=$(kill -l ${_eretry_signal})
+    fi
 
     # Command
     local cmd=("${@}")
@@ -1572,7 +1587,7 @@ eretry()
                 sleep ${_eretry_timeout}
                 kill -0 ${pid} || exit 0
 
-                kill -${_eretry_kill} ${pid}
+                kill -${_eretry_signal} ${pid}
                 sleep 2
                 kill -KILL ${pid}
             ) &
@@ -1581,6 +1596,10 @@ eretry()
             wait ${pid}
             rc=$?
             ekill ${watcher} KILL
+
+            # If the process timedout return 124 to match timeout behavior.
+            local timeout_rc=$(( 128 + ${_eretry_signal} ))
+            [[ ${rc} -eq ${timeout_rc} ]] && rc=124
 
         else
             "${@}"
@@ -1593,7 +1612,7 @@ eretry()
         [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
             && ewarn "Command has failed $((attempt+1)) times.  Still trying.  $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
 
-        [[ ${_eretry_sleep} -ne 0 ]] && { edebug "Sleeping $(lval sleep=_eretry_sleep)" ; sleep ${_eretry_sleep} ; }
+        [[ ${_eretry_delay} -ne 0 ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
         edebug "eretry: trying again $(lval rc attempt cmd)"
     done
 
