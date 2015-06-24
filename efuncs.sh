@@ -15,22 +15,63 @@ shopt -s expand_aliases
 # DEBUGGING
 #-----------------------------------------------------------------------------
 
-alias enable_trace='trap etrace DEBUG'
-alias disable_trace='trap - DEBUG'
+alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DEBUG || trap - DEBUG'
 
 etrace()
 {
     [[ ${ETRACE} == "" || ${ETRACE} == "0" ]] && return 0
 
-    local _etrace_enabled_caller=( $(caller 0) )
+    # If ETRACE=1 then it's enabled globally
+    if [[ ${ETRACE} != "1" ]]; then
+        local _etrace_enabled_caller=( $(caller 0) )
+        local _etrace_enabled_tmp=""
+        local _etrace_enabled=0
+        for _etrace_enabled_tmp in ${ETRACE}; do
+            [[ "${_etrace_enabled_caller[@]:1}" =~ ${_etrace_enabled_tmp} ]] && { _etrace_enabled=1; break; }
+        done
 
-    local _etrace_enabled_tmp
-    for _etrace_enabled_tmp in ${ETRACE} ; do
-        [[ "${_etrace_enabled_caller[@]:1}" =~ ${_etrace_enabled_tmp} ]] || return 0
-    done
+        [[ ${_etrace_enabled} -eq 1 ]] || return 0
+    fi
 
     die_on_abort
     echo "$(ecolor dimwheat)[$(basename ${BASH_SOURCE[1]}):${BASH_LINENO[0]}:${FUNCNAME[1]}]$(ecolor none) ${BASH_COMMAND}" >&2
+}
+
+edebug_enabled()
+{
+    [[ ${EDEBUG:=} == "1" ]] && return 0
+    [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
+
+    $(declare_args ?_edebug_enabled_caller)
+
+    if [[ -z ${_edebug_enabled_caller} ]]; then
+        _edebug_enabled_caller=( $(caller 0) )
+        [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebug_out" ]] \
+            && _edebug_enabled_caller=( $(caller 1) )
+    fi
+
+    local _edebug_enabled_tmp
+    for _edebug_enabled_tmp in ${EDEBUG} ; do
+        [[ "${_edebug_enabled_caller[@]:1}" =~ ${_edebug_enabled_tmp} ]] && return 0
+    done
+
+    return 1
+}
+
+edebug_disabled()
+{
+    edebug_enabled && return 1 || return 0
+}
+
+edebug()
+{
+    edebug_enabled || return 0
+    echo -e "$(emsg 'dimblue' '   -' 'DEBUG' "$@")" >&2
+}
+
+edebug_out()
+{
+    edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
 #-----------------------------------------------------------------------------
@@ -65,7 +106,7 @@ alias try="
     [[ \${__EFUNCS_TRY_CATCH_LEVEL:=0} -gt 0 ]] && nodie_on_error
     (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
     ( 
-        [[ -n \${ETRACE:-} ]] && enable_trace || disable_trace
+        enable_trace    
         die_on_abort
         die_on_error
     "
@@ -200,7 +241,7 @@ die_on_abort()
 # Default traps
 die_on_abort
 die_on_error
-[[ -n ${ETRACE:-} ]] && enable_trace || disable_trace
+enable_trace
 
 #-----------------------------------------------------------------------------
 # FANCY I/O ROUTINES
@@ -447,43 +488,6 @@ emsg()
     [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]]    \
         && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " >&2 \
         || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@ " >&2
-}
-
-edebug_enabled()
-{
-    [[ ${EDEBUG:=} == "1" ]] && return 0
-    [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
-
-    $(declare_args ?_edebug_enabled_caller)
-
-    if [[ -z ${_edebug_enabled_caller} ]]; then
-        _edebug_enabled_caller=( $(caller 0) )
-        [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebug_out" ]] \
-            && _edebug_enabled_caller=( $(caller 1) )
-    fi
-
-    local _edebug_enabled_tmp
-    for _edebug_enabled_tmp in ${EDEBUG} ; do
-        [[ "${_edebug_enabled_caller[@]:1}" =~ ${_edebug_enabled_tmp} ]] && return 0
-    done
-
-    return 1
-}
-
-edebug_disabled()
-{
-    edebug_enabled && return 1 || return 0
-}
-
-edebug()
-{
-    edebug_enabled || return 0
-    echo -e "$(emsg 'dimblue' '   -' 'DEBUG' "$@")" >&2
-}
-
-edebug_out()
-{
-    edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
 einfo()
