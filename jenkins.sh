@@ -21,7 +21,7 @@ jenkins_url()
 
 jenkins()
 {
-    if [[ -z ${JENKINS_CLI_JAR} || ! -r ${JENKINS_CLI_JAR} ]] ; then
+    if [[ -z ${JENKINS_CLI_JAR:=} || ! -r ${JENKINS_CLI_JAR} ]] ; then
         local tempDir=$(mktemp -d /tmp/jenkins.sh.tmp-XXXXXXXX)
         efetch "$(jenkins_url)/jnlpJars/jenkins-cli.jar" "${tempDir}" 2> $(edebug_out)
         export JENKINS_CLI_JAR="${tempDir}/jenkins-cli.jar"
@@ -326,13 +326,6 @@ jenkins_get_artifact()
 
 jenkins_get_queue_size()
 {
-    local job=${1}
-
-    if [[ -z $job ]] ; then
-        echo "usage: $FUNCNAME <jenkins job name>"
-        return 1
-    fi
-
     curl --silent $(jenkins_url)/queue/api/json \
         | jq '.items[].task.name' \
         | wc -l
@@ -343,24 +336,19 @@ jenkins_get_queue_size()
 #
 jenkins_cancel_queue_jobs()
 {
-    local DTEST_TITLE=${1}
-
-    if [[ -z $DTEST_TITLE ]] ; then
-        echo "usage: $FUNCNAME <test bundle absolute filename>"
-        return 1
-    fi
+    $(declare_args dtest_title)
 
     # NOTE: I'm ignoring a jq error here -- the select I'm using ignores the
     # fact that not all items in the .actions array have .parameters[] in them.
     # But I only care about the ones that do and I can't figure out how to
     # nicely tell jq to skip them.
     local ids=$(curl --silent $(jenkins_url)/queue/api/json \
-                    | jq '.items[] | select( .actions[].parameters[].value == "'$1'" and .actions[].parameters[].name == "DTEST_TITLE")' 2> $(edebug_out) \
+                    | jq '.items[] | select( .actions[].parameters[].value == "'${dtest_title}'" and .actions[].parameters[].name == "DTEST_TITLE")' 2> $(edebug_out) \
                     | jq .id \
-                    | sed 's/"//g')
+                    | sed 's/"//g' || true)
 
     edebug "Killing jenkins queued items $(lval ids)"
-    for id in $ids ; do
+    for id in ${ids} ; do
         curl --data "id=${id}" $(jenkins_url)/queue/cancelItem
     done
 }
