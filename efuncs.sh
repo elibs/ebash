@@ -34,7 +34,7 @@ etrace()
     fi
 
     die_on_abort
-    echo "$(ecolor dimwheat)[$(basename ${BASH_SOURCE[1]}):${BASH_LINENO[0]}:${FUNCNAME[1]}]$(ecolor none) ${BASH_COMMAND}" >&2
+    echo "$(ecolor dimwheat)[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}]$(ecolor none) ${BASH_COMMAND}" >&2
 }
 
 edebug_enabled()
@@ -1337,7 +1337,7 @@ argcheck()
 {
     local _argcheck_arg
     for _argcheck_arg in $@; do
-        [[ -n "${!_argcheck_arg}" ]] || die "Missing argument '${_argcheck_arg}'"
+        [[ -z "${!_argcheck_arg:-}" ]] && die "Missing argument '${_argcheck_arg}'" || true
     done
 }
 
@@ -1691,7 +1691,7 @@ eretry()
         
         if [[ -n ${_eretry_timeout} ]] ; then
           
-            "${@}" &
+            ( die_on_abort; "${cmd[@]}" ) &
             local pid=$!
 
             (
@@ -1714,7 +1714,7 @@ eretry()
             [[ ${rc} -eq ${timeout_rc} ]] && rc=124
 
         else
-            "${@}"
+            ( die_on_abort; "${cmd[@]}" )
             rc=$?
         fi
         exit_codes+=(${rc})
