@@ -104,7 +104,7 @@ edebug_out()
 # failure we instead just exit.
 alias try="
     [[ \${__EFUNCS_TRY_CATCH_LEVEL:=0} -gt 0 ]] && nodie_on_error
-    (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
+    (( __EFUNCS_TRY_CATCH_LEVEL+=1 || true ))
     ( 
         enable_trace    
         die_on_abort
