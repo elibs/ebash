@@ -76,10 +76,7 @@ ETEST_chroot_slash_dev_shared_mounts()
     mkdir dev
 
     ebindmount /dev dev
-    trap_add "ewarn trap ; eunmount dev" HUP INT QUIT BUS PIPE TERM EXIT
-
     ebindmount /dev dev
-    trap_add "ewarn trap ; eunmount dev" HUP INT QUIT BUS PIPE TERM EXIT
 
     # So now, while we've done a pair of bind mounts, the file should be missing
     [[ -f ${TESTFILE} ]] || die "File is missing"
