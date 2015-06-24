@@ -407,8 +407,11 @@ jenkins_cancel_running_jobs()
 #
 jenkins_list_slaves()
 {
-    # Note: the = parameter to jenkins groovy causes it to use stdin as its script.
-    jenkins groovy = <<-ENDGROOVY
+    # Create a temporary file to hold the groovy script.
+    local groovy_script=$(mktemp /tmp/jenkins_list_slaves-XXXXXXXX.groovy)
+    trap_add "edebug \"Deleting ${groovy_script}.\" ; rm -rf \"${groovy_script}\"" EXIT HUP INT QUIT BUS PIPE
+   
+    cat > ${groovy_script} <<-ENDGROOVY
 	for (slave in jenkins.model.Jenkins.instance.slaves) {
 		println (slave.name + "," 
 					+ slave.launcher.host + ","
@@ -417,6 +420,8 @@ jenkins_list_slaves()
 					+ slave.getLabelString())
     }
 	ENDGROOVY
+
+    jenkins groovy ${groovy_script}
 }
 
 #
