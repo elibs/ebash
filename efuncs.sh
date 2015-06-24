@@ -8,7 +8,30 @@
 #-----------------------------------------------------------------------------
 set -o pipefail
 set -o nounset
+set -o functrace
 shopt -s expand_aliases
+
+#-----------------------------------------------------------------------------
+# DEBUGGING
+#-----------------------------------------------------------------------------
+
+alias enable_trace='trap etrace DEBUG'
+alias disable_trace='trap - DEBUG'
+
+etrace()
+{
+    [[ ${ETRACE} == "" || ${ETRACE} == "0" ]] && return 0
+
+    local _etrace_enabled_caller=( $(caller 0) )
+
+    local _etrace_enabled_tmp
+    for _etrace_enabled_tmp in ${ETRACE} ; do
+        [[ "${_etrace_enabled_caller[@]:1}" =~ ${_etrace_enabled_tmp} ]] || return 0
+    done
+
+    die_on_abort
+    echo "$(ecolor dimwheat)[$(basename ${BASH_SOURCE[1]}):${BASH_LINENO[0]}:${FUNCNAME[1]}]$(ecolor none) ${BASH_COMMAND}" >&2
+}
 
 #-----------------------------------------------------------------------------
 # TRY / CATCH
@@ -42,6 +65,7 @@ alias try="
     [[ \${__EFUNCS_TRY_CATCH_LEVEL:=0} -gt 0 ]] && nodie_on_error
     (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
     ( 
+        [[ -n \${ETRACE:-} ]] && enable_trace || disable_trace
         die_on_abort
         die_on_error
     "
@@ -176,6 +200,7 @@ die_on_abort()
 # Default traps
 die_on_abort
 die_on_error
+[[ -n ${ETRACE:-} ]] && enable_trace || disable_trace
 
 #-----------------------------------------------------------------------------
 # FANCY I/O ROUTINES
