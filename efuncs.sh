@@ -104,7 +104,7 @@ edebug_out()
 # failure we instead just exit.
 alias try="
     [[ \${__EFUNCS_TRY_CATCH_LEVEL:=0} -gt 0 ]] && nodie_on_error
-    (( __EFUNCS_TRY_CATCH_LEVEL+=1 || true ))
+    (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
     ( 
         enable_trace    
         die_on_abort
@@ -139,7 +139,7 @@ alias try="
 #     valid.
 alias catch=" ); 
     __EFUNCS_TRY_CATCH_RC=\$? || true 
-    (( __EFUNCS_TRY_CATCH_LEVEL+=-1 || true ))
+    (( __EFUNCS_TRY_CATCH_LEVEL+=-1 )) || true
     ( exit \${__EFUNCS_TRY_CATCH_RC}; ) || "
 
 # Throw is just a simple wrapper around exit but it looks a little nicer inside
@@ -1691,7 +1691,7 @@ eretry()
         
         if [[ -n ${_eretry_timeout} ]] ; then
           
-            ( die_on_abort; "${cmd[@]}" ) &
+            "${@}" &
             local pid=$!
 
             (
@@ -1714,7 +1714,7 @@ eretry()
             [[ ${rc} -eq ${timeout_rc} ]] && rc=124
 
         else
-            ( die_on_abort; "${cmd[@]}" )
+            "${@}"
             rc=$?
         fi
         exit_codes+=(${rc})
