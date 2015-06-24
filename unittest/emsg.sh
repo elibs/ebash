@@ -83,3 +83,38 @@ ETEST_emsg_rainbow_of_pain()
     EMSG_COLOR="time level caller" EMSG_PREFIX="time level caller" emsg_aux
     EMSG_COLOR=" " EMSG_PREFIX="time level caller" emsg_aux
 }
+
+# Not really a unit test but simply display all possible colors
+ETEST_COLORS=(
+    black           red             green           yellow          blue            magenta
+    cyan            white           navyblue        darkgreen       deepskyblue     dodgerblue
+    springgreen     darkturqouise   turquoise       blueviolet      orange          slateblue
+    paleturquoise   steelblue       cornflowerblue  aquamarine      darkred         darkmagenta
+    plum            wheat           lightslategrey  darkseagreen    darkviolet      darkorange
+    hotpink         mediumorchid    lightsalmon     gold            darkkhaki       indianred
+    orchid          violet          tan             lightyellow     honeydew        salmon
+    pink            thistle         grey0           grey3           grey7           grey11
+    grey15          grey19          grey23          grey27          grey30          grey35
+    grey39          grey42          grey46          grey50          grey54          grey58
+    grey62          grey66          grey70          grey74          grey78          grey82
+    grey85          grey89          grey93          grey100
+)
+
+ETEST_ecolor_chart()
+{
+    local pad=$(printf '%0.1s' " "{1..60})
+    local padlength=20
+
+    local line=0
+    for c in ${ETEST_COLORS[@]}; do
+        printf "%s%*.*s" "$(ecolor $c)${c}$(ecolor none)" 0 $((padlength - ${#c} )) "${pad}"
+        (( ++line % 8 == 0 )) && printf "\n" || true
+
+        c="dim${c}"
+        printf "%s%*.*s" "$(ecolor $c)${c}$(ecolor none)" 0 $((padlength - ${#c} )) "${pad}"
+        (( ++line % 8 == 0 )) && printf "\n" || true
+ 
+    done
+
+    echo ""
+}

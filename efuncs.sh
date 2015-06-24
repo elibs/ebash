@@ -125,7 +125,7 @@ die()
     trap - EXIT
     
     # If this is the outermost try/catch level then kill entire process
-    [[ ${__EFUNCS_TRY_CATCH_LEVEL} -eq 0 ]] && kill 0
+    [[ ${__EFUNCS_TRY_CATCH_LEVEL:-} -eq 0 ]] && kill 0
 
     exit 1
 }
@@ -183,7 +183,94 @@ die_on_error
 
 tput()
 {
-    TERM=${TERM:-xterm} /usr/bin/tput $@
+    TERM=screen-256color /usr/bin/tput $@
+}
+
+ecolor_code()
+{
+   case $1 in
+
+        # Primary
+        black)            echo 0     ;;
+        red)              echo 1     ;;
+        green)            echo 2     ;;
+        yellow)           echo 3     ;;
+        blue)             echo 4     ;;
+        magenta)          echo 5     ;;
+        cyan)             echo 6     ;;
+        white)            echo 7     ;;
+
+        # Derivatives
+        grey0)            echo 16     ;;
+        navyblue)         echo 17     ;;
+        darkgreen)        echo 22     ;;
+        deepskyblue)      echo 24     ;;
+        dodgerblue)       echo 26     ;;
+        springgreen)      echo 35     ;;
+        darkturqouise)    echo 44     ;;
+        turquoise)        echo 45     ;;
+        blueviolet)       echo 57     ;;
+        orange)           echo 58     ;;
+        slateblue)        echo 62     ;;
+        paleturquoise)    echo 66     ;;
+        steelblue)        echo 67     ;;
+        cornflowerblue)   echo 69     ;;
+        aquamarine)       echo 79     ;;
+        darkred)          echo 88     ;;
+        darkmagenta)      echo 90     ;;
+        plum)             echo 96     ;;
+        wheat)            echo 101    ;;
+        lightslategrey)   echo 103    ;;
+        darkseagreen)     echo 108    ;;
+        darkviolet)       echo 128    ;;
+        darkorange)       echo 130    ;;
+        hotpink)          echo 132    ;;
+        mediumorchid)     echo 134    ;;
+        lightsalmon)      echo 137    ;;
+        gold)             echo 142    ;;
+        darkkhaki)        echo 143    ;;
+        indianred)        echo 167    ;;
+        orchid)           echo 170    ;;
+        violet)           echo 177    ;;
+        tan)              echo 180    ;;
+        lightyellow)      echo 185    ;;
+        honeydew)         echo 194    ;;
+        salmon)           echo 209    ;;
+        pink)             echo 218    ;;
+        thistle)          echo 225    ;;
+
+        # Lots of grey
+        grey100)          echo 231    ;;
+        grey3)            echo 232    ;;
+        grey7)            echo 233    ;;
+        grey11)           echo 234    ;;
+        grey15)           echo 235    ;;
+        grey19)           echo 236    ;;
+        grey23)           echo 237    ;;
+        grey27)           echo 238    ;;
+        grey30)           echo 239    ;;
+        grey35)           echo 240    ;;
+        grey39)           echo 241    ;;
+        grey42)           echo 242    ;;
+        grey46)           echo 243    ;;
+        grey50)           echo 244    ;;
+        grey54)           echo 245    ;;
+        grey58)           echo 246    ;;
+        grey62)           echo 247    ;;
+        grey66)           echo 248    ;;
+        grey70)           echo 249    ;;
+        grey74)           echo 250    ;;
+        grey78)           echo 251    ;;
+        grey82)           echo 252    ;;
+        grey85)           echo 253    ;;
+        grey89)           echo 254    ;;
+        grey93)           echo 255    ;;
+
+        # Unknown color code
+        *)                die "Unknown color: $1" ;;
+   esac
+
+   return 0
 }
 
 ecolor()
@@ -193,25 +280,19 @@ ecolor()
     [[ -z ${efuncs_color} && -t 2 ]] && efuncs_color=1
     [[ ${efuncs_color} -eq 1 ]] || return 0
 
-    # NOTE: Do NOT use declare_args here to pull c out of the argument list.
-    # Otherwise you cause indirect infinite recursion if you enable EDEBUG!!
-    local c=$1; argcheck c
+    # Reset
+    local c=$1
+    local reset_re="\breset|none|off\b"
+    [[ ${c} =~ ${reset_re} ]] && { echo -en "\033[m"; return 0; }
 
-    # For the colors see tput(1) and terminfo(5)
-    [[ ${c} == "none"     ]] && { echo -en "\033[m";                  return 0; }
-    [[ ${c} == "red"      ]] && { echo -en $(tput bold;tput setaf 1); return 0; }
-    [[ ${c} == "green"    ]] && { echo -en $(tput bold;tput setaf 2); return 0; }
-    [[ ${c} == "yellow"   ]] && { echo -en $(tput bold;tput setaf 3); return 0; }
-    [[ ${c} == "fawn"     ]] && { echo -en $(tput setaf 3);           return 0; }
-    [[ ${c} == "beige"    ]] && { echo -en $(tput setaf 3);           return 0; }
-    [[ ${c} == "dimblue"  ]] && { echo -en $(tput setaf 4);           return 0; }
-    [[ ${c} == "blue"     ]] && { echo -en $(tput bold;tput setaf 4); return 0; }
-    [[ ${c} == "purple"   ]] && { echo -en $(tput setaf 5);           return 0; }
-    [[ ${c} == "magenta"  ]] && { echo -en $(tput bold;tput setaf 5); return 0; }
-    [[ ${c} == "cyan"     ]] && { echo -en $(tput bold;tput setaf 6); return 0; }
-    [[ ${c} == "gray"     ]] && { echo -en $(tput setaf 7);           return 0; }
-    [[ ${c} == "white"    ]] && { echo -en $(tput bold;tput setaf 7); return 0; }
-    [[ ${c} == "bell"     ]] && { echo -en $(tput bel);               return 0; }
+    local bold="$(tput bold)"
+    local dimre="^dim"
+    if [[ ${c} =~ ${dimre} ]]; then
+        c=${c#dim}
+        bold=""
+    fi
+
+    echo -en ${bold}$(tput setaf $(ecolor_code ${c}))
 }
 
 eclear()
