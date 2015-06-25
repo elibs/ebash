@@ -134,7 +134,7 @@ test_teardown()
 
 FAILED_FILES=()
 global_setup
-trap_add "{ global_teardown; exit 1; }" HUP INT QUIT BUS PIPE TERM
+trap_add global_teardown ERR HUP INT QUIT BUS PIPE TERM EXIT
 
 for testfile in $(find ${TEST_DIR}/*.sh); do
 
@@ -161,15 +161,15 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
             try
             {
                 test_setup
-                trap_add "{ test_teardown; exit 1; }" HUP INT QUIT BUS PIPE TERM
                 cd ${TEST_DIR_OUTPUT}/${testfunc}
-                EFUNCS_FATAL=0 ${testfunc}
+                ${testfunc}
                 test_teardown
             } &> $(edebug_out) 
             catch
             {
                 testfunc_rc=$?
                 FAILED_TESTS+=( ${testfunc/ETEST_/} )
+                test_teardown
             }
 
             edebug_enabled ${testfunc} || eend ${testfunc_rc}
