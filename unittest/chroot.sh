@@ -1,7 +1,7 @@
 
 # Global settings
 $(esource chroot.sh)
-CHROOT=build
+CHROOT=${TEST_DIR_OUTPUT}/build
 CHROOT_MOUNTS=( /dev /dev/pts /proc /sys )
 
 check_mounts()
@@ -80,4 +80,24 @@ ETEST_chroot_slash_dev_shared_mounts()
 
     # So now, while we've done a pair of bind mounts, the file should be missing
     [[ -f ${TESTFILE} ]] || die "File is missing"
+}
+
+ETEST_chroot_kill()
+{
+    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
+    chroot_mount
+    
+    einfo "Starting some chroot processes"
+    chroot_cmd "yes >/dev/null&"
+    chroot_cmd "sleep infinity&"
+
+    einfo "Killing 'yes'"
+    chroot_kill "yes"
+    chroot_cmd "pgrep yes" && die "yes should have been killed"
+
+    einfo "Killing everything..."
+    chroot_kill
+
+    # Exit CHROOT
+    chroot_exit
 }

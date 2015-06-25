@@ -89,7 +89,7 @@ chroot_cmd()
     argcheck CHROOT
     
     einfos $@
-    chroot ${CHROOT} ${CHROOT_ENV} -c "$*" || die "Failed to execute [$*]"
+    chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
 }
 
 # Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT})
@@ -103,17 +103,17 @@ chroot_cmd()
 chroot_kill()
 {
     argcheck CHROOT
+    $(declare_args ?regex ?signal)
+    : ${signal:=SIGKILL}
 
-    local pids signal
-
-    signal=${2:-KILL}
-
-    [[ -n $1 ]] && { pids=$(pgrep "${1}") ; edebug "Sending signal ${signal} to chroot processes matching \"${1}\"." ; }
-    [[ -z $1 ]] && { pids=$(ps -eo "%p")  ; edebug "Sending signal ${signal} to all chroot processes." ; }
+    local pids=""
+    [[ -n ${regex} ]] && pids=$(pgrep "${regex}")
+    [[ -z ${regex} ]] && pids=$(ps -eo "%p")
+    edebug $(lval regex signal pids)
 
     for pid in ${pids}; do
         local link=$(readlink "/proc/${pid}/root")
-        
+
         # Skip processes started in NO chroot or ANOTHER chroot
         [[ -z ${link} || ${link} != ${CHROOT} ]] && continue
 
@@ -161,7 +161,6 @@ chroot_install_with_apt_get()
     
     einfos "Installing $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "apt-get -f -qq -y --force-yes install $*"
-    [[ $? -eq 0 ]] || die "Failed to install [$*]"
 }
 
 # Check if all the packages listed can be installed
@@ -201,7 +200,7 @@ chroot_install()
         fi
 
         # Actually installed
-        local actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}" || die "Failed to install [${pn}]")
+        local actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
         local apn="${actual}"; apn=${apn%|*}
         local apv="${actual}"; apv=${apv#*|}
         
@@ -220,7 +219,7 @@ chroot_uninstall()
     [[ $# -eq 0 ]] && return
     
     einfos "Uninstalling $@"
-    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge $*" || die "Failed to remove [$*]"
+    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge $*"
 }
 
 chroot_dpkg()
@@ -229,7 +228,7 @@ chroot_dpkg()
     [[ $# -eq 0 ]] && return
     
     einfos "dpkg $@"
-    chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*" || die "Failed to run dpkg [$*]"
+    chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*"
 }
 
 chroot_apt()
@@ -238,13 +237,13 @@ chroot_apt()
     [[ $# -eq 0 ]] && return
     
     einfos "${CHROOT_APT} $@"
-    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*" || die "Failed to run apt-get [$*]"
+    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*"
 }
 
 chroot_listpkgs()
 {
     argcheck CHROOT
-    output=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W") || die "Failed to execute [$*]"
+    local output=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W")
     echo -en "${output}"
 }
 
@@ -252,7 +251,7 @@ chroot_uninstall_filter()
 {
     argcheck CHROOT
     local filter=$@
-    pkgs=$(die_on_abort; chroot_listpkgs)
+    local pkgs=$(die_on_abort; chroot_listpkgs)
     chroot_uninstall $(eval "echo \"${pkgs}\" | ${filter} | awk '{print \$1}'")
 }
 
@@ -392,11 +391,8 @@ chroot_daemon_start()
     # up immediately we'll catch the error immediately and be able to let the
     # caller know that startup failed.
     sleep 1
-    chroot_daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out) \
-        || die "Failed to start chroot daemon $(lval name exe pidfile)"
-   
+    chroot_daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out)
     eend 0
-    return 0
 }
 
 chroot_daemon_stop()
