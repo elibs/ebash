@@ -185,7 +185,6 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
 
 done
 
-global_teardown
 [[ ${#FAILED_FILES[@]} -eq 0 ]] || die "$(lval FAILED_FILES)"
 
 exit 0
