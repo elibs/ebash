@@ -1,3 +1,13 @@
+ETEST_ensure_trap_enabled_by_default()
+{
+    # Simple sanity test to ensure the default setup in efuncs enables
+    # ERR trap otherwise all other assumptions in this test suite are
+    # invalid.
+    einfo "Verifying ERR trap is set"
+    trap -p
+    trap -p | grep -q ERR || die "Precondition: ERR trap should be enabled"
+}
+
 ETEST_try_catch()
 {
     try
@@ -67,8 +77,7 @@ ETEST_try_catch_abort()
     einfo "Waiting for $(lval pid)"
     sleep 1s
     kill -TERM ${pid}
-    wait ${pid}
-    local rc=$?
+    wait ${pid} && rc=0 || rc=$?
     einfo "Process killed $(lval pid rc)"
     assert_eq 143 ${rc}
 }
@@ -92,17 +101,31 @@ ETEST_try_exit_code()
 # Verify we can disable trap/die on error
 ETEST_nodie_on_error()
 {
+    # First ensure we have our trap set for ERR so that the test actually
+    # validates we can disable the trap
+    trap -p | grep ERR || die "Precondition: ERR trap should be enabled"
+
     nodie_on_error
     false
     return 0
 }
 
-# Verify nodie_on_error is not needed inside a subshell
-# since ERR trap is not inherited by subshells.
-ETEST_nodie_inside_subshell()
+# Verify die_on_error **IS** inherited into subshell since we are now using
+# 'set -o errtrace' to ensure our trap is inherited by functions, command 
+# substitutions, and commands executed inside subshells.
+ETEST_errtrap_inherited_in_subshell()
 {
-    ( false )
-    return 0
+    try
+    {
+        ( false )
+        die "false should have thrown"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "Catch block should have returned"
 }
 
 # Verify we can use explicit 'throw' to return an error

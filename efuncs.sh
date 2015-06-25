@@ -9,6 +9,7 @@
 set -o pipefail
 set -o nounset
 set -o functrace
+set -o errtrace
 shopt -s expand_aliases
 
 #-----------------------------------------------------------------------------
@@ -60,7 +61,7 @@ edebug_enabled()
 
 edebug_disabled()
 {
-    edebug_enabled && return 1 || return 0
+    ! edebug_enabled
 }
 
 edebug()
@@ -87,15 +88,6 @@ edebug_out()
 # try block captures the exit status of the subshell and if it's not '0' it 
 # will invoke the catch block to handle the error.
 #
-# Aliases are used in this context instead of functions for several reasons.
-# First, it allows identical constructs to what you find in higher level 
-# languages such as: "try { ... } catch { ... }". Secondly, the ERR trap 
-# cannot be enabled/disabled from within functions but instead must be done
-# at the same level in the call stack. This limitation could be circumvented
-# with "set -E" but then fatal error handling gets inherited by ALL subshells
-# and process substitutions which is extraordinally awful. Without "set -E" the
-# ERR trap is NOT inherited by subshells!
-#
 # One clever trick employed here is to keep track of what level of the try/catch
 # stack we are in so that the parent's ERR trap won't get triggered and cause 
 # the process to exit. Because we WANT the try subshell to exit and allow the
@@ -108,7 +100,7 @@ alias try="
     ( 
         enable_trace    
         die_on_abort
-        die_on_error
+        trap 'exit \$?' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex 
@@ -156,7 +148,7 @@ throw()
 # calling our own internal 'die' handler. This allows us to either exit or
 # kill the entire process tree as needed.
 #
-# NOTE: This is extremely unobvious, but setting a traip on ERR implicitly
+# NOTE: This is extremely unobvious, but setting a trap on ERR implicitly
 # enables 'set -e'.
 alias die_on_error="trap 'die [UnhandledError]' ERR"
 
@@ -173,7 +165,7 @@ stacktrace()
     local frame=${1:-1}
 
     while caller ${frame}; do
-        ((frame++));
+        ((frame++))
     done
 }
 
@@ -443,7 +435,7 @@ ebanner()
 emsg()
 {
     # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX:=} | egrep -o "(time|times|level|caller|all)") || true
+    local emsg_prefix=$(echo ${EMSG_PREFIX:=} | egrep -o "(time|times|level|caller|all)" || true)
 
     $(declare_args color ?symbol level)
     [[ ${EFUNCS_TIME:=0} -eq 1 ]] && emsg_prefix+=time
@@ -609,7 +601,7 @@ eprompt_with_options()
     ## Keep reading input until a valid response is given
     while true; do
         response=$(die_on_abort; eprompt "${msg}")
-        matches=( $(echo "${valid}" | grep -io "^${response}\S*") ) || true
+        matches=( $(echo "${valid}" | grep -io "^${response}\S*" || true) )
         nmatches=${#matches[@]}
         edebug "Response=[${response}] opt=[${opt}] secret=[${secret}] matches=[${matches[@]}] nmatches=[${#matches[@]}] valid=[${valid//\n/ }]"
         [[ ${nmatches} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
@@ -1067,7 +1059,7 @@ ebackup()
 {
     $(declare_args src)
     
-    [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak"
+    [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak" || true
 }
 
 erestore()
@@ -1683,7 +1675,7 @@ eretry()
 
     # Tries
     local attempt=0
-    local rc=1
+    local rc=""
     local exit_codes=()
     for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
         
@@ -1695,6 +1687,7 @@ eretry()
             local pid=$!
 
             (
+                nodie_on_error
                 die_on_abort
                 sleep ${_eretry_timeout}
                 kill -0 ${pid} || exit 0
@@ -1705,27 +1698,24 @@ eretry()
             ) &
             
             local watcher=$!
-            wait ${pid}
-            rc=$?
-            ekill ${watcher} KILL
+            wait ${pid} && rc=0 || rc=$?
+            ekill ${watcher} SIGKILL
 
             # If the process timedout return 124 to match timeout behavior.
             local timeout_rc=$(( 128 + ${_eretry_signal} ))
             [[ ${rc} -eq ${timeout_rc} ]] && rc=124
 
         else
-            "${@}"
-            rc=$?
+            "${@}" && rc=0 || rc=$?
         fi
         exit_codes+=(${rc})
 
         [[ ${rc} -eq 0 ]] && break
 
         [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
-            && ewarn "Command has failed $((attempt+1)) times.  Still trying.  $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
+            && ewarn "Command has failed $((attempt+1)) times. Retrying: $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
 
         [[ ${_eretry_delay} -ne 0 ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
-        edebug "eretry: trying again $(lval rc attempt cmd)"
     done
 
     [[ ${rc} -eq 0 ]] || ewarn "Command failed $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
@@ -1867,7 +1857,7 @@ array_add()
     [[ -z ${__string} ]] && return
 
     # Default bash IFS is space, tab, newline, so this will default to that
-    [[ -z ${__delim} ]] && __delim=$' \t\n'
+    : ${__delim:=$' \t\n'}
 
     # Parse the input given the delimiter and append to the array.
     IFS="${__delim}" eval "${__array}+=(\${__string})"
@@ -1994,7 +1984,8 @@ pack_update()
         local _pack_update_val="${_pack_update_arg#*=}"
 
         pack_keys ${_pack_update_pack} | grep -aPq "\b${_pack_update_key}\b" \
-            && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" ;
+            && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" \
+            || true
     done
 }
 
@@ -2008,7 +1999,7 @@ pack_set_internal()
     [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
     [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
 
-    local _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=')"
+    local _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=' || true)"
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(echo "${_addNew}" | _pack)
 
@@ -2034,7 +2025,7 @@ pack_get()
 
 pack_contains()
 {
-    [[ -n $(pack_get $@) ]] && return 0 || return 1
+    [[ -n $(pack_get $@) ]]
 }
 
 #
