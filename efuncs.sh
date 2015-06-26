@@ -661,7 +661,8 @@ ekill()
     # received which we'd interpret as failure returning from this function as it'll 
     # always be non-zero. 
     { 
-        kill -${signal} ${pid} && rc=0 || rc=$?
+        local rc=0
+        kill -${signal} ${pid} || rc=$?
         wait ${pid} || true
         return ${rc}
     } &>$(edebug_out)
@@ -1485,8 +1486,6 @@ opt_get_default()
     local _caller=( $(caller 0) )
     local _value=$(pack_get _${_caller[1]}_options ${key})
     : ${_value:=${default}}
-    
-    edebug "$(lval _caller key default _value)"
 
     echo -n "${_value}"
 }
@@ -1697,6 +1696,7 @@ eretry()
             "${@}" &
             local pid=$!
 
+            # Start watchdog process to kill it if it timesout
             (
                 nodie_on_error
                 die_on_abort
@@ -1705,9 +1705,12 @@ eretry()
 
                 kill -${_eretry_signal} ${pid}
                 sleep 2
+                kill -0 ${pid} || exit ${_eretry_signal}
                 kill -KILL ${pid}
             ) &
             
+            # Wait for the pid which will either be KILLED by the watcher
+            # or completel normally.
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
             ekill ${watcher} SIGKILL
