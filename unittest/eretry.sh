@@ -26,7 +26,7 @@ ETEST_eretry_fail_till_last()
 
 ETEST_eretry_exit_124_on_timeout()
 {
-    eretry -r=1 -t=0.1s sleep 3 && die "eretry should abort" || assert_eq 124 $?
+    eretry -r=1 -t=0.1s sleep infinity && die "eretry should abort" || assert_eq 124 $?
 }
 
 ETEST_eretry_warn_every()
@@ -53,4 +53,15 @@ ETEST_eretry_warn_every()
 ETEST_eretry_hang()
 {
     eretry -t=1s -r=0 sleep infinity && die "eretry should abort" || assert_eq 124 $?
+}
+
+block_sigterm_and_sleep_forever()
+{
+    trap '' SIGTERM
+    sleep infinity
+}
+
+ETEST_eretry_ignore_signal()
+{
+    eretry -t=1s -r=1 block_sigterm_and_sleep_forever && die "eretry should abort" || assert_eq 137 $?
 }
