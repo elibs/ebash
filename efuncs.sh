@@ -653,7 +653,18 @@ ekill()
     $(declare_args pid ?signal)
     : ${signal:=TERM}
 
-    { kill -${signal} ${pid}; wait ${pid}; } &>/dev/null
+    # If process doesn't exist just return instead of trying (and failing) to kill it
+    kill -0 ${pid} || return 0
+   
+    # The process is still running. Now kill it. Use the return code from kill rather 
+    # than from the wait as the wait's return code would be the signal the process
+    # received which we'd interpret as failure returning from this function as it'll 
+    # always be non-zero. 
+    { 
+        kill -${signal} ${pid} && rc=0 || rc=$?
+        wait ${pid} || true
+        return ${rc}
+    } &>$(edebug_out)
 }
 
 ekilltree()
@@ -687,7 +698,7 @@ do_eprogress()
 
     # Sentinal for breaking out of the loop on signal from eprogress_kill
     local done=0
-    trap_add "done=1" SIGINT SIGTERM
+    trap "done=1" SIGINT SIGTERM
 
     local start=$(date +"%s")
     while [[ ${done} -ne 1 ]]; do 
