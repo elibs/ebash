@@ -1773,7 +1773,7 @@ setvars()
     # If this file is a binary file skip it
     file ${filename} | grep -q ELF && continue || true
 
-    for arg in $(grep -o "__\S\+__" ${filename} | sort --unique); do
+    for arg in $(grep -o "__\S\+__" ${filename} | sort --unique || true); do
         local key="${arg//__/}"
         local val="${!key}"
     
