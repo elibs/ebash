@@ -2048,7 +2048,7 @@ pack_get()
     argcheck _pack_pack_get _tag
 
     local _unpacked="$(echo -n "${!_pack_pack_get:-}" | _unpack)"
-    local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=")"
+    local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=" || true)"
     echo "${_found#*=}"
 }
 
