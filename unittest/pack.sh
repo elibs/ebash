@@ -114,7 +114,7 @@ _pack_iterate_checker()
 ETEST_pack_iterate()
 {
     pack_set P a=val b=val c=val white="val with spaces"
-    pack_iterate P _pack_iterate_checker
+    pack_iterate _pack_iterate_checker P
 
     assert_eq 4 ${_pack_iterate_count}
 }
@@ -310,4 +310,22 @@ ETEST_pack_full_character_set()
 
     # And make sure it does
     [[ "$CHARSET" == "$(pack_get P charset)" ]] || { eerror "P/charset not as expected [$(pack_get P charset)]" ; return 1 ; }
+}
+
+ETEST_pack_foreach()
+{
+    local keys=()
+    local vals=()
+    pack_set P key1=val1 key2=val2 key3=val3 key4="val4 with spaces"
+    foreach key val
+    {
+        einfos $(lval key val)
+        keys+=( ${key} )
+        vals+=( ${val} )
+    }
+    in_pack P
+
+    # Verify we iterated over everything
+    assert_eq "key1 key2 key3 key4" "$(array_join keys)"
+    assert_eq "val1 val2 val3 val4 with spaces" "$(array_join vals)"
 }

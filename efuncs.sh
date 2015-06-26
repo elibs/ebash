@@ -1843,6 +1843,13 @@ array_size()
     set -u
 }
 
+# Return true (0) if an array is empty and false (1) otherwise
+array_empty()
+{
+    $(declare_args __array)
+    [[ $(array_size ${__array}) -eq 0 ]]
+}
+
 # array_add will split a given input string on requested delimiters and add them
 # to the given array (which may or may not already exist).
 #
@@ -1933,6 +1940,19 @@ array_quote()
     echo -n "${__output[@]}"
 }
 
+# Call the provided callback function on each element in the array.
+# The callback should take a single argument only which is the value
+# of the current element as we iterate over the array.
+array_iterate()
+{
+    $(declare_args _func _array)
+
+    for (( idx=0; idx < $(array_size ${_array}); idx++ )); do
+        eval "local entry=\${${_array}[$idx]}"
+        ${_func} "${entry}"
+    done
+}
+
 #-----------------------------------------------------------------------------
 # PACK 
 #-----------------------------------------------------------------------------
@@ -2003,7 +2023,6 @@ pack_set_internal()
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(echo "${_addNew}" | _pack)
 
-    edebug "$(lval _pack_pack_set_internal _tag _val)"
     printf -v ${1} "${_packed}"
 }
 
@@ -2019,7 +2038,6 @@ pack_get()
 
     local _unpacked="$(echo -n "${!_pack_pack_get:-}" | _unpack)"
     local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=")"
-    edebug "$(lval _pack_pack_get _tag _found)"
     echo "${_found#*=}"
 }
 
@@ -2044,20 +2062,18 @@ pack_copy()
 }
 
 #
-# For a given pack, execute a given callback function.  The callback function
+# Call provided callback function on each entry in the pack. The callback function
 # should take two arguments, and it will be called once for each item in the
 # pack and passed the key as the first value and its value as the second value.
 #
 pack_iterate()
 {
-    local _pack_pack_iterate=$1
-    local _func=$2
-    argcheck _pack_pack_iterate _func
+    local _func=$1
+    local _pack_pack_iterate=$2
+    argcheck _func _pack_pack_iterate
 
     local _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
     local _lines ; array_init_nl _lines "${_unpacked}"
-
-    edebug "$(lval _pack_pack_iterate _unpacked _lines)"
 
     for _line in "${_lines[@]}" ; do
 
@@ -2100,8 +2116,6 @@ pack_import()
     opt_true "g" && _pack_import_scope=""
     opt_true "e" && _pack_import_scope="export"
 
-    edebug $(lval _pack_import_scope _pack_import_keys)
-
     local _pack_import_cmd=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
         local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
@@ -2130,7 +2144,6 @@ pack_export()
         _pack_export_args+=("${_pack_export_arg}=${!_pack_export_arg}")
     done
 
-    edebug "$(lval _pack_export_pack _pack_export_args)"
     pack_set "${_pack_export_pack}" "${_pack_export_args[@]}"
 }
 
@@ -2157,13 +2170,12 @@ pack_print()
     argcheck _pack_pack_print
 
     echo -n '('
-    pack_iterate ${_pack_pack_print} _pack_print_item
+    pack_iterate _pack_print_item ${_pack_pack_print}
     echo -n ')'
 }
 
 _pack_print_item()
 {
-    edebug "_pack_print_item $1 $2"
     echo -n "[$1]=\"$2\" "
 }
 
@@ -2408,6 +2420,54 @@ discard_qualifiers()
 {
     echo "${1##+}"
 }
+
+#-----------------------------------------------------------------------------
+# FOREACH
+#-----------------------------------------------------------------------------
+
+# These aliases are useful idoms to make it really simple to iterate over
+# various container types and call an associated type-appropriate callback
+# on each element of the container. The generic 'foreach' idiom can be used
+# safely on ANY container type. But there needs to be a container appropriate
+# in_* alias (e.g. see 'in_array' and 'in_pack'). These are simply wrappers
+# around a call to 'array_iterate' and 'pack_iterate', etc. 
+#
+# USAGE:
+#
+# foreach key
+# { ... }
+# in_array myarray
+#
+# WHY? Using this idiom frees you from having to worry about a number of things:
+#
+# - Bash quirk where an EMPTY array is treated as an UNINITIALIZED array. This 
+#   is because by definition an array is initialized once at least one element
+#   has been added to it. Unfortunately this causes really painful problems
+#   when combined with 'set -u' and 'set -e' because then we have no way to 
+#   iterate over empty arrays without resorting to stupid hackory. The most
+#   common of which is to put "${array[@]-}" (note the '-' which defaults to
+#   an empty value). The trouble with this, though, is it ALWAYS iterates 
+#   once on an EMPTY array and the value is "". Which makes it impossible to
+#   distinguish between () and (""). And the caller is then forced to skip the
+#   empty element. Yuck.
+#
+# - Simpler syntax -- e.g. is it "${array[@]}" or "${array[*]}"? This does the
+#   right thing (@ rather than *).
+#
+# - No more quoting! Typically you have to always remember to use "${array[@]}"
+#   in the event the array entries may have spaces. This idiom does that for you.
+#
+# LIMITATIONS / BUGS:
+# Nesting foreaches simply will not work. This is because an inner invocation of
+# foreach will essentially clobber the function previously created by the outer
+# call to foreach. There's no way that I can figure out to create unique foreach
+# functions because aliases are STATIC and evaluated ONCE when a script is sourced.
+alias foreach='__foreach_function()
+{
+    <<< ${@} read -r'
+
+alias in_array='}; array_iterate __foreach_function'
+alias in_pack='};  pack_iterate  __foreach_function'
 
 #-----------------------------------------------------------------------------
 # SOURCING
