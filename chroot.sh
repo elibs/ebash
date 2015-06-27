@@ -112,7 +112,7 @@ chroot_kill()
     edebug $(lval regex signal pids)
 
     for pid in ${pids}; do
-        local link=$(readlink "/proc/${pid}/root")
+        local link=$(readlink "/proc/${pid}/root" || true)
 
         # Skip processes started in NO chroot or ANOTHER chroot
         [[ -z ${link} || ${link} != ${CHROOT} ]] && continue
