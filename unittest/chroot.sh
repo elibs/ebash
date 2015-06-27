@@ -1,8 +1,18 @@
-
 # Global settings
 $(esource chroot.sh)
-CHROOT=${TEST_DIR_OUTPUT}/build
+CHROOT_MASTER=${TEST_DIR_OUTPUT}/chroot_master
+CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
 CHROOT_MOUNTS=( /dev /dev/pts /proc /sys )
+
+setup()
+{
+    [[ -e ${CHROOT_MASTER} ]] || mkchroot ${CHROOT_MASTER} precise oxygen bdr-jenkins amd64
+    
+    eprogress "Copying $(lval CHROOT_MASTER) to $(lval CHROOT)"
+    efreshdir ${CHROOT}
+    rsync --archive --whole-file --no-compress ${CHROOT_MASTER}/ ${CHROOT}
+    eprogress_kill
+}
 
 check_mounts()
 {
@@ -15,9 +25,14 @@ check_mounts()
     done
 }
 
+ETEST_chroot_create()
+{
+    # Chroot created via setup routine so nothing to do
+    :
+}
+
 ETEST_chroot_create_mount()
 {
-    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
     check_mounts 0
 
     # Mount a few times and verify counts go up
@@ -40,7 +55,6 @@ ETEST_chroot_create_mount()
 # unmount them properly using a single call to eunmount_recursive. 
 ETEST_chroot_create_mount_unmount_recursive()
 {
-    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
     check_mounts 0
 
     # Mount a few times and verify counts go up
@@ -84,7 +98,6 @@ ETEST_chroot_slash_dev_shared_mounts()
 
 ETEST_chroot_kill()
 {
-    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
     chroot_mount
     
     einfo "Starting some chroot processes"
@@ -104,7 +117,6 @@ ETEST_chroot_kill()
 
 ETEST_chroot_install()
 {
-    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
     chroot_mount
 
     chroot_install "bashutils-sfdev-precise-1.0.1>=5"
@@ -116,15 +128,4 @@ ETEST_chroot_install()
 
     # Done
     chroot_exit
-}
-
-ETEST_chroot_eprogress()
-{
-    eprogress "Making $(lval CHROOT)"
-
-    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64 &>/dev/null
-
-    eprogress_kill
-
-    einfo "Finished"
 }
