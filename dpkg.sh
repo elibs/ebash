@@ -10,9 +10,7 @@ source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1;
 
 dpkg_compare_versions()
 {
-	local v1=${1}; argcheck v1
-	local op=${2}; argcheck op
-	local v2=${3}; argcheck v2
+    $(declare_args v1 op v2)
 
 	[[ ${op} == "<<" ]] && op="lt"
 	[[ ${op} == "<=" ]] && op="le"
@@ -30,16 +28,16 @@ dpkg_compare_versions()
 
 dpkg_parsedeps()
 {
-    local deb=$1; argcheck deb
-    local tag=$2; [[ -z "${tag}" ]] && tag="Depends"
+    $(declare_args deb ?tag)
+    : ${tag:="Depends"}
 
 	dpkg -I "${deb}" | grep "^ ${tag}:" | sed -e "s| ${tag}:||" -e 's/ (\(>=\|<=\|<<\|>>\|\=\)\s*/\1/g' -e 's|)||g' -e 's|,||g'
 }
 
 dpkg_depends()
 {
-    local input=$1; argcheck input
-    local tag=$2; [[ -z "${tag}" ]] && tag="Depends"
+    $(declare_args input ?tag)
+    : ${tag:="Depends"}
 
     [[ -f ${input} ]] || die "${input} does not exist"
     local deb=$(basename ${input}) || die "basename ${intput} failed"
