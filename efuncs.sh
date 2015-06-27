@@ -878,7 +878,7 @@ hostname_to_ip()
     $(declare_args hostname)
 
     local output hostrc ip
-    output="$(host ${hostname} | grep ' has address ')"
+    output="$(host ${hostname} | grep ' has address ' || true)"
     hostrc=$?
     edebug "hostname_to_ip $(lval hostname output)"
     [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
@@ -917,28 +917,28 @@ fully_qualify_hostname()
 getipaddress()
 {
     $(declare_args iface)
-    local ip=$(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2)
+    local ip=$(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2 || true)
     echo -n "${ip//[[:space:]]}"
 }
 
 getnetmask()
 {
     $(declare_args iface)
-    local netmask=$(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2)
+    local netmask=$(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2 || true)
     echo -n "${netmask//[[:space:]]}"
 }
 
 getbroadcast()
 {
     $(declare_args iface)
-    local bcast=$(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2)
+    local bcast=$(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2 || true)
     echo -n "${bcast//[[:space:]]}"
 }
 
 # Gets the default gateway that is currently in use
 getgateway()
 {
-    local gw=$(route -n | grep 'UG[ \t]' | awk '{print $2}')
+    local gw=$(route -n | grep 'UG[ \t]' | awk '{print $2}' || true)
     echo -n "${gw//[[:space:]]}"
 }
 
@@ -956,7 +956,7 @@ getsubnet()
 # Get list of network interfaces
 get_network_interfaces()
 {
-    ls -1 /sys/class/net | egrep -v '(bonding_masters|Bond)' | tr '\n' ' '
+    ls -1 /sys/class/net | egrep -v '(bonding_masters|Bond)' | tr '\n' ' ' || true
 }
 
 # Get list network interfaces with specified "Supported Ports" query.
@@ -967,7 +967,7 @@ get_network_interfaces_with_port()
     local results=()
 
     for ifname in $(get_network_interfaces); do
-        port=$(ethtool ${ifname} | grep "Supported ports:")
+        port=$(ethtool ${ifname} | grep "Supported ports:" || true)
         [[ ${port} =~ "${query}" ]] && results+=( ${ifname} )
     done
 
@@ -1096,9 +1096,9 @@ etar()
     local args=("--warning=none")
 
     # Auto detect compression program based on extension but substitute in pbzip2 for bzip and pigz for gzip
-    if [[ -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz") ]]; then
+    if [[ -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
         args+=("--use-compress-program=pbzip2")
-    elif [[ -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz") ]]; then
+    elif [[ -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz" || true) ]]; then
         args+=("--use-compress-program=pigz")
     else
         args+=("--auto-compress")
@@ -1152,7 +1152,7 @@ emount_realpath()
 {
     $(declare_args path)
     path="${path//\\040\(deleted\)/}"
-    echo -n "$(readlink -m ${path} 2>/dev/null)"
+    echo -n "$(readlink -m ${path} 2>/dev/null || true)"
 }
 
 # Echo the emount regex for a given path
@@ -1167,7 +1167,7 @@ emount_count()
 {
     $(declare_args path)
     path=$(emount_realpath ${path})
-    local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts)
+    local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts || true)
     echo -n ${num_mounts}
 }
 
@@ -1788,7 +1788,7 @@ setvars()
 
     for arg in $(grep -o "__\S\+__" ${filename} | sort --unique || true); do
         local key="${arg//__/}"
-        local val="${!key}"
+        local val="${!key:-}"
     
         # Call provided callback if one was provided which by contract should print
         # the new resulting value to be used
