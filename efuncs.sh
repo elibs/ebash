@@ -176,11 +176,13 @@ die()
     __EFUNCS_DIE_IN_PROGRESS=1
     eprogress_killall
 
-    eerror_stacktrace "${@}"
-
     # Clear our exit handler so we don't cause infinite recursion on suicide
     trap - EXIT
-    
+    trap - ERR
+    trap - DEBUG
+ 
+    eerror_stacktrace "${@}"
+   
     # If this is the outermost try/catch level then kill entire process
     [[ ${__EFUNCS_TRY_CATCH_LEVEL:-} -eq 0 ]] && kill 0
 
@@ -228,6 +230,13 @@ die_on_abort()
     local signals=$@
     [[ -z ${signals[@]} ]] && signals=( HUP INT QUIT BUS PIPE TERM )
     trap 'die [killed]' ${signals[@]}
+}
+
+nodie_on_abort()
+{
+    local signals=$@
+    [[ -z ${signals[@]} ]] && signals=( HUP INT QUIT BUS PIPE TERM )
+    trap - ${signals[@]}
 }
 
 # Default traps
@@ -1538,6 +1547,7 @@ efetch()
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
+    eprogress "Fetching $(lval url dst)"
     curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure
     eprogress_kill
 }
