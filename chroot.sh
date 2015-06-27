@@ -169,7 +169,7 @@ chroot_install_check()
     # BUG: https://bugs.launchpad.net/ubuntu/+source/aptitude/+bug/919216
     # 'aptitude install' silently fails with success if a bogus package is given whereas 'aptitude show'
     # gives back a proper error code. So first do a check with aptitude show first.
-    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} show $(echo $* | sed -e 's/\(>=\|<=\)/=/g')" >/dev/null || return 1
+    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} show $(echo $* | sed -e 's/\(>=\|<=\)/=/g')" >$(edebug_out)
 }
 
 chroot_install()
@@ -180,18 +180,20 @@ chroot_install()
     einfos "Installing $@"
 
     # Check if all packages are installable
-    chroot_install_check $* || return 1
+    chroot_install_check $*
     
     # Do actual install
-    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} install $(echo $* | sed -e 's/\(>=\|<=\)/=/g')" || return 1
+    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} install $(echo $* | sed -e 's/\(>=\|<=\)/=/g')"
 
     # Post-install validation because ubuntu is entirely stupid and apt-get and aptitude can return
     # success even though the package is not installed successfully
+    edebug "Validating packages post-installation"
     for p in $@; do
-        
+
         local pn=${p}
         local pv=""
         local op=""
+        edebug "$(lval p)"
 
         if [[ ${p} =~ ([^>=<>]*)(>=|<=|<<|>>|=)(.*) ]]; then
             pn="${BASH_REMATCH[1]}"
@@ -199,17 +201,19 @@ chroot_install()
             pv="${BASH_REMATCH[3]}"
         fi
 
+        edebug "$(lval p pn pv op)"
+        
         # Actually installed
         local actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
-        local apn="${actual}"; apn=${apn%|*}
-        local apv="${actual}"; apv=${apv#*|}
+        local apn="${actual%|*}"
+        local apv="${actual#*|}"
         
-        [[ ${pn} == ${apn} ]] || die "Mismatched package name $(lval wanted=pn actual=apn)"
+        [[ ${pn} == ${apn} ]] || { eerror "Mismatched package name $(lval wanted=pn actual=apn)"; return 1; }
     
         ## No explicit version check -- continue
         [[ -z "${op}" || -z "${pv}" ]] && continue
 
-        dpkg_compare_versions "${apv}" "${op}" "${pv}" || die "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"
+        dpkg_compare_versions "${apv}" "${op}" "${pv}" || { eerror "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"; return 1; }
     done
 }
 
@@ -332,10 +336,10 @@ chroot_setup()
         einfo "Configuring locale and timezone"
         local LANG="en_US.UTF-8"
         local TZ="Etc/UTC"
-        echo "LANG=\"${LANG}\"" > "${CHROOT}/etc/default/locale" || die "Failed to set /etc/default/locale"
+        echo "LANG=\"${LANG}\"" > "${CHROOT}/etc/default/locale"
         chroot_cmd locale-gen ${LANG}
         chroot_cmd /usr/sbin/update-locale
-        echo "${TZ}" > "${CHROOT}/etc/timezone"                  || die "Failed to set /etc/timezone"
+        echo "${TZ}" > "${CHROOT}/etc/timezone"
         chroot_install_with_apt_get tzdata
         chroot_cmd dpkg-reconfigure tzdata
         
@@ -349,7 +353,8 @@ chroot_setup()
     catch
     {
         chroot_unmount
-        die "chroot_setup failed"
+        eerror "chroot_setup failed"
+        return 1
     }
 }
 
@@ -467,7 +472,7 @@ mkchroot()
     edebug "$(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
 
     ## Make sure that debootstrap is installed
-    which debootstrap > /dev/null || die "debootstrap must be installed"
+    which debootstrap > /dev/null
 
     ## Setup chroot
     mkdir -p ${CHROOT}
