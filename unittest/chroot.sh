@@ -117,3 +117,14 @@ ETEST_chroot_install()
     # Done
     chroot_exit
 }
+
+ETEST_chroot_eprogress()
+{
+    eprogress "Making $(lval CHROOT)"
+
+    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64 &>/dev/null
+
+    eprogress_kill
+
+    einfo "Finished"
+}
