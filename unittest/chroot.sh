@@ -101,3 +101,19 @@ ETEST_chroot_kill()
     # Exit CHROOT
     chroot_exit
 }
+
+ETEST_chroot_install()
+{
+    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
+    chroot_mount
+
+    chroot_install "bashutils-sfdev-precise-1.0.1>=5"
+    chroot_uninstall "bashutils-sfdev-precise-1.0.1"
+
+    # Empty
+    chroot_install
+    chroot_uninstall
+
+    # Done
+    chroot_exit
+}
