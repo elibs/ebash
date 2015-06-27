@@ -92,8 +92,8 @@ jenkins_update()
     # Look to see if the item already exists on jenkins, with minimal retries
     # so we don't have to wait forever for new jobs
     local out=/dev/null ; edebug_enabled && out=/dev/stderr
-    JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>${out}
-    local foundExisting=$?
+    local foundExisting=0
+    JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>${out} && foundExisting=0 || foundExisting=$?
 
     local rc=0
     # If the request timed out OR if it timed out and then didn't respond to
@@ -105,20 +105,16 @@ jenkins_update()
     elif [[ ${foundExisting} -eq 0 ]] ; then
 
         # If it does, only update it if the new config differs from the old one
-        diff --ignore-all-space --brief "${oldConfig}" "${newConfig}" &>/dev/null
-        if [[ $? -ne 0 ]] ; then
+        diff --ignore-all-space --brief "${oldConfig}" "${newConfig}" &>/dev/null && rc=0 || rc=$?
+        if [[ ${rc} -ne 0 ]] ; then
+            edebug "jenkins_udpate: config mismatch -- updating"
             jenkins update-${item_type} "${name}" < "${newConfig}"
-            rc=$?
-        else
-            edebug "jenkins_update: config matches.  No update required."
-            rc=0
         fi
 
     else
 
         # If it does not, create it
-        jenkins create-${item_type} "${name}" < "${newConfig}"
-        rc=$?
+        jenkins create-${item_type} "${name}" < "${newConfig}" && rc=0 || rc=$?
     fi
 
     if [[ ${rc} -eq 0 ]] ; then
@@ -166,8 +162,7 @@ jenkins_start_build()
     local rc
     local queueUrl
 
-    queueUrl=$(curl --silent --data-urlencode -H ${args} ${url} --include | awk '$1 == "Location:" {print $2}' | tr -d '\r' )
-    rc=$?
+    queueUrl=$(curl --silent --data-urlencode -H ${args} ${url} --include | awk '$1 == "Location:" {print $2}' | tr -d '\r') && rc=0 || rc=$? 
     
     [[ ${rc} == 0 ]] && echo "${queueUrl}api/json"
 }
@@ -186,8 +181,7 @@ jenkins_get_build_number()
 
     local number rc
 
-    number=$(curl --silent ${queueUrl} | jq -M ".executable.number")
-    rc=$?
+    number=$(curl --silent ${queueUrl} | jq -M ".executable.number") && rc=0 || rc=$?
 
     [[ ${rc} == 0 && ${number} != "null" ]] && echo "${number}"
 }
@@ -237,11 +231,10 @@ jenkins_build_json()
     url=$(jenkins_build_url ${buildNum} json)
     [[ -n ${tree} ]] && treeparm="-d tree=$tree"
 
-    json=$(curl --silent ${treeparm} ${url})
-    rc=$?
+    json=$(curl --silent ${treeparm} ${url}) && rc=0 || rc=$?
     
-    [[ $rc -ne 0 ]] && { edebug "Error reading json on build for ${JENKINS_JOB} #${BUILD_NUMBER}" ; return 1 ; }
-    [[ $rc -eq 0 ]] && echo "${json}"
+    [[ ${rc} -ne 0 ]] && { edebug "Error reading json on build for ${JENKINS_JOB} #${BUILD_NUMBER}" ; return 1 ; }
+    [[ ${rc} -eq 0 ]] && echo "${json}"
 }
 
 
@@ -264,8 +257,7 @@ jenkins_build_result()
 
     local json status rc
 
-    json=$(jenkins_build_json ${buildNum} result)
-    rc=$?
+    json=$(jenkins_build_json ${buildNum} result) && rc=0 || rc=$?
 
     status=$(echo "${json}" | jq --raw-output .result)
 
@@ -286,8 +278,8 @@ jenkins_build_is_running()
     argcheck JENKINS_JOB buildNum
 
     local result rc
-    result=$(jenkins_build_json ${buildNum} building | jq --raw-output '.building') # 2>/dev/null)
-    [[ $? -eq 0 && ${result} == "true" ]] && return 0
+    result=$(jenkins_build_json ${buildNum} building | jq --raw-output '.building') && rc=0 || rc=$?
+    [[ ${rc} -eq 0 && ${result} == "true" ]] && return 0
     return 1
 }
 
@@ -300,9 +292,7 @@ jenkins_list_artifacts()
     argcheck buildNum JENKINS_JOB
 
     local json rc url
-    json=$(jenkins_build_json ${buildNum} 'artifacts[relativePath]')
-    rc=$?
-
+    json=$(jenkins_build_json ${buildNum} 'artifacts[relativePath]') && rc=0 || rc=$?
     url=$(jenkins_build_url ${buildNum})
 
     # Assuming we successfully got json data, pass it through jq to just get
@@ -437,8 +427,7 @@ jenkins_slave_status()
 
     local offline rc
     offline=$(curl --silent -d tree=offline ${JENKINS_URL}/computer/${JENKINS_SLAVE_NAME}/api/json \
-                 | jq --raw-output .offline 2> /dev/null)
-    rc=$?
+                 | jq --raw-output .offline 2> /dev/null) && rc=0 || rc=$?
 
     # Assume offline if we were unable to get the slave's status
     [[ $rc -ne 0 ]] && { echo offline ; return 0 ; }
