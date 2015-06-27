@@ -441,7 +441,7 @@ ssh_jenkins()
     argcheck JENKINS
 
     # Hide the "host key permanently added" warnings unless EDEBUG is set
-    local hideWarnings
+    local hideWarnings=""
     edebug_enabled && hideWarnings="-o LogLevel=quiet"
 
     sshpass -p ${JENKINS_PASSWORD} \
