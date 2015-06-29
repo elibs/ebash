@@ -657,6 +657,10 @@ eend()
     fi
 }
 
+# Kill a process using the specified signal. The semantics of ekill are to actually 
+# kill a process rather than to send it a non-fatal signal. As such, so long as the
+# process does NOT exist or it exits after sending it the specified signal this 
+# function will return success.
 ekill()
 {
     $(declare_args pid ?signal)
@@ -665,16 +669,13 @@ ekill()
     # If process doesn't exist just return instead of trying (and failing) to kill it
     kill -0 ${pid} || return 0
    
-    # The process is still running. Now kill it. Use the return code from kill rather 
-    # than from the wait as the wait's return code would be the signal the process
-    # received which we'd interpret as failure returning from this function as it'll 
-    # always be non-zero. 
-    { 
-        local rc=0
-        kill -${signal} ${pid} || rc=$?
-        wait ${pid} || true
-        return ${rc}
-    } &>$(edebug_out)
+    # The process is still running. Now kill it. So long as the process does NOT 
+    # exist after sending it the specified signal this function will return
+    # success.
+    { kill -${signal} ${pid}; wait ${pid}; true; } &>$(edebug_out)
+
+    # Post-condition: Return success if the process is no longer running
+    ! kill -0 ${pid}
 }
 
 ekilltree()
