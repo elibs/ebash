@@ -550,7 +550,7 @@ etable()
         idx=0
         for p in "${parts[@]}"; do
             mlen=${#p}
-            [[ ${mlen} -gt ${lengths[$idx]} ]] && lengths[$idx]=${mlen}
+            [[ ${mlen} -gt ${lengths[$idx]:-} ]] && lengths[$idx]=${mlen}
             idx=$((idx+1))
         done
     done
