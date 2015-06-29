@@ -53,10 +53,7 @@ jenkins()
 #
 jenkins_update()
 {
-    local item_type=${1}
-    local template=${2}
-    local name=${3}
-    argcheck item_type template name
+    $(declare_args item_type template name)
 
     # Old versions of jenkins_update expected the template name to contain
     # .xml.  Drop the .xml if old clients provide it.
@@ -176,9 +173,7 @@ jenkins_start_build()
 #
 jenkins_get_build_number()
 {
-    argcheck 1
-    local queueUrl=${1}
-
+    $(declare_args queueUrl)
     local number rc
 
     number=$(curl --silent ${queueUrl} | jq -M ".executable.number") && rc=0 || rc=$?
@@ -194,9 +189,7 @@ jenkins_get_build_number()
 #
 jenkins_build_url()
 {
-    argcheck JENKINS_JOB 1
-    local buildNum=${1}
-
+    $(declare_args buildNum)
     echo -n "$(jenkins_url)/job/${JENKINS_JOB}/${buildNum}/"
     [[ $2 == "json" ]] && echo -n "api/json"
     [[ $2 == "xml" ]] && echo -n "api/xml"
@@ -222,10 +215,7 @@ jenkins_build_url()
 #
 jenkins_build_json()
 {
-    argcheck JENKINS_JOB 1
-    local buildNum=${1}
-    local tree=${2}
-
+    $(declare_args buildNum ?tree)
     local url treeparm json rc
 
     url=$(jenkins_build_url ${buildNum} json)
@@ -252,9 +242,7 @@ jenkins_build_json()
 #
 jenkins_build_result()
 {
-    argcheck JENKINS_JOB 1
-    local buildNum=${1}
-
+    $(declare_args buildNum)
     local json status rc
 
     json=$(jenkins_build_json ${buildNum} result) && rc=0 || rc=$?
@@ -274,8 +262,8 @@ jenkins_build_result()
 #
 jenkins_build_is_running()
 {
-    local buildNum=$1
-    argcheck JENKINS_JOB buildNum
+    $(declare_args buildNum)
+    argcheck JENKINS_JOB
 
     local result rc
     result=$(jenkins_build_json ${buildNum} building | jq --raw-output '.building') && rc=0 || rc=$?
@@ -288,8 +276,8 @@ jenkins_build_is_running()
 #
 jenkins_list_artifacts()
 {
-    local buildNum=$1
-    argcheck buildNum JENKINS_JOB
+    $(declare_args buildNum)
+    argcheck JENKINS_JOB
 
     local json rc url
     json=$(jenkins_build_json ${buildNum} 'artifacts[relativePath]') && rc=0 || rc=$?
@@ -307,9 +295,8 @@ jenkins_list_artifacts()
 
 jenkins_get_artifact()
 {
-    local buildNum=$1
-    local artifact=$2
-    argcheck JENKINS_JOB buildNum artifact
+    $(declare_args buildNum artifact)
+    argcheck JENKINS_JOB
 
     curl --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}"
 }
@@ -345,10 +332,9 @@ jenkins_cancel_queue_jobs()
 
 jenkins_stop_build()
 {
-    local buildNum=${1}
-    local job=${2:-${JENKINS_JOB}}
+    $(declare_args buildNum ?job)
+    : ${job:=${JENKINS_JOB}}
 
-    argcheck buildNum job
     edebug "Stopping jenkins build ${job}/${buildNum} on ${JENKINS}."
     curl -X POST --silent "$(jenkins_url)/job/${job}/${buildNum}/stop"
 }
@@ -362,8 +348,7 @@ jenkins_stop_build()
 #
 jenkins_stop_build_by_url()
 {
-    local buildUrl=$1
-    argcheck buildUrl
+    $(declare_args buildUrl)
 
     edebug $(lval buildUrl)
     curl -X POST --silent "${buildUrl}/stop"
@@ -380,9 +365,7 @@ jenkins_cancel_running_jobs()
     argcheck DTEST_TITLE JENKINS_JOB
 
     curl --silent $(jenkins_url)/job/${JENKINS_JOB}/api/json
-
 }
-
 
 ################################################################################
 # Print out information about available slaves in tab-separated format.  The
@@ -464,12 +447,11 @@ ssh_jenkins()
 #
 jenkins_file_url()
 {
-    local file=$1
-    argcheck file JENKINS
+    $(declare_args file)
+    argcheck JENKINS
 
     echo "http://${JENKINS}/tmp/${file}"
 }
-
 
 ################################################################################
 # Takes a specified file (or - for stdin) and writes it to jenkins where it may
@@ -480,14 +462,12 @@ jenkins_file_url()
 #
 jenkins_put_file()
 {
-    local file=$1
-    argcheck file JENKINS
-    outputFile=${2:-$(basename $file)}
+    $(declare_args file ?outputFile)
+    argcheck JENKINS
+    : ${outputFile:=$(basename $file)}
 
-    cat $file | ssh_jenkins 'cat > /tmp/'${outputFile}
+    cat ${file} | ssh_jenkins 'cat > /tmp/'${outputFile}
 }
-
-
 
 ################################################################################
 # Retrieves a file from jenkins that was placed there via jenkins_put_file, and
@@ -497,8 +477,7 @@ jenkins_put_file()
 #
 jenkins_read_file()
 {
-    local file=$1
-    argcheck file
+    $(declare_args file)
 
     curl --silent $(jenkins_file_url ${file})
 }
@@ -511,9 +490,8 @@ jenkins_read_file()
 #
 jenkins_get_file()
 {
-    local file=$1
-    argcheck file
-    local outputFile=${2:-$(basename $file)}
+    $(declare_args file ?outputFile)
+    : ${outputFile:=$(basename $file)}
 
     jenkins_read_file ${file} > ${outputFile} 
 }
