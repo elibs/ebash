@@ -189,13 +189,13 @@ jenkins_get_build_number()
 #
 jenkins_build_url()
 {
-    $(declare_args buildNum)
+    $(declare_args buildNum ?format)
     echo -n "$(jenkins_url)/job/${JENKINS_JOB}/${buildNum}/"
-    [[ $2 == "json" ]] && echo -n "api/json"
-    [[ $2 == "xml" ]] && echo -n "api/xml"
+
+    [[ ${format} == "json" ]] && echo -n "api/json"
+    [[ ${format} == "xml"  ]] && echo -n "api/xml"
     echo ""
 }
-
 
 #
 # Retrieve the json data for a particular build, given its job and build number.
@@ -226,7 +226,6 @@ jenkins_build_json()
     [[ ${rc} -ne 0 ]] && { edebug "Error reading json on build for ${JENKINS_JOB} #${BUILD_NUMBER}" ; return 1 ; }
     [[ ${rc} -eq 0 ]] && echo "${json}"
 }
-
 
 #
 # Writes one of the jenkins build status words to stdout once that status is
