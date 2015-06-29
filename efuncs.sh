@@ -667,15 +667,18 @@ ekill()
     : ${signal:=TERM}
 
     # If process doesn't exist just return instead of trying (and failing) to kill it
-    kill -0 ${pid} || return 0
+    kill -0 ${pid} &>$(edebug_out) || return 0
    
     # The process is still running. Now kill it. So long as the process does NOT 
     # exist after sending it the specified signal this function will return
     # success.
-    { kill -${signal} ${pid}; wait ${pid}; true; } &>$(edebug_out)
+    { 
+        kill -${signal} ${pid} || true 
+        wait ${pid}            || true
+    } &>$(edebug_out)
 
     # Post-condition: Return success if the process is no longer running
-    ! kill -0 ${pid}
+    ! kill -0 ${pid} &>$(edebug_out)
 }
 
 ekilltree()
