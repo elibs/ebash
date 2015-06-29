@@ -296,6 +296,12 @@ ETEST_pack_export()
     assert_eq ${c} "$(pack_get P c)"
 }
 
+# Make sure pack_export doesn't blow up on undefined values
+ETEST_pack_export_undefined()
+{
+    pack_export P a
+}
+
 # Make sure pack values can contain the full character set (excluding null)
 ETEST_pack_full_character_set()
 {

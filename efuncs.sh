@@ -2152,7 +2152,7 @@ pack_export()
 
     local _pack_export_args=()
     for _pack_export_arg in "${@}" ; do
-        _pack_export_args+=("${_pack_export_arg}=${!_pack_export_arg}")
+        _pack_export_args+=("${_pack_export_arg}=${!_pack_export_arg:-}")
     done
 
     pack_set "${_pack_export_pack}" "${_pack_export_args[@]}"
