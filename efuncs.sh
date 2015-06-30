@@ -183,9 +183,8 @@ die()
  
     eerror_stacktrace "${@}"
    
-    # If this is the outermost try/catch level then kill entire process
-    [[ ${__EFUNCS_TRY_CATCH_LEVEL:-} -eq 0 ]] && kill 0
-
+    # If this is the outermost try/catch level then kill entire process tree
+    ekilltree $$
     exit 1
 }
 
@@ -678,9 +677,12 @@ ekill()
     } &>$(edebug_out)
 
     # Post-condition: Return success if the process is no longer running
-    ! kill -0 ${pid} &>$(edebug_out)
+    kill -0 ${pid} &>$(edebug_out) && false || true
 }
 
+# Kill an entire process tree by doing a depth first search to find all the descendents
+# of a given pid and kill all leaf nodes in the process tree first. Then it walks back
+# up and kills the parent pids as it traverses back up the tree.
 ekilltree()
 {
     $(declare_args pid ?signal)
