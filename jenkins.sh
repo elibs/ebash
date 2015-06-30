@@ -92,7 +92,6 @@ jenkins_update()
     local foundExisting=0
     JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>${out} || foundExisting=$?
 
-    local rc=0
     # If the request timed out OR if it timed out and then didn't respond to
     # requests so it got kill -9ed
     if [[ ${foundExisting} -eq 124 || ${foundExisting} -eq 137 ]] ; then
@@ -102,25 +101,19 @@ jenkins_update()
     elif [[ ${foundExisting} -eq 0 ]] ; then
 
         # If it does, only update it if the new config differs from the old one
+        local rc=0
         diff --ignore-all-space --brief "${oldConfig}" "${newConfig}" &>/dev/null && rc=0 || rc=$?
         if [[ ${rc} -ne 0 ]] ; then
             edebug "jenkins_update: config mismatch -- updating"
+            edebug_enabled && cat "${newConfig}"
             jenkins update-${item_type} "${name}" < "${newConfig}"
         fi
 
     else
 
         # If it does not, create it
-        jenkins create-${item_type} "${name}" < "${newConfig}" && rc=0 || rc=$?
+        jenkins create-${item_type} "${name}" < "${newConfig}"
     fi
-
-    if [[ ${rc} -eq 0 ]] ; then
-        edebug "Done updating $(lval item_type template name rc)"
-    else
-        ewarn "Error updating $(lval item_type template name rc foundExisting))"
-        edebug_enabled && cat "${newConfig}"
-    fi
-    return ${rc}
 }
 
 # This is a setvars callback method that properly escapes raw data so that it
