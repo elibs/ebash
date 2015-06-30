@@ -35,7 +35,7 @@ etrace()
     fi
 
     die_on_abort
-    echo "$(ecolor dimwheat)[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}]$(ecolor none) ${BASH_COMMAND}" >&2
+    echo "$(ecolor dimwheat)[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}]$(ecolor none) ${BASH_COMMAND}" >&2
 }
 
 edebug_enabled()
