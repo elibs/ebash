@@ -508,7 +508,10 @@ jenkins_delete_files()
         allFiles+=("/tmp/${file}")
     done
 
-    [[ ${#allFiles[@]} -gt 0 ]] && ssh_jenkins "rm -f ${allFiles[@]}"
+    # If there's nothing to do just return success immediately
+    [[ ${#allFiles[@]} -eq 0 ]] && return 0
+    
+    ssh_jenkins "rm -f ${allFiles[@]}"
 }
 
 return 0
