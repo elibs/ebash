@@ -525,6 +525,7 @@ eerror_stacktrace()
 
     local frames=()
     array_init_nl frames "$(stacktrace ${skip_frames})"
+    [[ ${#frames[@]} -eq 0 ]] && return 0
 
     for f in "${frames[@]}"; do
         local line=$(echo ${f} | awk '{print $1}')

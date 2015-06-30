@@ -19,6 +19,15 @@ jenkins_url()
     echo -n "http://${JENKINS}:${JENKINS_PORT}"
 }
 
+jenkins_internal()
+{
+    $(declare_args)
+
+    local filename=$(opt_get f)
+    [[ -z ${filename} ]] && java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}" \
+                         || java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}" < "${filename}"
+}
+
 jenkins()
 {
     if [[ -z ${JENKINS_CLI_JAR:=} || ! -r ${JENKINS_CLI_JAR} ]] ; then
@@ -29,11 +38,8 @@ jenkins()
         trap_add "edebug \"Deleting ${JENKINS_CLI_JAR}.\" ; rm -rf \"${tempDir}\"" EXIT HUP INT QUIT BUS PIPE
     fi
 
-    local cmd=("${@}")
-    edebug "Sending jenkins command $(lval cmd JENKINS_CLI_JAR)"
     eretry -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-5s} -w=${JENKINS_WARN_EVERY:-5} \
-        java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) \
-        "${@}"
+        jenkins_internal "${@}"
 }
 
 #
@@ -106,13 +112,13 @@ jenkins_update()
         if [[ ${rc} -ne 0 ]] ; then
             edebug "jenkins_update: config mismatch -- updating"
             edebug_enabled && cat "${newConfig}"
-            jenkins update-${item_type} "${name}" < "${newConfig}"
+            jenkins -f="${newConfig}" update-${item_type} "${name}"
         fi
 
     else
 
         # If it does not, create it
-        jenkins create-${item_type} "${name}" < "${newConfig}"
+        jenkins -f="${newConfig}" create-${item_type} "${name}"
     fi
 }
 
@@ -379,7 +385,7 @@ jenkins_list_slaves()
     }
 	ENDGROOVY
 
-    jenkins groovy ${groovy_script}
+    jenkins -f="${groovy_script}" groovy =
 }
 
 #
