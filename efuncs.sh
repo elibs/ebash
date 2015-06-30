@@ -165,7 +165,7 @@ stacktrace()
     local frame=${1:-1}
 
     while caller ${frame}; do
-        ((frame+=1))
+        (( frame+=1 ))
     done
 }
 
@@ -1007,13 +1007,13 @@ export_network_interface_names()
 
     for ifname in $(get_network_interfaces_10g); do
         eval "ETH_10G_${idx}=${ifname}"
-        ((idx+=1))
+        (( idx+=1 ))
     done
 
     idx=0
     for ifname in $(get_network_interfaces_1g); do
         eval "ETH_1G_${idx}=${ifname}"
-        ((idx+=1))
+        (( idx+=1 ))
     done
 }
 
@@ -1485,17 +1485,10 @@ opt_false()
     [[ $(pack_get _${_caller[1]}_options ${1}) -eq 0 ]]
 }
 
-# Helper method to be used after declare_args to extract the value of an option
-opt_get()
-{
-    local _caller=( $(caller 0) )
-    pack_get _${_caller[1]}_options ${1}
-}
-
 # Helper method to be used after declare_args to extract the value of an option.
 # Unlike opt_get this one allows you to specify a default value to be used in
 # the event the requested option was not provided.
-opt_get_default()
+opt_get()
 {
     $(declare_args key ?default)
     local _caller=( $(caller 0) )
@@ -1683,13 +1676,12 @@ eretry()
 {
     # Parse options
     $(declare_args)
-    local _eretry_timeout=$(opt_get_default t "")
-    local _eretry_delay=$(opt_get_default d 0)
-    local _eretry_signal=$(opt_get_default s SIGTERM)
-    local _eretry_retries=$(opt_get_default r 5)
-    local _eretry_warn=$(opt_get_default w 0)
+    local _eretry_timeout=$(opt_get t "")
+    local _eretry_delay=$(opt_get d 0)
+    local _eretry_signal=$(opt_get s SIGTERM)
+    local _eretry_retries=$(opt_get r 5)
+    local _eretry_warn=$(opt_get w 0)
     [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
-    edebug "$(lval _eretry_timeout _eretry_delay _eretry_signal _eretry_retries _eretry_warn)"
 
     # Convert signal name to number so we can use it's numerical value
     if [[ ! ${_eretry_signal} =~ ^[[:digit:]]$ ]]; then
@@ -1704,8 +1696,6 @@ eretry()
     local rc=""
     local exit_codes=()
     for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
-        
-        edebug "$(lval attempt rc cmd timeout=_eretry_timeout)"
         
         if [[ -n ${_eretry_timeout} ]] ; then
           
