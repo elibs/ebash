@@ -300,13 +300,6 @@ jenkins_get_artifact()
     curl --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}"
 }
 
-jenkins_get_queue_size()
-{
-    curl --silent $(jenkins_url)/queue/api/json \
-        | jq '.items[].task.name' \
-        | wc -l
-}
-
 #
 # Cancel queued builds whose DTEST_TITLE is equal to the one specified
 #
