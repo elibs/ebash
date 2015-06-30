@@ -27,11 +27,11 @@ ETEST_eprogress_ticks_reuse()
     sleep 1
     eprogress_kill
     cat ${TICK_FILE}
-    [[ $(tail -1 ${TICK_FILE}) -ge 9 ]] || die
-
+    [[ $(tail -1 ${TICK_FILE}) -ge 5 ]] || die
+    
     eprogress "Waiting for Gentoo to replace Ubuntu"
     sleep 1
     eprogress_kill
     cat ${TICK_FILE}
-    [[ $(tail -1 ${TICK_FILE}) -ge 9 ]] || die
+    [[ $(tail -1 ${TICK_FILE}) -ge 5 ]] || die
 }
