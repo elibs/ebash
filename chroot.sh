@@ -107,6 +107,7 @@ chroot_kill()
     : ${signal:=SIGKILL}
 
     local pids=""
+    local errors=0
     [[ -n ${regex} ]] && pids=$(pgrep "${regex}")
     [[ -z ${regex} ]] && pids=$(ps -eo "%p")
     edebug $(lval regex signal pids)
@@ -119,8 +120,10 @@ chroot_kill()
 
         # Kill this process
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        ekilltree ${pid} ${signal}
+        ekilltree ${pid} ${signal} || (( errors+=1 ))
     done
+
+    [[ ${errors} -eq 0 ]]
 }
 
 # Cleanly exit a chroot by:
