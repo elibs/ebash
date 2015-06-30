@@ -90,7 +90,7 @@ jenkins_update()
     # so we don't have to wait forever for new jobs
     local out=/dev/null ; edebug_enabled && out=/dev/stderr
     local foundExisting=0
-    JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>${out} && foundExisting=0 || foundExisting=$?
+    JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>${out} || foundExisting=$?
 
     local rc=0
     # If the request timed out OR if it timed out and then didn't respond to
@@ -104,7 +104,7 @@ jenkins_update()
         # If it does, only update it if the new config differs from the old one
         diff --ignore-all-space --brief "${oldConfig}" "${newConfig}" &>/dev/null && rc=0 || rc=$?
         if [[ ${rc} -ne 0 ]] ; then
-            edebug "jenkins_udpate: config mismatch -- updating"
+            edebug "jenkins_update: config mismatch -- updating"
             jenkins update-${item_type} "${name}" < "${newConfig}"
         fi
 
