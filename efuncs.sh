@@ -96,7 +96,7 @@ edebug_out()
 # failure we instead just exit.
 alias try="
     [[ \${__EFUNCS_TRY_CATCH_LEVEL:=0} -gt 0 ]] && nodie_on_error
-    (( __EFUNCS_TRY_CATCH_LEVEL+=1 )) || true
+    (( __EFUNCS_TRY_CATCH_LEVEL+=1 ))
     ( 
         enable_trace    
         die_on_abort
@@ -165,7 +165,7 @@ stacktrace()
     local frame=${1:-1}
 
     while caller ${frame}; do
-        ((frame++))
+        ((frame+=1))
     done
 }
 
@@ -1007,13 +1007,13 @@ export_network_interface_names()
 
     for ifname in $(get_network_interfaces_10g); do
         eval "ETH_10G_${idx}=${ifname}"
-        ((idx++))
+        ((idx+=1))
     done
 
     idx=0
     for ifname in $(get_network_interfaces_1g); do
         eval "ETH_1G_${idx}=${ifname}"
-        ((idx++))
+        ((idx+=1))
     done
 }
 
