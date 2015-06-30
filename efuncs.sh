@@ -688,8 +688,8 @@ ekilltree()
     $(declare_args pid ?signal)
     : ${signal:=TERM}
 
-    edebug "Killing process tree of ${pid} [$(ps -p ${pid} -o comm=)] with ${signal}."
-    for child in $(ps -o pid --no-headers --ppid ${pid}); do
+    edebug "Killing process tree of ${pid} [$(ps -p ${pid} -o comm= || true)] with ${signal}."
+    for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
         ekilltree ${child} ${signal}
     done
     ekill ${pid} ${signal}
