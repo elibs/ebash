@@ -1159,7 +1159,7 @@ etar()
 
     # If enabled, automatically determine the compression program to use based on file
     # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    if opt_true "a"; then
+    if ! opt_false "a"; then
         if [[ -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
             args+=("--use-compress-program=pbzip2")
         elif [[ -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz" || true) ]]; then
