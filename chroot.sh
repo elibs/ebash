@@ -120,7 +120,7 @@ chroot_kill()
 
         # Kill this process
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        ekilltree ${pid} ${signal} || (( errors+=1 ))
+        ekilltree -s=${signal} ${pid} || (( errors+=1 ))
     done
 
     [[ ${errors} -eq 0 ]]
@@ -431,7 +431,7 @@ chroot_daemon_stop()
 
     # If it is running stop it with optional signal
     local pid=$(cat ${pidfile} 2>/dev/null)
-    ekilltree ${pid} ${signal}
+    ekilltree -s=${signal} ${pid}
     rm -rf ${pidfile}
     eend 0
 }

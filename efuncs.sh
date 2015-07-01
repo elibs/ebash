@@ -657,43 +657,77 @@ eend()
     fi
 }
 
-# Kill a process using the specified signal. The semantics of ekill are to actually 
-# kill a process rather than to send it a non-fatal signal. As such, so long as the
-# process does NOT exist or it exits after sending it the specified signal this 
-# function will return success.
+# Kill all pids provided as arguments to this function using the specified signal.
+# The semantics of ekill are to actually kill a process rather than to send it a
+# non-fatal signal. As such, so long as the process does NOT exist or it exits
+# after sending it the specified signal this function will return success.
+# This function makes every effort to kill all the specified pids. If there are any
+# errors this function will return non-zero (corresponding to the number of pids 
+# that could not be killed successfully).
+#
+# Options:
+# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
 ekill()
 {
-    $(declare_args pid ?signal)
+    $(declare_args)
     : ${signal:=TERM}
 
-    # If process doesn't exist just return instead of trying (and failing) to kill it
-    kill -0 ${pid} &>$(edebug_out) || return 0
-   
-    # The process is still running. Now kill it. So long as the process does NOT 
-    # exist after sending it the specified signal this function will return
-    # success.
-    { 
-        kill -${signal} ${pid} || true 
-        wait ${pid}            || true
-    } &>$(edebug_out)
+    # Determine what signal to send to the processes
+    local signal=$(opt_get s "SIGTERM")
+    local errors=0
 
-    # Post-condition: Return success if the process is no longer running
-    kill -0 ${pid} &>$(edebug_out) && false || true
+    # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
+    # exist just skip it instead of trying (and failing) to kill it since we're
+    # already in the desired state if the process is killed already.
+    for pid in ${@}; do
+
+        # If process doesn't exist just return instead of trying (and failing) to kill it
+        kill -0 ${pid} &>/dev/null || continue
+   
+        # The process is still running. Now kill it. So long as the process does NOT 
+        # exist after sending it the specified signal this function will return
+        # success.
+        local cmd="$(ps -p ${pid} -o comm= || true)"
+        edebug "Killing $(lval pid signal cmd)"
+        { 
+            kill -${signal} ${pid} || true 
+            wait ${pid}            || true
+        } &>$(edebug_out)
+
+        # Post-condition: Return success if the process is no longer running
+        kill -0 ${pid} &>/dev/null && (( errors+=1 )) || true
+    done
+
+    [[ ${errors} -eq 0 ]]
 }
 
-# Kill an entire process tree by doing a depth first search to find all the descendents
-# of a given pid and kill all leaf nodes in the process tree first. Then it walks back
-# up and kills the parent pids as it traverses back up the tree.
+# Kill entire process tree for each provided pid by doing a depth first search to find
+# all the descendents of each pid and kill all leaf nodes in the process tree first.
+# Then it walks back up and kills the parent pids as it traverses back up the tree.
+# This method makes every effort to kill all the requested pids. If there are any errors
+# then the method will return non-zero at the end (which will correspond to the number
+# of pids that could not be killed successfully).
+#
+# Options:
+# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM)
 ekilltree()
 {
-    $(declare_args pid ?signal)
-    : ${signal:=TERM}
+    $(declare_args)
 
-    edebug "Killing process tree of ${pid} [$(ps -p ${pid} -o comm= || true)] with ${signal}."
-    for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
-        ekilltree ${child} ${signal}
+    # Determine what signal to send to the processes
+    local signal=$(opt_get s "SIGTERM")
+    local errors=0
+
+    for pid in ${@}; do
+        edebug "Killing process tree of ${pid} [$(ps -p ${pid} -o comm= || true)] with ${signal}"
+        for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+            ekilltree -s=${signal} ${child} || (( errors+=1 ))
+        done
+
+        ekill -s=${signal} ${pid} || (( errors+=1 ))
     done
-    ekill ${pid} ${signal}
+
+    [[ ${errors} -eq 0 ]]
 }
 
 spinout()
@@ -773,7 +807,7 @@ eprogress_kill()
     local pids=()
     array_init pids "${__EPROGRESS_PIDS}"
     if [[ $(array_size pids) -gt 0 ]]; then
-        ekill ${pids[0]} ${signal}
+        ekill -s=${signal} ${pids[0]}
         export __EPROGRESS_PIDS="${pids[@]:1}"
         [[ -t 1 ]] && echo "" >&2
         eend ${rc}
@@ -1737,7 +1771,7 @@ eretry()
             # or completel normally.
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
-            ekill ${watcher} SIGKILL
+            ekill -s=SIGKILL ${watcher}
 
             # If the process timedout return 124 to match timeout behavior.
             local timeout_rc=$(( 128 + ${_eretry_signal} ))
