@@ -666,14 +666,16 @@ eend()
 # that could not be killed successfully).
 #
 # Options:
-# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
+# -s=SIGNAL The signal to send to the pids (defaults to SIGINT as it's far more 
+#           likely to kill the process than SIGTERM and also ensures we don't
+#           get noisy 'Terminated' messages).
 ekill()
 {
     $(declare_args)
     : ${signal:=TERM}
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s "SIGTERM")
+    local signal=$(opt_get s SIGINT)
     local errors=0
 
     # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
@@ -689,10 +691,7 @@ ekill()
         # success.
         local cmd="$(ps -p ${pid} -o comm= || true)"
         edebug "Killing $(lval pid signal cmd)"
-        { 
-            kill -${signal} ${pid} || true 
-            wait ${pid}            || true
-        } &>$(edebug_out)
+        kill -${signal} ${pid} &>$(edebug_out) || true 
 
         # Post-condition: Return success if the process is no longer running
         kill -0 ${pid} &>/dev/null && (( errors+=1 )) || true
@@ -709,13 +708,15 @@ ekill()
 # of pids that could not be killed successfully).
 #
 # Options:
-# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM)
+# -s=SIGNAL The signal to send to the pids (defaults to SIGINT as it's far more 
+#           likely to kill the process than SIGTERM and also ensures we don't
+#           get noisy 'Terminated' messages).
 ekilltree()
 {
     $(declare_args)
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s "SIGTERM")
+    local signal=$(opt_get s SIGINT)
     local errors=0
 
     for pid in ${@}; do

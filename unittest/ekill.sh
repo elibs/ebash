@@ -23,12 +23,6 @@ ETEST_ekill_multiple()
     ekill ${pids[@]}
 }
 
-do_stuff()
-{
-    sleep infinity &
-    yes >/dev/null &
-}
-
 ETEST_ekilltree()
 {
     # Create a bunch of background processes
