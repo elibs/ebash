@@ -1145,21 +1145,19 @@ erestore()
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
 # - Suppress all the normal noisy warnings that are almost never of interest to us.
 # - Automatically detect fastest compression program by default. If this isn't desired
-#   then pass in -a=0 to disable auto compression selection. This is often used with
-#   --use-compress-program=<prog> to set it to an explicit compression program.
-#
-# Options:
-# -a=(0|1) Enable or disable automatic compress program (default=1)
+#   then pass in --use-compress-program=<PROG>. Unlike normal tar, this will big the
+#   last one in the command line instead of giving back a fatal error due to multiple
+#   compression programs.
 etar()
 {
-    $(declare_args)
-
     # Disable all tar warnings which are expected with unknown file types, sockets, etc.
     local args=("--warning=none")
 
-    # If enabled, automatically determine the compression program to use based on file
+    # Provided an explicit compression program wasn't provided via "-I/--use-compress-program"
+    # then automatically determine the compression program to use based on file
     # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    if ! opt_false "a"; then
+    local match=$(echo "${@}" | egrep '(-I|--use-compress-program)' || true)
+    if [[ -z ${match} ]]; then
         if [[ -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
             args+=("--use-compress-program=pbzip2")
         elif [[ -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz" || true) ]]; then
