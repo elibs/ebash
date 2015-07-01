@@ -101,15 +101,19 @@ ETEST_chroot_kill()
     chroot_mount
     
     einfo "Starting some chroot processes"
-    chroot_cmd "yes >/dev/null&"
-    chroot_cmd "sleep infinity&"
+    chroot_cmd "yes >/dev/null& echo \$! >> /tmp/pids"
+    chroot_cmd "sleep infinity& echo \$! >> /tmp/pids"
+    local pids=()
+    array_init pids "$(cat ${CHROOT}/tmp/pids)"
+    einfos "$(lval pids)"
 
     einfo "Killing 'yes'"
     chroot_kill "yes"
-    chroot_cmd "pgrep yes" && die "yes should have been killed"
+    ! kill -0 ${pids[0]} &>/dev/null || die "${pids[0]} should have been killed"
 
     einfo "Killing everything..."
     chroot_kill
+    ! kill -0 ${pids[0]} &>/dev/null || die "${pids[0]} should have been killed"
 
     # Exit CHROOT
     chroot_exit
