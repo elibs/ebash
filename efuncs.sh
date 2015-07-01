@@ -691,10 +691,20 @@ ekill()
         # success.
         local cmd="$(ps -p ${pid} -o comm= || true)"
         edebug "Killing $(lval pid signal cmd)"
-        kill -${signal} ${pid} &>$(edebug_out) || true 
+        
+        {
+            kill -${signal} ${pid} || true 
+            wait ${pid}            || true
+            kill -0 ${pid}         || continue
 
-        # Post-condition: Return success if the process is no longer running
-        kill -0 ${pid} &>/dev/null && (( errors+=1 )) || true
+            sleep 2
+            kill -SIGKILL ${pid}
+
+            # Post-condition: Return success if the process is no longer running
+            ! kill -0 ${pid} || (( errors+=1 ))
+ 
+        } &>/dev/null
+
     done
 
     [[ ${errors} -eq 0 ]]
