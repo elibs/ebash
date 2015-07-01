@@ -666,9 +666,7 @@ eend()
 # that could not be killed successfully).
 #
 # Options:
-# -s=SIGNAL The signal to send to the pids (defaults to SIGINT as it's far more 
-#           likely to kill the process than SIGTERM and also ensures we don't
-#           get noisy 'Terminated' messages).
+# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
 #
 # -t TIMEOUT. After this duration, command will be killed with SIGKILL.
 ekill()
@@ -677,7 +675,7 @@ ekill()
     : ${signal:=TERM}
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s SIGINT)
+    local signal=$(opt_get s SIGTERM)
     local timeout=$(opt_get t 2) 
     local errors=0
 
@@ -734,15 +732,13 @@ ekill()
 # of pids that could not be killed successfully).
 #
 # Options:
-# -s=SIGNAL The signal to send to the pids (defaults to SIGINT as it's far more 
-#           likely to kill the process than SIGTERM and also ensures we don't
-#           get noisy 'Terminated' messages).
+# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
 ekilltree()
 {
     $(declare_args)
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s SIGINT)
+    local signal=$(opt_get s SIGTERM)
     local errors=0
 
     for pid in ${@}; do
