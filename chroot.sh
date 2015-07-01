@@ -190,13 +190,11 @@ chroot_install()
 
     # Post-install validation because ubuntu is entirely stupid and apt-get and aptitude can return
     # success even though the package is not installed successfully
-    edebug "Validating packages post-installation"
     for p in $@; do
 
         local pn=${p}
         local pv=""
         local op=""
-        edebug "$(lval p)"
 
         if [[ ${p} =~ ([^>=<>]*)(>=|<=|<<|>>|=)(.*) ]]; then
             pn="${BASH_REMATCH[1]}"
@@ -204,8 +202,6 @@ chroot_install()
             pv="${BASH_REMATCH[3]}"
         fi
 
-        edebug "$(lval p pn pv op)"
-        
         # Actually installed
         local actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
         local apn="${actual%|*}"
