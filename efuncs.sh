@@ -669,6 +669,8 @@ eend()
 # -s=SIGNAL The signal to send to the pids (defaults to SIGINT as it's far more 
 #           likely to kill the process than SIGTERM and also ensures we don't
 #           get noisy 'Terminated' messages).
+#
+# -t TIMEOUT. After this duration, command will be killed with SIGKILL.
 ekill()
 {
     $(declare_args)
@@ -676,6 +678,7 @@ ekill()
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGINT)
+    local timeout=$(opt_get t 2) 
     local errors=0
 
     # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
@@ -693,16 +696,29 @@ ekill()
         edebug "Killing $(lval pid signal cmd)"
         
         {
-            kill -${signal} ${pid} || true 
-            wait ${pid}            || true
-            kill -0 ${pid}         || continue
+            kill -${signal} ${pid} || true
 
-            sleep 2
-            kill -SIGKILL ${pid}
+            # Start watchdog process to kill it if it fails to shutdown properly
+            (
+                nodie_on_error
+                die_on_abort
+                sleep ${timeout}
+                kill -0 ${pid} || exit 0
+                kill -9 ${pid} || true
+            ) &
+           
+            # Now wait for the process to either exit from original signal or from
+            # our safety next signal. In either case ignore any failures via || true.
+            # At the end check final post-condition that the process is no longer
+            # running.
+            local watcher=$!
+            wait ${pid}        || true
+            kill -9 ${watcher} || true
+            wait ${watcher}    || true
 
-            # Post-condition: Return success if the process is no longer running
-            ! kill -0 ${pid} || (( errors+=1 ))
- 
+            # If the process is still running then there was an error.
+            ! kill -0 ${pid}   || (( errors+=1 ))
+
         } &>/dev/null
 
     done
@@ -1776,8 +1792,9 @@ eretry()
             # or completel normally.
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
-            ekill -s=SIGKILL ${watcher}
-
+            kill -9 ${watcher} &>/dev/null || true
+            wait ${watcher}    &>/dev/null || true
+ 
             # If the process timedout return 124 to match timeout behavior.
             local timeout_rc=$(( 128 + ${_eretry_signal} ))
             [[ ${rc} -eq ${timeout_rc} ]] && rc=124
