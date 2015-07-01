@@ -1097,19 +1097,36 @@ erestore()
     [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
 }
 
+# etar is a wrapper around the normal 'tar' command with a few enhancements:
+# - Suppress all the normal noisy warnings that are almost never of interest to us.
+# - Allow explicit specification of compression program to use via -I=prog.
+#   If not specified it will automatically pick the fastest compression program
+#   based on file extension.
+#
+# Options:
+# -I=PROG  Explicit compression program to use
 etar()
 {
+    $(declare_args)
+
+    # Determine what compression program to use
+    local prog=$(opt_get I "")
+
     # Disable all tar warnings which are expected with unknown file types, sockets, etc.
     local args=("--warning=none")
 
-    # Auto detect compression program based on extension but substitute in pbzip2 for bzip and pigz for gzip
-    if [[ -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
-        args+=("--use-compress-program=pbzip2")
-    elif [[ -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz" || true) ]]; then
-        args+=("--use-compress-program=pigz")
-    else
-        args+=("--auto-compress")
+    # If not given an explicit compress program auto detect compression program based on
+    # extension but substitute in pbzip2 for bzip and pigz for gzip
+    if [[ -z ${prog} && -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
+        prog="pbzip2"
+    elif [[ -z ${prog} && -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz" || true) ]]; then
+        prog="pigz"
     fi
+
+    # Verify requested compression program exists. If not, fallback to auto compression
+    which ${prog} &>/dev/null \
+        && args+=("--use-compress-program=${prog}") \
+        || args+=("--auto-compress")
 
     tar "${args[@]}" "${@}"
 }
