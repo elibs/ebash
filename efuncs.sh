@@ -657,6 +657,26 @@ eend()
     fi
 }
 
+# Check if a given process is running. Returns success (0) if the process is
+# running and failure (1) otherwise.
+process_running()
+{
+    $(declare_args pid)
+    kill -0 ${pid} &>/dev/null
+}
+
+ewait()
+{
+    local errors=0
+
+    for pid in ${@}; do
+        wait ${pid}
+        ! process_running ${pid} || (( errors+=1 ))
+    done
+
+    [[ ${errors} -eq 0 ]]
+}
+
 # Kill all pids provided as arguments to this function using the specified signal.
 # The semantics of ekill are to actually kill a process rather than to send it a
 # non-fatal signal. As such, so long as the process does NOT exist or it exits
@@ -667,16 +687,13 @@ eend()
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
-#
-# -t TIMEOUT. After this duration, command will be killed with SIGKILL.
 ekill()
 {
     $(declare_args)
-    : ${signal:=TERM}
+    : ${signal:=SIGTERM}
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
-    local timeout=$(opt_get t 2) 
     local errors=0
 
     # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
@@ -685,7 +702,7 @@ ekill()
     for pid in ${@}; do
 
         # If process doesn't exist just return instead of trying (and failing) to kill it
-        kill -0 ${pid} &>/dev/null || continue
+        process_running ${pid} || continue
    
         # The process is still running. Now kill it. So long as the process does NOT 
         # exist after sending it the specified signal this function will return
@@ -693,31 +710,15 @@ ekill()
         local cmd="$(ps -p ${pid} -o comm= || true)"
         edebug "Killing $(lval pid signal cmd)"
         
+        # The process is still running. Now kill it. So long as the process does NOT
+        # exist after sending it the specified signal this function will return success.
         {
             kill -${signal} ${pid} || true
-
-            # Start watchdog process to kill it if it fails to shutdown properly
-            (
-                nodie_on_error
-                die_on_abort
-                sleep ${timeout}
-                kill -0 ${pid} || exit 0
-                kill -9 ${pid} || true
-            ) &
-           
-            # Now wait for the process to either exit from original signal or from
-            # our safety next signal. In either case ignore any failures via || true.
-            # At the end check final post-condition that the process is no longer
-            # running.
-            local watcher=$!
-            wait ${pid}        || true
-            kill -9 ${watcher} || true
-            wait ${watcher}    || true
-
-            # If the process is still running then there was an error.
-            ! kill -0 ${pid}   || (( errors+=1 ))
-
-        } &>/dev/null
+            eretry ewait ${pid}
+        } &>$(edebug_out)
+       
+        # Post-Condition: Return success if the process is no longer running.
+        ! process_running ${pid} || (( errors+=1 ))
 
     done
 

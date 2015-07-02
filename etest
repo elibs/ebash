@@ -172,7 +172,7 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
                 test_teardown
             }
 
-            edebug_enabled ${testfunc} || eend ${testfunc_rc}
+            eend ${testfunc_rc}
            
         done
 

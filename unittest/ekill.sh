@@ -3,8 +3,10 @@ ETEST_ekill()
     # Start a simple process and ensure we can kill it
     yes >/dev/null &
     local pid=$!
+    process_running ${pid}     || die "${pid} should be running"
 
     ekill ${pid}
+    ! process_running ${pid} || die "${pid} should have been killed!"
 }
 
 ETEST_ekill_multiple()
