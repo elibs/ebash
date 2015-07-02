@@ -65,3 +65,11 @@ ETEST_eretry_ignore_signal()
 {
     eretry -t=1s -r=1 block_sigterm_and_sleep_forever && die "eretry should abort" || assert_eq 137 $?
 }
+
+ETEST_eretry_multiple_commands()
+{
+    eretry "mkdir -p foo; echo -n 'zap' > foo/file"
+    [[ -d foo      ]] || die "foo doesn't exist"
+    [[ -f foo/file ]] || die "foo/file doesn't exist"
+    assert_eq "zap" "$(cat foo/file)"
+}
