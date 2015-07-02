@@ -769,7 +769,15 @@ ewait()
     local errors=0
 
     for pid in ${@}; do
-        wait ${pid}
+
+        # Wait for the pid. But don't let a failure in wait cause ewait to 
+        # abort immediately. The use case for this is if we're killing a processes
+        # started in a different subshell. Bash will let you *KILL* it but it will
+        # not let you *WAIT* on it. Neat. In the event we ARE the parent process
+        # we definitely want to wait though. That's why we add another check after
+        # this to base the actual return code on whether the process is no longer
+        # running or not.
+        wait ${pid} || true
         ! process_running ${pid} || (( errors+=1 ))
     done
 
@@ -803,6 +811,7 @@ ekill()
         # If process doesn't exist just return instead of trying (and failing) to kill it
         process_running ${pid} || continue
    
+        
         # The process is still running. Now kill it. So long as the process does NOT 
         # exist after sending it the specified signal this function will return
         # success.
@@ -813,7 +822,7 @@ ekill()
         # exist after sending it the specified signal this function will return success.
         {
             kill -${signal} ${pid} || true
-            eretry ewait ${pid}
+            eretry -t=2s ewait ${pid}
         } &>$(edebug_out)
        
         # Post-Condition: Return success if the process is no longer running.
