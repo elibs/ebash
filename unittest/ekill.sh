@@ -3,9 +3,10 @@ ETEST_ekill()
     # Start a simple process and ensure we can kill it
     yes >/dev/null &
     local pid=$!
-    process_running ${pid}     || die "${pid} should be running"
+    process_running ${pid}   || die "${pid} should be running"
 
     ekill ${pid}
+    wait ${pid} || true
     ! process_running ${pid} || die "${pid} should have been killed!"
 }
 
@@ -23,17 +24,27 @@ ETEST_ekill_multiple()
 
     einfo "Killing all $(lval pids)"
     ekill ${pids[@]}
+
+    for pid in ${pids[@]}; do
+        wait $pid || true
+        ! process_running ${pid} || die "${pid} failed to exit"
+    done
 }
 
 ETEST_ekilltree()
 {
-    # Create a bunch of background processes
-    sleep infinity&
-    yes >/dev/null&
-    bash -c 'sleep 1000' &
-    bash -c 'sleep 4000' &
+    local pids=()
 
-    local pid=$$
-    einfo "$(lval pid)"
-    ekilltree ${pid}
+    # Create a bunch of background processes
+    sleep infinity& pids+=( $! )
+    yes >/dev/null& pids+=( $! )
+    bash -c 'sleep 1000' & pids+=( $! )
+    bash -c 'sleep 4000' & pids+=( $! )
+
+    ekilltree $$
+
+    for pid in ${pids[@]}; do
+        wait $pid || true
+        ! process_running ${pid} || die "${pid} failed to exit"
+    done
 }

@@ -136,7 +136,6 @@ alias catch=" );
 
 # Throw is just a simple wrapper around exit but it looks a little nicer inside
 # a 'try' block to see 'throw' instead of 'exit'.
-declare -r throw
 throw()
 {
     exit $1
@@ -159,7 +158,6 @@ alias nodie_on_error="trap - ERR"
 # TRAPS / DIE / STACKTRACE 
 #-----------------------------------------------------------------------------
 
-declare -r stacktrace
 stacktrace()
 {
     local frame=${1:-1}
@@ -169,7 +167,6 @@ stacktrace()
     done
 }
 
-declare -r die
 die()
 {
     [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -eq 1 ]] && exit 1 || true
@@ -193,7 +190,6 @@ die()
 # - 1st arg:  code to add
 # - remaining args:  names of traps to modify
 #
-declare -r trap_add
 trap_add()
 {
     trap_add_cmd=$1; shift || die "${FUNCNAME} usage error"
@@ -216,25 +212,36 @@ trap_add()
 # inherit them unless the trace attribute is set
 declare -f -t trap_add
 
-# Trap specified signals and call die() which will kill the entire
-# process tree. Can optionally specify what signals to trap but defaults
-# to the key signals we generally want to die on. This is used as our
-# default signal handler but it's also very important to put this at the
-# start of any command substitution which you want to be interruptible. 
-# Otherwise, due to bash quirkiness, signals are ignored in command
-# substitution: http://www.tldp.org/LDP/Bash-Beginners-Guide/html/sect_12_01.html.
-declare -r die_on_abort
+# List of signals which will cause die() to be called. These signals are the ones
+# which by default bash uses to cause a program to terminate or abort. It may seem
+# odd to register traps for things like SIGKILL since you can't IGNORE signals like
+# that. However, you can still register a trap instead of the default handler bash
+# uses and do something BEFORE you are terminated. If you don't register new traps
+# for these signals then you get really annoying error messages whenever a process
+# is killed or aborted.
+#
+# NOTE: We use this list below in die_on_abort and nodie_on_abort which we call
+# shortly below this as our global default traps. Additionally, it is very important
+# to call die_on_abort at the start of any command substitution which you want to be
+# interruptible. 
+die_signals=( SIGHUP    SIGINT   SIGQUIT   SIGILL   SIGABRT  SIGFPE    SIGKILL SIGSEGV
+              SIGPIPE   SIGALRM  SIGTERM   SIGUSR1  SIGUSR2  SIGBUS    SIGIO   SIGPROF
+              SIGSYS    SIGTRAP  SIGVTALRM SIGXCPU  SIGXFSZ  SIGSTKFLT SIGPWR
+            )
+
+# Enable default traps for all die_signals to call die().
 die_on_abort()
 {
-    local signals=$@
-    [[ -z ${signals[@]} ]] && signals=( HUP INT QUIT BUS PIPE TERM )
+    local signals=( "${@}" )
+    [[ ${#signals[@]} -gt 0 ]] || signals=( "${die_signals[@]}" )
     trap 'die [killed]' ${signals[@]}
 }
 
+# Disable default traps for all die_signals.
 nodie_on_abort()
 {
-    local signals=$@
-    [[ -z ${signals[@]} ]] && signals=( HUP INT QUIT BUS PIPE TERM )
+    local signals=( "${@}" )
+    [[ ${#signals[@]} -gt 0 ]] || signals=( "${die_signals[@]}" )
     trap - ${signals[@]}
 }
 
@@ -725,7 +732,7 @@ eprogress_kill()
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
-        [[ -t 1 ]] && echo "" >&2
+        [[ -t 1 ]] && echo "" >&2 || true
         eend ${rc}
         return
     fi
@@ -736,7 +743,7 @@ eprogress_kill()
     if [[ $(array_size pids) -gt 0 ]]; then
         ekill -s=${signal} ${pids[0]}
         export __EPROGRESS_PIDS="${pids[@]:1}"
-        [[ -t 1 ]] && echo "" >&2
+        [[ -t 1 ]] && echo "" >&2 || true
         eend ${rc}
     fi
 }
@@ -761,33 +768,7 @@ process_running()
     kill -0 ${pid} &>/dev/null
 }
 
-# Wait for a list of processes similar to builtin 'wait'. The difference here
-# is that it uses process_running to verify the process we waited on actually
-# finished exiting.
-ewait()
-{
-    local errors=0
-
-    for pid in ${@}; do
-
-        # Wait for the pid. But don't let a failure in wait cause ewait to 
-        # abort immediately. The use case for this is if we're killing a processes
-        # started in a different subshell. Bash will let you *KILL* it but it will
-        # not let you *WAIT* on it. Neat. In the event we ARE the parent process
-        # we definitely want to wait though. That's why we add another check after
-        # this to base the actual return code on whether the process is no longer
-        # running or not.
-        wait ${pid} || true
-        ! process_running ${pid} || (( errors+=1 ))
-    done
-
-    [[ ${errors} -eq 0 ]]
-}
-
 # Kill all pids provided as arguments to this function using the specified signal.
-# The semantics of ekill are to actually kill a process rather than to send it a
-# non-fatal signal. As such, so long as the process does NOT exist or it exits
-# after sending it the specified signal this function will return success.
 # This function makes every effort to kill all the specified pids. If there are any
 # errors this function will return non-zero (corresponding to the number of pids 
 # that could not be killed successfully).
@@ -810,7 +791,6 @@ ekill()
 
         # If process doesn't exist just return instead of trying (and failing) to kill it
         process_running ${pid} || continue
-   
         
         # The process is still running. Now kill it. So long as the process does NOT 
         # exist after sending it the specified signal this function will return
@@ -820,14 +800,7 @@ ekill()
         
         # The process is still running. Now kill it. So long as the process does NOT
         # exist after sending it the specified signal this function will return success.
-        {
-            kill -${signal} ${pid} || true
-            eretry -t=2s ewait ${pid}
-        } &>$(edebug_out)
-       
-        # Post-Condition: Return success if the process is no longer running.
-        ! process_running ${pid} || (( errors+=1 ))
-
+        kill -${signal} ${pid} &>$(edebug_out) || (( errors+=1 ))
     done
 
     [[ ${errors} -eq 0 ]]
@@ -1185,12 +1158,20 @@ etar()
     # Provided an explicit compression program wasn't provided via "-I/--use-compress-program"
     # then automatically determine the compression program to use based on file
     # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    local match=$(echo "${@}" | egrep '(-I|--use-compress-program)' || true)
+    local match=$(echo "$@" | egrep '(-I|--use-compress-program)' || true)
     if [[ -z ${match} ]]; then
-        if [[ -n $(echo "$@" | egrep -- "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
-            args+=("--use-compress-program=pbzip2")
-        elif [[ -n $(echo "$@" | egrep -- "\.gz|\.tgz|\.taz" || true) ]]; then
-            args+=("--use-compress-program=pigz")
+
+        local prog=""
+        if [[ -n $(echo "$@" | egrep "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
+            prog="pbzip2"
+        elif [[ -n $(echo "$@" | egrep "\.gz|\.tgz|\.taz" || true) ]]; then
+            prog="pigz"
+        fi
+
+        # If the program we selected is available set that as the compression program
+        # otherwise fallback to auto-compress and let tar pick for us.
+        if [[ -n ${prog} && -n $(which ${prog} &>/dev/null || true) ]]; then
+            args+=("--use-compress-program=${prog}")
         else
             args+=("--auto-compress")
         fi
