@@ -1170,7 +1170,7 @@ etar()
 
         # If the program we selected is available set that as the compression program
         # otherwise fallback to auto-compress and let tar pick for us.
-        if [[ -n ${prog} && -n $(which ${prog} &>/dev/null || true) ]]; then
+        if [[ -n ${prog} && -n $(which ${prog} 2>/dev/null || true) ]]; then
             args+=("--use-compress-program=${prog}")
         else
             args+=("--auto-compress")
