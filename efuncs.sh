@@ -1776,7 +1776,7 @@ eretry()
         
         if [[ -n ${_eretry_timeout} ]] ; then
           
-            "${@}" &
+            eval "${cmd[@]}" &
             local pid=$!
 
             # Start watchdog process to kill it if it timesout
@@ -1804,7 +1804,7 @@ eretry()
             [[ ${rc} -eq ${timeout_rc} ]] && rc=124
 
         else
-            "${@}" && rc=0 || rc=$?
+            eval "${cmd[@]}" && rc=0 || rc=$?
         fi
         exit_codes+=(${rc})
 
