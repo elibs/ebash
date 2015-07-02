@@ -109,11 +109,13 @@ ETEST_chroot_kill()
 
     einfo "Killing 'yes'"
     chroot_kill "yes"
-    ! kill -0 ${pids[0]} &>/dev/null || die "${pids[0]} should have been killed"
+    wait ${pids[0]} || true
+    ! process_running ${pids[0]} || die "${pids[0]} should have been killed"
 
     einfo "Killing everything..."
     chroot_kill
-    ! kill -0 ${pids[0]} &>/dev/null || die "${pids[0]} should have been killed"
+    wait ${pids[0]} || true
+    ! process_running ${pids[0]} || die "${pids[0]} should have been killed"
 
     # Exit CHROOT
     chroot_exit
