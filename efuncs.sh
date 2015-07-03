@@ -179,8 +179,8 @@ die()
  
     eerror_stacktrace "${@}"
    
-    # If this is the outermost try/catch level then kill entire process tree
-    ekilltree $$
+    # Now kill our entire process tree with SIGKILL.
+    ekilltree -s=SIGKILL $$
     exit 1
 }
 
@@ -830,8 +830,7 @@ ekilltree()
             ekilltree -s=${signal} ${child} || (( errors+=1 ))
         done
 
-        # HACK: Don't kill ourselves
-        [[ ${pid} == ${BASHPID} ]] || { ekill -s=${signal} ${pid} || (( errors+=1 )); }
+        ekill -s=${signal} ${pid} || (( errors+=1 ))
     done
 
     [[ ${errors} -eq 0 ]]
