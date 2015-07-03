@@ -742,6 +742,8 @@ eprogress_kill()
     array_init pids "${__EPROGRESS_PIDS}"
     if [[ $(array_size pids) -gt 0 ]]; then
         ekill -s=${signal} ${pids[0]}
+        wait ${pids[0]} &>/dev/null || true
+
         export __EPROGRESS_PIDS="${pids[@]:1}"
         [[ -t 1 ]] && echo "" >&2 || true
         eend ${rc}
