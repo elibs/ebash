@@ -771,6 +771,14 @@ process_running()
     kill -0 ${pid} &>/dev/null
 }
 
+# Check if a given process is NOT running. Returns success (0) if the process
+# is not running and failure (1) otherwise.
+process_not_running()
+{
+    $(declare_args pid)
+    ! kill -0 ${pid} &>/dev/null 
+}
+
 # Kill all pids provided as arguments to this function using the specified signal.
 # This function makes every effort to kill all the specified pids. If there are any
 # errors this function will return non-zero (corresponding to the number of pids 
