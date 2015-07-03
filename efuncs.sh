@@ -180,7 +180,9 @@ die()
     eerror_stacktrace "${@}"
    
     # Now kill our entire process tree with SIGKILL.
-    ekilltree -s=SIGKILL $$
+    # NOTE: Use BASHPID so that we kill our current instance of bash.
+    # This is different than $$ only if we're in a subshell.
+    ekilltree -s=SIGKILL ${BASHPID}
     exit 1
 }
 
