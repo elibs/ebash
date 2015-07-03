@@ -91,7 +91,7 @@ edebug_out()
 # One clever trick employed here is to keep track of what level of the try/catch
 # stack we are in so that the parent's ERR trap won't get triggered and cause 
 # the process to exit. Because we WANT the try subshell to exit and allow the
-# failure to be handled inside the catch block. This is also used inside die()
+# failure to be handled inside the catch block. This is also used inside die
 # so that instead of calling "kill 0" to destroy the whole process tree on
 # failure we instead just exit.
 alias try="
@@ -151,7 +151,7 @@ throw()
 # enables 'set -e'.
 alias die_on_error="trap 'die [UnhandledError]' ERR"
 
-# Disable calling die() on ERROR.
+# Disable calling die on ERROR.
 alias nodie_on_error="trap - ERR"
 
 #-----------------------------------------------------------------------------
@@ -173,8 +173,7 @@ die()
     __EFUNCS_DIE_IN_PROGRESS=1
     eprogress_killall
 
-    # Clear our exit handler so we don't cause infinite recursion on suicide
-    trap - EXIT
+    # Clear ERR and DEBUG traps to avoid tracing die code.
     trap - ERR
     trap - DEBUG
  
@@ -831,7 +830,8 @@ ekilltree()
             ekilltree -s=${signal} ${child} || (( errors+=1 ))
         done
 
-        ekill -s=${signal} ${pid} || (( errors+=1 ))
+        # HACK: Don't kill ourselves
+        [[ ${pid} == ${BASHPID} ]] || { ekill -s=${signal} ${pid} || (( errors+=1 )); }
     done
 
     [[ ${errors} -eq 0 ]]
