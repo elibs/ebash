@@ -5,7 +5,7 @@ ETEST_ensure_trap_enabled_by_default()
     # invalid.
     einfo "Verifying ERR trap is set"
     trap -p
-    trap -p | grep -q ERR || die "Precondition: ERR trap should be enabled"
+    die_on_error_enabled || die "ERR trap should be enabled"
 }
 
 ETEST_try_catch()
@@ -103,11 +103,150 @@ ETEST_nodie_on_error()
 {
     # First ensure we have our trap set for ERR so that the test actually
     # validates we can disable the trap
-    trap -p | grep ERR || die "Precondition: ERR trap should be enabled"
+    einfo "Verifying ERR trap is set"
+    die_on_error_enabled || die "ERR trap should be enabled"
 
+    einfo "Disabling ERR trap"
     nodie_on_error
+
+    einfo "Verifying ERR trap is unset"
+    ! die_on_error_enabled || die "ERR trap should be disabled"
+   
+    einfo "Intentionally causing an error..."
     false
     return 0
+}
+
+# Verify we can disable die_on_error and that later using a try-catch
+# doesn't incorrectly re-enable it.
+ETEST_nodie_on_error_with_try_catch()
+{
+    # First ensure we have our trap set for ERR so that the test actually
+    # validates we can disable the trap
+    einfo "Verifying ERR trap is set"
+    die_on_error_enabled || die "ERR trap should be enabled"
+
+    einfo "Disabling ERR trap"
+    nodie_on_error
+
+    # Verify die on error is not enabled
+    einfo "Verifying ERR trap is unset"
+    ! die_on_error_enabled || die "ERR trap should be disabled"
+    
+    try
+    {
+        throw 100
+        die "throw() didn't exit try block"
+    }
+    catch
+    {
+        assert_eq 100 $?
+    }
+   
+    # die_on_error should still be disabled
+    einfo "Verifying ERR trap is unset after try/catch"
+    ! die_on_error_enabled || die "ERR trap should be disabled"
+}
+
+# Verify we are building up the try/catch enabled stack correctly.
+# NOTE: There are two outer try/catches in etest before this function is called
+# so our starting array should have (1 1)
+# [0]="global_teardown; die [UnhandledError]" [1]="exit \$?"
+ERR_TRAP_DIE="die [UnhandledError]"
+ERR_TRAP_EXIT="exit \$?"
+ERR_TRAP_TEST="global_teardown; ${ERR_TRAP_DIE}"
+ERR_TRAP_NONE="-"
+
+assert_stack_eq()
+{
+    assert_eq $# $(array_size __EFUNCS_DIE_ON_ERROR_TRAP_STACK)
+
+    local frame=0
+    for code in "${@}"; do
+        eval "local expect="\${ERR_TRAP_${code}}""
+        local actual="${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[$frame]}"
+
+        einfo "$(lval frame expect actual)"
+        assert_eq "${expect}" "${actual}"
+        (( frame+=1 ))
+    done
+}
+
+## TODO: Need to track the code flow to ensure all points were executed properly
+ETEST_try_catch_stack()
+{
+    assert_stack_eq TEST EXIT
+
+    # Add some more try-catches with various enable/disable
+    die_on_error_enabled || die "ERR trap should be enabled"
+    nodie_on_error
+    ! die_on_error_enabled || die "ERR trap should be disabled"
+
+    try
+    {
+        die_on_error_enabled || die "ERR trap should be enabled"
+        assert_stack_eq TEST EXIT NONE
+
+        try
+        {
+            die_on_error_enabled || die "ERR trap should be enabled"
+            assert_stack_eq TEST EXIT NONE EXIT
+           
+            try
+            {
+                die_on_error_enabled || die "ERR trap should be enabled"
+                assert_stack_eq TEST EXIT NONE EXIT EXIT
+           
+                # Disable
+                nodie_on_error
+                ! die_on_error_enabled || die "ERR trap should be disabled"
+                try
+                {
+                    die_on_error_enabled || die "ERR trap should be enabled"
+                    assert_stack_eq TEST EXIT NONE EXIT EXIT NONE
+           
+                    false
+                    die "try block should have thrown"
+                }
+                catch
+                {
+                    ! die_on_error_enabled || die "ERR trap should be disabled"
+                    assert_stack_eq TEST EXIT NONE EXIT EXIT
+                }
+                
+                ! die_on_error_enabled || die "ERR trap should be disabled"
+                assert_stack_eq TEST EXIT NONE EXIT EXIT
+                
+                false
+                true
+            }
+            catch
+            {
+                die "try block should not have thrown"
+            }
+     
+            die_on_error_enabled || die "ERR trap should be enabled"
+            assert_stack_eq TEST EXIT NONE EXIT
+            false
+            die "try block should have thrown"
+        }
+        catch
+        {
+            assert_stack_eq TEST EXIT NONE
+        }
+        
+        die_on_error_enabled || die "ERR trap should be enabled"
+        assert_stack_eq TEST EXIT NONE
+        false
+        die "try block should have thrown"
+    }
+    catch
+    { 
+        assert_stack_eq TEST EXIT
+    }
+            
+    ! die_on_error_enabled || die "ERR trap should be disabled"
+    assert_stack_eq TEST EXIT
 }
 
 # Verify die_on_error **IS** inherited into subshell since we are now using

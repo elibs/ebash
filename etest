@@ -148,7 +148,7 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
         [[ ${testfile} =~ ${FILTER} ]] && ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" {print $3}' ) ) \
                                        || ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
 
-        [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] && continue
+        [[ ${#ETEST_FUNCTIONS[@]} -gt 0 ]] || continue
 
         edebug_enabled ${testfile} || einfo "Starting tests in ${testfile}"
 
@@ -176,7 +176,7 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
            
         done
 
-        [[ ${#FAILED_TESTS[@]} -eq 0 ]] || die "$(lval FAILED_TESTS)"
+        [[ ${#FAILED_TESTS[@]} -eq 0 ]] || { eerror_stacktrace "$(lval FAILED_TESTS)"; throw 1; }
     } 
     catch
     {
