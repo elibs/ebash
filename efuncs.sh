@@ -737,7 +737,7 @@ do_eprogress()
         local diff=$(( ${now} - ${start} ))
 
         echo -en "$(ecolor white)" >&2
-        printf "[%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
+        printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
         echo -en "$(ecolor none)"  >&2
 
         spinout "/"
