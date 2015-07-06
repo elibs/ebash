@@ -91,14 +91,15 @@ edebug_out()
 # One clever trick employed here is to keep track of what level of the try/catch
 # stack we are in so that the parent's ERR trap won't get triggered and cause 
 # the process to exit. Because we WANT the try subshell to exit and allow the
-# failure to be handled inside the catch block. This is also used inside die
-# so that instead of calling "kill 0" to destroy the whole process tree on
-# failure we instead just exit.
+# failure to be handled inside the catch block.
+__EFUNCS_DIE_ON_ERROR_TRAP_STACK=()
 alias try="
-    [[ \${__EFUNCS_TRY_CATCH_LEVEL:=0} -gt 0 ]] && nodie_on_error
-    (( __EFUNCS_TRY_CATCH_LEVEL+=1 ))
+    __EFUNCS_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
+    : \${__EFUNCS_DIE_ON_ERROR_TRAP:=-}
+    __EFUNCS_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" )
+    nodie_on_error
     ( 
-        enable_trace    
+        enable_trace
         die_on_abort
         trap 'exit \$?' ERR
     "
@@ -130,9 +131,11 @@ alias try="
 #     catch block which sufficiently handles the error or the code won't be
 #     valid.
 alias catch=" ); 
-    __EFUNCS_TRY_CATCH_RC=\$? || true 
-    (( __EFUNCS_TRY_CATCH_LEVEL+=-1 )) || true
-    ( exit \${__EFUNCS_TRY_CATCH_RC}; ) || "
+    __EFUNCS_TRY_CATCH_RC=\$?
+    __EFUNCS_DIE_ON_ERROR_TRAP=\"\${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
+    unset __EFUNCS_DIE_ON_ERROR_TRAP_STACK[\${#__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]}-1]
+    trap \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" ERR
+    ( exit \${__EFUNCS_TRY_CATCH_RC} ) || "
 
 # Throw is just a simple wrapper around exit but it looks a little nicer inside
 # a 'try' block to see 'throw' instead of 'exit'.
@@ -149,22 +152,51 @@ throw()
 #
 # NOTE: This is extremely unobvious, but setting a trap on ERR implicitly
 # enables 'set -e'.
-alias die_on_error="trap 'die [UnhandledError]' ERR"
+alias die_on_error='trap "die [UnhandledError]" ERR'
 
 # Disable calling die on ERROR.
 alias nodie_on_error="trap - ERR"
+
+# Check if die_on_error is enabled. Returns success (0) if enabled and failure
+# (1) otherwise.
+die_on_error_enabled()
+{
+    trap -p | grep ERR &>$(edebug_out)
+}
 
 #-----------------------------------------------------------------------------
 # TRAPS / DIE / STACKTRACE 
 #-----------------------------------------------------------------------------
 
+# Print stacktrace to stdout. Each frame of the stacktrace is separated by a
+# newline. Allows you to optionally pass in a starting frame to start the
+# stacktrace at. 0 is the top of the stack and counts up. See also stacktrace
+# and error_stacktrace.
+#
+# OPTIONS:
+# -f=N Frame number to start at.
 stacktrace()
 {
-    local frame=${1:-1}
+    $(declare_args)
+    local frame=$(opt_get f 0)
 
     while caller ${frame}; do
         (( frame+=1 ))
     done
+}
+
+# Populate an array with the frames of the current stacktrace. Allows you
+# to optionally pass in a starting frame to start the stacktrace at. 0 is
+# the top of the stack and counts up. See also stacktrace and error_stacktrace.
+#
+# OPTIONS:
+# -f=N Frame number to start at (defaults to 1 to skip lower level stacktrace
+#      frame that this function calls.)
+stacktrace_array()
+{
+    $(declare_args array)
+    local frame=$(opt_get f 1)
+    array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
 
 die()
@@ -177,7 +209,10 @@ die()
     trap - ERR
     trap - DEBUG
  
-    eerror_stacktrace "${@}"
+    # Call eerror_stacktrace but skip top three frames to skip over
+    # the frames containing stacktrace_array, error_stacktrace and
+    # die itself.
+    eerror_stacktrace -f=3 "${@}"
    
     # Now kill our entire process tree with SIGKILL.
     # NOTE: Use BASHPID so that we kill our current instance of bash.
@@ -200,7 +235,7 @@ trap_add()
             # of trap -p
             extract_trap_cmd() { printf '%s\n' "${3:-}"; }
             # print the new trap command
-            printf '%s\n' "${trap_add_cmd}"
+            printf '%s; ' "${trap_add_cmd}"
             # print existing trap command with newline
             eval "extract_trap_cmd $(trap -p "${trap_add_name}")"
         )" "${trap_add_name}" \
@@ -493,9 +528,9 @@ emsg()
     [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
     
     # Color Policy
-    [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]]    \
-        && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none) " >&2 \
-        || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@ " >&2
+    [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]]   \
+        && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none)" >&2 \
+        || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@" >&2
 }
 
 einfo()
@@ -523,18 +558,28 @@ eerror()
     echo -e "$(emsg 'red' '>>' 'ERROR' "$@")" >&2
 }
 
+# Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
+# the entire stacktrace as a bright red error message with the funct and file:line
+# number nicely formatted for easily display of fatal errors.
+# 
+# Allows you to optionally pass in a starting frame to start the stacktrace at. 0 is
+# the top of the stack and counts up. See also stacktrace and error_stacktrace.
+#
+# OPTIONS:
+# -f=N Frame number to start at (defaults to 2 to skip the top frames with
+#      eerror_stacktrace and stacktrace_array).
 eerror_stacktrace()
 {
-    local skip_frames=0
-    [[ $(caller 0 | awk '{print $2}') == "die" ]] && skip_frames=2 || skip_frames=1
+    $(declare_args)
+    local frame=$(opt_get f 2)
 
     echo "" >&2
     eerror "$@"
 
     local frames=()
-    array_init_nl frames "$(stacktrace ${skip_frames})"
-    [[ ${#frames[@]} -eq 0 ]] && return 0
+    stacktrace_array -f=${frame} frames
 
+    array_empty frames ||
     for f in "${frames[@]}"; do
         local line=$(echo ${f} | awk '{print $1}')
         local func=$(echo ${f} | awk '{print $2}')
@@ -1083,7 +1128,7 @@ export_network_interface_names()
 # esource allows you to source multiple files at a time with proper error
 # checking after each file sourcing. If any of the files cannot be sourced
 # either because the file cannot be found or it contains invalid bash syntax, 
-# esource will call die(). This still internally calls 'source' so all the
+# esource will call die. This still internally calls 'source' so all the
 # rules still apply with regard to how the files are found via PATH, etc.
 #
 # NOTE: As it turns out, bash's 'source' function can behave very differently
@@ -1195,7 +1240,7 @@ etar()
 # instead of the full path to the filename. This is a departure from normal
 # md5sum for good reason. If you download an md5 file with a path embedded into
 # it then the md5sum can only be validated if you put it in the exact same path.
-# This function will die() on failure.
+# This function will die on failure.
 emd5sum()
 {
     $(declare_args path)
@@ -1211,7 +1256,7 @@ emd5sum()
 # Wrapper around checking an md5sum file by pushd into the directory that contains
 # the md5 file so that paths to the file don't affect the md5sum check. This
 # assumes that the md5 file is a sibling next to the source file with the suffix
-# 'md5'. This method will die() on failure.
+# 'md5'. This method will die on failure.
 emd5sum_check()
 {
     $(declare_args path)
