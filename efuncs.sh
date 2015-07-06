@@ -753,7 +753,7 @@ do_eprogress()
         # then return immediately instead of resetting for next loop
         [[ ${done} -eq 1 ]] && { echo -en "\b " >&2; return; }
 
-        echo -en "\b\b\b\b\b\b\b\b\b\b\b\b" >&2
+        echo -en "\b\b\b\b\b\b\b\b\b\b\b\b\b" >&2
     done
 }
 
