@@ -2,7 +2,7 @@ ETEST_stacktrace()
 {
     local stack=()
     array_init_nl stack "$(stacktrace)"
-    einfo "Stack: $(lval stack)"
+    einfo "$(lval stack)"
 
     assert_eq 2 $(array_size stack)
     assert_eq "ETEST_stacktrace" "$(echo "${stack[0]}" | awk '{print $2}')"
@@ -14,7 +14,7 @@ ETEST_stacktrace_frame()
 {
     local stack=()
     array_init_nl stack "$(stacktrace -f=1)"
-    einfo "Stack: $(lval stack)"
+    einfo "$(lval stack)"
 
     assert_eq 1      "$(array_size stack)"
     assert_eq "main" "$(echo "${stack[0]}" | awk '{print $2}')"
@@ -25,7 +25,7 @@ ETEST_stacktrace_array()
 {
     local stack=()
     stacktrace_array stack
-    einfo "Stack: $(lval stack)"
+    einfo "$(lval stack)"
 
     assert_eq 2 $(array_size stack)
     assert_eq "ETEST_stacktrace_array" "$(echo "${stack[0]}" | awk '{print $2}')"
@@ -36,7 +36,7 @@ ETEST_stacktrace_array()
 ETEST_stacktrace_error()
 {
     local stack=()
-    array_init_nl stack "$(eerror_stacktrace 'Boo' 2>&1)"
+    array_init_nl stack "$(EFUNCS_COLOR=0 eerror_stacktrace 'Boo' 2>&1)"
     einfo "$(lval stack)"
 
     assert_eq 3 $(array_size stack)
