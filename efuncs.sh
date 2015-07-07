@@ -664,9 +664,8 @@ eprompt_with_options()
     while true; do
         response=$(die_on_abort; eprompt "${msg}")
         matches=( $(echo "${valid}" | grep -io "^${response}\S*" || true) )
-        nmatches=${#matches[@]}
-        edebug "Response=[${response}] opt=[${opt}] secret=[${secret}] matches=[${matches[@]}] nmatches=[${#matches[@]}] valid=[${valid//\n/ }]"
-        [[ ${nmatches} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
+        edebug "$(lval response opt secret matches valid)"
+        [[ ${#matches[@]} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
 
         eerror "Invalid response=[${response}] -- use a unique prefix from options=[${opt}]"
     done
