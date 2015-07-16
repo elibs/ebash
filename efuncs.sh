@@ -1649,8 +1649,7 @@ override_function()
     # handling of sourcing a file multiple times with an override in it as it'll
     # be identical. Normally the eval below would produce an error with set -e 
     # enabled.
-    local expected="${func} () ${body}
-declare -rf ${func}"
+    local expected="${func} () ${body}"$'\n'"declare -rf ${func}"
     local actual="$(declare -pf ${func})"
     [[ ${expected} == ${actual} ]] && return 0 || true
 
