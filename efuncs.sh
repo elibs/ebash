@@ -1428,11 +1428,6 @@ compare()
 {
     $(declare_args ?lh op ?rh)
 
-    ## Degenerate case where actual and expect are both empty strings
-    [[ -z ${lh} && -z ${rh} ]] && return 0
-    [[ -z ${lh} && -n ${rh} ]] && return 1
-    [[ -n ${lh} && -z ${rh} ]] && return 1
-
     ## =~
     if [[ ${op} == "=~" ]]; then
         [[ ${lh} =~ ${rh} ]] && return 0
@@ -1646,9 +1641,20 @@ override_function()
 {
     $(declare_args func body)
 
-    ## Don't save the function off it already exists to avoid infinite recursion
+    # Don't save the function off it already exists to avoid infinite recursion
     declare -f "${func}_real" >/dev/null || save_function ${func}
-    eval "$func() ${body}"
+    
+    # If the function has already been overridden don't fail so long as it's 
+    # IDENTICAL to what we've already defined it as. This allows more graceful
+    # handling of sourcing a file multiple times with an override in it as it'll
+    # be identical. Normally the eval below would produce an error with set -e 
+    # enabled.
+    local expected="${func} () ${body}
+declare -rf ${func}"
+    local actual="$(declare -pf ${func})"
+    [[ ${expected} == ${actual} ]] && return 0 || true
+
+    eval "${expected}"
     eval "declare -rf ${func}"
 }
 
