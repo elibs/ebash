@@ -260,9 +260,9 @@ declare -f -t trap_add
 # shortly below this as our global default traps. Additionally, it is very important
 # to call die_on_abort at the start of any command substitution which you want to be
 # interruptible. 
-die_signals=( SIGHUP    SIGINT   SIGQUIT   SIGILL   SIGABRT  SIGFPE    SIGKILL SIGSEGV
-              SIGPIPE   SIGALRM  SIGTERM   SIGUSR1  SIGUSR2  SIGBUS    SIGIO   SIGPROF
-              SIGSYS    SIGTRAP  SIGVTALRM SIGXCPU  SIGXFSZ  SIGSTKFLT SIGPWR
+die_signals=( SIGHUP    SIGINT   SIGQUIT   SIGILL   SIGABRT   SIGFPE   SIGKILL
+              SIGSEGV   SIGPIPE  SIGALRM   SIGTERM  SIGUSR1   SIGUSR2  SIGBUS
+              SIGIO     SIGPROF  SIGSYS    SIGTRAP  SIGVTALRM SIGXCPU  SIGXFSZ
             )
 
 # Enable default traps for all die_signals to call die().
