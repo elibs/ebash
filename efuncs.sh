@@ -1654,7 +1654,7 @@ override_function()
     # be identical. Normally the eval below would produce an error with set -e 
     # enabled.
     local expected="${func} () ${body}"$'\n'"declare -rf ${func}"
-    local actual="$(declare -pf ${func})"
+    local actual="$(declare -pf ${func} 2>/dev/null || true)"
     [[ ${expected} == ${actual} ]] && return 0 || true
 
     eval "${expected}"
