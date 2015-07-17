@@ -718,7 +718,9 @@ spinout()
 
 do_eprogress()
 {
-    if [[ ! -t 2 ]]; then
+    # If explicitly told to use ticker use it. Otherwise automatically detect if we should use it based on
+    # whether stderr is attached to a console or not.
+    if [[ ${EPROGRESS_TICKER:-} -ne 1 && ! -t 2 ]]; then
         while true; do
             echo -n "." >&2
             sleep 1
