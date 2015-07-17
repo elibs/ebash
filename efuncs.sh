@@ -692,7 +692,7 @@ eend()
 {
     local rc=${1:-0} #sets rc to first arg if present otherwise defaults to 0
 
-    if [[ -t 1 ]] ; then
+    if [[ -t 2 ]] ; then
         # Terminal magic that:
         #    1) Gets the number of columns on the screen, minus 6 because that's
         #       how many we're about to output
@@ -720,7 +720,7 @@ do_eprogress()
 {
     # If explicitly told to use ticker use it. Otherwise automatically detect if we should use it based on
     # whether stderr is attached to a console or not.
-    if [[ ${EPROGRESS_TICKER:-} -ne 1 && ! -t 2 ]]; then
+    if [[ ${EPROGRESS_TICKER:=1} -eq 0 || ( ${EPROGRESS_TICKER} -eq 0 && ! -t 2 ) ]]; then
         while true; do
             echo -n "." >&2
             sleep 1
@@ -779,7 +779,7 @@ eprogress_kill()
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
-        [[ -t 1 ]] && echo "" >&2 || true
+        [[ -t 2 ]] && echo "" >&2
         eend ${rc}
         return
     fi
@@ -792,9 +792,11 @@ eprogress_kill()
         wait ${pids[0]} &>/dev/null || true
 
         export __EPROGRESS_PIDS="${pids[@]:1}"
-        [[ -t 1 ]] && echo "" >&2 || true
+        [[ -t 2 ]] && echo "" >&2
         eend ${rc}
     fi
+
+    return 0
 }
 
 # Kill all eprogress pids
