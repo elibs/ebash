@@ -217,7 +217,7 @@ die()
     # Now kill our entire process tree with SIGKILL.
     # NOTE: Use BASHPID so that we kill our current instance of bash.
     # This is different than $$ only if we're in a subshell.
-    ekilltree -s=SIGKILL ${BASHPID}
+    ekilltree -s=SIGKILL $$
     exit 1
 }
 
