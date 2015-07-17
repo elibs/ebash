@@ -31,7 +31,7 @@ dpkg_parsedeps()
     $(declare_args deb ?tag)
     : ${tag:="Depends"}
 
-	dpkg -I "${deb}" | grep "^ ${tag}:" | sed -e "s| ${tag}:||" -e 's/ (\(>=\|<=\|<<\|>>\|\=\)\s*/\1/g' -e 's|)||g' -e 's|,||g' || true
+    dpkg -I "${deb}" | ( grep "^ ${tag}:" || true ) | sed -e "s| ${tag}:||" -e 's/ (\(>=\|<=\|<<\|>>\|\=\)\s*/\1/g' -e 's|)||g' -e 's|,||g'
 }
 
 dpkg_depends()
@@ -82,14 +82,14 @@ dpkg_depends()
 dpkg_depends_deb()
 {
     for p in $(dpkg_depends $@); do
-        [[ ${p: -4} == ".deb" ]] && echo ${p}
+        [[ ${p: -4} == ".deb" ]] && echo ${p} || true
     done
 }
 
 dpkg_depends_apt()
 {
     for p in $(dpkg_depends $@); do
-        [[ ${p: -4} != ".deb" ]] && echo ${p}
+        [[ ${p: -4} != ".deb" ]] && echo ${p} || true
     done
 }
 
