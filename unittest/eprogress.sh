@@ -52,7 +52,7 @@ ETEST_eprogress_ticker_off()
         ECOLOR=0
         EDEBUG=0
         ETRACE=0
-        EPROGRESS_TICKER=0
+        EINTERACTIVE=1
         eprogress "Waiting"
         sleep 1
         eprogress_kill
@@ -70,7 +70,7 @@ ETEST_eprogress_ticker_on()
         ECOLOR=0
         EDEBUG=0
         ETRACE=0
-        EPROGRESS_TICKER=1
+        EINTERACTIVE=1
         eprogress "Waiting"
         sleep 2
         eprogress_kill

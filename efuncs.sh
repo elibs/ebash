@@ -290,6 +290,16 @@ enable_trace
 # FANCY I/O ROUTINES
 #-----------------------------------------------------------------------------
 
+# Check if we are "interactive" or not. For our purposes, we are interactive
+# if STDERR is attached to a terminal or not. This is checked via the bash
+# idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default
+# check with the global variable EINTERACTIVE=1.
+einteractive()
+{
+    [[ ${EINTERACTIVE:-0} -eq 1 ]] && return 0
+    [[ -t 2 ]]
+}
+
 tput()
 {
     TERM=screen-256color /usr/bin/tput $@
@@ -384,9 +394,9 @@ ecolor_code()
 
 ecolor()
 {
-    ## If EFUNCS_COLOR is empty then set it based on if stderr is a terminal or not ##
+    ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
     local efuncs_color=${EFUNCS_COLOR:=}
-    [[ -z ${efuncs_color} && -t 2 ]] && efuncs_color=1
+    [[ -z ${efuncs_color} ]] && einteractive && efuncs_color=1
     [[ ${efuncs_color} -eq 1 ]] || return 0
 
     # Reset
@@ -692,7 +702,7 @@ eend()
 {
     local rc=${1:-0} #sets rc to first arg if present otherwise defaults to 0
 
-    if [[ -t 2 ]] ; then
+    if einteractive; then
         # Terminal magic that:
         #    1) Gets the number of columns on the screen, minus 6 because that's
         #       how many we're about to output
@@ -719,9 +729,8 @@ spinout()
 
 do_eprogress()
 {
-    # If explicitly told to use ticker use it. Otherwise automatically detect if we should use it based on
-    # whether stderr is attached to a console or not.
-    if [[ ${EPROGRESS_TICKER:=1} -eq 0 || ( ${EPROGRESS_TICKER} -eq 0 && ! -t 2 ) ]]; then
+    # Automatically detect if we should use ticker based on if we are interactive or not.
+    if ! einteractive; then
         while true; do
             echo -n "." >&2
             sleep 1
@@ -780,7 +789,7 @@ eprogress_kill()
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
-        [[ -t 2 ]] && echo "" >&2
+        einteractive && echo "" >&2
         eend ${rc}
         return
     fi
@@ -793,7 +802,7 @@ eprogress_kill()
         wait ${pids[0]} &>/dev/null || true
 
         export __EPROGRESS_PIDS="${pids[@]:1}"
-        [[ -t 2 ]] && echo "" >&2
+        einteractive && echo "" >&2
         eend ${rc}
     fi
 
