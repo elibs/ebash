@@ -49,10 +49,11 @@ ETEST_eprogress_ticker_off()
     (
         exec &> >(tee eprogress.out)
 
-        ECOLOR=0
+        COLUMNS=28
+        EFUNCS_COLOR=0
         EDEBUG=0
         ETRACE=0
-        EINTERACTIVE=1
+        EINTERACTIVE=0
         eprogress "Waiting"
         sleep 1
         eprogress_kill
@@ -67,7 +68,8 @@ ETEST_eprogress_ticker_on()
     (
         exec &> >(tee eprogress.out)
 
-        ECOLOR=0
+        COLUMNS=28
+        EFUNCS_COLOR=0
         EDEBUG=0
         ETRACE=0
         EINTERACTIVE=1
@@ -77,7 +79,7 @@ ETEST_eprogress_ticker_on()
 
     )
 
-    assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H^H^H^H^H^H^H^H^H^H^H^H^H [00:00:01]  ^H/^H-^H\^H|^H/^H-^H\^H|^H^H^H^H^H^H^H^H^H^H^H^H^H [00:00:02]  ^H/^H-^H\^H|^H/^H-^H\^H|^H [ ok ]\$" "$(cat -evt eprogress.out)"
+    assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H^H^H^H^H^H^H^H^H^H^H^H^H [00:00:01]  ^H/^H-^H\^H|^H/^H-^H\^H|^H^H^H^H^H^H^H^H^H^H^H^H^H [00:00:02]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[22C[ ok ]\$" "$(cat -evt eprogress.out)"
 }
 
 
