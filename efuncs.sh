@@ -698,7 +698,8 @@ eend()
         #       how many we're about to output
         #    2) Moves up a line
         #    3) Moves right the number of columns from #1
-        local startcol=$(( $(tput cols) - 6 ))
+        local columns=${COLUMNS:-$(tput cols)}
+        local startcol=$(( columns - 6 ))
         echo -en "$(tput cuu1)$(tput cuf ${startcol})" >&2
     fi
 
