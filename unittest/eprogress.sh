@@ -49,6 +49,7 @@ ETEST_eprogress_ticker_off()
     (
         exec &> >(tee eprogress.out)
 
+        ECOLOR=0
         EDEBUG=0
         ETRACE=0
         EPROGRESS_TICKER=0
@@ -66,6 +67,7 @@ ETEST_eprogress_ticker_on()
     (
         exec &> >(tee eprogress.out)
 
+        ECOLOR=0
         EDEBUG=0
         ETRACE=0
         EPROGRESS_TICKER=1
