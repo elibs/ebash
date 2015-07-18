@@ -1240,6 +1240,7 @@ elogrotate()
 
     # Move non-versioned one over and create empty new file
     mv -f ${name} ${name}.1 &>$(edebug_out) || true
+    mkdir -p $(dirname ${name})
     touch ${name}
     
     # Remove any log files greater than our retention count
