@@ -847,7 +847,6 @@ process_not_running()
 ekill()
 {
     $(declare_args)
-    : ${signal:=SIGTERM}
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
@@ -1211,6 +1210,40 @@ erestore()
     $(declare_args src)
     
     [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
+}
+
+# elogrotate rotates all the log files with a given basename similar to what 
+# happens with logrotate. It will always touch an empty non-versioned file 
+# just log logrotate. 
+#
+# For example, if you pass in the pathname '/var/log/foo' and ask to keep a
+# max of 5, it will do the following:
+#   /var/log/foo.4 -> /var/log/foo.5
+#   /var/log/foo.3 -> /var/log/foo.4
+#   /var/log/foo.2 -> /var/log/foo.3
+#   /var/log/foo.1 -> /var/log/foo.2
+#   /var/log/foo   -> /var/log/foo.1
+#   touch /var/log/foo
+#
+# OPTIONS
+# -m=NUM Maximum number of logs to keep (defaults to 5)
+elogrotate()
+{
+    $(declare_args name)
+    local max=$(opt_get m 5)
+
+    local log_idx next
+    for (( log_idx=${max}; log_idx > 0; log_idx-- )); do
+        next=$(( log_idx+1 ))
+        mv -f ${name}.${log_idx} ${name}.${next} &>$(edebug_out) || true
+    done
+
+    # Move non-versioned one over and create empty new file
+    mv -f ${name} ${name}.1 &>$(edebug_out) || true
+    touch ${name}
+    
+    # Remove any log files greater than our retention count
+    ( find $(dirname ${name}) -name "${name}*" 2>$(edebug_out) || true) | sort --version-sort | awk "NR>${max}" | xargs rm -f
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
