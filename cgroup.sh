@@ -39,7 +39,8 @@ CGROUPS_SUBSYSTEMS=(cpu memory freezer)
 # that process will also automatically go into that cgroup.
 #
 # $1:   The name of a cgroup (e.g. distbox/distcc or colorado/denver or alpha)
-# rest: PIDs of processes to add to that cgroup
+# rest: PIDs of processes to add to that cgroup (NOTE: empty strings are
+#       allowed, but have no effect on cgroups)
 #
 # Example:
 #      cgroup_add distbox $$
@@ -49,14 +50,19 @@ cgroup_add()
     $(declare_args cgroup)
     cgroup_create ${cgroup}
 
-    [[ -n ${1} ]] || return 0
+    local pids=( "${@}" )
 
-    for subsystem in ${CGROUPS_SUBSYSTEMS[@]} ; do
-        # NOTE: Use /bin/echo instead of bash echo because /bin/echo checks
-        # write errors, while bash's does not.  (per FAQ at
-        # https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
-        /bin/echo "${*}" > /sys/fs/cgroup/${subsystem}/${cgroup}/tasks
-    done
+    array_remove -a pids ""
+
+    if [[ $(array_size pids) -gt 0 ]] ; then
+        einfo X"$(array_join_nl pids)"X
+        for subsystem in ${CGROUPS_SUBSYSTEMS[@]} ; do
+            # NOTE: Use /bin/echo instead of bash echo because /bin/echo checks
+            # write errors, while bash's does not.  (per FAQ at
+            # https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
+            echo "$(array_join_nl pids)" > /sys/fs/cgroup/${subsystem}/${cgroup}/tasks
+        done
+    fi
 }
 
 #-------------------------------------------------------------------------------
