@@ -267,3 +267,33 @@ ETEST_array_join_custom()
     local output=$(array_join arr "|")
     assert_eq "${input}" "${output}"
 }
+
+ETEST_array_remove()
+{
+    local input="a b c d"
+    array_init array "${input}"
+    declare -p array
+
+    array_remove array b
+    assert_eq "a c d" "$(array_join array)"
+}
+
+ETEST_array_remove_all()
+{
+    local input="a b a c a d a e"
+    array_init array "${input}"
+    declare -p array
+
+    array_remove -a array a
+    assert_eq "b c d e" "$(array_join array)"
+}
+
+ETEST_array_remove_whitespace()
+{
+    local input=$'a\nb\nc d  e'
+    array_init_nl array "${input}"
+    declare -p array
+
+    array_remove array "c d  e"
+    assert_eq $'a\nb' "$(array_join_nl array)"
+}
