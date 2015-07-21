@@ -55,12 +55,11 @@ ETEST_eprogress_ticker_off()
         ETRACE=0
         EINTERACTIVE=0
         eprogress "Waiting"
-        sleep 1
         eprogress_kill
 
     )
 
-    assert_eq ">> Waiting..[ ok ]" "$(cat eprogress.out)"
+    assert_eq ">> Waiting.[ ok ]" "$(cat eprogress.out)"
 }
 
 ETEST_eprogress_ticker_on()
@@ -74,12 +73,11 @@ ETEST_eprogress_ticker_on()
         ETRACE=0
         EINTERACTIVE=1
         eprogress "Waiting"
-        sleep 2
         eprogress_kill
 
     )
 
-    assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H^H^H^H^H^H^H^H^H^H^H^H^H [00:00:01]  ^H/^H-^H\^H|^H/^H-^H\^H|^H^H^H^H^H^H^H^H^H^H^H^H^H [00:00:02]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[22C[ ok ]\$" "$(cat -evt eprogress.out)"
+    assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[22C[ ok ]\$" "$(cat -evt eprogress.out)"
 }
 
 
