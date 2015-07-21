@@ -145,8 +145,6 @@ cgroup_create()
         for subsystem in ${CGROUPS_SUBSYSTEMS[@]} ; do
             local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
             mkdir -p ${subsys_path}
-
-            #echo 1 > ${subsys_path}/notify_on_release
         done
 
     done
