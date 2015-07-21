@@ -607,6 +607,7 @@ etable()
     $(declare_args columns)
     local lengths=()
     local parts=()
+    local idx=0
 
     for line in "${columns}" "$@"; do
         array_init parts "${line}" "|"
@@ -963,7 +964,7 @@ print_value()
 # $(lval PWD=$(pwd) VARS=myuglylocalvariablename)
 lval()
 {
-    local idx=0
+    local __lval_pre=""
     for __arg in "${@}"; do
         
         # Tag provided?
@@ -972,10 +973,8 @@ lval()
         __arg_tag=${__arg_tag#+}
         __arg_val=$(print_value "${__arg_val}")
         
-        [[ ${idx} -gt 0 ]] && echo -n " "
-        echo -n "${__arg_tag}=${__arg_val}"
-        
-        idx=$((idx+1))
+        echo -n "${__lval_pre}${__arg_tag}=${__arg_val}"
+        __lval_pre=" "
     done
 }
 
@@ -2073,6 +2072,36 @@ array_add_nl()
     array_add "$1" "$2" $'\n'
 }
 
+# array_remove will remove the given value(s) from an array, if present.
+#
+# OPTIONS:
+# -a=(0|1) Remove all instances (defaults to only removing the first instance)
+array_remove()
+{
+    $(declare_args __array)
+
+    # Remove all instances or only the first?
+    local remove_all=$(opt_get a 0)
+
+    local value
+    for value in "${@}"; do
+
+        local idx=0
+        local idx_end=$(array_size ${__array})
+
+        for (( idx=0; idx < idx_end; idx++ )); do
+            eval "local entry=\${${__array}[$idx]}"
+            [[ "${entry}" == "${value}" ]] || continue
+
+            edebug "Removing $(lval idx entry value remove_all) from $(lval $__array)"
+            unset ${__array}[$idx]
+            edebug "Post remove $(lval $__array)"
+
+            [[ ${remove_all} -eq 1 ]] || return 0
+        done
+    done
+}
+
 # array_contains will check if an array contains a given value or not. This
 # will return success (0) if it contains the requested element and failure (1)
 # if it does not.
@@ -2083,6 +2112,7 @@ array_contains()
 {
     $(declare_args __array __value)
 
+    local idx=0
     for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
         eval "local entry=\${${__array}[$idx]}"
         [[ "${entry}" == "${__value}" ]] && return 0
@@ -2128,6 +2158,7 @@ array_quote()
     local __output=()
     local __entry=""
 
+    local idx=0
     for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
         eval "local entry=\${${__array}[$idx]}"
         __output+=( "$(printf %q "${entry}")" )
