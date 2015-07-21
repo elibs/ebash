@@ -68,8 +68,20 @@ ETEST_eretry_ignore_signal()
 
 ETEST_eretry_multiple_commands()
 {
-    eretry "mkdir -p foo; echo -n 'zap' > foo/file"
+    eretry eval "mkdir -p foo; echo -n 'zap' > foo/file"
     [[ -d foo      ]] || die "foo doesn't exist"
     [[ -f foo/file ]] || die "foo/file doesn't exist"
     assert_eq "zap" "$(cat foo/file)"
 }
+
+quoting_was_preserved()
+{
+    [[ $1 == "a b" && $2 == "c" && $3 == "the lazy fox jumped!" ]]
+}
+
+ETEST_eretry_preserves_quoted_whitespace()
+{
+    eretry -r=0 quoting_was_preserved "a b" "c" "the lazy fox jumped!"
+}
+
+

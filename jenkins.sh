@@ -72,7 +72,7 @@ jenkins_update()
     [[ -r "${xmlTemplate}" ]] || die "No ${item_type} template named ${template} found."
 
     # Look for the optional script template
-    local scriptFile scriptTemplate
+    local scriptFile="" scriptTemplate=""
     scriptTemplate="scripts/jenkins_templates/${item_type}/${template}.sh"
 
     [[ -r "${scriptTemplate}" ]] || scriptTemplate=""
@@ -215,7 +215,7 @@ jenkins_build_url()
 jenkins_build_json()
 {
     $(declare_args buildNum ?tree)
-    local url treeparm json rc
+    local url treeparm="" json rc
 
     url=$(jenkins_build_url ${buildNum} json)
     [[ -n ${tree} ]] && treeparm="-d tree=$tree"
