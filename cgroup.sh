@@ -55,7 +55,6 @@ cgroup_add()
     array_remove -a pids ""
 
     if [[ $(array_size pids) -gt 0 ]] ; then
-        einfo X"$(array_join_nl pids)"X
         for subsystem in ${CGROUPS_SUBSYSTEMS[@]} ; do
             # NOTE: Use /bin/echo instead of bash echo because /bin/echo checks
             # write errors, while bash's does not.  (per FAQ at
