@@ -18,3 +18,27 @@ ETEST_cgroup_pids_recursive()
         )
     )
 }
+
+ETEST_cgroup_add_multiple_pids_at_once()
+{
+    local PIDS=()
+    sleep 100 &
+    PIDS+=($!)
+    sleep 100 &
+    PIDS+=($!)
+
+    cgroup_add cgroup_add_multiple_pids_at_once "${PIDS[@]}"
+
+    local foundPids=($(cgroup_pids cgroup_add_multiple_pids_at_once))
+    for pid in "${PIDS[@]}" ; do
+        assert_true array_contains foundPids $pid
+    done
+}
+
+ETEST_cgroup_add_ignores_empties()
+{
+    # Adding an empty string to the tasks file in the cgroup filesystem would
+    # typically blow up.  Cgroup_add intentionally skips empty strings to make
+    # life a bit easier.
+    cgroup_add cgroup_add_ignores_empties "" ${BASHPID} ""
+}
