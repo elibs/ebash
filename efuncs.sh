@@ -1107,11 +1107,20 @@ get_network_interfaces_10g()
     get_network_interfaces_with_port "FIBRE"
 }
 
-# Get the permanent MAC address for given ifname via ethtool
+# Get the permanent MAC address for given ifname.
+# NOTE: Do NOT use ethtool -P for this as that doesn't reliably
+#       work on all cards since the firmware has to support it properly.
 get_permanent_mac_address()
 {
     local ifname="$1"
-    ethtool -P ${ifname} | sed 's|Permanent address: ||'
+    
+    if [[ -e /sys/class/net/${ifname}/master ]]; then
+        sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
+            | grep "Permanent HW addr" \
+            | sed -e "s/Permanent HW addr: //"
+    else
+        cat /sys/class/net/${ifname}/address
+    fi
 }
 
 # Export ethernet device names in the form ETH_1G_0=eth0, etc.
