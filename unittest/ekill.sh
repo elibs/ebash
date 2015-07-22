@@ -67,6 +67,6 @@ ETEST_die()
     }
 
     for pid in $(cat pids); do
-        eretry -t=2s "process_not_running ${pid}" || die "${pid} failed to get killed by die"
+        eretry -t=2s process_not_running ${pid} || die "${pid} failed to get killed by die"
     done
 }
