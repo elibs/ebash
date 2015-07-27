@@ -2404,12 +2404,12 @@ _pack_print_item()
 
 _unpack()
 {
-    base64 -d -w0 | tr '\0' '\n'
+    base64 -d 2>/dev/null | tr '\0' '\n'
 }
 
 _pack()
 {
-    grep -av '^$' | tr '\n' '\0' | base64 -w0
+    grep -av '^$' | tr '\n' '\0' | base64 2>/dev/null
 }
 
 #-----------------------------------------------------------------------------
