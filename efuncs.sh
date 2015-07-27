@@ -2404,11 +2404,15 @@ _pack_print_item()
 
 _unpack()
 {
+    # NOTE: BSD base64 is really chatty and this is the reason we discard its
+    # error output
     base64 -d 2>/dev/null | tr '\0' '\n'
 }
 
 _pack()
 {
+    # NOTE: BSD base64 is really chatty and this is the reason we discard its
+    # error output
     grep -av '^$' | tr '\n' '\0' | base64 2>/dev/null
 }
 
