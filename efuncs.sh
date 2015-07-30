@@ -1390,9 +1390,9 @@ ebindmount()
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
     # machine outside that chroot.
-    mount --make-private "${src}" &>$(edebug_out)  || true
-    emount --bind "${@}" "${src}" "${dest}"
-    mount --make-private "${dest}" &>$(edebug_out) || true
+    mount --make-rprivate "${src}" &>$(edebug_out)  || true
+    emount --rbind "${@}" "${src}" "${dest}"
+    mount --make-rprivate "${dest}" &>$(edebug_out) || true
 }
 
 emount()
