@@ -12,7 +12,7 @@ $(esource ${BASHUTILS}/dpkg.sh)
 #-----------------------------------------------------------------------------                                    
 # CORE CHROOT FUNCTIONS
 #-----------------------------------------------------------------------------                                    
-CHROOT_MOUNTS=( /dev /dev/pts /proc /sys )
+CHROOT_MOUNTS=( /dev /proc /sys )
 
 chroot_mount()
 {

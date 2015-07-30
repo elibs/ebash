@@ -2,7 +2,6 @@
 $(esource chroot.sh)
 CHROOT_MASTER=${TEST_DIR_OUTPUT}/chroot_master
 CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
-CHROOT_MOUNTS=( /dev /dev/pts /proc /sys )
 
 setup()
 {
