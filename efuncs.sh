@@ -24,11 +24,12 @@ etrace()
 
     # If ETRACE=1 then it's enabled globally
     if [[ ${ETRACE} != "1" ]]; then
-        local _etrace_enabled_caller=( $(caller 0) )
         local _etrace_enabled_tmp=""
         local _etrace_enabled=0
+
         for _etrace_enabled_tmp in ${ETRACE}; do
-            [[ "${_etrace_enabled_caller[@]:1}" =~ ${_etrace_enabled_tmp} ]] && { _etrace_enabled=1; break; }
+            [[ ${BASH_SOURCE[1]:-} =~ ${_etrace_enabled_tmp} 
+                || ${FUNCNAME[1]:-} =~ ${_etrace_enabled_tmp} ]] && { _etrace_enabled=1; break; }
         done
 
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
@@ -1628,7 +1629,7 @@ declare_args()
         _declare_args_variable="${1#\?}"
 
         # Declare the variable and then call argcheck if required
-        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\${1:-}; shift || true; "
+        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\${1:-}; shift &>/dev/null || true; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
 
         shift
@@ -1799,7 +1800,7 @@ netselect()
     array_init_nl sorted "$(printf '%s\n' "${results[@]}" | sort -t\| -k5 -n)"
     array_init_nl rows "Server|Latency|Jitter|Loss|Score"
 
-    for entry in "${sorted[@]}"; do
+    for entry in ${sorted[@]} ; do
         array_init parts "${entry}" "|"
         array_add_nl rows "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${parts[4]}"
     done
