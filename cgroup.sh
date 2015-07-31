@@ -146,6 +146,7 @@ cgroup_kill()
 # ALSO NOTE: Contrary to other kill functions, this one defaults to SIGKILL.
 #
 # Options:
+#       -s=<signal>
 #   
 cgroup_kill_and_wait()
 {
@@ -154,7 +155,7 @@ cgroup_kill_and_wait()
 
     local times=0
     while true ; do
-        cgroup_kill -s=$(opt_get s 9) "${cgroup}"
+        cgroup_kill -s=$(opt_get s SIGKILL) "${cgroup}"
 
         local remaining_pids=$(cgroup_pids "${cgroup}")
         if [[ -z ${remaining_pids} ]] ; then
@@ -165,7 +166,7 @@ cgroup_kill_and_wait()
 
         (( times += 1 ))
         if ((times % 20 == 0 )) ; then
-            einfo "Still trying to kill processes in ${cgroup}.  These remain: ${remaining_pids}"
+            ewarn "Still trying to kill processes in cgroup. $(lval cgroup remaining_pids)"
         fi
 
     done
