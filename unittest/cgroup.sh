@@ -31,8 +31,10 @@ ETEST_cgroup_add_multiple_pids_at_once()
 
     local foundPids=($(cgroup_pids cgroup_add_multiple_pids_at_once))
     for pid in "${PIDS[@]}" ; do
-        assert_true array_contains foundPids $pid
+        assert_true array_contains foundPids ${pid}
     done
+
+    cgroup_kill cgroup_add_multiple_pids_at_once
 }
 
 ETEST_cgroup_add_ignores_empties()
@@ -42,3 +44,23 @@ ETEST_cgroup_add_ignores_empties()
     # life a bit easier.
     cgroup_add cgroup_add_ignores_empties "" ${BASHPID} ""
 }
+
+ETEST_cgroup_pids_checks_all_subsystems()
+{
+    local CGROUP=cgroup_pids_checks_all_subsystems
+
+    # Create a process in the cgroup
+    sleep infinity&
+    local pid=$!
+    cgroup_add ${CGROUP} ${pid}
+
+    # Remove it from the cgroup in a single subsystem (arbitrarily #1)
+    echo ${pid} > /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[1]}/tasks
+
+    # Make sure it still shows up in the list of pids
+    local foundPids=($(cgroup_pids ${CGROUP}))
+    einfo "$(lval pid foundPids)"
+    assert_true array_contains foundPids ${pid}
+
+}
+
