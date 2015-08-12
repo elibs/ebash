@@ -297,3 +297,24 @@ ETEST_array_remove_whitespace()
     array_remove array "c d  e"
     assert_eq $'a\nb' "$(array_join_nl array)"
 }
+
+ETEST_array_sort()
+{
+    array=(a c b "f f" 3 5)
+    array_sort array
+    assert_eq "3|5|a|b|c|f f" "$(array_join array '|')"
+}
+
+ETEST_array_sort_unique()
+{
+    array=(a c b a)
+    array_sort -u array
+    assert_eq "a|b|c" "$(array_join array '|')"
+}
+
+ETEST_array_sort_version()
+{
+    array=(a.1 a.2 a.100)
+    array_sort -V array
+    assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
+}
