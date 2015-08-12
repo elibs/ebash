@@ -30,6 +30,13 @@ ETEST_chroot_create()
     :
 }
 
+
+ETEST_chroot_readlink()
+{
+    local real=$(chroot_readlink /var/run)
+    assert_eq "${CHROOT}/run" "${real}"
+}
+
 ETEST_chroot_create_mount()
 {
     check_mounts 0
