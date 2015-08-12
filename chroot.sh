@@ -138,6 +138,17 @@ chroot_exit()
     rm -rf ${CHROOT}/etc/mtab
 }
 
+# Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE
+# the chroot. For example, if inside the CHROOT you have "/a -> /b" then calling
+# chroot_readlink "/a" => "${CHROOT}/b"
+chroot_readlink()
+{
+    argcheck CHROOT
+    $(declare_args path)
+
+    echo -n "${CHROOT}$(chroot_cmd readlink -f "${path}" 2>$(edebug_out))"
+}
+
 #-----------------------------------------------------------------------------                                    
 # APT-CHROOT FUNCTIONS
 #-----------------------------------------------------------------------------                                    
