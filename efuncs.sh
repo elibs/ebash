@@ -2177,6 +2177,27 @@ array_quote()
     echo -n "${__output[@]}"
 }
 
+# Sort an array in-place. 
+#
+# OPTIONS:
+# -u Make resulting array unique.
+# -V Perform a natural (version) sort.
+array_sort()
+{
+    $(declare_args __array)
+    local flags=()
+
+    opt_true "u" && flags+=("--unique")
+    opt_true "V" && flags+=("--version-sort")
+
+    local idx=0
+    readarray -t ${__array} < <(
+        for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
+            eval "echo \${${__array}[$idx]}"
+        done | sort ${flags[@]:-}
+    )
+}
+
 #-----------------------------------------------------------------------------
 # PACK 
 #-----------------------------------------------------------------------------
