@@ -1124,6 +1124,15 @@ get_permanent_mac_address()
     fi
 }
 
+# Get the PCI device location for a given ifname
+# NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
+get_network_pci_device()
+{
+	local ifname="$1"
+
+	(cd /sys/class/net/${ifname}/device; basename `pwd -P`)
+}
+
 # Export ethernet device names in the form ETH_1G_0=eth0, etc.
 export_network_interface_names()
 {
