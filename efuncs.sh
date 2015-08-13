@@ -1113,7 +1113,7 @@ get_network_interfaces_10g()
 #       work on all cards since the firmware has to support it properly.
 get_permanent_mac_address()
 {
-    local ifname="$1"
+    $(declare_args ifname)
     
     if [[ -e /sys/class/net/${ifname}/master ]]; then
         sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
@@ -1128,9 +1128,9 @@ get_permanent_mac_address()
 # NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
 get_network_pci_device()
 {
-	local ifname="$1"
+    $(declare_args ifname)
 
-	(cd /sys/class/net/${ifname}/device; basename `pwd -P`)
+    (cd /sys/class/net/${ifname}/device; basename $(pwd -P))
 }
 
 # Export ethernet device names in the form ETH_1G_0=eth0, etc.
