@@ -288,6 +288,16 @@ ETEST_array_remove_all()
     assert_eq "b c d e" "$(array_join array)"
 }
 
+ETEST_array_remove_multiple_all()
+{
+    local input="1 2 3 4 1 2 3 4"
+    array_init array "${input}"
+    declare -p array
+
+    array_remove -a array 1 3
+    assert_eq "2 4 2 4" "$(array_join array)"
+}
+
 ETEST_array_remove_whitespace()
 {
     local input=$'a\nb\nc d  e'

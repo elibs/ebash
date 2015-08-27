@@ -20,7 +20,7 @@ alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DE
 
 etrace()
 {
-    [[ ${ETRACE} == "" || ${ETRACE} == "0" ]] && return 0
+    [[ ${ETRACE} == "" || ${ETRACE} == "0" ]] && return 0 || true
 
     # If ETRACE=1 then it's enabled globally
     if [[ ${ETRACE} != "1" ]]; then
@@ -35,7 +35,6 @@ etrace()
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
     fi
 
-    die_on_abort
     echo "$(ecolor dimyellow)[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}]$(ecolor none) ${BASH_COMMAND}" >&2
 }
 
@@ -102,7 +101,7 @@ alias try="
     (
         enable_trace
         die_on_abort
-        trap 'exit \$?' ERR
+        trap '__EFUNCS_DIE_ON_ERROR_RC=\$? ; eerror_stacktrace \"exception caught\" &>\$(edebug_out) ; exit \$__EFUNCS_DIE_ON_ERROR_RC' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -188,7 +187,7 @@ stacktrace()
 
 # Populate an array with the frames of the current stacktrace. Allows you
 # to optionally pass in a starting frame to start the stacktrace at. 0 is
-# the top of the stack and counts up. See also stacktrace and error_stacktrace.
+# the top of the stack and counts up. See also stacktrace and eerror_stacktrace
 #
 # OPTIONS:
 # -f=N Frame number to start at (defaults to 1 to skip lower level stacktrace
@@ -211,7 +210,7 @@ die()
     trap - DEBUG
 
     # Call eerror_stacktrace but skip top three frames to skip over
-    # the frames containing stacktrace_array, error_stacktrace and
+    # the frames containing stacktrace_array, eerror_stacktrace and
     # die itself.
     eerror_stacktrace -f=3 "${@}"
 
@@ -574,7 +573,7 @@ eerror()
 # number nicely formatted for easily display of fatal errors.
 #
 # Allows you to optionally pass in a starting frame to start the stacktrace at. 0 is
-# the top of the stack and counts up. See also stacktrace and error_stacktrace.
+# the top of the stack and counts up. See also stacktrace and eerror_stacktrace.
 #
 # OPTIONS:
 # -f=N Frame number to start at (defaults to 2 to skip the top frames with
@@ -2105,26 +2104,42 @@ array_remove()
 {
     $(declare_args __array)
 
+    local __array_remove_to_remove=("${@}")
+
+    # Simply bail if the array is not set, because bash doesn't really save
+    # arrays with no members.  For instance A=() unsets array A...
+    [[ -v ${__array} ]] || { edebug "array_remove skipping empty array $(lval __array)" ; return ; }
+
     # Remove all instances or only the first?
     local remove_all=$(opt_get a 0)
 
     local value
-    for value in "${@}"; do
+    for value in "${__array_remove_to_remove[@]}"; do
 
-        local idx=0
-        local idx_end=$(array_size ${__array})
-
-        for (( idx=0; idx < idx_end; idx++ )); do
-            eval "local entry=\${${__array}[$idx]}"
+        local idx
+        for idx in $(array_indexes ${__array}) ; do
+            eval "local entry=\${${__array}[$idx]:-}"
             [[ "${entry}" == "${value}" ]] || continue
 
-            edebug "Removing $(lval idx entry value remove_all) from $(lval $__array)"
             unset ${__array}[$idx]
-            edebug "Post remove $(lval $__array)"
 
             [[ ${remove_all} -eq 1 ]] || return 0
         done
     done
+}
+
+# Bash arrays may have non-contiguous indexes.  For instance, you can unset an
+# ARRAY[index] to remove an item from the array and bash does not shuffle the
+# indexes.
+#
+# If you need to iterate over the indexes of an array (rather than simply
+# iterating over the items), you can call array_indexes on the array and it
+# will echo all of the indexes that exist in the array.
+#
+array_indexes()
+{
+    $(declare_args __array_indexes_array)
+    eval "echo \${!${__array_indexes_array}[@]}"
 }
 
 # array_contains will check if an array contains a given value or not. This

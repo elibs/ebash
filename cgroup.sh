@@ -35,17 +35,24 @@ source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1;
 CGROUP_SUBSYSTEMS=(cpu memory freezer)
 
 #-------------------------------------------------------------------------------
-# Add one or more processes to a specific cgroup.  Once added, all children of
-# that process will also automatically go into that cgroup.
+# Move one or more processes to a specific cgroup.  Once added, all (future)
+# children of that process will also automatically go into that cgroup.
+#
+# It's worth noting that _all_ pids live in exactly one place in each cgroup
+# subsystem.  By default, processes are started in the cgroup of their parent
+# (which by default is the root of the cgroup hierarchy).  If you'd like to
+# remove a process from your cgroup, you should simply move it up to that root
+# (i.e. cgroup_move "/" $pid)
+#
 #
 # $1:   The name of a cgroup (e.g. distbox/distcc or colorado/denver or alpha)
 # rest: PIDs of processes to add to that cgroup (NOTE: empty strings are
 #       allowed, but have no effect on cgroups)
 #
 # Example:
-#      cgroup_add distbox $$
+#      cgroup_move distbox $$
 #
-cgroup_add()
+cgroup_move()
 {
     $(declare_args cgroup)
     cgroup_create ${cgroup}
@@ -56,10 +63,9 @@ cgroup_add()
 
     if [[ $(array_size pids) -gt 0 ]] ; then
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
-            # NOTE: Use /bin/echo instead of bash echo because /bin/echo checks
-            # write errors, while bash's does not.  (per FAQ at
-            # https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
-            echo "$(array_join_nl pids)" > /sys/fs/cgroup/${subsystem}/${cgroup}/tasks
+            local tmp="$(array_join_nl pids)"
+            edebug "$(lval pids tmp)"
+            echo -e "${tmp}" > /sys/fs/cgroup/${subsystem}/${cgroup}/tasks
         done
     fi
 }
@@ -80,7 +86,7 @@ cgroup_set()
     $(declare_args cgroup setting value)
     cgroup_create ${cgroup}
 
-    /bin/echo "${value}" > $(cgroup_find_setting_file ${cgroup} ${setting})
+    echo "${value}" > $(cgroup_find_setting_file ${cgroup} ${setting})
 }
 
 #-------------------------------------------------------------------------------
@@ -102,6 +108,10 @@ cgroup_get()
 #
 # $1: Name of the cgroup (e.g. flintstones/barney or distbox/sshd)
 #
+# Options:
+#       -x=space separated list of pids not to return -- default is to return
+#          all
+#
 cgroup_pids()
 {
     $(declare_args cgroup)
@@ -111,7 +121,43 @@ cgroup_pids()
         subsystem_paths+=("/sys/fs/cgroup/${subsystem}/${cgroup}")
     done
 
-    cat $(find "${subsystem_paths[@]}" -name tasks) | sort -u
+    local all_pids ignorepids file files
+
+    array_init ignorepids "$(opt_get x)"
+    array_init files "$(find "${subsystem_paths[@]}" -name tasks)"
+    [[ $(array_size files) -gt 0 ]] || die "Unable to find cgroup ${cgroup}"
+    
+    for subsystem_file in "${files[@]}" ; do
+        local subsystem_pids
+
+        # NOTE: It's very important to not create another process while reading
+        # the tasks file, because if your process is running in the cgroup
+        # being checked, its pid will be there during this command but
+        # disappear before it returns
+        #
+        # It is also safe to ignore failures here, because these files are set
+        # up by the kernel.  Read fails if the file is empty, but that is a
+        # perfectly valid situation to be in. It just means the cgroup is
+        # empty.  And we shouldn't see other failures because we "trust" the
+        # kernel
+        readarray -t subsystem_pids < "${subsystem_file}"
+        #local pid
+
+        #while read pid ; do
+        #    subsystem_pids+=(${pid})
+        #    edebug "$(lval pid subsystem_pids)"
+        #done < "${subsystem_file}"
+
+        edebug "Found $(lval subsystem_pids subsystem_file)"
+
+        array_empty subsystem_pids || all_pids+=( "${subsystem_pids[@]}" )
+    done
+
+    array_sort -u all_pids
+    array_remove -a all_pids "${ignorepids[@]:-}"
+
+    edebug "Found pids $(lval all_pids) after exceptions ${ignorepids[@]:-}"
+    echo "${all_pids[@]:-}"
 }
 
 #-------------------------------------------------------------------------------
@@ -122,19 +168,26 @@ cgroup_pids()
 #
 # Options:
 #       -s=<signal>
+#       -x=space separated list of pids not to kill.  NOTE: $$ is always added
+#          to this list
 #
 cgroup_kill()
 {
     $(declare_args cgroup)
 
-    local pids=$(cgroup_pids ${cgroup}     | grep -Pv '^('$$'|'${BASHPID}')$' || true)
-    local lastpids=$(cgroup_pids ${cgroup} | grep -P  '^('$$'|'${BASHPID}')$' || true)
+    local ignorepids pids
 
-    edebug "Killing pids in cgroup $(lval cgroup pids lastPids)"
+    ignorepids="$(opt_get x)"
+    ignorepids+=" $$ ${BASHPID}"
+
+    # NOTE: BASHPID must be added here in addition to above because it's
+    # different inside this command substituion (subshell) than it is outside.
+    array_init pids "$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroup})"
+
+    edebug "Killing pids in cgroup $(lval cgroup pids ignorepids)"
     local signal=$(opt_get s SIGTERM)
 
-    [[ -z ${pids} ]]     || ekill -${signal} ${pids}
-    [[ -z ${lastpids} ]] || ekill -${signal} ${lastpids}
+    [[ -z ${pids[@]:-} ]] || ekill -s=${signal} ${pids}
 }
 
 #-------------------------------------------------------------------------------
@@ -147,20 +200,31 @@ cgroup_kill()
 #
 # Options:
 #       -s=<signal>
+#       -x=space separated list of pids not to kill.  NOTE: $$ is always added
+#          to this list
 #   
 cgroup_kill_and_wait()
 {
     $(declare_args cgroup)
     edebug "Ensuring that there are no processes in ${cgroup}."
+    cgroup_create "${cgroup}"
+
+    # Don't need to add $$ and $BASHPID to ignorepids here because cgroup_kill
+    # will do that for me
+    local ignorepids=$(opt_get x)
 
     local times=0
     while true ; do
-        cgroup_kill -s=$(opt_get s SIGKILL) "${cgroup}"
+        edebug "kill_and_wait: $(lval ignorepids times)"
+        cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGKILL) "${cgroup}"
 
-        local remaining_pids=$(cgroup_pids "${cgroup}")
+        local remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroup}")
+        ewarn "REMAINING_PIDS $(lval remaining_pids)"
         if [[ -z ${remaining_pids} ]] ; then
             break;
         else
+            edebug "Still waiting for $(lval remaining_pids)"
+            edebug "     $(ps -hp ${remaining_pids})"
             sleep .5
         fi
 
@@ -171,7 +235,7 @@ cgroup_kill_and_wait()
 
     done
 
-    local pidsleft=$(cgroup_pids ${cgroup})
+    local pidsleft=$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroup})
     [[ -z ${pidsleft} ]] || die "Internal error -- processes (${pidsleft}) remain in ${cgroup}"
 }
 
