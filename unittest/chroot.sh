@@ -3,10 +3,21 @@ $(esource chroot.sh)
 CHROOT_MASTER=${TEST_DIR_OUTPUT}/chroot_master
 CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
 
+DAEMON_EXE="yes >/dev/null"
+DAEMON_PIDFILE=/tmp/chroot_test.pid
+DAEMON_OUTPUT="${CHROOT}/daemon_out.txt"
+
+test_wait()
+{
+    local delay=${1:-1}
+    einfo "Sleeping for ${delay} seconds..."
+    sleep ${delay}
+}
+
 setup()
 {
     [[ -e ${CHROOT_MASTER} ]] || mkchroot ${CHROOT_MASTER} precise oxygen bdr-jenkins amd64
-    
+
     eprogress "Copying $(lval CHROOT_MASTER) to $(lval CHROOT)"
     efreshdir ${CHROOT}
     rsync --archive --whole-file --no-compress ${CHROOT_MASTER}/ ${CHROOT}
@@ -37,6 +48,56 @@ ETEST_chroot_readlink()
     assert_eq "${CHROOT}/run" "${real}"
 }
 
+daemon_callback()
+{
+    echo "test string -- printed per run" >> "${DAEMON_OUTPUT}"
+}
+
+ETEST_chroot_daemon_start()
+{
+    local exe="sleep 1"
+    local respawns=10
+    local wait_time=70
+
+    einfo "Starting an exit daemon that will respawn ${respawns} times"
+    local chroot_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-r=${respawns}" "-c=daemon_callback" )
+    chroot_daemon_start "${chroot_args[@]}" "${exe}"
+    test_wait ${wait_time}
+    local count=$(cat "${DAEMON_OUTPUT}" | wc -l)
+    einfo "$(lval count)"
+    [[ ${count} -ge $(( ${respawns} / 2 )) ]] || die "$(lval count) -ge $(( ${respawns} / 2 )) evaluated to false"
+    chroot_daemon_stop "${chroot_args[@]}" "${exe}"
+    rm -f "${DAEMON_OUTPUT}"
+
+    chroot_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-c=daemon_callback" )
+    einfo "Starting an exit daemon that will respawn the default number (20) times"
+    chroot_daemon_start "${chroot_args[@]}" "${exe}"
+    test_wait ${wait_time}
+    count=$(cat "${DAEMON_OUTPUT}" | wc -l)
+    einfo "$(lval count)"
+    [[ ${count} -ge 10 ]] || die "$(lval count) -ge 10 evaluated to false."
+    chroot_daemon_stop "${chroot_args[@]}" "${exe}"
+    rm -f "${DAEMON_OUTPUT}"
+}
+
+ETEST_chroot_daemon_stop()
+{
+    if [[ -e "${DAEMON_OUTPUT}" ]]; then
+        rm -f "${DAEMON_OUTPUT}" || true
+    fi
+
+    local chroot_args=( "-n=Yes" "-p=${DAEMON_PIDFILE}" "-c=daemon_callback" )
+    chroot_daemon_start "${chroot_args[@]}" "${DAEMON_EXE}"
+    test_wait 45
+    assert_true chroot_daemon_status "${chroot_args[@]}" "${DAEMON_EXE}"
+    chroot_daemon_stop "${chroot_args[@]}" "${DAEMON_EXE}"
+    [[ ! -e ${DAEMON_PIDFILE} ]] || die "$(lval DAEMON_PIDFILE) exists when it shouldn't!"
+    local count=$(cat "${DAEMON_OUTPUT}" | wc -l)
+    einfo "$(lval count)"
+    assert_eq ${count} 1
+    rm -f "${DAEMON_OUTPUT}"
+}
+
 ETEST_chroot_create_mount()
 {
     check_mounts 0
@@ -58,7 +119,7 @@ ETEST_chroot_create_mount()
 }
 
 # Ensure if we have multiple chroot_mounts going on that we can successfully
-# unmount them properly using a single call to eunmount_recursive. 
+# unmount them properly using a single call to eunmount_recursive.
 ETEST_chroot_create_mount_unmount_recursive()
 {
     check_mounts 0
@@ -105,7 +166,7 @@ ETEST_chroot_slash_dev_shared_mounts()
 ETEST_chroot_kill()
 {
     chroot_mount
-    
+
     einfo "Starting some chroot processes"
     chroot_cmd "yes >/dev/null& echo \$! >> /tmp/pids"
     chroot_cmd "sleep infinity& echo \$! >> /tmp/pids"

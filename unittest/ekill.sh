@@ -36,12 +36,14 @@ ETEST_ekilltree()
     local pids=()
 
     # Create a bunch of background processes
-    sleep infinity& pids+=( $! )
-    yes >/dev/null& pids+=( $! )
-    bash -c 'sleep 1000' & pids+=( $! )
+    (
+        sleep infinity& pids+=( $! )
+        yes >/dev/null& pids+=( $! )
+        bash -c 'sleep 1000' & pids+=( $! )
+    ) & pids+=( $! )
     bash -c 'sleep 4000' & pids+=( $! )
 
-    ekilltree $$
+    ekilltree ${pids[@]}
 
     for pid in ${pids[@]}; do
         wait $pid || true

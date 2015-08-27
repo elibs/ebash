@@ -1,5 +1,5 @@
 #!/bin/bash
-# 
+#
 # Copyright 2012-2013, SolidFire, Inc. All rights reserved.
 #
 
@@ -9,9 +9,9 @@
 source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
 $(esource ${BASHUTILS}/dpkg.sh)
 
-#-----------------------------------------------------------------------------                                    
+#-----------------------------------------------------------------------------
 # CORE CHROOT FUNCTIONS
-#-----------------------------------------------------------------------------                                    
+#-----------------------------------------------------------------------------
 CHROOT_MOUNTS=( /dev /proc /sys )
 
 chroot_mount()
@@ -19,7 +19,7 @@ chroot_mount()
     argcheck CHROOT
     einfo "Mounting $(lval CHROOT CHROOT_MOUNTS)"
 
-    for m in ${CHROOT_MOUNTS[@]}; do 
+    for m in ${CHROOT_MOUNTS[@]}; do
         mkdir -p ${CHROOT}${m}
         ebindmount ${m} ${CHROOT}${m}
     done
@@ -31,7 +31,7 @@ chroot_unmount()
 {
     argcheck CHROOT
     einfo "Unmounting $(lval CHROOT CHROOT_MOUNTS)"
-   
+
     local mounts=()
     array_init_nl mounts "$(echo ${CHROOT_MOUNTS[@]} | sed 's| |\n|g' | sort -r)"
     for m in ${mounts[@]}; do
@@ -87,7 +87,7 @@ chroot_shell()
 chroot_cmd()
 {
     argcheck CHROOT
-    
+
     einfos $@
     chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
 }
@@ -99,7 +99,7 @@ chroot_cmd()
 #        If no pattern is specified, ALL proceses in the chroot will be
 #        signalled.
 #    $2: Optional signal name or number.  Defaults to SIGKILL(9)
-# 
+#
 chroot_kill()
 {
     argcheck CHROOT
@@ -149,9 +149,9 @@ chroot_readlink()
     echo -n "${CHROOT}$(chroot_cmd readlink -f "${path}" 2>$(edebug_out))"
 }
 
-#-----------------------------------------------------------------------------                                    
+#-----------------------------------------------------------------------------
 # APT-CHROOT FUNCTIONS
-#-----------------------------------------------------------------------------                                    
+#-----------------------------------------------------------------------------
 
 ## APT SETTINGS ##
 CHROOT_APT="aptitude -f -y"
@@ -172,7 +172,7 @@ chroot_install_with_apt_get()
 {
     argcheck CHROOT
     [[ $# -eq 0 ]] && return
-    
+
     einfos "Installing $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "apt-get -f -qq -y --force-yes install $*"
 }
@@ -195,7 +195,7 @@ chroot_install()
 
     # Check if all packages are installable
     chroot_install_check $*
-    
+
     # Do actual install
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} install $(echo $* | sed -e 's/\(>=\|<=\)/=/g')"
 
@@ -217,9 +217,9 @@ chroot_install()
         local actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
         local apn="${actual%|*}"
         local apv="${actual#*|}"
-        
+
         [[ ${pn} == ${apn} ]] || { eerror "Mismatched package name $(lval wanted=pn actual=apn)"; return 1; }
-    
+
         ## No explicit version check -- continue
         [[ -z "${op}" || -z "${pv}" ]] && continue
 
@@ -231,7 +231,7 @@ chroot_uninstall()
 {
     argcheck CHROOT
     [[ $# -eq 0 ]] && return
-    
+
     einfos "Uninstalling $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge $*"
 }
@@ -240,7 +240,7 @@ chroot_dpkg()
 {
     argcheck CHROOT
     [[ $# -eq 0 ]] && return
-    
+
     einfos "dpkg $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*"
 }
@@ -249,7 +249,7 @@ chroot_apt()
 {
     argcheck CHROOT
     [[ $# -eq 0 ]] && return
-    
+
     einfos "${CHROOT_APT} $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*"
 }
@@ -293,7 +293,7 @@ chroot_apt_setup()
     chroot_dpkg --configure -a
     chroot_cmd apt-get -f -y --force-yes install
     chroot_apt_update
-    
+
     # Install Aptitude since we use that for everything in chroot
     einfo "Installing minimial package set"
     chroot_install_with_apt_get apt aptitude
@@ -327,7 +327,7 @@ chroot_setup()
 {
     $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
     einfo "Setting up $(lval CHROOT)"
-    
+
     try
     {
         # Because of how we mount things while building up our chroot sometimes
@@ -352,7 +352,7 @@ chroot_setup()
         echo "${TZ}" > "${CHROOT}/etc/timezone"
         chroot_install_with_apt_get tzdata
         chroot_cmd dpkg-reconfigure tzdata
-        
+
         ## SETUP
         chroot_apt_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
 
@@ -372,6 +372,48 @@ chroot_setup()
 # CHROOT_DAEMON FUCNTIONS
 #-----------------------------------------------------------------------------
 
+# Start a command as a daemon within a chroot.
+#
+# Arguments:
+#  1: A list of options for chroot_daemon_start. For more information on these,
+#     see the Options section below.
+#  2: The command to run inside of the chroot as a daemon.
+#
+# Description:
+# Run a command inside a chroot as a pseudo-daemon. We don't use the operating
+# system's default daemon system, as that is platform dependent; but instead we
+# have implemented our own pseudo-system.
+#
+# Options:
+# -c  The callback function to run prior to starting the daemon each time. If
+#     the daemon crashes, or otherwise exits, and would be restarted by this
+#     function then this callback is executed first.
+#     Default: none
+#
+# -d  The delay, in seconds, to wait before attempting to restart the daemon
+#     when it exits.
+#     Default: 1
+#
+# -n  The name of the daemon, for readability purposes.
+#     Default: The basename of the command issued
+#
+# -p  The location of the PID file for the daemon.
+#     Default: The basename of the command issued, stored in /var/run/
+#
+# -r  The maximum number of times to start the daemon command before just
+#     giving up.
+#     Default: 20
+#
+# -w  The number of seconds to wait between starting up the daemon, and
+#     checking its status.
+#     Default: 1
+#
+# NOTES:
+#  1: Due to implementation decisions, chroot_daemon_start and
+#     chroot_daemon_stop may not have any overlapping options with different
+#     purposes. This is because, in many places, the options passed to each
+#     function are identical and having different uses for the same option
+#     would lead to unexpected behaviors in use.
 chroot_daemon_start()
 {
     # Parse required arguments. Any remaining options will be passed to the daemon.
@@ -382,34 +424,129 @@ chroot_daemon_start()
     local name="$(opt_get n)"
     : ${name:=$(basename ${exe})}
 
-    # Determmine optional pidfile
+    # Determine optional pidfile
     local pidfile="$(opt_get p)"
     : ${pidfile:=/var/run/$(basename ${exe})}
 
-    ## Info
-    einfo "Starting ${name}"
-    edebug "Starting $(lval CHROOT name exe pidfile) args=${@}"
+    # Determine how long to wait after the daemon dies before starting it up
+    # again. NOTE - You want at least a second to ensure that in the case of a
+    # chroot_daemon_stop being called, we have everything in the appropriate
+    # state before starting a new process that isn't supposed to be there.
+    local delay="$(opt_get d 1)"
 
-    # Construct a subprocess which bind mounds chroot mount points then executes
-    # requested daemon. After the daemon complets automatically unmount chroot.
-    (
-        chroot_mount && chroot_cmd ${exe} "${@}"
-        chroot_unmount
-    ) &>$(edebug_out) &
+    # Determine how many times maximum to restart the daemon.
+    local restarts="$(opt_get r 20)"
 
-    # Get the PID of the process we just created and store into requested pid file.
-    local pid=$!
+    # Determine what the callback function is, if there is one, which should be
+    # run prior to starting the chrooted command each time the daemon starts.
+    local callback=$(opt_get c)
+
+    # Determine how long to wait before checking the daemon's status once it
+    # starts
+    local time_to_startup="$(opt_get w 1)"
+
     mkdir -p $(dirname ${pidfile})
-    echo "${pid}" > "${pidfile}"
+    touch "${pidfile}"
 
-    # Give the daemon a second to startup and then check its status. If it blows
-    # up immediately we'll catch the error immediately and be able to let the
-    # caller know that startup failed.
-    sleep 1
-    chroot_daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out)
-    eend 0
+    # Don't restart the daemon if it is already running.
+    local currentPID=$(cat "${pidfile}" 2>/dev/null || echo -n "")
+    local status=0
+    if [[ -n "${currentPID}" ]]; then
+        kill -0 ${currentPID} &>/dev/null || status=1
+        if [[ ${status} -eq 0 ]]; then
+            einfo "${name} is already running."
+            edebug "$(lval CHROOT name exe pidfile) args=${@} is already running as process ${currentPID}"
+            return 0 # The daemon is already running, don't start a new one
+        fi
+    fi
+
+    # Split this off into a separate sub-shell running in the background so we can
+    # return to the caller.
+    (
+        local runs=0
+
+        # Check to ensure that we haven't failed running "restarts" times. If
+        # we have, then don't run again. Likewise, ensure that the pidfile
+        # exists. If it doesn't it likely means that we have been stopped (via
+        # `chroot_daemon_stop`) and we really don't want to run again.
+        while [[ ${runs} -lt ${restarts} && -e "${pidfile}" ]]; do
+
+            ## Info
+            if [[ ${runs} -eq 0 ]]; then
+                einfo "Starting ${name}"
+                edebug "Starting $(lval CHROOT name exe pidfile) args=${@}"
+            else
+                einfo "Restarting ${name}"
+                edebug "Restarting $(lval CHROOT name exe pidfile) args=${@}"
+            fi
+            runs=$((runs + 1))
+
+            # Construct a subprocess which bind mounts chroot mount points then executes
+            # requested daemon. After the daemon completes automatically unmount chroot.
+            (
+                ${callback}
+                chroot_mount && chroot_cmd ${exe} "${@}"
+                chroot_unmount
+            ) &>$(edebug_out) &
+
+            # Get the PID of the process we just created and store into requested pid file.
+            local pid=$!
+            echo "${pid}" > "${pidfile}"
+
+            # Give the daemon a second to startup and then check its status. If it blows
+            # up immediately we'll catch the error immediately and be able to let the
+            # caller know that startup failed.
+            sleep ${time_to_startup}
+            chroot_daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out)
+            eend 0
+
+            # SECONDS is a magic bash variable keeping track of the number of
+            # seconds since the shell started, we can modify it without messing
+            # with the parent shell (and it will continue from where we leave
+            # it).
+            SECONDS=0
+            wait ${pid} &>$(edebug_out) || ewarn "Process ${name} crashed, respawning in $(lval delay) seconds"
+
+            # Check that we have run for the minimum duration.
+            # NOTE - The way this is set up, it means that the daemon must have
+            #        run for at least 2 * time_to_startup.
+            if [[ ${SECONDS} -ge ${time_to_startup} ]]; then
+                runs=0
+            fi
+
+            # give chroot_daemon_stop a chance to get everything sorted out
+            sleep ${delay}
+        done
+    ) &
 }
 
+# Stop a command currently running as a daemon within a chroot.
+#
+# Arguments:
+#  1: A list of options for chroot_daemon_start. For more information on these,
+#     see the Options section below.
+#  2: The daemon command to stop.
+#
+# Description:
+# Find a command currently being run as a pseudo-daemon, terminate it with the
+# provided signal, and clean up afterwards.
+#
+# Options:
+# -n  The name of the daemon, for readability purposes.
+#     Default: The basename of the command issued
+#
+# -p  The location of the PID file for the daemon.
+#     Default: The basename of the command issued, stored in /var/run/
+#
+# -s  The signal to send the daemon to get it to quit.
+#     Default: TERM
+#
+# NOTES:
+#  1: Due to implementation decisions, chroot_daemon_start and
+#     chroot_daemon_stop may not have any overlapping options with different
+#     purposes. This is because, in many places, the options passed to each
+#     function are identical and having different uses for the same option
+#     would lead to unexpected behaviors in use.
 chroot_daemon_stop()
 {
     # Parse required arguments.
@@ -432,9 +569,9 @@ chroot_daemon_stop()
     einfo "Stopping ${name}"
     edebug "Stopping $(lval CHROOT name exe pidfile signal)"
 
-    # If it's not running just return (with failure)
+    # If it's not running just return
     chroot_daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out) \
-        || { eend 1; ewarns "Already stopped"; eend 1; return 0; }
+        || { eend 0; ewarns "Already stopped"; eend 0; rm -rf ${pidfile}; return 0; }
 
     # If it is running stop it with optional signal
     local pid=$(cat ${pidfile} 2>/dev/null)
@@ -443,6 +580,25 @@ chroot_daemon_stop()
     eend 0
 }
 
+# Retrieve the status of a chrooted daemon.
+#
+# Arguments:
+#  1: A list of options for chroot_daemon_start. For more information on these,
+#     see the Options section below.
+#
+# Options:
+# -n  The name of the daemon, for readability purposes.
+#     Default: The basename of the command issued
+#
+# -p  The location of the PID file for the daemon.
+#     Default: The basename of the command issued, stored in /var/run/
+#
+# NOTES:
+#  1: Due to implementation decisions, chroot_daemon_start and
+#     chroot_daemon_stop may not have any overlapping options with different
+#     purposes. This is because, in many places, the options passed to each
+#     function are identical and having different uses for the same option
+#     would lead to unexpected behaviors in use.
 chroot_daemon_status()
 {
     # Parse required arguments
@@ -463,8 +619,8 @@ chroot_daemon_status()
     # Check pidfile
     [[ -e ${pidfile} ]] || { eend 1; ewarns "Not Running (no pidfile)"; return 1; }
     local pid=$(cat ${pidfile} 2>/dev/null)
-    [[ -z ${pid}     ]] && { eend 1; ewarns "Not Running (no pid)"; return 1; } 
-   
+    [[ -z ${pid}     ]] && { eend 1; ewarns "Not Running (no pid)"; return 1; }
+
     # Send a signal to process to see if it's running
     kill -0 ${pid} &>/dev/null || { eend 1; ewarns "Not Running"; return 1; }
 
@@ -487,9 +643,9 @@ mkchroot()
     ## Setup chroot
     mkdir -p ${CHROOT}
 
-    #-----------------------------------------------------------------------------                                    
+    #-----------------------------------------------------------------------------
     # DEBOOTSTRAP IMAGE
-    #-----------------------------------------------------------------------------                                    
+    #-----------------------------------------------------------------------------
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
     einfo "Creating $(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
 
@@ -506,7 +662,7 @@ mkchroot()
     {
         efetch_with_md5 "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${dst}/${CHROOT_IMAGE}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
-    } 
+    }
     catch
     {
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
