@@ -1,5 +1,5 @@
 #!/bin/bash
-# 
+#
 # Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
 
@@ -28,7 +28,7 @@ etrace()
         local _etrace_enabled=0
 
         for _etrace_enabled_tmp in ${ETRACE}; do
-            [[ ${BASH_SOURCE[1]:-} =~ ${_etrace_enabled_tmp} 
+            [[ ${BASH_SOURCE[1]:-} =~ ${_etrace_enabled_tmp}
                 || ${FUNCNAME[1]:-} =~ ${_etrace_enabled_tmp} ]] && { _etrace_enabled=1; break; }
         done
 
@@ -86,11 +86,11 @@ edebug_out()
 # through "die_on_error" (which essentially just enables 'set -e'). Since this
 # runs in a subshell with fatal error handling enabled, the subshell will
 # immediately exit on failure. The catch block which immediately follows the
-# try block captures the exit status of the subshell and if it's not '0' it 
+# try block captures the exit status of the subshell and if it's not '0' it
 # will invoke the catch block to handle the error.
 #
 # One clever trick employed here is to keep track of what level of the try/catch
-# stack we are in so that the parent's ERR trap won't get triggered and cause 
+# stack we are in so that the parent's ERR trap won't get triggered and cause
 # the process to exit. Because we WANT the try subshell to exit and allow the
 # failure to be handled inside the catch block.
 __EFUNCS_DIE_ON_ERROR_TRAP_STACK=()
@@ -99,23 +99,23 @@ alias try="
     : \${__EFUNCS_DIE_ON_ERROR_TRAP:=-}
     __EFUNCS_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
-    ( 
+    (
         enable_trace
         die_on_abort
         trap 'exit \$?' ERR
     "
 
-# Catch block attached to a preceeding try block. This is a rather complex 
+# Catch block attached to a preceeding try block. This is a rather complex
 # alias and it's probably not readily obvious why it jumps through the hoops
 # it is jumping through but trust me they are all important. A few important
 # notes about this alias:
 #
-# (1) Note that the ");" ends the preceeding subshell created by the "try" 
+# (1) Note that the ");" ends the preceeding subshell created by the "try"
 #     block. Which means that a try block on it's own will be invalid syntax
 #     to try to force try/catch to always be used properly.
 #
 # (2) All of the "|| true" stuff in this alias is extremely important. Without
-#     it the implicit error handling will kick in and the process will be 
+#     it the implicit error handling will kick in and the process will be
 #     terminated immediately instead of allowing the catch() block to handle
 #     the error.
 #
@@ -131,7 +131,7 @@ alias try="
 # (4) The dangling "||" here requries the caller to put something after the
 #     catch block which sufficiently handles the error or the code won't be
 #     valid.
-alias catch=" ); 
+alias catch=" );
     __EFUNCS_TRY_CATCH_RC=\$?
     __EFUNCS_DIE_ON_ERROR_TRAP=\"\${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
     unset __EFUNCS_DIE_ON_ERROR_TRAP_STACK[\${#__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]}-1]
@@ -166,7 +166,7 @@ die_on_error_enabled()
 }
 
 #-----------------------------------------------------------------------------
-# TRAPS / DIE / STACKTRACE 
+# TRAPS / DIE / STACKTRACE
 #-----------------------------------------------------------------------------
 
 # Print stacktrace to stdout. Each frame of the stacktrace is separated by a
@@ -209,12 +209,12 @@ die()
     # Clear ERR and DEBUG traps to avoid tracing die code.
     trap - ERR
     trap - DEBUG
- 
+
     # Call eerror_stacktrace but skip top three frames to skip over
     # the frames containing stacktrace_array, error_stacktrace and
     # die itself.
     eerror_stacktrace -f=3 "${@}"
-   
+
     # Now kill our entire process tree with SIGKILL.
     # NOTE: Use BASHPID so that we kill our current instance of bash.
     # This is different than $$ only if we're in a subshell.
@@ -260,7 +260,7 @@ declare -f -t trap_add
 # NOTE: We use this list below in die_on_abort and nodie_on_abort which we call
 # shortly below this as our global default traps. Additionally, it is very important
 # to call die_on_abort at the start of any command substitution which you want to be
-# interruptible. 
+# interruptible.
 die_signals=( SIGHUP    SIGINT   SIGQUIT   SIGILL   SIGABRT   SIGFPE   SIGKILL
               SIGSEGV   SIGPIPE  SIGALRM   SIGTERM  SIGUSR1   SIGUSR2  SIGBUS
               SIGIO     SIGPROF  SIGSYS    SIGTRAP  SIGVTALRM SIGXCPU  SIGXFSZ
@@ -455,7 +455,7 @@ ebanner()
     # If a custom key was requested via "key=value" format then use the provided
     # key and lookup value via print_value.
     declare -A __details
-   
+
     local entries=("${@}")
     for k in "${entries[@]:-}"; do
         [[ -z ${k} ]] && continue
@@ -467,7 +467,7 @@ ebanner()
         __details[${_ktag}]=$(print_value ${_kval})
 
     done
-  
+
     # Now output all the details (if any)
     if [[ -n ${__details[@]:-} ]]; then
         echo -e "|" >&2
@@ -509,12 +509,12 @@ emsg()
     done
 
     # Determine color values for each field used below.
-    : ${EMSG_COLOR:="time level caller"} 
+    : ${EMSG_COLOR:="time level caller"}
     [[ ${EMSG_COLOR} =~ ${time_re}   ]] && time_color=$(ecolor ${color})
     [[ ${EMSG_COLOR} =~ ${level_re}  ]] && level_color=$(ecolor ${color})
     [[ ${EMSG_COLOR} =~ ${caller_re} ]] && caller_color=$(ecolor ${color})
 
-    # Build up the prefix for the log message. Each of these may optionally be in color or not. This is 
+    # Build up the prefix for the log message. Each of these may optionally be in color or not. This is
     # controlled vai EMSG_COLOR which is a list of fields to color. By default this is set to all fields.
     # The following fields are supported:
     # (1) time    : Timetamp
@@ -537,7 +537,7 @@ emsg()
 
     # If it's still empty put in the default
     [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
-    
+
     # Color Policy
     [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]]   \
         && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none)" >&2 \
@@ -572,7 +572,7 @@ eerror()
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
 # the entire stacktrace as a bright red error message with the funct and file:line
 # number nicely formatted for easily display of fatal errors.
-# 
+#
 # Allows you to optionally pass in a starting frame to start the stacktrace at. 0 is
 # the top of the stack and counts up. See also stacktrace and error_stacktrace.
 #
@@ -597,7 +597,7 @@ eerror_stacktrace()
         local file=$(basename $(echo ${f} | awk '{print $3}'))
 
         [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
-        
+
         printf "$(ecolor red)   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
     done
 }
@@ -658,7 +658,7 @@ eprompt()
     local result=""
 
     read result < /dev/stdin
-    
+
     echo -en "${result}"
 }
 
@@ -745,7 +745,7 @@ do_eprogress()
     trap "done=1" SIGINT SIGTERM
 
     local start=$(date +"%s")
-    while [[ ${done} -ne 1 ]]; do 
+    while [[ ${done} -ne 1 ]]; do
         local now=$(date +"%s")
         local diff=$(( ${now} - ${start} ))
 
@@ -836,12 +836,12 @@ process_running()
 process_not_running()
 {
     $(declare_args pid)
-    ! kill -0 ${pid} &>/dev/null 
+    ! kill -0 ${pid} &>/dev/null
 }
 
 # Kill all pids provided as arguments to this function using the specified signal.
 # This function makes every effort to kill all the specified pids. If there are any
-# errors this function will return non-zero (corresponding to the number of pids 
+# errors this function will return non-zero (corresponding to the number of pids
 # that could not be killed successfully).
 #
 # Options:
@@ -861,16 +861,18 @@ ekill()
 
         # If process doesn't exist just return instead of trying (and failing) to kill it
         process_running ${pid} || continue
-        
-        # The process is still running. Now kill it. So long as the process does NOT 
+
+        # The process is still running. Now kill it. So long as the process does NOT
         # exist after sending it the specified signal this function will return
         # success.
         local cmd="$(ps -p ${pid} -o comm= || true)"
         edebug "Killing $(lval pid signal cmd)"
-        
+
         # The process is still running. Now kill it. So long as the process does NOT
         # exist after sending it the specified signal this function will return success.
+        edebug "        Killing ${pid} with -${signal}"
         kill -${signal} ${pid} &>$(edebug_out) || (( errors+=1 ))
+        edebug "        Number of errors encountered (ekill): ${errors}"
     done
 
     [[ ${errors} -eq 0 ]]
@@ -893,13 +895,17 @@ ekilltree()
     local signal=$(opt_get s SIGTERM)
     local errors=0
 
+    local pid
     for pid in ${@}; do
-        edebug "Killing process tree of ${pid} [$(ps -p ${pid} -o comm= || true)] with ${signal}"
+        edebug "    Killing process tree of ${pid} [$(ps -p ${pid} -o comm= || true)] with ${signal}"
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+            edebug "    Found child ${child}, of ${pid}"
             ekilltree -s=${signal} ${child} || (( errors+=1 ))
         done
 
+        edebug "    Attempting to kill ${pid}"
         ekill -s=${signal} ${pid} || (( errors+=1 ))
+        edebug "    Number of errors encountered (ekilltree): ${errors}"
     done
 
     [[ ${errors} -eq 0 ]]
@@ -954,7 +960,7 @@ print_value()
 
 # Log a list of variable in tag="value" form similar to our C++ logging idiom.
 # This function is variadic (takes variable number of arguments) and will log
-# the tag="value" for each of them. If multiple arguments are given, they will 
+# the tag="value" for each of them. If multiple arguments are given, they will
 # be separated by a space, as in: tag="value" tag2="value" tag3="value3"
 #
 # This is implemented via calling print_value on each entry in the argument
@@ -967,13 +973,13 @@ lval()
 {
     local __lval_pre=""
     for __arg in "${@}"; do
-        
+
         # Tag provided?
         local __arg_tag=${__arg%%=*}; [[ -z ${__arg_tag} ]] && __arg_tag=${__arg}
         local __arg_val=${__arg#*=}
         __arg_tag=${__arg_tag#+}
         __arg_val=$(print_value "${__arg_val}")
-        
+
         echo -n "${__lval_pre}${__arg_tag}=${__arg_val}"
         __lval_pre=" "
     done
@@ -988,7 +994,7 @@ valid_ip()
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        array_init ip "${ip}" "."        
+        array_init ip "${ip}" "."
         [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
         stat=$?
     fi
@@ -1114,7 +1120,7 @@ get_network_interfaces_10g()
 get_permanent_mac_address()
 {
     $(declare_args ifname)
-    
+
     if [[ -e /sys/class/net/${ifname}/master ]]; then
         sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
             | grep "Permanent HW addr" \
@@ -1157,7 +1163,7 @@ export_network_interface_names()
 
 # esource allows you to source multiple files at a time with proper error
 # checking after each file sourcing. If any of the files cannot be sourced
-# either because the file cannot be found or it contains invalid bash syntax, 
+# either because the file cannot be found or it contains invalid bash syntax,
 # esource will call die. This still internally calls 'source' so all the
 # rules still apply with regard to how the files are found via PATH, etc.
 #
@@ -1165,14 +1171,14 @@ export_network_interface_names()
 # if called within a function versus called normally in global scope. The most
 # important distinction here is if the sourced file contains any "declare"
 # statements if these are invoked in function scope they are **LOCAL** variables
-# rather than global variables as the caller would expect with "source". 
+# rather than global variables as the caller would expect with "source".
 #
 # To workaround this problem, we have to make sure this is called in the caller's
 # native environment rather than invoked immediately within this function call.
-# But to avoid forcing the caller to use nasty eval syntax we can actually be a 
+# But to avoid forcing the caller to use nasty eval syntax we can actually be a
 # bit more clever and embed the call to eval into the command esource eventually
 # invokes. This is called an "eval command invocation string" and is invoked in
-# the caller's envionment as in $(esource ...). 
+# the caller's envionment as in $(esource ...).
 esource()
 {
     [[ $# -eq 0 ]] && return
@@ -1219,20 +1225,20 @@ efreshdir()
 ebackup()
 {
     $(declare_args src)
-    
+
     [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak" || true
 }
 
 erestore()
 {
     $(declare_args src)
-    
+
     [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
 }
 
-# elogrotate rotates all the log files with a given basename similar to what 
-# happens with logrotate. It will always touch an empty non-versioned file 
-# just log logrotate. 
+# elogrotate rotates all the log files with a given basename similar to what
+# happens with logrotate. It will always touch an empty non-versioned file
+# just log logrotate.
 #
 # For example, if you pass in the pathname '/var/log/foo' and ask to keep a
 # max of 5, it will do the following:
@@ -1260,7 +1266,7 @@ elogrotate()
     mv -f ${name} ${name}.1 &>$(edebug_out) || true
     mkdir -p $(dirname ${name})
     touch ${name}
-    
+
     # Remove any log files greater than our retention count
     ( find $(dirname ${name}) -name "${name}*" 2>$(edebug_out) || true) | sort --version-sort | awk "NR>${max}" | xargs rm -f
 }
@@ -1309,7 +1315,7 @@ etar()
 emd5sum()
 {
     $(declare_args path)
-   
+
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
 
@@ -1325,7 +1331,7 @@ emd5sum()
 emd5sum_check()
 {
     $(declare_args path)
-    
+
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
 
@@ -1334,9 +1340,9 @@ emd5sum_check()
     popd
 }
 
-#-----------------------------------------------------------------------------                                    
+#-----------------------------------------------------------------------------
 # MOUNT / UMOUNT UTILS
-#-----------------------------------------------------------------------------                                    
+#-----------------------------------------------------------------------------
 
 # Helper method to take care of resolving a given path or mount point to its
 # realpath as well as remove any errant '\040(deleted)' which may be suffixed
@@ -1505,8 +1511,8 @@ compare()
     fi
 
     ## Escape a few special characters that trip up awk
-    lh=${lh//[@()]/_} 
-    rh=${rh//[@()]/_} 
+    lh=${lh//[@()]/_}
+    rh=${rh//[@()]/_}
     awk -v lh="${lh}" -v rh="${rh}" "BEGIN { if ( lh ${op} rh ) exit(0) ; else exit(1) ; }" && return 0 || return 1
 }
 
@@ -1554,7 +1560,7 @@ argcheck()
 # (1) Only single character arguments are supported
 # (2) Options may be grouped if they do not take arguments (e.g. -abc == -a -b -c)
 # (3) Options may take arguments by using an equal sign (e.g. -a=foobar -b="x y z")
-# 
+#
 # All options will get exported into an internal pack named after the caller's
 # function. If the caller's function name is 'foo' then the internal pack is named
 # '_foo_options'. Instead of interacting with this pack direclty simply use the
@@ -1571,7 +1577,7 @@ argcheck()
 # This gets turned into:
 #
 # "declare a=$1; shift; argcheck a1; declare b=$2; shift; argcheck b; "
-# 
+#
 # There are various special meta characters that can precede the variable name
 # that act as instructions to declare_args. Specifically:
 #
@@ -1597,7 +1603,7 @@ declare_args()
     local _declare_args_variable=""
     local _declare_args_cmd=""
 
-    # Check the internal declare_args options. We cannot at present reuse the code 
+    # Check the internal declare_args options. We cannot at present reuse the code
     # below which parses options as that's baked into the internal implementation
     # of delcare_args itself and cannot at present be extracted usefully.
     # This is a MUCH more limited version of option parsing.
@@ -1612,15 +1618,15 @@ declare_args()
     # Look at the first argument and see if it starts with a '-'. If so, then grab each
     # character in the first argument and store them into an array so caller can check
     # if particular flags were passed in or not.
-    # NOTE: We always declare the _options pack in the caller's environment so code 
+    # NOTE: We always declare the _options pack in the caller's environment so code
     #       doesn't have to handle any error cases where it's not defined.
     local _declare_args_caller=( $(caller 0) )
     local _declare_args_options="_${_declare_args_caller[1]}_options"
     _declare_args_cmd+="declare ${_declare_args_options}='';"
     if [[ ${_declare_args_parse_options} -eq 1 ]]; then
         _declare_args_cmd+="
-        while [[ \$# -gt 0 && \${1:0:1} == '-' ]]; do  
-            [[ \${1:1} =~ '=' ]] 
+        while [[ \$# -gt 0 && \${1:0:1} == '-' ]]; do
+            [[ \${1:1} =~ '=' ]]
                 && pack_set ${_declare_args_options} \"\${1:1}\"
                 || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' '; true);
         shift;
@@ -1643,7 +1649,7 @@ declare_args()
 
         shift
     done
-   
+
     echo "eval ${_declare_args_cmd}"
 }
 
@@ -1709,11 +1715,11 @@ override_function()
 
     # Don't save the function off it already exists to avoid infinite recursion
     declare -f "${func}_real" >/dev/null || save_function ${func}
-    
-    # If the function has already been overridden don't fail so long as it's 
+
+    # If the function has already been overridden don't fail so long as it's
     # IDENTICAL to what we've already defined it as. This allows more graceful
     # handling of sourcing a file multiple times with an override in it as it'll
-    # be identical. Normally the eval below would produce an error with set -e 
+    # be identical. Normally the eval below would produce an error with set -e
     # enabled.
     local expected="${func} () ${body}"$'\n'"declare -rf ${func}"
     local actual="$(declare -pf ${func} 2>/dev/null || true)"
@@ -1735,7 +1741,7 @@ efetch()
     $(declare_args url ?dst)
     [[ -z ${dst} ]] && dst="/tmp"
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
-    
+
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
@@ -1759,22 +1765,22 @@ efetch_with_md5()
 
         # Verify MD5 -- DELETE any corrupted images
         einfos "Verifying MD5 $(lval dst md5)"
-    
+
         local dst_dname=$(dirname  "${dst}")
         local dst_fname=$(basename "${dst}")
         local md5_dname=$(dirname  "${md5}")
         local md5_fname=$(basename "${md5}")
 
         cd "${dst_dname}"
-        
+
         # If the requested destination was different than what was originally in the MD5 it will fail.
         # Or if the md5sum file was generated with a different path in it it will fail. This just
         # sanititizes it to have the current working directory and the name of the file we downloaded to.
         sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${dst_fname}|" "${md5_fname}"
-        
+
         # Now we can perform the check
         md5sum --check "${md5_fname}" >/dev/null
-    } 
+    }
     catch
     {
         local rc=$?
@@ -1813,7 +1819,7 @@ netselect()
         array_init parts "${entry}" "|"
         array_add_nl rows "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${parts[4]}"
     done
-    
+
     eprogress_kill
 
     ## SHOW ALL RESULTS ##
@@ -1889,9 +1895,9 @@ eretry()
     local rc=""
     local exit_codes=()
     for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
-        
+
         if [[ -n ${_eretry_timeout} ]] ; then
-          
+
             "${cmd[@]}" &
             local pid=$!
 
@@ -1907,14 +1913,14 @@ eretry()
                 kill -0 ${pid} || exit ${_eretry_signal}
                 kill -KILL ${pid}
             ) &
-            
+
             # Wait for the pid which will either be KILLED by the watcher
             # or completel normally.
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
             kill -9 ${watcher} &>/dev/null || true
             wait ${watcher}    &>/dev/null || true
- 
+
             # If the process timedout return 124 to match timeout behavior.
             local timeout_rc=$(( 128 + ${_eretry_signal} ))
             [[ ${rc} -eq ${timeout_rc} ]] && rc=124
@@ -1937,7 +1943,7 @@ eretry()
     return ${rc}
 }
 
-# setvars takes a template file with optional variables inside the file which 
+# setvars takes a template file with optional variables inside the file which
 # are surrounded on both sides by two underscores.  It will replace the variable
 # (and surrounding underscores) with a value you specify in the environment.
 #
@@ -1979,7 +1985,7 @@ setvars()
     for arg in $(grep -o "__\S\+__" ${filename} | sort --unique || true); do
         local key="${arg//__/}"
         local val="${!key:-}"
-    
+
         # Call provided callback if one was provided which by contract should print
         # the new resulting value to be used
         [[ -n ${callback} ]] && val=$(${callback} "${key}" "${val}")
@@ -1990,7 +1996,7 @@ setvars()
         [[ -n ${val} || ${SETVARS_ALLOW_EMPTY:-0} -eq 1 ]] || continue
 
         edebug "   ${key} => ${val}"
-        
+
         # Put val into perl's environment and let _perl_ pull it out of that
         # environment.  This has the benefit of causing it to not try to
         # interpret any of it, but to treat it as a raw string
@@ -2020,7 +2026,7 @@ setvars()
 array_init()
 {
     $(declare_args __array ?__string ?__delim)
-    
+
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
 
@@ -2186,7 +2192,7 @@ array_quote()
     echo -n "${__output[@]}"
 }
 
-# Sort an array in-place. 
+# Sort an array in-place.
 #
 # OPTIONS:
 # -u Make resulting array unique.
@@ -2208,7 +2214,7 @@ array_sort()
 }
 
 #-----------------------------------------------------------------------------
-# PACK 
+# PACK
 #-----------------------------------------------------------------------------
 #
 # Consider a "pack" to be a "new" data type for bash.  It stores a set of
@@ -2312,7 +2318,7 @@ pack_contains()
 pack_copy()
 {
     argcheck 1 2
-    eval "${2}=\"\${!1}\"" 
+    eval "${2}=\"\${!1}\""
 }
 
 #
@@ -2339,7 +2345,7 @@ pack_iterate()
     done
 }
 
-# Spews bash commands that, when executed will declare a series of variables 
+# Spews bash commands that, when executed will declare a series of variables
 # in the caller's environment for each and every item in the pack. This uses
 # the same tactic as esource and declare_args by emitting an "eval command
 # invocation string" which the caller then executes in order to manifest the
@@ -2363,7 +2369,7 @@ pack_import()
     $(declare_args _pack_import_pack)
     local _pack_import_keys=("${@}")
     [[ $(array_size _pack_import_keys) -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
-    
+
     # Determine requested scope for the variables
     local _pack_import_scope="local"
     opt_true "l" && _pack_import_scope="local"
@@ -2457,7 +2463,7 @@ _pack()
 # and puts an underscore before it, then uppercase the entire input string.
 #
 # For example:
-# 
+#
 # sliceDriveSize => SLICE_DRIVE_SIZE
 # slicedrivesize => SLICEDRIVESIZE
 #
@@ -2465,7 +2471,7 @@ _pack()
 # camel case idiom isn't well followed. The best example for this is around
 # units (e.g. MB, GB). Consider "sliceDriveSizeGB" where SLICE_DRIVE_SIZE_GB
 # is preferable to SLICE_DRIVE_SIZE_G_B.
-# 
+#
 # The current list of translation corner cases this handles:
 # KB, MB, GB, TB
 to_upper_snake_case()
@@ -2544,7 +2550,7 @@ associative_array_to_json()
         [[ -n ${_notfirst} ]] && echo -n ","
 
         echo -n $(json_escape ${_key})
-        echo -n ':' 
+        echo -n ':'
         echo -n $(json_escape "$(eval echo -n \${$1[$_key]})")
 
         _notfirst=true
@@ -2671,7 +2677,7 @@ is_associative_array()
 
 is_pack()
 {
-    [[ "${1:0:1}" == '+' ]] 
+    [[ "${1:0:1}" == '+' ]]
 }
 
 discard_qualifiers()
