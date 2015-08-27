@@ -81,7 +81,11 @@ chroot_shell()
 
     # Mount then enter chroot. Do it all in a subshell so that we ensure we properly
     # unmount when we're finished.
-    ( chroot_mount && chroot ${CHROOT} ${CHROOT_ENV}; chroot_unmount; )
+    (
+        chroot_mount
+        chroot ${CHROOT} ${CHROOT_ENV} || true
+        chroot_unmount
+    )
 }
 
 chroot_cmd()
