@@ -196,6 +196,13 @@ cgroup_kill()
     edebug "Killing pids in cgroup $(lval cgroup pids ignorepids)"
     local signal=$(opt_get s SIGTERM)
 
+    # Ignoring errors here because we don't want to die simply because a
+    # process that was in the cgroup disappeared of its own volition before we
+    # got around to killing it.
+    #
+    # NOTE: This also has the side effect of causing cgroup_kill to NOT fail
+    # when the calling user doesn't have permission to kill everything in the
+    # cgroup.
     [[ -z ${pids[@]:-} ]] || ekill -s=${signal} ${pids} || true
 }
 
