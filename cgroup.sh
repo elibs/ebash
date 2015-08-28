@@ -142,8 +142,6 @@ cgroup_pids()
         # kernel
         readarray -t subsystem_pids < "${subsystem_file}"
 
-        edebug "Found $(lval subsystem_pids subsystem_file)"
-
         array_empty subsystem_pids || all_pids+=( "${subsystem_pids[@]}" )
     done
 
@@ -152,6 +150,23 @@ cgroup_pids()
 
     edebug "Found pids $(lval all_pids) after exceptions ${ignorepids[@]:-}"
     echo "${all_pids[@]:-}"
+}
+
+#-------------------------------------------------------------------------------
+# Run ps on all of the processes in a cgroup.
+#
+# Options:
+#       -x=space separated list of pids not to list.  By default all are listed.
+#
+cgroup_ps()
+{
+    $(declare_args cgroup)
+
+    local pid cgroup_pids
+    cgroup_pids=$(cgroup_pids -x="${BASHPID} $(opt_get x)" ${cgroup})
+    for pid in ${cgroup_pids} ; do
+        ps -hp ${pid}
+    done
 }
 
 #-------------------------------------------------------------------------------
@@ -181,7 +196,7 @@ cgroup_kill()
     edebug "Killing pids in cgroup $(lval cgroup pids ignorepids)"
     local signal=$(opt_get s SIGTERM)
 
-    [[ -z ${pids[@]:-} ]] || ekill -s=${signal} ${pids}
+    [[ -z ${pids[@]:-} ]] || ekill -s=${signal} ${pids} || true
 }
 
 #-------------------------------------------------------------------------------
