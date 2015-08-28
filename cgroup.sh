@@ -141,12 +141,6 @@ cgroup_pids()
         # empty.  And we shouldn't see other failures because we "trust" the
         # kernel
         readarray -t subsystem_pids < "${subsystem_file}"
-        #local pid
-
-        #while read pid ; do
-        #    subsystem_pids+=(${pid})
-        #    edebug "$(lval pid subsystem_pids)"
-        #done < "${subsystem_file}"
 
         edebug "Found $(lval subsystem_pids subsystem_file)"
 
@@ -168,8 +162,8 @@ cgroup_pids()
 #
 # Options:
 #       -s=<signal>
-#       -x=space separated list of pids not to kill.  NOTE: $$ is always added
-#          to this list
+#       -x=space separated list of pids not to kill.  NOTE: $$ and $BASHPID are
+#          always added to this list so as to not kill the calling process
 #
 cgroup_kill()
 {
@@ -200,8 +194,8 @@ cgroup_kill()
 #
 # Options:
 #       -s=<signal>
-#       -x=space separated list of pids not to kill.  NOTE: $$ is always added
-#          to this list
+#       -x=space separated list of pids not to kill.  NOTE: $$ and $BASHPID are
+#          always added to this list to avoid killing the calling process.
 #   
 cgroup_kill_and_wait()
 {
@@ -215,16 +209,12 @@ cgroup_kill_and_wait()
 
     local times=0
     while true ; do
-        edebug "kill_and_wait: $(lval ignorepids times)"
         cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGKILL) "${cgroup}"
 
         local remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroup}")
-        ewarn "REMAINING_PIDS $(lval remaining_pids)"
         if [[ -z ${remaining_pids} ]] ; then
             break;
         else
-            edebug "Still waiting for $(lval remaining_pids)"
-            edebug "     $(ps -hp ${remaining_pids})"
             sleep .5
         fi
 
