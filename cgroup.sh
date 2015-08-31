@@ -165,7 +165,7 @@ cgroup_ps()
     local pid cgroup_pids
     cgroup_pids=$(cgroup_pids -x="${BASHPID} $(opt_get x)" ${cgroup})
     for pid in ${cgroup_pids} ; do
-        ps -hp ${pid}
+        ps hp ${pid}
     done
 }
 
