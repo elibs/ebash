@@ -178,7 +178,8 @@ die_on_error_enabled()
 stacktrace()
 {
     $(declare_args)
-    local frame=$(opt_get f 0)
+    local frame
+    frame=$(opt_get f 0)
 
     while caller ${frame}; do
         (( frame+=1 ))
@@ -195,7 +196,8 @@ stacktrace()
 stacktrace_array()
 {
     $(declare_args array)
-    local frame=$(opt_get f 1)
+    local frame
+    frame=$(opt_get f 1)
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
 
@@ -404,7 +406,8 @@ ecolor()
     local reset_re="\breset|none|off\b"
     [[ ${c} =~ ${reset_re} ]] && { echo -en "\033[m"; return 0; }
 
-    local bold="$(tput bold)"
+    local bold
+    bold="$(tput bold)"
     local dimre="^dim"
     if [[ ${c} =~ ${dimre} ]]; then
         c=${c#dim}
@@ -483,7 +486,8 @@ ebanner()
 
         # Iterate over the keys of the associative array and print out the values
         for key in ${keys[@]}; do
-            local pad=$((longest-${#key}+1))
+            local pad
+            pad=$((longest-${#key}+1))
             printf "| • %s%${pad}s :: %s\n" ${key} " " "${__details[$key]}" >&2
         done
     fi
@@ -496,7 +500,8 @@ ebanner()
 emsg()
 {
     # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX:=} | egrep -o "(time|times|level|caller|all)" || true)
+    local emsg_prefix
+    emsg_prefix=$(echo ${EMSG_PREFIX:=} | egrep -o "(time|times|level|caller|all)" || true)
 
     $(declare_args color ?symbol level)
     [[ ${EFUNCS_TIME:=0} -eq 1 ]] && emsg_prefix+=time
@@ -519,7 +524,8 @@ emsg()
     # (1) time    : Timetamp
     # (2) level   : Log Level
     # (3) caller  : file:line:method
-    local delim="$(ecolor none)|"
+    local delim
+    delim="$(ecolor none)|"
     local prefix=""
 
     if [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} == "time" ]]; then
@@ -581,7 +587,8 @@ eerror()
 eerror_stacktrace()
 {
     $(declare_args)
-    local frame=$(opt_get f 2)
+    local frame
+    frame=$(opt_get f 2)
 
     echo "" >&2
     eerror "$@"
@@ -591,9 +598,10 @@ eerror_stacktrace()
 
     array_empty frames ||
     for f in "${frames[@]}"; do
-        local line=$(echo ${f} | awk '{print $1}')
-        local func=$(echo ${f} | awk '{print $2}')
-        local file=$(basename $(echo ${f} | awk '{print $3}'))
+        local line func file
+        line=$(echo ${f} | awk '{print $1}')
+        func=$(echo ${f} | awk '{print $2}')
+        file=$(basename $(echo ${f} | awk '{print $3}'))
 
         [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
 
@@ -668,7 +676,8 @@ eprompt()
 eprompt_with_options()
 {
     $(declare_args msg opt ?secret)
-    local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
+    local valid
+    valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"
 
     ## Keep reading input until a valid response is given
@@ -695,7 +704,8 @@ trim()
 
 compress_spaces()
 {
-    local output=$(echo -en "$@" | tr -s "[:space:]" " ")
+    local output
+    output=$(echo -en "$@" | tr -s "[:space:]" " ")
     echo -en "${output}"
 }
 
@@ -710,7 +720,8 @@ eend()
         #    2) Moves up a line
         #    3) Moves right the number of columns from #1
         local columns=${COLUMNS:-$(tput cols)}
-        local startcol=$(( columns - 6 ))
+        local startcol
+        startcol=$(( columns - 6 ))
         [[ ${startcol} -gt 0 ]] && echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
     fi
 
@@ -743,10 +754,12 @@ do_eprogress()
     local done=0
     trap "done=1" SIGINT SIGTERM
 
-    local start=$(date +"%s")
+    local start
+    start=$(date +"%s")
     while [[ ${done} -ne 1 ]]; do
-        local now=$(date +"%s")
-        local diff=$(( ${now} - ${start} ))
+        local now diff
+        now=$(date +"%s")
+        diff=$(( ${now} - ${start} ))
 
         echo -en "$(ecolor white)" >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
@@ -850,7 +863,8 @@ ekill()
     $(declare_args)
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s SIGTERM)
+    local signal
+    signal=$(opt_get s SIGTERM)
     local errors=0
 
     # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
@@ -864,7 +878,8 @@ ekill()
         # The process is still running. Now kill it. So long as the process does NOT
         # exist after sending it the specified signal this function will return
         # success.
-        local cmd="$(ps -p ${pid} -o comm= || true)"
+        local cmd
+        cmd="$(ps -p ${pid} -o comm= || true)"
         edebug "Killing $(lval pid signal cmd)"
 
         # The process is still running. Now kill it. So long as the process does NOT
@@ -891,7 +906,8 @@ ekilltree()
     $(declare_args)
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s SIGTERM)
+    local signal
+    signal=$(opt_get s SIGTERM)
     local errors=0
 
     local pid
@@ -943,8 +959,10 @@ print_value()
         return
     fi
 
-    local decl=$(declare -p ${__input} 2>/dev/null || true)
-    local val=$(echo "${decl}")
+    local decl
+    decl=$(declare -p ${__input} 2>/dev/null || true)
+    local val
+    val=$(echo "${decl}")
     val=${val#*=}
 
     # Deal with properly declared variables which are empty
@@ -1044,28 +1062,32 @@ fully_qualify_hostname()
 getipaddress()
 {
     $(declare_args iface)
-    local ip=$(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2 || true)
+    local ip
+    ip=$(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2 || true)
     echo -n "${ip//[[:space:]]}"
 }
 
 getnetmask()
 {
     $(declare_args iface)
-    local netmask=$(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2 || true)
+    local netmask
+    netmask=$(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2 || true)
     echo -n "${netmask//[[:space:]]}"
 }
 
 getbroadcast()
 {
     $(declare_args iface)
-    local bcast=$(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2 || true)
+    local bcast
+    bcast=$(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2 || true)
     echo -n "${bcast//[[:space:]]}"
 }
 
 # Gets the default gateway that is currently in use
 getgateway()
 {
-    local gw=$(route -n | grep 'UG[ \t]' | awk '{print $2}' || true)
+    local gw
+    gw=$(route -n | grep 'UG[ \t]' | awk '{print $2}' || true)
     echo -n "${gw//[[:space:]]}"
 }
 
@@ -1253,7 +1275,8 @@ erestore()
 elogrotate()
 {
     $(declare_args name)
-    local max=$(opt_get m 5)
+    local max
+    max=$(opt_get m 5)
 
     local log_idx next
     for (( log_idx=${max}; log_idx > 0; log_idx-- )); do
@@ -1284,7 +1307,8 @@ etar()
     # Provided an explicit compression program wasn't provided via "-I/--use-compress-program"
     # then automatically determine the compression program to use based on file
     # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    local match=$(echo "$@" | egrep '(-I|--use-compress-program)' || true)
+    local match
+    match=$(echo "$@" | egrep '(-I|--use-compress-program)' || true)
     if [[ -z ${match} ]]; then
 
         local prog=""
@@ -1315,8 +1339,9 @@ emd5sum()
 {
     $(declare_args path)
 
-    local dname=$(dirname  "${path}")
-    local fname=$(basename "${path}")
+    local dname fname
+    dname=$(dirname  "${path}")
+    fname=$(basename "${path}")
 
     pushd "${dname}"
     md5sum "${fname}"
@@ -1331,8 +1356,9 @@ emd5sum_check()
 {
     $(declare_args path)
 
-    local fname=$(basename "${path}")
-    local dname=$(dirname  "${path}")
+    local fname dname
+    fname=$(basename "${path}")
+    dname=$(dirname  "${path}")
 
     pushd "${dname}"
     md5sum -c "${fname}.md5" >$(edebug_out)
@@ -1366,7 +1392,8 @@ emount_count()
 {
     $(declare_args path)
     path=$(emount_realpath ${path})
-    local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts || true)
+    local num_mounts
+    num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts || true)
     echo -n ${num_mounts}
 }
 
@@ -1421,7 +1448,8 @@ eunmount()
     local mnt
     for mnt in $@; do
         emounted ${mnt} || continue
-        local rdev=$(emount_realpath ${mnt})
+        local rdev
+        rdev=$(emount_realpath ${mnt})
         argcheck rdev
 
         einfos "Unmounting ${mnt}"
@@ -1449,17 +1477,20 @@ eunmount_recursive()
 {
     local mnt
     for mnt in $@; do
-        local rdev=$(emount_realpath ${mnt})
+        local rdev
+        rdev=$(emount_realpath ${mnt})
         argcheck rdev
 
         while [[ true ]]; do
 
             # If this path is directly mounted or anything BENEATH it is mounted then proceed
-            local matches="$(efindmnt ${mnt} | sort -ur)"
+            local matches
+            matches="$(efindmnt ${mnt} | sort -ur)"
             edebug "$(lval mnt rdev matches)"
             [[ -z ${matches} ]] && break
 
-            local nmatches=$(echo "${matches}" | wc -l)
+            local nmatches
+            nmatches=$(echo "${matches}" | wc -l)
             einfo "Recursively unmounting ${mnt} (${nmatches})"
             local match
             for match in "${matches}"; do
@@ -1679,8 +1710,9 @@ opt_false()
 opt_get()
 {
     $(declare_args key ?default)
-    local _caller=( $(caller 0) )
-    local _value=$(pack_get _${_caller[1]}_options ${key})
+    local _caller _value
+    _caller==( $(caller 0) )
+    _value=$(pack_get _${_caller[1]}_options ${key})
     : ${_value:=${default}}
 
     echo -n "${_value}"
@@ -1695,7 +1727,8 @@ opt_get()
 # it's behavior.
 save_function()
 {
-    local orig=$(declare -f $1)
+    local orig
+    orig=$(declare -f $1)
     local new="${1}_real${orig#$1}"
     eval "${new}" &>/dev/null
 }
@@ -1721,7 +1754,8 @@ override_function()
     # be identical. Normally the eval below would produce an error with set -e
     # enabled.
     local expected="${func} () ${body}"$'\n'"declare -rf ${func}"
-    local actual="$(declare -pf ${func} 2>/dev/null || true)"
+    local actual
+    actual="$(declare -pf ${func} 2>/dev/null || true)"
     [[ ${expected} == ${actual} ]] && return 0 || true
 
     eval "${expected}"
@@ -1765,10 +1799,11 @@ efetch_with_md5()
         # Verify MD5 -- DELETE any corrupted images
         einfos "Verifying MD5 $(lval dst md5)"
 
-        local dst_dname=$(dirname  "${dst}")
-        local dst_fname=$(basename "${dst}")
-        local md5_dname=$(dirname  "${md5}")
-        local md5_fname=$(basename "${md5}")
+        local dst_dname dst_fname md5_dname md5_fname
+        dst_dname=$(dirname  "${dst}")
+        dst_fname=$(basename "${dst}")
+        md5_dname=$(dirname  "${md5}")
+        md5_fname=$(basename "${md5}")
 
         cd "${dst_dname}"
 
@@ -1800,7 +1835,8 @@ netselect()
     declare -a results sorted rows
 
     for h in ${hosts}; do
-        local entry=$(die_on_abort; ping -c10 -w5 -q $h 2>/dev/null | \
+        local entry
+        entry=$(die_on_abort; ping -c10 -w5 -q $h 2>/dev/null | \
             awk '/^PING / {host=$2}
                  /packet loss/ {loss=$6}
                  /min\/avg\/max/ {
@@ -1825,7 +1861,8 @@ netselect()
     einfos "All results:"
     etable ${rows[@]} >&2
 
-    local best=$(echo "${sorted[0]}" | cut -d\| -f1)
+    local best
+    best=$(echo "${sorted[0]}" | cut -d\| -f1)
     einfos "Best host=[${best}]"
 
     echo -en "${best}"
@@ -1874,11 +1911,12 @@ eretry()
 {
     # Parse options
     $(declare_args)
-    local _eretry_timeout=$(opt_get t "")
-    local _eretry_delay=$(opt_get d 0)
-    local _eretry_signal=$(opt_get s SIGTERM)
-    local _eretry_retries=$(opt_get r 5)
-    local _eretry_warn=$(opt_get w 0)
+    local _eretry_timeout _eretry_delay _eretry_signal _eretry_retries _eretry_warn
+    _eretry_timeout=$(opt_get t "")
+    _eretry_delay=$(opt_get d 0)
+    _eretry_signal=$(opt_get s SIGTERM)
+    _eretry_retries=$(opt_get r 5)
+    _eretry_warn=$(opt_get w 0)
     [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
 
     # Convert signal name to number so we can use it's numerical value
@@ -1921,7 +1959,8 @@ eretry()
             wait ${watcher}    &>/dev/null || true
 
             # If the process timedout return 124 to match timeout behavior.
-            local timeout_rc=$(( 128 + ${_eretry_signal} ))
+            local timeout_rc
+            timeout_rc=$(( 128 + ${_eretry_signal} ))
             [[ ${rc} -eq ${timeout_rc} ]] && rc=124
 
         else
@@ -2111,7 +2150,8 @@ array_remove()
     [[ -v ${__array} ]] || { edebug "array_remove skipping empty array $(lval __array)" ; return ; }
 
     # Remove all instances or only the first?
-    local remove_all=$(opt_get a 0)
+    local remove_all
+    remove_all=$(opt_get a 0)
 
     local value
     for value in "${__array_remove_to_remove[@]}"; do
@@ -2294,9 +2334,10 @@ pack_set_internal()
     [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
     [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
 
-    local _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=' || true)"
-    local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
-    local _packed=$(echo "${_addNew}" | _pack)
+    local _removeOld _addNew _packed
+    _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=' || true)"
+    _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
+    _packed=$(echo "${_addNew}" | _pack)
 
     printf -v ${1} "${_packed}"
 }
@@ -2311,8 +2352,9 @@ pack_get()
 
     argcheck _pack_pack_get _tag
 
-    local _unpacked="$(echo -n "${!_pack_pack_get:-}" | _unpack)"
-    local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=" || true)"
+    local _unpacked _found
+    _unpacked="$(echo -n "${!_pack_pack_get:-}" | _unpack)"
+    _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=" || true)"
     echo "${_found#*=}"
 }
 
@@ -2347,8 +2389,9 @@ pack_iterate()
     local _pack_pack_iterate=$2
     argcheck _func _pack_pack_iterate
 
-    local _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
-    local _lines ; array_init_nl _lines "${_unpacked}"
+    local _unpacked _lines _line
+    _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
+    array_init_nl _lines "${_unpacked}"
 
     for _line in "${_lines[@]}" ; do
 
@@ -2393,7 +2436,8 @@ pack_import()
 
     local _pack_import_cmd=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
-        local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
+        local _pack_import_val
+        _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
         _pack_import_cmd+="$_pack_import_scope $_pack_import_key=${_pack_import_val}; "
     done
 
@@ -2515,7 +2559,8 @@ to_json()
     for _arg in "${@}" ; do
         [[ -n ${_notfirst} ]] && echo -n ","
 
-        local _arg_noqual=$(discard_qualifiers ${_arg})
+        local _arg_noqual
+        _arg_noqual=$(discard_qualifiers ${_arg})
         echo -n "$(json_escape ${_arg_noqual}):"
         if is_pack ${_arg} ; then
             pack_to_json ${_arg}
@@ -2633,18 +2678,20 @@ json_import()
     opt_true "g" && _json_import_qualifier=""
     opt_true "e" && _json_import_qualifier="export"
 
+    local _json_import_prefix _json_import_query _json_import_filename _json_import_data _json_import_keys
+
     # Lookup optional prefix to use
-    local _json_import_prefix="$(opt_get p)"
+    _json_import_prefix="$(opt_get p)"
 
     # Lookup optional jq query to use
-    local _json_import_query="$(opt_get q)"
+    _json_import_query="$(opt_get q)"
     : ${_json_import_query:=.}
 
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
     # In either case read into a local variable so we can parse it repeatedly in this function.
-    local _json_import_filename="$(opt_get f)"
+    _json_import_filename="$(opt_get f)"
     : ${_json_import_filename:=-}
-    local _json_import_data=$(cat ${_json_import_filename} | jq -r "${_json_import_query}")
+    _json_import_data=$(cat ${_json_import_filename} | jq -r "${_json_import_query}")
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
     local _json_import_keys=("${@:-}")
@@ -2661,7 +2708,8 @@ json_import()
     for key in "${_json_import_keys[@]}"; do
         array_contains _json_import_keys_excluded ${key} && continue
 
-        local val=$(jq -r .${key} <<< ${_json_import_data})
+        local val
+        val=$(jq -r .${key} <<< ${_json_import_data})
         edebug $(lval key val)
         opt_true "u" && key=$(to_upper_snake_case "${key}")
 
