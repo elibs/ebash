@@ -48,10 +48,11 @@ chroot_prompt()
     : ${name:=CHROOT-$(basename ${CHROOT})}
 
     # Determine what shell to generate chroot prompt for
-    local shell="$(opt_get s)"
+    local shell shellrc shellrc_prompt
+    shell="$(opt_get s)"
     : ${shell:=${SHELL}}
-    local shellrc="${HOME}/.$(basename ${shell})rc"
-    local shellrc_prompt="${shellrc}.prompt"
+    shellrc="${HOME}/.$(basename ${shell})rc"
+    shellrc_prompt="${shellrc}.prompt"
 
     # Check if already sourcing promptrc
     grep -q "${shellrc_prompt}" ${CHROOT}${shellrc} && { edebug "Already sourcing promptrc in ${shellrc}"; return 0; }
@@ -117,7 +118,8 @@ chroot_kill()
     edebug $(lval regex signal pids)
 
     for pid in ${pids}; do
-        local link=$(readlink "/proc/${pid}/root" || true)
+        local link
+        link=$(readlink "/proc/${pid}/root" || true)
 
         # Skip processes started in NO chroot or ANOTHER chroot
         [[ -z ${link} || ${link} != ${CHROOT} ]] && continue
@@ -218,7 +220,8 @@ chroot_install()
         fi
 
         # Actually installed
-        local actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
+        local actual
+        actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
         local apn="${actual%|*}"
         local apv="${actual#*|}"
 
@@ -261,7 +264,8 @@ chroot_apt()
 chroot_listpkgs()
 {
     argcheck CHROOT
-    local output=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W")
+    local output
+    output=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W")
     echo -en "${output}"
 }
 
@@ -269,7 +273,8 @@ chroot_uninstall_filter()
 {
     argcheck CHROOT
     local filter=$@
-    local pkgs=$(die_on_abort; chroot_listpkgs)
+    local pkgs
+    pkgs=$(die_on_abort; chroot_listpkgs)
     chroot_uninstall $(eval "echo \"${pkgs}\" | ${filter} | awk '{print \$1}'")
 }
 
@@ -424,36 +429,39 @@ chroot_daemon_start()
     $(declare_args exe)
     argcheck CHROOT
 
+    local name pidfile delay restarts callback time_to_startup
+
     # Determine pretty name to display from optional -n
-    local name="$(opt_get n)"
+    name="$(opt_get n)"
     : ${name:=$(basename ${exe})}
 
     # Determine optional pidfile
-    local pidfile="$(opt_get p)"
+    pidfile="$(opt_get p)"
     : ${pidfile:=/var/run/$(basename ${exe})}
 
     # Determine how long to wait after the daemon dies before starting it up
     # again. NOTE - You want at least a second to ensure that in the case of a
     # chroot_daemon_stop being called, we have everything in the appropriate
     # state before starting a new process that isn't supposed to be there.
-    local delay="$(opt_get d 1)"
+    delay="$(opt_get d 1)"
 
     # Determine how many times maximum to restart the daemon.
-    local restarts="$(opt_get r 20)"
+    restarts="$(opt_get r 20)"
 
     # Determine what the callback function is, if there is one, which should be
     # run prior to starting the chrooted command each time the daemon starts.
-    local callback=$(opt_get c)
+    callback=$(opt_get c)
 
     # Determine how long to wait before checking the daemon's status once it
     # starts
-    local time_to_startup="$(opt_get w 1)"
+    time_to_startup="$(opt_get w 1)"
 
     mkdir -p $(dirname ${pidfile})
     touch "${pidfile}"
 
     # Don't restart the daemon if it is already running.
-    local currentPID=$(cat "${pidfile}" 2>/dev/null || echo -n "")
+    local currentPID
+    currentPID=$(cat "${pidfile}" 2>/dev/null || echo -n "")
     local status=0
     if [[ -n "${currentPID}" ]]; then
         kill -0 ${currentPID} &>/dev/null || status=1
@@ -557,16 +565,18 @@ chroot_daemon_stop()
     $(declare_args exe)
     argcheck CHROOT
 
+    local name pidfile signal pid
+
     # Determine pretty name to display from optional -n
-    local name="$(opt_get n)"
+    name="$(opt_get n)"
     : ${name:=$(basename ${exe})}
 
     # Determmine optional pidfile
-    local pidfile="$(opt_get p)"
+    pidfile="$(opt_get p)"
     : ${pidfile:=/var/run/$(basename ${exe})}
 
     # Determine optional signal to use
-    local signal="$(opt_get s)"
+    signal="$(opt_get s)"
     : ${signal:=TERM}
 
     # Info
@@ -578,7 +588,7 @@ chroot_daemon_stop()
         || { eend 0; ewarns "Already stopped"; eend 0; rm -rf ${pidfile}; return 0; }
 
     # If it is running stop it with optional signal
-    local pid=$(cat ${pidfile} 2>/dev/null)
+    pid=$(cat ${pidfile} 2>/dev/null)
     ekilltree -s=${signal} ${pid}
     rm -rf ${pidfile}
     eend 0
@@ -609,12 +619,14 @@ chroot_daemon_status()
     $(declare_args)
     argcheck CHROOT
 
+    local pidfile name pid
+
     # pidfile is required
-    local pidfile=$(opt_get p)
+    pidfile=$(opt_get p)
     argcheck pidfile
 
     # Determine pretty name to display from optional -n
-    local name=$(opt_get n)
+    name=$(opt_get n)
     : ${name:=$(basename ${pidfile})}
 
     einfo "Checking ${name}"
@@ -622,7 +634,7 @@ chroot_daemon_status()
 
     # Check pidfile
     [[ -e ${pidfile} ]] || { eend 1; ewarns "Not Running (no pidfile)"; return 1; }
-    local pid=$(cat ${pidfile} 2>/dev/null)
+    pid=$(cat ${pidfile} 2>/dev/null)
     [[ -z ${pid}     ]] && { eend 1; ewarns "Not Running (no pid)"; return 1; }
 
     # Send a signal to process to see if it's running
@@ -653,7 +665,8 @@ mkchroot()
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
     einfo "Creating $(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
 
-    local LSB_RELEASE=$(cat /etc/lsb-release | grep "CODENAME" | awk -F= '{print $2}')
+    local LSB_RELEASE
+    LSB_RELEASE=$(cat /etc/lsb-release | grep "CODENAME" | awk -F= '{print $2}')
     local GPG_FLAG="--no-check-gpg"
     [[ ${LSB_RELEASE} == "lucid" ]] && GPG_FLAG=""
 
