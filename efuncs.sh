@@ -1711,7 +1711,7 @@ opt_get()
 {
     $(declare_args key ?default)
     local _caller _value
-    _caller==( $(caller 0) )
+    _caller=( $(caller 0) )
     _value=$(pack_get _${_caller[1]}_options ${key})
     : ${_value:=${default}}
 
