@@ -1735,7 +1735,11 @@ numcores()
     echo $(cat /proc/cpuinfo | grep "processor" | wc -l)
 }
 
-efetch()
+# Internal only efetch function which fetches an individual file using curl.
+# This will show an eprogress ticker and then kill the ticker with either
+# success or failure indicated. The return value is then returned to the
+# caller for handling.
+efetch_internal()
 {
     $(declare_args url ?dst)
     [[ -z ${dst} ]] && dst="/tmp"
@@ -1744,48 +1748,108 @@ efetch()
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
+    local rc=0
     eprogress "Fetching $(lval url dst)"
-    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure
-    eprogress_kill
+    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure && rc=0 || rc=$?
+    eprogress_kill ${rc}
+
+    return ${rc}
 }
 
-efetch_with_md5()
+# Fetch a provided URL to an optional destination path via efetch_internal. 
+# This function can also optionally validate the fetched data against various
+# companion files which contain metadata for file fetching. If validation is
+# requested and the validation fails then all temporary files fetched are
+# removed.
+#
+# Options:
+# -m Fetch companion .md5 file and validate fetched file's MD5 matches.
+# -i Fetch companion .info file and validate all metadata fields. This will 
+#    validate any of the following optional metadata fields: Size, MD5, SHA1, SHA256.
+#    Failure to validate against at least one of these fields is considered failure.
+efetch()
 {
     $(declare_args url ?dst)
     [[ -z ${dst} ]] && dst="/tmp"
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
+    
+    # Companion files we may fetch
     local md5="${dst}.md5"
+    local ifile="${dst}.info"
 
-    # Fetch the md5 before the payload as we don't need to bother fetching payload if md5 is missing
     try
     {
-        efetch "${url}.md5" "${md5}"
-        efetch "${url}"     "${dst}"
+        ## If requested, fetch MD5 file
+        if opt_true "m"; then
 
-        # Verify MD5 -- DELETE any corrupted images
-        einfos "Verifying MD5 $(lval dst md5)"
+            efetch_internal "${url}.md5" "${md5}"
+            efetch_internal "${url}"     "${dst}"
 
-        local dst_dname=$(dirname  "${dst}")
-        local dst_fname=$(basename "${dst}")
-        local md5_dname=$(dirname  "${md5}")
-        local md5_fname=$(basename "${md5}")
+            # Verify MD5 -- DELETE any corrupted images
+            einfos "Verifying MD5 $(lval dst md5)"
 
-        cd "${dst_dname}"
+            local dst_dname=$(dirname  "${dst}")
+            local dst_fname=$(basename "${dst}")
+            local md5_dname=$(dirname  "${md5}")
+            local md5_fname=$(basename "${md5}")
 
-        # If the requested destination was different than what was originally in the MD5 it will fail.
-        # Or if the md5sum file was generated with a different path in it it will fail. This just
-        # sanititizes it to have the current working directory and the name of the file we downloaded to.
-        sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${dst_fname}|" "${md5_fname}"
+            cd "${dst_dname}"
 
-        # Now we can perform the check
-        md5sum --check "${md5_fname}" >/dev/null
+            # If the requested destination was different than what was originally in the MD5 it will fail.
+            # Or if the md5sum file was generated dwith a different path in it it will fail. This just
+            # sanititizes it to have the current working directory and the name of the file we downloaded to.
+            sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${dst_fname}|" "${md5_fname}"
+
+            # Now we can perform the check
+            md5sum --check "${md5_fname}" >/dev/null
+
+        ## If requested fetch *.info file and validate using contained fields
+        elif opt_true "i"; then
+            local ifile="${dst}.info"
+
+            # Fetch info file before the payload as we don't need to bother fetching payload if info file is missing
+            efetch_internal "${url}.info" "${ifile}"
+            efetch_internal "${url}"      "${dst}"
+
+            # Verify as follows using any of the present fields in the info file. Not all are required but
+            # if all are present all will be used.
+            # (1) Size
+            # (2) MD5
+            # (3) SHA1
+            # (4) SHA256
+            einfos "Verifying INFO $(lval dst ifile)"
+            local ipack=""
+            pack_set ipack $(cat "${ifile}")
+            pack_print ipack &>$(edebug_out)
+            local validated=()
+
+            if pack_contains ipack "Size"; then
+                local expect=$(pack_get ipack Size)
+                local actual=$(stat --printf="%s" "${dst}")
+                [[ ${expect} -eq ${actual} ]] || { ewarn "Size mismatch: $(lval dst expect actual)"; throw 1; }
+                validated+=( "Size" )
+            fi
+
+            # Now validated MD5, SHA1, and SHA256 (if present)
+            for checksum in MD5 SHA1 SHA256; do
+                if pack_contains ipack "${checksum}"; then
+                    local expect=$(pack_get ipack ${checksum})
+                    local actual=$(${checksum,,}sum ${dst} | awk '{print $1}')
+                    [[ ${expect} == ${actual} ]] || { ewarn "${checksum} mismatch: $(lval dst expect actual)"; throw 2; }
+                    validated+=( ${checksum} )
+                fi
+            done
+
+            # If we didn't validate anything then that's an error
+            array_empty validated && die "Failed to validate $(lval dst)"
+            einfos "Successfully $(lval validated)"
+        fi
     }
     catch
     {
         local rc=$?
-        edebug "Removing $(lval dst md5)"
-        rm -rf "${dst}"
-        rm -rf "${md5}"
+        edebug "Removing $(lval dst md5 ifile)"
+        rm -rf "${dst}" "${md5}" "${ifile}"
         return ${rc}
     }
 
