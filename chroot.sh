@@ -461,7 +461,7 @@ chroot_daemon_start()
 
     # Don't restart the daemon if it is already running.
     local currentPID
-    currentPID=$(cat "${pidfile}" 2>/dev/null || echo -n "")
+    currentPID=$(cat "${pidfile}" 2>/dev/null || true)
     local status=0
     if [[ -n "${currentPID}" ]]; then
         kill -0 ${currentPID} &>/dev/null || status=1
