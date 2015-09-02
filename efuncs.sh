@@ -1785,7 +1785,7 @@ efetch()
             efetch_internal "${url}.md5" "${md5}"
             efetch_internal "${url}"     "${dst}"
 
-            # Verify MD5 -- DELETE any corrupted images
+            # Verify MD5
             einfos "Verifying MD5 $(lval dst md5)"
 
             local dst_dname=$(dirname  "${dst}")
@@ -1805,9 +1805,7 @@ efetch()
 
         ## If requested fetch *.info file and validate using contained fields
         elif opt_true "i"; then
-            local ifile="${dst}.info"
 
-            # Fetch info file before the payload as we don't need to bother fetching payload if info file is missing
             efetch_internal "${url}.info" "${ifile}"
             efetch_internal "${url}"      "${dst}"
 
