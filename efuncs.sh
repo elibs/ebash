@@ -1356,10 +1356,51 @@ echecksum()
     echo "Size=$(stat --printf="%s" "${path}")"
 
     # Now output MD5, SHA1, and SHA256
-    local sum
-    for sum in MD5 SHA1 SHA256; do
-        echo "${sum}=$(${sum,,}sum "${path}" | awk '{print $1}')"
+    local checksum
+    for checksum in MD5 SHA1 SHA256; do
+        echo "${checksum}=$(${checksum,,}sum "${path}" | awk '{print $1}')"
     done
+}
+
+# Validate an exiting source file against a companion *.info file which contains
+# various checksum fields. Specifically: Filename, Size, MD5, SHA1, SHA256. For
+# each field which is present in the info file, validate it against the source
+# file. If any of them fail this function returns non-zero. If NO validators
+# are present in the info file, this function returns non-zero.
+echecksum_check()
+{
+    $(declare_args path)
+    local ipath=${path}.info
+    [[ -e ${path}  ]] || die "${path} does not exist"
+    [[ -e ${ipath} ]] || die "${ipath} does not exist"
+
+    einfos "Verifying Checksum INFO $(lval path)"
+    local ipack=""
+    pack_set ipack $(cat "${ipath}")
+    pack_print ipack &>$(edebug_out)
+    local validated=()
+
+    if pack_contains ipack "Size"; then
+        local expect=$(pack_get ipack Size)
+        local actual=$(stat --printf="%s" "${path}")
+        [[ ${expect} -eq ${actual} ]] || { ewarn "Size mismatch: $(lval path expect actual)"; return 1; }
+        validated+=( "Size" )
+    fi
+
+    # Now validated MD5, SHA1, and SHA256 (if present)
+    local checksum
+    for checksum in MD5 SHA1 SHA256; do
+        if pack_contains ipack "${checksum}"; then
+            local expect=$(pack_get ipack ${checksum})
+            local actual=$(${checksum,,}sum ${path} | awk '{print $1}')
+            [[ ${expect} == ${actual} ]] || { ewarn "${checksum} mismatch: $(lval path expect actual)"; return 2; }
+            validated+=( ${checksum} )
+        fi
+    done
+
+    # If we didn't validate anything then that's an error
+    array_empty validated && { ewarn "Failed to validate $(lval path)"; return 3; }
+    einfos "Successfully $(lval validated)"
 }
 
 #-----------------------------------------------------------------------------
@@ -1831,39 +1872,7 @@ efetch()
 
             efetch_internal "${url}.info" "${ifile}"
             efetch_internal "${url}"      "${dst}"
-
-            # Verify as follows using any of the present fields in the info file. Not all are required but
-            # if all are present all will be used.
-            # (1) Size
-            # (2) MD5
-            # (3) SHA1
-            # (4) SHA256
-            einfos "Verifying INFO $(lval dst ifile)"
-            local ipack=""
-            pack_set ipack $(cat "${ifile}")
-            pack_print ipack &>$(edebug_out)
-            local validated=()
-
-            if pack_contains ipack "Size"; then
-                local expect=$(pack_get ipack Size)
-                local actual=$(stat --printf="%s" "${dst}")
-                [[ ${expect} -eq ${actual} ]] || { ewarn "Size mismatch: $(lval dst expect actual)"; throw 1; }
-                validated+=( "Size" )
-            fi
-
-            # Now validated MD5, SHA1, and SHA256 (if present)
-            for checksum in MD5 SHA1 SHA256; do
-                if pack_contains ipack "${checksum}"; then
-                    local expect=$(pack_get ipack ${checksum})
-                    local actual=$(${checksum,,}sum ${dst} | awk '{print $1}')
-                    [[ ${expect} == ${actual} ]] || { ewarn "${checksum} mismatch: $(lval dst expect actual)"; throw 2; }
-                    validated+=( ${checksum} )
-                fi
-            done
-
-            # If we didn't validate anything then that's an error
-            array_empty validated && die "Failed to validate $(lval dst)"
-            einfos "Successfully $(lval validated)"
+            echecksum_check "${dst}"
         fi
     }
     catch
