@@ -1339,6 +1339,29 @@ emd5sum_check()
     popd
 }
 
+# Output checksum information for the given file to STDOUT. Specifically output
+# the following:
+#
+# Filename=foo
+# MD5=864ec6157c1eea88acfef44d0f34d219
+# Size=2192793069
+# SHA1=75490a32967169452c10c937784163126c4e9753
+# SHA256=8297aefe5bb7319ab5827169fce2e664fe9cd7b88c9b31c40658ab55fcae3bfe
+echecksum()
+{
+    $(declare_args path)
+    [[ -e ${path} ]] || die "${path} does not exist"
+
+    echo "Filename=$(basename ${path})"
+    echo "Size=$(stat --printf="%s" "${path}")"
+
+    # Now output MD5, SHA1, and SHA256
+    local sum
+    for sum in MD5 SHA1 SHA256; do
+        echo "${sum}=$(${sum,,}sum "${path}" | awk '{print $1}')"
+    done
+}
+
 #-----------------------------------------------------------------------------
 # MOUNT / UMOUNT UTILS
 #-----------------------------------------------------------------------------
