@@ -10,16 +10,61 @@ $(esource $(dirname $0)/cgroup.sh)
 ################################################################################
 ################################################################################
 
+ETEST_cgroup_destroy_recursive()
+{
+    CGROUP=cgroup_destroy_recursive
+
+    cgroup_create ${CGROUP}/{a,b,c,d}
+    cgroup_exists ${CGROUP}/{a,b,c,d}
+
+    cgroup_destroy -r ${CGROUP}
+
+    ! cgroup_exists ${CGROUP}/{a,b,c,d} ${CGROUP}
+
+}
+
+ETEST_cgroup_create_destroy()
+{
+    CGROUP=cgroup_create_destroy
+
+    # Create cgroup and make sure the directories exist in each subsystem
+    cgroup_create ${CGROUP}
+    for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
+        [[ -d /sys/fs/cgroup/${subsys}/${CGROUP} ]] || die "Not created properly $(subsys CGROUP)"
+    done
+
+    cgroup_exists ${CGROUP}
+
+    # And make sure they get cleaned up
+    cgroup_destroy ${CGROUP}
+    for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
+        [[ ! -d /sys/fs/cgroup/${subsys}/${CGROUP} ]] || die "Not removed properly $(subsys CGROUP)"
+    done
+}
+
+ETEST_cgroup_create_twice()
+{
+    CGROUP=cgroup_create_twice
+    cgroup_create ${CGROUP}
+    cgroup_exists ${CGROUP}
+    cgroup_create ${CGROUP}
+    cgroup_exists ${CGROUP}
+
+    cgroup_destroy ${CGROUP}
+}
+     
 ETEST_cgroup_pids_recursive()
 {
+    CGROUP=cgroup_pids_recursive
+    cgroup_create ${CGROUP} ${CGROUP}/subgroup
     (
-        cgroup_move cgroup_pids_recursive ${BASHPID}
+        cgroup_move ${CGROUP} ${BASHPID}
         PARENT_PID=${BASHPID}
         (
-            cgroup_move cgroup_pids_recursive/subgroup ${BASHPID}
+            cgroup_move ${CGROUP}/subgroup ${BASHPID}
 
             local allPids
-            allPids=($(cgroup_pids cgroup_pids_recursive))
+            allPids=($(cgroup_pids ${CGROUP}))
 
             einfo BASHPID=${BASHPID} $(lval allPids PARENT_PID)
 
@@ -27,10 +72,14 @@ ETEST_cgroup_pids_recursive()
             assert_true array_contains allPids ${PARENT_PID}
         )
     )
+    cgroup_destroy -r ${CGROUP}
 }
 
 ETEST_cgroup_move_multiple_pids_at_once()
 {
+    CGROUP=cgroup_move_multiple_pids_at_once 
+    cgroup_create ${CGROUP}
+
     local PIDS=()
     sleep infinity &
     PIDS+=($!)
@@ -38,21 +87,22 @@ ETEST_cgroup_move_multiple_pids_at_once()
     PIDS+=($!)
 
     einfo "Started sleep processes $(lval PIDS)"
-    cgroup_move cgroup_move_multiple_pids_at_once "${PIDS[@]}"
+    cgroup_move ${CGROUP} "${PIDS[@]}"
 
     local foundPids
-    foundPids=($(cgroup_pids cgroup_move_multiple_pids_at_once))
+    foundPids=($(cgroup_pids ${CGROUP}))
     for pid in "${PIDS[@]}" ; do
         assert_true array_contains foundPids ${pid}
     done
 
 
-    cgroup_kill cgroup_move_multiple_pids_at_once
+    cgroup_kill ${CGROUP}
 }
 
 ETEST_cgroup_pids_except()
 {
     CGROUP=cgroup_pids_except
+    cgroup_create ${CGROUP}
     (
         cgroup_move ${CGROUP} ${BASHPID}
 
@@ -61,19 +111,27 @@ ETEST_cgroup_pids_except()
         ewarn "${pid} found: $(lval found_pids)"
         assert_false array_contains found_pids "${pid}"
     )
+    cgroup_destroy ${CGROUP}
 }
 
 ETEST_cgroup_move_ignores_empties()
 {
-    # Adding an empty string to the tasks file in the cgroup filesystem would
-    # typically blow up.  cgroup_move intentionally skips empty strings to make
-    # life a bit easier.
-    cgroup_move cgroup_move_ignores_empties "" ${BASHPID} ""
+    CGROUP=cgroup_move_ignores_empties
+    cgroup_create ${CGROUP}
+    (
+        # Adding an empty string to the tasks file in the cgroup filesystem would
+        # typically blow up.  cgroup_move intentionally skips empty strings to make
+        # life a bit easier.
+        cgroup_move ${CGROUP} "" ${BASHPID} ""
+    )
+    cgroup_kill_and_wait ${CGROUP}
+    cgroup_destroy ${CGROUP}
 }
 
 ETEST_cgroup_pids_checks_all_subsystems()
 {
     local CGROUP=cgroup_pids_checks_all_subsystems
+    cgroup_create ${CGROUP}
 
     # Create a process in the cgroup
     sleep infinity&
@@ -92,13 +150,15 @@ ETEST_cgroup_pids_checks_all_subsystems()
 
     assert_true array_contains foundPids ${pid}
 
-    cgroup_kill ${CGROUP}
+    cgroup_kill_and_wait ${CGROUP}
+    cgroup_destroy ${CGROUP}
 
 }
 
 ETEST_cgroup_kill_excepts_current_process()
 {
     local CGROUP=cgroup_kill_excepts_current_process
+    cgroup_create ${CGROUP}
 
     #einfo "Waiting for stale processes"
     #cgroup_kill_and_wait ${CGROUP}
@@ -116,6 +176,7 @@ ETEST_cgroup_kill_excepts_current_process()
     )
 
     [[ $? -eq 0 ]] || die "Subshell should not have been killed by cgroup_kill, but it was."
+    cgroup_destroy ${CGROUP}
 }
 
 ETEST_cgroup_functions_like_empty_cgroups()
@@ -129,11 +190,14 @@ ETEST_cgroup_functions_like_empty_cgroups()
 
     cgroup_kill ${CGROUP}
     cgroup_kill_and_wait ${CGROUP}
+
+    cgroup_destroy ${CGROUP}
 }
 
 ETEST_cgroup_functions_blow_up_on_nonexistent_cgroups()
 {
     local CGROUP=cgroup_functions_blow_up_on_nonexistent_cgroups
+    cgroup_create ${CGROUP}
 
     local funcs=(cgroup_pids cgroup_kill cgroup_kill_and_wait)
 
@@ -151,6 +215,6 @@ ETEST_cgroup_functions_blow_up_on_nonexistent_cgroups()
             :
         }
     done
-
+    cgroup_destroy ${CGROUP}
 }
 

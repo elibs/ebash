@@ -35,6 +35,73 @@ source ${BASHUTILS}/efuncs.sh || { echo "Failed to find efuncs.sh" ; exit 1; }
 CGROUP_SUBSYSTEMS=(cpu memory freezer)
 
 #-------------------------------------------------------------------------------
+# Prior to using a cgroup, you must create it.  It is safe to attempt to
+# "create" a cgroup that already exists.
+#
+cgroup_create()
+{
+    for cgroup in "${@}" ; do
+
+        for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
+            local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
+            mkdir -p ${subsys_path}
+        done
+
+    done
+}
+
+
+#-------------------------------------------------------------------------------
+# If you want to get rid of a cgroup, you can do so by calling cgroup_destroy.
+#
+# NOTE: It is an error to try to destroy a cgroup that contains any processes
+# or any child cgroups.  You can use cgroup_kill_and_wait to ensure that they
+# are if you like.
+#
+# Options:
+#   -r: Destroy cgroup as well as all of its children.
+#
+cgroup_destroy()
+{
+    $(declare_args)
+
+    for cgroup in "${@}" ; do
+
+        for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
+
+            local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
+
+            if opt_true "r" ; then
+                find ${subsys_path} -depth -type d -exec rmdir {} \;
+            else
+                rmdir ${subsys_path}
+            fi
+
+        done
+
+    done
+}
+
+
+#-------------------------------------------------------------------------------
+# Returns true if all specified cgroups exist.  In other words, they have been
+# created via cgroup_create but have not yet been removed with cgroup_destroy)
+#
+cgroup_exists()
+{
+    for cgroup in "${@}" ; do
+
+        if [[ ! -d /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${cgroup} ]] ; then
+            edebug "Didn't detect $(lval CGROUP CGROUP_SUBSYSTEMS)"
+            return 1
+        fi
+
+    done
+    return 0
+}
+
+
+#-------------------------------------------------------------------------------
 # Move one or more processes to a specific cgroup.  Once added, all (future)
 # children of that process will also automatically go into that cgroup.
 #
@@ -55,7 +122,6 @@ CGROUP_SUBSYSTEMS=(cpu memory freezer)
 cgroup_move()
 {
     $(declare_args cgroup)
-    cgroup_create ${cgroup}
 
     local pids=( "${@}" )
 
@@ -85,7 +151,6 @@ cgroup_move()
 cgroup_set()
 {
     $(declare_args cgroup setting value)
-    cgroup_create ${cgroup}
 
     echo "${value}" > $(cgroup_find_setting_file ${cgroup} ${setting})
 }
@@ -125,7 +190,7 @@ cgroup_pids()
     local all_pids ignorepids file files
 
     array_init ignorepids "$(opt_get x)"
-    array_init files "$(find "${subsystem_paths[@]}" -name tasks)"
+    array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks)"
     [[ $(array_size files) -gt 0 ]] || die "Unable to find cgroup ${cgroup}"
     
     for subsystem_file in "${files[@]}" ; do
@@ -225,7 +290,6 @@ cgroup_kill_and_wait()
 {
     $(declare_args cgroup)
     edebug "Ensuring that there are no processes in ${cgroup}."
-    cgroup_create "${cgroup}"
 
     # Don't need to add $$ and $BASHPID to ignorepids here because cgroup_kill
     # will do that for me
@@ -262,17 +326,4 @@ cgroup_find_setting_file()
     ls /sys/fs/cgroup/*/${cgroup}/${setting}
 }
 
-# This function is mostly internal.  Other cgroups functions use it to create
-# the cgroup hierarchy on demand.
-cgroup_create()
-{
-    for cgroup in "${@}" ; do
-
-        for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
-            local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
-            mkdir -p ${subsys_path}
-        done
-
-    done
-}
 
