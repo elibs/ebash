@@ -47,29 +47,33 @@ chroot_prompt()
     # If no name given use basename of CHROOT
     : ${name:=CHROOT-$(basename ${CHROOT})}
 
-    # Determine what shell to generate chroot prompt for
-    local shell shellrc shellrc_prompt
-    shell="$(opt_get s)"
-    : ${shell:=${SHELL}}
-    shellrc="${HOME}/.$(basename ${shell})rc"
-    shellrc_prompt="${shellrc}.prompt"
+    mkdir -p ${CHROOT}/${HOME}
 
-    # Check if already sourcing promptrc
-    grep -q "${shellrc_prompt}" ${CHROOT}${shellrc} && { edebug "Already sourcing promptrc in ${shellrc}"; return 0; }
-
-    edebug "Creating chroot_prompt $(lval shell shellrc shellrc_prompt)"
-
-    # ZSH just HAS to be different
-    if [[ ${shell} =~ zsh ]]; then
-        echo "prompt off"
-        echo "PS1=\"%F{green}%n@%M %F{blue}%d%f\\n\$ \""
+    # Prompt for zsh
+    (
+        echo "PS1=\"%F{green}%n@%M %F{blue}%d%f"$'\n'"\$ \""
         echo "PS1=\"%F{red}[${name}]%f \$PS1\""
-    else
+    ) > ${CHROOT}/${HOME}/.zshrc.prompt
+
+    # Prompt for bash
+    (
         echo "PS1=\"\[$(ecolor green)\]\u@\h \[$(ecolor blue)\]\w$(ecolor none)\\n\$ \""
         echo "PS1=\"\[$(ecolor red)\][${name}] \$PS1\""
-    fi > ${CHROOT}${shellrc_prompt}
+    ) > ${CHROOT}/${HOME}/.bashrc.prompt
 
-    echo ". ${shellrc_prompt}" >> ${CHROOT}${shellrc}
+    local shellrc
+    for shellrc in .zshrc .bashrc ; do
+
+        local shellrc_prompt=${HOME}/${shellrc}.prompt
+        local prompt_source_cmd=". ${shellrc_prompt}"
+
+        # Append the source command to the shellrc if it doesn't already have it
+        if ! grep -qF "${prompt_source_cmd}" ${CHROOT}/${HOME}/${shellrc} ; then
+            echo "${prompt_source_cmd}" >> ${CHROOT}/${HOME}/${shellrc}
+        else
+            edebug "Already sourcing promptrc in ${shellrc}"
+        fi
+    done
 }
 
 chroot_shell()
