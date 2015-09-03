@@ -77,6 +77,23 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
         && fail "Ambiguous return statements"
 
+    # Catch silent errors that are swallowed by using local variable assignment.
+    #
+    # For example, consider the following:
+    # local var=$(false)
+    #
+    # The error caused by 'false' is silently MASKED because the value of the
+    # complete bash expression 'local var=$(false)' is success even though the
+    # subexpression $(false) resulted in falure. This is because the return value
+    # from the bash builtin 'local' is always success.
+    #
+    # 'help local' tells us this:
+    # Exit Status:
+    # Returns success unless an invalid option is supplied, a variable
+    # assignment error occurs, or the shell is not executing a function.
+    echo "${CONTENTS}" | grep -P '^\s*local.*=[("]\s*\$\(' \
+        && fail "Local variable assignment with subshell silently masks errors"
+
     [[ ${FAILURES} -eq ${FAILURES_PRE} ]] && eend 0
 
 done
