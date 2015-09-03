@@ -23,7 +23,8 @@ jenkins_internal()
 {
     $(declare_args)
 
-    local filename=$(opt_get f)
+    local filename
+    filename=$(opt_get f)
     [[ -z ${filename} ]] && java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}" \
                          || java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}" < "${filename}"
 }
@@ -31,7 +32,8 @@ jenkins_internal()
 jenkins()
 {
     if [[ -z ${JENKINS_CLI_JAR:=} || ! -r ${JENKINS_CLI_JAR} ]] ; then
-        local tempDir=$(mktemp -d /tmp/jenkins.sh.tmp-XXXXXXXX)
+        local tempDir
+        tempDir=$(mktemp -d /tmp/jenkins.sh.tmp-XXXXXXXX)
         efetch "$(jenkins_url)/jnlpJars/jenkins-cli.jar" "${tempDir}" 2> $(edebug_out)
         export JENKINS_CLI_JAR="${tempDir}/jenkins-cli.jar"
         edebug "Downloaded jenkins-cli.jar: $(ls -l ${JENKINS_CLI_JAR})"
@@ -77,8 +79,9 @@ jenkins_update()
 
     [[ -r "${scriptTemplate}" ]] || scriptTemplate=""
     [[ -n ${scriptTemplate} ]] && scriptFile=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_script_XXXX")
-    local newConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_XXXX")
-    local oldConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_old_XXXX")
+    local newConfig oldConfig
+    newConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_XXXX")
+    oldConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_old_XXXX")
     trap_add "rm -rf ${scriptFile} ${newConfig} ${oldConfig}" EXIT
 
     # Expand parameters in the script (if one was found), and place its
@@ -94,9 +97,8 @@ jenkins_update()
 
     # Look to see if the item already exists on jenkins, with minimal retries
     # so we don't have to wait forever for new jobs
-    local out=/dev/null ; edebug_enabled && out=/dev/stderr
     local foundExisting=0
-    JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>${out} || foundExisting=$?
+    JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>$(edebug_out) || foundExisting=$?
 
     # If the request timed out OR if it timed out and then didn't respond to
     # requests so it got kill -9ed
@@ -153,12 +155,13 @@ jenkins_start_build()
         args+="-d ${arg}=${BUILD_ARGS[$arg]} "
     done
 
-    local url="$(jenkins_url)/job/${JENKINS_JOB}/buildWithParameters"
+    local url
+    url=="$(jenkins_url)/job/${JENKINS_JOB}/buildWithParameters"
 
     local rc
     local queueUrl
 
-    queueUrl=$(curl --silent --data-urlencode -H ${args} ${url} --include | awk '$1 == "Location:" {print $2}' | tr -d '\r') && rc=0 || rc=$? 
+    queueUrl=$(curl --fail --silent --data-urlencode -H ${args} ${url} --include | awk '$1 == "Location:" {print $2}' | tr -d '\r') && rc=0 || rc=$? 
     
     [[ ${rc} == 0 ]] && echo "${queueUrl}api/json"
 }
@@ -175,7 +178,7 @@ jenkins_get_build_number()
     $(declare_args queueUrl)
     local number rc
 
-    number=$(curl --silent ${queueUrl} | jq -M ".executable.number") && rc=0 || rc=$?
+    number=$(curl --fail --silent ${queueUrl} | jq -M ".executable.number") && rc=0 || rc=$?
 
     [[ ${rc} == 0 && ${number} != "null" ]] && echo "${number}"
 }
@@ -220,7 +223,7 @@ jenkins_build_json()
     url=$(jenkins_build_url ${buildNum} json)
     [[ -n ${tree} ]] && treeparm="-d tree=$tree"
 
-    json=$(curl --silent ${treeparm} ${url}) && rc=0 || rc=$?
+    json=$(curl --fail --silent ${treeparm} ${url}) && rc=0 || rc=$?
     
     [[ ${rc} -ne 0 ]] && { edebug "Error reading json on build for ${JENKINS_JOB} #${BUILD_NUMBER}" ; return 1 ; }
     [[ ${rc} -eq 0 ]] && echo "${json}"
@@ -296,7 +299,7 @@ jenkins_get_artifact()
     $(declare_args buildNum artifact)
     argcheck JENKINS_JOB
 
-    curl --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}"
+    curl --fail --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}"
 }
 
 #
@@ -310,14 +313,15 @@ jenkins_cancel_queue_jobs()
     # fact that not all items in the .actions array have .parameters[] in them.
     # But I only care about the ones that do and I can't figure out how to
     # nicely tell jq to skip them.
-    local ids=$(curl --silent $(jenkins_url)/queue/api/json \
+    local ids
+    ids=$(curl --fail --silent $(jenkins_url)/queue/api/json \
                     | jq '.items[] | select( .actions[].parameters[].value == "'${dtest_title}'" and .actions[].parameters[].name == "DTEST_TITLE")' 2> $(edebug_out) \
                     | jq .id \
                     | sed 's/"//g' || true)
 
     edebug "Killing jenkins queued items $(lval ids)"
     for id in ${ids} ; do
-        curl --data "id=${id}" $(jenkins_url)/queue/cancelItem
+        curl --fail --data "id=${id}" $(jenkins_url)/queue/cancelItem || true
     done
 }
 
@@ -327,7 +331,7 @@ jenkins_stop_build()
     : ${job:=${JENKINS_JOB}}
 
     edebug "Stopping jenkins build ${job}/${buildNum} on ${JENKINS}."
-    curl -X POST --silent "$(jenkins_url)/job/${job}/${buildNum}/stop"
+    curl --fail -X POST --silent "$(jenkins_url)/job/${job}/${buildNum}/stop"
 }
 
 #
@@ -342,7 +346,7 @@ jenkins_stop_build_by_url()
     $(declare_args buildUrl)
 
     edebug $(lval buildUrl)
-    curl -X POST --silent "${buildUrl}/stop"
+    curl --fail -X POST --silent "${buildUrl}/stop"
 }
 
 #
@@ -355,7 +359,7 @@ jenkins_cancel_running_jobs()
 
     argcheck DTEST_TITLE JENKINS_JOB
 
-    curl --silent $(jenkins_url)/job/${JENKINS_JOB}/api/json
+    curl --fail --silent $(jenkins_url)/job/${JENKINS_JOB}/api/json
 }
 
 ################################################################################
@@ -372,7 +376,8 @@ jenkins_cancel_running_jobs()
 jenkins_list_slaves()
 {
     # Create a temporary file to hold the groovy script.
-    local groovy_script=$(mktemp /tmp/jenkins_list_slaves-XXXXXXXX.groovy)
+    local groovy_script
+    groovy_script=$(mktemp /tmp/jenkins_list_slaves-XXXXXXXX.groovy)
     trap_add "edebug \"Deleting ${groovy_script}.\" ; rm -rf \"${groovy_script}\"" EXIT HUP INT QUIT BUS PIPE
    
     cat > ${groovy_script} <<-ENDGROOVY
@@ -400,7 +405,7 @@ jenkins_slave_status()
     argcheck JENKINS_SLAVE_NAME JENKINS_URL
 
     local offline rc
-    offline=$(curl --silent -d tree=offline ${JENKINS_URL}/computer/${JENKINS_SLAVE_NAME}/api/json \
+    offline=$(curl --fail --silent -d tree=offline ${JENKINS_URL}/computer/${JENKINS_SLAVE_NAME}/api/json \
                  | jq --raw-output .offline 2> /dev/null) && rc=0 || rc=$?
 
     # Assume offline if we were unable to get the slave's status
@@ -470,7 +475,7 @@ jenkins_read_file()
 {
     $(declare_args file)
 
-    curl --silent $(jenkins_file_url ${file})
+    curl --fail --silent $(jenkins_file_url ${file})
 }
 
 ################################################################################

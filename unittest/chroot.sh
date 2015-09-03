@@ -46,7 +46,8 @@ ETEST_chroot_create()
 
 ETEST_chroot_readlink()
 {
-    local real=$(chroot_readlink /var/run)
+    local real
+    real=$(chroot_readlink /var/run)
     assert_eq "${CHROOT}/run" "${real}"
 }
 
@@ -65,7 +66,8 @@ ETEST_chroot_daemon_start()
     local chroot_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-r=${respawns}" "-c=daemon_callback" )
     chroot_daemon_start "${chroot_args[@]}" "${exe}"
     test_wait ${wait_time}
-    local count=$(cat "${DAEMON_OUTPUT}" | wc -l)
+    local count
+    count=$(cat "${DAEMON_OUTPUT}" | wc -l)
     einfo "$(lval count)"
     [[ ${count} -ge $(( ${respawns} / 2 )) ]] || die "$(lval count) -ge $(( ${respawns} / 2 )) evaluated to false"
     chroot_daemon_stop "${chroot_args[@]}" "${exe}"
@@ -94,7 +96,8 @@ ETEST_chroot_daemon_stop()
     assert_true chroot_daemon_status "${chroot_args[@]}" "${DAEMON_EXE}"
     chroot_daemon_stop "${chroot_args[@]}" "${DAEMON_EXE}"
     [[ ! -e ${DAEMON_PIDFILE} ]] || die "$(lval DAEMON_PIDFILE) exists when it shouldn't!"
-    local count=$(cat "${DAEMON_OUTPUT}" | wc -l)
+    local count
+    count=$(cat "${DAEMON_OUTPUT}" | wc -l)
     einfo "$(lval count)"
     assert_eq ${count} 1
     rm -f "${DAEMON_OUTPUT}"
