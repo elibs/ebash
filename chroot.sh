@@ -6,7 +6,7 @@
 #-----------------------------------------------------------------------------
 # PULL IN DEPENDENT PACKAGES
 #-----------------------------------------------------------------------------
-source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
+source ${BASHUTILS}/efuncs.sh  || { echo "Failed to find efuncs.sh" ; exit 1; }
 $(esource ${BASHUTILS}/dpkg.sh)
 
 #-----------------------------------------------------------------------------
@@ -181,7 +181,7 @@ chroot_apt_clean()
 chroot_install_with_apt_get()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "Installing $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "apt-get -f -qq -y --force-yes install $*"
@@ -199,7 +199,7 @@ chroot_install_check()
 chroot_install()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "Installing $@"
 
@@ -241,7 +241,7 @@ chroot_install()
 chroot_uninstall()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "Uninstalling $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge $*"
@@ -250,7 +250,7 @@ chroot_uninstall()
 chroot_dpkg()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "dpkg $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*"
@@ -259,7 +259,7 @@ chroot_dpkg()
 chroot_apt()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "${CHROOT_APT} $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*"
@@ -649,9 +649,10 @@ chroot_daemon_status()
     return 0
 }
 
-#/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
-# MKCHROOT
-#/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
+# Create an UBUNTU based CHROOT using debootstrap. It will first try to fetch
+# a pre-built CHROOT tarball and unpack it. If this fails internal validation 
+# or is unavailable, then it will fallback to creating a fresh CHROOT via
+# debootstrap. 
 mkchroot()
 {
     $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
@@ -663,9 +664,7 @@ mkchroot()
     ## Setup chroot
     mkdir -p ${CHROOT}
 
-    #-----------------------------------------------------------------------------
-    # DEBOOTSTRAP IMAGE
-    #-----------------------------------------------------------------------------
+    # Debootstrap image
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
     einfo "Creating $(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
 
@@ -674,14 +673,14 @@ mkchroot()
     local GPG_FLAG="--no-check-gpg"
     [[ ${LSB_RELEASE} == "lucid" ]] && GPG_FLAG=""
 
-    # Try to download to /var/distbox/downloads if it exists. If it doesn't then fallback to /tmp
+    # Try to download to /var/distbox/downloads if it exists. If not fallback to /tmp
     local dst="/tmp"
     [[ -d "/var/distbox" ]] && dst="/var/distbox/downloads"
     mkdir -p "${dst}"
 
     try
     {
-        efetch_with_md5 "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
+        efetch -m "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${dst}/${CHROOT_IMAGE}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
     }
     catch

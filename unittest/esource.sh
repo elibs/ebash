@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_esource_multiple_files()
 {
     echo "A=1" > s1.sh

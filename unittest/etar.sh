@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Call etar with various extensions that all map to some variation of 
 # bzip. Ensure etar doesn't blow up and that we can extract it afterwards.
 ETEST_etar_auto_bzip()

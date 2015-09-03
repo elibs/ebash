@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_ensure_trap_enabled_by_default()
 {
     # Simple sanity test to ensure the default setup in efuncs enables

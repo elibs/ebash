@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 FAIL_TIMES=0
 fail_then_pass()
 {
