@@ -475,7 +475,8 @@ ebanner()
         echo -e "|" >&2
 
         # Sort the keys and store into an array
-        local keys=( $(for key in ${!__details[@]}; do echo "${key}"; done | sort) )
+        local keys
+        keys=( $(for key in ${!__details[@]}; do echo "${key}"; done | sort) )
 
         # Figure out the longest key
         local longest=0
@@ -1780,8 +1781,9 @@ declare_args()
     # if particular flags were passed in or not.
     # NOTE: We always declare the _options pack in the caller's environment so code
     #       doesn't have to handle any error cases where it's not defined.
-    local _declare_args_caller=( $(caller 0) )
-    local _declare_args_options="_${_declare_args_caller[1]}_options"
+    local _declare_args_caller _declare_args_options
+    _declare_args_caller=( $(caller 0) )
+    _declare_args_options="_${_declare_args_caller[1]}_options"
     _declare_args_cmd+="declare ${_declare_args_options}='';"
     if [[ ${_declare_args_parse_options} -eq 1 ]]; then
         _declare_args_cmd+="
@@ -1816,21 +1818,24 @@ declare_args()
 # Helper method to print the options after calling declare_args.
 opt_print()
 {
-    local _caller=( $(caller 0) )
+    local _caller
+    _caller=( $(caller 0) )
     pack_print _${_caller[1]}_options
 }
 
 # Helper method to be used after declare_args to check if a given option is true (1).
 opt_true()
 {
-    local _caller=( $(caller 0) )
+    local _caller
+    _caller=( $(caller 0) )
     [[ $(pack_get _${_caller[1]}_options ${1}) -eq 1 ]]
 }
 
 # Helper method to be used after declare_args to check if a given option is false (0).
 opt_false()
 {
-    local _caller=( $(caller 0) )
+    local _caller
+    _caller=( $(caller 0) )
     [[ $(pack_get _${_caller[1]}_options ${1}) -eq 0 ]]
 }
 
@@ -2207,7 +2212,8 @@ setvars()
 
     # Check if anything is left over and return correct return value accordingly.
     if grep -qs "__\S\+__" "${filename}"; then
-        local -a notset=( $(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ') )
+        local notset=()
+        notset=( $(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ') )
         [[ ${SETVARS_WARN:-1}  -eq 1 ]] && ewarn "Failed to set all variables in $(lval filename notset)"
         return 1
     fi
