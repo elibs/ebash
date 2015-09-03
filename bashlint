@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+: ${BASHUTILS:=$(dirname $0)}
+source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
+
+# Options:
+# -p Pretend mode - don't die on errors
+$(declare_args -g)
+opt_true "p" && fail="eerror" || fail="die"
+
+# Paths to recursively parse
+PATHS=( ${@:-.} )
+
+# Analyze all the requested bash scripts in the specified directories and pass
+# them through bash -n mode which asks bash to make sure the syntax looks okay
+# without actually running anything. Additionally, perform several additional
+# strictness checks that we have found to be sources of really subtle problems.
+# Also checks some stylistic issues for consistent coding.
+
+eprogress "Validating all requested bash scripts in $(lval PATHS)"
+for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
+    [[ ${fname: -4} == ".swp" ]] && continue
+    
+    edebug "Validating $(lval fname)"
+    bash -n ${fname}
+
+    # Never do any further parsing on our own file since they would all 
+    # be false positives
+    [[ ${fname} == "$0" ]] && continue
+
+    # Ensure none of the scripts are using non-versioned /usr/local/share/bashutils
+    egrep --silent "(:|)/usr/local/share/bashutils(:|/|\"|$)" ${fname} \
+        && ${fail} "${fname} is using non-versioned bashutils"
+
+    # Consistent bash source quoting
+    egrep --silent '^(source|esource) "' ${fname} \
+        && ${fail} "${fname} is quoting sourced files"
+
+    # Ensure proper $(esource ...)
+    grep -P --silent '(^|[^$][^(])\s*esource\b' ${fname} \
+        && ${fail} "${fname} is using deprecated esource syntax"
+    
+    # Ensure not using removed declare_globals or delcare_exports
+    egrep --silent '(declare_globals|declare_exports)' ${fname} \
+        && ${fail} "${fname} is using removed declare_globals|declare_exports functions"
+
+    # Ensure not using deprecated 'eval $(declare_args'....
+    egrep --silent 'eval "?\$\(declare_args' ${fname} \
+        && ${fail} "${fname} is using deprecated declare_args syntax"
+
+    # Don't allow using removed legacy IFS bashutils functions
+    egrep --silent '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' ${fname} \
+        && ${fail} "${fname} is using non-existent deprecated ifs_* functions"
+
+    # Ensure we don't have any sloppy 'return' statements which don't specify what
+    # return code to use. Because this usually returns the prior return code which
+    # is generally not what is intended and causes 'set -e' problems.
+    #egrep --silent '([^#])*return(\s*;|$)' ${fname} \
+    #    && ${fail} "${fname} has ambiguous return statements"
+done
+eprogress_kill

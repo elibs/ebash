@@ -6,7 +6,7 @@
 #-----------------------------------------------------------------------------
 # PULL IN DEPENDENT PACKAGES
 #-----------------------------------------------------------------------------
-source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
+source ${BASHUTILS}/efuncs.sh  || { echo "Failed to find efuncs.sh" ; exit 1; }
 $(esource ${BASHUTILS}/dpkg.sh)
 
 #-----------------------------------------------------------------------------
@@ -175,7 +175,7 @@ chroot_apt_clean()
 chroot_install_with_apt_get()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "Installing $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "apt-get -f -qq -y --force-yes install $*"
@@ -193,7 +193,7 @@ chroot_install_check()
 chroot_install()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "Installing $@"
 
@@ -234,7 +234,7 @@ chroot_install()
 chroot_uninstall()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "Uninstalling $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge $*"
@@ -243,7 +243,7 @@ chroot_uninstall()
 chroot_dpkg()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "dpkg $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*"
@@ -252,7 +252,7 @@ chroot_dpkg()
 chroot_apt()
 {
     argcheck CHROOT
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     einfos "${CHROOT_APT} $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*"
