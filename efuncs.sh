@@ -1350,11 +1350,11 @@ emd5sum_check()
 #
 # Options:
 #
-# -P=PathToPrivateKey:  In addition to above checksums also output Base64 encoded
+# -p=PathToPrivateKey:  In addition to above checksums also output Base64 encoded
 #    PGPSignature. The reason it is Base64 encoded is to properly deal with the
 #    required header and footers before the actual signature body.
 #
-# -p=phrase: Optional passphrase for the PGP Private Key
+# -k=keyphrase: Optional keyphrase for the PGP Private Key
 echecksum()
 {
     $(declare_args path)
@@ -1371,7 +1371,7 @@ echecksum()
 
     # If PGP signature is NOT requested we can simply return
     local privatekey=""
-    privatekey=$(opt_get P)
+    privatekey=$(opt_get p)
     [[ -n ${privatekey} ]] || return 0
 
     # Import that into temporary secret keyring
@@ -1381,14 +1381,14 @@ echecksum()
     trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
     gpg --quiet ${keyring_command} --import ${privatekey}
 
-    # Get optional passphrase
-    local passphrase="" passphrase_command=""
-    passphrase=$(opt_get p)
-    [[ -z ${passphrase} ]] || passphrase_command="--batch --passphrase ${passphrase}"
+    # Get optional keyphrase
+    local keyphrase="" keyphrase_command=""
+    keyphrase=$(opt_get k)
+    [[ -z ${keyphrase} ]] || keyphrase_command="--batch --passphrase ${keyphrase}"
 
     # Output PGPSignature encoded in base64
     echo "PGPKey=$(basename ${privatekey})"
-    echo "PGPSignature=$(gpg --quiet --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${passphrase_command} --output - ${path} | base64 --wrap 0)"
+    echo "PGPSignature=$(gpg --quiet --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} | base64 --wrap 0)"
 }
 
 # Validate an exiting source file against a companion *.meta file which contains
@@ -1401,7 +1401,7 @@ echecksum()
 #
 # Options:
 # -q=(0|1) Quiet mode (default=0)
-# -P=PathToPublicKey: Use provided PGP Public Key for PGP validation (if PGPSignature
+# -p=PathToPublicKey: Use provided PGP Public Key for PGP validation (if PGPSignature
 #                     is present in .meta file).
 echecksum_check()
 {
@@ -1445,7 +1445,7 @@ echecksum_check()
         done
 
         # If Public Key was provied and PGPSignature is present validate PGP signature
-        publickey=$(opt_get P)
+        publickey=$(opt_get p)
         pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
         if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
           
