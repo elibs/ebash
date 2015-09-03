@@ -2,7 +2,7 @@
 
 # Copyright 2015, SolidFire, Inc. All rights reserved.
 
-source "${BASHUTILS}/efuncs.sh"   || { echo "Failed to find efuncs.sh" ; exit 1; }
+source ${BASHUTILS}/efuncs.sh || { echo "Failed to find efuncs.sh" ; exit 1; }
 
 #-------------------------------------------------------------------------------
 # Cgroups are a capability of the linux kernel designed for categorizing

@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 assert_exists()
 {
     for name in $@; do

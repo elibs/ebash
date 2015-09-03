@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+
+: ${BASHUTILS:=$(dirname $0)}
+source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
+
+# Options:
+# -q Quiet mode: Send all output to edebug.
+$(declare_args -g)
+opt_true "q" && exec &>$(edebug_out)
+
+# Paths to recursively parse
+PATHS=( ${@:-.} )
+
+# Helper function to display a failure and increment our failure count
+FAILURES=0
+fail()
+{
+    echo -e "$(emsg 'red' '   -' 'ERROR' "$@")" >&2
+    eend 1 
+    FAILURES+=1
+}
+
+# Analyze all the requested bash scripts in the specified directories and pass
+# them through bash -n mode which asks bash to make sure the syntax looks okay
+# without actually running anything. Additionally, perform several additional
+# strictness checks that we have found to be sources of really subtle problems.
+# Also checks some stylistic issues for consistent coding.
+ebanner "Validating bash scripts" PATHS
+for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
+    [[ ${fname: -4} == ".swp" ]] && continue
+ 
+    FAILURES_PRE=${FAILURES}
+
+    einfo "${fname}"
+    bash -n ${fname}
+
+    # Never do any further parsing on our own file since they would all 
+    # be false positives
+    [[ ${fname} == "$0" ]] && continue
+
+    # Read file into variable so we can do a little preprocessing on it before
+    # passing it into the various grep commands below to strip out particular
+    # patterns which would otherwise cause false positives.
+    CONTENTS=$(cat ${fname}              \
+        | grep -vP '^\s*#'               \
+        | grep -vP '#\s*BASHLINT_IGNORE' \
+        | grep -vP '^\s*function \w+'    \
+        | grep -vP '^\s*\w+\s*\(\)\s*$')
+    
+    # Ensure none of the scripts are using non-versioned /usr/local/share/bashutils
+    echo "${CONTENTS}" | egrep "(:|)/usr/local/share/bashutils(:|/|\"|$)" \
+        && fail "Non-versioned bashutils"
+
+    # Consistent bash source quoting
+    echo "${CONTENTS}" | egrep '^(source|esource) "' \
+        && fail "Quoting sourced files"
+
+    # Ensure proper $(esource ...)
+    echo "${CONTENTS}" | grep -P '^\s*esource\b' \
+        && fail "Deprecated esource syntax"
+    
+    # Ensure not using removed declare_globals or delcare_exports
+    echo "${CONTENTS}" | egrep '(declare_globals|declare_exports)' \
+        && fail "Using removed declare_globals|declare_exports functions"
+
+    # Ensure not using deprecated 'eval $(declare_args'....
+    echo "${CONTENTS}" | egrep 'eval "?\$\(declare_args' \
+        && fail "Using deprecated declare_args syntax"
+
+    # Don't allow using removed legacy IFS bashutils functions
+    echo "${CONTENTS}" | egrep '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
+        && fail "Using non-existent deprecated ifs_* functions"
+
+    # Ensure we don't have any sloppy 'return' statements which don't specify what
+    # return code to use. Because this usually returns the prior return code which
+    # is generally not what is intended and causes 'set -e' problems.
+    echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
+        && fail "Ambiguous return statements"
+
+    # Catch silent errors that are swallowed by using local variable assignment.
+    #
+    # For example, consider the following:
+    # local var=$(false)
+    #
+    # The error caused by 'false' is silently MASKED because the value of the
+    # complete bash expression 'local var=$(false)' is success even though the
+    # subexpression $(false) resulted in falure. This is because the return value
+    # from the bash builtin 'local' is always success.
+    #
+    # 'help local' tells us this:
+    # Exit Status:
+    # Returns success unless an invalid option is supplied, a variable
+    # assignment error occurs, or the shell is not executing a function.
+    echo "${CONTENTS}" | grep -P '^\s*local.*=[("]\s*\$\(' \
+        && fail "Local variable assignment with subshell silently masks errors"
+
+    [[ ${FAILURES} -eq ${FAILURES_PRE} ]] && eend 0
+
+done
+
+exit ${FAILURES}

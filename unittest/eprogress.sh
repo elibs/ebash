@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 TICK_FILE=${TEST_DIR_OUTPUT}/ticks
 
 # Fake EPROGRESS function body to use in some of the tests which

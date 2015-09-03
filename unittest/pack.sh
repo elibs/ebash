@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_pack_one()
 {
     pack_set P a=alpha

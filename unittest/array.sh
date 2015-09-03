@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_array_empty()
 {
     array_init arr "" "\n"

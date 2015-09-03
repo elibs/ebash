@@ -475,7 +475,8 @@ ebanner()
         echo -e "|" >&2
 
         # Sort the keys and store into an array
-        local keys=( $(for key in ${!__details[@]}; do echo "${key}"; done | sort) )
+        local keys
+        keys=( $(for key in ${!__details[@]}; do echo "${key}"; done | sort) )
 
         # Figure out the longest key
         local longest=0
@@ -747,7 +748,7 @@ do_eprogress()
             echo -n "." >&2
             sleep 1
         done
-        return
+        return 0
     fi
 
     # Sentinal for breaking out of the loop on signal from eprogress_kill
@@ -776,7 +777,7 @@ do_eprogress()
 
         # If we're terminating delete whatever character was lost displayed and print a blank space over it
         # then return immediately instead of resetting for next loop
-        [[ ${done} -eq 1 ]] && { echo -en "\b " >&2; return; }
+        [[ ${done} -eq 1 ]] && { echo -en "\b " >&2; return 0; }
 
         echo -en "\b\b\b\b\b\b\b\b\b\b\b\b\b" >&2
     done
@@ -788,7 +789,7 @@ eprogress()
     echo -en "$(emsg 'green' '>>' 'INFO' "$@")" >&2
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
-    [[ ${EPROGRESS:-1} -eq 0 ]] && return
+    [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
 
     ## Prepend this new eprogress pid to the front of our list of eprogress PIDs
     do_eprogress &
@@ -805,7 +806,7 @@ eprogress_kill()
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
         einteractive && echo "" >&2
         eend ${rc}
-        return
+        return 0
     fi
 
     # Get the most recent pid
@@ -950,13 +951,13 @@ ekilltree()
 print_value()
 {
     local __input=${1:-}
-    [[ -z ${__input} ]] && return
+    [[ -z ${__input} ]] && return 0
 
     # Special handling for packs, as long as their name is specified with a
     # plus character in front of it
     if [[ "${__input:0:1}" == '+' ]] ; then
         pack_print "${__input:1}"
-        return
+        return 0
     fi
 
     local decl
@@ -1202,7 +1203,7 @@ export_network_interface_names()
 # the caller's envionment as in $(esource ...).
 esource()
 {
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     local cmd=""
     for file in "${@}" ; do
@@ -1363,6 +1364,136 @@ emd5sum_check()
     pushd "${dname}"
     md5sum -c "${fname}.md5" >$(edebug_out)
     popd
+}
+
+# Output checksum information for the given file to STDOUT. Specifically output
+# the following:
+#
+# Filename=foo
+# MD5=864ec6157c1eea88acfef44d0f34d219
+# Size=2192793069
+# SHA1=75490a32967169452c10c937784163126c4e9753
+# SHA256=8297aefe5bb7319ab5827169fce2e664fe9cd7b88c9b31c40658ab55fcae3bfe
+#
+# Options:
+#
+# -p=PathToPrivateKey:  In addition to above checksums also output Base64 encoded
+#    PGPSignature. The reason it is Base64 encoded is to properly deal with the
+#    required header and footers before the actual signature body.
+#
+# -k=keyphrase: Optional keyphrase for the PGP Private Key
+echecksum()
+{
+    $(declare_args path)
+    [[ -e ${path} ]] || die "${path} does not exist"
+
+    echo "Filename=$(basename ${path})"
+    echo "Size=$(stat --printf="%s" "${path}")"
+
+    # Now output MD5, SHA1, and SHA256
+    local ctype
+    for ctype in MD5 SHA1 SHA256; do
+        echo "${ctype}=$(${ctype,,}sum "${path}" | awk '{print $1}')"
+    done
+
+    # If PGP signature is NOT requested we can simply return
+    local privatekey=""
+    privatekey=$(opt_get p)
+    [[ -n ${privatekey} ]] || return 0
+
+    # Import that into temporary secret keyring
+    local keyring="" keyring_command=""
+    keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
+    keyring_command="--no-default-keyring --secret-keyring ${keyring}"
+    trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
+    gpg --quiet ${keyring_command} --import ${privatekey}
+
+    # Get optional keyphrase
+    local keyphrase="" keyphrase_command=""
+    keyphrase=$(opt_get k)
+    [[ -z ${keyphrase} ]] || keyphrase_command="--batch --passphrase ${keyphrase}"
+
+    # Output PGPSignature encoded in base64
+    echo "PGPKey=$(basename ${privatekey})"
+    echo "PGPSignature=$(gpg --quiet --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} | base64 --wrap 0)"
+}
+
+# Validate an exiting source file against a companion *.meta file which contains
+# various checksum fields. The list of checksums is optional but at present the
+# supported fields we inspect are: Filename, Size, MD5, SHA1, SHA256, PGPSignature.
+# 
+# For each of the above fields, if they are present in the .meta file, validate 
+# it against the source file. If any of them fail this function returns non-zero.
+# If NO validators are present in the info file, this function returns non-zero.
+#
+# Options:
+# -q=(0|1) Quiet mode (default=0)
+# -p=PathToPublicKey: Use provided PGP Public Key for PGP validation (if PGPSignature
+#                     is present in .meta file).
+echecksum_check()
+{
+    $(declare_args path)
+    local meta="${path}.meta"
+    [[ -e ${path} ]] || die "${path} does not exist"
+    [[ -e ${meta} ]] || die "${meta} does not exist"
+
+    # If we're in quiet mode send all STDOUT and STDERR to edebug
+    local redirect=""
+    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
+
+    {
+        local metapack="" validated=() expect="" actual="" ctype="" publickey="" keyring="" pgpsignature=""
+        
+        einfo "Verifying integrity of $(lval path meta)"
+        pack_set metapack $(cat "${meta}")
+        pack_print metapack &>$(edebug_out)
+
+        if pack_contains metapack "Size"; then
+            
+            einfos "Size"
+            expect=$(pack_get metapack Size)
+            actual=$(stat --printf="%s" "${path}")
+            [[ ${expect} -eq ${actual} ]] || { ewarn "Size mismatch: $(lval path expect actual)"; return 1; }
+            validated+=( "Size" )
+            eend
+        fi
+
+        # Now validated MD5, SHA1, and SHA256 (if present)
+        for ctype in MD5 SHA1 SHA256; do
+            if pack_contains metapack "${ctype}"; then
+                
+                einfos "${ctype}"
+                expect=$(pack_get metapack ${ctype})
+                actual=$(${ctype,,}sum ${path} | awk '{print $1}')
+                [[ ${expect} == ${actual} ]] || { ewarn "${ctype} mismatch: $(lval path expect actual)"; return 2; }
+                validated+=( ${ctype} )
+                eend
+            fi
+        done
+
+        # If Public Key was provied and PGPSignature is present validate PGP signature
+        publickey=$(opt_get p)
+        pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
+        if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
+          
+            einfos "PGPSignature"
+
+            # Import PGP Public Key
+            keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
+            trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
+            gpg --quiet --no-default-keyring --secret-keyring ${keyring} --import ${publickey}
+
+            # Now we can validate the signature
+            echo "${pgpsignature}" | gpg --verify - "${path}" || { ewarn "PGP signature verification failure: $(lval path)"; return 3; }
+            validated+=( "PGPSignature" )
+            
+            eend
+        fi
+
+        # If we didn't validate anything then that's an error
+        ! array_empty validated || { ewarn "Failed to validate $(lval path)"; return 4; }
+
+    } &>${redirect}
 }
 
 #-----------------------------------------------------------------------------
@@ -1650,8 +1781,9 @@ declare_args()
     # if particular flags were passed in or not.
     # NOTE: We always declare the _options pack in the caller's environment so code
     #       doesn't have to handle any error cases where it's not defined.
-    local _declare_args_caller=( $(caller 0) )
-    local _declare_args_options="_${_declare_args_caller[1]}_options"
+    local _declare_args_caller _declare_args_options
+    _declare_args_caller=( $(caller 0) )
+    _declare_args_options="_${_declare_args_caller[1]}_options"
     _declare_args_cmd+="declare ${_declare_args_options}='';"
     if [[ ${_declare_args_parse_options} -eq 1 ]]; then
         _declare_args_cmd+="
@@ -1686,21 +1818,24 @@ declare_args()
 # Helper method to print the options after calling declare_args.
 opt_print()
 {
-    local _caller=( $(caller 0) )
+    local _caller
+    _caller=( $(caller 0) )
     pack_print _${_caller[1]}_options
 }
 
 # Helper method to be used after declare_args to check if a given option is true (1).
 opt_true()
 {
-    local _caller=( $(caller 0) )
+    local _caller
+    _caller=( $(caller 0) )
     [[ $(pack_get _${_caller[1]}_options ${1}) -eq 1 ]]
 }
 
 # Helper method to be used after declare_args to check if a given option is false (0).
 opt_false()
 {
-    local _caller=( $(caller 0) )
+    local _caller
+    _caller=( $(caller 0) )
     [[ $(pack_get _${_caller[1]}_options ${1}) -eq 0 ]]
 }
 
@@ -1769,62 +1904,96 @@ numcores()
     echo $(cat /proc/cpuinfo | grep "processor" | wc -l)
 }
 
-efetch()
+# Internal only efetch function which fetches an individual file using curl.
+# This will show an eprogress ticker and then kill the ticker with either
+# success or failure indicated. The return value is then returned to the
+# caller for handling.
+efetch_internal()
 {
-    $(declare_args url ?dst)
-    [[ -z ${dst} ]] && dst="/tmp"
-    [[ -d ${dst} ]] && dst+="/$(basename ${url})"
-
+    $(declare_args url dst)
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
+    local rc=0
     eprogress "Fetching $(lval url dst)"
-    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure
-    eprogress_kill
+    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure && rc=0 || rc=$?
+    eprogress_kill ${rc}
+
+    return ${rc}
 }
 
-efetch_with_md5()
+# Fetch a provided URL to an optional destination path via efetch_internal. 
+# This function can also optionally validate the fetched data against various
+# companion files which contain metadata for file fetching. If validation is
+# requested and the validation fails then all temporary files fetched are
+# removed.
+#
+# Options:
+# -m=(0|1) Fetch companion .md5 file and validate fetched file's MD5 matches.
+# -M=(0|1) Fetch companion .meta file and validate metadata fields using echecksum_check.
+# -q=(0|1) Quiet mode (disable eprogress and other info messages)
+efetch()
 {
     $(declare_args url ?dst)
-    [[ -z ${dst} ]] && dst="/tmp"
+    : ${dst:=/tmp}
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
+    
+    # Companion files we may fetch
     local md5="${dst}.md5"
+    local meta="${dst}.meta"
 
-    # Fetch the md5 before the payload as we don't need to bother fetching payload if md5 is missing
+    # If we're in quiet mode send all STDOUT and STDERR to edebug
+    local redirect=""
+    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
+
     try
     {
-        efetch "${url}.md5" "${md5}"
-        efetch "${url}"     "${dst}"
+        ## If requested, fetch MD5 file
+        if opt_true "m"; then
 
-        # Verify MD5 -- DELETE any corrupted images
-        einfos "Verifying MD5 $(lval dst md5)"
+            efetch_internal "${url}.md5" "${md5}"
+            efetch_internal "${url}"     "${dst}"
 
-        local dst_dname dst_fname md5_dname md5_fname
-        dst_dname=$(dirname  "${dst}")
-        dst_fname=$(basename "${dst}")
-        md5_dname=$(dirname  "${md5}")
-        md5_fname=$(basename "${md5}")
+            # Verify MD5
+            einfos "Verifying MD5 $(lval dst md5)"
 
-        cd "${dst_dname}"
+            local dst_dname dst_fname md5_dname md5_fname
+            dst_dname=$(dirname  "${dst}")
+            dst_fname=$(basename "${dst}")
+            md5_dname=$(dirname  "${md5}")
+            md5_fname=$(basename "${md5}")
 
-        # If the requested destination was different than what was originally in the MD5 it will fail.
-        # Or if the md5sum file was generated with a different path in it it will fail. This just
-        # sanititizes it to have the current working directory and the name of the file we downloaded to.
-        sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${dst_fname}|" "${md5_fname}"
+            cd "${dst_dname}"
 
-        # Now we can perform the check
-        md5sum --check "${md5_fname}" >/dev/null
-    }
+            # If the requested destination was different than what was originally in the MD5 it will fail.
+            # Or if the md5sum file was generated with a different path in it it will fail. This just
+            # sanititizes it to have the current working directory and the name of the file we downloaded to.
+            sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${dst_fname}|" "${md5_fname}"
+
+            # Now we can perform the check
+            md5sum --check "${md5_fname}" >/dev/null
+
+        ## If requested fetch *.meta file and validate using contained fields
+        elif opt_true "M"; then
+
+            efetch_internal "${url}.meta" "${meta}"
+            efetch_internal "${url}"      "${dst}"
+            echecksum_check "${dst}"
+        
+        ## BASIC file fetching only
+        else
+            efetch_internal "${url}" "${dst}"
+        fi
+    } &>${redirect}
     catch
     {
         local rc=$?
-        edebug "Removing $(lval dst md5)"
-        rm -rf "${dst}"
-        rm -rf "${md5}"
+        edebug "Removing $(lval dst md5 meta rc)"
+        rm -rf "${dst}" "${md5}" "${meta}"
         return ${rc}
     }
 
-    einfos "Successfully downloaded $(lval url dst)"
+    einfos "Successfully fetched $(lval url dst)" &>${redirect}
 }
 
 netselect()
@@ -2043,7 +2212,8 @@ setvars()
 
     # Check if anything is left over and return correct return value accordingly.
     if grep -qs "__\S\+__" "${filename}"; then
-        local -a notset=( $(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ') )
+        local notset=()
+        notset=( $(grep -o '__\S\+__' ${filename} | sort --unique | tr '\n' ' ') )
         [[ ${SETVARS_WARN:-1}  -eq 1 ]] && ewarn "Failed to set all variables in $(lval filename notset)"
         return 1
     fi
@@ -2119,7 +2289,7 @@ array_add()
     $(declare_args __array ?__string ?__delim)
 
     # If nothing was provided to split on just return immediately
-    [[ -z ${__string} ]] && return
+    [[ -z ${__string} ]] && return 0
 
     # Default bash IFS is space, tab, newline, so this will default to that
     : ${__delim:=$' \t\n'}
@@ -2147,7 +2317,7 @@ array_remove()
 
     # Simply bail if the array is not set, because bash doesn't really save
     # arrays with no members.  For instance A=() unsets array A...
-    [[ -v ${__array} ]] || { edebug "array_remove skipping empty array $(lval __array)" ; return ; }
+    [[ -v ${__array} ]] || { edebug "array_remove skipping empty array $(lval __array)" ; return 0; }
 
     # Remove all instances or only the first?
     local remove_all
