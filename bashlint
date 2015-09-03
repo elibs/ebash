@@ -55,7 +55,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     # Ensure we don't have any sloppy 'return' statements which don't specify what
     # return code to use. Because this usually returns the prior return code which
     # is generally not what is intended and causes 'set -e' problems.
-    #egrep --silent '([^#])*return(\s*;|$)' ${fname} \
-    #    && ${fail} "${fname} has ambiguous return statements"
+    egrep --silent 'return(\s*;|$)' ${fname} \
+        && ${fail} "${fname} has ambiguous return statements"
 done
 eprogress_kill
