@@ -17,7 +17,7 @@ fail()
 {
     echo -e "$(emsg 'red' '   -' 'ERROR' "$@")" >&2
     eend 1 
-    FAILURES+=1
+    (( FAILURES+=1 ))
 }
 
 # Analyze all the requested bash scripts in the specified directories and pass
