@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_setvars_basic()
 {
     local file="setvars_basic.txt"

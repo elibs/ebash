@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_DECLARE_ARGS_OPTIONAL=1
 
 do_declare_args()

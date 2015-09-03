@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 
 ETEST_etest_no_cross_contamination_A()
 {

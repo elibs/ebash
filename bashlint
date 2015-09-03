@@ -25,7 +25,7 @@ fail()
 # without actually running anything. Additionally, perform several additional
 # strictness checks that we have found to be sources of really subtle problems.
 # Also checks some stylistic issues for consistent coding.
-ebanner "Validating all requested bash scripts" PATHS
+ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     [[ ${fname: -4} == ".swp" ]] && continue
  

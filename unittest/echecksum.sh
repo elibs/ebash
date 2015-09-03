@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_checksum_basic()
 {
     echecksum ${BASH_SOURCE} > ${BASH_SOURCE}.meta

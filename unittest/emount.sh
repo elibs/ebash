@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_emount_bind()
 {
     mkdir src

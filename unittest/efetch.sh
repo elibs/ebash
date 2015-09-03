@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_efetch_md5_bogus()
 {
     local tmpfile=$(mktemp /tmp/etest-efetch-XXXX)
