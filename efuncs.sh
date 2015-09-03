@@ -736,7 +736,7 @@ do_eprogress()
             echo -n "." >&2
             sleep 1
         done
-        return
+        return 0
     fi
 
     # Sentinal for breaking out of the loop on signal from eprogress_kill
@@ -763,7 +763,7 @@ do_eprogress()
 
         # If we're terminating delete whatever character was lost displayed and print a blank space over it
         # then return immediately instead of resetting for next loop
-        [[ ${done} -eq 1 ]] && { echo -en "\b " >&2; return; }
+        [[ ${done} -eq 1 ]] && { echo -en "\b " >&2; return 0; }
 
         echo -en "\b\b\b\b\b\b\b\b\b\b\b\b\b" >&2
     done
@@ -775,7 +775,7 @@ eprogress()
     echo -en "$(emsg 'green' '>>' 'INFO' "$@")" >&2
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
-    [[ ${EPROGRESS:-1} -eq 0 ]] && return
+    [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
 
     ## Prepend this new eprogress pid to the front of our list of eprogress PIDs
     do_eprogress &
@@ -792,7 +792,7 @@ eprogress_kill()
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
         einteractive && echo "" >&2
         eend ${rc}
-        return
+        return 0
     fi
 
     # Get the most recent pid
@@ -934,13 +934,13 @@ ekilltree()
 print_value()
 {
     local __input=${1:-}
-    [[ -z ${__input} ]] && return
+    [[ -z ${__input} ]] && return 0
 
     # Special handling for packs, as long as their name is specified with a
     # plus character in front of it
     if [[ "${__input:0:1}" == '+' ]] ; then
         pack_print "${__input:1}"
-        return
+        return 0
     fi
 
     local decl=$(declare -p ${__input} 2>/dev/null || true)
@@ -1180,7 +1180,7 @@ export_network_interface_names()
 # the caller's envionment as in $(esource ...).
 esource()
 {
-    [[ $# -eq 0 ]] && return
+    [[ $# -eq 0 ]] && return 0
 
     local cmd=""
     for file in "${@}" ; do
@@ -2244,7 +2244,7 @@ array_add()
     $(declare_args __array ?__string ?__delim)
 
     # If nothing was provided to split on just return immediately
-    [[ -z ${__string} ]] && return
+    [[ -z ${__string} ]] && return 0
 
     # Default bash IFS is space, tab, newline, so this will default to that
     : ${__delim:=$' \t\n'}
@@ -2272,7 +2272,7 @@ array_remove()
 
     # Simply bail if the array is not set, because bash doesn't really save
     # arrays with no members.  For instance A=() unsets array A...
-    [[ -v ${__array} ]] || { edebug "array_remove skipping empty array $(lval __array)" ; return ; }
+    [[ -v ${__array} ]] || { edebug "array_remove skipping empty array $(lval __array)" ; return 0; }
 
     # Remove all instances or only the first?
     local remove_all=$(opt_get a 0)
