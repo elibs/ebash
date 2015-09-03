@@ -41,11 +41,11 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     # Read file into variable so we can do a little preprocessing on it before
     # passing it into the various grep commands below to strip out particular
     # patterns which would otherwise cause false positives.
-    CONTENTS=$(cat ${fname}
-                | grep -vP '^\s*#' 
-                | grep -vP '#\s*BASHLINT_IGNORE' 
-                | grep -vP '^\s*function \w+' 
-                | grep -vP '^\s*\w+\s*\(\)\s*$')
+    CONTENTS=$(cat ${fname}              \
+        | grep -vP '^\s*#'               \
+        | grep -vP '#\s*BASHLINT_IGNORE' \
+        | grep -vP '^\s*function \w+'    \
+        | grep -vP '^\s*\w+\s*\(\)\s*$')
     
     # Ensure none of the scripts are using non-versioned /usr/local/share/bashutils
     echo "${CONTENTS}" | egrep "(:|)/usr/local/share/bashutils(:|/|\"|$)" \
