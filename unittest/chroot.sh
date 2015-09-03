@@ -5,7 +5,7 @@ $(esource chroot.sh)
 CHROOT_MASTER=${TEST_DIR_OUTPUT}/chroot_master
 CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
 
-DAEMON_EXE="yes >/dev/null"
+DAEMON_EXE="sleep infinity"
 DAEMON_PIDFILE=/tmp/chroot_test.pid
 DAEMON_OUTPUT="${CHROOT}/daemon_out.txt"
 
@@ -70,8 +70,7 @@ ETEST_chroot_daemon_start()
     count=$(cat "${DAEMON_OUTPUT}" | wc -l)
     einfo "$(lval count)"
     [[ ${count} -ge $(( ${respawns} / 2 )) ]] || die "$(lval count) -ge $(( ${respawns} / 2 )) evaluated to false"
-    chroot_daemon_stop "${chroot_args[@]}" "${exe}"
-    rm -f "${DAEMON_OUTPUT}"
+    rm -f "${DAEMON_OUTPUT}" "${DAEMON_PIDFILE}"
 
     chroot_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-c=daemon_callback" )
     einfo "Starting an exit daemon that will respawn the default number (20) times"
@@ -80,8 +79,7 @@ ETEST_chroot_daemon_start()
     count=$(cat "${DAEMON_OUTPUT}" | wc -l)
     einfo "$(lval count)"
     [[ ${count} -ge 10 ]] || die "$(lval count) -ge 10 evaluated to false."
-    chroot_daemon_stop "${chroot_args[@]}" "${exe}"
-    rm -f "${DAEMON_OUTPUT}"
+    rm -f "${DAEMON_OUTPUT}" "${DAEMON_PIDFILE}"
 }
 
 ETEST_chroot_daemon_stop()
