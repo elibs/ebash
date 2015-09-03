@@ -1933,7 +1933,7 @@ efetch()
             # Now we can perform the check
             md5sum --check "${md5_fname}" >/dev/null
 
-        ## If requested fetch *.info file and validate using contained fields
+        ## If requested fetch *.meta file and validate using contained fields
         elif opt_true "M"; then
 
             efetch_internal "${url}.meta" "${meta}"
