@@ -2,14 +2,6 @@
 
 $(esource $(dirname $0)/cgroup.sh)
 
-################################################################################
-################################################################################
-# NOTE: Tests currently disabled because the gentoo machines that run bashutils
-# unit tests automatically do not have proper cgroups support compiled into
-# their kernels.
-################################################################################
-################################################################################
-
 ETEST_cgroup_destroy_recursive()
 {
     CGROUP=cgroup_destroy_recursive
