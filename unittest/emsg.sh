@@ -104,10 +104,12 @@ ETEST_COLORS=(
 
 ETEST_ecolor_chart()
 {
-    local pad=$(printf '%0.1s' " "{1..60})
-    local padlength=20
+    local pad padlength line c
 
-    local line=0
+    pad=$(printf '%0.1s' " "{1..60})
+    padlength=20
+    line=0
+    
     for c in ${ETEST_COLORS[@]}; do
         printf "%s%*.*s" "$(ecolor $c)${c}$(ecolor none)" 0 $((padlength - ${#c} )) "${pad}"
         (( ++line % 8 == 0 )) && printf "\n" || true

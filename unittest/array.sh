@@ -242,31 +242,31 @@ ETEST_array_add_different_delim_noresplit()
 
 ETEST_array_join()
 {
-    local input="a b c d"
+    local input="a b c d" output=""
     array_init arr "${input}"
     declare -p arr
 
-    local output=$(array_join arr)
+    output=$(array_join arr)
     assert_eq "${input}" "${output}"
 }
 
 ETEST_array_join_nl()
 {
-    local input=$'a\nb\tc d  e'
+    local input=$'a\nb\tc d  e' output=""
     array_init_nl arr "${input}"
     declare -p arr
 
-    local output=$(array_join_nl arr)
+    output=$(array_join_nl arr)
     assert_eq "${input}" "${output}"
 }
 
 ETEST_array_join_custom()
 {
-    local input="a b|c d|e f"
+    local input="a b|c d|e f" output=""
     array_init arr "${input}" "|"
     declare -p arr
 
-    local output=$(array_join arr "|")
+    output=$(array_join arr "|")
     assert_eq "${input}" "${output}"
 }
 
