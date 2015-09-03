@@ -1347,6 +1347,14 @@ emd5sum_check()
 # Size=2192793069
 # SHA1=75490a32967169452c10c937784163126c4e9753
 # SHA256=8297aefe5bb7319ab5827169fce2e664fe9cd7b88c9b31c40658ab55fcae3bfe
+#
+# Options:
+#
+# -P=PathToPrivateKey:  In addition to above checksums also output Base64 encoded
+#    PGPSignature. The reason it is Base64 encoded is to properly deal with the
+#    required header and footers before the actual signature body.
+#
+# -p=phrase: Optional passphrase for the PGP Private Key
 echecksum()
 {
     $(declare_args path)
@@ -1356,51 +1364,109 @@ echecksum()
     echo "Size=$(stat --printf="%s" "${path}")"
 
     # Now output MD5, SHA1, and SHA256
-    local checksum
-    for checksum in MD5 SHA1 SHA256; do
-        echo "${checksum}=$(${checksum,,}sum "${path}" | awk '{print $1}')"
+    local ctype
+    for ctype in MD5 SHA1 SHA256; do
+        echo "${ctype}=$(${ctype,,}sum "${path}" | awk '{print $1}')"
     done
+
+    # If PGP signature is NOT requested we can simply return
+    local privatekey=""
+    privatekey=$(opt_get P)
+    [[ -n ${privatekey} ]] || return 0
+
+    # Import that into temporary secret keyring
+    local keyring="" keyring_command=""
+    keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
+    keyring_command="--no-default-keyring --secret-keyring ${keyring}"
+    trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
+    gpg --quiet ${keyring_command} --import ${privatekey}
+
+    # Get optional passphrase
+    local passphrase="" passphrase_command=""
+    passphrase=$(opt_get p)
+    [[ -z ${passphrase} ]] || passphrase_command="--batch --passphrase ${passphrase}"
+
+    # Output PGPSignature encoded in base64
+    echo "PGPKey=$(basename ${privatekey})"
+    echo "PGPSignature=$(gpg --quiet --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${passphrase_command} --output - ${path} | base64 --wrap 0)"
 }
 
-# Validate an exiting source file against a companion *.info file which contains
-# various checksum fields. Specifically: Filename, Size, MD5, SHA1, SHA256. For
-# each field which is present in the info file, validate it against the source
-# file. If any of them fail this function returns non-zero. If NO validators
-# are present in the info file, this function returns non-zero.
+# Validate an exiting source file against a companion *.meta file which contains
+# various checksum fields. The list of checksums is optional but at present the
+# supported fields we inspect are: Filename, Size, MD5, SHA1, SHA256, PGPSignature.
+# 
+# For each of the above fields, if they are present in the .meta file, validate 
+# it against the source file. If any of them fail this function returns non-zero.
+# If NO validators are present in the info file, this function returns non-zero.
+#
+# Options:
+# -q=(0|1) Quiet mode (default=0)
+# -P=PathToPublicKey: Use provided PGP Public Key for PGP validation (if PGPSignature
+#                     is present in .meta file).
 echecksum_check()
 {
     $(declare_args path)
-    local ipath=${path}.info
-    [[ -e ${path}  ]] || die "${path} does not exist"
-    [[ -e ${ipath} ]] || die "${ipath} does not exist"
+    local meta="${path}.meta"
+    [[ -e ${path} ]] || die "${path} does not exist"
+    [[ -e ${meta} ]] || die "${meta} does not exist"
 
-    einfos "Verifying Checksum INFO $(lval path)"
-    local ipack=""
-    pack_set ipack $(cat "${ipath}")
-    pack_print ipack &>$(edebug_out)
-    local validated=()
+    # If we're in quiet mode send all STDOUT and STDERR to edebug
+    local redirect=""
+    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
 
-    if pack_contains ipack "Size"; then
-        local expect=$(pack_get ipack Size)
-        local actual=$(stat --printf="%s" "${path}")
-        [[ ${expect} -eq ${actual} ]] || { ewarn "Size mismatch: $(lval path expect actual)"; return 1; }
-        validated+=( "Size" )
-    fi
+    {
+        local metapack="" validated=() expect="" actual="" ctype="" publickey="" keyring="" pgpsignature=""
+        
+        einfo "Verifying integrity of $(lval path meta)"
+        pack_set metapack $(cat "${meta}")
+        pack_print metapack &>$(edebug_out)
 
-    # Now validated MD5, SHA1, and SHA256 (if present)
-    local checksum
-    for checksum in MD5 SHA1 SHA256; do
-        if pack_contains ipack "${checksum}"; then
-            local expect=$(pack_get ipack ${checksum})
-            local actual=$(${checksum,,}sum ${path} | awk '{print $1}')
-            [[ ${expect} == ${actual} ]] || { ewarn "${checksum} mismatch: $(lval path expect actual)"; return 2; }
-            validated+=( ${checksum} )
+        if pack_contains metapack "Size"; then
+            
+            einfos "Size"
+            expect=$(pack_get metapack Size)
+            actual=$(stat --printf="%s" "${path}")
+            [[ ${expect} -eq ${actual} ]] || { ewarn "Size mismatch: $(lval path expect actual)"; return 1; }
+            validated+=( "Size" )
+            eend
         fi
-    done
 
-    # If we didn't validate anything then that's an error
-    array_empty validated && { ewarn "Failed to validate $(lval path)"; return 3; }
-    einfos "Successfully $(lval validated)"
+        # Now validated MD5, SHA1, and SHA256 (if present)
+        for ctype in MD5 SHA1 SHA256; do
+            if pack_contains metapack "${ctype}"; then
+                
+                einfos "${ctype}"
+                expect=$(pack_get metapack ${ctype})
+                actual=$(${ctype,,}sum ${path} | awk '{print $1}')
+                [[ ${expect} == ${actual} ]] || { ewarn "${ctype} mismatch: $(lval path expect actual)"; return 2; }
+                validated+=( ${ctype} )
+                eend
+            fi
+        done
+
+        # If Public Key was provied and PGPSignature is present validate PGP signature
+        publickey=$(opt_get P)
+        pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
+        if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
+          
+            einfos "PGPSignature"
+
+            # Import PGP Public Key
+            keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
+            trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
+            gpg --quiet --no-default-keyring --secret-keyring ${keyring} --import ${publickey}
+
+            # Now we can validate the signature
+            echo "${pgpsignature}" | gpg --verify - "${path}" || { ewarn "PGP signature verification failure: $(lval path)"; return 3; }
+            validated+=( "PGPSignature" )
+            
+            eend
+        fi
+
+        # If we didn't validate anything then that's an error
+        ! array_empty validated || { ewarn "Failed to validate $(lval path)"; return 4; }
+
+    } &>${redirect}
 }
 
 #-----------------------------------------------------------------------------
@@ -1805,10 +1871,7 @@ numcores()
 # caller for handling.
 efetch_internal()
 {
-    $(declare_args url ?dst)
-    [[ -z ${dst} ]] && dst="/tmp"
-    [[ -d ${dst} ]] && dst+="/$(basename ${url})"
-
+    $(declare_args url dst)
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
@@ -1827,19 +1890,22 @@ efetch_internal()
 # removed.
 #
 # Options:
-# -m Fetch companion .md5 file and validate fetched file's MD5 matches.
-# -i Fetch companion .info file and validate all metadata fields. This will 
-#    validate any of the following optional metadata fields: Size, MD5, SHA1, SHA256.
-#    Failure to validate against at least one of these fields is considered failure.
+# -m=(0|1) Fetch companion .md5 file and validate fetched file's MD5 matches.
+# -M=(0|1) Fetch companion .meta file and validate metadata fields using echecksum_check.
+# -q=(0|1) Quiet mode (disable eprogress and other info messages)
 efetch()
 {
     $(declare_args url ?dst)
-    [[ -z ${dst} ]] && dst="/tmp"
+    : ${dst:=/tmp}
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     
     # Companion files we may fetch
     local md5="${dst}.md5"
-    local ifile="${dst}.info"
+    local meta="${dst}.meta"
+
+    # If we're in quiet mode send all STDOUT and STDERR to edebug
+    local redirect=""
+    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
 
     try
     {
@@ -1868,22 +1934,26 @@ efetch()
             md5sum --check "${md5_fname}" >/dev/null
 
         ## If requested fetch *.info file and validate using contained fields
-        elif opt_true "i"; then
+        elif opt_true "M"; then
 
-            efetch_internal "${url}.info" "${ifile}"
+            efetch_internal "${url}.meta" "${meta}"
             efetch_internal "${url}"      "${dst}"
             echecksum_check "${dst}"
+        
+        ## BASIC file fetching only
+        else
+            efetch_internal "${url}" "${dst}"
         fi
-    }
+    } &>${redirect}
     catch
     {
         local rc=$?
-        edebug "Removing $(lval dst md5 ifile)"
-        rm -rf "${dst}" "${md5}" "${ifile}"
+        edebug "Removing $(lval dst md5 meta rc)"
+        rm -rf "${dst}" "${md5}" "${meta}"
         return ${rc}
     }
 
-    einfos "Successfully downloaded $(lval url dst)"
+    einfos "Successfully fetched $(lval url dst)" &>${redirect}
 }
 
 netselect()
