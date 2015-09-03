@@ -2919,6 +2919,113 @@ discard_qualifiers()
 }
 
 #-----------------------------------------------------------------------------
+# ASSERTS
+#-----------------------------------------------------------------------------
+
+# Executes a command (simply type the command after assert as if you were
+# running it without assert) and calls die if that command returns a bad exit
+# code.
+# 
+# For example:
+#    assert [[ 0 -eq 1 ]]
+#
+# There's a subtlety here that I don't think can easily be fixed given bash's
+# semantics.  All of the arguments get evaluated prior to assert ever seeing
+# them.  So it doesn't know what variables you passed in to an expression, just
+# what the expression was.  This is pretty handy in cases like this one:
+#
+#   a=1
+#   b=2
+#   assert [[ ${a} -eq ${b} ]]
+#
+# because assert will tell you that the command that it executed was 
+#
+#     [[ 1 -eq 2 ]]
+#
+# There it seems ideal.  But if you have an empty variable, things get a bit
+# annoying.  For instance, this command will blow up because inside assert bash
+# will try to evaluate [[ -z ]] without any arguments to -z.  (Note -- it still
+# blows up, just not in quite the way you'd expect)
+#
+#    empty=""
+#    assert [[ -z ${empty} ]]
+#
+# To make this particular case easier to deal with, we also have assert_empty
+# which you could use like this:
+#
+#    assert_empty empty
+#
+assert()
+{
+    local cmd
+    cmd=( "${@}" )
+    
+    eval "${cmd[@]}" || { die "assert_true failed :: ${cmd[@]}"; return 1; }
+    return 0
+}
+
+assert_true()
+{
+    assert "${@}"
+}
+
+assert_false()
+{
+    local cmd
+
+    cmd=( "${@}" )
+
+    eval "${cmd[@]}" && { die "assert_false failed :: ! $(lval cmd)"; return 1; }
+    return 0
+}
+
+assert_op()
+{
+    compare "${@}" || { die "assert_op failed :: ${@}"; return 1; }
+    return 0
+}
+
+assert_eq()
+{
+    $(declare_args ?lh ?rh)
+    [[ "${lh}" == "${rh}" ]] || { die "assert_eq failed :: $(lval lh rh)"; return 1; } 
+}
+
+assert_ne()
+{
+    $(declare_args ?lh ?rh)
+    [[ ! "${lh}" == "${rh}" ]] || { die "assert_ne failed :: $(lval lh rh)"; return 1; }
+}
+
+assert_zero()
+{
+    [[ ${1:-0} -eq 0 ]] || { die "assert_zero received $1 instead of zero." ; return 1 ; }
+}
+
+assert_not_zero()
+{
+    [[ ${1:-1} -ne 0 ]] || { die "assert_not_zero received ${1}." ; return 1 ; }
+}
+
+assert_empty()
+{
+    local _arg
+    for _arg in $@; do
+        [[ "${!_arg:-""}" == "" ]] || die "assert_empty received $(lval _arg)"
+    done
+}
+
+assert_not_empty()
+{
+    local _arg
+    for _arg in $@; do
+        [[ "${!_arg}" != "" ]] || die "assert_not_empty received $(lval _arg)"
+    done
+}
+
+
+
+#-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
 return 0
