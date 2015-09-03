@@ -15,11 +15,11 @@ ETEST_cgroup_destroy_recursive()
     CGROUP=cgroup_destroy_recursive
 
     cgroup_create ${CGROUP}/{a,b,c,d}
-    cgroup_exists ${CGROUP}/{a,b,c,d}
+    assert cgroup_exists ${CGROUP}/{a,b,c,d}
 
     cgroup_destroy -r ${CGROUP}
 
-    ! cgroup_exists ${CGROUP}/{a,b,c,d} ${CGROUP}
+    assert ! cgroup_exists ${CGROUP}/{a,b,c,d} ${CGROUP}
 
 }
 
@@ -30,7 +30,7 @@ ETEST_cgroup_create_destroy()
     # Create cgroup and make sure the directories exist in each subsystem
     cgroup_create ${CGROUP}
     for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
-        [[ -d /sys/fs/cgroup/${subsys}/${CGROUP} ]] || die "Not created properly $(subsys CGROUP)"
+        assert [[ -d /sys/fs/cgroup/${subsys}/${CGROUP} ]]
     done
 
     cgroup_exists ${CGROUP}
@@ -38,7 +38,7 @@ ETEST_cgroup_create_destroy()
     # And make sure they get cleaned up
     cgroup_destroy ${CGROUP}
     for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
-        [[ ! -d /sys/fs/cgroup/${subsys}/${CGROUP} ]] || die "Not removed properly $(subsys CGROUP)"
+        assert [[ ! -d /sys/fs/cgroup/${subsys}/${CGROUP} ]]
     done
 }
 
@@ -52,6 +52,31 @@ ETEST_cgroup_create_twice()
 
     cgroup_destroy ${CGROUP}
 }
+
+ETEST_cgroup_exists()
+{
+    CGROUP=_cgroup_exists
+
+    einfo "Checking detection of destroyed cgroup"
+    cgroup_destroy -r ${CGROUP}
+    cgroup_exists ${CGROUP} || rc=$?
+    assert [[ ${rc} -eq 1 ]]
+
+    einfo "Checking detection of created cgroup"
+    rc=0
+    cgroup_create ${CGROUP}
+    assert cgroup_exists ${CGROUP}
+
+    einfo "Generates special exit code for inconsistent cgroup"
+    rc=0
+    rmdir /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${CGROUP}
+    find /sys/fs/cgroup -name "${CGROUP}" -ls
+    cgroup_exists ${CGROUP} || rc=$?
+    assert [[ ${rc} -eq 2 ]]
+
+    cgroup_destroy ${CGROUP}
+}
+
      
 ETEST_cgroup_pids_recursive()
 {
@@ -186,7 +211,7 @@ ETEST_cgroup_functions_like_empty_cgroups()
 
     local empty
     empty=$(cgroup_pids ${CGROUP})
-    [[ -z ${empty} ]]
+    assert_empty empty
 
     cgroup_kill ${CGROUP}
     cgroup_kill_and_wait ${CGROUP}

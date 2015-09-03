@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+ETEST_array_size_zero()
+{
+    # NOTE: there is no distinction in bash between empty arrays and unset
+    # variables.  Really.
+    V=()
+
+    size=$(array_size V)
+    [[ ${size} -eq 0 ]] || die "Size was wrong $(lval size)"
+}
+
 ETEST_array_empty()
 {
     array_init arr "" "\n"
@@ -222,19 +232,19 @@ ETEST_array_add_different_delim()
 
 ETEST_array_add_different_delim_noresplit()
 {
-    array_init arr "a|b c|d"
+    array_init arr "a%b c%d"
     declare -p arr
 
-    assert_true array_contains arr "a|b"
-    assert_true array_contains arr "c|d"
+    assert_true array_contains arr "a%b"
+    assert_true array_contains arr "c%d"
     assert_eq 2 $(array_size arr)
 
     # Append more elements with a different delimiter contained in existing elements
-    array_add arr 'e|f' '|'
+    array_add arr 'e%f' '%'
     declare -p arr
 
-    assert_true array_contains arr "a|b"
-    assert_true array_contains arr "c|d"
+    assert_true array_contains arr "a%b"
+    assert_true array_contains arr "c%d"
     assert_true array_contains arr "e"
     assert_true array_contains arr "f"
     assert_eq 4 $(array_size arr)

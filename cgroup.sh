@@ -40,6 +40,7 @@ CGROUP_SUBSYSTEMS=(cpu memory freezer)
 #
 cgroup_create()
 {
+    edebug "creating cgroups ${@}"
     for cgroup in "${@}" ; do
 
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
@@ -65,11 +66,17 @@ cgroup_destroy()
 {
     $(declare_args)
 
+    local msg
+    msg="destroying cgroups ${@}"
+    opt_false r || msg+=" recursively"
+    edebug "${msg}"
+
     for cgroup in "${@}" ; do
 
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
 
             local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
+            [[ -d ${subsys_path} ]] || continue
 
             if opt_true "r" ; then
                 find ${subsys_path} -depth -type d -exec rmdir {} \;
@@ -89,15 +96,32 @@ cgroup_destroy()
 #
 cgroup_exists()
 {
-    for cgroup in "${@}" ; do
+    local all missing_cgroups cgroup subsys
+    all=("${@}")
+    missing_cgroups=()
 
-        if [[ ! -d /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${cgroup} ]] ; then
-            edebug "Didn't detect $(lval CGROUP CGROUP_SUBSYSTEMS)"
-            return 1
-        fi
+    for cgroup in "${all[@]}" ; do
+
+        for subsys in "${CGROUP_SUBSYSTEMS[@]}" ; do
+            if [[ ! -d /sys/fs/cgroup/${subsys}/${cgroup} ]] ; then
+                missing_cgroups+=("${subsys}:${cgroup}")
+            fi
+        done
 
     done
-    return 0
+
+    edebug "cgroup_exists: $(lval all cgroup missing_cgroups CGROUP_SUBSYSTEMS)"
+    if [[ $(array_size missing_cgroups) -eq $(( $(array_size CGROUP_SUBSYSTEMS) * $(array_size all) )) ]] ; then
+        edebug "Cgroup doesn't exist in any subsystems $(lval cgroup)"
+        return 1
+
+    elif [[ $(array_size missing_cgroups) -gt 0 ]] ; then
+        ewarn "Cgroup is inconsistent across subsystems $(lval cgroup CGROUP_SUBSYSTEMS, missing_subsystems)"
+        return 2
+
+    else
+        return 0
+    fi
 }
 
 
