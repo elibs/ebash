@@ -19,11 +19,11 @@ ETEST_checksum_pgp()
     efetch http://bdr-jenkins:/keys/solidfire_packaging_private.asc private.asc
     efetch http://bdr-jenkins:/keys/solidfire_packaging.phrase      phrase.txt
 
-    echecksum -P="private.asc" -p="$(cat phrase.txt)" ${BASH_SOURCE} > ${BASH_SOURCE}.meta
+    echecksum -p="private.asc" -k="$(cat phrase.txt)" ${BASH_SOURCE} > ${BASH_SOURCE}.meta
     cat ${BASH_SOURCE}.meta
     pack_set MPACK $(cat ${BASH_SOURCE}.meta)
     $(pack_import MPACK)
 
     # Now validate what we just signed using public key
-    echecksum_check -P="public.asc" ${BASH_SOURCE}
+    echecksum_check -p="public.asc" ${BASH_SOURCE}
 }
