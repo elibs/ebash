@@ -12,12 +12,13 @@ opt_true "q" && exec &>$(edebug_out)
 PATHS=( ${@:-.} )
 
 # Helper function to display a failure and increment our failure count
-FAILURES=0
+RC=0
+FAILURES=()
 fail()
 {
     echo -e "$(emsg 'red' '   -' 'ERROR' "$@")" >&2
-    eend 1 
-    (( FAILURES+=1 ))
+    eend 1
+    RC=1
 }
 
 # Analyze all the requested bash scripts in the specified directories and pass
@@ -29,8 +30,6 @@ ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     [[ ${fname: -4} == ".swp" ]] && continue
  
-    FAILURES_PRE=${FAILURES}
-
     einfo "${fname}"
     bash -n ${fname}
 
@@ -47,6 +46,9 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
         | grep -vP '^\s*function \w+'    \
         | grep -vP '^\s*\w+\s*\(\)\s*$')
     
+    # Initial error state
+    RC=0
+
     # Ensure none of the scripts are using non-versioned /usr/local/share/bashutils
     echo "${CONTENTS}" | egrep "(:|)/usr/local/share/bashutils(:|/|\"|$)" \
         && fail "Non-versioned bashutils"
@@ -91,11 +93,11 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     # Exit Status:
     # Returns success unless an invalid option is supplied, a variable
     # assignment error occurs, or the shell is not executing a function.
-    echo "${CONTENTS}" | grep -P '^\s*local.*=[("]\s*\$\(' \
+    echo "${CONTENTS}" | grep -P '^\s*local.*=[("]*\s*\$\(' \
         && fail "Local variable assignment with subshell silently masks errors"
 
-    [[ ${FAILURES} -eq ${FAILURES_PRE} ]] && eend 0
-
+    [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }
 done
 
-exit ${FAILURES}
+# Display any errors to STDERR regardless if we've redirected output
+array_empty FAILURES && exit 0 || { eerror "Bashlint detected failures in the following $(lval files=FAILURES)" &>/dev/stderr; exit ${#FAILURES[@]}; }

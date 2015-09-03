@@ -11,13 +11,14 @@ ETEST_pack_one()
 
 ETEST_pack_empty_values()
 {
+    local val
     pack_set P a= b=
 
-    local val=$(pack_get P a)
+    val=$(pack_get P a)
     assert_zero $?
     assert_empty val
 
-    local val=$(pack_get P b)
+    val=$(pack_get P b)
     assert_zero $?
     assert_empty val
 
