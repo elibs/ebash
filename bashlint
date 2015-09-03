@@ -4,24 +4,34 @@
 source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
 
 # Options:
-# -p Pretend mode - don't die on errors
+# -q Quiet mode: Send all output to edebug.
 $(declare_args -g)
-opt_true "p" && fail="eerror" || fail="die"
+opt_true "q" && exec &>$(edebug_out)
 
 # Paths to recursively parse
 PATHS=( ${@:-.} )
+
+# Helper function to display a failure and increment our failure count
+FAILURES=0
+fail()
+{
+    echo -e "$(emsg 'red' '   -' 'ERROR' "$@")" >&2
+    eend 1 
+    FAILURES+=1
+}
 
 # Analyze all the requested bash scripts in the specified directories and pass
 # them through bash -n mode which asks bash to make sure the syntax looks okay
 # without actually running anything. Additionally, perform several additional
 # strictness checks that we have found to be sources of really subtle problems.
 # Also checks some stylistic issues for consistent coding.
-
-eprogress "Validating all requested bash scripts in $(lval PATHS)"
+ebanner "Validating all requested bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     [[ ${fname: -4} == ".swp" ]] && continue
-    
-    edebug "Validating $(lval fname)"
+ 
+    FAILURES_PRE=${FAILURES}
+
+    einfo "${fname}"
     bash -n ${fname}
 
     # Never do any further parsing on our own file since they would all 
@@ -30,32 +40,36 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
 
     # Ensure none of the scripts are using non-versioned /usr/local/share/bashutils
     egrep --silent "(:|)/usr/local/share/bashutils(:|/|\"|$)" ${fname} \
-        && ${fail} "${fname} is using non-versioned bashutils"
+        && fail "Non-versioned bashutils"
 
     # Consistent bash source quoting
     egrep --silent '^(source|esource) "' ${fname} \
-        && ${fail} "${fname} is quoting sourced files"
+        && fail "Quoting sourced files"
 
     # Ensure proper $(esource ...)
     grep -P --silent '(^|[^$][^(])\s*esource\b' ${fname} \
-        && ${fail} "${fname} is using deprecated esource syntax"
+        && fail "Deprecated esource syntax"
     
     # Ensure not using removed declare_globals or delcare_exports
     egrep --silent '(declare_globals|declare_exports)' ${fname} \
-        && ${fail} "${fname} is using removed declare_globals|declare_exports functions"
+        && fail "Using removed declare_globals|declare_exports functions"
 
     # Ensure not using deprecated 'eval $(declare_args'....
     egrep --silent 'eval "?\$\(declare_args' ${fname} \
-        && ${fail} "${fname} is using deprecated declare_args syntax"
+        && fail "Using deprecated declare_args syntax"
 
     # Don't allow using removed legacy IFS bashutils functions
     egrep --silent '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' ${fname} \
-        && ${fail} "${fname} is using non-existent deprecated ifs_* functions"
+        && fail "Using non-existent deprecated ifs_* functions"
 
     # Ensure we don't have any sloppy 'return' statements which don't specify what
     # return code to use. Because this usually returns the prior return code which
     # is generally not what is intended and causes 'set -e' problems.
     egrep --silent 'return(\s*;|$)' ${fname} \
-        && ${fail} "${fname} has ambiguous return statements"
+        && fail "Ambiguous return statements"
+
+    [[ ${FAILURES} -eq ${FAILURES_PRE} ]] && eend 0
+
 done
-eprogress_kill
+
+exit ${FAILURES}
