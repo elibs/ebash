@@ -2960,8 +2960,7 @@ assert()
     local cmd
     cmd=( "${@}" )
     
-    eval "${cmd[@]}" || { die "assert_true failed :: ${cmd[@]}"; return 1; }
-    return 0
+    eval "${cmd[@]}" || die "assert_true failed :: ${cmd[@]}"
 }
 
 assert_true()
@@ -2972,39 +2971,36 @@ assert_true()
 assert_false()
 {
     local cmd
-
     cmd=( "${@}" )
 
-    eval "${cmd[@]}" && { die "assert_false failed :: ! $(lval cmd)"; return 1; }
-    return 0
+    ! eval "${cmd[@]}" || die "assert_false failed :: ! $(lval cmd)"
 }
 
 assert_op()
 {
-    compare "${@}" || { die "assert_op failed :: ${@}"; return 1; }
-    return 0
+    compare "${@}" || "assert_op failed :: ${@}"
 }
 
 assert_eq()
 {
     $(declare_args ?lh ?rh)
-    [[ "${lh}" == "${rh}" ]] || { die "assert_eq failed :: $(lval lh rh)"; return 1; } 
+    [[ "${lh}" == "${rh}" ]] || die "assert_eq failed :: $(lval lh rh)"
 }
 
 assert_ne()
 {
     $(declare_args ?lh ?rh)
-    [[ ! "${lh}" == "${rh}" ]] || { die "assert_ne failed :: $(lval lh rh)"; return 1; }
+    [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed :: $(lval lh rh)"
 }
 
 assert_zero()
 {
-    [[ ${1:-0} -eq 0 ]] || { die "assert_zero received $1 instead of zero." ; return 1 ; }
+    [[ ${1:-0} -eq 0 ]] || die "assert_zero received $1 instead of zero."
 }
 
 assert_not_zero()
 {
-    [[ ${1:-1} -ne 0 ]] || { die "assert_not_zero received ${1}." ; return 1 ; }
+    [[ ${1:-1} -ne 0 ]] || die "assert_not_zero received ${1}."
 }
 
 assert_empty()
@@ -3022,7 +3018,6 @@ assert_not_empty()
         [[ "${!_arg}" != "" ]] || die "assert_not_empty received $(lval _arg)"
     done
 }
-
 
 
 #-----------------------------------------------------------------------------
