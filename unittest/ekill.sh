@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_ekill()
 {
     # Start a simple process and ensure we can kill it

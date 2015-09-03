@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 show_text()
 {
     [[ ${TEXT:-0} -eq 1 ]] || return 0

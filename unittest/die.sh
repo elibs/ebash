@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ETEST_die_subprocesses()
 {
     local pid1_file=$(mktemp die_subprocess-XXXXXX.pid)
