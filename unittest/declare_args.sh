@@ -102,7 +102,7 @@ do_declare_args_legacy()
     local args=( ${1} ); shift
     local vals=( "${@}" )
     einfo "$(lval args vals)"
-    eval $(declare_args ${args[@]})
+    eval $(declare_args ${args[@]}) # BASHLINT_IGNORE
     
     # declare_args should be consuming positional arguments
     # This assumes none of the unit tests are passing more than

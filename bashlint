@@ -38,34 +38,43 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     # be false positives
     [[ ${fname} == "$0" ]] && continue
 
+    # Read file into variable so we can do a little preprocessing on it before
+    # passing it into the various grep commands below to strip out particular
+    # patterns which would otherwise cause false positives.
+    CONTENTS=$(cat ${fname}
+                | grep -vP '^\s*#' 
+                | grep -vP '#\s*BASHLINT_IGNORE' 
+                | grep -vP '^\s*function \w+' 
+                | grep -vP '^\s*\w+\s*\(\)\s*$')
+    
     # Ensure none of the scripts are using non-versioned /usr/local/share/bashutils
-    egrep --silent "(:|)/usr/local/share/bashutils(:|/|\"|$)" ${fname} \
+    echo "${CONTENTS}" | egrep "(:|)/usr/local/share/bashutils(:|/|\"|$)" \
         && fail "Non-versioned bashutils"
 
     # Consistent bash source quoting
-    egrep --silent '^(source|esource) "' ${fname} \
+    echo "${CONTENTS}" | egrep '^(source|esource) "' \
         && fail "Quoting sourced files"
 
     # Ensure proper $(esource ...)
-    grep -P --silent '(^|[^$][^(])\s*esource\b' ${fname} \
+    echo "${CONTENTS}" | grep -P '^\s*esource\b' \
         && fail "Deprecated esource syntax"
     
     # Ensure not using removed declare_globals or delcare_exports
-    egrep --silent '(declare_globals|declare_exports)' ${fname} \
+    echo "${CONTENTS}" | egrep '(declare_globals|declare_exports)' \
         && fail "Using removed declare_globals|declare_exports functions"
 
     # Ensure not using deprecated 'eval $(declare_args'....
-    egrep --silent 'eval "?\$\(declare_args' ${fname} \
+    echo "${CONTENTS}" | egrep 'eval "?\$\(declare_args' \
         && fail "Using deprecated declare_args syntax"
 
     # Don't allow using removed legacy IFS bashutils functions
-    egrep --silent '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' ${fname} \
+    echo "${CONTENTS}" | egrep '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
         && fail "Using non-existent deprecated ifs_* functions"
 
     # Ensure we don't have any sloppy 'return' statements which don't specify what
     # return code to use. Because this usually returns the prior return code which
     # is generally not what is intended and causes 'set -e' problems.
-    egrep --silent 'return(\s*;|$)' ${fname} \
+    echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
         && fail "Ambiguous return statements"
 
     [[ ${FAILURES} -eq ${FAILURES_PRE} ]] && eend 0
