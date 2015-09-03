@@ -38,7 +38,7 @@ ETEST_efetch_md5_missing_md5()
 ETEST_efetch_md5_missing_file()
 {
     local tmpfile
-    tmpfile$(mktemp /tmp/etest-efetch-XXXX.md5)
+    tmpfile=$(mktemp /tmp/etest-efetch-XXXX.md5)
 
     # efetch should fail and both files should get removed
     ! efetch -m file://${tmpfile%%.md5} copy.txt
