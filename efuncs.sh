@@ -1406,7 +1406,7 @@ echecksum()
     keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
     trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
-    gpg --quiet ${keyring_command} --import ${privatekey}
+    gpg ${keyring_command} --import ${privatekey} &>$(edebug_out)
 
     # Get optional keyphrase
     local keyphrase="" keyphrase_command=""
@@ -1415,7 +1415,7 @@ echecksum()
 
     # Output PGPSignature encoded in base64
     echo "PGPKey=$(basename ${privatekey})"
-    echo "PGPSignature=$(gpg --quiet --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} | base64 --wrap 0)"
+    echo "PGPSignature=$(gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>$(edebug_out) | base64 --wrap 0)"
 }
 
 # Validate an exiting source file against a companion *.meta file which contains
@@ -1481,10 +1481,10 @@ echecksum_check()
             # Import PGP Public Key
             keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
             trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
-            gpg --quiet --no-default-keyring --secret-keyring ${keyring} --import ${publickey}
+            gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} &>$(edebug_out)
 
             # Now we can validate the signature
-            echo "${pgpsignature}" | gpg --verify - "${path}" || { ewarn "PGP signature verification failure: $(lval path)"; return 3; }
+            echo "${pgpsignature}" | gpg --verify - "${path}" &>$(edebug_out) || { ewarn "PGP signature verification failure: $(lval path)"; return 3; }
             validated+=( "PGPSignature" )
             
             eend
