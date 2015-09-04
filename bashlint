@@ -93,7 +93,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     # Exit Status:
     # Returns success unless an invalid option is supplied, a variable
     # assignment error occurs, or the shell is not executing a function.
-    echo "${CONTENTS}" | grep -P '^\s*local.*=[("]*\s*\$\(' \
+    echo "${CONTENTS}" | grep -P '^\s*(local|declare)\s.*=[("]*\s*\$\(' \
         && fail "Local variable assignment with subshell silently masks errors"
 
     [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }
