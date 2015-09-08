@@ -97,3 +97,20 @@ ETEST_detect_var_types()
     is_associative_array   +P && die
     is_pack                +P || die
 }
+
+# Ensure local variable assignments don't mask errors. Specifically things of this form:
+# 'local x=$(false)' need to still trigger fatal error handling.
+ETEST_local_variables_masking_errors()
+{
+    try
+    {
+        local foo=$(false)
+        die "local variable assignment should have thrown"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "try block should have thrown"
+}
