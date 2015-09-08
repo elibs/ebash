@@ -2,36 +2,22 @@
 
 ETEST_die_subprocesses()
 {
-    local pid1_file pid2_file pid1 pid2
-
-    pid1_file=$(mktemp die_subprocess-XXXXXX.pid)
-    pid2_file=$(mktemp die_subprocess-XXXXXX.pid)
-
-    einfo "Starting two subprocesses"
     try
     {
-        yes &>/dev/null &
-        echo "$!" > ${pid1_file}
-        einfos "pid1=$(cat ${pid1_file})"
-
-        yes &>/dev/null &
-        echo "$!" > ${pid2_file}
-        einfos "pid2=$(cat ${pid1_file})"
+        # Create a bunch of background processes
+        sleep infinity& echo "$!" >> pids
+        yes >/dev/null& echo "$!" >> pids
+        bash -c 'sleep 1000' & echo "$!" >> pids
+        bash -c 'sleep 4000' & echo "$!" >> pids
 
         die
     }
     catch
     {
-        einfo "Called die inside try/catch block"
+        true
     }
 
-    # Verify processes were both killed
-    pid1=$(cat ${pid1_file})
-    pid2=$(cat ${pid2_file})
-
-    einfo "Ensuring processes were killed"
-    kill -0 ${pid1} && die "Process should have been killed $(lval pid1)"
-    kill -0 ${pid2} && die "Process should have been killed $(lval pid2)"
-
-    return 0
+    for pid in $(cat pids); do
+        eretry -t=2s process_not_running ${pid} || die "${pid} failed to get killed by die"
+    done
 }

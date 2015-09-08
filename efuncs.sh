@@ -99,9 +99,12 @@ alias try="
     __EFUNCS_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
     (
+        __EFUNCS_DIE_ON_ERROR_PID=\${BASHPID}
+        override_function die ' { eerror_stacktrace -f=3 \"\${@}\" &>\$(edebug_out) ; ekilltree -s=SIGKILL \${__EFUNCS_DIE_ON_ERROR_PID}; exit \${__EFUNCS_DIE_ON_ERROR_RC:-1}; }'
+
         enable_trace
         die_on_abort
-        trap '__EFUNCS_DIE_ON_ERROR_RC=\$? ; eerror_stacktrace \"exception caught\" &>\$(edebug_out) ; exit \$__EFUNCS_DIE_ON_ERROR_RC' ERR
+        trap '__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -216,11 +219,8 @@ die()
     # die itself.
     eerror_stacktrace -f=3 "${@}"
 
-    # Now kill our entire process tree with SIGKILL.
-    # NOTE: Use BASHPID so that we kill our current instance of bash.
-    # This is different than $$ only if we're in a subshell.
-    ekilltree -s=SIGKILL $$
-    exit 1
+    # Kill all processes in the process group of the caller.
+    kill -9 0
 }
 
 # appends a command to a trap
@@ -1893,8 +1893,8 @@ override_function()
     actual="$(declare -pf ${func} 2>/dev/null || true)"
     [[ ${expected} == ${actual} ]] && return 0 || true
 
-    eval "${expected}"
-    eval "declare -rf ${func}"
+    eval "${expected}" &>/dev/null
+    eval "declare -rf ${func}" &>/dev/null
 }
 
 numcores()
