@@ -193,10 +193,14 @@ cgroup_get()
 }
 
 #-------------------------------------------------------------------------------
-# Recursively find all of the pids that live underneath a specified portion of
-# the cgorups hierarchy.
+# Recursively find all of the pids that live underneath a set of sections in
+# the cgorups hierarchy.  You may specify as many different cgroups as you
+# like, and the processes in those cgroups AND THEIR CHILDREN will be echoed to
+# stdout.
 #
-# $1: Name of the cgroup (e.g. flintstones/barney or distbox/sshd)
+# Cgroup_pids will return success as long as all of the specified cgroups
+# exist, and failure if they do not (but it will still echo pids for any
+# cgroups that _do_ exist)
 #
 # Options:
 #       -x=space separated list of pids not to return -- default is to return
@@ -204,35 +208,44 @@ cgroup_get()
 #
 cgroup_pids()
 {
-    $(declare_args cgroup)
+    $(declare_args)
 
-    local subsystem_paths=()
-    for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
-        subsystem_paths+=("/sys/fs/cgroup/${subsystem}/${cgroup}")
-    done
-
-    local all_pids ignorepids file files
+    local cgroups cgroup ignorepids all_pids rc
+    cgroups=( ${@} )
+    rc=0
 
     array_init ignorepids "$(opt_get x)"
-    array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks)"
-    [[ $(array_size files) -gt 0 ]] || die "Unable to find cgroup ${cgroup}"
-    
-    for subsystem_file in "${files[@]}" ; do
-        local subsystem_pids
 
-        # NOTE: It's very important to not create another process while reading
-        # the tasks file, because if your process is running in the cgroup
-        # being checked, its pid will be there during this command but
-        # disappear before it returns
-        #
-        # It is also safe to ignore failures here, because these files are set
-        # up by the kernel.  Read fails if the file is empty, but that is a
-        # perfectly valid situation to be in. It just means the cgroup is
-        # empty.  And we shouldn't see other failures because we "trust" the
-        # kernel
-        readarray -t subsystem_pids < "${subsystem_file}"
+    for cgroup in "${cgroups[@]}" ; do
 
-        array_empty subsystem_pids || all_pids+=( "${subsystem_pids[@]}" )
+        local subsystem_paths=()
+        for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
+            subsystem_paths+=("/sys/fs/cgroup/${subsystem}/${cgroup}")
+        done
+
+        local file files
+
+        array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks)"
+        [[ $(array_size files) -gt 0 ]] || { edebug "cgroup_pids is unable to find cgroup ${cgroup}" ; (( rc += 1 )) ; continue ; }
+        
+        for subsystem_file in "${files[@]}" ; do
+            local subsystem_pids
+
+            # NOTE: It's very important to not create another process while reading
+            # the tasks file, because if your process is running in the cgroup
+            # being checked, its pid will be there during this command but
+            # disappear before it returns
+            #
+            # It is also safe to ignore failures here, because these files are set
+            # up by the kernel.  Read fails if the file is empty, but that is a
+            # perfectly valid situation to be in. It just means the cgroup is
+            # empty.  And we shouldn't see other failures because we "trust" the
+            # kernel
+            readarray -t subsystem_pids < "${subsystem_file}"
+
+            array_empty subsystem_pids || all_pids+=( "${subsystem_pids[@]}" )
+        done
+
     done
 
     array_sort -u all_pids
@@ -260,10 +273,9 @@ cgroup_ps()
 }
 
 #-------------------------------------------------------------------------------
-# Recursively KILL (or send a signal to) all of the pids that live underneath a
-# specified portion of the cgorups hierarchy.
-#
-# $1: Name of the cgroup (e.g. flintstones/barney or distbox/sshd)
+# Recursively KILL (or send a signal to) all of the pids that live underneath
+# all of the specified cgroups (and their children!).  Accepts any number of
+# cgroups.
 #
 # Options:
 #       -s=<signal>
@@ -272,7 +284,11 @@ cgroup_ps()
 #
 cgroup_kill()
 {
-    $(declare_args cgroup)
+    $(declare_args)
+    local cgroups
+    cgroups=( ${@} )
+
+    [[ $(array_size cgroups) -gt 0 ]] || return 0
 
     local ignorepids pids
 
@@ -281,9 +297,9 @@ cgroup_kill()
 
     # NOTE: BASHPID must be added here in addition to above because it's
     # different inside this command substituion (subshell) than it is outside.
-    array_init pids "$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroup})"
+    array_init pids "$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroups[@]})"
 
-    edebug "Killing pids in cgroup $(lval cgroup pids ignorepids)"
+    edebug "Killing processes in cgroups $(lval cgroups pids ignorepids)"
     local signal
     signal=$(opt_get s SIGTERM)
 
@@ -298,12 +314,10 @@ cgroup_kill()
 }
 
 #-------------------------------------------------------------------------------
-# Ensure that no processes are running in the specified cgroup by killing all
-# of them and waiting until the group is empty.
+# Ensure that no processes are running all of the specified cgroups by killing
+# all of them and waiting until the group is empty.
 #
 # NOTE: This probably won't work well if your script is already in that cgroup.
-#
-# ALSO NOTE: Contrary to other kill functions, this one defaults to SIGKILL.
 #
 # Options:
 #       -s=<signal>
@@ -312,20 +326,25 @@ cgroup_kill()
 #   
 cgroup_kill_and_wait()
 {
-    $(declare_args cgroup)
-    edebug "Ensuring that there are no processes in ${cgroup}."
+    $(declare_args)
+    local cgroups
+    cgroups=( ${@} )
+
+    [[ $# -gt 0 ]] || return 0
 
     # Don't need to add $$ and $BASHPID to ignorepids here because cgroup_kill
     # will do that for me
     local ignorepids
     ignorepids=$(opt_get x)
 
+    edebug "Ensuring that there are no processes in $(lval cgroups ignorepids)."
+
     local times=0
     while true ; do
-        cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGKILL) "${cgroup}"
+        cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGTERM) "${cgroups[@]}"
 
         local remaining_pids
-        remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroup}")
+        remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroups[@]}")
         if [[ -z ${remaining_pids} ]] ; then
             break;
         else
@@ -334,14 +353,14 @@ cgroup_kill_and_wait()
 
         (( times += 1 ))
         if ((times % 20 == 0 )) ; then
-            ewarn "Still trying to kill processes in cgroup. $(lval cgroup remaining_pids)"
+            ewarn "Still trying to kill processes. $(lval cgroups remaining_pids)"
         fi
 
     done
 
     local pidsleft
-    pidsleft=$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroup})
-    [[ -z ${pidsleft} ]] || die "Internal error -- processes (${pidsleft}) remain in ${cgroup}"
+    pidsleft=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroups[@]}")
+    [[ -z ${pidsleft} ]] || die "Internal error -- processes (${pidsleft}) remain in ${cgroups[@]}"
 }
 
 cgroup_find_setting_file()
