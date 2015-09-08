@@ -222,15 +222,22 @@ cgroup_pids()
             subsystem_paths+=("/sys/fs/cgroup/${subsystem}/${cgroup}")
         done
 
-        local subsystem_file files
+        local files file
+        if opt_true r ; then
+            array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks 2>/dev/null)"
+        else
+            for file in "${subsystem_paths[@]}" ; do
+                files+=("${file}/tasks")
+            done
+        fi
 
-        array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks 2>/dev/null)"
         if ! [[ $(array_size files) -gt 0 ]] ; then
             edebug "cgroup_pids is unable to find cgroup ${cgroup}"
             (( rc += 1 ))
             continue
         fi
-        
+
+        local subsystem_file 
         for subsystem_file in "${files[@]}" ; do
             local subsystem_pids
 
@@ -270,40 +277,96 @@ cgroup_ps()
 {
     $(declare_args cgroup)
 
+    local options=()
+    opt_true r && options+=("-r")
+
     local pid cgroup_pids
-    cgroup_pids=$(cgroup_pids -x="${BASHPID} $(opt_get x)" ${cgroup})
+    cgroup_pids=$(cgroup_pids ${options[@]:-} -x="${BASHPID} $(opt_get x)" ${cgroup})
     for pid in ${cgroup_pids} ; do
-        ps hp ${pid}
+        ps hp ${pid} 2>/dev/null || true
     done
 }
 
+
 #-------------------------------------------------------------------------------
-# Display a graphical representation of all cgroups descended from those
-# specified as arguments.
+# Return all items in the cgroup hierarchy.  By default this will echo to
+# stdout all directories in the cgroup hierarchy.  You may optionally specify
+# one or more cgroups and then only those cgroups descended from them it will
+# be returned.
+#
+# For example, if you've run this cgroup_create command...
+#    cgroup_create a/{1,2,3} b/{10,20} c
+#
+# Cgroup_tree will produce output as follows:
+#
+#    % cgroup_tree 
+#    a/1 a/2 a/3 b/10 b/20 c
+#
+#    % cgroup_tree a
+#    a/1 a/2 a/3
+#
+#    % cgroup_tree b c
+#    b/10 b/20 c
 #
 cgroup_tree()
 {
     $(declare_args)
+    local cgroups=("${@}")
+
+    # If none were specified, we'll start at cgroup root
+    [[ $(array_size cgroups) -gt 0 ]] || cgroups=("")
 
     local cgroup found_cgroups=()
-    for cgroup in "${@}" ; do
+    for cgroup in "${cgroups[@]}" ; do
 
         local subsys
         for subsys in "${CGROUP_SUBSYSTEMS[@]}" ; do
-            pushd /sys/fs/cgroup/${subsys}
-            array_add found_cgroups "$(find ${cgroup} -type d)"
-            popd
+
+            # Pick out the paths to the subsystem and the cgroup within it --
+            # and because we'll be text processing the result, be sure there
+            # are not multiple sequential slashes in the output
+            local subsys_path=$(echo /sys/fs/cgroup/${subsys}/ | sed 's#/\+#/#g')
+            local cgroup_path=$(echo ${subsys_path}/${cgroup}/ | sed 's#/\+#/#g')
+
+            edebug $(lval subsys_path cgroup_path)
+
+            # Then find all the directories inside the cgroup path (while
+            # stripping off the part contributed by the subsystem) and again
+            # reduce multiple slashes to only one
+            array_add found_cgroups \
+                "$(find ${subsys_path}/${cgroup} -type d | sed -e 's#/\+#/#g' -e 's#^'${subsys_path}'##' )"
         done
 
     done
 
     array_sort -u found_cgroups
-    for cgroup in "${found_cgroups[@]}" ; do
+    edebug "cgroups_tree $(lval cgroups found_cgroups)"
+    echo "${found_cgroups[@]:-}"
+}
 
-        echo "$(ecolor green)${cgroup})" >&2
-        cgroup_ps ${cgroup} >&2
 
-    done
+
+#-------------------------------------------------------------------------------
+# Display a graphical representation of all cgroups descended from those
+# specified as arguments.
+#
+cgroup_pstree()
+{
+    $(declare_args)
+
+    local cgroup
+    for cgroup in $(cgroup_tree "${@}") ; do
+
+        echo "$(ecolor green)+--${cgroup}$(ecolor off)"
+        local ps_output=$(cgroup_ps ${cgroup})
+
+        if [[ -n ${ps_output} ]] ; then
+            echo "${ps_output}" | sed 's#^#'$(ecolor green)\|\ \ $(ecolor off)'#g'
+        else
+            echo "$(ecolor green)|   $(ecolor off)No processes."
+        fi
+
+    done >&2
 }
 
 
@@ -331,7 +394,7 @@ cgroup_kill()
 
     # NOTE: BASHPID must be added here in addition to above because it's
     # different inside this command substituion (subshell) than it is outside.
-    array_init pids "$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroups[@]} || true)"
+    array_init pids "$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" ${cgroups[@]} || true)"
 
     edebug "Killing processes in cgroups $(lval cgroups pids ignorepids)"
     local signal=$(opt_get s SIGTERM)
@@ -374,7 +437,7 @@ cgroup_kill_and_wait()
     while true ; do
         cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGTERM) "${cgroups[@]}"
 
-        local remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
+        local remaining_pids=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
         if [[ -z ${remaining_pids} ]] ; then
             break;
         else
@@ -388,7 +451,7 @@ cgroup_kill_and_wait()
 
     done
 
-    local pidsleft=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
+    local pidsleft=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
     [[ -z ${pidsleft} ]] || die "Internal error -- processes (${pidsleft}) remain in ${cgroups[@]}"
 }
 

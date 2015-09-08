@@ -67,7 +67,10 @@ edebug_disabled()
 edebug()
 {
     edebug_enabled || return 0
-    echo -e "$(emsg 'dimblue' '   -' 'DEBUG' "$@")" >&2
+
+    # Force caller to be in edebug output because it's helpful and if you
+    # turned on edebug, you probably want to know anyway
+    echo -e "$(EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg 'dimblue' '' 'DEBUG' "$@")" >&2
 }
 
 edebug_out()

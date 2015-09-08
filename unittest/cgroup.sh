@@ -5,7 +5,75 @@ $(esource $(dirname $0)/cgroup.sh)
 
 ETEST_cgroup_tree()
 {
-    cgroup_tree distbox
+    CGROUP=cgroup_tree
+
+    A=(${CGROUP}/a/{1,2,3})
+    B=(${CGROUP}/b/{10,20})
+    C=(${CGROUP}/c)
+
+    cgroup_create "${A[@]}" "${B[@]}" "${C[@]}"
+
+    einfo "Testing full cgroup_tree"
+    found_tree=($(cgroup_tree))
+    for item in ${A[@]} ${B[@]} ${C[@]} ; do
+        assert array_contains found_tree $item
+    done
+
+
+    einfo "Testing that / is the root cgroup_tree"
+    found_tree=($(cgroup_tree /))
+    for item in ${A[@]} ${B[@]} ${C[@]} ; do
+        assert array_contains found_tree $item
+    done
+
+    einfo "Testing cgroup_tree a"
+    found_tree=($(cgroup_tree ${CGROUP}/a))
+    for item in ${A[@]} ; do
+        assert array_contains found_tree $item
+    done
+
+    einfo "Testing cgroup_tree with multiple parameters"
+    found_tree=($(cgroup_tree ${CGROUP}/b ${CGROUP}/c))
+    for item in ${B[@]} ${C[@]} ; do
+        assert array_contains found_tree $item
+    done
+}
+
+ETEST_cgroup_pstree()
+{
+    CGROUP=cgroup_pstree
+
+    cgroup_create ${CGROUP}/{a,b,c}
+    (
+        cgroup_move ${CGROUP} ${BASHPID}
+
+        sleep infinity&
+        sleep1=$!
+        cgroup_move ${CGROUP}/a ${sleep1}
+
+        sleep infinity&
+        sleep2=$!
+        cgroup_move ${CGROUP}/b ${sleep2}
+
+        local output="$(EDEBUG=0 cgroup_pstree ${CGROUP} 2>&1 )"
+
+        einfo "Actual pstree output"
+        echo "${output}"
+
+        # Make sure the output contains some handy strings that I know should
+        # be there, such as the PIDs of the two sleeps.
+        (
+            echo ${output} | grep -P '\b'${sleep1}'\b' 
+            echo ${output} | grep -P '\b'${sleep2}'\b' 
+            echo ${output} | grep "${CGROUP}/a"
+            echo ${output} | grep "${CGROUP}/b"
+            echo ${output} | grep "${CGROUP}/c"
+            echo ${output} | grep 'No processes.'
+        ) >/dev/null
+    )
+
+    cgroup_kill_and_wait ${CGROUP}
+    cgroup_destroy ${CGROUP}/{a,b,c}
 }
 
 ETEST_cgroup_destroy_recursive()
@@ -87,7 +155,7 @@ ETEST_cgroup_pids_recursive()
             cgroup_move ${CGROUP}/subgroup ${BASHPID}
 
             local allPids
-            allPids=($(cgroup_pids ${CGROUP}))
+            allPids=($(cgroup_pids -r ${CGROUP}))
 
             einfo BASHPID=${BASHPID} $(lval allPids PARENT_PID)
 
@@ -113,7 +181,7 @@ ETEST_cgroup_move_multiple_pids_at_once()
     cgroup_move ${CGROUP} "${PIDS[@]}"
 
     local foundPids
-    foundPids=($(cgroup_pids ${CGROUP}))
+    foundPids=($(cgroup_pids -r ${CGROUP}))
     for pid in "${PIDS[@]}" ; do
         assert_true array_contains foundPids ${pid}
     done
@@ -130,7 +198,7 @@ ETEST_cgroup_pids_except()
         cgroup_move ${CGROUP} ${BASHPID}
 
         local found_pids pid=${BASHPID}
-        array_init found_pids "$(cgroup_pids -x="${pid}" ${CGROUP})"
+        array_init found_pids "$(cgroup_pids -r -x="${pid}" ${CGROUP})"
         ewarn "${pid} found: $(lval found_pids)"
         assert_false array_contains found_pids "${pid}"
     )
@@ -147,13 +215,13 @@ ETEST_cgroup_pids_missing_cgroup()
         cgroup_move ${CGROUP}/a ${pid}
 
         # cgroup_pids should echo the proper pids to stdout
-        array_init found_pids "$(cgroup_pids ${CGROUP}/{a,b,c} || true)"
+        array_init found_pids "$(cgroup_pids -r ${CGROUP}/{a,b,c} || true)"
         edebug "$(lval found_pids pid CGROUP)"
         assert array_contains found_pids ${pid}
 
         # And it should return an error code, specifically two for the two
         # cgroups (b and c) that do not exist
-        cgroup_pids ${CGROUP}/{a,b,c} || rc=$?
+        cgroup_pids -r ${CGROUP}/{a,b,c} || rc=$?
         assert [[ ${rc} -eq 2 ]]
     )
     cgroup_destroy ${CGROUP}/a
@@ -189,7 +257,7 @@ ETEST_cgroup_pids_checks_all_subsystems()
     echo ${pid} > /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[1]}/tasks
 
     # Make sure it still shows up in the list of pids
-    foundPids=($( cgroup_pids ${CGROUP}))
+    foundPids=($( cgroup_pids -r ${CGROUP}))
     einfo "$(lval pid foundPids)"
     einfo "$(ps -hp $pid)"
 
@@ -214,7 +282,7 @@ ETEST_cgroup_kill_excepts_current_process()
         # subshell inside this cgroup
 
         cgroup_move ${CGROUP} ${BASHPID}
-        einfo "Joined cgroup $(lval CGROUP) \$\$=$$ \$BASHPID=${BASHPID} pids=$(cgroup_pids ${CGROUP})"
+        einfo "Joined cgroup $(lval CGROUP) \$\$=$$ \$BASHPID=${BASHPID} pids=$(cgroup_pids -r ${CGROUP})"
         cgroup_kill_and_wait -x="${BASHPID} $$" ${CGROUP}
 
         einfo "Subshell still exists after cgroup_kill_and_wait"
@@ -230,7 +298,7 @@ ETEST_cgroup_functions_like_empty_cgroups()
     cgroup_create ${CGROUP}
 
     local empty
-    empty=$(cgroup_pids ${CGROUP})
+    empty=$(cgroup_pids -r ${CGROUP})
     assert_empty empty
 
     cgroup_kill ${CGROUP}
@@ -244,7 +312,7 @@ ETEST_cgroup_functions_blow_up_on_nonexistent_cgroups()
     local CGROUP=cgroup_functions_blow_up_on_nonexistent_cgroups
     cgroup_create ${CGROUP}
 
-    local funcs=(cgroup_pids cgroup_kill cgroup_kill_and_wait)
+    local funcs=(cgroup_pids -r cgroup_kill cgroup_kill_and_wait)
 
     for func in ${funcs[@]} ; do
 
