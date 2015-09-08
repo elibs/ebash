@@ -2,6 +2,12 @@
 
 $(esource $(dirname $0)/cgroup.sh)
 
+
+ETEST_cgroup_tree()
+{
+    cgroup_tree distbox
+}
+
 ETEST_cgroup_destroy_recursive()
 {
     CGROUP=cgroup_destroy_recursive
@@ -131,6 +137,28 @@ ETEST_cgroup_pids_except()
     cgroup_destroy ${CGROUP}
 }
 
+ETEST_cgroup_pids_missing_cgroup()
+{
+    CGROUP=cgroup_pids_missing_cgroup
+    cgroup_create ${CGROUP}/a
+    (
+        local found_pids pid=${BASHPID} rc=0
+
+        cgroup_move ${CGROUP}/a ${pid}
+
+        # cgroup_pids should echo the proper pids to stdout
+        array_init found_pids "$(cgroup_pids ${CGROUP}/{a,b,c} || true)"
+        edebug "$(lval found_pids pid CGROUP)"
+        assert array_contains found_pids ${pid}
+
+        # And it should return an error code, specifically two for the two
+        # cgroups (b and c) that do not exist
+        cgroup_pids ${CGROUP}/{a,b,c} || rc=$?
+        assert [[ ${rc} -eq 2 ]]
+    )
+    cgroup_destroy ${CGROUP}/a
+}
+
 ETEST_cgroup_move_ignores_empties()
 {
     CGROUP=cgroup_move_ignores_empties
@@ -235,3 +263,15 @@ ETEST_cgroup_functions_blow_up_on_nonexistent_cgroups()
     cgroup_destroy ${CGROUP}
 }
 
+ETEST_cgroup_kill_and_destroy_ingore_nonexistent_cgroups()
+{
+    local CGROUP=cgroup_kill_and_destroy_ignore_nonexistent_cgroups
+
+    # Even if it had accidentally been created, if you destroy the cgroup twice
+    # it definitely should've been gone once
+    cgroup_destroy ${CGROUP}
+    cgroup_destroy ${CGROUP}
+
+    # And now that it's gone, make sure kill can deal with that, too
+    cgroup_kill ${CGROUP}
+}
