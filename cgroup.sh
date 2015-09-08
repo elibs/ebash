@@ -153,8 +153,7 @@ cgroup_move()
 
     if [[ $(array_size pids) -gt 0 ]] ; then
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
-            local tmp
-            tmp="$(array_join_nl pids)"
+            local tmp="$(array_join_nl pids)"
             edebug "$(lval pids tmp)"
             echo -e "${tmp}" > /sys/fs/cgroup/${subsystem}/${cgroup}/tasks
         done
@@ -284,8 +283,7 @@ cgroup_kill()
     array_init pids "$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroup})"
 
     edebug "Killing pids in cgroup $(lval cgroup pids ignorepids)"
-    local signal
-    signal=$(opt_get s SIGTERM)
+    local signal=$(opt_get s SIGTERM)
 
     # Ignoring errors here because we don't want to die simply because a
     # process that was in the cgroup disappeared of its own volition before we
@@ -317,15 +315,13 @@ cgroup_kill_and_wait()
 
     # Don't need to add $$ and $BASHPID to ignorepids here because cgroup_kill
     # will do that for me
-    local ignorepids
-    ignorepids=$(opt_get x)
+    local ignorepids=$(opt_get x)
 
     local times=0
     while true ; do
         cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGKILL) "${cgroup}"
 
-        local remaining_pids
-        remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroup}")
+        local remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroup}")
         if [[ -z ${remaining_pids} ]] ; then
             break;
         else
@@ -339,8 +335,7 @@ cgroup_kill_and_wait()
 
     done
 
-    local pidsleft
-    pidsleft=$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroup})
+    local pidsleft=$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroup})
     [[ -z ${pidsleft} ]] || die "Internal error -- processes (${pidsleft}) remain in ${cgroup}"
 }
 
