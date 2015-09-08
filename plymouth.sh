@@ -79,8 +79,7 @@ plymouth_message()
 plymouth_prompt()
 {
     local tmp="/tmp/.plymouth_prompt"
-    local result
-    result=$(plymouth ask-question --prompt="$@" --command="tee ${tmp}"; rm -f ${tmp})
+    local result=$(plymouth ask-question --prompt="$@" --command="tee ${tmp}"; rm -f ${tmp})
     echo -en "${result}"
 }
 
