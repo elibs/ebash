@@ -199,7 +199,8 @@ cgroup_get()
 #
 # Cgroup_pids will return success as long as all of the specified cgroups
 # exist, and failure if they do not (but it will still echo pids for any
-# cgroups that _do_ exist)
+# cgroups that _do_ exist).  On failure, it returns the number of specified
+# cgroups that did not exist.
 #
 # Options:
 #       -x=space separated list of pids not to return -- default is to return
@@ -216,16 +217,19 @@ cgroup_pids()
     array_init ignorepids "$(opt_get x)"
 
     for cgroup in "${cgroups[@]}" ; do
-
         local subsystem_paths=()
         for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
             subsystem_paths+=("/sys/fs/cgroup/${subsystem}/${cgroup}")
         done
 
-        local file files
+        local subsystem_file files
 
-        array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks)"
-        [[ $(array_size files) -gt 0 ]] || { edebug "cgroup_pids is unable to find cgroup ${cgroup}" ; (( rc += 1 )) ; continue ; }
+        array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks 2>/dev/null)"
+        if ! [[ $(array_size files) -gt 0 ]] ; then
+            edebug "cgroup_pids is unable to find cgroup ${cgroup}"
+            (( rc += 1 ))
+            continue
+        fi
         
         for subsystem_file in "${files[@]}" ; do
             local subsystem_pids
@@ -252,6 +256,8 @@ cgroup_pids()
 
     edebug "Found pids $(lval all_pids) after exceptions ${ignorepids[@]:-}"
     echo "${all_pids[@]:-}"
+
+    return "${rc}"
 }
 
 #-------------------------------------------------------------------------------
@@ -270,6 +276,36 @@ cgroup_ps()
         ps hp ${pid}
     done
 }
+
+#-------------------------------------------------------------------------------
+# Display a graphical representation of all cgroups descended from those
+# specified as arguments.
+#
+cgroup_tree()
+{
+    $(declare_args)
+
+    local cgroup found_cgroups=()
+    for cgroup in "${@}" ; do
+
+        local subsys
+        for subsys in "${CGROUP_SUBSYSTEMS[@]}" ; do
+            pushd /sys/fs/cgroup/${subsys}
+            array_add found_cgroups "$(find ${cgroup} -type d)"
+            popd
+        done
+
+    done
+
+    array_sort -u found_cgroups
+    for cgroup in "${found_cgroups[@]}" ; do
+
+        echo "$(ecolor green)${cgroup})" >&2
+        cgroup_ps ${cgroup} >&2
+
+    done
+}
+
 
 #-------------------------------------------------------------------------------
 # Recursively KILL (or send a signal to) all of the pids that live underneath
@@ -295,7 +331,7 @@ cgroup_kill()
 
     # NOTE: BASHPID must be added here in addition to above because it's
     # different inside this command substituion (subshell) than it is outside.
-    array_init pids "$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroups[@]})"
+    array_init pids "$(cgroup_pids -x="${ignorepids} ${BASHPID}" ${cgroups[@]} || true)"
 
     edebug "Killing processes in cgroups $(lval cgroups pids ignorepids)"
     local signal=$(opt_get s SIGTERM)
@@ -338,7 +374,7 @@ cgroup_kill_and_wait()
     while true ; do
         cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGTERM) "${cgroups[@]}"
 
-        local remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroups[@]}")
+        local remaining_pids=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
         if [[ -z ${remaining_pids} ]] ; then
             break;
         else
@@ -352,7 +388,7 @@ cgroup_kill_and_wait()
 
     done
 
-    local pidsleft=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroups[@]}")
+    local pidsleft=$(cgroup_pids -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
     [[ -z ${pidsleft} ]] || die "Internal error -- processes (${pidsleft}) remain in ${cgroups[@]}"
 }
 
