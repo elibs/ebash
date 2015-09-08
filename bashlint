@@ -30,12 +30,13 @@ ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     [[ ${fname: -4} == ".swp" ]] && continue
  
-    einfo "${fname}"
-    bash -n ${fname}
-
     # Never do any further parsing on our own file since they would all 
     # be false positives
     [[ ${fname} == "$0" ]] && continue
+
+    # Display what file we are processing
+    einfo "${fname}"
+    bash -n ${fname}
 
     # Read file into variable so we can do a little preprocessing on it before
     # passing it into the various grep commands below to strip out particular
@@ -78,23 +79,6 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     # is generally not what is intended and causes 'set -e' problems.
     echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
         && fail "Ambiguous return statements"
-
-    # Catch silent errors that are swallowed by using local variable assignment.
-    #
-    # For example, consider the following:
-    # local var=$(false)
-    #
-    # The error caused by 'false' is silently MASKED because the value of the
-    # complete bash expression 'local var=$(false)' is success even though the
-    # subexpression $(false) resulted in falure. This is because the return value
-    # from the bash builtin 'local' is always success.
-    #
-    # 'help local' tells us this:
-    # Exit Status:
-    # Returns success unless an invalid option is supplied, a variable
-    # assignment error occurs, or the shell is not executing a function.
-    echo "${CONTENTS}" | grep -P '^\s*(local|declare)\s.*=[("]*\s*\$\(' \
-        && fail "Local variable assignment with subshell silently masks errors"
 
     [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }
 done
