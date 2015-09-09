@@ -360,11 +360,7 @@ cgroup_pstree()
         echo "$(ecolor green)+--${cgroup}$(ecolor off)"
         local ps_output=$(cgroup_ps ${cgroup})
 
-        if [[ -n ${ps_output} ]] ; then
-            echo "${ps_output}" | sed 's#^#'$(ecolor green)\|\ \ $(ecolor off)'#g'
-        else
-            echo "$(ecolor green)|   $(ecolor off)No processes."
-        fi
+        echo "${ps_output}" | sed 's#^#'$(ecolor green)\|\ \ $(ecolor off)'#g'
 
     done >&2
 }
