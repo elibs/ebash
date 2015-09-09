@@ -31,6 +31,21 @@ ETEST_edebug_enabled_matcher()
     EDEBUG=""                             edebug_disabled || die
 }
 
+ETEST_edebug_and_etrace()
+{
+    EDEBUG="" ETRACE="assert"           assert edebug_enabled
+    EDEBUG="assert" ETRACE=""           assert edebug_enabled
+    EDEBUG="assert" ETRACE=0            assert edebug_enabled
+    EDEBUG=1  ETRACE=""                 assert edebug_enabled
+    EDEBUG=1  ETRACE=0                  assert edebug_enabled
+    EDEBUG="" ETRACE=1                  assert edebug_enabled
+    EDEBUG=0  ETRACE=1                  assert edebug_enabled
+
+    EDEBUG="" ETRACE=""                 assert edebug_disabled
+    EDEBUG=0  ETRACE=0                  assert edebug_disabled
+    EDEBUG="something" ETRACE="else"    assert edebug_disabled
+}
+
 ETEST_edebug_enabled_skips_edebug_in_stack_frame()
 {
     output=$(EDEBUG="ETEST_edebug_enabled_skips_edebug_in_stack_frame" edebug "hello" 2>&1)
