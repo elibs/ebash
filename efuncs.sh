@@ -217,14 +217,19 @@ die()
     # die itself.
     eerror_stacktrace -f=3 "${@}"
 
-    # If we're in a subshell kill our parent then ourselves. This will allow
-    # the stack to be unwound properly and ensure any traps our parent has
-    # registered will get called properly.
+    # If we're in a subshell recursively kill our parent process which will
+    # also kill us. The reason we kill our parent is to ensure that any
+    # traps our parent has registered get called properly. 
+    #
+    # If we're not in a subshell we need to signal OURSELVES to ensure any
+    # traps we have are called properly. The reason this is necessary is to
+    # ensure if caller calls die() at the top level of a process that all traps
+    # are guaranteed to be invoked. Finally, if there is a die_handler call that.
+    # If we have no die handler then simply kill the entire process tree.
     if [[ $$ != ${BASHPID} ]]; then
         ekilltree -s=SIGTERM $(ps --pid ${BASHPID} -oppid=)
     else
-        # If we're at the top of the process tree, and we have an explicitly
-        # set handler, call that. Otherwise kill the process group.
+        kill -SIGTERM $$
         declare -f die_handler &>/dev/null && die_handler || kill -9 0
     fi
 }
