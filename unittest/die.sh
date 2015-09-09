@@ -21,3 +21,45 @@ ETEST_die_subprocesses()
         eretry -t=2s process_not_running ${pid} || die "${pid} failed to get killed by die"
     done
 }
+
+# Ensure if we call die() that any subshell registered traps are executed before death.
+ETEST_die_traps()
+{
+    local fname="die_traps.txt"
+    touch "${fname}"
+
+    try
+    {
+        trap_add "rm ${fname}" ${die_signals[@]} 
+        die "Aborting subshell" 
+    }
+    catch
+    {
+        true
+    }
+
+    assert [[ ! -e ${fname} ]]
+}
+
+# Ensure if we have traps registered in our parent process that those are executed before death.
+ETEST_die_traps_parent()
+{ 
+    local fname1="die_traps_parent.txt"
+    local fname2="die_traps_child.txt"
+
+    (
+        touch "${fname1}"
+        trap_add "echo 'PARENT: Removing ${fname1}'; rm -f ${fname1}" ${die_signals[@]} EXIT ERR
+
+        (
+            touch "${fname2}"
+            trap_add "echo 'CHILD: Removing ${fname2}'; rm -f ${fname2}" ${die_signals[@]} EXIT ERR
+            die "Aborting subshell"
+
+        ) || true
+
+    ) || true
+
+    assert [[ ! -e ${fname1} ]]
+    assert [[ ! -e ${fname2} ]]
+}
