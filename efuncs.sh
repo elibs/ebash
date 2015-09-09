@@ -102,12 +102,9 @@ alias try="
     __EFUNCS_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
     (
-        __EFUNCS_DIE_ON_ERROR_PID=\${BASHPID}
-        override_function die ' { eerror_stacktrace -f=3 \"\${@}\" &>\$(edebug_out) ; ekilltree -s=SIGKILL \${__EFUNCS_DIE_ON_ERROR_PID}; exit \${__EFUNCS_DIE_ON_ERROR_RC:-1}; }'
-
         enable_trace
         die_on_abort
-        trap '__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]' ERR
+        trap '__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]; exit \${__EFUNCS_DIE_ON_ERROR_RC}' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -220,8 +217,16 @@ die()
     # die itself.
     eerror_stacktrace -f=3 "${@}"
 
-    # Kill all processes in the process group of the caller.
-    kill -9 0
+    # If we're in a subshell kill our parent then ourselves. This will allow
+    # the stack to be unwound properly and ensure any traps our parent has
+    # registered will get called properly.
+    if [[ $$ != ${BASHPID} ]]; then
+        ekilltree -s=SIGTERM $(ps --pid ${BASHPID} -oppid=)
+    else
+        # If we're at the top of the process tree, and we have an explicitly
+        # set handler, call that. Otherwise kill the process group.
+        declare -f die_handler &>/dev/null && die_handler || kill -9 0
+    fi
 }
 
 # appends a command to a trap
@@ -246,9 +251,9 @@ trap_add()
     done
 }
 
-# set the trace attribute for the above function.  this is
-# required to modify DEBUG or RETURN traps because functions don't
-# inherit them unless the trace attribute is set
+# Set the trace attribute for trap_add function. This is required to modify
+# DEBUG or RETURN traps because functions don't inherit them unless the trace
+# attribute is set.
 declare -f -t trap_add
 
 # List of signals which will cause die() to be called. These signals are the ones
