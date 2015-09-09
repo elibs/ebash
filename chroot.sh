@@ -84,13 +84,11 @@ chroot_shell()
     # Setup CHROOT prompt
     chroot_prompt ${name}
 
-    # Mount then enter chroot. Do it all in a subshell so that we ensure we properly
-    # unmount when we're finished.
-    (
-        chroot_mount
-        chroot ${CHROOT} ${CHROOT_ENV} -i || true
-        chroot_unmount
-    )
+    # Mount then enter chroot. Ensure we setup a trap so that we'll unmount the chroot 
+    # regardless of how we leave this function.
+    chroot_mount
+    trap_add "chroot_unmount" ${DIE_SIGNALS[@]} ERR EXIT 
+    chroot ${CHROOT} ${CHROOT_ENV} -i || true
 }
 
 chroot_cmd()
