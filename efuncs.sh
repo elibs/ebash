@@ -40,8 +40,8 @@ etrace()
 
 edebug_enabled()
 {
-    [[ ${EDEBUG:=} == "1" ]] && return 0
-    [[ ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
+    [[ ${EDEBUG:=} == "1" || ${ETRACE:=} == "1" ]] && return 0
+    [[ -z ${ETRACE} && ${EDEBUG} == "" || ${EDEBUG} == "0" ]] && return 1
 
     $(declare_args ?_edebug_enabled_caller)
 
@@ -52,7 +52,7 @@ edebug_enabled()
     fi
 
     local _edebug_enabled_tmp
-    for _edebug_enabled_tmp in ${EDEBUG} ; do
+    for _edebug_enabled_tmp in ${EDEBUG} ${ETRACE} ; do
         [[ "${_edebug_enabled_caller[@]:1}" =~ ${_edebug_enabled_tmp} ]] && return 0
     done
 
