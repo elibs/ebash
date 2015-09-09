@@ -229,25 +229,31 @@ die()
     fi
 }
 
-# appends a command to a trap
+# Appends a command to a trap. By default this will use the default list of
+# signals: ${DIE_SIGNALS[@]}, ERR and EXIT so that this trap gets called
+# by default for any signal that would cause termination. If that's not the
+# desired behavior then simply pass in an explicit list of signals to trap.
 #
-# - 1st arg:  code to add
-# - remaining args:  names of traps to modify
-#
+# Options:
+# $1: body of trap to be appended
+# $@: Optional list of signals to trap (or default to DIE_SIGNALS, ERR and EXIT).
 trap_add()
 {
-    trap_add_cmd=$1; shift || die "${FUNCNAME} usage error"
-    for trap_add_name in "$@"; do
+    $(declare_args trap_command)
+    local signals=( "${@}" )
+    [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} ERR EXIT )
+    
+    local sig
+    for sig in ${signals[@]}; do
         trap -- "$(
-            # helper fn to get existing trap command from output
-            # of trap -p
+            # helper fn to get existing trap command from output of trap -p
             extract_trap_cmd() { printf '%s\n' "${3:-}"; }
             # print the new trap command
-            printf '%s; ' "${trap_add_cmd}"
+            printf '%s; ' "${trap_command}"
             # print existing trap command with newline
-            eval "extract_trap_cmd $(trap -p "${trap_add_name}")"
-        )" "${trap_add_name}" \
-            || die "unable to add to trap ${trap_add_name}"
+            eval "extract_trap_cmd $(trap -p "${sig}")"
+        )" "${sig}" \
+            || die "unable to add to trap $(lval sig trap_command)"
     done
 }
 
@@ -268,24 +274,24 @@ declare -f -t trap_add
 # shortly below this as our global default traps. Additionally, it is very important
 # to call die_on_abort at the start of any command substitution which you want to be
 # interruptible.
-die_signals=( SIGHUP    SIGINT   SIGQUIT   SIGILL   SIGABRT   SIGFPE   SIGKILL
+DIE_SIGNALS=( SIGHUP    SIGINT   SIGQUIT   SIGILL   SIGABRT   SIGFPE   SIGKILL
               SIGSEGV   SIGPIPE  SIGALRM   SIGTERM  SIGUSR1   SIGUSR2  SIGBUS
               SIGIO     SIGPROF  SIGSYS    SIGTRAP  SIGVTALRM SIGXCPU  SIGXFSZ
             )
 
-# Enable default traps for all die_signals to call die().
+# Enable default traps for all DIE_SIGNALS to call die().
 die_on_abort()
 {
     local signals=( "${@}" )
-    [[ ${#signals[@]} -gt 0 ]] || signals=( "${die_signals[@]}" )
+    [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
     trap 'die [killed]' ${signals[@]}
 }
 
-# Disable default traps for all die_signals.
+# Disable default traps for all DIE_SIGNALS.
 nodie_on_abort()
 {
     local signals=( "${@}" )
-    [[ ${#signals[@]} -gt 0 ]] || signals=( "${die_signals[@]}" )
+    [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
     trap - ${signals[@]}
 }
 
@@ -1387,7 +1393,7 @@ echecksum()
     local keyring="" keyring_command=""
     keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
-    trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
+    trap_add "rm -f ${keyring}"
     gpg ${keyring_command} --import ${privatekey} &>$(edebug_out)
 
     # Get optional keyphrase
@@ -1462,7 +1468,7 @@ echecksum_check()
 
             # Import PGP Public Key
             keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
-            trap_add "rm -f ${keyring}" ${die_signals[@]} ERR EXIT
+            trap_add "rm -f ${keyring}"
             gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} &>$(edebug_out)
 
             # Now we can validate the signature

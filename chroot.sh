@@ -87,7 +87,7 @@ chroot_shell()
     # Mount then enter chroot. Ensure we setup a trap so that we'll unmount the chroot 
     # regardless of how we leave this function.
     chroot_mount
-    trap_add "chroot_unmount" ${DIE_SIGNALS[@]} ERR EXIT 
+    trap_add "chroot_unmount"
     chroot ${CHROOT} ${CHROOT_ENV} -i || true
 }
 

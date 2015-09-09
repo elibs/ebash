@@ -67,7 +67,7 @@ test_teardown()
 
 FAILED_FILES=()
 global_setup
-trap_add global_teardown ERR HUP INT QUIT BUS PIPE TERM EXIT
+trap_add global_teardown
 
 for testfile in $(find ${TEST_DIR}/*.sh); do
 
