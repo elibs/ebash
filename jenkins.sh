@@ -155,14 +155,14 @@ jenkins_start_build()
         args+="-d ${arg}=${BUILD_ARGS[$arg]} "
     done
 
-    local url
-    url=="$(jenkins_url)/job/${JENKINS_JOB}/buildWithParameters"
+    local rc=0
+    local url="$(jenkins_url)/job/${JENKINS_JOB}/buildWithParameters"
 
-    local rc
-    local queueUrl
+    local response=$(curl --silent --data-urlencode -H ${args} ${url} --include) || rc=$?
+    local queueUrl=$(echo "${response}" | awk '$1 == "Location:" {print $2}' | tr -d '\r') || rc=$? 
 
-    queueUrl=$(curl --fail --silent --data-urlencode -H ${args} ${url} --include | awk '$1 == "Location:" {print $2}' | tr -d '\r') && rc=0 || rc=$? 
-    
+    edebug "$(lval rc url response queueUrl)"
+
     [[ ${rc} == 0 ]] && echo "${queueUrl}api/json"
 }
 
