@@ -68,7 +68,7 @@ chroot_prompt()
         local prompt_source_cmd=". ${shellrc_prompt}"
 
         # Append the source command to the shellrc if it doesn't already have it
-        if ! grep -qF "${prompt_source_cmd}" ${CHROOT}/${HOME}/${shellrc} ; then
+        if ! grep -qF "${prompt_source_cmd}" ${CHROOT}/${HOME}/${shellrc} 2>/dev/null; then
             echo "${prompt_source_cmd}" >> ${CHROOT}/${HOME}/${shellrc}
         else
             edebug "Already sourcing promptrc in ${shellrc}"
@@ -88,7 +88,7 @@ chroot_shell()
     # unmount when we're finished.
     (
         chroot_mount
-        chroot ${CHROOT} ${CHROOT_ENV} || true
+        chroot ${CHROOT} ${CHROOT_ENV} -i || true
         chroot_unmount
     )
 }
