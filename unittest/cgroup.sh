@@ -6,7 +6,7 @@ $(esource $(dirname $0)/cgroup.sh)
 ETEST_cgroup_tree()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     A=(${CGROUP}/a/{1,2,3})
     B=(${CGROUP}/b/{10,20})
@@ -43,7 +43,7 @@ ETEST_cgroup_tree()
 ETEST_cgroup_pstree()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     cgroup_create ${CGROUP}/{a,b,c}
     (
@@ -77,7 +77,7 @@ ETEST_cgroup_pstree()
 ETEST_cgroup_destroy_recursive()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     cgroup_create ${CGROUP}/{a,b,c,d}
     assert cgroup_exists ${CGROUP}/{a,b,c,d}
@@ -90,7 +90,7 @@ ETEST_cgroup_destroy_recursive()
 ETEST_cgroup_create_destroy()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     # Create cgroup and make sure the directories exist in each subsystem
     cgroup_create ${CGROUP}
@@ -110,7 +110,7 @@ ETEST_cgroup_create_destroy()
 ETEST_cgroup_create_twice()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     cgroup_create ${CGROUP}
     cgroup_exists ${CGROUP}
@@ -121,7 +121,7 @@ ETEST_cgroup_create_twice()
 ETEST_cgroup_exists()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     einfo "Checking detection of destroyed cgroup"
     cgroup_destroy -r ${CGROUP}
@@ -145,7 +145,7 @@ ETEST_cgroup_exists()
 ETEST_cgroup_pids_recursive()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     cgroup_create ${CGROUP} ${CGROUP}/subgroup
     (
@@ -168,7 +168,7 @@ ETEST_cgroup_pids_recursive()
 ETEST_cgroup_move_multiple_pids_at_once()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
     cgroup_create ${CGROUP}
 
     local PIDS=()
@@ -190,7 +190,7 @@ ETEST_cgroup_move_multiple_pids_at_once()
 ETEST_cgroup_pids_except()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     cgroup_create ${CGROUP}
     (
@@ -206,7 +206,7 @@ ETEST_cgroup_pids_except()
 ETEST_cgroup_pids_missing_cgroup()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     cgroup_create ${CGROUP}/a
     (
@@ -229,7 +229,7 @@ ETEST_cgroup_pids_missing_cgroup()
 ETEST_cgroup_move_ignores_empties()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
     cgroup_create ${CGROUP}
     (
         # Adding an empty string to the tasks file in the cgroup filesystem would
@@ -242,7 +242,7 @@ ETEST_cgroup_move_ignores_empties()
 ETEST_cgroup_pids_checks_all_subsystems()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     cgroup_create ${CGROUP}
 
@@ -268,7 +268,7 @@ ETEST_cgroup_pids_checks_all_subsystems()
 ETEST_cgroup_kill_excepts_current_process()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
     cgroup_create ${CGROUP}
 
 
@@ -289,7 +289,7 @@ ETEST_cgroup_kill_excepts_current_process()
 ETEST_cgroup_functions_like_empty_cgroups()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
     cgroup_create ${CGROUP}
 
     local empty
@@ -305,7 +305,7 @@ ETEST_cgroup_functions_like_empty_cgroups()
 ETEST_cgroup_functions_blow_up_on_nonexistent_cgroups()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
     cgroup_create ${CGROUP}
 
     local funcs=(cgroup_pids -r cgroup_kill cgroup_kill_and_wait)
@@ -329,7 +329,7 @@ ETEST_cgroup_functions_blow_up_on_nonexistent_cgroups()
 ETEST_cgroup_kill_and_destroy_ingore_nonexistent_cgroups()
 {
     CGROUP=${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}" ${die_signals[@]} EXIT ERR
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
     local CGROUP=cgroup_kill_and_destroy_ignore_nonexistent_cgroups
 
     # Even if it had accidentally been created, if you destroy the cgroup twice

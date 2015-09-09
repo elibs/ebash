@@ -30,7 +30,7 @@ ETEST_die_traps()
 
     try
     {
-        trap_add "rm ${fname}" ${die_signals[@]} 
+        trap_add "rm ${fname}"
         die "Aborting subshell" 
     }
     catch
@@ -49,11 +49,11 @@ ETEST_die_traps_parent()
 
     (
         touch "${fname1}"
-        trap_add "echo 'PARENT: Removing ${fname1}'; rm -f ${fname1}" ${die_signals[@]} EXIT ERR
+        trap_add "echo 'PARENT: Removing ${fname1}'; rm -f ${fname1}"
 
         (
             touch "${fname2}"
-            trap_add "echo 'CHILD: Removing ${fname2}'; rm -f ${fname2}" ${die_signals[@]} EXIT ERR
+            trap_add "echo 'CHILD: Removing ${fname2}'; rm -f ${fname2}"
             die "Aborting subshell"
 
         ) || true

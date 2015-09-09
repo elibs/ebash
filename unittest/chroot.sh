@@ -147,7 +147,7 @@ ETEST_chroot_slash_dev_shared_mounts()
 
     touch ${TESTFILE}
     [[ -f ${TESTFILE} ]] || die "Unable to create ${TESTFILE}"
-    trap_add "rm ${TESTFILE}" HUP INT QUIT BUS PIPE TERM EXIT
+    trap_add "rm ${TESTFILE}"
 
     # Force /dev to be mounted "shared" so that the following code can test
     # whether it actually works that way.  This is the default on systemd

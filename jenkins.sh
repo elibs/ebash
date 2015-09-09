@@ -37,7 +37,7 @@ jenkins()
         efetch "$(jenkins_url)/jnlpJars/jenkins-cli.jar" "${tempDir}" 2> $(edebug_out)
         export JENKINS_CLI_JAR="${tempDir}/jenkins-cli.jar"
         edebug "Downloaded jenkins-cli.jar: $(ls -l ${JENKINS_CLI_JAR})"
-        trap_add "edebug \"Deleting ${JENKINS_CLI_JAR}.\" ; rm -rf \"${tempDir}\"" EXIT HUP INT QUIT BUS PIPE
+        trap_add "edebug \"Deleting ${JENKINS_CLI_JAR}.\" ; rm -rf \"${tempDir}\""
     fi
 
     eretry -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-5s} -w=${JENKINS_WARN_EVERY:-5} \
@@ -82,7 +82,7 @@ jenkins_update()
     local newConfig oldConfig
     newConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_XXXX")
     oldConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_old_XXXX")
-    trap_add "rm -rf ${scriptFile} ${newConfig} ${oldConfig}" EXIT
+    trap_add "rm -rf ${scriptFile} ${newConfig} ${oldConfig}"
 
     # Expand parameters in the script (if one was found), and place its
     # contents into a variable so that it can be plunked into the XML file
@@ -378,7 +378,7 @@ jenkins_list_slaves()
     # Create a temporary file to hold the groovy script.
     local groovy_script
     groovy_script=$(mktemp /tmp/jenkins_list_slaves-XXXXXXXX.groovy)
-    trap_add "edebug \"Deleting ${groovy_script}.\" ; rm -rf \"${groovy_script}\"" EXIT HUP INT QUIT BUS PIPE
+    trap_add "edebug \"Deleting ${groovy_script}.\" ; rm -rf \"${groovy_script}\""
    
     cat > ${groovy_script} <<-ENDGROOVY
 	for (slave in jenkins.model.Jenkins.instance.slaves) {
