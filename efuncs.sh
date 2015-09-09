@@ -1453,7 +1453,7 @@ echecksum_check()
         pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
         if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
           
-            einfos "PGPSignature"
+            einfos "PGP"
 
             # Import PGP Public Key
             keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
@@ -1461,8 +1461,8 @@ echecksum_check()
             gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} &>$(edebug_out)
 
             # Now we can validate the signature
-            echo "${pgpsignature}" | gpg --verify - "${path}" &>$(edebug_out) || { ewarn "PGP signature verification failure: $(lval path)"; return 3; }
-            validated+=( "PGPSignature" )
+            echo "${pgpsignature}" | gpg --verify - "${path}" &>$(edebug_out) || { ewarn "PGP verification failure: $(lval path)"; return 3; }
+            validated+=( "PGP" )
             
             eend
         fi
