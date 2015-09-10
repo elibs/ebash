@@ -221,16 +221,40 @@ die()
     # also kill us. The reason we kill our parent is to ensure that any
     # traps our parent has registered get called properly. 
     #
-    # If we're not in a subshell we need to signal OURSELVES to ensure any
-    # traps we have are called properly. The reason this is necessary is to
-    # ensure if caller calls die() at the top level of a process that all traps
-    # are guaranteed to be invoked. Finally, if there is a die_handler call that.
-    # If we have no die handler then simply kill the entire process tree.
+    # If we're not in a subshell we essentially kill ourselves in a clever way
+    # to ensure all traps are properly executed and any die_handler is called
+    # in the appropriate order.
     if [[ $$ != ${BASHPID} ]]; then
         ekilltree -s=SIGTERM $(ps --pid ${BASHPID} -oppid=)
     else
-        kill -SIGTERM $$
-        declare -f die_handler &>/dev/null && die_handler || kill -9 0
+
+        # In order to ensure any traps are invoked BEFORE we actually call the
+        # die_handler or exit we must setup tail recursion such that once die
+        # is called again we will invoke the requested handler (or kill process
+        # group). The reason this is necessary is because die() is always the last
+        # thing to be executed in our trap stack. So the only way to ensure all
+        # traps have been executed without actually invoking them by hand is to
+        # replace die with our own version which will call the handler once we're
+        # called again.
+        
+        # Save off existing die function so that we can restore it later. Then
+        # Replace die() function with a new one which will restore the original
+        # die function and then invoke die_handler.
+        save_function die
+        die() 
+        {
+            # Restore original die function.
+            local die_body="$(declare -f die_real)"
+            die_body="${die_body//die_real ()/die ()}"
+            eval "${die_body}"
+
+            __EFUNCS_DIE_IN_PROGRESS=0
+
+            # If there is a die handler call it. Otherwise kill entire process group.
+            declare -f die_handler &>/dev/null && die_handler || kill -9 0
+        }
+        
+        ekilltree -S=SIGTERM $$
     fi
 }
 
