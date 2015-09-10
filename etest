@@ -62,13 +62,60 @@ test_teardown()
 }
 
 #-------------------------------------------------------------------------------------------------------------------------
+# SANITY TEST OF DIE FUNCTIONALITY
+#-------------------------------------------------------------------------------------------------------------------------
+
+global_setup
+
+# Manually test die() functionality outside of try/catch to ensure basic trap functionality works properly.
+DIE_TEST_MSG="Verifying die() trap functionality"
+edebug_enabled && ebanner "${DIE_TEST_MSG}" || einfo "${DIE_TEST_MSG}"
+{
+    DIE_FILE="${TEST_DIR_OUTPUT}/etest_die.txt"
+    rm -f ${DIE_FILE}
+
+    die_handler()
+    {
+        einfo "DIE_HANDLER called"
+        echo "DIE" >> ${DIE_FILE}
+    }
+
+    trap_add "einfo TRAP; echo TRAP >> ${DIE_FILE}"
+    die "Fake death..."
+
+    # Assert proper order of events happened
+    einfo "Ensuring TRAP was called before DIE"
+    cat ${DIE_FILE}
+    first=$(head -1 ${DIE_FILE})
+    last=$(tail -1 ${DIE_FILE})
+
+    [[ ${first} == "TRAP" ]] || { eerror "TRAP NOT CALLED FIRST"; exit 1; }
+    [[ ${last}  == "DIE"  ]] || { eerror "DIE NOT CALLED LAST";   exit 1; }
+
+} &>$(edebug_out)
+
+eend
+
+#-------------------------------------------------------------------------------------------------------------------------
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
+
+die_handler()
+{
+    edebug "DIE triggered: cleaning up..."
+    global_teardown
+    exit 1
+}
+
+trap - ${DIE_SIGNALS[@]} ERR EXIT
+die_on_abort
+die_on_error
 
 FAILED_FILES=()
 global_setup
 trap_add global_teardown
 
+# Now go through and test all unit tests
 for testfile in $(find ${TEST_DIR}/*.sh); do
 
     # Each test file gets its own subshell
@@ -113,7 +160,7 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
            
         done
 
-        [[ ${#FAILED_TESTS[@]} -eq 0 ]] || { eerror_stacktrace "$(lval FAILED_TESTS)"; throw 1; }
+        array_empty FAILED_TESTS || { eerror_stacktrace "$(lval FAILED_TESTS)"; echo; throw 1; }
     } 
     catch
     {
@@ -122,6 +169,6 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
 
 done
 
-[[ ${#FAILED_FILES[@]} -eq 0 ]] || die "$(lval FAILED_FILES)"
+array_empty FAILED_FILES || die "$(lval FAILED_FILES)"
 
 exit 0
