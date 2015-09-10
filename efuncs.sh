@@ -253,8 +253,12 @@ die()
             # If there is a die handler call it. Otherwise kill entire process group.
             declare -f die_handler &>/dev/null && die_handler || kill -9 0
         }
-        
-        ekilltree -S=SIGTERM $$
+    
+        # Signal our own process with SIGTERM. This will cause any traps we've
+        # registered to get invoked which will ultimately terminate at our new
+        # die() function we just created above. That will then reset die() to
+        # it's original state and finally call any requested handler.
+        ekilltree -s=SIGTERM $$
     fi
 }
 
