@@ -1,19 +1,5 @@
 #!/usr/bin/env bash
 
-assert_exists()
-{
-    for name in $@; do
-        assert [[ -e ${name} ]]
-    done
-}
-
-assert_not_exists()
-{
-    for name in $@; do
-        assert [[ ! -e ${name} ]]
-    done
-}
-
 ETEST_elogrotate()
 {
     touch foo
