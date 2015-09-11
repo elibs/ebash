@@ -204,7 +204,7 @@ stacktrace_array()
 
 # Print the trap command associated with a given signal (if any). This
 # essentially parses trap -p in order to extract the command from that
-# trap for use in other functions such as call_and_clear_die_traps and trap_add.
+# trap for use in other functions such as call_die_traps and trap_add.
 extract_trap_cmd()
 {
     $(declare_args sig)
@@ -213,31 +213,21 @@ extract_trap_cmd()
     eval "extract_trap_cmd_internal $(trap -p "${sig}")"
 }
 
-# Call and CLEAR all traps associated with DIE_SIGNALS. This is desigend to be
-# called from die() or an overriden version of die(). As such it is designed to
-# skip over die itself in any of the traps so that the caller retains control and 
-# can then do other things instead of actually exiting. It's important to note
-# that this also CLEARS the traps so that they won't be called again since we've
-# invoked them all and they may not be idempotent.
+# Call all traps associated with DIE_SIGNALS. This is desigend to be called from
+# die() or an overriden version of die(). As such it is designed to skip over die
+# itself in any of the traps so that the caller retains control and can then do
+# other things instead of actually exiting.
 #
 # NOTE: Although this is pretty special purpose for use by die() it's exposed
 # here as an independent function to allow anyone who overrides die() to reuse
 # this code.
-call_and_clear_die_traps()
+call_die_traps()
 {
     local commands=()
     local sig cmd
     for sig in ${DIE_SIGNALS[@]}; do
         cmd="$(extract_trap_cmd ${sig})"
         array_contains commands "${cmd}" || commands+=( "${cmd}" )
-
-        # Clear the trap associated with this signal since we're consuming it.
-        # NOTE: We actually are IGNORING the signal rather than resetting to
-        #       the default. This is partially because we're about to exit so
-        #       it's not meaningful to have them called again later. Also, if
-        #       there's no handler registered for SIGTERM then "Terminated" goes
-        #       to the console which is super annoying.
-        trap '' ${sig}
     done
 
     # Now execute the requested commands
@@ -261,9 +251,9 @@ die()
     # die itself.
     eerror_stacktrace -f=3 "${@}"
 
-    # Call and clear any registered DIE traps so that we invoke the traps
-    # before we exit or call any die_handler.
-    call_and_clear_die_traps
+    # Call any registered DIE traps so that we invoke the traps before we exit
+    # or call any die_handler.
+    call_die_traps
     
     # If we're in a subshell signal our parent SIGTERM and then exit. This will
     # allow the parent process to gracefully perform any cleanup before the
