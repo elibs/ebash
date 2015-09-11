@@ -224,7 +224,9 @@ extract_trap_cmd()
 call_die_traps()
 {
     # Create a local NO-OP version of die so that if we encounter die() in any
-    # of the traps we won't actually die.
+    # of the traps we won't actually die. Ensure we reinstate real die function
+    # before we leave this function.
+    save_function die
     die() { true; }
 
     local commands=()
@@ -238,6 +240,11 @@ call_die_traps()
     for cmd in "${commands[@]}"; do
         eval "${cmd}"
     done
+
+    # Reinstate real die function
+    local die_body="$(declare -f die_real)"
+    die_body="${die_body//die_real ()/die ()}"
+    eval "${die_body}"
 }
 
 die()
