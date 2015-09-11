@@ -202,6 +202,44 @@ stacktrace_array()
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
 
+# Print the trap command associated with a given signal (if any). This
+# essentially parses trap -p in order to extract the command from that
+# trap for use in other functions such as call_die_traps and trap_add.
+extract_trap_cmd()
+{
+    $(declare_args sig)
+
+    extract_trap_cmd_internal() { printf '%s\n' "${3:-}"; }
+    eval "extract_trap_cmd_internal $(trap -p "${sig}")"
+}
+
+# Invoke all traps associated with DIE_SIGNALS. This is desigend to be called
+# from die() or an overriden version of die(). As such it is designed to skip
+# over die itself in any of the traps so that the caller retains control and 
+# can then do other things instead of actually exiting.
+#
+# NOTE: Although this is pretty special purpose for use by die() it's exposed
+# here as an independent function to allow anyone who overrides die() to reuse
+# this code.
+call_die_traps()
+{
+    # Create a local NO-OP version of die so that if we encounter die() in any
+    # of the traps we won't actually die.
+    die() { true; }
+
+    local commands=()
+    local sig cmd
+    for sig in ${DIE_SIGNALS[@]}; do
+        cmd="$(extract_trap_cmd ${sig})"
+        array_contains commands "${cmd}" || commands+=( "${cmd}" )
+    done
+
+    # Now execute the requested commands
+    for cmd in "${commands[@]}"; do
+        eval "${cmd}"
+    done
+}
+
 die()
 {
     [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -eq 1 ]] && exit 1 || true
@@ -217,48 +255,19 @@ die()
     # die itself.
     eerror_stacktrace -f=3 "${@}"
 
-    # If we're in a subshell recursively kill our parent process which will
-    # also kill us. The reason we kill our parent is to ensure that any
-    # traps our parent has registered get called properly. 
+    # If we're in a subshell signal our parent SIGTERM and then exit. This will
+    # allow the parent process to gracefully perform any cleanup before the
+    # process ultimately exits.
     #
-    # If we're not in a subshell we essentially kill ourselves in a clever way
-    # to ensure all traps are properly executed and any die_handler is called
-    # in the appropriate order.
+    # If we're not in a subshell invoke any DIE traps that were previously 
+    # registered and then execute optional die_handler. If there is no handler
+    # then kill the process tree to ensure any stale processes are shut down.
     if [[ $$ != ${BASHPID} ]]; then
-        ekilltree -s=SIGTERM $(ps --pid ${BASHPID} -oppid=)
+        ekill -s=SIGTERM ${PPID}
+        exit 1
     else
-
-        # In order to ensure any traps are invoked BEFORE we actually call the
-        # die_handler or exit we must setup tail recursion such that once die
-        # is called again we will invoke the requested handler (or kill process
-        # group). The reason this is necessary is because die() is always the last
-        # thing to be executed in our trap stack. So the only way to ensure all
-        # traps have been executed without actually invoking them by hand is to
-        # replace die with our own version which will call the handler once we're
-        # called again.
-        
-        # Save off existing die function so that we can restore it later. Then
-        # Replace die() function with a new one which will restore the original
-        # die function and then invoke die_handler.
-        save_function die
-        die() 
-        {
-            # Restore original die function.
-            local die_body="$(declare -f die_real)"
-            die_body="${die_body//die_real ()/die ()}"
-            eval "${die_body}"
-
-            __EFUNCS_DIE_IN_PROGRESS=0
-
-            # If there is a die handler call it. Otherwise kill entire process group.
-            declare -f die_handler &>/dev/null && die_handler || kill -9 0
-        }
-    
-        # Signal our own process with SIGTERM. This will cause any traps we've
-        # registered to get invoked which will ultimately terminate at our new
-        # die() function we just created above. That will then reset die() to
-        # it's original state and finally call any requested handler.
-        ekilltree -s=SIGTERM $$
+        call_die_traps
+        declare -f die_handler &>/dev/null && die_handler || kill -9 0
     fi
 }
 
@@ -279,14 +288,9 @@ trap_add()
     local sig
     for sig in ${signals[@]}; do
         trap -- "$(
-            # helper fn to get existing trap command from output of trap -p
-            extract_trap_cmd() { printf '%s\n' "${3:-}"; }
-            # print the new trap command
             printf '%s; ' "${trap_command}"
-            # print existing trap command with newline
-            eval "extract_trap_cmd $(trap -p "${sig}")"
-        )" "${sig}" \
-            || die "unable to add to trap $(lval sig trap_command)"
+            extract_trap_cmd ${sig}
+        )" "${sig}"
     done
 }
 
@@ -912,14 +916,12 @@ ekill()
         # The process is still running. Now kill it. So long as the process does NOT
         # exist after sending it the specified signal this function will return
         # success.
-        local cmd="$(ps -p ${pid} -o comm= || true)"
+        local cmd="$(ps -p ${pid} -o args= || true)"
         edebug "Killing $(lval pid signal cmd)"
 
         # The process is still running. Now kill it. So long as the process does NOT
         # exist after sending it the specified signal this function will return success.
-        edebug "        Killing ${pid} with -${signal}"
         kill -${signal} ${pid} &>$(edebug_out) || (( errors+=1 ))
-        edebug "        Number of errors encountered (ekill): ${errors}"
     done
 
     [[ ${errors} -eq 0 ]]
@@ -943,16 +945,16 @@ ekilltree()
     local errors=0
 
     local pid
-    for pid in ${@}; do
-        edebug "    Killing process tree of ${pid} [$(ps -p ${pid} -o comm= || true)] with ${signal}"
-        for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
-            edebug "    Found child ${child}, of ${pid}"
+    for pid in ${@}; do 
+        local cmd="$(ps -p ${pid} -o args= || true)"
+        edebug "Killing process tree $(lval pid signal cmd)"
+        
+	for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+            edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child} || (( errors+=1 ))
         done
 
-        edebug "    Attempting to kill ${pid}"
         ekill -s=${signal} ${pid} || (( errors+=1 ))
-        edebug "    Number of errors encountered (ekilltree): ${errors}"
     done
 
     [[ ${errors} -eq 0 ]]
@@ -1306,16 +1308,16 @@ elogrotate()
     local log_idx next
     for (( log_idx=${max}; log_idx > 0; log_idx-- )); do
         next=$(( log_idx+1 ))
-        mv -f ${name}.${log_idx} ${name}.${next} &>$(edebug_out) || true
+        [[ -e ${name}.${log_idx} ]] && mv -f ${name}.${log_idx} ${name}.${next}
     done
 
     # Move non-versioned one over and create empty new file
-    mv -f ${name} ${name}.1 &>$(edebug_out) || true
+    [[ -e ${name} ]] && mv -f ${name} ${name}.1
     mkdir -p $(dirname ${name})
     touch ${name}
 
     # Remove any log files greater than our retention count
-    ( find $(dirname ${name}) -name "${name}*" 2>$(edebug_out) || true) | sort --version-sort | awk "NR>${max}" | xargs rm -f
+    find $(dirname ${name}) -path "${name}*" | sort --version-sort | awk "NR>${max}" | xargs rm -f
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
