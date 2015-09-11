@@ -227,7 +227,7 @@ cgroup_pids()
             array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks 2>/dev/null)"
         else
             for file in "${subsystem_paths[@]}" ; do
-                files+=("${file}/tasks")
+                [[ -e ${file} ]] && files+=("${file}/tasks") || true
             done
         fi
 

@@ -39,7 +39,8 @@ global_teardown()
     # Verify no remaining processes and shut things down
     local remaining_processes=$(cgroup_ps etest)
     [[ -n ${remaining_processes} ]] && { eerror "Stale processes:"  ; eerror "${remaining_processes}" ; }
-    cgroup_kill_and_wait -x="$$ ${BASHPID}" -s=SIGKILL etest
+    cgroup_move "/" $$ ${BASHPID}
+    cgroup_kill_and_wait -s=SIGKILL etest
     cgroup_destroy -r etest
 
     argcheck TEST_DIR_OUTPUT
@@ -76,7 +77,8 @@ test_teardown()
     ETEST_CGROUP=etest/${testfunc}
     local remaining_processes=$(cgroup_ps ${ETEST_CGROUP})
     [[ -n ${remaining_processes} ]] && { eerror "Stale processes:"  ; eerror "${remaining_processes}" ; }
-    cgroup_kill_and_wait -x="$$ ${BASHPID}" -s=SIGKILL ${ETEST_CGROUP}
+    cgroup_move etest $$ ${BASHPID}
+    cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
     cgroup_destroy -r ${ETEST_CGROUP}
 
     # Unit test infrastructure teardown
