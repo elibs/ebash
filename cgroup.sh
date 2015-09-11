@@ -435,9 +435,12 @@ cgroup_kill_and_wait()
 
         local remaining_pids=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
         if [[ -z ${remaining_pids} ]] ; then
-            break;
+            break
         else
-            sleep .5
+            edebug_disabled || 
+                for pid in ${remaining_pids} ; do
+                    edebug "   $(ps hp ${pid} 2>/dev/null || true)"
+                done
         fi
 
         (( times += 1 ))
