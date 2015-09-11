@@ -204,7 +204,7 @@ stacktrace_array()
 
 # Print the trap command associated with a given signal (if any). This
 # essentially parses trap -p in order to extract the command from that
-# trap for use in other functions such as call_die_traps and trap_add.
+# trap for use in other functions such as call_and_clear_die_traps and trap_add.
 extract_trap_cmd()
 {
     $(declare_args sig)
@@ -213,21 +213,26 @@ extract_trap_cmd()
     eval "extract_trap_cmd_internal $(trap -p "${sig}")"
 }
 
-# Invoke all traps associated with DIE_SIGNALS. This is desigend to be called
-# from die() or an overriden version of die(). As such it is designed to skip
-# over die itself in any of the traps so that the caller retains control and 
-# can then do other things instead of actually exiting.
+# Call and CLEAR all traps associated with DIE_SIGNALS. This is desigend to be
+# called rom die() or an overriden version of die(). As such it is designed to
+# skip over die itself in any of the traps so that the caller retains control and 
+# can then do other things instead of actually exiting. It's important to note
+# that this also CLEARS the traps so that they won't be called again since we've
+# invoked them all and they may not be idempotent.
 #
 # NOTE: Although this is pretty special purpose for use by die() it's exposed
 # here as an independent function to allow anyone who overrides die() to reuse
 # this code.
-call_die_traps()
+call_and_clear_die_traps()
 {
     local commands=()
     local sig cmd
     for sig in ${DIE_SIGNALS[@]}; do
         cmd="$(extract_trap_cmd ${sig})"
         array_contains commands "${cmd}" || commands+=( "${cmd}" )
+
+        # Clear the trap associated with this signal since we're consuming it.
+        trap - ${sig}
     done
 
     # Now execute the requested commands
@@ -259,10 +264,11 @@ die()
     # registered and then execute optional die_handler. If there is no handler
     # then kill the process tree to ensure any stale processes are shut down.
     if [[ $$ != ${BASHPID} ]]; then
+        call_and_clear_die_traps
         ekill -s=SIGTERM ${PPID}
         ekilltree -s=SIGTERM ${BASHPID}
     else
-        call_die_traps
+        call_and_clear_die_traps
         declare -f die_handler &>/dev/null && { __EFUNCS_DIE_IN_PROGRESS=0; die_handler; } || kill -9 0
     fi
 }
@@ -1313,7 +1319,10 @@ elogrotate()
     touch ${name}
 
     # Remove any log files greater than our retention count
-    find $(dirname ${name}) -name "${name}*" | sort --version-sort | awk "NR>${max}" | xargs rm -f
+    find "$(dirname "${name}")" -maxdepth 1   \
+               -type f -name "${name}"        \
+            -o -type f -name "${name}.[0-9]*" \
+        | sort --version-sort | awk "NR>${max}" | xargs rm -f
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
@@ -1325,7 +1334,7 @@ elogrotate()
 #
 # OPTIONS
 # -t=(0|1) Tail the resulting logfile (defaults to 1)
-# -m=NUM   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 5)
+# -r=NUM   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0 which is disabled)
 # -o=(0|1) Redirect STDOUT (defaults to 1)
 # -e=(0|1) Redirect STDERR (defaults to 1)
 elogfile()
@@ -1333,12 +1342,13 @@ elogfile()
     $(declare_args name)
 
     local dotail=$(opt_get t 1)
+    local rotate=$(opt_get r 0)
     local stdout=$(opt_get o 1)
     local stderr=$(opt_get e 1)
-    edebug "$(lval dotail stdout stderr)"
+    edebug "$(lval dotail rotate stdout stderr)"
 
     # Rotate logs as necessary
-    elogrotate -m=$(opt_get m 5) ${name}
+    [[ ${rotate} -eq 0 ]] || elogrotate -m=${rotate} ${name}
   
     # Optionally start up tail to follow the file and have it monitor our PID so it will
     # auto exit when our process exits. It's important that we use setsid and disown
