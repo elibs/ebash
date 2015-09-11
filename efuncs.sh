@@ -214,7 +214,7 @@ extract_trap_cmd()
 }
 
 # Call and CLEAR all traps associated with DIE_SIGNALS. This is desigend to be
-# called rom die() or an overriden version of die(). As such it is designed to
+# called from die() or an overriden version of die(). As such it is designed to
 # skip over die itself in any of the traps so that the caller retains control and 
 # can then do other things instead of actually exiting. It's important to note
 # that this also CLEARS the traps so that they won't be called again since we've
@@ -237,7 +237,7 @@ call_and_clear_die_traps()
 
     # Now execute the requested commands
     for cmd in "${commands[@]}"; do
-        ( die() { true; }; eval "${cmd}" )
+        ( die() { true; }; nodie_on_error; eval "${cmd}" )
     done
 }
 
@@ -256,6 +256,10 @@ die()
     # die itself.
     eerror_stacktrace -f=3 "${@}"
 
+    # Call and clear any registered DIE traps so that we invoke the traps
+    # before we exit or call any die_handler.
+    call_and_clear_die_traps
+    
     # If we're in a subshell signal our parent SIGTERM and then exit. This will
     # allow the parent process to gracefully perform any cleanup before the
     # process ultimately exits.
@@ -264,11 +268,9 @@ die()
     # registered and then execute optional die_handler. If there is no handler
     # then kill the process tree to ensure any stale processes are shut down.
     if [[ $$ != ${BASHPID} ]]; then
-        call_and_clear_die_traps
         ekill -s=SIGTERM ${PPID}
         ekilltree -s=SIGTERM ${BASHPID}
     else
-        call_and_clear_die_traps
         declare -f die_handler &>/dev/null && { __EFUNCS_DIE_IN_PROGRESS=0; die_handler; } || kill -9 0
     fi
 }
