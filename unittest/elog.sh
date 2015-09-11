@@ -220,3 +220,21 @@ ETEST_elogfile_rotate()
     cat ${FUNCNAME}.log
     assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}.log)"
 }
+
+# Test elogfile when the file has a path component
+ETEST_elogfile_path()
+{
+    local logname="var/log/${FUNCNAME}.log"
+    mkdir -p $(dirname ${logname})
+
+    (
+        elogfile -r=3 ${logname}
+
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    einfo "LOG file contents"
+    cat ${logname}
+    assert_eq "stdout"$'\n'"stderr" "$(cat ${logname})"
+}

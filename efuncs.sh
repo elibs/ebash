@@ -232,7 +232,12 @@ call_and_clear_die_traps()
         array_contains commands "${cmd}" || commands+=( "${cmd}" )
 
         # Clear the trap associated with this signal since we're consuming it.
-        trap - ${sig}
+        # NOTE: We actually are IGNORING the signal rather than resetting to
+        #       the default. This is partially because we're about to exit so
+        #       it's not meaningful to have them called again later. Also, if
+        #       there's no handler registered for SIGTERM then "Terminated" goes
+        #       to the console which is super annoying.
+        trap '' ${sig}
     done
 
     # Now execute the requested commands
@@ -1322,8 +1327,8 @@ elogrotate()
 
     # Remove any log files greater than our retention count
     find "$(dirname "${name}")" -maxdepth 1   \
-               -type f -name "${name}"        \
-            -o -type f -name "${name}.[0-9]*" \
+               -type f -name "$(basename "${name}")"        \
+            -o -type f -name "$(basename "${name}").[0-9]*" \
         | sort --version-sort | awk "NR>${max}" | xargs rm -f
 }
 
