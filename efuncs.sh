@@ -1320,6 +1320,41 @@ elogrotate()
     find $(dirname ${name}) -path "${name}*" | sort --version-sort | awk "NR>${max}" | xargs rm -f
 }
 
+# elogfile provides the ability to duplicate the calling processes STDOUT
+# and STDERR and send them both to the specified logfile while simultaneously
+# still displaying them to the console. Using this method is much preferred over
+# manually doing this with tee and named pipe redirection as that idiom has several
+# serious flaws. Most notablly, signals and traps are not properly inherited and
+# the process becomes unresponsive to signals.
+#
+# OPTIONS
+# -t=(0|1) Tail the resulting logfile (defaults to 1)
+# -m=NUM   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 5)
+# -o=(0|1) Redirect STDOUT (defaults to 1)
+# -e=(0|1) Redirect STDERR (defaults to 1)
+elogfile()
+{
+    $(declare_args name)
+
+    local dotail=$(opt_get t 1)
+    local stdout=$(opt_get o 1)
+    local stderr=$(opt_get e 1)
+    edebug "$(lval dotail stdout stderr)"
+
+    # Rotate logs as necessary
+    elogrotate -m=$(opt_get m 5) ${name}
+  
+    # Optionally start up tail to follow the file and have it monitor our PID so it will
+    # auto exit when our process exits. It's important that we use setsid and disown
+    # so that this process is no longer under our control and won't get prematurely
+    # killed by die().
+    [[ ${dotail} -eq 1 ]] && setsid tail -F ${name} --pid=$$ 2>/dev/null& disown
+   
+    # Finally do the actual redirection
+    [[ ${stdout} -eq 1 ]] && exec 1>> ${name} || true
+    [[ ${stderr} -eq 1 ]] && exec 2>> ${name} || true
+}
+
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
 # - Suppress all the normal noisy warnings that are almost never of interest to us.
 # - Automatically detect fastest compression program by default. If this isn't desired
