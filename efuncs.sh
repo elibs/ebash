@@ -1344,11 +1344,11 @@ elogfile()
     # auto exit when our process exits. It's important that we use setsid and disown
     # so that this process is no longer under our control and won't get prematurely
     # killed by die().
-    [[ ${dotail} -eq 1 ]] && setsid tail -F ${name} --pid=$$ 2>/dev/null& disown
+    [[ ${dotail} -eq 0 ]] || setsid tail -F ${name} --pid=$$ 2>/dev/null& disown
    
     # Finally do the actual redirection
-    [[ ${stdout} -eq 1 ]] && exec 1>> ${name} || true
-    [[ ${stderr} -eq 1 ]] && exec 2>> ${name} || true
+    [[ ${stdout} -eq 0 ]] || exec 1>> ${name}
+    [[ ${stderr} -eq 0 ]] || exec 2>> ${name}
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
