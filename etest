@@ -169,6 +169,6 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
 
 done
 
-array_empty FAILED_FILES || die "$(lval FAILED_FILES)"
+array_empty FAILED_FILES || eerror "$(lval FAILED_FILES)"
 
-exit 0
+exit ${#FAILED_FILES[@]}
