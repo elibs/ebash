@@ -3063,6 +3063,21 @@ assert_not_empty()
     done
 }
 
+assert_exists()
+{
+    local name
+    for name in "${@}"; do
+        assert [[ -e "${name}" ]]
+    done
+}
+
+assert_not_exists()
+{
+    local name
+    for name in "${@}"; do
+        assert [[ ! -e "${name}" ]]
+    done
+}
 
 #-----------------------------------------------------------------------------
 # SOURCING
