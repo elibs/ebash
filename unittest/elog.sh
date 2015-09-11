@@ -3,22 +3,18 @@
 assert_exists()
 {
     for name in $@; do
-        einfo "Exists: ${name}"
         assert [[ -e ${name} ]]
-        eend
     done
 }
 
 assert_not_exists()
 {
     for name in $@; do
-        einfo "NotExists: ${name}"
         assert [[ ! -e ${name} ]]
-        eend
     done
 }
 
-ETEST_logrorate()
+ETEST_elogrotate()
 {
     touch foo
 
@@ -39,29 +35,72 @@ ETEST_logrorate()
     assert_not_exists foo.5
 }
 
-ETEST_logrotate_custom()
+ETEST_elogrotate_custom()
 {
     touch foo
     elogrotate -m=2 foo
-    ls -l foo*
+    find . | sort --version-sort
     assert_exists foo foo.1
     assert_not_exists foo.2
 
     elogrotate -m=2 foo
-    ls -l foo*
+    find . | sort --version-sort
     assert_exists foo foo.1
     assert_not_exists foo.{2..3}
 }
 
-ETEST_logrotate_prune()
+ETEST_elogrotate_prune()
 {
-    touch foo
-    touch foo.{1..20}
-    ls foo* | sort --version-sort
+    touch foo foo.{1..20}
+    find . | sort --version-sort
 
     elogrotate -m=3 foo
     assert_exists foo foo.{1..2}
     assert_not_exists foo.{3..20}
+}
+
+# Ensure we only delete files matching our prefix exactly with optional numerical suffixes.
+ETEST_elogrotate_exact()
+{
+    touch fooXXX foo foo.{1..20}
+    einfo "Before log rotation"
+    find . | sort --version-sort
+
+    elogrotate -m=3 foo
+    einfo "After log rotation"
+    find . | sort --version-sort
+    assert_exists fooXXX foo foo.{1..2}
+    assert_not_exists foo.{3..20}
+}
+
+# Ensure we don't try to delete directories
+ETEST_elogrotate_nodir()
+{
+    touch fooXXX foo foo.{1..20}
+    mkdir foo.21
+    einfo "Before log rotation"
+    find . | sort --version-sort
+
+    elogrotate -m=3 foo
+    einfo "After log rotation"
+    find . | sort --version-sort
+    assert_exists fooXXX foo foo.{1..2} foo.21
+    assert_not_exists foo.{3..20}
+}
+
+# Ensure no recursion when deleting
+ETEST_elogrotate_norecursion()
+{
+    mkdir bar
+    touch foo foo.{1..10} bar/foo.{1..10}
+    einfo "Before log rotation"
+    find . | sort --version-sort
+
+    elogrotate -m=3 foo
+    einfo "After log rotation"
+    find . | sort --version-sort
+    assert_exists foo foo.{1..2} bar/foo.{1..10}
+    assert_not_exists foo.{3..10}
 }
 
 ETEST_elogfile()
@@ -133,6 +172,8 @@ ETEST_elogfile_nostdout()
 
 ETEST_elogfile_none()
 {
+    touch ${FUNCNAME}.log
+
     (
         elogfile -o=0 -e=0 ${FUNCNAME}.log
         
@@ -171,4 +212,25 @@ ETEST_elogfile_notail()
 
     einfo "Child output"
     cat ${FUNCNAME}_child.log
+}
+
+# Test elogfile with logrotation.
+ETEST_elogfile_rotate()
+{
+    touch ${FUNCNAME}.log{,.1,.2,.3,.4,.5,.6}
+    assert_exists ${FUNCNAME}.log ${FUNCNAME}.log.{1,2,3,4,5,6}
+
+    (
+        elogfile -r=3 ${FUNCNAME}.log
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    ls -l1 --sort=version ${FUNCNAME}.log*
+    assert_exists ${FUNCNAME}.log ${FUNCNAME}.log.{1,2}
+    assert_not_exists ${FUNCNAME}.log.{3,4,5,6,7}
+
+    einfo "LOG file contents"
+    cat ${FUNCNAME}.log
+    assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}.log)"
 }
