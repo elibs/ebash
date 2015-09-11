@@ -4,7 +4,7 @@ assert_exists()
 {
     for name in $@; do
         einfo "Exists: ${name}"
-        [[ -e ${name} ]] || die "${name} is missing"
+        assert [[ -e ${name} ]]
         eend
     done
 }
@@ -13,7 +13,7 @@ assert_not_exists()
 {
     for name in $@; do
         einfo "NotExists: ${name}"
-        [[ ! -e ${name} ]] || die "${name} exists but should not"
+        assert [[ ! -e ${name} ]]
         eend
     done
 }
@@ -43,10 +43,12 @@ ETEST_logrotate_custom()
 {
     touch foo
     elogrotate -m=2 foo
+    ls -l foo*
     assert_exists foo foo.1
     assert_not_exists foo.2
 
     elogrotate -m=2 foo
+    ls -l foo*
     assert_exists foo foo.1
     assert_not_exists foo.{2..3}
 }

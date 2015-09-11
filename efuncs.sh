@@ -223,12 +223,6 @@ extract_trap_cmd()
 # this code.
 call_die_traps()
 {
-    # Create a local NO-OP version of die so that if we encounter die() in any
-    # of the traps we won't actually die. Ensure we reinstate real die function
-    # before we leave this function.
-    save_function die
-    die() { true; }
-
     local commands=()
     local sig cmd
     for sig in ${DIE_SIGNALS[@]}; do
@@ -238,13 +232,8 @@ call_die_traps()
 
     # Now execute the requested commands
     for cmd in "${commands[@]}"; do
-        eval "${cmd}"
+        ( die() { true; }; eval "${cmd}" )
     done
-
-    # Reinstate real die function
-    local die_body="$(declare -f die_real)"
-    die_body="${die_body//die_real ()/die ()}"
-    eval "${die_body}"
 }
 
 die()
@@ -271,10 +260,10 @@ die()
     # then kill the process tree to ensure any stale processes are shut down.
     if [[ $$ != ${BASHPID} ]]; then
         ekill -s=SIGTERM ${PPID}
-        exit 1
+        ekilltree -s=SIGTERM ${BASHPID}
     else
         call_die_traps
-        declare -f die_handler &>/dev/null && die_handler || kill -9 0
+        declare -f die_handler &>/dev/null && { __EFUNCS_DIE_IN_PROGRESS=0; die_handler; } || kill -9 0
     fi
 }
 
@@ -1324,7 +1313,7 @@ elogrotate()
     touch ${name}
 
     # Remove any log files greater than our retention count
-    find $(dirname ${name}) -path "${name}*" | sort --version-sort | awk "NR>${max}" | xargs rm -f
+    find $(dirname ${name}) -name "${name}*" | sort --version-sort | awk "NR>${max}" | xargs rm -f
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
