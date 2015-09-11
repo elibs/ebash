@@ -259,7 +259,7 @@ ETEST_cgroup_pids_checks_all_subsystems()
     # Make sure it still shows up in the list of pids
     foundPids=($( cgroup_pids -r ${CGROUP}))
     einfo "$(lval pid foundPids)"
-    einfo "$(ps -hp $pid)"
+    einfo "$(ps hp $pid)"
 
     assert_true array_contains foundPids ${pid}
 
