@@ -62,14 +62,14 @@ ETEST_elogrotate_prune()
 # Ensure we only delete files matching our prefix exactly with optional numerical suffixes.
 ETEST_elogrotate_exact()
 {
-    touch fooXXX foo foo.{1..20}
+    touch fooXXX foo. foo foo.{1..20}
     einfo "Before log rotation"
     find . | sort --version-sort
 
     elogrotate -m=3 foo
     einfo "After log rotation"
     find . | sort --version-sort
-    assert_exists fooXXX foo foo.{1..2}
+    assert_exists fooXXX foo. foo foo.{1..2}
     assert_not_exists foo.{3..20}
 }
 
