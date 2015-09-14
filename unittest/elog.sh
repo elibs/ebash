@@ -172,34 +172,6 @@ ETEST_elogfile_none()
     assert_eq "" "$(cat ${FUNCNAME}.log)"
 }
 
-# Test that we can disable tailing the output
-ETEST_elogfile_notail()
-{
-    (
-        exec > ${FUNCNAME}_parent.log
-
-        (
-            elogfile -t=0 ${FUNCNAME}_child.log
-            
-            while true; do
-                echo "XXX"
-                sleep 1
-            done
-
-        ) &
-    ) &
-
-    sleep 3
-    ekilltree $!
-
-    einfo "Parent output"
-    cat ${FUNCNAME}_parent.log
-    grep "XXX" ${FUNCNAME}_parent.log && die "Child output should NOT have gone to parent.log"
-
-    einfo "Child output"
-    cat ${FUNCNAME}_child.log
-}
-
 # Test elogfile with logrotation.
 ETEST_elogfile_rotate()
 {
@@ -239,83 +211,25 @@ ETEST_elogfile_path()
     assert_eq "stdout"$'\n'"stderr" "$(cat ${logname})"
 }
 
-# Validate logfile truncation behavior when using raw /dev/{stdout,stderr}
-# Also ensure truncation happens with /dev/fd/{1,2}
 ETEST_elogfile_truncation()
 {
-    ## STDOUT
-    einfo "Testing /dev/stdout"
+    > ${FUNCNAME}.log
+    
     (
         elogfile ${FUNCNAME}.log
-        einfo "Test#1: PID=$$ BASHPID=$BASHPID PPID=$PPID"
-        echo "" >/dev/stdout
+        
+        echo "/dev/stdout" >/dev/stdout
+        echo "/dev/stderr" >/dev/stderr
+        echo "/dev/fd/1"   >/dev/fd/1
+        echo "/dev/fd/2"   >/dev/fd/2
+        echo "edebug_out"  >$(edebug_out)
+        echo "&1"          >&1
+        echo "&2"          >&2
     )
-    assert "" $(cat ${FUNCNAME}.log)
-    eend
 
-    ## STDERR
-    einfo "Testing /dev/stderr"
-    (
-        elogfile ${FUNCNAME}.log
-        einfo "Test#2 $$ $BASHPID"
-        echo "" >/dev/stderr
-        exit 0
-    )
-    assert "" $(cat ${FUNCNAME}.log)
-    eend
-
-    ##/dev/fd/1
-    einfo "testing /dev/fd/1"
-    (
-        elogfile ${FUNCNAME}.log
-        einfo "Test#3 $$ $BASHPID"
-        echo "" >/dev/fd/1
-        exit 0
-    )
-    assert "" $(cat ${FUNCNAME}.log)
-    eend
-
-    ##/dev/fd/2
-    einfo "Testing /dev/fd/2"
-    (
-        elogfile ${FUNCNAME}.log
-        einfo "Test#4 $$ $BASHPID"
-        echo "" >/dev/fd/2
-        exit 0
-    )
-    assert "" $(cat ${FUNCNAME}.log)
-    eend
-
-    # Need to sleep for a second to give tail a chance to notice subprocess exit and shutdown properly
-    sleep 1
-}
-
-# Validate logfiles are not truncated when using bash symbolic &1 and &2
-ETEST_elogfile_truncation_symbolic()
-{
-    ## &1
-    einfo "Testing &1"
-    (
-        elogfile ${FUNCNAME}.log
-        einfo "Test#1"
-        echo "" >&1
-    )
-    grep --quiet "Test#1" ${FUNCNAME}.log || die "Logfile was truncated"
-    eend
-
-    ## &2
-    einfo "Testing &2"
-    (
-        elogfile ${FUNCNAME}.log
-        einfo "Test#2"
-        echo "" >&2
-    )
-    grep --quiet "Test#1" ${FUNCNAME}.log || die "Logfile was truncated"
-    grep --quiet "Test#2" ${FUNCNAME}.log || die "Logfile was truncated"
-    eend
-
-    # Need to sleep for a second to give tail a chance to notice subprocess exit and shutdown properly
-    sleep 1
+    for match in "/dev/stdout" "/dev/stderr" "/dev/fd/1" "/dev/fd/2" "edebug_out" "&1" "&2"; do
+        grep --quiet "${match}" ${FUNCNAME}.log || die "Logfile was truncated"
+    done
 }
 
 # Validate efetch doesn't cause log truncation.
