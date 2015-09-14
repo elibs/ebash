@@ -168,7 +168,7 @@ ETEST_chroot_kill()
     chroot_mount
 
     einfo "Starting some chroot processes"
-    chroot_cmd "cat &           echo \$! >> /tmp/pids"
+    chroot_cmd "cat&            echo \$! >> /tmp/pids"
     chroot_cmd "sleep infinity& echo \$! >> /tmp/pids"
     local pids=()
     array_init pids "$(cat ${CHROOT}/tmp/pids)"

@@ -115,8 +115,7 @@ chroot_kill()
 
     local pids=""
     local errors=0
-    [[ -n ${regex} ]] && pids=$(pgrep "${regex}")
-    [[ -z ${regex} ]] && pids=$(ps -eo "%p")
+    [[ -n ${regex} ]] && pids=$(pgrep "${regex}" || return 0) || pids=$(ps -eo "%p")
     edebug $(lval regex signal pids)
 
     for pid in ${pids}; do
