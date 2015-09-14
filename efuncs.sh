@@ -75,7 +75,7 @@ edebug()
 
 edebug_out()
 {
-    edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
+    edebug_enabled && echo -n "&2" || echo -n "/dev/null"
 }
 
 #-----------------------------------------------------------------------------
