@@ -66,9 +66,9 @@ ETEST_cgroup_pstree()
         # be there, such as the PIDs of the two sleeps.
         (
             einfo 1
-            echo "${output}" | grep -P '\b'${sleep1}'\b' 
+            echo "${output}" | grep -P " ${sleep1} " 
             einfo 2
-            echo "${output}" | grep -P '\b'${sleep2}'\b' 
+            echo "${output}" | grep -P " ${sleep2} "
             einfo 3
             echo "${output}" | grep "${CGROUP}/a"
             einfo 4
