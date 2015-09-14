@@ -75,7 +75,7 @@ edebug()
 
 edebug_out()
 {
-    edebug_enabled && echo -n "&2" || echo -n "/dev/null"
+    edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
 #-----------------------------------------------------------------------------
@@ -1325,12 +1325,11 @@ elogrotate()
 # elogfile provides the ability to duplicate the calling processes STDOUT
 # and STDERR and send them both to the specified logfile while simultaneously
 # still displaying them to the console. Using this method is much preferred over
-# manually doing this with tee and named pipe redirection as that idiom has several
-# serious flaws. Most notablly, signals and traps are not properly inherited and
-# the process becomes unresponsive to signals.
+# manually doing this with tee and named pipe redirection as we take special care
+# to ensure STDOUT and STDERR pipes are kept separate to avoid problems with 
+# logfiles getting truncated.
 #
 # OPTIONS
-# -t=(0|1) Tail the resulting logfile (defaults to 1)
 # -r=NUM   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0 which is disabled)
 # -o=(0|1) Redirect STDOUT (defaults to 1)
 # -e=(0|1) Redirect STDERR (defaults to 1)
@@ -1346,25 +1345,11 @@ elogfile()
 
     # Rotate logs as necessary
     [[ ${rotate} -eq 0 ]] || elogrotate -m=${rotate} ${name}
-  
-    # Optionally start up tail to follow the file and have it monitor our PID so it will
-    # auto exit when our process exits. It's important that we use setsid and disown
-    # so that this process is no longer under our control and won't get prematurely
-    # killed by die().
-    if [[ ${dotail} -eq 1 ]]; then
-        
-        # We have to save off the the BASHPID we're going to monitor because BASHPID 
-        # actually changes when used inside setsid the way we're invoking it. It's
-        # important we use BASHPID instead of $$ because if this was launched inside
-        # a subshell we want to monitor that rather than the entire calling process.
-        # If we're not in a subshell $$ and $BASHPID are equal and it's a moot point.
-        local pid=${BASHPID}
-        setsid tail -F ${name} --pid=${pid} 2>/dev/null& disown
-    fi
 
-    # Finally do the actual redirection
-    [[ ${stdout} -eq 0 ]] || exec 1>> ${name}
-    [[ ${stderr} -eq 0 ]] || exec 2>> ${name}
+    # Optionally redirect stdout and stderr to tee. Take special care to ensure we keep STDOUT and STDERR
+    # are kept separate to ensure the caller's output is unmodified.
+    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a ${name})
+    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a ${name} >&2)
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
