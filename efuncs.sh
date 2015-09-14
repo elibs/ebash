@@ -1351,8 +1351,17 @@ elogfile()
     # auto exit when our process exits. It's important that we use setsid and disown
     # so that this process is no longer under our control and won't get prematurely
     # killed by die().
-    [[ ${dotail} -eq 0 ]] || setsid tail -F ${name} --pid=$$ 2>/dev/null& disown
-   
+    if [[ ${dotail} -eq 1 ]]; then
+        
+        # We have to save off the the BASHPID we're going to monitor because BASHPID 
+        # actually changes when used inside setsid the way we're invoking it. It's
+        # important we use BASHPID instead of $$ because if this was launched inside
+        # a subshell we want to monitor that rather than the entire calling process.
+        # If we're not in a subshell $$ and $BASHPID are equal and it's a moot point.
+        local pid=${BASHPID}
+        setsid tail -F ${name} --pid=${pid} 2>/dev/null& disown
+    fi
+
     # Finally do the actual redirection
     [[ ${stdout} -eq 0 ]] || exec 1>> ${name}
     [[ ${stderr} -eq 0 ]] || exec 2>> ${name}
