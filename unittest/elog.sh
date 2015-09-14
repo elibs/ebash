@@ -239,21 +239,82 @@ ETEST_elogfile_path()
     assert_eq "stdout"$'\n'"stderr" "$(cat ${logname})"
 }
 
-# Ensure logfile doesn't get truncated via efetch.
+# Validate logfile truncation behavior when using raw /dev/{stdout,stderr}
+# Also ensure truncation happens with /dev/fd/{1,2}
 ETEST_elogfile_truncation()
 {
-    echo "source" > src.log
+    ## STDOUT
+    einfo "Testing /dev/stdout"
+    (
+        pstree -p $PPID
+        elogfile ${FUNCNAME}.log
+        einfo "Test#1: PID=$$ BASHPID=$BASHPID PPID=$PPID"
+        echo "" >/dev/stdout
+    )
+    assert "" $(cat ${FUNCNAME}.log)
+    eend
 
+    ## STDERR
+    einfo "Testing /dev/stderr"
     (
         elogfile ${FUNCNAME}.log
-        einfo "Fetching file"
-        efetch file://src.log dst.log
+        einfo "Test#2 $$ $BASHPID"
+        echo "" >/dev/stderr
+        exit 0
     )
+    assert "" $(cat ${FUNCNAME}.log)
+    eend
 
-    assert diff src.log dst.log
+    ##/dev/fd/1
+    einfo "testing /dev/fd/1"
+    (
+        elogfile ${FUNCNAME}.log
+        einfo "Test#3 $$ $BASHPID"
+        echo "" >/dev/fd/1
+        exit 0
+    )
+    assert "" $(cat ${FUNCNAME}.log)
+    eend
 
-    einfo "Displaying logfile"
-    cat ${FUNCNAME}.log
+    ##/dev/fd/2
+    einfo "Testing /dev/fd/2"
+    (
+        elogfile ${FUNCNAME}.log
+        einfo "Test#4 $$ $BASHPID"
+        echo "" >/dev/fd/2
+        exit 0
+    )
+    assert "" $(cat ${FUNCNAME}.log)
+    eend
 
-    grep --quiet ">> Fetching file" ${FUNCNAME}.log || die "Logfile was truncated"
+    # Need to sleep for a second to give tail a chance to notice subprocess exit and shutdown properly
+    sleep 1
+}
+
+# Validate logfiles are not truncated when using bash symbolic &1 and &2
+ETEST_elogfile_truncation_symbolic()
+{
+    ## &1
+    einfo "Testing &1"
+    (
+        elogfile ${FUNCNAME}.log
+        einfo "Test#1"
+        echo "" >&1
+    )
+    grep --quiet "Test#1" ${FUNCNAME}.log || die "Logfile was truncated"
+    eend
+
+    ## &2
+    einfo "Testing &2"
+    (
+        elogfile ${FUNCNAME}.log
+        einfo "Test#2"
+        echo "" >&2
+    )
+    grep --quiet "Test#1" ${FUNCNAME}.log || die "Logfile was truncated"
+    grep --quiet "Test#2" ${FUNCNAME}.log || die "Logfile was truncated"
+    eend
+
+    # Need to sleep for a second to give tail a chance to notice subprocess exit and shutdown properly
+    sleep 1
 }

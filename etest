@@ -35,6 +35,8 @@ assert_no_process_leaks()
 
 global_setup()
 {
+    edebug "ETEST global_setup: PID=$$ BASHPID=$BASHPID PPID=$PPID"
+
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
@@ -49,7 +51,7 @@ global_setup()
 
 global_teardown()
 {
-    edebug "etest global teardown"
+    edebug "ETEST global_teardown: PID=$$ BASHPID=$BASHPID PPID=$PPID"
 
     assert_no_process_leaks
    
@@ -62,6 +64,8 @@ global_teardown()
 
 test_setup()
 {
+    edebug "ETEST test_setup for ${testfunc}: PID=$$ BASHPID=$BASHPID PPID=$PPID"
+
     # Unit test infrastructure setup
     argcheck TEST_DIR_OUTPUT
     mkdir -p ${TEST_DIR_OUTPUT}/${testfunc}
@@ -74,7 +78,7 @@ test_setup()
 
 test_teardown()
 {
-    edebug "Tearing down for test ${testfunc}"
+    edebug "ETEST test_teardown for ${testfunc}: PID=$$ BASHPID=$BASHPID PPID=$PPID"
 
     # Unit test provided teardown
     declare -f teardown &>/dev/null && { teardown || die "Setup failed." ; }
