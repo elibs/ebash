@@ -23,7 +23,7 @@ export ETEST_CGROUP="etest/$(basename ${TEST_DIR})-$$"
 
 assert_no_process_leaks()
 {
-    cgroup_move "/" $$ ${BASHPID}
+    cgroup_move "/etest" $$ ${BASHPID}
     
     local remaining_processes=$(cgroup_ps ${ETEST_CGROUP})
     if [[ -n ${remaining_processes} ]]; then
