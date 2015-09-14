@@ -174,7 +174,6 @@ assert_stack_eq()
     done
 }
 
-## TODO: Need to track the code flow to ensure all points were executed properly
 ETEST_try_catch_stack()
 {
     assert_stack_eq TEST EXIT

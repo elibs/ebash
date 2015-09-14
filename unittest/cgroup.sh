@@ -64,18 +64,15 @@ ETEST_cgroup_pstree()
 
         # Make sure the output contains some handy strings that I know should
         # be there, such as the PIDs of the two sleeps.
+        einfo "Checking the output:"
         (
-            einfo 1
-            echo "${output}" | grep -P " ${sleep1} " 
-            einfo 2
-            echo "${output}" | grep -P " ${sleep2} "
-            einfo 3
+            echo "${output}" | grep -w ${sleep1}
+            echo "${output}" | grep -w ${sleep2}
             echo "${output}" | grep "${CGROUP}/a"
-            einfo 4
             echo "${output}" | grep "${CGROUP}/b"
-            einfo 5
             echo "${output}" | grep "${CGROUP}/c"
-        )# >/dev/null
+        )
+        einfo "Done checking"
     )
 }
 
