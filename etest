@@ -189,6 +189,7 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
            
         done
 
+        einfo "$(lval FAILED_TESTS)"
         array_empty FAILED_TESTS || { eerror_stacktrace "$(lval FAILED_TESTS)"; echo; throw 1; }
     } 
     catch
@@ -198,6 +199,7 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
 
 done
 
+einfo $(lval FAILED_FILES)"
 array_empty FAILED_FILES || eerror "$(lval FAILED_FILES)"
 
 exit ${#FAILED_FILES[@]}
