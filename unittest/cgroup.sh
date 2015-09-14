@@ -43,7 +43,7 @@ ETEST_cgroup_tree()
 ETEST_cgroup_pstree()
 {
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP} ; ewarn 'finished cgroup_destroy'"
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
     cgroup_create ${CGROUP}/{a,b,c}
     (
