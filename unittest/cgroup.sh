@@ -57,7 +57,7 @@ ETEST_cgroup_pstree()
         sleep2=$!
         cgroup_move ${CGROUP}/b ${sleep2}
 
-        local output="$(EDEBUG=0 cgroup_pstree ${CGROUP} 2>&1 )"
+        local output="$(EDEBUG=0 ETRACE=0 ECOLOR=0 cgroup_pstree ${CGROUP} 2>&1 )"
 
         einfo "Actual pstree output $(lval sleep1 sleep2 CGROUP)"
         echo "${output}"
