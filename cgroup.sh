@@ -76,7 +76,7 @@ cgroup_destroy()
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
 
             local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
-            [[ -d ${subsys_path} ]] || continue
+            [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys} that is already gone." ; continue ; }
 
             if opt_true "r" ; then
                 find ${subsys_path} -depth -type d -exec rmdir {} \;
@@ -392,17 +392,21 @@ cgroup_kill()
     # different inside this command substituion (subshell) than it is outside.
     array_init pids "$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" ${cgroups[@]} || true)"
 
-    edebug "Killing processes in cgroups $(lval cgroups pids ignorepids)"
-    local signal=$(opt_get s SIGTERM)
+    if [[ $(array_size pids) -gt 0 ]] ; then
+        edebug "Killing processes in cgroups $(lval cgroups pids ignorepids)"
+        local signal=$(opt_get s SIGTERM)
 
-    # Ignoring errors here because we don't want to die simply because a
-    # process that was in the cgroup disappeared of its own volition before we
-    # got around to killing it.
-    #
-    # NOTE: This also has the side effect of causing cgroup_kill to NOT fail
-    # when the calling user doesn't have permission to kill everything in the
-    # cgroup.
-    [[ -z ${pids[@]:-} ]] || ekill -s=${signal} ${pids} || true
+        # Ignoring errors here because we don't want to die simply because a
+        # process that was in the cgroup disappeared of its own volition before we
+        # got around to killing it.
+        #
+        # NOTE: This also has the side effect of causing cgroup_kill to NOT fail
+        # when the calling user doesn't have permission to kill everything in the
+        # cgroup.
+        ekill -s=${signal} ${pids} || true
+    else
+        edebug "All processes in cgroup are already dead.  $(lval cgroups pids ignorepids)"
+    fi
 }
 
 #-------------------------------------------------------------------------------
@@ -435,11 +439,13 @@ cgroup_kill_and_wait()
 
         local remaining_pids=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
         if [[ -z ${remaining_pids} ]] ; then
+            edebug "Done.  All processes in cgroup are gone.  $(lval cgroups ignorepids)"
             break
         else
             edebug_disabled || 
                 for pid in ${remaining_pids} ; do
-                    edebug "   $(ps hp ${pid} 2>/dev/null || true)"
+                    local ps_output="$(ps hp ${pid} 2>/dev/null || true)"
+                    [[ -z ${ps_output} ]] || edebug "   ${ps_output}"
                 done
             sleep .1
         fi
