@@ -79,12 +79,7 @@ cgroup_destroy()
             [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys_path} that is already gone." ; continue ; }
 
             if opt_true "r" ; then
-                edebug PIDS
-                find ${subsys_path} -name tasks -exec cat {} \;
-                edebug /PIDS
-                local rc=0
-                find ${subsys_path} -depth -type d -exec rmdir {} \; || rc=$?
-                ewarn "find exit code is ${rc}"
+                find ${subsys_path} -depth -type d -exec rmdir {} \;
             else
                 rmdir ${subsys_path}
             fi
