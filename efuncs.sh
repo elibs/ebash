@@ -948,7 +948,7 @@ ekilltree()
         local cmd="$(ps -p ${pid} -o args= || true)"
         edebug "Killing process tree $(lval pid signal cmd)"
         
-	for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+        for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
             edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child} || (( errors+=1 ))
         done
@@ -2173,8 +2173,8 @@ eretry()
             # or completel normally.
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
-            kill -9 ${watcher} &>/dev/null || true
-            wait ${watcher}    &>/dev/null || true
+            ekilltree -KILL ${watcher} &>/dev/null || true
+            wait ${watcher}            &>/dev/null || true
 
             # If the process timedout return 124 to match timeout behavior.
             local timeout_rc=$(( 128 + ${_eretry_signal} ))

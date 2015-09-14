@@ -14,20 +14,21 @@ ETEST_ekill()
 
 ETEST_ekill_multiple()
 {
-    local pids=()
-    yes >/dev/null &
-    pids+=( $! )
+    > pids
+    yes >/dev/null & echo "$!" >> pids
 
     local idx
     for (( idx=0; idx<10; ++idx )); do
         sleep infinity &
-        pids+=( $! )
+        echo "$!" >> pids
     done
 
+    local pids=( $(cat pids) )
     einfo "Killing all $(lval pids)"
     ekill ${pids[@]}
 
     for pid in ${pids[@]}; do
+        einfo "Waiting for $(lval pid pids SECONDS)"
         wait $pid || true
         ! process_running ${pid} || die "${pid} failed to exit"
     done
@@ -35,19 +36,28 @@ ETEST_ekill_multiple()
 
 ETEST_ekilltree()
 {
-    local pids=()
+    > pids
 
     # Create a bunch of background processes
     (
-        sleep infinity& pids+=( $! )
-        yes >/dev/null& pids+=( $! )
-        bash -c 'sleep 1000' & pids+=( $! )
-    ) & pids+=( $! )
-    bash -c 'sleep 4000' & pids+=( $! )
+        sleep infinity&        echo "$!" >> pids
+        yes >/dev/null&        echo "$!" >> pids
+        bash -c 'sleep 1000'&  echo "$!" >> pids
 
-    ekilltree ${pids[@]}
+        # Keep the entire subshell from exiting and having above processes get
+        # reparented to init.
+        sleep infinity || true
+    ) &
+
+    local main_pid=$!
+    echo "${main_pid}" >> pids
+
+    local pids=( $(cat pids) )
+    einfo "Killing $(lval main_pid) -- Expecting death from $(lval pids)"
+    ekilltree ${main_pid}
 
     for pid in ${pids[@]}; do
+        einfo "Waiting for $(lval pid pids SECONDS)"
         wait $pid || true
         ! process_running ${pid} || die "${pid} failed to exit"
     done
