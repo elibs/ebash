@@ -14,9 +14,24 @@ $(esource ${BASHUTILS}/cgroup.sh)
 TEST_DIR=$(readlink -m $1)
 FILTER=${2:-}
 
+# Global cgroup name for all unit tests
+export ETEST_CGROUP="etest/$(basename ${TEST_DIR})-$$"
+
 #-------------------------------------------------------------------------------------------------------------------------
 # TEST UTILITY FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------------------
+
+assert_no_process_leaks()
+{
+    cgroup_move "/" $$ ${BASHPID}
+    
+    local remaining_processes=$(cgroup_ps ${ETEST_CGROUP})
+    if [[ -n ${remaining_processes} ]]; then
+        cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
+        cgroup_destroy -r ${ETEST_CGROUP}
+        die "Stale processes:\n${remaining_processes}"
+    fi
+}
 
 global_setup()
 {
@@ -28,21 +43,16 @@ global_setup()
     [[ -n "$(cgroup_pids etest)" ]] && { ewarn "Killing stale etest processes" ; cgroup_kill_and_wait -s=SIGKILL etest ; }
 
     # And a cgroup that will contain all output
-    cgroup_create etest
-    cgroup_move etest $$
+    cgroup_create ${ETEST_CGROUP}
+    cgroup_move ${ETEST_CGROUP} $$
 }
 
 global_teardown()
 {
     edebug "etest global teardown"
 
-    # Verify no remaining processes and shut things down
-    local remaining_processes=$(cgroup_ps etest)
-    [[ -n ${remaining_processes} ]] && { eerror "Stale processes:"  ; eerror "${remaining_processes}" ; }
-    cgroup_move "/" $$ ${BASHPID}
-    cgroup_kill_and_wait -s=SIGKILL etest
-    cgroup_destroy -r etest
-
+    assert_no_process_leaks
+   
     argcheck TEST_DIR_OUTPUT
     if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
         eunmount_recursive ${TEST_DIR_OUTPUT}
@@ -55,10 +65,6 @@ test_setup()
     # Unit test infrastructure setup
     argcheck TEST_DIR_OUTPUT
     mkdir -p ${TEST_DIR_OUTPUT}/${testfunc}
-
-    export ETEST_CGROUP=etest/${testfunc}
-    cgroup_create ${ETEST_CGROUP}
-    cgroup_move ${ETEST_CGROUP} ${BASHPID}
 
     # Unit test provided setup
     declare -f setup &>/dev/null && { setup || die "Setup failed." ; } 
@@ -73,13 +79,7 @@ test_teardown()
     # Unit test provided teardown
     declare -f teardown &>/dev/null && { teardown || die "Setup failed." ; }
 
-    # Verify no remaining processes and shut things down
-    ETEST_CGROUP=etest/${testfunc}
-    local remaining_processes=$(cgroup_ps ${ETEST_CGROUP})
-    [[ -n ${remaining_processes} ]] && { eerror "Stale processes:"  ; eerror "${remaining_processes}" ; }
-    cgroup_move etest $$ ${BASHPID}
-    cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
-    cgroup_destroy -r ${ETEST_CGROUP}
+    assert_no_process_leaks
 
     # Unit test infrastructure teardown
     argcheck testfunc
