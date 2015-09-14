@@ -164,7 +164,7 @@ alias nodie_on_error="trap - ERR"
 # (1) otherwise.
 die_on_error_enabled()
 {
-    trap -p | grep ERR &>$(edebug_out)
+    trap -p | grep ERR &>>$(edebug_out)
 }
 
 #-----------------------------------------------------------------------------
@@ -266,7 +266,7 @@ die()
         ekill -s=SIGTERM ${PPID}
         ekilltree -s=SIGTERM ${BASHPID}
     else
-        declare -f die_handler &>/dev/null && { __EFUNCS_DIE_IN_PROGRESS=0; die_handler; } || kill -9 0
+        declare -f die_handler &>>/dev/null && { __EFUNCS_DIE_IN_PROGRESS=0; die_handler; } || kill -9 0
     fi
 }
 
@@ -851,7 +851,7 @@ eprogress_kill()
     array_init pids "${__EPROGRESS_PIDS}"
     if [[ $(array_size pids) -gt 0 ]]; then
         ekill -s=${signal} ${pids[0]}
-        wait ${pids[0]} &>/dev/null || true
+        wait ${pids[0]} &>>/dev/null || true
 
         export __EPROGRESS_PIDS="${pids[@]:1}"
         einteractive && echo "" >&2
@@ -878,7 +878,7 @@ eprogress_killall()
 process_running()
 {
     $(declare_args pid)
-    kill -0 ${pid} &>/dev/null
+    kill -0 ${pid} &>>/dev/null
 }
 
 # Check if a given process is NOT running. Returns success (0) if the process
@@ -886,7 +886,7 @@ process_running()
 process_not_running()
 {
     $(declare_args pid)
-    ! kill -0 ${pid} &>/dev/null
+    ! kill -0 ${pid} &>>/dev/null
 }
 
 # Kill all pids provided as arguments to this function using the specified signal.
@@ -920,7 +920,7 @@ ekill()
 
         # The process is still running. Now kill it. So long as the process does NOT
         # exist after sending it the specified signal this function will return success.
-        kill -${signal} ${pid} &>$(edebug_out) || (( errors+=1 ))
+        kill -${signal} ${pid} &>>$(edebug_out) || (( errors+=1 ))
     done
 
     [[ ${errors} -eq 0 ]]
@@ -1233,7 +1233,7 @@ esource()
 
     local cmd=""
     for file in "${@}" ; do
-        cmd+='source "'${file}'" &>$(edebug_out) || die "Failed to source '${file}'"; '
+        cmd+='source "'${file}'" &>>$(edebug_out) || die "Failed to source '${file}'"; '
     done
 
     echo -n "eval "${cmd}""
@@ -1467,7 +1467,7 @@ echecksum()
     keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
     trap_add "rm -f ${keyring}"
-    gpg ${keyring_command} --import ${privatekey} &>$(edebug_out)
+    gpg ${keyring_command} --import ${privatekey} &>>$(edebug_out)
 
     # Get optional keyphrase
     local keyphrase="" keyphrase_command=""
@@ -1507,7 +1507,7 @@ echecksum_check()
         
         einfo "Verifying integrity of $(lval path meta)"
         pack_set metapack $(cat "${meta}")
-        pack_print metapack &>$(edebug_out)
+        pack_print metapack &>>$(edebug_out)
 
         if pack_contains metapack "Size"; then
             
@@ -1542,10 +1542,10 @@ echecksum_check()
             # Import PGP Public Key
             keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
             trap_add "rm -f ${keyring}"
-            gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} &>$(edebug_out)
+            gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} &>>$(edebug_out)
 
             # Now we can validate the signature
-            echo "${pgpsignature}" | gpg --verify - "${path}" &>$(edebug_out) || { ewarn "PGP verification failure: $(lval path)"; return 3; }
+            echo "${pgpsignature}" | gpg --verify - "${path}" &>>$(edebug_out) || { ewarn "PGP verification failure: $(lval path)"; return 3; }
             validated+=( "PGP" )
             
             eend
@@ -1554,7 +1554,7 @@ echecksum_check()
         # If we didn't validate anything then that's an error
         ! array_empty validated || { ewarn "Failed to validate $(lval path)"; return 4; }
 
-    } &>${redirect}
+    } &>>${redirect}
 }
 
 #-----------------------------------------------------------------------------
@@ -1623,9 +1623,9 @@ ebindmount()
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
     # machine outside that chroot.
-    mount --make-rprivate "${src}" &>$(edebug_out)  || true
+    mount --make-rprivate "${src}" &>>$(edebug_out)  || true
     emount --rbind "${@}" "${src}" "${dest}"
-    mount --make-rprivate "${dest}" &>$(edebug_out) || true
+    mount --make-rprivate "${dest}" &>>$(edebug_out) || true
 }
 
 emount()
@@ -1862,7 +1862,7 @@ declare_args()
         _declare_args_variable="${1#\?}"
 
         # Declare the variable and then call argcheck if required
-        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\${1:-}; shift &>/dev/null || true; "
+        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\${1:-}; shift &>>/dev/null || true; "
         [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
 
         shift
@@ -1919,7 +1919,7 @@ save_function()
 {
     local orig=$(declare -f $1)
     local new="${1}_real${orig#$1}"
-    eval "${new}" &>/dev/null
+    eval "${new}" &>>/dev/null
 }
 
 # override_function is a more powerful version of save_function in that it will
@@ -1946,8 +1946,8 @@ override_function()
     local actual="$(declare -pf ${func} 2>/dev/null || true)"
     [[ ${expected} == ${actual} ]] && return 0 || true
 
-    eval "${expected}" &>/dev/null
-    eval "declare -rf ${func}" &>/dev/null
+    eval "${expected}" &>>/dev/null
+    eval "declare -rf ${func}" &>>/dev/null
 }
 
 numcores()
@@ -2036,7 +2036,7 @@ efetch()
         else
             efetch_internal "${url}" "${dst}"
         fi
-    } &>${redirect}
+    } &>>${redirect}
     catch
     {
         local rc=$?
@@ -2045,7 +2045,7 @@ efetch()
         return ${rc}
     }
 
-    einfos "Successfully fetched $(lval url dst)" &>${redirect}
+    einfos "Successfully fetched $(lval url dst)" &>>${redirect}
 }
 
 netselect()
@@ -2173,8 +2173,8 @@ eretry()
             # or completel normally.
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
-            ekilltree -KILL ${watcher} &>/dev/null || true
-            wait ${watcher}            &>/dev/null || true
+            ekilltree -KILL ${watcher} &>>/dev/null || true
+            wait ${watcher}            &>>/dev/null || true
 
             # If the process timedout return 124 to match timeout behavior.
             local timeout_rc=$(( 128 + ${_eretry_signal} ))

@@ -238,3 +238,22 @@ ETEST_elogfile_path()
     cat ${logname}
     assert_eq "stdout"$'\n'"stderr" "$(cat ${logname})"
 }
+
+# Ensure logfile doesn't get truncated via efetch.
+ETEST_elogfile_truncation()
+{
+    echo "source" > src.log
+
+    (
+        elogfile ${FUNCNAME}.log
+        einfo "Fetching file"
+        efetch file://src.log dst.log
+    )
+
+    assert diff src.log dst.log
+
+    einfo "Displaying logfile"
+    cat ${FUNCNAME}.log
+
+    grep --quiet ">> Fetching file" ${FUNCNAME}.log || die "Logfile was truncated"
+}
