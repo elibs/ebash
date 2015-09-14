@@ -246,7 +246,6 @@ ETEST_elogfile_truncation()
     ## STDOUT
     einfo "Testing /dev/stdout"
     (
-        pstree -p $PPID
         elogfile ${FUNCNAME}.log
         einfo "Test#1: PID=$$ BASHPID=$BASHPID PPID=$PPID"
         echo "" >/dev/stdout
@@ -317,4 +316,18 @@ ETEST_elogfile_truncation_symbolic()
 
     # Need to sleep for a second to give tail a chance to notice subprocess exit and shutdown properly
     sleep 1
+}
+
+# Validate efetch doesn't cause log truncation.
+ETEST_elogfile_truncation_efetch()
+{
+    echo "source" >src
+
+    (
+        elogfile ${FUNCNAME}.log
+        einfo "Test"
+        efetch file://src dst
+    )
+
+    grep --quiet "Test" ${FUNCNAME}.log || die "Logfile was truncated" 
 }
