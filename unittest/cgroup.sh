@@ -43,7 +43,7 @@ ETEST_cgroup_tree()
 ETEST_cgroup_pstree()
 {
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP} ; ewarn 'finished cgroup_destroy'"
 
     cgroup_create ${CGROUP}/{a,b,c}
     (
@@ -70,7 +70,7 @@ ETEST_cgroup_pstree()
             echo ${output} | grep "${CGROUP}/a"
             echo ${output} | grep "${CGROUP}/b"
             echo ${output} | grep "${CGROUP}/c"
-        ) >/dev/null
+        )# >/dev/null
     )
 }
 
