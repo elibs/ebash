@@ -59,17 +59,22 @@ ETEST_cgroup_pstree()
 
         local output="$(EDEBUG=0 cgroup_pstree ${CGROUP} 2>&1 )"
 
-        einfo "Actual pstree output"
+        einfo "Actual pstree output $(lval sleep1 sleep2 CGROUP)"
         echo "${output}"
 
         # Make sure the output contains some handy strings that I know should
         # be there, such as the PIDs of the two sleeps.
         (
-            echo ${output} | grep -P '\b'${sleep1}'\b' 
-            echo ${output} | grep -P '\b'${sleep2}'\b' 
-            echo ${output} | grep "${CGROUP}/a"
-            echo ${output} | grep "${CGROUP}/b"
-            echo ${output} | grep "${CGROUP}/c"
+            einfo 1
+            echo "${output}" | grep -P '\b'${sleep1}'\b' 
+            einfo 2
+            echo "${output}" | grep -P '\b'${sleep2}'\b' 
+            einfo 3
+            echo "${output}" | grep "${CGROUP}/a"
+            einfo 4
+            echo "${output}" | grep "${CGROUP}/b"
+            einfo 5
+            echo "${output}" | grep "${CGROUP}/c"
         )# >/dev/null
     )
 }
