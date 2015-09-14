@@ -76,11 +76,11 @@ cgroup_destroy()
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
 
             local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
-            [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys} that is already gone." ; continue ; }
+            [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys_path} that is already gone." ; continue ; }
 
             if opt_true "r" ; then
                 edebug PIDS
-                find ${subsys_path} -name tasks -exec cat tasks \;
+                find ${subsys_path} -name tasks -exec cat {} \;
                 edebug /PIDS
                 find ${subsys_path} -depth -type d -exec rmdir {} \;
             else
