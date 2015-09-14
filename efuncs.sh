@@ -1494,7 +1494,7 @@ echecksum_check()
 
     # If we're in quiet mode send all STDOUT and STDERR to edebug
     local redirect=""
-    opt_true "q" && redirect="$(edebug_out)" || redirect="&2"
+    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
 
     {
         local metapack="" validated=() expect="" actual="" ctype="" publickey="" keyring="" pgpsignature=""
@@ -1991,7 +1991,7 @@ efetch()
 
     # If we're in quiet mode send all STDOUT and STDERR to edebug
     local redirect=""
-    opt_true "q" && redirect="$(edebug_out)" || redirect="&2"
+    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
 
     try
     {

@@ -306,20 +306,8 @@ ETEST_cgroup_functions_like_empty_cgroups()
 
 ETEST_cgroup_pids_blows_up_on_nonexistent_cgroups()
 {
-    ewarn PWD=$PWD
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
-    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
-    cgroup_create ${CGROUP}
-
-    try
-    {
-        cgroup_pids ${CGROUP}
-        die "cgroup_pids didn't blow up on nonexistent cgroup."
-    }
-    catch
-    {
-        :
-    }
+    assert_false cgroup_pids ${CGROUP}
 }
 
 ETEST_cgroup_kill_and_destroy_ingore_nonexistent_cgroups()
