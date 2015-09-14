@@ -441,17 +441,15 @@ cgroup_kill_and_wait()
                 for pid in ${remaining_pids} ; do
                     edebug "   $(ps hp ${pid} 2>/dev/null || true)"
                 done
+            sleep .1
         fi
 
         (( times += 1 ))
-        if ((times % 20 == 0 )) ; then
+        if ((times % 50 == 0 )) ; then
             ewarn "Still trying to kill processes. $(lval cgroups remaining_pids)"
         fi
 
     done
-
-    local pidsleft=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
-    [[ -z ${pidsleft} ]] || die "Internal error -- processes (${pidsleft}) remain in ${cgroups[@]}"
 }
 
 cgroup_find_setting_file()
