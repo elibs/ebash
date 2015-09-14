@@ -25,7 +25,7 @@ assert_no_process_leaks()
 {
     cgroup_move "/etest" $$ ${BASHPID}
     
-    local remaining_processes=$(cgroup_ps ${ETEST_CGROUP})
+    local remaining_processes=$(cgroup_ps ${ETEST_CGROUP} || true)
     if [[ -n ${remaining_processes} ]]; then
         cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
         cgroup_destroy -r ${ETEST_CGROUP}
@@ -40,7 +40,7 @@ global_setup()
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
     mkdir -p ${TEST_DIR_OUTPUT}
 
-    [[ -n "$(cgroup_pids etest)" ]] && { ewarn "Killing stale etest processes" ; cgroup_kill_and_wait -s=SIGKILL etest ; }
+    [[ -n "$(cgroup_pids etest)" ]] && { ewarn "Killing stale etest processes=($(cgroup_pids etest))" ; cgroup_kill_and_wait -s=SIGKILL etest ; }
 
     # And a cgroup that will contain all output
     cgroup_create ${ETEST_CGROUP}
@@ -189,7 +189,6 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
            
         done
 
-        einfo "$(lval FAILED_TESTS)"
         array_empty FAILED_TESTS || { eerror_stacktrace "$(lval FAILED_TESTS)"; echo; throw 1; }
     } 
     catch
@@ -199,7 +198,6 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
 
 done
 
-einfo $(lval FAILED_FILES)"
 array_empty FAILED_FILES || eerror "$(lval FAILED_FILES)"
 
 exit ${#FAILED_FILES[@]}
