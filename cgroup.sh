@@ -82,7 +82,9 @@ cgroup_destroy()
                 edebug PIDS
                 find ${subsys_path} -name tasks -exec cat {} \;
                 edebug /PIDS
-                find ${subsys_path} -depth -type d -exec rmdir {} \;
+                local rc=0
+                find ${subsys_path} -depth -type d -exec rmdir {} \; || rc=$?
+                ewarn "find exit code is ${rc}"
             else
                 rmdir ${subsys_path}
             fi
