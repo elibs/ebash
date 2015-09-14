@@ -249,7 +249,7 @@ die()
     # Call eerror_stacktrace but skip top three frames to skip over
     # the frames containing stacktrace_array, eerror_stacktrace and
     # die itself.
-    eerror_stacktrace "${@}"
+    eerror_stacktrace -f=3 "${@}"
 
     # Call any registered DIE traps so that we invoke the traps before we exit
     # or call any die_handler.
