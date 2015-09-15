@@ -12,7 +12,7 @@ $(esource ${BASHUTILS}/cgroup.sh)
 
 # Parse arguments. If no test directory was provided use PWD.
 $(declare_args -g ?TEST_DIR)
-: ${TEST_DIR:=.}
+: ${TEST_DIR:=$(readlink -f .)}
 
 # OPTIONS:
 # -f=FILTER: Optional filter of tests to run
