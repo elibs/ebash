@@ -178,11 +178,11 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort); do
         [[ ${#ETEST_FUNCTIONS[@]} -gt 0 ]] || continue
 
         # Repeat the selected tests the requested number of times
-        for (( ITERATION=0; ITERATION<=${REPEAT}; ITERATION++ )); do
+        for (( ITERATION=0; ITERATION<=${REPEAT:-0}; ITERATION++ )); do
           
-            REPEAT_STRING="${ITERATION}/${REPEAT}"
+            [[ ${REPEAT} -gt 0 ]] && REPEAT_STRING="(${ITERATION}/${REPEAT})" || REPEAT_STRING=""
 
-            edebug_enabled ${testfile} ITERATION REPEAT || einfo "Starting tests in ${testfile} (${REPEAT_STRING})"
+            edebug_enabled ${testfile} ITERATION REPEAT || einfo "Starting tests in ${testfile} ${REPEAT_STRING}"
             
             for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
