@@ -159,7 +159,7 @@ global_setup
 trap_add global_teardown
 
 # Now go through and test all unit tests
-for testfile in $(find ${TEST_DIR} -name "*.sh" | sort); do
+for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
 
     # Each test file gets its own subshell
     try
