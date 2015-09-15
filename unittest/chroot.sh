@@ -55,7 +55,7 @@ daemon_callback()
     echo "test string -- printed per run" >> "${DAEMON_OUTPUT}"
 }
 
-ETEST_chroot_daemon_start()
+DISABLED_ETEST_chroot_daemon_start()
 {
     local exe="sleep 1"
     local respawns=10
@@ -80,7 +80,7 @@ ETEST_chroot_daemon_start()
     rm -f "${DAEMON_OUTPUT}" "${DAEMON_PIDFILE}"
 }
 
-ETEST_chroot_daemon_stop()
+DISABLED_ETEST_chroot_daemon_stop()
 {
     if [[ -e "${DAEMON_OUTPUT}" ]]; then
         rm -f "${DAEMON_OUTPUT}" || true
