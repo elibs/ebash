@@ -184,7 +184,7 @@ ETEST_elogfile_rotate()
         echo "stderr" >&2
     )
 
-    ls -l1 --sort=version ${FUNCNAME}.log*
+    find . | sort --version-sort
     assert_exists ${FUNCNAME}.log ${FUNCNAME}.log.{1,2}
     assert_not_exists ${FUNCNAME}.log.{3,4,5,6,7}
 
@@ -192,6 +192,29 @@ ETEST_elogfile_rotate()
     cat ${FUNCNAME}.log
     assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}.log)"
 }
+
+# Test elogfile with logrotation.
+ETEST_elogfile_rotate_multi()
+{
+    touch ${FUNCNAME}-{1,2}.log{,.1,.2,.3,.4,.5,.6}
+    assert_exists ${FUNCNAME}-{1,2}.log ${FUNCNAME}-{1,2}.log.{1,2,3,4,5,6}
+
+    (
+        elogfile -r=3 ${FUNCNAME}-{1,2}.log
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    find . | sort --version-sort
+    assert_exists ${FUNCNAME}-{1,2}.log ${FUNCNAME}-{1,2}.log.{1,2}
+    assert_not_exists ${FUNCNAME}-{1,2}.log.{3,4,5,6,7}
+
+    einfo "LOG file contents"
+    cat ${FUNCNAME}-{1,2}.log
+    assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}-1.log)"
+    assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}-2.log)"
+}
+
 
 # Test elogfile when the file has a path component
 ETEST_elogfile_path()
@@ -244,4 +267,53 @@ ETEST_elogfile_truncation_efetch()
     )
 
     grep --quiet "Test" ${FUNCNAME}.log || die "Logfile was truncated" 
+}
+
+# Verify we can send logfile to multiple output files
+ETEST_elogfile_multiple()
+{
+    (
+        elogfile ${FUNCNAME}1.log ${FUNCNAME}2.log
+        einfo "Test"
+    )
+
+    for fname in ${FUNCNAME}{1,2}.log; do
+        assert_exists ${fname}
+        grep --quiet "Test" ${fname}
+    done
+}
+
+# Verify elogfile doesn't blow up if given no files.
+ETEST_elogfile_nofiles()
+{
+    (
+        elogfile
+        einfo "Test"
+    )
+}
+
+ETEST_elogfile_multiple_spaces()
+{
+    local fname1="foo 1.log"
+    local fname2="foo 2.log"
+
+    (
+        elogfile "${fname1}" "${fname2}"
+        einfo "Test"
+    )
+
+    for fname in "${fname1}" "${fname2}"; do
+        assert_exists "${fname}"
+        grep --quiet "Test" "${fname}"
+    done
+}
+
+ETEST_elogfile_devices()
+{
+    local mlog="${FUNCNAME}.log"
+
+    (
+        elogfile -r=1 ${mlog} "/dev/stdout" "/dev/stderr"
+        einfo "Test"
+    )
 }

@@ -1303,6 +1303,9 @@ elogrotate()
 {
     $(declare_args name)
     local max=$(opt_get m 5)
+    
+    # Ensure we don't try to rotate non-files
+    [[ -f $(readlink -f "${name}") ]] 
 
     local log_idx next
     for (( log_idx=${max}; log_idx > 0; log_idx-- )); do
@@ -1323,11 +1326,10 @@ elogrotate()
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
-# and STDERR and send them both to the specified logfile while simultaneously
-# still displaying them to the console. Using this method is much preferred over
-# manually doing this with tee and named pipe redirection as we take special care
-# to ensure STDOUT and STDERR pipes are kept separate to avoid problems with 
-# logfiles getting truncated.
+# and STDERR and send them both to a list of files while simultaneously displaying
+# them to the console. Using this method is much preferred over manually doing this
+# with tee and named pipe redirection as we take special care to ensure STDOUT and
+# STDERR pipes are kept separate to avoid problems with logfiles getting truncated.
 #
 # OPTIONS
 # -r=NUM   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0 which is disabled)
@@ -1335,21 +1337,25 @@ elogrotate()
 # -e=(0|1) Redirect STDERR (defaults to 1)
 elogfile()
 {
-    $(declare_args name)
+    $(declare_args)
 
-    local dotail=$(opt_get t 1)
     local rotate=$(opt_get r 0)
     local stdout=$(opt_get o 1)
     local stderr=$(opt_get e 1)
-    edebug "$(lval dotail rotate stdout stderr)"
+    edebug "$(lval rotate stdout stderr)"
 
-    # Rotate logs as necessary
-    [[ ${rotate} -eq 0 ]] || elogrotate -m=${rotate} ${name}
+    # Rotate logs as necessary but only if they are regular files
+    if [[ ${rotate} -gt 0 ]]; then
+        local name
+        for name in "${@}"; do
+            [[ -f $(readlink -f "${name}") ]] && elogrotate -m=${rotate} "${name}"
+        done
+    fi
 
     # Optionally redirect stdout and stderr to tee. Take special care to ensure we keep STDOUT and STDERR
     # are kept separate to ensure the caller's output is unmodified.
-    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a ${name})
-    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a ${name} >&2)
+    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}")
+    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >&2)
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
@@ -3056,7 +3062,7 @@ assert_exists()
 {
     local name
     for name in "${@}"; do
-        assert [[ -e "${name}" ]]
+        [[ -e "${name}" ]] || die "'${name}' does not exist"
     done
 }
 
@@ -3064,7 +3070,7 @@ assert_not_exists()
 {
     local name
     for name in "${@}"; do
-        assert [[ ! -e "${name}" ]]
+        [[ ! -e "${name}" ]] || die "'${name}' exists"
     done
 }
 
