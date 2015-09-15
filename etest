@@ -57,7 +57,7 @@ global_teardown()
    
     argcheck TEST_DIR_OUTPUT
     if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
-        eunmount_recursive ${TEST_DIR_OUTPUT}
+        eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out)
         rm -rf ${TEST_DIR_OUTPUT}
     fi
 }
@@ -88,7 +88,7 @@ test_teardown()
     # Unit test infrastructure teardown
     argcheck testfunc
     if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
-        eunmount_recursive ${TEST_DIR_OUTPUT}/${testfunc}
+        eunmount_recursive ${TEST_DIR_OUTPUT}/${testfunc} &>$(edebug_out)
         rm -rf ${TEST_DIR_OUTPUT}/${testfunc}
     fi
 

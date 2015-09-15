@@ -234,7 +234,7 @@ ETEST_elogfile_path()
     assert_eq "stdout"$'\n'"stderr" "$(cat ${logname})"
 }
 
-ETEST_elogfile_truncation()
+ETEST_elogfile_truncate()
 {
     > ${FUNCNAME}.log
     
@@ -255,8 +255,8 @@ ETEST_elogfile_truncation()
     done
 }
 
-# Validate efetch doesn't cause log truncation.
-ETEST_elogfile_truncation_efetch()
+# Validate efetch doesn't cause log truncate.
+ETEST_elogfile_truncate_efetch()
 {
     echo "source" >src
 
