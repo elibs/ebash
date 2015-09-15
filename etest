@@ -17,12 +17,12 @@ $(declare_args -g ?TEST_DIR)
 # OPTIONS:
 # -f=FILTER: Optional filter of tests to run (defaults to FILTER which defaults to "").
 # -r=NUM:    Number of times to repeat matching tests (defaults to REPEAT which defaults to 0).
-# -q=(0|1)   Optional value for QUIET setting. If quiet is 1 you'll get a more terse output from etest showing
-#            only the test name and result. If quiet is 0, you'll get more verbose output from etest and each test.
+# -v=(0|1)   Optional value for VERBOSE setting. If set to 0 you'll get terse output from etest showing
+#            only the test name and result. If set to 1 you'll get more verbose output from etest and each test.
 export FILTER=$(opt_get f ${FILTER:=""})
 export REPEAT=$(opt_get r ${REPEAT:=0})
-export QUIET=$(opt_get q 1)
-edebug "$(lval TEST_DIR FILTER REPEAT QUIET)"
+export VERBOSE=$(opt_get v 0)
+edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE)"
 
 # Global cgroup name for all unit tests
 export ETEST_CGROUP="etest/$(basename ${TEST_DIR})-$$"
@@ -162,7 +162,7 @@ trap_add global_teardown
 # Now go through and test all unit tests
 for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
 
-    [[ ${QUIET} -eq 0 ]] && redirect="/dev/stderr" || redirect="/dev/null"
+    [[ ${VERBOSE} -eq 1 ]] && redirect="/dev/stderr" || redirect="/dev/null"
 
     # Each test file gets its own subshell
     try
@@ -185,14 +185,14 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
           
             [[ ${REPEAT} -gt 0 ]] && REPEAT_STRING="(${ITERATION}/${REPEAT})" || REPEAT_STRING=""
 
-            [[ ${QUIET} -eq 0 ]] || einfo "Starting tests in ${testfile} ${REPEAT_STRING}"
+            [[ ${VERBOSE} -eq 1 ]] || einfo "Starting tests in ${testfile} ${REPEAT_STRING}"
             
             for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
                 # If debugging is not enabled for testfunc just show a brief message with test name
                 testfunc_rc=0
                 
-                [[ ${QUIET} -eq 0 ]] && ebanner ${testfunc} REPEAT=REPEAT_STRING || einfos ${testfunc}
+                [[ ${VERBOSE} -eq 0 ]] && einfos ${testfunc} || ebanner ${testfunc} REPEAT=REPEAT_STRING
 
                 try
                 {
