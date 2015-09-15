@@ -1666,22 +1666,22 @@ efindmnt()
 eunmount_recursive()
 {
     local mnt
-    for mnt in $@; do
-        local rdev=$(emount_realpath ${mnt})
+    for mnt in "${@}"; do
+        local rdev=$(emount_realpath "${mnt}")
         argcheck rdev
 
-        while [[ true ]]; do
+        while true; do
 
             # If this path is directly mounted or anything BENEATH it is mounted then proceed
             local matches="$(efindmnt ${mnt} | sort -ur)"
             edebug "$(lval mnt rdev matches)"
-            [[ -z ${matches} ]] && break
+            [[ -n ${matches} ]] || break
 
             local nmatches=$(echo "${matches}" | wc -l)
             einfo "Recursively unmounting ${mnt} (${nmatches})"
             local match
             for match in "${matches}"; do
-                eunmount ${match//${rdev}/${mnt}}
+                eunmount "${match//${rdev}/${mnt}}"
             done
         done
     done
@@ -2161,13 +2161,14 @@ eretry()
                 nodie_on_error
                 die_on_abort
                 sleep ${_eretry_timeout}
-                kill -0 ${pid} || exit 0
+                process_running ${pid} || exit 0
 
                 kill -${_eretry_signal} ${pid}
                 sleep 2
-                kill -0 ${pid} || exit ${_eretry_signal}
+                process_running ${pid} || exit ${_eretry_signal}
                 kill -KILL ${pid}
-            ) &
+
+            ) &>/dev/null &
 
             # Wait for the pid which will either be KILLED by the watcher
             # or completel normally.
