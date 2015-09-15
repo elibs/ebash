@@ -19,10 +19,12 @@ $(declare_args -g ?TEST_DIR)
 # -r=NUM:    Number of times to repeat matching tests (defaults to REPEAT which defaults to 0).
 # -v=(0|1)   Optional value for VERBOSE setting. If set to 0 you'll get terse output from etest showing
 #            only the test name and result. If set to 1 you'll get more verbose output from etest and each test.
-export FILTER=$(opt_get f ${FILTER:=""})
-export REPEAT=$(opt_get r ${REPEAT:=0})
-export VERBOSE=$(opt_get v 0)
-edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE)"
+# -b=(0|1)   Break on failure (defaults to 0)
+FILTER=$(opt_get f ${FILTER:=""})
+REPEAT=$(opt_get r ${REPEAT:=0})
+VERBOSE=$(opt_get v 0)
+BREAK=$(opt_get b ${BREAK:=0})
+edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK)"
 
 # Global cgroup name for all unit tests
 export ETEST_CGROUP="etest/$(basename ${TEST_DIR})-$$"
@@ -204,6 +206,8 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
                 {
                     testfunc_rc=$?
                     FAILED_TESTS+=( ${testfunc/ETEST_/} )
+
+                    [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1"
                 }
                 test_teardown
 
