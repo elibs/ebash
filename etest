@@ -178,14 +178,16 @@ for testfile in $(find ${TEST_DIR}/*.sh); do
 
         # Repeat the selected tests the requested number of times
         for (( ITERATION=0; ITERATION<=${REPEAT}; ITERATION++ )); do
-           
-            edebug_enabled ${testfile} ITERATION REPEAT || einfo "Starting tests in ${testfile} (${ITERATION}/${REPEAT})"
+          
+            REPEAT_STRING="${ITERATION}/${REPEAT}"
+
+            edebug_enabled ${testfile} ITERATION REPEAT || einfo "Starting tests in ${testfile} (${REPEAT_STRING})"
             
             for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
                 # If debugging is not enabled for testfunc just show a brief message with test name
                 testfunc_rc=0 
-                edebug_enabled ${testfunc} && ebanner ${testfunc} ITERATION REPEAT || einfos ${testfunc}
+                edebug_enabled ${testfunc} && ebanner ${testfunc} REPEAT=REPEAT_STRING || einfos ${testfunc}
 
                 try
                 {
