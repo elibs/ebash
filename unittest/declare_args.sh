@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-ETEST_DECLARE_ARGS_OPTIONAL=1
-
 do_declare_args()
 {
     local args=( ${1:-} ); shift || true
@@ -29,14 +27,12 @@ do_declare_args()
 }
 
 # Ensure if we failed to pass in all the required arguments that declare_args 
-# properly dies. To avoid the test from dying we put it in a subshell and also
-# set EFUNCS_FATAL to 0. We overide our global setting of making all args optional
-# so that our helper method will not prefix each argument with a '?'
+# properly dies.
 ETEST_declare_args_fatal()
 {
     try
     {
-        ETEST_DECLARE_ARGS_OPTIONAL=0 do_declare_args "a1"
+        do_declare_args "a1"
     
         # Should never get here!
         die "declare_args should have thrown an error due to missing arguments"

@@ -263,8 +263,20 @@ die()
     # registered and then execute optional die_handler. If there is no handler
     # then kill the process tree to ensure any stale processes are shut down.
     if [[ $$ != ${BASHPID} ]]; then
-        ekill -s=SIGTERM ${PPID}
-        ekilltree -s=SIGTERM ${BASHPID}
+        
+        # Capture off our BASHPID into a local variable so we can use it in subsequent
+        # commands which cannot use BASHPID directly because they are in subshells and
+        # the value of BASHPID would be altered by their context. 
+        # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
+        #          parent of $$ not necessarily the parent of ${BASHPID}!
+        local pid=${BASHPID}
+        ekill -s=SIGTERM $(ps -o pid --no-headers --ppid ${pid})
+        ekilltree -s=SIGTERM ${pid}
+
+        # If we got here something is fundamentally broken in die. Emit an error message
+        # and then exit with a non-standard exit code.
+        eerror "Internal error in die()."
+        exit 1
     else
         declare -f die_handler &>/dev/null && { __EFUNCS_DIE_IN_PROGRESS=0; die_handler; } || kill -9 0
     fi
@@ -907,6 +919,7 @@ ekill()
     # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
     # exist just skip it instead of trying (and failing) to kill it since we're
     # already in the desired state if the process is killed already.
+    local pid
     for pid in ${@}; do
 
         # If process doesn't exist just return instead of trying (and failing) to kill it
