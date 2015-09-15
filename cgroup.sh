@@ -403,7 +403,7 @@ cgroup_kill()
         # NOTE: This also has the side effect of causing cgroup_kill to NOT fail
         # when the calling user doesn't have permission to kill everything in the
         # cgroup.
-        ekill -s=${signal} ${pids} || true
+        ekill -s=${signal} ${pids[@]} || true
     else
         edebug "All processes in cgroup are already dead.  $(lval cgroups pids ignorepids)"
     fi
