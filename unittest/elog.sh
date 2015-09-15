@@ -99,7 +99,10 @@ ETEST_elogfile()
 
     einfo "LOG file contents"
     cat ${FUNCNAME}.log
-    assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}.log)"
+    
+    # Ensure both stdout and stderr
+    grep -q "stdout" ${FUNCNAME}.log
+    grep -q "stderr" ${FUNCNAME}.log
 }
 
 # Create a log running process writing to a file then kill it ane ensure it
@@ -190,7 +193,8 @@ ETEST_elogfile_rotate()
 
     einfo "LOG file contents"
     cat ${FUNCNAME}.log
-    assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}.log)"
+    grep -q "stdout" ${FUNCNAME}.log
+    grep -q "stderr" ${FUNCNAME}.log
 }
 
 # Test elogfile with logrotation.
@@ -211,10 +215,11 @@ ETEST_elogfile_rotate_multi()
 
     einfo "LOG file contents"
     cat ${FUNCNAME}-{1,2}.log
-    assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}-1.log)"
-    assert_eq "stdout"$'\n'"stderr" "$(cat ${FUNCNAME}-2.log)"
+    grep -q "stdout" ${FUNCNAME}-1.log
+    grep -q "stdout" ${FUNCNAME}-2.log
+    grep -q "stderr" ${FUNCNAME}-1.log
+    grep -q "stderr" ${FUNCNAME}-2.log
 }
-
 
 # Test elogfile when the file has a path component
 ETEST_elogfile_path()
@@ -231,7 +236,8 @@ ETEST_elogfile_path()
 
     einfo "LOG file contents"
     cat ${logname}
-    assert_eq "stdout"$'\n'"stderr" "$(cat ${logname})"
+    grep -q "stdout" ${logname}
+    grep -q "stderr" ${logname}
 }
 
 ETEST_elogfile_truncate()
