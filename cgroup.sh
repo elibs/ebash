@@ -35,6 +35,24 @@ source ${BASHUTILS}/efuncs.sh || { echo "Failed to find efuncs.sh" ; exit 1; }
 CGROUP_SUBSYSTEMS=(cpu memory freezer)
 
 #-------------------------------------------------------------------------------
+# Detect whether the machine currently running this code is built with kernel
+# support for all of the cgroups subsystems that bashutils depends on.
+#
+cgroup_supported()
+{
+    local subsystem missing_count=0
+    for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
+        if ! grep -qw "^${subsystem}" /proc/cgroups ; then
+            edebug "Missing support for ${subsystem}"
+            (( missing_count += 1 ))
+        fi
+    done
+
+    return ${missing_count}
+}
+
+
+#-------------------------------------------------------------------------------
 # Prior to using a cgroup, you must create it.  It is safe to attempt to
 # "create" a cgroup that already exists.
 #
@@ -457,6 +475,7 @@ cgroup_kill_and_wait()
 
     done
 }
+
 
 cgroup_find_setting_file()
 {
