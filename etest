@@ -10,8 +10,9 @@ fi
 source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
 $(esource ${BASHUTILS}/cgroup.sh)
 
-# Parse arguments
-$(declare_args -g TEST_DIR)
+# Parse arguments. If no test directory was provided use PWD.
+$(declare_args -g ?TEST_DIR)
+: ${TEST_DIR:=.}
 
 # OPTIONS:
 # -f=FILTER: Optional filter of tests to run
@@ -158,7 +159,7 @@ global_setup
 trap_add global_teardown
 
 # Now go through and test all unit tests
-for testfile in $(find ${TEST_DIR}/*.sh); do
+for testfile in $(find ${TEST_DIR} -name "*.sh" | sort); do
 
     # Each test file gets its own subshell
     try
