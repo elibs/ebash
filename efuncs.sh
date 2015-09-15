@@ -1516,7 +1516,6 @@ echecksum_check()
             actual=$(stat --printf="%s" "${path}")
             [[ ${expect} -eq ${actual} ]] || { ewarn "Size mismatch: $(lval path expect actual)"; return 1; }
             validated+=( "Size" )
-            eend
         fi
 
         # Now validated MD5, SHA1, and SHA256 (if present)
@@ -1528,7 +1527,6 @@ echecksum_check()
                 actual=$(${ctype,,}sum ${path} | awk '{print $1}')
                 [[ ${expect} == ${actual} ]] || { ewarn "${ctype} mismatch: $(lval path expect actual)"; return 2; }
                 validated+=( ${ctype} )
-                eend
             fi
         done
 
@@ -1547,8 +1545,6 @@ echecksum_check()
             # Now we can validate the signature
             echo "${pgpsignature}" | gpg --verify - "${path}" &>$(edebug_out) || { ewarn "PGP verification failure: $(lval path)"; return 3; }
             validated+=( "PGP" )
-            
-            eend
         fi
 
         # If we didn't validate anything then that's an error
