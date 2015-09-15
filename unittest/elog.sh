@@ -240,7 +240,8 @@ ETEST_elogfile_truncate()
     
     (
         elogfile ${FUNCNAME}.log
-        
+        EDEBUG=1 
+
         echo "/dev/stdout" >/dev/stdout
         echo "/dev/stderr" >/dev/stderr
         echo "/dev/fd/1"   >/dev/fd/1
