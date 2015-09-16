@@ -328,8 +328,7 @@ cgroup_ps()
 
     edebug "$(lval awk_regex)"
 
-    : ${COLUMNS:=120}
-    ps -e --format pid,start,nlwp,nice,command --columns ${COLUMNS} --forest | awk 'NR == 1 ; match($1,/'${awk_regex}'/) { print }'
+    ps -e --format pid,start,nlwp,nice,command ${COLUMNS+--columns ${COLUMNS}} --forest | awk 'NR == 1 ; match($1,/'${awk_regex}'/) { print }'
 }
 
 
@@ -406,9 +405,8 @@ cgroup_pstree()
 
         # Note: must subtract 3 from columns here to account for the three
         # characters added to the string below (i.e. "|  ")
-        : ${COLUMNS:=120}
-        (( COLUMNS -= 3 ))
-        local ps_output=$(cgroup_ps ${cgroup})
+        local cols=$(( ${COLUMNS:-120} - 3 ))
+        local ps_output=$(COLUMNS=${cols} cgroup_ps ${cgroup})
 
         echo "${ps_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
 
