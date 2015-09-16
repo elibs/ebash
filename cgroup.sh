@@ -253,6 +253,8 @@ cgroup_pids()
             edebug "cgroup_pids is unable to find cgroup ${cgroup}"
             (( rc += 1 ))
             continue
+        else
+            edebug "looking for processes $(lval cgroup files)"
         fi
 
         local subsystem_file 
@@ -271,17 +273,31 @@ cgroup_pids()
             # kernel
             readarray -t subsystem_pids < "${subsystem_file}"
 
-            array_empty subsystem_pids || all_pids+=( "${subsystem_pids[@]}" )
+            array_empty subsystem_pids || all_pids+="${subsystem_pids[@]} "
         done
 
     done
 
-    array_sort -u all_pids
-    array_remove -a all_pids "${ignorepids[@]:-}"
+    # Take all of the found pids, sort and remove duplicates, and grep away the ignored pids.
+    #
+    # NOTE: I could use array_sort -u and array_remove for this, but they're
+    # really slow for large arrays.  They're nice when you need to worry about
+    # not losing whitespace (esp newlines) in your array, but I know there are
+    # just pids so in this case I use the much faster command here.  As of
+    # 2015-09-16, array_sort/array_remove takes multiple seconds for a cgroup
+    # containing 2k processes, while the following command is nearly
+    # instantaneous.
+    #
+    local found_pids
+    local ignore_regex="($(echo "${ignorepids[@]:-}" | tr ' ' '\n' | paste -sd\|))"
+    [[ -z "${all_pids:-}" ]]                    \
+        || found_pids=($(echo "${all_pids}"     \
+            | tr ' ' '\n'                       \
+            | sort -u                           \
+            | egrep -vw "${ignore_regex}"))
 
-    edebug "Found pids $(lval all_pids) after exceptions ${ignorepids[@]:-}"
-    echo "${all_pids[@]:-}"
-
+    edebug "$(lval all_pids found_pids ignorepids ignore_regex )"
+    echo "${found_pids[@]:-}"
     return "${rc}"
 }
 
@@ -299,10 +315,21 @@ cgroup_ps()
     opt_true r && options+=("-r")
 
     local pid cgroup_pids
-    cgroup_pids=$(cgroup_pids ${options[@]:-} -x="${BASHPID} $(opt_get x)" ${cgroup})
-    for pid in ${cgroup_pids} ; do
-        ps hp ${pid} 2>/dev/null || true
-    done
+    cgroup_pids=($(cgroup_pids ${options[@]:-} -x="${BASHPID} $(opt_get x)" ${cgroup}))
+
+    array_empty cgroup_pids && return 0
+
+    edebug "Done with cgroup_pids"
+
+    # Put together an awk regex that will match any of those pids as long as
+    # it's the whole string
+    local awk_regex='^('$(array_join cgroup_pids '|')')$'
+    #local awk_regex=$(array_join cgroup_pids "|")
+
+    edebug "$(lval awk_regex)"
+
+    : ${COLUMNS:=120}
+    ps -e --format pid,start,nlwp,nice,command --columns ${COLUMNS} --forest | awk 'NR == 1 ; match($1,/'${awk_regex}'/) { print }'
 }
 
 
@@ -376,6 +403,11 @@ cgroup_pstree()
     for cgroup in $(cgroup_tree "${@}") ; do
 
         echo "$(ecolor green)+--${cgroup}$(ecolor off)"
+
+        # Note: must subtract 3 from columns here to account for the three
+        # characters added to the string below (i.e. "|  ")
+        : ${COLUMNS:=120}
+        (( COLUMNS -= 3 ))
         local ps_output=$(cgroup_ps ${cgroup})
 
         echo "${ps_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
