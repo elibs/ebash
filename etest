@@ -23,6 +23,7 @@ $(declare_args -g ?TEST_DIR)
 FILTER=$(opt_get f ${FILTER:=""})
 REPEAT=$(opt_get r ${REPEAT:=0})
 VERBOSE=$(opt_get v 0)
+[[ ${EDEBUG:-0} != "0" ]] && VERBOSE=1 || true
 BREAK=$(opt_get b ${BREAK:=0})
 edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK)"
 
