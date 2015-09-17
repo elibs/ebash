@@ -483,9 +483,6 @@ ETEST_tryrc_multiline_monster_output()
     $(tryrc -r=rc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stderr)"
 
-    cp   input.txt /tmp/input.txt
-    echo "${stdout}" > /tmp/output.txt
-
     diff --unified <(cat input.txt) <(echo "${stdout}")
     assert_eq 0  "${rc}"
     assert_eq "" "${stderr}"
