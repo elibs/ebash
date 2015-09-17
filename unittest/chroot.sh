@@ -5,10 +5,6 @@ $(esource chroot.sh)
 CHROOT_MASTER=${TEST_DIR_OUTPUT}/chroot_master
 CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
 
-DAEMON_EXE="sleep infinity"
-DAEMON_PIDFILE=/tmp/chroot_test.pid
-DAEMON_OUTPUT="${CHROOT}/daemon_out.txt"
-
 test_wait()
 {
     local delay=${1:-1}
@@ -50,12 +46,29 @@ ETEST_chroot_readlink()
     assert_eq "${CHROOT}/run" "${real}"
 }
 
-daemon_callback()
+ETEST_chroot_daemon_start_stop()
 {
-    echo "test string -- printed per run" >> "${DAEMON_OUTPUT}"
+    local exe="sleep infinity"
+    local pidfile="${FUNCNAME}.pid"
+    local chroot_args=( "-n=Infinity" "-p=${pidfile}" )
+    chroot_daemon_start "${chroot_args[@]}" "${exe}"
+    
+    # Wait for process to be running
+    eretry chroot_daemon_status "${chroot_args[@]}" "${exe}"
+    assert [[ -s ${pidfile} ]]
+    assert process_running $(cat ${pidfile})
+
+    # Now stop it and verify proper shutdown
+    local pid=$(cat ${pidfile})
+    chroot_daemon_stop "${chroot_args[@]}" "${exe}"
+    eretry process_not_running "${pid}"
+    assert_false chroot_daemon_status "${chroot_args[@]}" "${exe}"
+    assert_not_exists pidfile
+
+    sleep 5
 }
 
-DISABLED_ETEST_chroot_daemon_start()
+DISABLED_ETEST_chroot_daemon_respawn()
 {
     local exe="sleep 1"
     local respawns=10
@@ -78,24 +91,6 @@ DISABLED_ETEST_chroot_daemon_start()
     einfo "$(lval count)"
     [[ ${count} -ge 10 ]] || die "$(lval count) -ge 10 evaluated to false."
     rm -f "${DAEMON_OUTPUT}" "${DAEMON_PIDFILE}"
-}
-
-DISABLED_ETEST_chroot_daemon_stop()
-{
-    if [[ -e "${DAEMON_OUTPUT}" ]]; then
-        rm -f "${DAEMON_OUTPUT}" || true
-    fi
-
-    local chroot_args=( "-n=Yes" "-p=${DAEMON_PIDFILE}" "-c=daemon_callback" )
-    chroot_daemon_start "${chroot_args[@]}" "${DAEMON_EXE}"
-    test_wait 45
-    assert_true chroot_daemon_status "${chroot_args[@]}" "${DAEMON_EXE}"
-    chroot_daemon_stop "${chroot_args[@]}" "${DAEMON_EXE}"
-    [[ ! -e ${DAEMON_PIDFILE} ]] || die "$(lval DAEMON_PIDFILE) exists when it shouldn't!"
-    local count=$(cat "${DAEMON_OUTPUT}" | wc -l)
-    einfo "$(lval count)"
-    assert_eq ${count} 1
-    rm -f "${DAEMON_OUTPUT}"
 }
 
 ETEST_chroot_create_mount()
