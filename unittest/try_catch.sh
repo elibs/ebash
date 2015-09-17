@@ -390,7 +390,7 @@ ETEST_tryrc_no_output()
     assert_empty stderr
 }
 
-ETEST_tryrc_evil_output()
+ETEST_tryrc_stacktrace()
 {
     local rc=0
     $(tryrc -r=rc eerror_stacktrace)
