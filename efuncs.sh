@@ -167,11 +167,16 @@ die_on_error_enabled()
     trap -p | grep ERR &>$(edebug_out)
 }
 
+# Helper method to read from a pipe until we see EOF.
 pipe_read()
 {
     $(declare_args pipe)
-
     local line
+    
+    # Use 'read -t0 -N0' to essentialy peek at the input pipe to see if there 
+    # is anything available. While there is, go into the loop and read from
+    # the pipe into local variable 'line'. IFS='' and "-r" flag are critical
+    # here to ensure we don't lose whitespace or try to interpret anything.
     while read -t0 -N0; do
         IFS= read -r line
         echo "${line}"
