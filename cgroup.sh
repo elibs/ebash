@@ -324,7 +324,6 @@ cgroup_ps()
     # Put together an awk regex that will match any of those pids as long as
     # it's the whole string
     local awk_regex='^('$(array_join cgroup_pids '|')')$'
-    #local awk_regex=$(array_join cgroup_pids "|")
 
     edebug "$(lval awk_regex)"
 
