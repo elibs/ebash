@@ -344,8 +344,7 @@ ETEST_disable_enable_die_on_error()
 
 ETEST_tryrc()
 {
-    local rc=0 stdout="" stderr=""
-    $(tryrc -r=rc -o=stdout -e=stderr echo "foo")
+    $(tryrc -o=stdout -e=stderr echo "foo")
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 0     "${rc}"
@@ -353,10 +352,57 @@ ETEST_tryrc()
     assert_eq ""    "${stderr}"
 }
 
+ETEST_tryrc_declare()
+{
+    $(tryrc -o=stdout -e=stderr echo "foo")
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 'declare -- rc="0"'       "$(declare -p rc)"
+    assert_eq 'declare -- stdout="foo"' "$(declare -p stdout)"
+    assert_eq 'declare -- stderr=""'    "$(declare -p stderr)"
+}
+
+ETEST_tryrc_declare_global()
+{
+    rc=1
+    stdout="ORIG"
+    stderr="ORIG"
+
+    call_tryrc()
+    {
+        $(tryrc -g -o=stdout -e=stderr eval 'echo "foo" >&1; echo "bar" >&2')
+        einfo "$(lval rc stdout stderr)"
+    }
+
+    call_tryrc
+
+    assert_eq 'declare -- rc="0"'       "$(declare -p rc)"
+    assert_eq 'declare -- stdout="foo"' "$(declare -p stdout)"
+    assert_eq 'declare -- stderr="bar"' "$(declare -p stderr)"
+}
+
+ETEST_tryrc_declare_local()
+{
+    rc=1
+    stdout="ORIG"
+    stderr="ORIG"
+
+    call_tryrc()
+    {
+        $(tryrc -o=stdout -e=stderr eval 'echo "foo" >&1; echo "bar" >&2')
+        einfo "$(lval rc stdout stderr)"
+    }
+
+    call_tryrc
+
+    assert_eq 'declare -- rc="1"'        "$(declare -p rc)"
+    assert_eq 'declare -- stdout="ORIG"' "$(declare -p stdout)"
+    assert_eq 'declare -- stderr="ORIG"' "$(declare -p stderr)"
+}
+
 ETEST_tryrc_rc_only()
 {
-    local rc=0
-    $(tryrc -r=rc echo "foo") 1>stdout.log 2>stderr.log
+    $(tryrc echo "foo") 1>stdout.log 2>stderr.log
     local stdout=$(cat stdout.log)
     local stderr=$(cat stderr.log)
     einfo "$(lval rc stdout stderr)"
@@ -366,10 +412,18 @@ ETEST_tryrc_rc_only()
     assert_eq ""    "${stderr}"
 }
 
+ETEST_tryrc_rc_custom()
+{
+    local rc=1
+    $(tryrc -r=myrc echo ${FUNCNAME})
+
+    assert_eq 1 ${rc}
+    assert_eq 0 ${myrc}
+}
+
 ETEST_tryrc_failure()
 {
-    local rc=0 stdout="" stderr=""
-    $(tryrc -r=rc -o=stdout -e=stderr eval "echo pre_false; false; echo post_false")
+    $(tryrc -o=stdout -e=stderr eval "echo pre_false; false; echo post_false")
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 1 "${rc}"
@@ -379,8 +433,7 @@ ETEST_tryrc_failure()
 
 ETEST_tryrc_no_output()
 {
-    local rc=0
-    $(tryrc -r=rc false) 1>stdout.log 2>stderr.log
+    $(tryrc false) 1>stdout.log 2>stderr.log
     local stdout=$(cat stdout.log)
     local stderr=$(cat stderr.log)
     einfo "$(lval rc stdout stderr)"
@@ -392,15 +445,13 @@ ETEST_tryrc_no_output()
 
 ETEST_tryrc_stacktrace()
 {
-    local rc=0
-    $(tryrc -r=rc eerror_stacktrace)
+    $(tryrc eerror_stacktrace)
     assert_eq 0 ${rc}
 }
 
 ETEST_tryrc_multiple_commands()
 {
-    local rc=0 stdout="" stderr=""
-    $(tryrc -r=rc -o=stdout -e=stderr eval "mkdir -p foo; echo -n 'zap' > foo/file; echo 'done'")
+    $(tryrc -o=stdout -e=stderr eval "mkdir -p foo; echo -n 'zap' > foo/file; echo 'done'")
     einfo "$(lval rc stdout stderr)"
 
     assert_exists foo foo/file
@@ -411,8 +462,7 @@ ETEST_tryrc_multiple_commands()
 
 ETEST_tryrc_deep_error()
 {
-    local rc=0 stdout="" stderr=""
-    $(tryrc -r=rc -o=stdout -e=stderr etest_deep_error)
+    $(tryrc -o=stdout -e=stderr etest_deep_error)
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 1 "${rc}"
@@ -422,8 +472,7 @@ ETEST_tryrc_deep_error()
 
 ETEST_tryrc_deep_error_redirect()
 {
-    local rc=0
-    $(tryrc -r=rc etest_deep_error) 1>stdout.log 2>stderr.log
+    $(tryrc etest_deep_error) 1>stdout.log 2>stderr.log
     local stdout=$(cat stdout.log)
     local stderr=$(cat stderr.log)
     einfo "$(lval rc stdout stderr)"
@@ -435,8 +484,7 @@ ETEST_tryrc_deep_error_redirect()
 
 ETEST_tryrc_deep_error_rc_only()
 {
-    local rc=0
-    $(tryrc -r=rc etest_deep_error)
+    $(tryrc etest_deep_error)
     einfo "$(lval rc)"
 
     assert_eq 1 ${rc}
@@ -448,8 +496,7 @@ ETEST_tryrc_multiline_output()
     printf "line 1\nline 2\nline 3\n" > input.txt
     cat input.txt
     
-    local rc=0 stdout="" stderr=""
-    $(tryrc -r=rc -o=stdout -e=stderr cat input.txt)
+    $(tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 0 "${rc}"
@@ -464,8 +511,7 @@ ETEST_tryrc_multiline_output_spaces()
     echo "d    e     f" >> input.txt
     cat input.txt
 
-    local rc=0 stdout="" stderr=""
-    $(tryrc -r=rc -o=stdout -e=stderr cat input.txt)
+    $(tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stdout stderr)"
 
     diff --unified <(cat input.txt) <(echo "${stdout}")
@@ -476,11 +522,10 @@ ETEST_tryrc_multiline_output_spaces()
 DISABLED_ETEST_tryrc_multiline_monster_output()
 {
     einfo "Generating dmesg output"
-    ( dmesg > input.txt ) || true
+    dmesg > input.txt
     einfo "Num lines=$(cat input.txt | wc -l)"
 
-    local rc=0 stdout="" stderr=""
-    $(tryrc -r=rc -o=stdout -e=stderr cat input.txt)
+    $(tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stderr)"
 
     diff --unified <(cat input.txt) <(echo "${stdout}")
