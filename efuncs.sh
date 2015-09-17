@@ -186,9 +186,12 @@ pipe_read()
 # tryrc is a convenience wrapper around try/catch that makes it really easy to
 # execute a given command and capture the command's return code, stdout and stderr
 # into local variables. We created this idiom because if you handle the failure 
-# of a command in any way (e.g. || rc=$?) then bash effectively disables set -e
-# for that command invocation REGARDLESS OF DEPTH. e.g. if you have a function
-# chain such as:
+# of a command in any way then bash effectively disables set -e that command
+# invocation REGARDLESS OF DEPTH. "Handling the failure" includes putting it in
+# a while or until loop, part of an if/else statement or the final command in a
+# && or ||. 
+#
+# Consider a function call chain such as:
 #
 # foo->bar->zap
 #
@@ -222,22 +225,25 @@ pipe_read()
 # is invoked in the caller's envionment. For example: $(tryrc some-command)
 #
 # OPTIONS:
-# -r=VAR The variable to assign the return code to (REQUIRED).
+# -r=VAR The variable to assign the return code to (OPTIONAL, defaults to 'rc').
 # -o=VAR The variable to assign STDOUT to (OPTIONAL). If not provided STDOUT
 #        will go to /dev/fd/1 as normal.
 # -e=VAR The variable to assign STDERR to (OPTIONAL). If not provided STDERR
 #        will go to /dev/fd/2 as normal.
+# -g     Make variables global even if called in a local context.
 tryrc()
 {
     $(declare_args)
     local cmd=("$@")
-    local rc_out=$(opt_get r)
+    local rc_out=$(opt_get r "rc")
     local stdout="" stdout_out=$(opt_get o)
     local stderr="" stderr_out=$(opt_get e)
+    local global=$(opt_get g 0)
 
-    # rc is required
-    argcheck rc_out
-
+    # Determine flags to pass into declare
+    local dflags=""
+    opt_false g || dflags="-g"
+    
     # Temporary directory to hold our FIFOs
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
     trap_add "rm -rf ${tmpdir}"
@@ -277,9 +283,9 @@ tryrc()
     # NOTE: Code we emit for stdout and stderr is dependent upon whether caller wants
     #       to capture stdout/stderr. If so, assign to provided variables otherwise
     #       redirect the output to appropriate file descriptor.
-    echo eval "${rc_out}=${rc};"
-    [[ -n ${stdout_out} ]] && echo eval "${stdout_out}=$(printf %q "$(printf "%q" "${stdout}")");" || echo eval "echo $(printf %q "$(printf "%q" "${stdout}")") >&1;"
-    [[ -n ${stderr_out} ]] && echo eval "${stderr_out}=$(printf %q "$(printf "%q" "${stderr}")");" || echo eval "echo $(printf %q "$(printf "%q" "${stderr}")") >&2;"
+    echo eval "declare ${dflags} ${rc_out}=${rc};"
+    [[ -n ${stdout_out} ]] && echo eval "declare ${dflags} ${stdout_out}=$(printf %q "$(printf "%q" "${stdout}")");" || echo eval "echo $(printf %q "$(printf "%q" "${stdout}")") >&1;"
+    [[ -n ${stderr_out} ]] && echo eval "declare ${dflags} ${stderr_out}=$(printf %q "$(printf "%q" "${stderr}")");" || echo eval "echo $(printf %q "$(printf "%q" "${stderr}")") >&2;"
 }
 
 #-----------------------------------------------------------------------------
