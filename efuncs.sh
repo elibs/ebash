@@ -167,6 +167,112 @@ die_on_error_enabled()
     trap -p | grep ERR &>$(edebug_out)
 }
 
+pipe_read()
+{
+    $(declare_args pipe)
+
+    local line
+    while read -t0 -N0; do
+        IFS= read -r line
+        echo "${line}"
+    done <${pipe}
+}
+
+# tryrc is a convenience wrapper around try/catch that makes it really easy to
+# execute a given command and capture the command's return code, stdout and stderr
+# into local variables. We created this idiom because if you handle the failure 
+# of a command in any way (e.g. || rc=$?) then bash effectively disables set -e
+# for that command invocation REGARDLESS OF DEPTH. e.g. if you have a function
+# chain such as:
+#
+# foo->bar->zap
+#
+# and you want to get the return value from foo, you might (wrongly) think you
+# could safely use this and safely bypass set -e explosion:
+#
+# foo || rc=$?
+#
+# The problem is bash disables effectively disables "set -e" for this command
+# when used in this context. That means even if zap encounteres an unhandled
+# error die() will NOT get implicitly called (explicit calls to die would 
+# still get called of course).
+# 
+# Here's the insidious documentation from 'man bash' regarding this obscene
+# behavior:
+#
+# "The ERR trap is not executed if the failed command is part of the command
+#  list immediately following a while or until keyword, part of the test in
+#  an if statement, part of a command executed in a && or ||  list  except 
+#  the command following the final && or ||, any command in a pipeline but
+#  the last, or if the command's return value is being inverted using !."
+#
+# Thus we created tryrc to allow safely capturing the return code, stdout
+# and stderr of a function call WITHOUT bypassing set -e safety!
+#
+# This is invoked using the "eval command invocation string" idiom so that it
+# is invoked in the caller's envionment. For example: $(tryrc some-command)
+#
+# OPTIONS:
+# -r=VAR The variable to assign the return code to (REQUIRED).
+# -o=VAR The variable to assign STDOUT to (OPTIONAL). If not provided STDOUT
+#        will go to /dev/fd/1 as normal.
+# -e=VAR The variable to assign STDERR to (OPTIONAL). If not provided STDERR
+#        will go to /dev/fd/2 as normal.
+tryrc()
+{
+    $(declare_args)
+    local cmd=("$@")
+    local rc_out=$(opt_get r)
+    local stdout="" stdout_out=$(opt_get o)
+    local stderr="" stderr_out=$(opt_get e)
+
+    # rc is required
+    argcheck rc_out
+
+    # Temporary directory to hold our FIFOs
+    local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
+    trap_add "rm -rf ${tmpdir}"
+
+    # Create FIFO for stdout and stderr. Also associated them with file descriptors
+    # so that we can start writing to them immediately before we read from them.
+    local stdout_pipe="${tmpdir}/stdout"
+    mkfifo "${stdout_pipe}"
+    exec 3<> ${stdout_pipe}
+    local stderr_pipe="${tmpdir}/stderr"
+    mkfifo "${stderr_pipe}"
+    exec 4<> ${stderr_pipe}
+    edebug "$(lval cmd rc_out stdout_out stderr_out stdout_pipe stderr_pipe)"
+
+    # Execute actual command in try/catch so that any fatal errors in the command
+    # properly terminate execution of the command then capture off the return code
+    # in the catch block. Send all stdout and stderr to respective pipes.
+    # NOTE: We have to send output through another set of anonymous pipes and tee so
+    #       that we don't hit bash's very small internal pipe buffer limit of 512 bytes.
+    local rc=0
+    try
+    {
+        "${cmd[@]}" 1> >(tee ${stdout_pipe} >/dev/null) 2> >(tee ${stderr_pipe} >/dev/null)
+    }
+    catch
+    {
+        rc=$?
+    }
+
+    # Read in all of stdout and stderr from pipes
+    stdout=$(pipe_read ${stdout_pipe})
+    stderr=$(pipe_read ${stderr_pipe})
+    edebug "$(lval rc stdout stderr)"
+   
+    # Finally we can emit the code the caller needs to execute to set the return code
+    # and stdout/stderr.
+    # NOTE: Code we emit for stdout and stderr is dependent upon whether caller wants
+    #       to capture stdout/stderr. If so, assign to provided variables otherwise
+    #       redirect the output to appropriate file descriptor.
+    echo eval "${rc_out}=${rc};"
+    [[ -n ${stdout_out} ]] && echo eval "${stdout_out}=$(printf %q "$(printf "%q" "${stdout}")");" || echo eval "echo $(printf %q "$(printf "%q" "${stdout}")") >&1;"
+    [[ -n ${stderr_out} ]] && echo eval "${stderr_out}=$(printf %q "$(printf "%q" "${stderr}")");" || echo eval "echo $(printf %q "$(printf "%q" "${stderr}")") >&2;"
+}
+
 #-----------------------------------------------------------------------------
 # TRAPS / DIE / STACKTRACE
 #-----------------------------------------------------------------------------

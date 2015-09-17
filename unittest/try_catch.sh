@@ -250,6 +250,40 @@ ETEST_try_catch_stack()
     assert_stack_eq TEST EXIT
 }
 
+etest_deep_error_2()
+{
+    echo "pre_deep_error"
+    false
+    echo "post_deep_error"
+
+    die "Should never have gotten here"
+}
+
+etest_deep_error_1()
+{
+    etest_deep_error_2
+}
+
+etest_deep_error()
+{
+    etest_deep_error_1
+}
+
+ETEST_try_catch_deep_error()
+{
+    try
+    {
+        etest_deep_error
+        die "etest_try_catch_3 should have caused a fatal error"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "test should have returned"
+}
+
 # Verify die_on_error **IS** inherited into subshell since we are now using
 # 'set -o errtrace' to ensure our trap is inherited by functions, command 
 # substitutions, and commands executed inside subshells.
@@ -303,3 +337,157 @@ ETEST_disable_enable_die_on_error()
 
     die "Catch block should have returned"
 }
+
+#-----------------------------------------------------------------------------
+# tryrc
+#-----------------------------------------------------------------------------
+
+ETEST_tryrc()
+{
+    local rc=0 stdout="" stderr=""
+    $(tryrc -r=rc -o=stdout -e=stderr echo "foo")
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 0     "${rc}"
+    assert_eq "foo" "${stdout}"
+    assert_eq ""    "${stderr}"
+}
+
+ETEST_tryrc_rc_only()
+{
+    local rc=0
+    $(tryrc -r=rc echo "foo") 1>stdout.log 2>stderr.log
+    local stdout=$(cat stdout.log)
+    local stderr=$(cat stderr.log)
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 0     "${rc}"
+    assert_eq "foo" "${stdout}"
+    assert_eq ""    "${stderr}"
+}
+
+ETEST_tryrc_failure()
+{
+    local rc=0 stdout="" stderr=""
+    $(tryrc -r=rc -o=stdout -e=stderr eval "echo pre_false; false; echo post_false")
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 1 "${rc}"
+    assert_eq "pre_false" "${stdout}"
+    echo "${stderr}" | grep --silent ">> \[ExceptionCaught\]"
+}
+
+ETEST_tryrc_no_output()
+{
+    local rc=0
+    $(tryrc -r=rc false) 1>stdout.log 2>stderr.log
+    local stdout=$(cat stdout.log)
+    local stderr=$(cat stderr.log)
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 1 "${rc}"
+    assert_empty stdout
+    assert_empty stderr
+}
+
+ETEST_tryrc_evil_output()
+{
+    local rc=0
+    $(tryrc -r=rc eerror_stacktrace)
+    assert_eq 0 ${rc}
+}
+
+ETEST_tryrc_multiple_commands()
+{
+    local rc=0 stdout="" stderr=""
+    $(tryrc -r=rc -o=stdout -e=stderr eval "mkdir -p foo; echo -n 'zap' > foo/file; echo 'done'")
+    einfo "$(lval rc stdout stderr)"
+
+    assert_exists foo foo/file
+    assert_eq "zap" "$(cat foo/file)"
+    assert_eq "done" "${stdout}"
+    assert_eq ""     "${stderr}"
+}
+
+ETEST_tryrc_deep_error()
+{
+    local rc=0 stdout="" stderr=""
+    $(tryrc -r=rc -o=stdout -e=stderr etest_deep_error)
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 1 "${rc}"
+    assert_eq "pre_deep_error" "${stdout}"
+    echo "${stderr}" | grep --silent ">> \[ExceptionCaught\]"
+}
+
+ETEST_tryrc_deep_error_redirect()
+{
+    local rc=0
+    $(tryrc -r=rc etest_deep_error) 1>stdout.log 2>stderr.log
+    local stdout=$(cat stdout.log)
+    local stderr=$(cat stderr.log)
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 1 ${rc}
+    assert_eq "pre_deep_error" "${stdout}"
+    echo "${stderr}" | grep --silent ">> \[ExceptionCaught\]"
+}
+
+ETEST_tryrc_deep_error_rc_only()
+{
+    local rc=0
+    $(tryrc -r=rc etest_deep_error)
+    einfo "$(lval rc)"
+
+    assert_eq 1 ${rc}
+}
+
+ETEST_tryrc_multiline_output()
+{
+    einfo "Generating output"
+    printf "line 1\nline 2\nline 3\n" > input.txt
+    cat input.txt
+    
+    local rc=0 stdout="" stderr=""
+    $(tryrc -r=rc -o=stdout -e=stderr cat input.txt)
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 0 "${rc}"
+    assert_eq "$(cat input.txt)" "${stdout}"
+    assert_eq "" "${stderr}"
+}
+
+ETEST_tryrc_multiline_output_spaces()
+{
+    einfo "Generating output"
+    echo "a    b     c" >  input.txt
+    echo "d    e     f" >> input.txt
+    cat input.txt
+
+    local rc=0 stdout="" stderr=""
+    $(tryrc -r=rc -o=stdout -e=stderr cat input.txt)
+    einfo "$(lval rc stdout stderr)"
+
+    diff --unified <(cat input.txt) <(echo "${stdout}")
+    assert_eq 0  "${rc}"
+    assert_eq "" "${stderr}"
+}
+
+ETEST_tryrc_multiline_monster_output()
+{
+    einfo "Generating dmesg output"
+    ( dmesg > input.txt ) || true
+    einfo "Num lines=$(cat input.txt | wc -l)"
+
+    local rc=0 stdout="" stderr=""
+    $(tryrc -r=rc -o=stdout -e=stderr cat input.txt)
+    einfo "$(lval rc stderr)"
+
+    cp   input.txt /tmp/input.txt
+    echo "${stdout}" > /tmp/output.txt
+
+    diff --unified <(cat input.txt) <(echo "${stdout}")
+    assert_eq 0  "${rc}"
+    assert_eq "" "${stderr}"
+}
+
