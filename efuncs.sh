@@ -197,10 +197,10 @@ pipe_read()
 #
 # foo || rc=$?
 #
-# The problem is bash disables effectively disables "set -e" for this command
-# when used in this context. That means even if zap encounteres an unhandled
-# error die() will NOT get implicitly called (explicit calls to die would 
-# still get called of course).
+# The problem is bash effectively disables "set -e" for this command when used
+# in this context. That means even if zap encounteres an unhandled error die()
+# will NOT get implicitly called (explicit calls to die would still get called
+# of course).
 # 
 # Here's the insidious documentation from 'man bash' regarding this obscene
 # behavior:
