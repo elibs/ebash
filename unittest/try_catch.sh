@@ -274,7 +274,7 @@ ETEST_try_catch_deep_error()
     try
     {
         etest_deep_error
-        die "etest_try_catch_3 should have caused a fatal error"
+        die "etest_deep_error should have caused a fatal error"
     }
     catch
     {
