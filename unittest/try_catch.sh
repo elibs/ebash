@@ -473,7 +473,7 @@ ETEST_tryrc_multiline_output_spaces()
     assert_eq "" "${stderr}"
 }
 
-ETEST_tryrc_multiline_monster_output()
+DISABLED_ETEST_tryrc_multiline_monster_output()
 {
     einfo "Generating dmesg output"
     ( dmesg > input.txt ) || true
