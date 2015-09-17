@@ -286,7 +286,7 @@ tryrc()
     # Read in all of stdout and stderr from pipes
     stdout=$(pipe_read ${stdout_pipe})
     if [[ -n ${stderr_pipe} ]]; then
-        stderr=$(pipe_read ${stderr_pipe}
+        stderr=$(pipe_read ${stderr_pipe})
     fi
    
     # Finally we can emit the code the caller needs to execute to set the return code
