@@ -472,14 +472,12 @@ ETEST_tryrc_deep_error()
 
 ETEST_tryrc_deep_error_redirect()
 {
-    $(tryrc etest_deep_error) 1>stdout.log 2>stderr.log
+    $(tryrc etest_deep_error) 1>stdout.log
     local stdout=$(cat stdout.log)
-    local stderr=$(cat stderr.log)
-    einfo "$(lval rc stdout stderr)"
+    einfo "$(lval rc stdout)"
 
     assert_eq 1 ${rc}
     assert_eq "pre_deep_error" "${stdout}"
-    echo "${stderr}" | grep --silent ">> \[ExceptionCaught\]"
 }
 
 ETEST_tryrc_deep_error_rc_only()
@@ -492,7 +490,7 @@ ETEST_tryrc_deep_error_rc_only()
 
 ETEST_tryrc_multiline_output()
 {
-    einfo "Generating output"
+    einfo "Generating input"
     printf "line 1\nline 2\nline 3\n" > input.txt
     cat input.txt
     
@@ -506,7 +504,7 @@ ETEST_tryrc_multiline_output()
 
 ETEST_tryrc_multiline_output_spaces()
 {
-    einfo "Generating output"
+    einfo "Generating input"
     echo "a    b     c" >  input.txt
     echo "d    e     f" >> input.txt
     cat input.txt
@@ -519,9 +517,42 @@ ETEST_tryrc_multiline_output_spaces()
     assert_eq "" "${stderr}"
 }
 
+ETEST_tryrc_stderr_unbuffered()
+{
+    # We want to test that stderr is unbuffered. To do that we'll kick off
+    # a command which will emit an error message, then sleep indefinitely.
+    # Then we try to read from stderr and should see our message. Then we
+    # can terminate the infinite sleep.
+    einfo "Creating background infinite process writing to stderr"
+    ( $(tryrc eval 'echo "start"; echo "MESSAGE" >&2; sleep infinity') ) 2> stderr.log &
+    local pid=$!
+    trap_add "ekilltree -s=KILL ${pid}"
+    einfos "$(lval pid)"
+
+    # Read from stderr
+    einfo "Reading from stderr.log"
+    local stderr="$(cat stderr.log)"
+    einfo "$(lval rc stderr)"
+    assert_eq "MESSAGE" "${stderr}"
+}
+
+DISABLED_ETEST_tryrc_no_eol()
+{
+    einfo "Gerating input"
+    echo -n "a" > input.txt
+    cat input.txt
+
+    $(tryrc -o=stdout -e=stderr cat input.txt)
+    einfo "$(lva rc stdout stderr)"
+
+    diff --unified <(cat input.txt) <(echo "${stdout}")
+    assert_eq 0  "${rc}"
+    assert_eq "" "${stderr}"
+}
+
 DISABLED_ETEST_tryrc_multiline_monster_output()
 {
-    einfo "Generating dmesg output"
+    einfo "Generating input"
     dmesg > input.txt
     einfo "Num lines=$(cat input.txt | wc -l)"
 

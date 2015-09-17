@@ -188,8 +188,8 @@ pipe_read()
 # into local variables. We created this idiom because if you handle the failure 
 # of a command in any way then bash effectively disables set -e that command
 # invocation REGARDLESS OF DEPTH. "Handling the failure" includes putting it in
-# a while or until loop, part of an if/else statement or the final command in a
-# && or ||. 
+# a while or until loop, part of an if/else statement or part of a command 
+# executed in a && or ||.
 #
 # Consider a function call chain such as:
 #
@@ -227,9 +227,11 @@ pipe_read()
 # OPTIONS:
 # -r=VAR The variable to assign the return code to (OPTIONAL, defaults to 'rc').
 # -o=VAR The variable to assign STDOUT to (OPTIONAL). If not provided STDOUT
-#        will go to /dev/fd/1 as normal.
+#        will go to /dev/stdout as normal. This is BUFFERED and not displayed
+#        until the call completes.
 # -e=VAR The variable to assign STDERR to (OPTIONAL). If not provided STDERR
-#        will go to /dev/fd/2 as normal.
+#        will go to /dev/stderr as normal. This is NOT BUFFERED and will display
+#        to /dev/stderr in real-time.
 # -g     Make variables global even if called in a local context.
 tryrc()
 {
@@ -253,10 +255,14 @@ tryrc()
     local stdout_pipe="${tmpdir}/stdout"
     mkfifo "${stdout_pipe}"
     exec 3<> ${stdout_pipe}
-    local stderr_pipe="${tmpdir}/stderr"
-    mkfifo "${stderr_pipe}"
-    exec 4<> ${stderr_pipe}
-    edebug "$(lval cmd rc_out stdout_out stderr_out stdout_pipe stderr_pipe)"
+
+    # Also optionally buffer stderr
+    local stderr_pipe=""
+    if [[ -n ${stderr_out} ]]; then
+        stderr_pipe="${tmpdir}/stderr"
+        mkfifo "${stderr_pipe}"
+        exec 4<> ${stderr_pipe}
+    fi
 
     # Execute actual command in try/catch so that any fatal errors in the command
     # properly terminate execution of the command then capture off the return code
@@ -266,7 +272,11 @@ tryrc()
     local rc=0
     try
     {
-        "${cmd[@]}" 1> >(tee ${stdout_pipe} >/dev/null) 2> >(tee ${stderr_pipe} >/dev/null)
+        if [[ -z ${stderr_pipe} ]]; then
+            "${cmd[@]}" 1> >(tee ${stdout_pipe} >/dev/null)
+        else
+            "${cmd[@]}" 1> >(tee ${stdout_pipe} >/dev/null) 2> >(tee ${stderr_pipe} >/dev/null)
+        fi
     }
     catch
     {
@@ -275,8 +285,9 @@ tryrc()
 
     # Read in all of stdout and stderr from pipes
     stdout=$(pipe_read ${stdout_pipe})
-    stderr=$(pipe_read ${stderr_pipe})
-    edebug "$(lval rc stdout stderr)"
+    if [[ -n ${stderr_pipe} ]]; then
+        stderr=$(pipe_read ${stderr_pipe}
+    fi
    
     # Finally we can emit the code the caller needs to execute to set the return code
     # and stdout/stderr.
@@ -284,8 +295,18 @@ tryrc()
     #       to capture stdout/stderr. If so, assign to provided variables otherwise
     #       redirect the output to appropriate file descriptor.
     echo eval "declare ${dflags} ${rc_out}=${rc};"
-    [[ -n ${stdout_out} ]] && echo eval "declare ${dflags} ${stdout_out}=$(printf %q "$(printf "%q" "${stdout}")");" || echo eval "echo $(printf %q "$(printf "%q" "${stdout}")") >&1;"
-    [[ -n ${stderr_out} ]] && echo eval "declare ${dflags} ${stderr_out}=$(printf %q "$(printf "%q" "${stderr}")");" || echo eval "echo $(printf %q "$(printf "%q" "${stderr}")") >&2;"
+    
+    # STDOUT
+    if [[ -n ${stdout_out} ]]; then
+        echo eval "declare ${dflags} ${stdout_out}=$(printf %q "$(printf "%q" "${stdout}")");"
+    else
+        echo eval "echo $(printf %q "$(printf "%q" "${stdout}")") >&1;"
+    fi
+
+    # STDERR
+    if [[ -n ${stderr_out} ]]; then
+        echo eval "declare ${dflags} ${stderr_out}=$(printf %q "$(printf "%q" "${stderr}")");"
+    fi
 }
 
 #-----------------------------------------------------------------------------
