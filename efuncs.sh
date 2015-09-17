@@ -211,6 +211,10 @@ pipe_read()
 #  the command following the final && or ||, any command in a pipeline but
 #  the last, or if the command's return value is being inverted using !."
 #
+# What's not obvious from that statement is that this applies to the entire
+# expression including any functions it may call not just the top-level 
+# expression that had an error. Ick.
+#
 # Thus we created tryrc to allow safely capturing the return code, stdout
 # and stderr of a function call WITHOUT bypassing set -e safety!
 #
