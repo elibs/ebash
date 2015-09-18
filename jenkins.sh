@@ -15,8 +15,13 @@ source ${BASHUTILS}/efuncs.sh || { echo "Failed to find efuncs.sh" ; exit 1; }
 #
 jenkins_url()
 {
-    argcheck JENKINS JENKINS_PORT
-    echo -n "http://${JENKINS}:${JENKINS_PORT}"
+    if [[ -n ${JENKINS_URL:-} ]] ; then
+        echo "${JENKINS_URL}"
+
+    else
+        argcheck JENKINS JENKINS_PORT
+        echo -n "http://${JENKINS}:${JENKINS_PORT}"
+    fi
 }
 
 jenkins_internal()
@@ -440,30 +445,33 @@ jenkins_list_slaves()
 }
 
 #
-# Writes the current status of the slave on jenkins (either online or offline) to stdout.
+# Writes the current status of the slave on jenkins (either online or offline)
+# to stdout.  If the slave does not exist or the status cannot be retrieved, it
+# will be assumed to be offline.
 #
-#    JENKINS_URL: http url to the root of jenkins (e.g. http://bdr-jenkins.eng.solidfire.net:8080)
-#    JENKINS_SLAVE_NAME: The name of the slave you're interested in, according
-#                        to jenkins (e.g. distbox_caprica)
+#  $1: The name of the slave you're interested in, according to jenkins (e.g.
+#      bdr-ds24.eng.solidfire.net).
 #
 jenkins_slave_status()
 {
-    argcheck JENKINS_SLAVE_NAME JENKINS_URL
+    $(declare_args slaveName)
 
     local offline 
     try
     {
-        offline=$(curl --fail --silent -d tree=offline ${JENKINS_URL}/computer/${JENKINS_SLAVE_NAME}/api/json \
+        offline=$(curl --max-time 2 --fail --silent -d tree=offline $(jenkins_url)/computer/${slaveName}/api/json \
                     | jq --raw-output .offline 2> /dev/null)
     }
     catch
     {
         # Assume offline if we were unable to get the slave's status
-        echo offline
-        return 0
+        :
     }
 
-    [[ ${offline} == "false" ]] && echo online || echo offline
+    # Note: somewhat confusingly, the info we're getting from jenkins is the
+    # logical opposite of how I think about it.  It gives true to mean
+    # "offline" and false to mean "online"
+    [[ ${offline:-true} == "false" ]] && echo online || echo offline
     return 0
 }
 

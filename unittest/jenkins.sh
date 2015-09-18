@@ -7,7 +7,9 @@ setup()
 {
     JENKINS=bdr-distbox.eng.solidfire.net
     JENKINS_PORT=8080
+
     JENKINS_RETRIES=5
+    JENKINS_TIMEOUT=10s
 
     TEMPLATE_DIR=${TOPDIR}/unittest/jenkins_templates/
 }
@@ -131,6 +133,23 @@ ETEST_jenkins_put_file()
     [[ "${fileContents}" == "${getContents}" ]] || die "get_file's contents didn't match $(lval fileContents getContents)"
 
     edebug "$(lval fileContents getContents readContents)"
+}
+
+ETEST_jenkins_slave_status()
+{
+    local slaveName=$(jenkins_list_slaves | tail -n 1 | awk -F, '{print $1}')
+    local slaveStatus=$(jenkins_slave_status ${slaveName})
+
+    einfo "Found slave status $(lval slaveName slaveStatus)"
+    assert [[ "${slaveStatus}" == "online" \|\| "${slaveStatus}" == "offline" ]]
+}
+
+ETEST_jenkins_nonexistent_slave_is_offline()
+{
+    JENKINS=noserver $(tryrc -o=status jenkins_slave_status this-slave-does-not-really-exist)
+
+    assert_eq "0" ${rc}
+    assert_eq offline "${status}"
 }
 
     
