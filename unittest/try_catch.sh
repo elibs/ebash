@@ -155,7 +155,7 @@ ETEST_nodie_on_error_with_try_catch()
 # so our starting array should have (1 1)
 # [0]="global_teardown; die [UnhandledError]" [1]="exit \$?"
 ERR_TRAP_DIE="die [UnhandledError]"
-ERR_TRAP_EXIT="__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]; exit \${__EFUNCS_DIE_ON_ERROR_RC}"
+ERR_TRAP_EXIT="__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]&>\$(edebug_out); exit \${__EFUNCS_DIE_ON_ERROR_RC}"
 ERR_TRAP_TEST="global_teardown; ${ERR_TRAP_DIE}"
 ERR_TRAP_NONE="-"
 
@@ -423,12 +423,11 @@ ETEST_tryrc_rc_custom()
 
 ETEST_tryrc_failure()
 {
-    $(tryrc -o=stdout -e=stderr eval "echo pre_false; false; echo post_false")
-    einfo "$(lval rc stdout stderr)"
+    $(tryrc -o=stdout eval "echo pre_false; false; echo post_false")
+    einfo "$(lval rc stdout)"
 
     assert_eq 1 "${rc}"
     assert_eq "pre_false" "${stdout}"
-    echo "${stderr}" | grep --silent ">> \[ExceptionCaught\]"
 }
 
 ETEST_tryrc_no_output()
@@ -462,12 +461,11 @@ ETEST_tryrc_multiple_commands()
 
 ETEST_tryrc_deep_error()
 {
-    $(tryrc -o=stdout -e=stderr etest_deep_error)
-    einfo "$(lval rc stdout stderr)"
+    $(tryrc -o=stdout etest_deep_error)
+    einfo "$(lval rc stdout)"
 
     assert_eq 1 "${rc}"
     assert_eq "pre_deep_error" "${stdout}"
-    echo "${stderr}" | grep --silent ">> \[ExceptionCaught\]"
 }
 
 ETEST_tryrc_deep_error_redirect()
