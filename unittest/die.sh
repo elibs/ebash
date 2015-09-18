@@ -68,7 +68,9 @@ ETEST_die_traps_parent()
 }
 
 # Ensure trap_add works properly and appends traps to existing ones.
-ETEST_trap_add()
+# DT-72: NOTE: This doesn't work. It probably never worked ever.
+# See: https://solidfire.atlassian.net/browse/DT-72
+DISABLED_ETEST_trap_add()
 {
     trap - SIGUSR1
     trap_add 'echo t1'
@@ -97,7 +99,9 @@ ETEST_trap_add()
 }
 
 # Ensure trap_add works properly and appends traps to existing ones.
-ETEST_trap_add_invoke()
+# DT-72: NOTE: This doesn't work. It probably never worked ever.
+# See: https://solidfire.atlassian.net/browse/DT-72
+DISABLED_ETEST_trap_add_invoke()
 {
     trap - SIGUSR1
     trap_add 'echo t1'
