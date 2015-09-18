@@ -347,9 +347,7 @@ jenkins_get_artifact()
     $(declare_args buildNum artifact)
     argcheck JENKINS_JOB
 
-    local rc=0
-    curl --fail --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}" || rc=$?
-    return ${rc}
+    curl --fail --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}"
 }
 
 #
@@ -441,7 +439,7 @@ jenkins_list_slaves()
     }
 	ENDGROOVY
 
-    jenkins -f="${groovy_script}" groovy = || return $?
+    jenkins -f="${groovy_script}" groovy =
 }
 
 #
