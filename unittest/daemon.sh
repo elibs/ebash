@@ -2,51 +2,68 @@
 
 $(esource daemon.sh)
 
+ETEST_daemon_init()
+{
+    local pidfile_real="${FUNCNAME}.pid"
+    local sleep_options
+    
+    daemon_init sleep_options    \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile_real}"
+
+    $(pack_import sleep_options)
+
+    [[ "sleep infinity" == "${cmdline}" ]] || die "$(lval cmdline +sleep_options)"
+
+    assert_eq "Infinity"       "${name}"
+    assert_eq "sleep infinity" "${cmdline}"
+    assert_eq "${pidfile_real}" "$(pack_get sleep_options pidfile)"
+}
+
 ETEST_daemon_start_stop()
 {
-    local exe="sleep infinity"
     local pidfile="${FUNCNAME}.pid"
-    local daemon_args=( "-n=Infinity" "-p=${pidfile}" )
-    daemon_start "${daemon_args[@]}" "${exe}"
+    local sleep_options
+    
+    daemon_init sleep_options    \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile}"
+
+    daemon_start sleep_options
     
     # Wait for process to be running
-    eretry daemon_status "${daemon_args[@]}" "${exe}"
+    eretry daemon_running sleep_options
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_options
+    assert daemon_status  sleep_options
 
     # Now stop it and verify proper shutdown
     local pid=$(cat ${pidfile})
-    daemon_stop "${daemon_args[@]}" "${exe}"
+    daemon_stop sleep_options
     eretry process_not_running "${pid}"
-    assert_false daemon_status "${daemon_args[@]}" "${exe}"
+    assert_false daemon_running sleep_options
+    assert_false daemon_status -q sleep_options
     assert_not_exists pidfile
 
-    sleep 5
+    sleep 1
 }
 
 DISABLED_ETEST_daemon_respawn()
 {
-    local exe="sleep 1"
-    local respawns=10
-    local wait_time=70
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_options
+    
+    daemon_init sleep_options \
+        name="Infinity"       \
+        cmdline="sleep 1"     \
+        pidfile="${pidfile}"  \
+        respawns="10"         \
+        respawn_interval="70" \
 
-    einfo "Starting an exit daemon that will respawn ${respawns} times"
-    local daemon_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-r=${respawns}" "-c=daemon_callback" )
-    daemon_start "${daemon_args[@]}" "${exe}"
-    test_wait ${wait_time}
-    local count=$(cat "${DAEMON_OUTPUT}" | wc -l)
-    einfo "$(lval count)"
-    [[ ${count} -ge $(( ${respawns} / 2 )) ]] || die "$(lval count) -ge $(( ${respawns} / 2 )) evaluated to false"
-    rm -f "${DAEMON_OUTPUT}" "${DAEMON_PIDFILE}"
-
-    daemon_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-c=daemon_callback" )
-    einfo "Starting an exit daemon that will respawn the default number (20) times"
-    daemon_start "${daemon_args[@]}" "${exe}"
-    test_wait ${wait_time}
-    count=$(cat "${DAEMON_OUTPUT}" | wc -l)
-    einfo "$(lval count)"
-    [[ ${count} -ge 10 ]] || die "$(lval count) -ge 10 evaluated to false."
-    rm -f "${DAEMON_OUTPUT}" "${DAEMON_PIDFILE}"
+    einfo "Starting an daemon $(lval +sleep_options)"
+    daemon_start sleep_options
 }
-
 

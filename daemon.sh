@@ -3,88 +3,89 @@
 # Copyright 2012-2013, SolidFire, Inc. All rights reserved.
 #
 
+# daemon_init is used to initialize the options pack that all of the various
+# daemon_* functions will use. This makes it easy to specify global settings
+# for all of these daemon functions without having to worry about consistent
+# argument parsing and argument conflicts between the various daemon_*
+# functions.
+# 
+# The following are the keys used to control daemon functionality:
+#
+# chroot:   Optional CHROOT to run the daemon in.
+#
+# cmdline:  The commandlnie to be run as a daemon. This includes the executable 
+#           as well as any of its arguments.
+#
+# callback: Optional callback function to run prior to starting the daemon each
+#           time. If the daemon crashes or exits and needs to be respawned then
+#           this callback will be called first.
+#
+# delay:    The delay, in seconds, to wait before attempting to restart the daemon
+#           when it exits. Generally this should never be <1 otherwise race 
+#           conditions in startup/shutdown are possible. Defaults to 1.
+#
+# name:     The name of the daemon, for readability purposes. By default this will
+#           use the basename of the command being executed.
+#
+# pidfile:  Path to the pidfile for the daemon. By default this is the basename
+#           of the command being executed, stored in /var/run.
+#
+# signal:   Signal to use when stopping the daemon. Defaults to SIGTERM.
+#
+# respawns: The maximum number of times to respawn the daemon command before just
+#           giving up. Defaults to 20.
+#
+# respawn_interval: Amount of seconds the process must stay up for it to be considered a
+#           successful start. This is used in conjunction with respawn similar to
+#           upstart/systemd. If the process is respawned more than ${respawns} times
+#           within ${respawn_interval} seconds, the process will no longer be respawned.
+daemon_init()
+{
+    $(declare_args optpack)
+    edebug "Initializting daemon options $(lval optpack) $@"
+
+    # Load defaults into the pack first then add in any additional provided settings
+    # Since the last key=val added to the pack will always override prior values
+    # this allows caller to override the defaults.
+    pack_set ${optpack} chroot= callback= delay=1 respawns=20 respawn_interval=15 signal=SIGTERM "${@}"
+    
+    # Set name if missing
+    local base=$(basename $(pack_get ${optpack} "cmdline" | awk '{print $1}'))
+    if ! pack_contains ${optpack} "name"; then
+        pack_set ${optpack} name=${base}
+    fi
+   
+    # Set pidfile if missing
+    if ! pack_contains ${optpack} "pidfile"; then
+        pack_set ${optpack} pidfile="/var/run/${base}"
+    fi
+
+    pack_print ${optpack} &>$(edebug_out)
+}
+
 # daemon_start will daemonize the provided command and its arguments as a
 # pseudo-daemon and automatically respawn it on failure. We don't use the core
 # operating system's default daemon system, as that is platform dependent and
 # lacks the portability we need to daemonize things on any arbitrary system.
 #
-# Options:
+# For options which control daemon_start functionality please see daemon_init.
 #
-# -C  Optional CHROOT to run the executable in.
-#
-# -c  The callback function to run prior to starting the daemon each time. If
-#     the daemon crashes, or otherwise exits, and would be restarted by this
-#     function then this callback is executed first.
-#     Default: none
-#
-# -d  The delay, in seconds, to wait before attempting to restart the daemon
-#     when it exits.
-#     Default: 1
-#
-# -n  The name of the daemon, for readability purposes.
-#     Default: The basename of the command issued
-#
-# -p  The location of the PID file for the daemon.
-#     Default: The basename of the command issued, stored in /var/run/
-#
-# -r  The maximum number of times to start the daemon command before just
-#     giving up.
-#     Default: 20
-#
-# -w  The number of seconds to wait between starting up the daemon, and
-#     checking its status.
-#     Default: 1
-#
-# NOTES:
-#  1: Due to implementation decisions, daemon_start and daemon_stop may not have
-#     any overlapping options with different purposes. This is because, in many
-#     places, the options passed to each function are identical and having
-#     different uses for the same option would lead to unexpected behaviors in use.
 daemon_start()
 {
-    # Parse required arguments. Any remaining options will be passed to the daemon.
-    $(declare_args exe)
+    # Pull in our argument pack then import all of its settings for use.
+    $(declare_args optpack)
+    $(pack_import ${optpack})
 
-    # Determine optional CHROOT to run the executable in.
-    local CHROOT="$(opt_get C)"
-
-    # Determine pretty name to display from optional -n
-    local name="$(opt_get n)"
-    : ${name:=$(basename ${exe})}
-
-    # Determine optional pidfile
-    local pidfile="$(opt_get p)"
-    : ${pidfile:=/var/run/$(basename ${exe})}
-
-    # Determine how long to wait after the daemon dies before starting it up
-    # again. NOTE - You want at least a second to ensure that in the case of a
-    # daemon_stop being called, we have everything in the appropriate state
-    # before starting a new process that isn't supposed to be there.
-    local delay="$(opt_get d 1)"
-
-    # Determine how many times maximum to restart the daemon.
-    local restarts="$(opt_get r 20)"
-
-    # Get callback function, if there is one, which should be run prior to
-    # starting the command each time the daemon starts.
-    local callback=$(opt_get c)
-
-    # How long to wait before checking the daemon's status once started.
-    local time_to_startup="$(opt_get w 1)"
-
+    # Create empty pidfile
+    local pid
     mkdir -p $(dirname ${pidfile})
     touch "${pidfile}"
 
     # Don't restart the daemon if it is already running.
-    local currentPID=$(cat "${pidfile}" 2>/dev/null || true)
-    local status=0
-    if [[ -n "${currentPID}" ]]; then
-        kill -0 ${currentPID} &>/dev/null || status=1
-        if [[ ${status} -eq 0 ]]; then
-            einfo "${name} is already running."
-            edebug "$(lval CHROOT name exe pidfile) args=${@} is already running as process ${currentPID}"
-            return 0 # The daemon is already running, don't start a new one
-        fi
+    if daemon_running ${optpack}; then
+        einfo "${name} is already running."
+        edebug "${name} is already running $(lval pid +${optpack})"
+        return 0
     fi
 
     # Split this off into a separate sub-shell running in the background so we can
@@ -92,46 +93,44 @@ daemon_start()
     (
         local runs=0
 
-        # Check to ensure that we haven't failed running "restarts" times. If
+        # Check to ensure that we haven't failed running "respawns" times. If
         # we have, then don't run again. Likewise, ensure that the pidfile
         # exists. If it doesn't it likely means that we have been stopped (via
         # daemon_stop) and we really don't want to run again.
-        while [[ ${runs} -lt ${restarts} && -e "${pidfile}" ]]; do
+        while [[ ${runs} -lt ${respawns} && -e "${pidfile}" ]]; do
 
             # Info
             if [[ ${runs} -eq 0 ]]; then
                 einfo "Starting ${name}"
-                edebug "Starting $(lval CHROOT name exe pidfile) args=${@}"
+                edebug "Starting $(lval name +${optpack})"
             else
                 einfo "Restarting ${name}"
-                edebug "Restarting $(lval CHROOT name exe pidfile) args=${@}"
+                edebug "Restarting $(lval name +${optpack})"
             fi
+            
             runs=$((runs + 1))
 
             # Construct a subprocess which bind mounts chroot mount points then executes
             # requested daemon. After the daemon completes automatically unmount chroot.
             (
+                die_on_abort
+
                 ${callback}
 
-                if [[ -n ${CHROOT} ]]; then
+                if [[ -n ${chroot} ]]; then
+                    export CHROOT=${chroot}
                     chroot_mount
                     trap_add chroot_unmount
-                    chroot_cmd ${exe} ${@}
+                    chroot_cmd ${cmdline} || true
                 else
-                    ${exe} ${@}
+                    ${cmdline} || true
                 fi
 
             ) &>$(edebug_out) &
 
             # Get the PID of the process we just created and store into requested pid file.
-            local pid=$!
+            pid=$!
             echo "${pid}" > "${pidfile}"
-
-            # Give the daemon a second to startup and then check its status. If it blows
-            # up immediately we'll catch the error immediately and be able to let the
-            # caller know that startup failed.
-            sleep ${time_to_startup}
-            daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out)
             eend 0
 
             # SECONDS is a magic bash variable keeping track of the number of
@@ -139,16 +138,19 @@ daemon_start()
             # with the parent shell (and it will continue from where we leave
             # it).
             SECONDS=0
-            wait ${pid} &>$(edebug_out) || ewarn "Process ${name} crashed, respawning in $(lval delay) seconds"
+            wait ${pid} &>/dev/null || true
+            
+            # If we were gracefully shutdown then don't do anything further
+            [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
+            
+            ewarn "Process ${name} crashed, respawning in $(lval delay) seconds"
 
             # Check that we have run for the minimum duration.
-            # NOTE - The way this is set up, it means that the daemon must have
-            #        run for at least 2 * time_to_startup.
-            if [[ ${SECONDS} -ge ${time_to_startup} ]]; then
+            if [[ ${SECONDS} -ge ${respawn_interval} ]]; then
                 runs=0
             fi
 
-            # give chroot_daemon_stop a chance to get everything sorted out
+            # give daemon_stop a chance to get everything sorted out
             sleep ${delay}
         done
     ) &
@@ -157,95 +159,73 @@ daemon_start()
 # daemon_stop will find a command currently being run as a pseudo-daemon,
 # terminate it with the provided signal, and clean up afterwards.
 #
-# Options:
-# -n  The name of the daemon, for readability purposes.
-#     Default: The basename of the command issued
+# For options which control daemon_start functionality please see daemon_init.
 #
-# -p  The location of the PID file for the daemon.
-#     Default: The basename of the command issued, stored in /var/run/
-#
-# -s  The signal to send the daemon to get it to quit.
-#     Default: TERM
-#
-# NOTES:
-#  1: Due to implementation decisions, daemon_start and daemon_stop may not
-#     have any overlapping options with different purposes. This is because,
-#     in many places, the options passed to each function are identical and
-#     having different uses for the same option would lead to unexpected
-#     behaviors in use.
 daemon_stop()
 {
-    # Parse required arguments.
-    $(declare_args exe)
-
-    # Determine pretty name to display from optional -n
-    local name="$(opt_get n)"
-    : ${name:=$(basename ${exe})}
-
-    # Determmine optional pidfile
-    local pidfile="$(opt_get p)"
-    : ${pidfile:=/var/run/$(basename ${exe})}
-
-    # Determine optional signal to use
-    local signal="$(opt_get s)"
-    : ${signal:=TERM}
+    # Pull in our argument pack then import all of its settings for use.
+    $(declare_args optpack)
+    $(pack_import ${optpack})
 
     # Info
     einfo "Stopping ${name}"
-    edebug "Stopping $(lval CHROOT name exe pidfile signal)"
+    edebug "Stopping $(lval name +${optpack})"
 
     # If it's not running just return
-    daemon_status -n="${name}" -p="${pidfile}" &>$(edebug_out) \
+    daemon_running ${optpack} \
         || { eend 0; ewarns "Already stopped"; eend 0; rm -rf ${pidfile}; return 0; }
 
-    # If it is running stop it with optional signal
-    local pid=$(cat ${pidfile} 2>/dev/null)
+    # If it is remove the pidfile then stop the process with provided signal.
+    # NOTE: It's important we remove the pidfile BEFORE we kill the process so that
+    # it won't try to respawn!
+    local pid=$(cat ${pidfile} 2>/dev/null || true)
+    rm -f ${pidfile}
     ekilltree -s=${signal} ${pid}
-    rm -rf ${pidfile}
     eend 0
 }
 
 # Retrieve the status of a daemon.
 #
+# For options which control daemon_start functionality please see daemon_init.
+#
 # Options:
-# -n  The name of the daemon, for readability purposes.
-#     Default: The basename of the command issued
-#
-# -p  The location of the PID file for the daemon.
-#     Default: The basename of the command issued, stored in /var/run/
-#
-# NOTES:
-#  1: Due to implementation decisions, daemon_start, daemon_stop and daemon_status
-#     may not have any conflicting options. This is because, in many places,
-#     the options passed to each function are identical and having different uses
-#     for the same option would lead to unexpected behaviors in use.
+# -q=(0|1) Make the status function quiet and send everything to /dev/null.
 daemon_status()
 {
-    # Parse required arguments
-    $(declare_args)
+    # Pull in our argument pack then import all of its settings for use.
+    $(declare_args optpack)
+    $(pack_import ${optpack})
 
-    # pidfile is required
-    local pidfile=$(opt_get p)
-    argcheck pidfile
+    local redirect
+    opt_true "q" && redirect="/dev/null" || redirect="/dev/stderr"
 
-    # Determine pretty name to display from optional -n
-    local name=$(opt_get n)
-    : ${name:=$(basename ${pidfile})}
+    {
+        einfo "Checking ${name}"
+        edebug "Checking $(lval name +${optpack})"
 
-    einfo "Checking ${name}"
-    edebug "Checking $(lval CHROOT name pidfile)"
+        # Check pidfile
+        [[ -e ${pidfile} ]] || { eend 1; ewarns "Not Running (no pidfile)"; return 1; }
+        local pid=$(cat ${pidfile} 2>/dev/null || true)
+        [[ -z ${pid}     ]] && { eend 1; ewarns "Not Running (no pid)"; return 1; }
 
-    # Check pidfile
-    [[ -e ${pidfile} ]] || { eend 1; ewarns "Not Running (no pidfile)"; return 1; }
-    local pid=$(cat ${pidfile} 2>/dev/null)
-    [[ -z ${pid}     ]] && { eend 1; ewarns "Not Running (no pid)"; return 1; }
+        # Check if it's running
+        process_running ${pid} || { eend 1; ewarns "Not Running"; return 1; }
+    
+        # OK -- It's running
+        eend 0
 
-    # Send a signal to process to see if it's running
-    kill -0 ${pid} &>/dev/null || { eend 1; ewarns "Not Running"; return 1; }
-
-    # OK -- It's running
-    eend 0
+    } &>${redirect}
+    
     return 0
+}
+
+# Check if the daemon is running or not. This is just a convenience wrapper around
+# "daemon_status -q". This is a little more convenient to use in scripts where you
+# only care if it's running and don't want to have to suppress all the output from
+# daemon_status.
+daemon_running()
+{
+    daemon_status -q "${@}"
 }
 
 #-----------------------------------------------------------------------------
