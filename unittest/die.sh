@@ -66,3 +66,54 @@ ETEST_die_traps_parent()
     assert [[ ! -e ${fname1} ]]
     assert [[ ! -e ${fname2} ]]
 }
+
+# Ensure trap_add works properly and appends traps to existing ones.
+ETEST_trap_add()
+{
+    trap - SIGUSR1
+    trap_add 'echo t1'
+    assert_eq "echo t1; " "$(extract_trap_cmd SIGUSR1)"
+
+    foo()
+    {
+        trap_add "echo t2"
+        assert_eq "echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+
+        (
+            assert_eq "echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+            trap_add "echo t3"
+            assert_eq "echo t3; echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+            trap_add "echo t4"
+            assert_eq "echo t4; echo t3; echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+        )
+
+        assert_eq "echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+    }
+
+    declare -f -t foo
+    
+    foo
+    assert_eq "echo t1; " "$(extract_trap_cmd SIGUSR1)"
+}
+
+# Ensure trap_add works properly and appends traps to existing ones.
+ETEST_trap_add_invoke()
+{
+    trap - SIGUSR1
+    trap_add 'echo t1'
+
+    foo()
+    {
+        trap_add "echo t2"
+
+        (
+            trap_add "echo t3"
+            trap_add "echo t4"
+        )
+
+        kill -SIGUSR1 $BASHPID
+    }
+
+    foo
+
+}

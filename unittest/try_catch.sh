@@ -519,38 +519,56 @@ ETEST_tryrc_multiline_output_spaces()
 
 ETEST_tryrc_stderr_unbuffered()
 {
-    # We want to test that stderr is unbuffered. To do that we'll kick off
-    # a command which will emit an error message, then sleep indefinitely.
-    # Then we try to read from stderr and should see our message. Then we
-    # can terminate the infinite sleep.
-    einfo "Creating background infinite process writing to stderr"
-    ( $(tryrc eval 'echo "start"; echo "MESSAGE" >&2; sleep infinity') ) 2> stderr.log &
-    local pid=$!
-    trap_add "ekilltree -s=KILL ${pid}"
-    einfos "$(lval pid)"
+    local pids="${FUNCNAME}.pids"
+    local pipe="${FUNCNAME}.pipe"
+    rm -f ${pipe}
+    mkfifo "${pipe}"
+    
+    # Background parent to start reading from the pipe
+    (
+        einfo "Reading from ${pipe}"
+        local stderr=""
+        read -r stderr < ${pipe}
+        
+        einfo "$(lval rc stderr)"
+        assert_eq "MESSAGE" "${stderr}"
+    ) &
+    echo "$!" >> "${FUNCNAME}.pids"
 
-    # Read from stderr
-    einfo "Reading from stderr.log"
-    local stderr="$(cat stderr.log)"
-    einfo "$(lval rc stderr)"
-    assert_eq "MESSAGE" "${stderr}"
+    # Background process to write to the pipe. Do this in the background
+    # so we can read from the pipe above. This will emit an error message
+    # and we'll ensure we see it BEFORE the process completes.
+    einfo "Creating background infinite process writing to stderr"
+    (
+        $(tryrc eval 'echo "MESSAGE" >&2; sleep infinity') &
+        echo "$!" >> "${FUNCNAME}.pids"
+
+    ) 2>${pipe}
+    echo "$!" >> "${FUNCNAME}.pids"
+
+    wait
+
+    # Kill all pids
+    ekilltree -s=SIGKILL $(cat ${FUNCNAME}.pids)
 }
 
-DISABLED_ETEST_tryrc_no_eol()
+ETEST_tryrc_no_eol()
 {
-    einfo "Gerating input"
+    einfo "Generating input"
     echo -n "a" > input.txt
     cat input.txt
 
     $(tryrc -o=stdout -e=stderr cat input.txt)
-    einfo "$(lva rc stdout stderr)"
+    einfo "$(lval rc stdout stderr)"
+    declare -p stdout
+    declare -p stderr
 
-    diff --unified <(cat input.txt) <(echo "${stdout}")
+    diff --unified <(cat input.txt) <(echo -n "${stdout}")
     assert_eq 0  "${rc}"
     assert_eq "" "${stderr}"
 }
 
-DISABLED_ETEST_tryrc_multiline_monster_output()
+ETEST_tryrc_multiline_monster_output()
 {
     einfo "Generating input"
     dmesg > input.txt
