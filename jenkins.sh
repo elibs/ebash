@@ -23,10 +23,23 @@ jenkins_internal()
 {
     $(declare_args)
 
-    local filename
+    local filename rc=0
     filename=$(opt_get f)
-    [[ -z ${filename} ]] && java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}" \
-                         || java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}" < "${filename}"
+    try
+    {
+        if [[ -n ${filename:-} ]] ; then
+            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}" < "${filename}"
+        else
+            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}"
+       fi
+    }
+    catch
+    {
+        rc=$?
+        edebug "Caught error from jenkins $(lval filename JENKINS_CLI_JAR JENKINS rc)"
+    }
+
+    return ${rc}
 }
 
 jenkins()
@@ -78,10 +91,11 @@ jenkins_update()
     scriptTemplate="scripts/jenkins_templates/${item_type}/${template}.sh"
 
     [[ -r "${scriptTemplate}" ]] || scriptTemplate=""
-    [[ -n ${scriptTemplate} ]] && scriptFile=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_script_XXXX")
+    [[ -z ${scriptTemplate} ]] || scriptFile=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_script_XXXX")
     local newConfig oldConfig
     newConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_XXXX")
     oldConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_old_XXXX")
+
     trap_add "rm -rf ${scriptFile} ${newConfig} ${oldConfig}"
 
     # Expand parameters in the script (if one was found), and place its
@@ -95,9 +109,12 @@ jenkins_update()
     cp -arL "${xmlTemplate}" "${newConfig}"
     setvars "${newConfig}" setvars_escape_xml
 
+    local rc=2
+
     # Look to see if the item already exists on jenkins, with minimal retries
     # so we don't have to wait forever for new jobs
     local foundExisting=0
+    edebug "Checking if job exists"
     JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>$(edebug_out) || foundExisting=$?
 
     # If the request timed out OR if it timed out and then didn't respond to
@@ -108,20 +125,24 @@ jenkins_update()
     # Other error codes would be from jenkins
     elif [[ ${foundExisting} -eq 0 ]] ; then
 
+        edebug "Job exists.  Determining whether to update it."
+
         # If it does, only update it if the new config differs from the old one
-        local rc=0
-        diff --ignore-all-space --brief "${oldConfig}" "${newConfig}" &>/dev/null && rc=0 || rc=$?
-        if [[ ${rc} -ne 0 ]] ; then
+        if diff --ignore-all-space --brief "${oldConfig}" "${newConfig}" &>/dev/null ; then
             edebug "jenkins_update: config mismatch -- updating"
-            edebug_enabled && cat "${newConfig}"
-            jenkins -f="${newConfig}" update-${item_type} "${name}"
+            edebug_enabled && cat "${newConfig}" || true
+            $(tryrc -r=rc jenkins -f="${newConfig}" update-${item_type} "${name}")
         fi
 
     else
 
+        edebug "Job does not exist.  Creating it."
+
         # If it does not, create it
-        jenkins -f="${newConfig}" create-${item_type} "${name}"
+        $(tryrc -r=rc jenkins -f="${newConfig}" create-${item_type} "${name}")
     fi
+
+    return ${rc}
 }
 
 # This is a setvars callback method that properly escapes raw data so that it
@@ -151,6 +172,8 @@ jenkins_start_build()
     # Skip jenkins' "quiet period"
     local args="-d delay=0sec "
 
+    edebug "Starting build $(lval JENKINS_JOB BUILD_ARGS)"
+
     for arg in ${!BUILD_ARGS[@]} ; do
         args+="-d ${arg}=${BUILD_ARGS[$arg]} "
     done
@@ -163,7 +186,7 @@ jenkins_start_build()
 
     edebug "$(lval rc url response queueUrl)"
 
-    [[ ${rc} == 0 ]] && echo "${queueUrl}api/json"
+    [[ ${rc} == 0 ]] && echo "${queueUrl}api/json" || return ${rc}
 }
 
 #
@@ -180,7 +203,7 @@ jenkins_get_build_number()
 
     number=$(curl --fail --silent ${queueUrl} | jq -M ".executable.number") && rc=0 || rc=$?
 
-    [[ ${rc} == 0 && ${number} != "null" ]] && echo "${number}"
+    [[ ${rc} == 0 && ${number} != "null" ]] && echo "${number}" || return ${rc}
 }
 
 #
@@ -225,8 +248,15 @@ jenkins_build_json()
 
     json=$(curl --fail --silent ${treeparm} ${url}) && rc=0 || rc=$?
     
-    [[ ${rc} -ne 0 ]] && { edebug "Error reading json on build for ${JENKINS_JOB} #${BUILD_NUMBER}" ; return 1 ; }
-    [[ ${rc} -eq 0 ]] && echo "${json}"
+    if [[ ${rc} -ne 0 ]] ; then
+        edebug "Error reading json on build for ${JENKINS_JOB} #${BUILD_NUMBER}" 
+        return ${rc} 
+
+    else 
+        echo "${json}"
+        return 0
+
+    fi
 }
 
 #
@@ -244,13 +274,19 @@ jenkins_build_json()
 jenkins_build_result()
 {
     $(declare_args buildNum)
-    local json status rc
 
-    json=$(jenkins_build_json ${buildNum} result) && rc=0 || rc=$?
-
-    status=$(echo "${json}" | jq --raw-output .result)
-
-    [[ ${rc} == 0 && ${status} != "null" ]] && echo "${status}"
+    try
+    {
+        local json status rc
+        json=$(jenkins_build_json ${buildNum} result)
+        status=$(echo "${json}" | jq --raw-output .result)
+        [[ ${status} != "null" ]]
+        echo "${status}"
+    }
+    catch
+    {
+        return $?
+    }
 }
 
 #
@@ -266,10 +302,18 @@ jenkins_build_is_running()
     $(declare_args buildNum)
     argcheck JENKINS_JOB
 
-    local result rc
-    result=$(jenkins_build_json ${buildNum} building | jq --raw-output '.building') && rc=0 || rc=$?
-    [[ ${rc} -eq 0 && ${result} == "true" ]] && return 0
-    return 1
+    try
+    {
+        local result rc
+        result=$(jenkins_build_json ${buildNum} building | jq --raw-output '.building') && rc=0 || rc=$?
+
+        [[ ${result} == "true" ]] 
+        return 0
+    }
+    catch
+    {
+        return $?
+    }
 }
 
 #
@@ -281,17 +325,16 @@ jenkins_list_artifacts()
     argcheck JENKINS_JOB
 
     local json rc url
-    json=$(jenkins_build_json ${buildNum} 'artifacts[relativePath]') && rc=0 || rc=$?
-    url=$(jenkins_build_url ${buildNum})
-
-    # Assuming we successfully got json data, pass it through jq to just get
-    # the "relativePath" items out of it, and then prepend the jenkins build
-    # url + artifacts directory onto it.
-    [[ ${rc} -eq 0 ]] && \
-        echo ${json} \
-        | jq --raw-output '.artifacts[].relativePath'
-
-    return ${rc}
+    try
+    {
+        json=$(jenkins_build_json ${buildNum} 'artifacts[relativePath]')
+        url=$(jenkins_build_url ${buildNum})
+        echo ${json} | jq --raw-output '.artifacts[].relativePath'
+    }
+    catch
+    {
+        return $?
+    }
 }
 
 jenkins_get_artifact()
@@ -299,7 +342,9 @@ jenkins_get_artifact()
     $(declare_args buildNum artifact)
     argcheck JENKINS_JOB
 
-    curl --fail --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}"
+    local rc=0
+    curl --fail --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}" || rc=$?
+    return ${rc}
 }
 
 #
@@ -346,6 +391,7 @@ jenkins_stop_build_by_url()
     $(declare_args buildUrl)
 
     edebug $(lval buildUrl)
+
     curl --fail -X POST --silent "${buildUrl}/stop"
 }
 
@@ -390,7 +436,7 @@ jenkins_list_slaves()
     }
 	ENDGROOVY
 
-    jenkins -f="${groovy_script}" groovy =
+    jenkins -f="${groovy_script}" groovy = || return $?
 }
 
 #
@@ -404,33 +450,55 @@ jenkins_slave_status()
 {
     argcheck JENKINS_SLAVE_NAME JENKINS_URL
 
-    local offline rc
-    offline=$(curl --fail --silent -d tree=offline ${JENKINS_URL}/computer/${JENKINS_SLAVE_NAME}/api/json \
-                 | jq --raw-output .offline 2> /dev/null) && rc=0 || rc=$?
+    local offline 
+    try
+    {
+        offline=$(curl --fail --silent -d tree=offline ${JENKINS_URL}/computer/${JENKINS_SLAVE_NAME}/api/json \
+                    | jq --raw-output .offline 2> /dev/null)
+    }
+    catch
+    {
+        # Assume offline if we were unable to get the slave's status
+        echo offline
+        return 0
+    }
 
-    # Assume offline if we were unable to get the slave's status
-    [[ $rc -ne 0 ]] && { echo offline ; return 0 ; }
     [[ ${offline} == "false" ]] && echo online || echo offline
+    return 0
 }
 
 ssh_jenkins()
 {
-    argcheck JENKINS_PASSWORD
-    argcheck JENKINS_USER
     argcheck JENKINS
 
     # Hide the "host key permanently added" warnings unless EDEBUG is set
     local hideWarnings=""
     edebug_enabled && hideWarnings="-o LogLevel=quiet"
 
-    sshpass -p ${JENKINS_PASSWORD} \
-        ssh -o PreferredAuthentications=password \
+    : ${JENKINS_USER:=root}
+
+    # Use sshpass to send the password if it was given to us
+    if [[ -n ${JENKINS_PASSWORD:-} && -n ${JENKINS_USER:-} ]] ; then
+        edebug "Connecting to jenkins via pre-set JENKINS_PASSWORD and JENKINS_USER"
+        sshpass -p ${JENKINS_PASSWORD} \
+            ssh -o PreferredAuthentications=password \
+                -o UserKnownHostsFile=/dev/null \
+                -o StrictHostKeyChecking=no \
+                -x \
+                ${hideWarnings} \
+                ${JENKINS_USER}@${JENKINS} \
+                "${@}"
+    else
+        edebug "Connecting to jenkins assuming that keys are set up, because password was not given"
+        # Otherwise, assume that keys are set up properly
+        ssh -o BatchMode=yes \
             -o UserKnownHostsFile=/dev/null \
             -o StrictHostKeyChecking=no \
             -x \
             ${hideWarnings} \
             ${JENKINS_USER}@${JENKINS} \
             "${@}"
+    fi
 }
 
 ################################################################################
@@ -505,7 +573,7 @@ jenkins_delete_files()
         allFiles+=("/tmp/${file}")
     done
 
-    [[ ${#allFiles[@]} -gt 0 ]] && ssh_jenkins "rm -f ${allFiles[@]}" || return 0
+    [[ ${#allFiles[@]} -gt 0 ]] && ssh_jenkins "rm -f ${allFiles[@]}" || true
 }
 
 return 0
