@@ -46,23 +46,23 @@ ETEST_chroot_readlink()
     assert_eq "${CHROOT}/run" "${real}"
 }
 
-ETEST_chroot_daemon_start_stop()
+DISABLED_ETEST_chroot_daemon_start_stop()
 {
     local exe="sleep infinity"
     local pidfile="${FUNCNAME}.pid"
-    local chroot_args=( "-n=Infinity" "-p=${pidfile}" )
-    chroot_daemon_start "${chroot_args[@]}" "${exe}"
+    local chroot_args=( -C="${CHROOT}" -n="Infinity" -p="${pidfile}" )
+    daemon_start "${chroot_args[@]}" "${exe}"
     
     # Wait for process to be running
-    eretry chroot_daemon_status "${chroot_args[@]}" "${exe}"
+    eretry daemon_status "${chroot_args[@]}" "${exe}"
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
 
     # Now stop it and verify proper shutdown
     local pid=$(cat ${pidfile})
-    chroot_daemon_stop "${chroot_args[@]}" "${exe}"
+    daemon_stop "${chroot_args[@]}" "${exe}"
     eretry process_not_running "${pid}"
-    assert_false chroot_daemon_status "${chroot_args[@]}" "${exe}"
+    assert_false daemon_status "${chroot_args[@]}" "${exe}"
     assert_not_exists pidfile
 
     sleep 5
@@ -75,8 +75,8 @@ DISABLED_ETEST_chroot_daemon_respawn()
     local wait_time=70
 
     einfo "Starting an exit daemon that will respawn ${respawns} times"
-    local chroot_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-r=${respawns}" "-c=daemon_callback" )
-    chroot_daemon_start "${chroot_args[@]}" "${exe}"
+    local chroot_args=( -C="${CHROOT}" -n="Count" -p="${DAEMON_PIDFILE}" -r="${respawns}" -c="daemon_callback" )
+    daemon_start "${chroot_args[@]}" "${exe}"
     test_wait ${wait_time}
     local count=$(cat "${DAEMON_OUTPUT}" | wc -l)
     einfo "$(lval count)"
@@ -85,7 +85,7 @@ DISABLED_ETEST_chroot_daemon_respawn()
 
     chroot_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-c=daemon_callback" )
     einfo "Starting an exit daemon that will respawn the default number (20) times"
-    chroot_daemon_start "${chroot_args[@]}" "${exe}"
+    daemon_start "${chroot_args[@]}" "${exe}"
     test_wait ${wait_time}
     count=$(cat "${DAEMON_OUTPUT}" | wc -l)
     einfo "$(lval count)"
