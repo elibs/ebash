@@ -177,10 +177,29 @@ pipe_read()
     # is anything available. While there is, go into the loop and read from
     # the pipe into local variable 'line'. IFS='' and "-r" flag are critical
     # here to ensure we don't lose whitespace or try to interpret anything.
-    while read -t0 -N0; do
-        IFS= read -r line
+    while IFS= read -r line || [[ -n "${line}" ]]; do
         echo "${line}"
     done <${pipe}
+}
+
+# Helper method to read from a pipe until we see EOF and then also 
+# intelligently quote the output in a way that can be reused as shell input
+# via "printf %q". This will allow us to safely eval the input without fear
+# of anything being exectued.
+#
+# NOTE: This method will echo "" instead of using printf if the output is an
+#       empty string to avoid causing various test failures where we'd
+#       expect an empty string ("") instead of a string with literl quotes
+#       in it ("''").
+pipe_read_quote()
+{
+    $(declare_args pipe)
+    local output=$(pipe_read ${pipe})
+    if [[ -n ${output} ]]; then
+        printf %q "$(printf "%q" "${output}")"
+    else
+        echo -n ""
+    fi
 }
 
 # tryrc is a convenience wrapper around try/catch that makes it really easy to
@@ -238,8 +257,8 @@ tryrc()
     $(declare_args)
     local cmd=("$@")
     local rc_out=$(opt_get r "rc")
-    local stdout="" stdout_out=$(opt_get o)
-    local stderr="" stderr_out=$(opt_get e)
+    local stdout_out=$(opt_get o)
+    local stderr_out=$(opt_get e)
     local global=$(opt_get g 0)
 
     # Determine flags to pass into declare
@@ -250,63 +269,57 @@ tryrc()
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
     trap_add "rm -rf ${tmpdir}"
 
-    # Create FIFO for stdout and stderr. Also associated them with file descriptors
-    # so that we can start writing to them immediately before we read from them.
+    # STDOUT: Create FIFO for stdout and then background a process to read from 
+    # the stdout fifo and emit the necessary commands the caller must invoke.
     local stdout_pipe="${tmpdir}/stdout"
     mkfifo "${stdout_pipe}"
-    exec 3<> ${stdout_pipe}
+    (
+        local stdout=$(pipe_read_quote ${stdout_pipe})
+        if [[ -n ${stdout_out} ]]; then
+            echo eval "declare ${dflags} ${stdout_out}=${stdout};"
+        else
+            echo eval "echo ${stdout} >&1;"
+        fi
+    ) &
 
-    # Also optionally buffer stderr
-    local stderr_pipe=""
+    local stdout_pid=$!
+
+    # STDERR: Optionally create FIFO for stderr if buffering of stderr is requested
+    # and then background a process to read from the stderr fifo and emit the
+    # necessary commands the caller must invoke.
+    local stderr_pipe="/dev/stderr"
+    local stderr_pid=""
     if [[ -n ${stderr_out} ]]; then
         stderr_pipe="${tmpdir}/stderr"
         mkfifo "${stderr_pipe}"
-        exec 4<> ${stderr_pipe}
+
+        ( 
+            local stderr="$(pipe_read_quote ${stderr_pipe})"
+            echo eval "declare ${dflags} ${stderr_out}=${stderr};"
+        ) &
+
+        stderr_pid=$!
     fi
 
     # Execute actual command in try/catch so that any fatal errors in the command
     # properly terminate execution of the command then capture off the return code
-    # in the catch block. Send all stdout and stderr to respective pipes.
-    # NOTE: We have to send output through another set of anonymous pipes and tee so
-    #       that we don't hit bash's very small internal pipe buffer limit of 512 bytes.
+    # in the catch block. Send all stdout and stderr to respective pipes which will
+    # be read in by the above background processes.
     local rc=0
     try
     {
-        if [[ -z ${stderr_pipe} ]]; then
-            "${cmd[@]}" 1> >(tee ${stdout_pipe} >/dev/null)
-        else
-            "${cmd[@]}" 1> >(tee ${stdout_pipe} >/dev/null) 2> >(tee ${stderr_pipe} >/dev/null)
-        fi
-    }
+        "${cmd[@]}"
+    } >${stdout_pipe} 2>${stderr_pipe}
     catch
     {
         rc=$?
     }
 
-    # Read in all of stdout and stderr from pipes
-    stdout=$(pipe_read ${stdout_pipe})
-    if [[ -n ${stderr_pipe} ]]; then
-        stderr=$(pipe_read ${stderr_pipe})
-    fi
-   
-    # Finally we can emit the code the caller needs to execute to set the return code
-    # and stdout/stderr.
-    # NOTE: Code we emit for stdout and stderr is dependent upon whether caller wants
-    #       to capture stdout/stderr. If so, assign to provided variables otherwise
-    #       redirect the output to appropriate file descriptor.
-    echo eval "declare ${dflags} ${rc_out}=${rc};"
-    
-    # STDOUT
-    if [[ -n ${stdout_out} ]]; then
-        echo eval "declare ${dflags} ${stdout_out}=$(printf %q "$(printf "%q" "${stdout}")");"
-    else
-        echo eval "echo $(printf %q "$(printf "%q" "${stdout}")") >&1;"
-    fi
+    # Wait for the above backgrounded processes to complete.
+    wait ${stdout_pid} ${stderr_pid}
 
-    # STDERR
-    if [[ -n ${stderr_out} ]]; then
-        echo eval "declare ${dflags} ${stderr_out}=$(printf %q "$(printf "%q" "${stderr}")");"
-    fi
+    # Finally we can emit the code the caller needs to execute to set the return code.
+    echo eval "declare ${dflags} ${rc_out}=${rc};"
 }
 
 #-----------------------------------------------------------------------------
