@@ -176,10 +176,12 @@ pipe_read()
     $(declare_args pipe)
     local line
     
-    # Use 'read -t0 -N0' to essentialy peek at the input pipe to see if there 
-    # is anything available. While there is, go into the loop and read from
-    # the pipe into local variable 'line'. IFS='' and "-r" flag are critical
-    # here to ensure we don't lose whitespace or try to interpret anything.
+    # Read returns an error when it reaches EOF. But we still want to emit that
+    # last line. So if we failed to read due to EOF but saw a partial line we
+    # still want to echo it.
+    #
+    # NOTE: IFS='' and "-r" flag are critical here to ensure we don't lose
+    # whitespace or try to interpret anything.
     while IFS= read -r line || [[ -n "${line}" ]]; do
         echo "${line}"
     done <${pipe}
