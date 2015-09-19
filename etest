@@ -13,6 +13,7 @@ $(esource ${BASHUTILS}/cgroup.sh)
 # Parse arguments. If no test directory was provided use PWD.
 $(declare_args -g ?TEST_DIR)
 : ${TEST_DIR:=$(readlink -f .)}
+TOPDIR=${TEST_DIR}
 
 # OPTIONS:
 # -f=FILTER: Optional filter of tests to run (defaults to FILTER which defaults to "").
@@ -94,7 +95,7 @@ test_teardown()
     edebug "ETEST test_teardown for ${testfunc}: PID=$$ BASHPID=$BASHPID PPID=$PPID"
 
     # Unit test provided teardown
-    declare -f teardown &>/dev/null && { teardown || die "Setup failed." ; }
+    declare -f teardown &>/dev/null && { teardown || eerror_stacktrace "Teardown failed." ; }
 
     assert_no_process_leaks
 
@@ -171,6 +172,10 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
     try
     {
         FAILED_TESTS=()
+
+        # Skip files that don't contain any tests
+        grep -q "^ETEST_" ${testfile} >/dev/null || continue
+
         $(esource ${testfile})
 
         # Ensure proper shebang is in the unit test or else bashlint won't be able to validate it

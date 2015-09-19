@@ -107,7 +107,7 @@ alias try="
     (
         enable_trace
         die_on_abort
-        trap '__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]; exit \${__EFUNCS_DIE_ON_ERROR_RC}' ERR
+        trap '__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]&>\$(edebug_out); exit \${__EFUNCS_DIE_ON_ERROR_RC}' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -283,7 +283,7 @@ tryrc()
         if [[ -n ${stdout_out} ]]; then
             echo eval "declare ${dflags} ${stdout_out}=${stdout};"
         else
-            echo eval "echo ${stdout} >&1;"
+            echo eval "echo -n ${stdout} >&1;"
         fi
     ) &
 
