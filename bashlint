@@ -70,6 +70,11 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     echo "${CONTENTS}" | egrep 'eval "?\$\(declare_args' \
         && fail "Using deprecated declare_args syntax"
 
+    # Ensure tryrc is inside $( ), because if it's not, it doesn't do what you
+    # think it's doing
+    echo "${CONTENTS}" | egrep '^[^$]*\<tryrc\>' \
+        && fail "Using tryrc without putting it inside \$( )"
+
     # Don't allow using removed legacy IFS bashutils functions
     echo "${CONTENTS}" | egrep '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
         && fail "Using non-existent deprecated ifs_* functions"
