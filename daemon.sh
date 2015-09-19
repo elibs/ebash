@@ -142,12 +142,19 @@ daemon_start()
             
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
-            
-            ewarn "Process ${name} crashed, respawning in $(lval delay) seconds"
-
-            # Check that we have run for the minimum duration.
+ 
+            # Check that we have run for the minimum duration so we can decide
+            # if we're going to respawn or not.
+            local current_runs=${runs}
             if [[ ${SECONDS} -ge ${respawn_interval} ]]; then
                 runs=0
+            fi
+           
+            # Log specific message
+            if [[ ${runs} -ge ${respawns} ]]; then
+                eerror "Process ${name} crashed too many times (${runs}/${respawns}). Giving up."
+            else
+                ewarn "Process ${name} crashed (${current_runs}/${respawns}). Will respawn in ${delay} seconds."
             fi
 
             # give daemon_stop a chance to get everything sorted out
@@ -219,13 +226,19 @@ daemon_status()
     return 0
 }
 
-# Check if the daemon is running or not. This is just a convenience wrapper around
+# Check if the daemon is running. This is just a convenience wrapper around
 # "daemon_status -q". This is a little more convenient to use in scripts where you
 # only care if it's running and don't want to have to suppress all the output from
 # daemon_status.
 daemon_running()
 {
     daemon_status -q "${@}"
+}
+
+# Check if the daemon is not running
+daemon_not_running()
+{
+    ! daemon_status -q "${@}"
 }
 
 #-----------------------------------------------------------------------------

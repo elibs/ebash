@@ -46,51 +46,39 @@ ETEST_chroot_readlink()
     assert_eq "${CHROOT}/run" "${real}"
 }
 
-DISABLED_ETEST_chroot_daemon_start_stop()
+ETEST_chroot_daemon_start_stop()
 {
-    local exe="sleep infinity"
     local pidfile="${FUNCNAME}.pid"
-    local chroot_args=( -C="${CHROOT}" -n="Infinity" -p="${pidfile}" )
-    daemon_start "${chroot_args[@]}" "${exe}"
+    local sleep_options
     
+    daemon_init sleep_options    \
+        chroot="${CHROOT}"       \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile}"
+
+    einfo "Starting chroot daemon"
+    daemon_start sleep_options
+
     # Wait for process to be running
-    eretry daemon_status "${chroot_args[@]}" "${exe}"
+    eretry -r=30 -d=1 daemon_running sleep_options
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
-
+    assert daemon_running sleep_options
+    assert daemon_status  sleep_options
+    einfo "Started successfully"
+    
     # Now stop it and verify proper shutdown
+    einfo "Stopping chroot daemon"
     local pid=$(cat ${pidfile})
-    daemon_stop "${chroot_args[@]}" "${exe}"
-    eretry process_not_running "${pid}"
-    assert_false daemon_status "${chroot_args[@]}" "${exe}"
+    daemon_stop sleep_options
+    eretry -r=30 -d=1 process_not_running "${pid}"
+    assert_false daemon_running sleep_options
+    assert_false daemon_status -q sleep_options
     assert_not_exists pidfile
+    einfo "Stopped successfully"
 
-    sleep 5
-}
-
-DISABLED_ETEST_chroot_daemon_respawn()
-{
-    local exe="sleep 1"
-    local respawns=10
-    local wait_time=70
-
-    einfo "Starting an exit daemon that will respawn ${respawns} times"
-    local chroot_args=( -C="${CHROOT}" -n="Count" -p="${DAEMON_PIDFILE}" -r="${respawns}" -c="daemon_callback" )
-    daemon_start "${chroot_args[@]}" "${exe}"
-    test_wait ${wait_time}
-    local count=$(cat "${DAEMON_OUTPUT}" | wc -l)
-    einfo "$(lval count)"
-    [[ ${count} -ge $(( ${respawns} / 2 )) ]] || die "$(lval count) -ge $(( ${respawns} / 2 )) evaluated to false"
-    rm -f "${DAEMON_OUTPUT}" "${DAEMON_PIDFILE}"
-
-    chroot_args=( "-n=Count" "-p=${DAEMON_PIDFILE}" "-c=daemon_callback" )
-    einfo "Starting an exit daemon that will respawn the default number (20) times"
-    daemon_start "${chroot_args[@]}" "${exe}"
-    test_wait ${wait_time}
-    count=$(cat "${DAEMON_OUTPUT}" | wc -l)
-    einfo "$(lval count)"
-    [[ ${count} -ge 10 ]] || die "$(lval count) -ge 10 evaluated to false."
-    rm -f "${DAEMON_OUTPUT}" "${DAEMON_PIDFILE}"
+    sleep 1
 }
 
 ETEST_chroot_create_mount()
