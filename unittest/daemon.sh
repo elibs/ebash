@@ -239,21 +239,21 @@ ETEST_daemon_pre_start_fail()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     
-    daemon_init sleep_daemon                           \
-        name="Infinity"                                \
-        cmdline="sleep 1"                              \
-        pidfile="${pidfile}"                           \
-        pre_start="false; touch ${FUNCNAME}.pre_start" \
-        pre_stop="touch ${FUNCNAME}.pre_stop"          \
-        post_start="touch ${FUNCNAME}.post_start"      \
-        post_stop="touch ${FUNCNAME}.post_stop"        \
-        respawns="3"                                   \
-        respawn_interval="1"                           \
+    daemon_init sleep_daemon                      \
+        name="Infinity"                           \
+        cmdline="sleep 1"                         \
+        pidfile="${pidfile}"                      \
+        pre_start="false"                         \
+        pre_stop="touch ${FUNCNAME}.pre_stop"     \
+        post_start="touch ${FUNCNAME}.post_start" \
+        post_stop="touch ${FUNCNAME}.post_stop"   \
+        respawns="3"                              \
+        respawn_interval="1"                      \
 
     $(pack_import sleep_daemon)
 
     # START
     daemon_start sleep_daemon
     eretry -r=30 -d=1 daemon_not_running sleep_daemon
-    assert_not_exists ${FUNCNAME}.{pre_start,post_start}
+    assert_not_exists ${FUNCNAME}.post_start
 }
