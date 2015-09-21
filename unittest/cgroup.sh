@@ -238,6 +238,13 @@ ETEST_cgroup_move_ignores_empties()
     )
 }
 
+ETEST_cgroup_move_blows_up_if_cgroup_not_created()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    assert_false cgroup_move ${CGROUP} ${BASHPID}
+}
+
 ETEST_cgroup_pids_checks_all_subsystems()
 {
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
