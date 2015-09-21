@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# Global teardown function to give any daemon processes a chance to shutdown
+# so we don't leak processes.
+teardown()
+{
+    sleep 1
+}
+
 ETEST_daemon_init()
 {
     local pidfile_real="${FUNCNAME}.pid"
@@ -107,7 +114,7 @@ ETEST_daemon_respawn()
         local pid=$(cat ${pidfile})
         edebug_enabled && einfo "Killing daemon $(lval pid iter respawns)" || eprogress "Killing daemon $(lval pid iter respawns)"
         {
-            ekill ${pid}
+            ekilltree -s=KILL ${pid}
             eretry -r=30 -d=1 process_not_running ${pid}
             eretry -r=30 -d=1 daemon_not_running sleep_daemon
 
@@ -175,7 +182,7 @@ ETEST_daemon_respawn_reset()
         local pid=$(cat ${pidfile})
         edebug_enabled && einfo "Killing daemon $(lval pid iter respawns)" || eprogress "Killing daemon $(lval pid iter respawns)"
         {
-            ekill ${pid}
+            ekilltree -s=KILL ${pid}
             eretry -r=30 -d=1 process_not_running ${pid}
             eretry -r=30 -d=1 daemon_not_running sleep_daemon
 
