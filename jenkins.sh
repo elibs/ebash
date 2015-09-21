@@ -449,22 +449,23 @@ jenkins_slave_status()
 {
     $(declare_args slaveName)
 
-    local offline 
     try
     {
-        offline=$(curl --max-time 2 --fail --silent -d tree=offline $(jenkins_url)/computer/${slaveName}/api/json \
-                    | jq --raw-output .offline 2> /dev/null)
+        local response=$(curl --fail --silent -d tree=offline $(jenkins_url)/computer/${slaveName}/api/json)
+        local slave_offline=$(echo "${response}" | jq --raw-output .offline 2>/dev/null)
+
+        if [[ ${slave_offline} == false ]] ; then
+            echo "online"
+        else
+            echo "offline"
+        fi
     }
     catch
     {
         # Assume offline if we were unable to get the slave's status
-        :
+        echo "offline"
     }
 
-    # Note: somewhat confusingly, the info we're getting from jenkins is the
-    # logical opposite of how I think about it.  It gives true to mean
-    # "offline" and false to mean "online"
-    [[ ${offline:-true} == "false" ]] && echo online || echo offline
     return 0
 }
 

@@ -103,8 +103,8 @@ daemon_start()
     # Don't restart the daemon if it is already running.
     if daemon_running ${optpack}; then
         local pid=$(cat ${pidfile} 2>/dev/null || true)
-        einfo "'${name}' is already running."
-        edebug "'${name}' is already running $(lval pid +${optpack})"
+        einfo "${name} is already running."
+        edebug "${name} is already running $(lval pid +${optpack})"
         return 0
     fi
 
@@ -124,10 +124,10 @@ daemon_start()
 
             # Info
             if [[ ${runs} -eq 0 ]]; then
-                einfo "Starting '${name}'"
+                einfo "Starting ${name}"
                 edebug "Starting $(lval name +${optpack})"
             else
-                einfo "Restarting '${name}'"
+                einfo "Restarting ${name}"
                 edebug "Restarting $(lval name +${optpack})"
             fi
             
@@ -179,10 +179,10 @@ daemon_start()
            
             # Log specific message
             if [[ ${runs} -gt ${respawns} ]]; then
-                eerror "'${name}' crashed too many times (${runs}/${respawns}). Giving up."
+                eerror "${name} crashed too many times (${runs}/${respawns}). Giving up."
                 edebug "$(lval name SECONDS +${optpack})"
             else
-                ewarn "'${name}' crashed (${current_runs}/${respawns}). Will respawn in ${delay} seconds."
+                ewarn "${name} crashed (${current_runs}/${respawns}). Will respawn in ${delay} seconds."
                 edebug "$(lval name SECONDS +${optpack})"
             fi
 
@@ -201,6 +201,12 @@ daemon_start()
 # -s=SIGNAL  Signal to use when gracefully stopping the daemon. Default=SIGTERM.
 # -t=timeout How much time to wait for process to gracefully shutdown before 
 #            killing it with SIGKILL. Default=5.
+# -c=timeout After everything has been sent a SIGKILL, if this daemon has
+#            cgroup support, this function will continue to wait until all
+#            processes in that cgroup actually disappear.  If you specify a
+#            c=<some number of seconds>, we'll give up (and return an error)
+#            after that many seconds have elapsed.  By default, this is 300
+#            seconds (i.e. 5 minutes).  If you specify 0, this will wait forever.
 daemon_stop()
 {
     # Pull in our argument pack then import all of its settings for use.
@@ -212,7 +218,7 @@ daemon_stop()
     local timeout=$(opt_get t 5)
 
     # Info
-    einfo "Stopping '${name}'"
+    einfo "Stopping ${name}"
     edebug "Stopping $(lval name signal timeout +${optpack})"
 
     # If it's not running just return
@@ -248,7 +254,8 @@ daemon_stop()
 
     if [[ -n ${cgroup} ]] ; then
         edebug "Waiting for all processes in $(lval cgroup) to die"
-        cgroup_kill_and_wait -t=300 ${cgroup}
+        local cgroup_timeout=$(opt_get c 300)
+        cgroup_kill_and_wait -s=KILL -t=${cgroup_timeout} ${cgroup}
     fi
     
     # Execute optional post_stop hook
@@ -271,7 +278,7 @@ daemon_status()
     opt_true "q" && redirect="/dev/null" || redirect="/dev/stderr"
 
     {
-        einfo "Checking '${name}'"
+        einfo "Checking ${name}"
         edebug "Checking $(lval name +${optpack})"
 
         # Check pidfile
