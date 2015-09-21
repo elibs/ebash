@@ -165,6 +165,11 @@ daemon_start()
             # Execute optional post_start hook
             ${post_start}
 
+            # SECONDS is a magic bash variable keeping track of the number of
+            # seconds since the shell started, we can modify it without messing
+            # with the parent shell (and it will continue from where we leave
+            # it).
+            SECONDS=0
             wait ${pid} &>/dev/null || true
             
             # If we were gracefully shutdown then don't do anything further

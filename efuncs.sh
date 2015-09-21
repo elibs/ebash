@@ -47,7 +47,7 @@ edebug_enabled()
 
     if [[ -z ${_edebug_enabled_caller} ]]; then
         _edebug_enabled_caller=( $(caller 0) )
-        [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebug_out" ]] \
+        [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebug_out" || ${_edebug_enabled_caller[1]} == "tryrc" ]] \
             && _edebug_enabled_caller=( $(caller 1) )
     fi
 
@@ -3166,7 +3166,8 @@ assert()
     local cmd
     cmd=( "${@}" )
     
-    eval "${cmd[@]}" || die "assert_true failed :: ${cmd[@]}"
+    $(tryrc -r=__assert_rc eval "${cmd[@]}")
+    [[ ${__assert_rc} -eq 0 ]] || die "assert failed :: ${cmd[@]}"
 }
 
 assert_true()
@@ -3179,7 +3180,8 @@ assert_false()
     local cmd
     cmd=( "${@}" )
 
-    ! eval "${cmd[@]}" || die "assert_false failed :: ! $(lval cmd)"
+    $(tryrc -r=__assert_false_rc eval "${cmd[@]}")
+    [[ ${__assert_false_rc} -ne 0 ]] || die "assert_false failed :: ! $(lval cmd)"
 }
 
 assert_op()

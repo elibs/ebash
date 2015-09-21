@@ -80,7 +80,7 @@ ETEST_daemon_cgroup()
     assert_empty "${stopped_pids}"
 }
 
-ETEST_daemon_respawn()
+DISABLED_ETEST_daemon_respawn()
 {
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
@@ -148,7 +148,7 @@ ETEST_daemon_respawn()
 
 # Modified version of above test which gives a large enough window between kills
 # such that it should keep respawning (b/c/ failed count resets)
-ETEST_daemon_respawn_reset()
+DISABLED_ETEST_daemon_respawn_reset()
 {
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
