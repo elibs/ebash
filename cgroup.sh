@@ -398,12 +398,13 @@ cgroup_pstree()
     local cgroup
     for cgroup in $(cgroup_tree "${@}") ; do
 
-        echo "$(ecolor green)+--${cgroup}$(ecolor off)"
-
         # Note: must subtract 3 from columns here to account for the three
         # characters added to the string below (i.e. "|  ")
         local cols=$(( ${COLUMNS:-120} - 3 ))
         local ps_output=$(COLUMNS=${cols} cgroup_ps ${cgroup})
+        local count=$(( $(echo "${ps_output}" | wc -l) - 1 ))
+
+        echo "$(ecolor green)+--${cgroup} [${count}]$(ecolor off)"
 
         echo "${ps_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
 
@@ -464,11 +465,16 @@ cgroup_kill()
 #       -s=<signal>
 #       -x=space separated list of pids not to kill.  NOTE: $$ and $BASHPID are
 #          always added to this list to avoid killing the calling process.
+#       -t=Maximum number of seconds to wait.  If processes still exist at this
+#          point, an error will be returned instead of hanging forever.  The
+#          default is zero, which means to WAIT FOREVER.
 #   
 cgroup_kill_and_wait()
 {
     $(declare_args)
     local cgroups=( ${@} )
+    local startTime=${SECONDS}
+    local timeout=$(opt_get t 0)
 
     [[ $# -gt 0 ]] || return 0
 
@@ -487,6 +493,11 @@ cgroup_kill_and_wait()
             edebug "Done.  All processes in cgroup are gone.  $(lval cgroups ignorepids)"
             break
         else
+            if [[ ${timeout} -gt 0 ]] && (( SECONDS - startTime > timeout )) ; then
+                eerror "Tried to kill all processes in cgroup, but some remain.  Giving up after ${timeout} seconds.  $(lval cgroup remaining_pids)"
+                return 1
+            fi
+
             edebug_disabled || 
                 for pid in ${remaining_pids} ; do
                     local ps_output="$(ps hp ${pid} 2>/dev/null || true)"
