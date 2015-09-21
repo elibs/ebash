@@ -18,7 +18,7 @@
 #             ownership of ALL processes in that cgroup and will kill them at
 #             shutdown time.  (So give it its own cgroup).  This cgroup should
 #             already be created.  See cgroups.sh for more information.
-
+#
 # chroot:     Optional CHROOT to run the daemon in.
 #
 # cmdline:    The commandlnie to be run as a daemon. This includes the executable 
