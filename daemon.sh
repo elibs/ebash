@@ -14,6 +14,11 @@
 # 
 # The following are the keys used to control daemon functionality:
 #
+# cgroup:     Optional cgroup to run the daemon in.  The daemon assumes
+#             ownership of ALL processes in that cgroup and will kill them at
+#             shutdown time.  (So give it its own cgroup).  This cgroup should
+#             already be created.  See cgroups.sh for more information.
+
 # chroot:     Optional CHROOT to run the daemon in.
 #
 # cmdline:    The commandlnie to be run as a daemon. This includes the executable 
@@ -53,6 +58,7 @@ daemon_init()
     # Since the last key=val added to the pack will always override prior values
     # this allows caller to override the defaults.
     pack_set ${optpack}     \
+        cgroup=             \
         chroot=             \
         delay=1             \
         pre_start=          \
@@ -131,6 +137,10 @@ daemon_start()
             # requested daemon. After the daemon completes automatically unmount chroot.
             (
                 die_on_abort
+
+                if [[ -n ${cgroup} ]] ; then
+                    cgroup_move ${cgroup} ${BASHPID}
+                fi
 
                 if [[ -n ${chroot} ]]; then
                     export CHROOT=${chroot}
@@ -231,6 +241,10 @@ daemon_stop()
 
     process_not_running ${pid}
     eend 0
+
+    if [[ -n ${cgroup} ]] ; then
+        cgroup_kill_and_wait ${cgroup}
+    fi
     
     # Execute optional post_stop hook
     ${post_stop}

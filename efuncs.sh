@@ -12,9 +12,6 @@ set -o functrace
 set -o errtrace
 shopt -s expand_aliases
 
-# Pull in submodules
-source ${BASHUTILS}/daemon.sh || { echo "Failed to find daemon.sh" ; exit 1; }
-
 #-----------------------------------------------------------------------------
 # DEBUGGING
 #-----------------------------------------------------------------------------

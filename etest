@@ -7,8 +7,7 @@ if [[ $(id -u) != "0" ]]; then
 fi
 
 : ${BASHUTILS:=$(dirname $0)}
-source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
-$(esource ${BASHUTILS}/cgroup.sh)
+source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
 
 # Parse arguments. If no test directory was provided use PWD.
 $(declare_args -g ?TEST_DIR)
