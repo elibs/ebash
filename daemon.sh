@@ -83,32 +83,43 @@ daemon_start()
 
     # Don't restart the daemon if it is already running.
     if daemon_running ${optpack}; then
-        einfo "${name} is already running."
-        edebug "${name} is already running $(lval pid +${optpack})"
+        einfo "'${name}' is already running."
+        edebug "'${name}' is already running $(lval pid +${optpack})"
         return 0
     fi
 
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
+        # Keep track of the number of times we try to respawn the process and the
+        # amount of time we try to do the respawns within. This is to allow us to
+        # set bounds on the total number of times we'll try to respawn the process
+        # within a specified time interval. Specifically, if the process respawns
+        # more than ${respawns} within ${respawn_interval} then we'll stop respawning.
+        # NOTE: SECONDS is a magic bash variable keeping track of the number of
+        # seconds since the shell started, we can modify it without messing
+        # with the parent shell (and it will continue from where we leave
+        # it).
+        SECONDS=0
         local runs=0
 
         # Check to ensure that we haven't failed running "respawns" times. If
         # we have, then don't run again. Likewise, ensure that the pidfile
         # exists. If it doesn't it likely means that we have been stopped (via
         # daemon_stop) and we really don't want to run again.
-        while [[ ${runs} -lt ${respawns} && -e "${pidfile}" ]]; do
+        while [[ -e "${pidfile}" && ${runs} -lt ${respawns} ]]; do
 
             # Info
             if [[ ${runs} -eq 0 ]]; then
-                einfo "Starting ${name}"
+                einfo "Starting '${name}'"
                 edebug "Starting $(lval name +${optpack})"
             else
-                einfo "Restarting ${name}"
+                einfo "Restarting '${name}'"
                 edebug "Restarting $(lval name +${optpack})"
             fi
             
-            runs=$((runs + 1))
+            # Increment run counter
+            (( runs+=1 ))
 
             # Construct a subprocess which bind mounts chroot mount points then executes
             # requested daemon. After the daemon completes automatically unmount chroot.
@@ -133,11 +144,6 @@ daemon_start()
             echo "${pid}" > "${pidfile}"
             eend 0
 
-            # SECONDS is a magic bash variable keeping track of the number of
-            # seconds since the shell started, we can modify it without messing
-            # with the parent shell (and it will continue from where we leave
-            # it).
-            SECONDS=0
             wait ${pid} &>/dev/null || true
             
             # If we were gracefully shutdown then don't do anything further
@@ -152,9 +158,9 @@ daemon_start()
            
             # Log specific message
             if [[ ${runs} -ge ${respawns} ]]; then
-                eerror "Process ${name} crashed too many times (${runs}/${respawns}). Giving up."
+                eerror "'${name}' crashed too many times (${runs}/${respawns}). Giving up."
             else
-                ewarn "Process ${name} crashed (${current_runs}/${respawns}). Will respawn in ${delay} seconds."
+                ewarn "'${name}' crashed (${current_runs}/${respawns}). Will respawn in ${delay} seconds."
             fi
 
             # give daemon_stop a chance to get everything sorted out
@@ -175,7 +181,7 @@ daemon_stop()
     $(pack_import ${optpack})
 
     # Info
-    einfo "Stopping ${name}"
+    einfo "Stopping '${name}'"
     edebug "Stopping $(lval name +${optpack})"
 
     # If it's not running just return
@@ -207,7 +213,7 @@ daemon_status()
     opt_true "q" && redirect="/dev/null" || redirect="/dev/stderr"
 
     {
-        einfo "Checking ${name}"
+        einfo "Checking '${name}'"
         edebug "Checking $(lval name +${optpack})"
 
         # Check pidfile
