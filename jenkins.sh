@@ -132,6 +132,9 @@ jenkins_update()
             edebug "jenkins_update: config mismatch -- updating"
             edebug_enabled && cat "${newConfig}" || true
             $(tryrc -r=rc jenkins -f="${newConfig}" update-${item_type} "${name}")
+        else
+            edebug "Jobs match.  No need for an update."
+            rc=0
         fi
 
     else

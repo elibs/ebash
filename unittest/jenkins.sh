@@ -29,6 +29,11 @@ ETEST_jenkins_cli_basic()
 ETEST_jenkins_build_url()
 {
     JENKINS="other-machine" JENKINS_PORT=7575 JENKINS_JOB=nojob
+
+    # Force jenkins.sh to build this up from JENKINS/JENKINS_PORT rather than
+    # honoring a JENKINS_URL set in its environment
+    unset JENKINS_URL
+
     local output=$(jenkins_build_url 30)
     assert [[ "http://other-machine:7575/job/${JENKINS_JOB}/30/" == "${output}" ]] 
 }
