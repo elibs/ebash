@@ -48,36 +48,35 @@ ETEST_chroot_readlink()
 ETEST_chroot_daemon_start_stop()
 {
     local pidfile="${FUNCNAME}.pid"
-    local sleep_options
+    local sleep_daemon
     
-    daemon_init sleep_options    \
+    daemon_init sleep_daemon     \
         chroot="${CHROOT}"       \
         name="Infinity"          \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"
 
     einfo "Starting chroot daemon"
-    daemon_start sleep_options
+    daemon_start sleep_daemon
 
     # Wait for process to be running
-    eretry -r=30 -d=1 daemon_running sleep_options
+    eretry -r=30 -d=1 daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
-    assert daemon_running sleep_options
-    assert daemon_status  sleep_options
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
     einfo "Started successfully"
     
     # Now stop it and verify proper shutdown
     einfo "Stopping chroot daemon"
     local pid=$(cat ${pidfile})
-    daemon_stop sleep_options
+    daemon_stop sleep_daemon
+    eretry -r=30 -d=1 daemon_not_running sleep_daemon
     eretry -r=30 -d=1 process_not_running "${pid}"
-    assert_false daemon_running sleep_options
-    assert_false daemon_status -q sleep_options
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
     einfo "Stopped successfully"
-
-    sleep 1
 }
 
 ETEST_chroot_create_mount()

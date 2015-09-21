@@ -96,16 +96,17 @@ chroot_cmd()
 # Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT})
 # that match the given regex.  [note: regex support is identical to pgrep]
 #
-#    $1: Optional pgrep pattern that match the processes you'd like to signal.
+# $1: Optional pgrep pattern that match the processes you'd like to signal.
 #        If no pattern is specified, ALL proceses in the chroot will be
 #        signalled.
-#    $2: Optional signal name or number.  Defaults to SIGKILL(9)
 #
+# Options:
+# -s=SIGNAL The signal to send to the pids (defaults to SIGKILL)
 chroot_kill()
 {
     argcheck CHROOT
-    $(declare_args ?regex ?signal)
-    : ${signal:=SIGKILL}
+    $(declare_args ?regex)
+    local signal=$(opt_get s SIGKILL)
 
     local pids=""
     local errors=0
