@@ -3,11 +3,6 @@
 # Copyright 2012-2013, SolidFire, Inc. All rights reserved.
 #
 
-#-----------------------------------------------------------------------------
-# PULL IN DEPENDENT PACKAGES
-#-----------------------------------------------------------------------------
-source ${BASHUTILS}/efuncs.sh || { echo "Failed to find efuncs.sh" ; exit 1; }
-
 dpkg_compare_versions()
 {
     $(declare_args v1 op v2)

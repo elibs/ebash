@@ -3,11 +3,6 @@
 # Copyright 2012-2014, SolidFire, Inc. All rights reserved.
 #
 
-#-----------------------------------------------------------------------------
-# PULL IN DEPENDENT PACKAGES
-#-----------------------------------------------------------------------------
-source ${BASHUTILS}/efuncs.sh || { echo "Failed to find efuncs.sh" ; exit 1; }
-
 #
 # Echo the URL to use to connect to a specified JENKINS instance. If JENKINS_URL
 # has already been defined it will use this. Otherwise it will expect JENKINS
