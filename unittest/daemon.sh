@@ -5,47 +5,47 @@ $(esource daemon.sh)
 ETEST_daemon_init()
 {
     local pidfile_real="${FUNCNAME}.pid"
-    local sleep_options
+    local sleep_daemon
     
-    daemon_init sleep_options    \
+    daemon_init sleep_daemon     \
         name="Infinity"          \
         cmdline="sleep infinity" \
         pidfile="${pidfile_real}"
 
-    $(pack_import sleep_options)
+    $(pack_import sleep_daemon)
 
-    [[ "sleep infinity" == "${cmdline}" ]] || die "$(lval cmdline +sleep_options)"
+    [[ "sleep infinity" == "${cmdline}" ]] || die "$(lval cmdline +sleep_daemon)"
 
     assert_eq "Infinity"       "${name}"
     assert_eq "sleep infinity" "${cmdline}"
-    assert_eq "${pidfile_real}" "$(pack_get sleep_options pidfile)"
+    assert_eq "${pidfile_real}" "$(pack_get sleep_daemon pidfile)"
 }
 
 ETEST_daemon_start_stop()
 {
     local pidfile="${FUNCNAME}.pid"
-    local sleep_options
+    local sleep_daemon
     
-    daemon_init sleep_options    \
+    daemon_init sleep_daemon     \
         name="Infinity"          \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"
 
-    daemon_start sleep_options
+    daemon_start sleep_daemon
     
     # Wait for process to be running
-    eretry -r=30 -d=1 daemon_running sleep_options
+    eretry -r=30 -d=1 daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
-    assert daemon_running sleep_options
-    assert daemon_status  sleep_options
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
 
     # Now stop it and verify proper shutdown
     local pid=$(cat ${pidfile})
-    daemon_stop sleep_options
+    daemon_stop sleep_daemon
     eretry -r=30 -d=1 process_not_running "${pid}"
-    assert_false daemon_running sleep_options
-    assert_false daemon_status -q sleep_options
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
 
     sleep 1
@@ -54,24 +54,24 @@ ETEST_daemon_start_stop()
 ETEST_daemon_respawn()
 {
     local pidfile="${FUNCNAME}.pid"
-    local sleep_options
+    local sleep_daemon
     
-    daemon_init sleep_options \
+    daemon_init sleep_daemon  \
         name="Infinity"       \
         cmdline="sleep 1"     \
         pidfile="${pidfile}"  \
         respawns="3"          \
         respawn_interval="30" \
 
-    $(pack_import sleep_options)
-    edebug_enabled && einfo "Starting daemon $(lval +sleep_options)" || eprogress "Starting daemon $(lval +sleep_options)"
+    $(pack_import sleep_daemon)
+    edebug_enabled && einfo "Starting daemon $(lval +sleep_daemon)" || eprogress "Starting daemon $(lval +sleep_daemon)"
     {
-        daemon_start sleep_options
-        eretry -r=30 -d=1 daemon_running sleep_options
+        daemon_start sleep_daemon
+        eretry -r=30 -d=1 daemon_running sleep_daemon
         assert [[ -s ${pidfile} ]]
         assert process_running $(cat ${pidfile})
-        assert daemon_running sleep_options
-        assert daemon_status  sleep_options
+        assert daemon_running sleep_daemon
+        assert daemon_status  sleep_daemon
 
     } &>$(edebug_out)
 
@@ -87,7 +87,7 @@ ETEST_daemon_respawn()
         {
             ekill ${pid}
             eretry -r=30 -d=1 process_not_running ${pid}
-            eretry -r=30 -d=1 daemon_not_running sleep_options
+            eretry -r=30 -d=1 daemon_not_running sleep_daemon
 
         } &>$(edebug_out)
         
@@ -99,7 +99,7 @@ ETEST_daemon_respawn()
         # Now wait for process to respawn
         edebug_enabled || eprogress "Waiting for daemon to respawn"
         {
-            eretry -r=30 -d=1 daemon_running sleep_options
+            eretry -r=30 -d=1 daemon_running sleep_daemon
             pid=$(cat ${pidfile})
             eretry -r=30 -d=1 process_running ${pid}
             einfo "Process respawned $(lval pid)"
@@ -112,9 +112,9 @@ ETEST_daemon_respawn()
 
     # Process should NOT be running and should NOT respawn b/c we killed it too many times
     assert_false process_running $(cat ${pidfile})
-    assert_false daemon_running sleep_options
-    assert_false daemon_status -q sleep_options
-    daemon_stop sleep_options
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    daemon_stop sleep_daemon
 
     sleep 1
 }
@@ -124,24 +124,24 @@ ETEST_daemon_respawn()
 ETEST_daemon_respawn_reset()
 {
     local pidfile="${FUNCNAME}.pid"
-    local sleep_options
+    local sleep_daemon
     
-    daemon_init sleep_options \
+    daemon_init sleep_daemon  \
         name="Infinity"       \
         cmdline="sleep 1"     \
         pidfile="${pidfile}"  \
         respawns="3"          \
         respawn_interval="1"  \
 
-    $(pack_import sleep_options)
-    edebug_enabled && einfo "Starting daemon $(lval +sleep_options)" || eprogress "Starting daemon $(lval +sleep_options)"
+    $(pack_import sleep_daemon)
+    edebug_enabled && einfo "Starting daemon $(lval +sleep_daemon)" || eprogress "Starting daemon $(lval +sleep_daemon)"
     {
-        daemon_start sleep_options
-        eretry -r=30 -d=1 daemon_running sleep_options
+        daemon_start sleep_daemon
+        eretry -r=30 -d=1 daemon_running sleep_daemon
         assert [[ -s ${pidfile} ]]
         assert process_running $(cat ${pidfile})
-        assert daemon_running sleep_options
-        assert daemon_status  sleep_options
+        assert daemon_running sleep_daemon
+        assert daemon_status  sleep_daemon
 
     } &>$(edebug_out)
 
@@ -157,7 +157,7 @@ ETEST_daemon_respawn_reset()
         {
             ekill ${pid}
             eretry -r=30 -d=1 process_not_running ${pid}
-            eretry -r=30 -d=1 daemon_not_running sleep_options
+            eretry -r=30 -d=1 daemon_not_running sleep_daemon
 
         } &>$(edebug_out)
         
@@ -166,7 +166,7 @@ ETEST_daemon_respawn_reset()
         # Now wait for process to respawn
         edebug_enabled || eprogress "Waiting for daemon to respawn"
         {
-            eretry -r=30 -d=1 daemon_running sleep_options
+            eretry -r=30 -d=1 daemon_running sleep_daemon
             pid=$(cat ${pidfile})
             eretry -r=30 -d=1 process_running ${pid}
             einfo "Process respawned $(lval pid)"
@@ -179,12 +179,40 @@ ETEST_daemon_respawn_reset()
 
     # Now stop it and verify proper shutdown
     local pid=$(cat ${pidfile})
-    daemon_stop sleep_options
+    daemon_stop sleep_daemon
     eretry -r=30 -d=1 process_not_running "${pid}"
-    assert_false daemon_running sleep_options
-    assert_false daemon_status -q sleep_options
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
 
     sleep 1
 }
 
+ETEST_daemon_hooks()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+    
+    daemon_init sleep_daemon                      \
+        name="Infinity"                           \
+        cmdline="sleep 1"                         \
+        pidfile="${pidfile}"                      \
+        pre_start="touch ${FUNCNAME}.pre_start"   \
+        pre_stop="touch ${FUNCNAME}.pre_stop"     \
+        post_start="touch ${FUNCNAME}.post_start" \
+        post_stop="touch ${FUNCNAME}.post_stop"   \
+        respawns="3"                              \
+        respawn_interval="1"                      \
+
+    $(pack_import sleep_daemon)
+
+    # START
+    daemon_start sleep_daemon
+    eretry -r=30 -d=1 daemon_running sleep_daemon
+    assert_exists ${FUNCNAME}.{pre_start,post_start}
+    
+    # STOP
+    daemon_stop sleep_daemon
+    eretry -r=30 -d=1 daemon_not_running sleep_daemon
+    assert_exists ${FUNCNAME}.{pre_stop,post_stop}
+}
