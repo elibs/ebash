@@ -11,29 +11,33 @@
 # 
 # The following are the keys used to control daemon functionality:
 #
-# chroot:   Optional CHROOT to run the daemon in.
+# chroot:     Optional CHROOT to run the daemon in.
 #
-# cmdline:  The commandlnie to be run as a daemon. This includes the executable 
-#           as well as any of its arguments.
+# cmdline:    The commandlnie to be run as a daemon. This includes the executable 
+#             as well as any of its arguments.
 #
-# callback: Optional callback function to run prior to starting the daemon each
-#           time. If the daemon crashes or exits and needs to be respawned then
-#           this callback will be called first.
+# delay:      The delay, in seconds, to wait before attempting to restart the daemon
+#             when it exits. Generally this should never be <1 otherwise race 
+#             conditions in startup/shutdown are possible. Defaults to 1.
 #
-# delay:    The delay, in seconds, to wait before attempting to restart the daemon
-#           when it exits. Generally this should never be <1 otherwise race 
-#           conditions in startup/shutdown are possible. Defaults to 1.
+# name:       The name of the daemon, for readability purposes. By default this will
+#             use the basename of the command being executed.
 #
-# name:     The name of the daemon, for readability purposes. By default this will
-#           use the basename of the command being executed.
+# pidfile:    Path to the pidfile for the daemon. By default this is the basename
+#             of the command being executed, stored in /var/run.
 #
-# pidfile:  Path to the pidfile for the daemon. By default this is the basename
-#           of the command being executed, stored in /var/run.
+# pre_start:  Optional hook to be executed before starting the daemon.
 #
-# signal:   Signal to use when stopping the daemon. Defaults to SIGTERM.
+# pre_stop:   Optional hook to be executed before stopping the daemon.
 #
-# respawns: The maximum number of times to respawn the daemon command before just
-#           giving up. Defaults to 20.
+# post_start: Optional hook to be executed after starting the daemon.
+#
+# post_stop:  Optional hook to be exected after stopping the daemon.
+#
+# signal:     Signal to use when stopping the daemon. Defaults to SIGTERM.
+#
+# respawns:   The maximum number of times to respawn the daemon command before just
+#             giving up. Defaults to 10.
 #
 # respawn_interval: Amount of seconds the process must stay up for it to be considered a
 #           successful start. This is used in conjunction with respawn similar to
@@ -47,7 +51,16 @@ daemon_init()
     # Load defaults into the pack first then add in any additional provided settings
     # Since the last key=val added to the pack will always override prior values
     # this allows caller to override the defaults.
-    pack_set ${optpack} chroot= callback= delay=1 respawns=20 respawn_interval=15 signal=SIGTERM "${@}"
+    pack_set ${optpack}     \
+        chroot=             \
+        delay=1             \
+        pre_start=          \
+        pre_stop=           \
+        post_start=         \
+        post_stop=          \
+        respawns=20         \
+        respawn_interval=15 \
+        signal=SIGTERM "${@}"
     
     # Set name if missing
     local base=$(basename $(pack_get ${optpack} "cmdline" | awk '{print $1}'))
@@ -76,13 +89,9 @@ daemon_start()
     $(declare_args optpack)
     $(pack_import ${optpack})
 
-    # Create empty pidfile
-    local pid
-    mkdir -p $(dirname ${pidfile})
-    touch "${pidfile}"
-
     # Don't restart the daemon if it is already running.
     if daemon_running ${optpack}; then
+        local pid=$(cat ${pidfile} 2>/dev/null || true)
         einfo "'${name}' is already running."
         edebug "'${name}' is already running $(lval pid +${optpack})"
         return 0
@@ -91,6 +100,9 @@ daemon_start()
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
+        # Create empty pidfile
+        mkdir -p $(dirname ${pidfile})
+        touch "${pidfile}"
         local runs=0
 
         # Check to ensure that we haven't failed running "respawns" times. If
@@ -101,22 +113,23 @@ daemon_start()
 
             # Info
             if [[ ${runs} -eq 0 ]]; then
-                einfo "Starting ${name}"
+                einfo "Starting '${name}'"
                 edebug "Starting $(lval name +${optpack})"
             else
-                einfo "Restarting ${name}"
+                einfo "Restarting '${name}'"
                 edebug "Restarting $(lval name +${optpack})"
             fi
             
             # Increment run counter
             (( runs+=1 ))
 
+            # Execute optional pre_start hook
+            ${pre_start}
+
             # Construct a subprocess which bind mounts chroot mount points then executes
             # requested daemon. After the daemon completes automatically unmount chroot.
             (
                 die_on_abort
-
-                ${callback}
 
                 if [[ -n ${chroot} ]]; then
                     export CHROOT=${chroot}
@@ -130,15 +143,13 @@ daemon_start()
             ) &>$(edebug_out) &
 
             # Get the PID of the process we just created and store into requested pid file.
-            pid=$!
+            local pid=$!
             echo "${pid}" > "${pidfile}"
             eend 0
 
-            # SECONDS is a magic bash variable keeping track of the number of
-            # seconds since the shell started, we can modify it without messing
-            # with the parent shell (and it will continue from where we leave
-            # it).
-            SECONDS=0
+            # Execute optional post_start hook
+            ${post_start}
+
             wait ${pid} &>/dev/null || true
             
             # If we were gracefully shutdown then don't do anything further
@@ -183,13 +194,23 @@ daemon_stop()
     daemon_running ${optpack} \
         || { eend 0; ewarns "Already stopped"; eend 0; rm -rf ${pidfile}; return 0; }
 
+    # Execute optional pre_stop hook
+    ${pre_stop}
+
     # If it is remove the pidfile then stop the process with provided signal.
     # NOTE: It's important we remove the pidfile BEFORE we kill the process so that
     # it won't try to respawn!
     local pid=$(cat ${pidfile} 2>/dev/null || true)
     rm -f ${pidfile}
-    ekilltree -s=${signal} ${pid}
+    if [[ -n ${pid} ]]; then
+        $(tryrc ekilltree -s=${signal} ${pid})
+    fi
     eend 0
+    
+    process_not_running ${pid}
+
+    # Execute optional post_stop hook
+    ${post_stop}
 }
 
 # Retrieve the status of a daemon.
