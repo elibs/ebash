@@ -2,8 +2,6 @@
 
 # Copyright 2015, SolidFire, Inc. All rights reserved.
 
-source ${BASHUTILS}/efuncs.sh || { echo "Failed to find efuncs.sh" ; exit 1; }
-
 #-------------------------------------------------------------------------------
 # Cgroups are a capability of the linux kernel designed for categorizing
 # processes.  They're most typically used in ways that not only categorize
@@ -512,4 +510,4 @@ cgroup_find_setting_file()
     ls /sys/fs/cgroup/*/${cgroup}/${setting}
 }
 
-
+return 0

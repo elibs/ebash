@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 # Global settings
-$(esource chroot.sh)
 CHROOT_MASTER=${TEST_DIR_OUTPUT}/chroot_master
 CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
 
