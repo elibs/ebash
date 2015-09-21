@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-$(esource $(dirname $0)/jenkins.sh)
-
 DEMO_JOB_NAME=z_etest_${HOSTNAME}_$$
 setup()
 {

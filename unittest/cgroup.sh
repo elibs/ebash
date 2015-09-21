@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-$(esource $(dirname $0)/cgroup.sh)
-
-
 ETEST_cgroup_tree()
 {
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}

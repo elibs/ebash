@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-$(esource daemon.sh)
-
 ETEST_daemon_init()
 {
     local pidfile_real="${FUNCNAME}.pid"
