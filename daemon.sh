@@ -34,13 +34,21 @@
 # pidfile:    Path to the pidfile for the daemon. By default this is the basename
 #             of the command being executed, stored in /var/run.
 #
-# pre_start:  Optional hook to be executed before starting the daemon.
+# pre_start:  Optional hook to be executed before starting the daemon. Must be a single
+#             command to be executed. If more complexity is required use a function or
+#             an eval expression.
 #
-# pre_stop:   Optional hook to be executed before stopping the daemon.
+# pre_stop:   Optional hook to be executed before stopping the daemon. Must be a single
+#             command to be executed. If more complexity is required use a function or
+#             an eval expression.
 #
-# post_start: Optional hook to be executed after starting the daemon.
+# post_start: Optional hook to be executed after starting the daemon. Must be a single
+#             command to be executed. If more complexity is required use a function or
+#             an eval expression.
 #
-# post_stop:  Optional hook to be exected after stopping the daemon.
+# post_stop:  Optional hook to be exected after stopping the daemon. Must be a single
+#             command to be executed. If more complexity is required use a function or
+#             an eval expression.
 #
 # respawns:   The maximum number of times to respawn the daemon command before just
 #             giving up. Defaults to 10.
