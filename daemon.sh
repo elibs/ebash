@@ -91,16 +91,6 @@ daemon_start()
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
-        # Keep track of the number of times we try to respawn the process and the
-        # amount of time we try to do the respawns within. This is to allow us to
-        # set bounds on the total number of times we'll try to respawn the process
-        # within a specified time interval. Specifically, if the process respawns
-        # more than ${respawns} within ${respawn_interval} then we'll stop respawning.
-        # NOTE: SECONDS is a magic bash variable keeping track of the number of
-        # seconds since the shell started, we can modify it without messing
-        # with the parent shell (and it will continue from where we leave
-        # it).
-        SECONDS=0
         local runs=0
 
         # Check to ensure that we haven't failed running "respawns" times. If
@@ -111,10 +101,10 @@ daemon_start()
 
             # Info
             if [[ ${runs} -eq 0 ]]; then
-                einfo "Starting '${name}'"
+                einfo "Starting ${name}"
                 edebug "Starting $(lval name +${optpack})"
             else
-                einfo "Restarting '${name}'"
+                einfo "Restarting ${name}"
                 edebug "Restarting $(lval name +${optpack})"
             fi
             
@@ -144,6 +134,11 @@ daemon_start()
             echo "${pid}" > "${pidfile}"
             eend 0
 
+            # SECONDS is a magic bash variable keeping track of the number of
+            # seconds since the shell started, we can modify it without messing
+            # with the parent shell (and it will continue from where we leave
+            # it).
+            SECONDS=0
             wait ${pid} &>/dev/null || true
             
             # If we were gracefully shutdown then don't do anything further
