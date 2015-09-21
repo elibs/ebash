@@ -42,12 +42,9 @@ ETEST_daemon_start_stop()
     # Now stop it and verify proper shutdown
     local pid=$(cat ${pidfile})
     daemon_stop sleep_daemon
-    eretry -r=30 -d=1 process_not_running "${pid}"
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
-
-    sleep 1
 }
 
 ETEST_daemon_cgroup()
@@ -81,12 +78,12 @@ ETEST_daemon_respawn()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     
-    daemon_init sleep_daemon  \
-        name="Infinity"       \
-        cmdline="sleep 1"     \
-        pidfile="${pidfile}"  \
-        respawns="3"          \
-        respawn_interval="30" \
+    daemon_init sleep_daemon   \
+        name="Infinity"        \
+        cmdline="sleep 1"      \
+        pidfile="${pidfile}"   \
+        respawns="3"           \
+        respawn_interval="300" \
 
     $(pack_import sleep_daemon)
     edebug_enabled && einfo "Starting daemon $(lval +sleep_daemon)" || eprogress "Starting daemon $(lval +sleep_daemon)"
@@ -140,8 +137,6 @@ ETEST_daemon_respawn()
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
     daemon_stop sleep_daemon
-
-    sleep 1
 }
 
 # Modified version of above test which gives a large enough window between kills
@@ -156,7 +151,7 @@ ETEST_daemon_respawn_reset()
         cmdline="sleep 1"     \
         pidfile="${pidfile}"  \
         respawns="3"          \
-        respawn_interval="1"  \
+        respawn_interval="0"  \
 
     $(pack_import sleep_daemon)
     edebug_enabled && einfo "Starting daemon $(lval +sleep_daemon)" || eprogress "Starting daemon $(lval +sleep_daemon)"
@@ -205,12 +200,9 @@ ETEST_daemon_respawn_reset()
     # Now stop it and verify proper shutdown
     local pid=$(cat ${pidfile})
     daemon_stop sleep_daemon
-    eretry -r=30 -d=1 process_not_running "${pid}"
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
-
-    sleep 1
 }
 
 ETEST_daemon_hooks()
@@ -238,6 +230,30 @@ ETEST_daemon_hooks()
     
     # STOP
     daemon_stop sleep_daemon
-    eretry -r=30 -d=1 daemon_not_running sleep_daemon
     assert_exists ${FUNCNAME}.{pre_stop,post_stop}
+}
+
+# Ensure if pre_start hook fails we won't call start
+ETEST_daemon_pre_start_fail()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+    
+    daemon_init sleep_daemon                           \
+        name="Infinity"                                \
+        cmdline="sleep 1"                              \
+        pidfile="${pidfile}"                           \
+        pre_start="false; touch ${FUNCNAME}.pre_start" \
+        pre_stop="touch ${FUNCNAME}.pre_stop"          \
+        post_start="touch ${FUNCNAME}.post_start"      \
+        post_stop="touch ${FUNCNAME}.post_stop"        \
+        respawns="3"                                   \
+        respawn_interval="1"                           \
+
+    $(pack_import sleep_daemon)
+
+    # START
+    daemon_start sleep_daemon
+    eretry -r=30 -d=1 daemon_not_running sleep_daemon
+    assert_not_exists ${FUNCNAME}.{pre_start,post_start}
 }

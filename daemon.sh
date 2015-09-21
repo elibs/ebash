@@ -18,7 +18,7 @@
 #             ownership of ALL processes in that cgroup and will kill them at
 #             shutdown time.  (So give it its own cgroup).  This cgroup should
 #             already be created.  See cgroups.sh for more information.
-
+#
 # chroot:     Optional CHROOT to run the daemon in.
 #
 # cmdline:    The commandlnie to be run as a daemon. This includes the executable 
@@ -34,15 +34,21 @@
 # pidfile:    Path to the pidfile for the daemon. By default this is the basename
 #             of the command being executed, stored in /var/run.
 #
-# pre_start:  Optional hook to be executed before starting the daemon.
+# pre_start:  Optional hook to be executed before starting the daemon. Must be a single
+#             command to be executed. If more complexity is required use a function or
+#             an eval expression.
 #
-# pre_stop:   Optional hook to be executed before stopping the daemon.
+# pre_stop:   Optional hook to be executed before stopping the daemon. Must be a single
+#             command to be executed. If more complexity is required use a function or
+#             an eval expression.
 #
-# post_start: Optional hook to be executed after starting the daemon.
+# post_start: Optional hook to be executed after starting the daemon. Must be a single
+#             command to be executed. If more complexity is required use a function or
+#             an eval expression.
 #
-# post_stop:  Optional hook to be exected after stopping the daemon.
-#
-# signal:     Signal to use when stopping the daemon. Defaults to SIGTERM.
+# post_stop:  Optional hook to be exected after stopping the daemon. Must be a single
+#             command to be executed. If more complexity is required use a function or
+#             an eval expression.
 #
 # respawns:   The maximum number of times to respawn the daemon command before just
 #             giving up. Defaults to 10.
@@ -69,7 +75,7 @@ daemon_init()
         post_stop=          \
         respawns=20         \
         respawn_interval=15 \
-        signal=SIGTERM "${@}"
+        "${@}"
     
     # Set name if missing
     local base=$(basename $(pack_get ${optpack} "cmdline" | awk '{print $1}'))
@@ -118,7 +124,7 @@ daemon_start()
         # we have, then don't run again. Likewise, ensure that the pidfile
         # exists. If it doesn't it likely means that we have been stopped (via
         # daemon_stop) and we really don't want to run again.
-        while [[ -e "${pidfile}" && ${runs} -lt ${respawns} ]]; do
+        while [[ -e "${pidfile}" && ${runs} -le ${respawns} ]]; do
 
             # Info
             if [[ ${runs} -eq 0 ]]; then
@@ -176,10 +182,12 @@ daemon_start()
             fi
            
             # Log specific message
-            if [[ ${runs} -ge ${respawns} ]]; then
+            if [[ ${runs} -gt ${respawns} ]]; then
                 eerror "'${name}' crashed too many times (${runs}/${respawns}). Giving up."
+                edebug "$(lval name SECONDS +${optpack})"
             else
                 ewarn "'${name}' crashed (${current_runs}/${respawns}). Will respawn in ${delay} seconds."
+                edebug "$(lval name SECONDS +${optpack})"
             fi
 
             # give daemon_stop a chance to get everything sorted out
@@ -193,15 +201,23 @@ daemon_start()
 #
 # For options which control daemon_start functionality please see daemon_init.
 #
+# OPTIONS:
+# -s=SIGNAL  Signal to use when gracefully stopping the daemon. Default=SIGTERM.
+# -t=timeout How much time to wait for process to gracefully shutdown before 
+#            killing it with SIGKILL. Default=5.
 daemon_stop()
 {
     # Pull in our argument pack then import all of its settings for use.
     $(declare_args optpack)
     $(pack_import ${optpack})
 
+    # Options
+    local signal=$(opt_get s SIGTERM)
+    local timeout=$(opt_get t 5)
+
     # Info
     einfo "Stopping '${name}'"
-    edebug "Stopping $(lval name +${optpack})"
+    edebug "Stopping $(lval name signal timeout +${optpack})"
 
     # If it's not running just return
     daemon_running ${optpack} \
@@ -216,16 +232,28 @@ daemon_stop()
     local pid=$(cat ${pidfile} 2>/dev/null || true)
     rm -f ${pidfile}
     if [[ -n ${pid} ]]; then
-        $(tryrc ekilltree -s=${signal} ${pid})
+         
+        # Try to kill the process with requested signal
+        try
+        {
+            ekilltree -s=${signal} ${pid}
+            eretry -r=5 -d=$((timeout/5)) process_not_running ${pid}
+        }
+        catch
+        {
+            ekilltree -s=SIGKILL ${pid}
+            eretry -r=5 -d=$((timeout/5)) process_not_running ${pid}
+        }
+
     fi
+
+    process_not_running ${pid}
     eend 0
 
     if [[ -n ${cgroup} ]] ; then
         cgroup_kill_and_wait ${cgroup}
     fi
     
-    process_not_running ${pid}
-
     # Execute optional post_stop hook
     ${post_stop}
 }
