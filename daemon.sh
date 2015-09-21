@@ -7,7 +7,10 @@
 # daemon_* functions will use. This makes it easy to specify global settings
 # for all of these daemon functions without having to worry about consistent
 # argument parsing and argument conflicts between the various daemon_*
-# functions.
+# functions. All of the values set into this pack are available in the caller's
+# various hooks if desired. If a chroot is provided it is only used inside the
+# body that calls ${cmdline}. If you need to be in the chroot to execute a given
+# hook you're responsible for doing that yourself.
 # 
 # The following are the keys used to control daemon functionality:
 #
