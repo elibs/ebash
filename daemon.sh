@@ -247,7 +247,8 @@ daemon_stop()
     eend 0
 
     if [[ -n ${cgroup} ]] ; then
-        cgroup_kill_and_wait ${cgroup}
+        edebug "Waiting for all processes in $(lval cgroup) to die"
+        cgroup_kill_and_wait -t=300 ${cgroup}
     fi
     
     # Execute optional post_stop hook
