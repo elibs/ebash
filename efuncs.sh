@@ -2335,7 +2335,7 @@ eretry()
                 kill -${_eretry_signal} ${pid}
                 sleep 2
                 process_running ${pid} || exit ${_eretry_signal}
-                kill -KILL ${pid}
+                kill -SIGKILL ${pid}
 
             ) &>/dev/null &
 
@@ -2343,8 +2343,8 @@ eretry()
             # or completel normally.
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
-            ekilltree -KILL ${watcher} &>/dev/null || true
-            wait ${watcher}            &>/dev/null || true
+            ekilltree -SIGKILL ${watcher} &>/dev/null || true
+            wait ${watcher}               &>/dev/null || true
 
             # If the process timedout return 124 to match timeout behavior.
             local timeout_rc=$(( 128 + ${_eretry_signal} ))
