@@ -320,3 +320,29 @@ ETEST_cgroup_kill_and_destroy_ingore_nonexistent_cgroups()
     # And now that it's gone, make sure kill can deal with that, too
     cgroup_kill ${CGROUP}
 }
+
+ETEST_cgroup_kill_and_wait_timeout()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    cgroup_create ${CGROUP}
+
+cat >hang <<END
+#!/usr/bin/env bash
+trap "echo caught sigterm" SIGTERM
+while true ; do : ; done
+END
+    chmod +x ./hang
+
+    einfo "Starting process that ignores sigterm"
+    (
+        cgroup_move ${CGROUP} ${BASHPID}
+        ./hang
+    ) &
+    cgroup_pstree ${CGROUP}
+
+    assert_false cgroup_kill_and_wait -s=TERM -t=1 ${CGROUP}
+
+    cgroup_kill -s=KILL ${CGROUP}
+
+}
