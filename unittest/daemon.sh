@@ -24,9 +24,10 @@ ETEST_daemon_start_stop()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     
-    daemon_init sleep_daemon     \
-        name="Infinity"          \
-        cmdline="sleep infinity" \
+    daemon_init sleep_daemon                \
+        name="Infinity"                     \
+        cmdline="sleep infinity"            \
+        cgroup="${ETEST_CGROUP}/daemon"     \
         pidfile="${pidfile}"
 
     daemon_start sleep_daemon
@@ -47,6 +48,32 @@ ETEST_daemon_start_stop()
     assert_not_exists pidfile
 
     sleep 1
+}
+
+ETEST_daemon_cgroup()
+{
+    CGROUP=${ETEST_CGROUP}/daemon
+    cgroup_create ${CGROUP}
+
+    local pidfile="${FUNCNAME}.pid"
+
+    daemon_init sleep_daemon        \
+        name="Infinity"             \
+        cmdline="sleep infinity"    \
+        cgroup=${CGROUP}            \
+        pidfile="${pidfile}"
+
+    daemon_start sleep_daemon
+    eretry -r=30 -d=1 daemon_running sleep_daemon
+    assert [[ -s ${pidfile} ]]
+
+    local running_pids=$(cgroup_pids ${CGROUP})
+    einfo "Daemon running $(lval CGROUP running_pids)"
+    cgroup_pstree ${CGROUP}
+
+    daemon_stop sleep_daemon
+    local stopped_pids=$(cgroup_pids ${CGROUP})
+    assert_empty "${stopped_pids}"
 }
 
 ETEST_daemon_respawn()
