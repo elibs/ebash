@@ -4,12 +4,12 @@
 #
 
 source ${BASHUTILS}/efuncs.sh
-$(esource       \
-    cgroup.sh   \
-    chroot.sh   \
-    daemon.sh   \
-    dpkg.sh     \
-    jenkins.sh  \
-    omconfig.sh \
-    plymouth.sh \
+$(esource                       \
+    ${BASHUTILS}/cgroup.sh      \
+    ${BASHUTILS}/chroot.sh      \
+    ${BASHUTILS}/daemon.sh      \
+    ${BASHUTILS}/dpkg.sh        \
+    ${BASHUTILS}/jenkins.sh     \
+    ${BASHUTILS}/omconfig.sh    \
+    ${BASHUTILS}/plymouth.sh    \
     )
