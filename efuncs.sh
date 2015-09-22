@@ -155,10 +155,10 @@ throw()
 #
 # NOTE: This is extremely unobvious, but setting a trap on ERR implicitly
 # enables 'set -e'.
-alias die_on_error='trap "die [UnhandledError]" ERR'
+alias die_on_error='export __EFUNCS_DIE_ON_ERROR_ENABLED=1; trap "die [UnhandledError]" ERR'
 
 # Disable calling die on ERROR.
-alias nodie_on_error="trap - ERR"
+alias nodie_on_error="export __EFUNCS_DIE_ON_ERROR_ENABLED=0; trap - ERR"
 
 # Check if die_on_error is enabled. Returns success (0) if enabled and failure
 # (1) otherwise.
@@ -362,12 +362,15 @@ stacktrace_array()
 # Print the trap command associated with a given signal (if any). This
 # essentially parses trap -p in order to extract the command from that
 # trap for use in other functions such as call_die_traps and trap_add.
-extract_trap_cmd()
+trap_get()
 {
     $(declare_args sig)
 
-    extract_trap_cmd_internal() { printf '%s\n' "${3:-}"; }
-    eval "extract_trap_cmd_internal $(trap -p "${sig}")"
+    local existing=$(trap -p "${sig}")
+    existing=${existing##trap -- \'}
+    existing=${existing%%\' ${sig}}
+
+    echo -n "${existing}"
 }
 
 # Call all traps associated with DIE_SIGNALS. This is desigend to be called from
@@ -383,7 +386,7 @@ call_die_traps()
     local commands=()
     local sig cmd
     for sig in ${DIE_SIGNALS[@]}; do
-        cmd="$(extract_trap_cmd ${sig})"
+        cmd="$(trap_get ${sig})"
         array_contains commands "${cmd}" || commands+=( "${cmd}" )
     done
 
@@ -446,20 +449,41 @@ die()
 #
 # Options:
 # $1: body of trap to be appended
-# $@: Optional list of signals to trap (or default to DIE_SIGNALS, ERR and EXIT).
+# $@: Optional list of signals to trap (or default to DIE_SIGNALS and EXIT).
 trap_add()
 {
     $(declare_args trap_command)
     local signals=( "${@}" )
-    [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} ERR EXIT )
+    [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} EXIT )
     
     local sig
     for sig in ${signals[@]}; do
-        trap -- "$(
-            printf '%s; ' "${trap_command}"
-            extract_trap_cmd ${sig}
-        )" "${sig}"
+
+        : ${__EFUNCS_TRAP_ADD_SHELL_LEVEL:=${BASH_SUBSHELL}}
+
+        # If we're at the same shell level then append to the existing trap.
+        # Otherwise if we're changing shell levels, optionally use die() as
+        # base trap if DIE_ON_ERROR/ABORT_ON_ERROR are enabled.
+        local existing=""
+        if [[ ${__EFUNCS_TRAP_ADD_SHELL_LEVEL} -eq ${BASH_SUBSHELL} ]]; then
+            existing="$(trap_get ${sig})"
+        else
+
+            # Clear any existing trap since we're in a subshell
+            trap - ${sig}
+
+            # See if we need to turn on die or not
+            if [[ ${sig} == "ERR" && ${__EFUNCS_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
+                existing="die [UnhandledError]"
+            elif [[ ${EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
+                existing="die [killed]"
+            fi
+        fi
+
+        trap -- "$(printf '%s; %s' "${trap_command}" "${existing}")" "${sig}"
     done
+
+    __EFUNCS_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
 }
 
 # Set the trace attribute for trap_add function. This is required to modify
@@ -487,6 +511,8 @@ DIE_SIGNALS=( SIGHUP    SIGINT   SIGQUIT   SIGILL   SIGABRT   SIGFPE   SIGKILL
 # Enable default traps for all DIE_SIGNALS to call die().
 die_on_abort()
 {
+    export __EFUNCS_DIE_ON_ABORT_ENABLED=1
+
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
     trap 'die [killed]' ${signals[@]}
@@ -495,6 +521,8 @@ die_on_abort()
 # Disable default traps for all DIE_SIGNALS.
 nodie_on_abort()
 {
+    export __EFUNCS_DIE_ON_ABORT_ENABLED=0
+
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
     trap - ${signals[@]}

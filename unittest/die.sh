@@ -68,56 +68,33 @@ ETEST_die_traps_parent()
 }
 
 # Ensure trap_add works properly and appends traps to existing ones.
-# DT-72: NOTE: This doesn't work. It probably never worked ever.
-# See: https://solidfire.atlassian.net/browse/DT-72
-DISABLED_ETEST_trap_add()
+ETEST_trap_add()
 {
-    trap - SIGUSR1
+    # Stub out die so that we don't actually die
+    die()
+    {
+        echo "Die called"
+    }
+
     trap_add 'echo t1'
-    assert_eq "echo t1; " "$(extract_trap_cmd SIGUSR1)"
+    assert_eq "echo t1; die [killed]" "$(trap_get SIGUSR1)"
 
     foo()
     {
         trap_add "echo t2"
-        assert_eq "echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+        assert_eq "echo t2; echo t1; die [killed]" "$(trap_get SIGUSR1)"
 
         (
-            assert_eq "echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
             trap_add "echo t3"
-            assert_eq "echo t3; echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+            assert_eq "echo t3; die [killed]" "$(trap_get SIGUSR1)"
             trap_add "echo t4"
-            assert_eq "echo t4; echo t3; echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+            assert_eq "echo t4; echo t3; die [killed]" "$(trap_get SIGUSR1)"
         )
 
-        assert_eq "echo t2; echo t1; " "$(extract_trap_cmd SIGUSR1)"
+        assert_eq "echo t2; echo t1; " "$(trap_get SIGUSR1)"
     }
-
-    declare -f -t foo
     
     foo
-    assert_eq "echo t1; " "$(extract_trap_cmd SIGUSR1)"
+    assert_eq "echo t1; " "$(trap_get SIGUSR1)"
 }
 
-# Ensure trap_add works properly and appends traps to existing ones.
-# DT-72: NOTE: This doesn't work. It probably never worked ever.
-# See: https://solidfire.atlassian.net/browse/DT-72
-DISABLED_ETEST_trap_add_invoke()
-{
-    trap - SIGUSR1
-    trap_add 'echo t1'
-
-    foo()
-    {
-        trap_add "echo t2"
-
-        (
-            trap_add "echo t3"
-            trap_add "echo t4"
-        )
-
-        kill -SIGUSR1 $BASHPID
-    }
-
-    foo
-
-}
