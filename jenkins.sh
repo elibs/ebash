@@ -47,6 +47,19 @@ jenkins_internal()
 
 jenkins()
 {
+    jenkins_prep_jar
+    eretry -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-5s} -w=${JENKINS_WARN_EVERY:-5} \
+        jenkins_internal "${@}"
+}
+
+jenkins_no_retry()
+{
+    jenkins_prep_jar
+    jenkins_internal "${@}"
+}
+
+jenkins_prep_jar()
+{
     if [[ -z ${JENKINS_CLI_JAR:=} || ! -r ${JENKINS_CLI_JAR} ]] ; then
         local tempDir
         tempDir=$(mktemp -d /tmp/jenkins.sh.tmp-XXXXXXXX)
@@ -55,9 +68,6 @@ jenkins()
         edebug "Downloaded jenkins-cli.jar: $(ls -l ${JENKINS_CLI_JAR})"
         trap_add "edebug \"Deleting ${JENKINS_CLI_JAR}.\" ; rm -rf \"${tempDir}\""
     fi
-
-    eretry -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-5s} -w=${JENKINS_WARN_EVERY:-5} \
-        jenkins_internal "${@}"
 }
 
 #
@@ -77,27 +87,27 @@ jenkins()
 #
 jenkins_update()
 {
-    $(declare_args item_type template name)
+    $(declare_args itemType template name)
 
     # Old versions of jenkins_update expected the template name to contain
     # .xml.  Drop the .xml if old clients provide it.
     template=${template%%.xml}
 
     [[ -d "scripts" ]] || die "jenkins_update must be run from repository root directory."
-    [[ -d "scripts/jenkins_templates/${item_type}" ]] || die "jenkins_update cannot create ${item_type} items."
+    [[ -d "scripts/jenkins_templates/${itemType}" ]] || die "jenkins_update cannot create ${itemType} items."
 
-    local xmlTemplate="scripts/jenkins_templates/${item_type}/${template}.xml"
-    [[ -r "${xmlTemplate}" ]] || die "No ${item_type} template named ${template} found."
+    local xmlTemplate="scripts/jenkins_templates/${itemType}/${template}.xml"
+    [[ -r "${xmlTemplate}" ]] || die "No ${itemType} template named ${template} found."
 
     # Look for the optional script template
     local scriptFile="" scriptTemplate=""
-    scriptTemplate="scripts/jenkins_templates/${item_type}/${template}.sh"
+    scriptTemplate="scripts/jenkins_templates/${itemType}/${template}.sh"
 
     [[ -r "${scriptTemplate}" ]] || scriptTemplate=""
-    [[ -z ${scriptTemplate} ]] || scriptFile=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_script_XXXX")
+    [[ -z ${scriptTemplate} ]] || scriptFile=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_script_XXXX")
     local newConfig oldConfig
-    newConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_XXXX")
-    oldConfig=$(mktemp "/tmp/jenkins_update_${item_type}_${template}_old_XXXX")
+    newConfig=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_XXXX")
+    oldConfig=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_old_XXXX")
 
     trap_add "rm -rf ${scriptFile} ${newConfig} ${oldConfig}"
 
@@ -112,44 +122,50 @@ jenkins_update()
     cp -arL "${xmlTemplate}" "${newConfig}"
     setvars "${newConfig}" setvars_escape_xml
 
-    local rc=2
 
-    # Look to see if the item already exists on jenkins, with minimal retries
-    # so we don't have to wait forever for new jobs
-    local foundExisting=0
-    edebug "Checking if job exists"
-    JENKINS_RETRIES=2 jenkins get-${item_type} "${name}" > "${oldConfig}" 2>$(edebug_out) || foundExisting=$?
+    # Try to update the job, under the assumption that most of the time it is
+    # already there.  (Note: jenkins doesn't have an operation that is
+    # idempotent for this -- we have to either try update and then create if it
+    # fails or try create and then update if it fails)
+    jenkins_prep_jar
+    $(tryrc \
+        eretry -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-5s} -w=${JENKINS_WARN_EVERY:-5} -e="0 10" \
+        jenkins_update_internal "${newConfig}" "${itemType}" "${name}")
 
-    # If the request timed out OR if it timed out and then didn't respond to
-    # requests so it got kill -9ed
-    if [[ ${foundExisting} -eq 124 || ${foundExisting} -eq 137 ]] ; then
-        die "Jenkins is not responding to API requests."
+    # If the job didn't exist to update, it must be created
+    if [[ ${rc} -eq 10 ]] ; then
+        jenkins -f="${newConfig}" create-${itemType} "${name}"
 
-    # Other error codes would be from jenkins
-    elif [[ ${foundExisting} -eq 0 ]] ; then
+    # If the update passed, we're good!
+    elif [[ ${rc} -eq 0 ]] ; then
+        return 0
 
-        edebug "Job exists.  Determining whether to update it."
-
-        # If it does, only update it if the new config differs from the old one
-        if diff --ignore-all-space --brief "${oldConfig}" "${newConfig}" &>/dev/null ; then
-            edebug "jenkins_update: config mismatch -- updating"
-            edebug_enabled && cat "${newConfig}" || true
-            $(tryrc -r=rc jenkins -f="${newConfig}" update-${item_type} "${name}")
-        else
-            edebug "Jobs match.  No need for an update."
-            rc=0
-        fi
-
+    # If it failed for another reason, jenkins is hosed
     else
+        die "Unable to update item because jenkins is not responding $(lval name itemType JENKINS)"
 
-        edebug "Job does not exist.  Creating it."
-
-        # If it does not, create it
-        $(tryrc -r=rc jenkins -f="${newConfig}" create-${item_type} "${name}")
     fi
-
-    return ${rc}
 }
+
+# Returns 10 if jenkins_update failed because jenkins didn't find an existing job by that name.
+jenkins_update_internal()
+{
+    $(declare_args newConfig itemType name)
+
+    $(tryrc -e=stderr jenkins_internal -f=${newConfig} update-${itemType} "${name}") >/dev/null
+
+    local foundNoSuchJob=0
+    echo "${stderr}" | grep -P '^No such job.*; perhaps you meant' || foundNoSuchJob=$?
+
+    edebug "$(lval rc stderr foundNoSuchJob)"
+
+    if [[ ${rc} -eq 255 && ${foundNoSuchJob} -eq 0 ]] ; then
+        return 10
+    else
+        return ${rc}
+    fi
+}
+
 
 # This is a setvars callback method that properly escapes raw data so that it
 # can be inserted into an xml file

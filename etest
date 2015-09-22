@@ -201,20 +201,23 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
                 
                 [[ ${VERBOSE} -eq 0 ]] && einfos ${testfunc} || ebanner ${testfunc} REPEAT=REPEAT_STRING
 
-                try
                 {
-                    test_setup
-                    cd ${TEST_DIR_OUTPUT}/${testfunc}
-                    ${testfunc}
-                } &> ${redirect}
-                catch
-                {
-                    testfunc_rc=$?
-                    FAILED_TESTS+=( ${testfunc/ETEST_/} )
+                    try
+                    {
+                        test_setup
+                        cd ${TEST_DIR_OUTPUT}/${testfunc}
+                        ${testfunc}
+                    }
+                    catch
+                    {
+                        testfunc_rc=$?
+                        FAILED_TESTS+=( ${testfunc/ETEST_/} )
 
-                    [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1"
-                }
-                test_teardown
+                        [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1"
+                    }
+                    test_teardown
+
+                } &> ${redirect}
 
                 eend ${testfunc_rc}
                

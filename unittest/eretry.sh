@@ -3,27 +3,36 @@
 FAIL_TIMES=0
 fail_then_pass()
 {
-    $(declare_args failCount)
-    einfo "$(lval failCount FAIL_TIMES)"
+    $(declare_args failCount tmpfile)
+
+    # Initialize counter to 0
+    [[ -f ${tmpfile} ]] || echo "0" > ${tmpfile}
+
+    # Read counter from file and increment it
+    FAIL_TIMES=$(cat ${tmpfile})
     (( FAIL_TIMES += 1 ))
+    echo "${FAIL_TIMES}" > ${tmpfile}
+
+    einfo "$(lval failCount FAIL_TIMES)"
     (( ${FAIL_TIMES} <= ${failCount} )) && return 15 || return 0
 }
 
 ETEST_eretry_preserve_exit_code()
 {
-    eretry -r=3 fail_then_pass 3 && die "eretry should abort" || assert_eq 15 $?
+    $(tryrc eretry -r=3 fail_then_pass 3 tmpfile)
+    [[ ${rc} -eq 0 ]] && die "eretry should abort" || assert_eq 15 ${rc} "exit code"
 
     # Ensure fail_then_pass was actually called specified number of times
-    assert_eq 3 ${FAIL_TIMES}
+    assert_eq 3 $(cat tmpfile) "number of times"
 }
 
 ETEST_eretry_fail_till_last()
 {
-    eretry -r=3 fail_then_pass 2
+    eretry -r=3 fail_then_pass 2 tmpfile
     assert_zero $?
 
     # Ensure fail_then_pass was actually called specified number of times
-    assert_eq 3 ${FAIL_TIMES}
+    assert_eq 3 $(cat tmpfile) "number of attempts"
 }
 
 ETEST_eretry_exit_124_on_timeout()
@@ -84,6 +93,14 @@ quoting_was_preserved()
 ETEST_eretry_preserves_quoted_whitespace()
 {
     eretry -r=0 quoting_was_preserved "a b" "c" "the lazy fox jumped!"
+}
+
+ETEST_eretry_alternate_exit_code()
+{
+    $(tryrc eretry -e=15 fail_then_pass 10 tmpfile)
+    assert_eq 15 ${rc} "return code"
+    assert_eq 1 "$(cat tmpfile)" "number of attempts"
+
 }
 
 

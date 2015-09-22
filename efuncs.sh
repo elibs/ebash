@@ -104,7 +104,7 @@ alias try="
     (
         enable_trace
         die_on_abort
-        trap '__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]&>\$(edebug_out); exit \${__EFUNCS_DIE_ON_ERROR_RC}' ERR
+        trap 'die -r=\$? [ExceptionCaught]&>\$(edebug_out)' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -398,8 +398,14 @@ call_die_traps()
 
 die()
 {
-    [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -eq 1 ]] && exit 1 || true
-    __EFUNCS_DIE_IN_PROGRESS=1
+    $(declare_args)
+
+    if [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
+        exit ${__EFUNCS_DIE_IN_PROGRESS}
+    else
+        __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
+    fi
+
     eprogress_killall
 
     # Clear ERR and DEBUG traps to avoid tracing die code.
@@ -433,10 +439,7 @@ die()
         ekill -s=SIGTERM $(ps -o pid --no-headers --ppid ${pid})
         ekilltree -s=SIGTERM ${pid}
 
-        # If we got here something is fundamentally broken in die. Emit an error message
-        # and then exit with a non-standard exit code.
-        eerror "Internal error in die()."
-        exit 1
+        exit ${__EFUNCS_DIE_IN_PROGRESS}
     else
         declare -f die_handler &>/dev/null && { __EFUNCS_DIE_IN_PROGRESS=0; die_handler; } || kill -9 0
     fi
@@ -2317,6 +2320,13 @@ netselect()
 #   A warning will be generated every time <number> of retries have been
 #   attemped and failed.
 #
+# -e <space separated list of numbers>
+#   Any of the exit codes specified in this list will cause eretry to stop
+#   retrying. If eretry receives one of these codes, it will immediately stop
+#   retrying and return that exit code.  By default, only a zero return code
+#   will cause eretry to stop.  If you specify -e, you should consider whether
+#   you want to include 0 in the list.
+#
 # All direct parameters to eretry are assumed to be the command to execute, and
 # eretry is careful to retain your quoting.
 #
@@ -2329,6 +2339,7 @@ eretry()
     local _eretry_signal=$(opt_get s SIGTERM)
     local _eretry_retries=$(opt_get r 5)
     local _eretry_warn=$(opt_get w 0)
+    local _eretry_exit_codes=$(opt_get e 0)
     [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
 
     # Convert signal name to number so we can use it's numerical value
@@ -2376,11 +2387,11 @@ eretry()
             [[ ${rc} -eq ${timeout_rc} ]] && rc=124
 
         else
-            "${cmd[@]}" && rc=0 || rc=$?
+            $(tryrc "${cmd[@]}")
         fi
         exit_codes+=(${rc})
 
-        [[ ${rc} -eq 0 ]] && break
+        echo "${_eretry_exit_codes}" | grep -wq "${rc}" && break
 
         [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
             && ewarn "Command has failed $((attempt+1)) times. Retrying: $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
@@ -3219,14 +3230,14 @@ assert_op()
 
 assert_eq()
 {
-    $(declare_args ?lh ?rh)
-    [[ "${lh}" == "${rh}" ]] || die "assert_eq failed :: $(lval lh rh)"
+    $(declare_args ?lh ?rh ?msg)
+    [[ "${lh}" == "${rh}" ]] || die "assert_eq failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_ne()
 {
-    $(declare_args ?lh ?rh)
-    [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed :: $(lval lh rh)"
+    $(declare_args ?lh ?rh ?msg)
+    [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_zero()
