@@ -40,9 +40,16 @@ ETEST_jenkins_build_url()
 
 create_demo_job()
 {
+    edebug "Creating jenkins job ${DEMO_JOB_NAME}"
     pushd ${TEMPLATE_DIR}
     jenkins_update job etest_demo_job ${DEMO_JOB_NAME}
     popd
+
+    # Wait for jenkins to get its act together and realize that it _has_ created the job
+    edebug "Waiting for jenkins to reflect the created job in its API"
+    eretry jenkins get-job ${DEMO_JOB_NAME} &>/dev/null
+    edebug "Jenkins acknowledged existence of ${DEMO_JOB_NAME}"
+
 }
 
 delete_demo_job()
@@ -55,6 +62,7 @@ ETEST_jenkins_create_and_update()
 {
     einfo "Creating job."
     create_demo_job
+    trap_add "einfo Deleting demo job. ; delete_demo_job "
     einfo "Done creating job.  Retrieving it and checking the description"
 
     validate_demo_job()
@@ -73,14 +81,13 @@ ETEST_jenkins_create_and_update()
     einfo "Updating job."
     create_demo_job
     validate_demo_job
-
-    delete_demo_job
 }
 
 ETEST_jenkins_run_a_build()
 {
     einfo "Creating job to run $(lval DEMO_JOB_NAME)"
     create_demo_job
+    trap_add "einfo Deleting demo job. ; delete_demo_job "
     JENKINS_JOB=${DEMO_JOB_NAME}
 
     sleep 5
@@ -116,7 +123,6 @@ ETEST_jenkins_run_a_build()
     # And that our build_url jenkins_function works
     assert [[ "${url}"    == "$(jenkins_build_url ${buildNumber})" ]]
 
-    delete_demo_job
 }
 
 ETEST_jenkins_put_file()
