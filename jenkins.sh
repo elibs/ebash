@@ -11,7 +11,10 @@
 jenkins_url()
 {
     if [[ -n ${JENKINS_URL:-} ]] ; then
-        echo "${JENKINS_URL}"
+        # Take JENKINS_URL, removing a trailing slash if there is one (because
+        # callers of jenkins_url assume it will not return a final slash, as
+        # that's how it works with JENKINS/JENKINS_PORT)
+        echo "${JENKINS_URL%/}"
 
     else
         argcheck JENKINS JENKINS_PORT
