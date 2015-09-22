@@ -156,7 +156,7 @@ ETEST_nodie_on_error_with_try_catch()
 # [0]="global_teardown; die [UnhandledError]" [1]="exit \$?"
 ERR_TRAP_DIE="die [UnhandledError]"
 ERR_TRAP_EXIT="__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]&>\$(edebug_out); exit \${__EFUNCS_DIE_ON_ERROR_RC}"
-ERR_TRAP_TEST="global_teardown; ${ERR_TRAP_DIE}"
+ERR_TRAP_TEST="${ERR_TRAP_DIE}"
 ERR_TRAP_NONE="-"
 
 assert_stack_eq()
