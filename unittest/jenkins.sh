@@ -93,7 +93,7 @@ ETEST_jenkins_run_a_build()
 
     while true ; do
         $(tryrc -o=buildNumber jenkins_get_build_number ${queueUrl})
-        if [[ ${rc} -eq 0 || -n ${buildNumber} ]] ; then
+        if [[ ${rc} -eq 0 && -n ${buildNumber} ]] ; then
             break;
         fi
     done

@@ -155,7 +155,7 @@ ETEST_nodie_on_error_with_try_catch()
 # so our starting array should have (1 1)
 # [0]="global_teardown; die [UnhandledError]" [1]="exit \$?"
 ERR_TRAP_DIE="die [UnhandledError]"
-ERR_TRAP_EXIT="__EFUNCS_DIE_ON_ERROR_RC=\$? ; die [ExceptionCaught]&>\$(edebug_out); exit \${__EFUNCS_DIE_ON_ERROR_RC}"
+ERR_TRAP_EXIT="die -r=\$? [ExceptionCaught]&>\$(edebug_out)"
 ERR_TRAP_TEST="${ERR_TRAP_DIE}"
 ERR_TRAP_NONE="-"
 
@@ -528,7 +528,7 @@ ETEST_tryrc_stderr_unbuffered()
         local stderr=""
         read -r stderr < ${pipe}
         
-        einfo "$(lval rc stderr)"
+        einfo "$(lval stderr)"
         assert_eq "MESSAGE" "${stderr}"
     ) &
     echo "$!" >> "${FUNCNAME}.pids"
@@ -546,8 +546,8 @@ ETEST_tryrc_stderr_unbuffered()
 
     wait
 
-    # Kill all pids
-    ekilltree -s=SIGKILL $(cat ${FUNCNAME}.pids)
+    # Kill any background processes that have survived to this point.
+    $(tryrc ekilltree -s=SIGKILL $(cat ${FUNCNAME}.pids))
 }
 
 ETEST_tryrc_no_eol()
