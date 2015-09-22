@@ -120,7 +120,7 @@ daemon_start()
         # we have, then don't run again. Likewise, ensure that the pidfile
         # exists. If it doesn't it likely means that we have been stopped (via
         # daemon_stop) and we really don't want to run again.
-        while [[ -e "${pidfile}" && ${runs} -le ${respawns} ]]; do
+        while [[ -e "${pidfile}" && ${runs} -lt ${respawns} ]]; do
 
             # Info
             if [[ ${runs} -eq 0 ]]; then
@@ -183,7 +183,7 @@ daemon_start()
             fi
            
             # Log specific message
-            if [[ ${runs} -gt ${respawns} ]]; then
+            if [[ ${runs} -ge ${respawns} ]]; then
                 eerror "${name} crashed too many times (${runs}/${respawns}). Giving up."
                 edebug "$(lval name SECONDS +${optpack})"
             else
