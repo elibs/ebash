@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
 
-# Global teardown function to give any daemon processes a chance to shutdown
-# so we don't leak processes.
-teardown()
-{
-    sleep 1
-}
-
 ETEST_daemon_init()
 {
     local pidfile_real="${FUNCNAME}.pid"
@@ -85,12 +78,12 @@ ETEST_daemon_respawn()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     
-    daemon_init sleep_daemon   \
-        name="Infinity"        \
-        cmdline="sleep 1"      \
-        pidfile="${pidfile}"   \
-        respawns="3"           \
-        respawn_interval="300" \
+    daemon_init sleep_daemon     \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile}"     \
+        respawns="3"             \
+        respawn_interval="300"   \
 
     $(pack_import sleep_daemon)
     edebug_enabled && einfo "Starting daemon $(lval +sleep_daemon)" || eprogress "Starting daemon $(lval +sleep_daemon)"
@@ -153,12 +146,12 @@ ETEST_daemon_respawn_reset()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     
-    daemon_init sleep_daemon  \
-        name="Infinity"       \
-        cmdline="sleep 1"     \
-        pidfile="${pidfile}"  \
-        respawns="3"          \
-        respawn_interval="0"  \
+    daemon_init sleep_daemon     \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile}"     \
+        respawns="3"             \
+        respawn_interval="0"     \
 
     $(pack_import sleep_daemon)
     edebug_enabled && einfo "Starting daemon $(lval +sleep_daemon)" || eprogress "Starting daemon $(lval +sleep_daemon)"
@@ -219,7 +212,7 @@ ETEST_daemon_hooks()
     
     daemon_init sleep_daemon                      \
         name="Infinity"                           \
-        cmdline="sleep 1"                         \
+        cmdline="sleep infinity"                  \
         pidfile="${pidfile}"                      \
         pre_start="touch ${FUNCNAME}.pre_start"   \
         pre_stop="touch ${FUNCNAME}.pre_stop"     \
@@ -248,7 +241,7 @@ ETEST_daemon_pre_start_fail()
     
     daemon_init sleep_daemon                      \
         name="Infinity"                           \
-        cmdline="sleep 1"                         \
+        cmdline="sleep infinity"                  \
         pidfile="${pidfile}"                      \
         pre_start="false"                         \
         pre_stop="touch ${FUNCNAME}.pre_stop"     \
