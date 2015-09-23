@@ -155,8 +155,7 @@ ETEST_nodie_on_error_with_try_catch()
 # so our starting array should have (1 1)
 # [0]="global_teardown; die [UnhandledError]" [1]="exit \$?"
 ERR_TRAP_DIE="die [UnhandledError]"
-ERR_TRAP_EXIT="die -r=\$? [ExceptionCaught]&>\$(edebug_out)"
-ERR_TRAP_TEST="${ERR_TRAP_DIE}"
+ERR_TRAP_CATCH="die -r=\$? [ExceptionCaught]&>\$(edebug_out)"
 ERR_TRAP_NONE="-"
 
 assert_stack_eq()
@@ -176,7 +175,7 @@ assert_stack_eq()
 
 ETEST_try_catch_stack()
 {
-    assert_stack_eq TEST EXIT
+    assert_stack_eq DIE CATCH
 
     # Add some more try-catches with various enable/disable
     die_on_error_enabled || die "ERR trap should be enabled"
@@ -186,17 +185,17 @@ ETEST_try_catch_stack()
     try
     {
         die_on_error_enabled || die "ERR trap should be enabled"
-        assert_stack_eq TEST EXIT NONE
+        assert_stack_eq DIE CATCH NONE
 
         try
         {
             die_on_error_enabled || die "ERR trap should be enabled"
-            assert_stack_eq TEST EXIT NONE EXIT
+            assert_stack_eq DIE CATCH NONE CATCH
            
             try
             {
                 die_on_error_enabled || die "ERR trap should be enabled"
-                assert_stack_eq TEST EXIT NONE EXIT EXIT
+                assert_stack_eq DIE CATCH NONE CATCH CATCH
            
                 # Disable
                 nodie_on_error
@@ -204,7 +203,7 @@ ETEST_try_catch_stack()
                 try
                 {
                     die_on_error_enabled || die "ERR trap should be enabled"
-                    assert_stack_eq TEST EXIT NONE EXIT EXIT NONE
+                    assert_stack_eq DIE CATCH NONE CATCH CATCH NONE
            
                     false
                     die "try block should have thrown"
@@ -212,11 +211,11 @@ ETEST_try_catch_stack()
                 catch
                 {
                     ! die_on_error_enabled || die "ERR trap should be disabled"
-                    assert_stack_eq TEST EXIT NONE EXIT EXIT
+                    assert_stack_eq DIE CATCH NONE CATCH CATCH
                 }
                 
                 ! die_on_error_enabled || die "ERR trap should be disabled"
-                assert_stack_eq TEST EXIT NONE EXIT EXIT
+                assert_stack_eq DIE CATCH NONE CATCH CATCH
                 
                 false
                 true
@@ -227,27 +226,27 @@ ETEST_try_catch_stack()
             }
      
             die_on_error_enabled || die "ERR trap should be enabled"
-            assert_stack_eq TEST EXIT NONE EXIT
+            assert_stack_eq DIE CATCH NONE CATCH
             false
             die "try block should have thrown"
         }
         catch
         {
-            assert_stack_eq TEST EXIT NONE
+            assert_stack_eq DIE CATCH NONE
         }
         
         die_on_error_enabled || die "ERR trap should be enabled"
-        assert_stack_eq TEST EXIT NONE
+        assert_stack_eq DIE CATCH NONE
         false
         die "try block should have thrown"
     }
     catch
     { 
-        assert_stack_eq TEST EXIT
+        assert_stack_eq DIE CATCH
     }
             
     ! die_on_error_enabled || die "ERR trap should be disabled"
-    assert_stack_eq TEST EXIT
+    assert_stack_eq DIE CATCH
 }
 
 etest_deep_error_2()
