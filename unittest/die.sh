@@ -52,11 +52,11 @@ ETEST_die_traps_parent()
 
     (
         touch "${fname1}"
-        trap_add "echo 'PARENT: Removing ${fname1}'; rm -f ${fname1}"
+        trap_add "echo \"PARENT: Removing ${fname1}\"; rm -f ${fname1}"
 
         (
             touch "${fname2}"
-            trap_add "echo 'CHILD: Removing ${fname2}'; rm -f ${fname2}"
+            trap_add "echo \"CHILD: Removing ${fname2}\"; rm -f ${fname2}"
             die "Aborting subshell"
 
         ) || true
@@ -98,3 +98,16 @@ ETEST_trap_add()
     assert_eq "echo t1; " "$(trap_get SIGUSR1)"
 }
 
+# Don't allow traps to contain single quotes
+ETEST_trap_add_single_quotes()
+{
+    try
+    {
+        trap_add "echo 'foo'"
+        die "trap_add should have failed."
+    }
+    catch
+    {
+        return 0
+    }
+}
