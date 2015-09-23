@@ -276,6 +276,7 @@ tryrc()
     local stdout_pipe="${tmpdir}/stdout"
     mkfifo "${stdout_pipe}"
     (
+        trap_add "exit 0"
         local stdout=$(pipe_read_quote ${stdout_pipe})
         if [[ -n ${stdout_out} ]]; then
             echo eval "declare ${dflags} ${stdout_out}=${stdout};"
@@ -296,6 +297,7 @@ tryrc()
         mkfifo "${stderr_pipe}"
 
         ( 
+            trap_add "exit 0"
             local stderr="$(pipe_read_quote ${stderr_pipe})"
             echo eval "declare ${dflags} ${stderr_out}=${stderr};"
         ) &
