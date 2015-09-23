@@ -453,12 +453,21 @@ die()
 # Options:
 # $1: body of trap to be appended
 # $@: Optional list of signals to trap (or default to DIE_SIGNALS and EXIT).
+#
+# NOTE: Do not put single quotes inside the body of the trap or else we can't
+#       reliably extract the trap and eval it later.
 trap_add()
 {
-    $(declare_args trap_command)
+    $(declare_args cmd)
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} EXIT )
     
+    # Fail if new cmd has single quotes in it.
+    if [[ ${cmd} =~ "'" ]]; then
+        eerror "trap commands cannot contain single quotes."
+        return 1
+    fi
+
     local sig
     for sig in ${signals[@]}; do
 
@@ -483,7 +492,7 @@ trap_add()
             fi
         fi
 
-        trap -- "$(printf '%s; %s' "${trap_command}" "${existing}")" "${sig}"
+        trap -- "$(printf '%s; %s' "${cmd}" "${existing}")" "${sig}"
     done
 
     __EFUNCS_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
