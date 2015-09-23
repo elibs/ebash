@@ -70,7 +70,7 @@ ETEST_die_traps_parent()
 # Ensure trap_add works properly and appends traps to existing ones.
 # NOTE: Use different signals throughout this test since trap_add
 #       operates on all of DIE_SIGNALS.
-ETEST_trap_add()
+ETEST_die_trap_add()
 {
     # Stub out die so that we don't actually die
     die()
