@@ -68,33 +68,35 @@ ETEST_die_traps_parent()
 }
 
 # Ensure trap_add works properly and appends traps to existing ones.
-ETEST_trap_add()
+# NOTE: Use different signals throughout this test since trap_add
+#       operates on all of DIE_SIGNALS.
+ETEST_die_trap_add()
 {
     # Stub out die so that we don't actually die
     die()
     {
-        echo "Die called"
+        echo "Fake die() called"
     }
 
     trap_add 'echo t1'
-    assert_eq "echo t1; die [killed]" "$(trap_get SIGUSR1)"
+    assert_eq "echo t1; die [killed]" "$(trap_get SIGHUP)"
 
     foo()
     {
         trap_add "echo t2"
-        assert_eq "echo t2; echo t1; die [killed]" "$(trap_get SIGUSR1)"
+        assert_eq "echo t2; echo t1; die [killed]" "$(trap_get SIGINT)"
 
         (
             trap_add "echo t3"
-            assert_eq "echo t3; die [killed]" "$(trap_get SIGUSR1)"
+            assert_eq "echo t3; die [killed]" "$(trap_get SIGKILL)"
             trap_add "echo t4"
-            assert_eq "echo t4; echo t3; die [killed]" "$(trap_get SIGUSR1)"
+            assert_eq "echo t4; echo t3; die [killed]" "$(trap_get SIGALRM)"
         )
 
         assert_eq "echo t2; echo t1; " "$(trap_get SIGUSR1)"
     }
     
     foo
-    assert_eq "echo t1; " "$(trap_get SIGUSR1)"
+    assert_eq "echo t1; " "$(trap_get SIGUSR2)"
 }
 
