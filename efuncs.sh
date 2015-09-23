@@ -441,7 +441,12 @@ die()
 
         exit ${__EFUNCS_DIE_IN_PROGRESS}
     else
-        declare -f die_handler &>/dev/null && { __EFUNCS_DIE_IN_PROGRESS=0; die_handler; } || kill -9 0
+        if declare -f die_handler &>/dev/null; then
+            die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
+            __EFUNCS_DIE_IN_PROGRESS=0
+        else
+            kill -9 0
+        fi
     fi
 }
 
