@@ -6,9 +6,6 @@ setup()
     JENKINS=bdr-distbox.eng.solidfire.net
     JENKINS_PORT=8080
 
-    JENKINS_RETRIES=5
-    JENKINS_TIMEOUT=10s
-
     TEMPLATE_DIR=${TOPDIR}/unittest/jenkins_templates/
 }
 
@@ -54,7 +51,7 @@ create_demo_job()
 
 delete_demo_job()
 {
-    einfo "Deleting temporary job..."
+    einfo "Deleting ${DEMO_JOB_NAME}..."
     jenkins delete-job ${DEMO_JOB_NAME}
 }
 
@@ -62,7 +59,7 @@ ETEST_jenkins_create_and_update()
 {
     einfo "Creating job."
     create_demo_job
-    trap_add "einfo Deleting demo job. ; delete_demo_job "
+    #trap_add "delete_demo_job "
     einfo "Done creating job.  Retrieving it and checking the description"
 
     validate_demo_job()
@@ -87,10 +84,8 @@ ETEST_jenkins_run_a_build()
 {
     einfo "Creating job to run $(lval DEMO_JOB_NAME)"
     create_demo_job
-    trap_add "einfo Deleting demo job. ; delete_demo_job "
+    trap_add "delete_demo_job "
     JENKINS_JOB=${DEMO_JOB_NAME}
-
-    sleep 5
 
     declare -A BUILD_ARGS
     BUILD_ARGS[PARAM]=passed_from_${FUNCNAME}
