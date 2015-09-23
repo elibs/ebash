@@ -106,6 +106,12 @@ ETEST_jenkins_run_a_build()
     done
     eprogress_kill
 
+    #  Wait until the job has a build result (not quite the same as "complete"
+    #  for complicated jobs, but pretty darn close for the test one)
+    einfo "Waiting for job to run."
+    eretry -r=30 -t=2 -d=1 jenkins_build_result ${buildNumber}
+
+    einfo "Gathering results from job."
     local buildJson=$(jenkins_build_json ${buildNumber})
     edebug "$(lval buildJson buildNumber)"
 
@@ -116,9 +122,12 @@ ETEST_jenkins_run_a_build()
     assert [[ ${name} == "PARAM" ]]
     assert [[ ${value} == "${BUILD_ARGS[PARAM]}" ]]
 
+
     # That it was successful
     $(json_import result url <<< ${buildJson} )
-    assert [[ "${result}" == "SUCCESS" ]]
+    assert_eq "SUCCESS" "${result}" "build result extracted from json"
+
+    assert_eq "SUCCESS" "$(jenkins_build_result ${buildNumber})" "jenkins_build_result output"
 
     # And that our build_url jenkins_function works
     assert [[ "${url}"    == "$(jenkins_build_url ${buildNumber})" ]]

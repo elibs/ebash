@@ -2385,7 +2385,7 @@ eretry()
             ) &>/dev/null &
 
             # Wait for the pid which will either be KILLED by the watcher
-            # or completel normally.
+            # or complete normally.
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
             ekilltree -SIGKILL ${watcher} &>/dev/null || true
