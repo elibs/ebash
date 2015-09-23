@@ -26,24 +26,69 @@ jenkins_internal()
 {
     $(declare_args)
 
-    local filename rc=0
-    filename=$(opt_get f)
-    try
-    {
-        if [[ -n ${filename:-} ]] ; then
-            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}" < "${filename}"
-        else
-            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${@}"
-       fi
-    }
-    catch
-    {
-        rc=$?
-        edebug "Caught error from jenkins $(lval filename JENKINS_CLI_JAR JENKINS rc)"
-    }
+    local filename=$(opt_get f)
+    local cmd=( "${@}" )
+    local rc=0
 
-    return ${rc}
+    [[ $(array_size cmd) -eq 0 ]] && cmd=("")
+
+    edebug "$(lval cmd filename) $(ls -ltr ${filename})"
+
+    # Execute jenkins API command
+    if [[ -n ${filename:-} ]] ; then
+        $(tryrc -o=stdout -e=stderr \
+            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${cmd[@]}" < "${filename}")
+    else
+        $(tryrc -o=stdout -e=stderr \
+            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${cmd[@]}")
+    fi
+
+    # Jenkins cli API does a lot of ridiculous things that it would be nice for
+    # it not to do.  So we tweak it to work differently.  If a function named
+    # "jenkins_<jenkins API command name>_hook"  exists, I'll run it to allow
+    # it take care of processing the results.  (NOTE: bash functions names
+    # can't have hyphens in them, but jenkins api commands do, so I replace
+    # those with underscores)
+    #
+    # Command hooks should accept three parameters.  Its responsibility is to
+    # do what it wants done with these.  Whatever it returns will actually be
+    # returned as the result of this command, and whatever it outputs will be
+    # output (i.e. the original streams are hidden to this point so that it can
+    # decide what to do with them)
+    #    $1: Return code of the jenkins command itself
+    #    $2: The stdout stream provided by the jenkins cli
+    #    $3: The stderr stream provided by the jenkins cli
+    local hookName="jenkins_${cmd[1]:-}_hook"
+    hookName=${hookName//[- ]/_}
+
+    if declare -f ${hookName} &>/dev/null ; then
+        edebug "Calling hook for ${cmd[1]} $(lval hookName rc stdout stderr)"
+        ${hookName} rc stdout stderr
+
+    else
+        echo -n "${stdout}"
+        echo -n "${stderr}" >&2
+        return ${rc}
+    fi
 }
+
+#jenkins_update_job_hook()
+#{
+#    $(declare_args rc stdout stderr)
+#
+#    $(tryrc -e=stderr jenkins_internal -f=${newConfig} update-${itemType} "${name}") >/dev/null
+#
+#    local foundNoSuchJob=0
+#    echo "${stderr}" | grep -Pq '^No such job.*; perhaps you meant' || foundNoSuchJob=$?
+#
+#    edebug "$(lval rc stderr foundNoSuchJob)"
+#
+#    if [[ ${rc} -eq 255 && ${foundNoSuchJob} -eq 0 ]] ; then
+#        return 10
+#    else
+#        return ${rc}
+#    fi
+#}
 
 jenkins()
 {

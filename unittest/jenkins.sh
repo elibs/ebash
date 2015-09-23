@@ -17,7 +17,7 @@ ETEST_jenkins_url()
 ETEST_jenkins_cli_basic()
 {
     # Will display help and should return a good exit code
-    local help=$(jenkins 2>&1)
+    local help=$(jenkins help 2>&1)
     echo "${help}" | assert grep Jenkins        >/dev/null
     echo "${help}" | assert grep update-node 	>/dev/null
     echo "${help}" | assert grep update-job     >/dev/null
@@ -59,7 +59,7 @@ ETEST_jenkins_create_and_update()
 {
     einfo "Creating job."
     create_demo_job
-    #trap_add "delete_demo_job "
+    trap_add "delete_demo_job "
     einfo "Done creating job.  Retrieving it and checking the description"
 
     validate_demo_job()
