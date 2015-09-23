@@ -155,7 +155,7 @@ jenkins_update_internal()
     $(tryrc -e=stderr jenkins_internal -f=${newConfig} update-${itemType} "${name}") >/dev/null
 
     local foundNoSuchJob=0
-    echo "${stderr}" | grep -P '^No such job.*; perhaps you meant' || foundNoSuchJob=$?
+    echo "${stderr}" | grep -Pq '^No such job.*; perhaps you meant' || foundNoSuchJob=$?
 
     edebug "$(lval rc stderr foundNoSuchJob)"
 
@@ -302,12 +302,18 @@ jenkins_build_result()
         local json status rc
         json=$(jenkins_build_json ${buildNum} result)
         status=$(echo "${json}" | jq --raw-output .result)
-        [[ ${status} != "null" ]]
-        echo "${status}"
+
+        if [[ ${status} == "null" ]] ; then
+            echo ""
+            return 1
+        else
+            echo "${status}"
+            return 0
+        fi
     }
     catch
     {
-        return $?
+        return 2
     }
 }
 
