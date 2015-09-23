@@ -2355,6 +2355,7 @@ eretry()
     local rc=""
     local exit_codes=()
     for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
+        edebug "$(lval attempt rc cmd)"
 
         if [[ -n ${_eretry_timeout} ]] ; then
 
