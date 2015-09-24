@@ -73,6 +73,8 @@ global_teardown()
         eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out)
         rm -rf ${TEST_DIR_OUTPUT}
     fi
+
+    edebug "Finished global_teardown"
 }
 
 test_setup()
@@ -84,7 +86,9 @@ test_setup()
     mkdir -p ${TEST_DIR_OUTPUT}/${testfunc}
 
     # Unit test provided setup
-    declare -f setup &>/dev/null && { setup || die "Setup failed." ; } 
+    if declare -f setup &>/dev/null ; then
+        setup
+    fi
 
     return 0
 }
@@ -94,7 +98,9 @@ test_teardown()
     edebug "ETEST test_teardown for ${testfunc}: PID=$$ BASHPID=$BASHPID PPID=$PPID"
 
     # Unit test provided teardown
-    declare -f teardown &>/dev/null && { teardown || eerror_stacktrace "Teardown failed." ; }
+    if declare -f teardown &>/dev/null ; then
+        teardown || eerror_stacktrace "Teardown failed."
+    fi
 
     assert_no_process_leaks
 
@@ -105,6 +111,7 @@ test_teardown()
         rm -rf ${TEST_DIR_OUTPUT}/${testfunc}
     fi
 
+    edebug "Finished test_teardown"
     return 0
 }
 
@@ -146,13 +153,6 @@ eend
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
-
-die_handler()
-{
-    edebug "DIE triggered: cleaning up..."
-    global_teardown
-    exit 1
-}
 
 trap - ${DIE_SIGNALS[@]} ERR EXIT
 die_on_abort
