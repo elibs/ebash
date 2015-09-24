@@ -125,11 +125,11 @@ jenkins_update()
     # already there.  (Note: jenkins doesn't have an operation that is
     # idempotent for this -- we have to either try update and then create if it
     # fails or try create and then update if it fails)
-    $(tryrc jenkins -f="${newConfig}" update-${itemType} "${name}")
+    $(tryrc jenkins -f="${newConfig}" update-${itemType} "${name}") &>$(edebug_out)
 
     # If the job didn't exist to update, it must be created
     if [[ ${rc} -eq 50 ]] ; then
-        jenkins -f="${newConfig}" create-${itemType} "${name}"
+        jenkins -f="${newConfig}" create-${itemType} "${name}" &>$(edebug_out)
 
     # If the update passed, we're good!
     elif [[ ${rc} -eq 0 ]] ; then
