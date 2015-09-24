@@ -78,6 +78,13 @@ ETEST_jenkins_create_and_update()
     validate_demo_job
 }
 
+ETEST_jenkins_delete_idempotent()
+{
+    create_demo_job
+    delete_demo_job
+    delete_demo_job
+}
+
 ETEST_jenkins_run_a_build()
 {
     einfo "Creating job to run $(lval DEMO_JOB_NAME)"
