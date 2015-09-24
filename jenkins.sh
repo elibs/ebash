@@ -22,6 +22,44 @@ jenkins_url()
     fi
 }
 
+
+################################################################################
+# This function is used internally by "jenkins" to execute jenkins-cli
+# commands.  While "jenkins" is called once and performs retries,
+# jenkins_internal is run once per attempt.  It's primary function is related
+# to "hooks".
+#
+# Jenkins cli API does a lot of ridiculous things that it would be nice for it
+# not to do.  So we tweak it to work differently.  If a function named
+# "jenkins_<jenkins API command name>_hook"  exists, I'll run it to allow it
+# take care of processing the results.  (NOTE: bash functions names can't have
+# hyphens in them, but jenkins api commands do, so I replace those with
+# underscores)
+#
+# Command hooks should accept three parameters.  Its responsibility is to do
+# what it wants done with these.  Whatever it returns will actually be returned
+# as the result of this command, and whatever it outputs will be output (i.e.
+# the original streams are hidden to this point so that it can decide what to
+# do with them)
+#    $1: Return code of the jenkins command itself
+#    $2: The stdout stream provided by the jenkins cli
+#    $3: The stderr stream provided by the jenkins cli
+#
+# If you'd like to create special return codes (i.e. ones that jenkins wouldn't
+# typically return that perhaps mean something), please choose them from these
+# ranges:
+#
+#   40-49: A specific error occurred which should be retried (document what
+#          near your hook function)
+#   50-59: A specific error occured that should NOT be retried because a
+#          retry won't help the situation.  Again, document what near your
+#          hook function.
+#
+# If you want to do the "default" thing with those three items, call
+# jenkins_internal_end like this:
+#
+#   jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
+#
 jenkins_internal()
 {
     $(declare_args)
@@ -43,57 +81,63 @@ jenkins_internal()
             java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${cmd[@]}")
     fi
 
-    # Jenkins cli API does a lot of ridiculous things that it would be nice for
-    # it not to do.  So we tweak it to work differently.  If a function named
-    # "jenkins_<jenkins API command name>_hook"  exists, I'll run it to allow
-    # it take care of processing the results.  (NOTE: bash functions names
-    # can't have hyphens in them, but jenkins api commands do, so I replace
-    # those with underscores)
-    #
-    # Command hooks should accept three parameters.  Its responsibility is to
-    # do what it wants done with these.  Whatever it returns will actually be
-    # returned as the result of this command, and whatever it outputs will be
-    # output (i.e. the original streams are hidden to this point so that it can
-    # decide what to do with them)
-    #    $1: Return code of the jenkins command itself
-    #    $2: The stdout stream provided by the jenkins cli
-    #    $3: The stderr stream provided by the jenkins cli
-    local hookName="jenkins_${cmd[1]:-}_hook"
+    local hookName="jenkins_${cmd[0]:-}_hook"
     hookName=${hookName//[- ]/_}
 
     if declare -f ${hookName} &>/dev/null ; then
-        edebug "Calling hook for ${cmd[1]} $(lval hookName rc stdout stderr)"
-        ${hookName} rc stdout stderr
-
+        edebug "Calling hook for ${cmd[0]} $(lval hookName rc)"
+        ${hookName} "${rc}" "${stdout}" "${stderr}"
     else
-        echo -n "${stdout}"
-        echo -n "${stderr}" >&2
-        return ${rc}
+        jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
     fi
+    # NOTE: No statements after if block because we rely on the return code
+    # from the final statement executed in each branch of it.
 }
 
-#jenkins_update_job_hook()
-#{
-#    $(declare_args rc stdout stderr)
-#
-#    $(tryrc -e=stderr jenkins_internal -f=${newConfig} update-${itemType} "${name}") >/dev/null
-#
-#    local foundNoSuchJob=0
-#    echo "${stderr}" | grep -Pq '^No such job.*; perhaps you meant' || foundNoSuchJob=$?
-#
-#    edebug "$(lval rc stderr foundNoSuchJob)"
-#
-#    if [[ ${rc} -eq 255 && ${foundNoSuchJob} -eq 0 ]] ; then
-#        return 10
-#    else
-#        return ${rc}
-#    fi
-#}
+# Used by jenkins_internal and its hook mechanism.  See comments inside
+# jenkins_internal
+jenkins_internal_end()
+{
+    $(declare_args rc ?stdout ?stderr)
 
+    edebug "Returning ${rc} as result of jenkins command"
+    echo -n "${stdout}"
+    echo -n "${stderr}" >&2
+    return ${rc}
+}
+
+################################################################################
+# Execute a jenkins-cli command, with automatic timeouts and retries.  For more
+# information on jenkins-cli commands, see the jenkins documentation or run
+# "jenkins help"
+#
+# Note that calls through this function may also be enhanced via hooks.  See
+# documentation on jenkins_internal for more information on how to use them and
+# what they do.
+#
+# Options supported:
+#   -f=<file>:  The specified file will be presented to jenkins-cli on stdin.
+#               Useful for commands like create-job and update-node.
+#
+# Environment variables honored:
+#     JENKINS_RETRIES:
+#       Number of times to retry the command.  Defaults to 20.
+#
+#     JENKINS_TIMEOUT:
+#       How long to wait for the command to succeed.  Note that some commands
+#       legitimately take longer than others. Default is 7s.
+#
+#     JENKINS_WARN_EVERY:
+#       How many attempts to make before spewing a warning that things aren't
+#       working as spected.  Defaults to every 3 attempts, which means warnings
+#       will come out approximately every 21 seconds given the default for
+#       JENKINS_TIMEOUT
+#
 jenkins()
 {
     jenkins_prep_jar
-    eretry -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-5s} -w=${JENKINS_WARN_EVERY:-5} \
+    local nonRetryExitCodes=$(echo 0 {50..59})
+    eretry -e="${nonRetryExitCodes}" -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-7s} -w=${JENKINS_WARN_EVERY:-3} \
         jenkins_internal "${@}"
 }
 
@@ -108,9 +152,8 @@ jenkins_prep_jar()
     if [[ -z ${JENKINS_CLI_JAR:=} || ! -r ${JENKINS_CLI_JAR} ]] ; then
         local tempDir
         tempDir=$(mktemp -d /tmp/jenkins.sh.tmp-XXXXXXXX)
-        efetch "$(jenkins_url)/jnlpJars/jenkins-cli.jar" "${tempDir}" 2> $(edebug_out)
+        efetch "$(jenkins_url)/jnlpJars/jenkins-cli.jar" "${tempDir}" 2>$(edebug_out)
         export JENKINS_CLI_JAR="${tempDir}/jenkins-cli.jar"
-        edebug "Downloaded jenkins-cli.jar: $(ls -l ${JENKINS_CLI_JAR})"
         trap_add "edebug \"Deleting ${JENKINS_CLI_JAR}.\" ; rm -rf \"${tempDir}\""
     fi
 }
@@ -172,13 +215,10 @@ jenkins_update()
     # already there.  (Note: jenkins doesn't have an operation that is
     # idempotent for this -- we have to either try update and then create if it
     # fails or try create and then update if it fails)
-    jenkins_prep_jar
-    $(tryrc \
-        eretry -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-5s} -w=${JENKINS_WARN_EVERY:-5} -e="0 10" \
-        jenkins_update_internal "${newConfig}" "${itemType}" "${name}")
+    $(tryrc jenkins -f="${newConfig}" update-${itemType} "${name}")
 
     # If the job didn't exist to update, it must be created
-    if [[ ${rc} -eq 10 ]] ; then
+    if [[ ${rc} -eq 50 ]] ; then
         jenkins -f="${newConfig}" create-${itemType} "${name}"
 
     # If the update passed, we're good!
@@ -191,26 +231,6 @@ jenkins_update()
 
     fi
 }
-
-# Returns 10 if jenkins_update failed because jenkins didn't find an existing job by that name.
-jenkins_update_internal()
-{
-    $(declare_args newConfig itemType name)
-
-    $(tryrc -e=stderr jenkins_internal -f=${newConfig} update-${itemType} "${name}") >/dev/null
-
-    local foundNoSuchJob=0
-    echo "${stderr}" | grep -Pq '^No such job.*; perhaps you meant' || foundNoSuchJob=$?
-
-    edebug "$(lval rc stderr foundNoSuchJob)"
-
-    if [[ ${rc} -eq 255 && ${foundNoSuchJob} -eq 0 ]] ; then
-        return 10
-    else
-        return ${rc}
-    fi
-}
-
 
 # This is a setvars callback method that properly escapes raw data so that it
 # can be inserted into an xml file
@@ -649,6 +669,143 @@ jenkins_delete_files()
     done
 
     [[ ${#allFiles[@]} -gt 0 ]] && ssh_jenkins "rm -f ${allFiles[@]}" || true
+}
+
+################################################################################
+# jenkins-cli hooks
+
+
+# Called by hooks for update-view, update-job, and update-node to give a
+# specific exit code (50) when the job doesn't exist yet.
+#
+jenkins_update_star_hook()
+{
+    $(declare_args rc ?stdout ?stderr itemType)
+    local foundNoSuchItem=0
+    echo "${stderr}" | grep -Piq "No such ${itemType}.*; perhaps you meant" || foundNoSuchItem=$?
+
+    if [[ ${rc} -eq 255 && ${foundNoSuchItem} -eq 0 ]] ; then
+        stderr="Cannot update ${itemType} as it does not exist."
+        stdout=""
+        rc=50
+    fi
+
+    edebug "$(lval rc itemType foundNoSuchItem)"
+    jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
+}
+
+# see jenkins_update_star_hook
+jenkins_update_job_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "job"
+}
+
+# see jenkins_update_star_hook
+jenkins_update_node_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "node"
+}
+
+# see jenkins_update_star_hook
+jenkins_update_view_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "view"
+}
+
+
+# Called by hooks for get-view, get-job, and get-node.  This is a workaround
+# for our automatic retry behavior.  Sometimes, we get a timeout, but the timed
+# out request has already spewed some or all if its xml.  That job returns a
+# bad exit code (since it timed out), so we retry and run it again.  Assuming
+# that request is successful, we end up with some possibly borked xml followed
+# by good xml.
+#
+# We'd rather have the call always return well-formed xml.  So this hook makes
+# sure to only spew stdout when the exit code was good.  That way we keep
+# retrying until we good a good exit code, and then we get all of the stdout
+# from that (and only that) request.
+#
+jenkins_get_star_hook()
+{
+    $(declare_args rc ?stdout ?stderr itemType)
+
+    # If we returned an error code, don't print stdout, because the "get" calls
+    # expect to return well-formed XML.  We need a single, complete and
+    # successful run for that to work well.
+    if [[ ${rc} -ne 0 ]] ; then
+        edebug "Discarding stdout because exit code from get-${itemType} was bad $(lval rc)"
+        stdout=""
+    fi
+
+    edebug "$(lval rc itemType)"
+    jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
+}
+
+jenkins_get_job_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_get_star_hook ${rc} "${stdout}" "${stderr}" "job"
+}
+
+jenkins_get_node_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_get_star_hook ${rc} "${stdout}" "${stderr}" "node"
+}
+
+jenkins_get_view_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_get_star_hook ${rc} "${stdout}" "${stderr}" "view"
+}
+
+# Called by hooks for delete-view, delete-job, and delete-node.  Jenkins
+# typical behavior for these calls is to _FAIL_ if the job exists.  It would be
+# much easier to deal with if it was more idempotent.  So this hook makes it so.
+#
+# The original design makes life difficult with our automatic timeout and
+# reties.  Sometimes we'll time out a request and fail it, but jenkins will
+# still honor it because it got far enough to tell the server what to do.  But
+# that request is marked as a local failure because of the time out.  Then all
+# of the subsequent retries fail because the job doesn't exist.  BAH.
+#
+# This hook makes the call appear successful if the job doesn't exist.
+#
+jenkins_delete_star_hook()
+{
+    $(declare_args rc ?stdout ?stderr itemType)
+
+    local foundNoSuchItem=0
+    echo "${stderr}" | grep -Pi "No such ${itemType}.* exists. Perhaps you meant" || foundNoSuchItem=$?
+
+    if [[ ${rc} -eq 1 && ${foundNoSuchItem} -eq 0 ]] ; then
+        edebug "Detected that item is already gone.  Marking jenkins get-${itemType} request as successful."
+        stderr=""
+        stdout=""
+        rc=0
+    fi
+
+    edebug "$(lval rc itemType foundNoSuchItem)"
+    jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
+}
+
+jenkins_delete_job_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_delete_star_hook ${rc} "${stdout}" "${stderr}" "job"
+}
+jenkins_delete_node_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_delete_star_hook ${rc} "${stdout}" "${stderr}" "node"
+}
+jenkins_delete_view_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_delete_star_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
 return 0
