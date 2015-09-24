@@ -66,11 +66,9 @@ ETEST_jenkins_create_and_update()
     {
         einfo "Validating job contents"
         local jobXml=$(jenkins get-job ${DEMO_JOB_NAME})
-        edebug "Retrieved job as XML:"
-        edebug "${jobXml}"
-        edebug "End job description"
         echo "${jobXml}" | assert xmlstarlet val - >/dev/null
         echo "${jobXml}" | assert grep ${DEMO_JOB_NAME} >/dev/null
+        echo "${jobXml}" | assert grep PARAM >/dev/null
     }
 
     validate_demo_job
