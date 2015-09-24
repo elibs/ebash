@@ -85,6 +85,31 @@ ETEST_jenkins_delete_idempotent()
     delete_demo_job
 }
 
+ETEST_jenkins_delete_missing()
+{
+    for type in job node view ; do
+        einfo "Trying to delete a non-existent ${type}"
+        jenkins delete-${type} this-${type}-doesnt-exist-$$
+    done
+}
+
+ETEST_jenkins_update_missing()
+{
+    for type in job node view ; do
+        einfo "Trying to update a non-existent job, expecting return code 50"
+        $(tryrc jenkins update-${type} this-${type}-doesnt-exist-$$)
+        assert_eq 50 ${rc} "update-${type} return code"
+    done
+}
+
+ETEST_jenkins_create_preexisting_job()
+{
+    einfo "Trying to create a job that already exists"
+    jobName=$(jenkins list-jobs | head -n 1)
+    $(tryrc jenkins create-job ${jobName})
+    assert_eq 50 ${rc} "create-job return code"
+}
+
 ETEST_jenkins_run_a_build()
 {
     einfo "Creating job to run $(lval DEMO_JOB_NAME)"
