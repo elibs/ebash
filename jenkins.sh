@@ -681,7 +681,7 @@ jenkins_create_star_hook()
     local alreadyExists=0
     echo "${stderr}" | grep -Piq "${itemType} .* already exists" || alreadyExists=$?
 
-    if [[ ${rc} -eq 255 ]] && ${alreadyExists} -eq 0 ]] ; then
+    if [[ ${rc} -ne 0 && ${alreadyExists} -eq 0 ]] ; then
         stderr="Cannot create ${itemType} as it already exists."
         stdout=""
         rc=50
@@ -692,22 +692,22 @@ jenkins_create_star_hook()
 }
 
 # see jenkins_create_star_hook
-jenkins_update_job_hook()
+jenkins_create_job_hook()
 {
     $(declare_args rc ?stdout ?stderr)
-    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "job"
+    jenkins_create_star_hook ${rc} "${stdout}" "${stderr}" "job"
 }
 # see jenkins_create_star_hook
-jenkins_update_node_hook()
+jenkins_create_node_hook()
 {
     $(declare_args rc ?stdout ?stderr)
-    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "node"
+    jenkins_create_star_hook ${rc} "${stdout}" "${stderr}" "node"
 }
 # see jenkins_create_star_hook
-jenkins_update_view_hook()
+jenkins_create_view_hook()
 {
     $(declare_args rc ?stdout ?stderr)
-    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "view"
+    jenkins_create_star_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
 
@@ -718,7 +718,20 @@ jenkins_update_star_hook()
 {
     $(declare_args rc ?stdout ?stderr itemType)
     local foundNoSuchItem=0
-    echo "${stderr}" | grep -Piq "No such ${itemType}.*; perhaps you meant" || foundNoSuchItem=$?
+
+    local regex
+    case ${itemType} in
+        job)
+            regex="No such job.*; perhaps you meant" ;;
+        view)
+            regex="No view named .* inside view Jenkins" ;;
+        node)
+            regex="No such node" ;;
+        *)
+            die "Unsupported item type ${itemType}"
+    esac
+
+    echo "${stderr}" | grep -Piq "${regex}" || foundNoSuchItem=$?
 
     if [[ ${rc} -eq 255 && ${foundNoSuchItem} -eq 0 ]] ; then
         stderr="Cannot update ${itemType} as it does not exist."
@@ -814,10 +827,22 @@ jenkins_delete_star_hook()
 {
     $(declare_args rc ?stdout ?stderr itemType)
 
-    local foundNoSuchItem=0
-    echo "${stderr}" | grep -Pi "No such ${itemType}.* exists. Perhaps you meant" || foundNoSuchItem=$?
+    local regex
+    case ${itemType} in
+        job)
+            regex="No such job.* exists. Perhaps you meant" ;;
+        view)
+            regex="No view named .* inside view Jenkins" ;;
+        node)
+            regex="No such slave .* exists. Did you mean" ;;
+        *)
+            die "Unsupported item type ${itemType}"
+    esac
 
-    if [[ ${rc} -eq 1 && ${foundNoSuchItem} -eq 0 ]] ; then
+    local foundNoSuchItem=0
+    echo "${stderr}" | grep -Piq "${regex}" || foundNoSuchItem=$?
+
+    if [[ ${rc} -ne 0 && ${foundNoSuchItem} -eq 0 ]] ; then
         edebug "Detected that item is already gone.  Marking jenkins get-${itemType} request as successful."
         stderr=""
         stdout=""
