@@ -276,7 +276,6 @@ tryrc()
     local stdout_pipe="${tmpdir}/stdout"
     mkfifo "${stdout_pipe}"
     (
-        trap_add "exit 0"
         local stdout=$(pipe_read_quote ${stdout_pipe})
         if [[ -n ${stdout_out} ]]; then
             echo eval "declare ${dflags} ${stdout_out}=${stdout};"
@@ -296,8 +295,7 @@ tryrc()
         stderr_pipe="${tmpdir}/stderr"
         mkfifo "${stderr_pipe}"
 
-        ( 
-            trap_add "exit 0"
+        (
             local stderr="$(pipe_read_quote ${stderr_pipe})"
             echo eval "declare ${dflags} ${stderr_out}=${stderr};"
         ) &
@@ -320,7 +318,10 @@ tryrc()
     }
 
     # Wait for the above backgrounded processes to complete.
-    wait ${stdout_pid} ${stderr_pid}
+    # NOTE: Ignore all stderr and stdout and the return code because we are NOT
+    #       interested in failures due to premature termination of the backgrounded
+    #       stdout/stderr pipe reading processes.
+    wait ${stdout_pid} ${stderr_pid} &>/dev/null || true
 
     # Finally we can emit the code the caller needs to execute to set the return code.
     echo eval "declare ${dflags} ${rc_out}=${rc};"
@@ -2321,6 +2322,15 @@ netselect()
 #   will cause eretry to stop.  If you specify -e, you should consider whether
 #   you want to include 0 in the list.
 #
+# -i (0|1) (default=0)
+#   Ignore signals which would otherwise cause the underlying command to abort 
+#   and eretry to stop retrying. If this is 0 (the default) signals are NOT ignored
+#   and any signal received by the command will be interpreted as a failure but 
+#   we'll stop iterating even if we haven't reached max retry count. The intention
+#   for this functionality is if the process receives a signal, e.g. SIGINT by 
+#   pressing Control-C it is likely intended for the top-level process not the 
+#   process we're iterating on.
+#
 # -r RETRIES=<number>
 #   Command will be attempted <number> times total.
 #
@@ -2329,7 +2339,6 @@ netselect()
 #   the signal to send to the process to make it stop.  The default is TERM.
 #   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
 #   signal doesn't do its job]
-#
 #
 # -t TIMEOUT. After this duration, command will be killed (and retried if that's the
 #   right thing to do).  If unspecified, commands may run as long as they like
@@ -2353,16 +2362,12 @@ eretry()
     $(declare_args)
     local _eretry_delay=$(opt_get d 0)
     local _eretry_exit_codes=$(opt_get e 0)
+    local _eretry_ignore_signals=$(opt_get i 0)
     local _eretry_retries=$(opt_get r 5)
     local _eretry_signal=$(opt_get s SIGTERM)
     local _eretry_timeout=$(opt_get t "")
     local _eretry_warn=$(opt_get w 0)
     [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
-
-    # Convert signal name to number so we can use it's numerical value
-    if [[ ! ${_eretry_signal} =~ ^[[:digit:]]$ ]]; then
-        _eretry_signal=$(kill -l ${_eretry_signal})
-    fi
 
     # Command
     local cmd=("${@}")
@@ -2383,13 +2388,24 @@ eretry()
             (
                 nodie_on_error
                 die_on_abort
+
+                # Sleep for the requested timeout. If process isn't running
+                # then it exited on it's own and we don't have to kill it. In
+                # this case exit with 0.
                 sleep ${_eretry_timeout}
                 process_running ${pid} || exit 0
 
-                kill -${_eretry_signal} ${pid}
+                # Process did not exit on it's own. Send it the intial requested
+                # signal. If it exits now, then exit with 1 so we know it stopped
+                # as requested by timeout.
+                ekilltree -s=${_eretry_signal} ${pid}
                 sleep 2
-                process_running ${pid} || exit ${_eretry_signal}
-                kill -SIGKILL ${pid}
+                process_running ${pid} || exit 1
+
+                # If the process still didn't exit with requested signal then send
+                # more forceful SIGKILL and exit with 1.
+                ekilltree -s=KILL ${pid}
+                exit 1
 
             ) &>/dev/null &
 
@@ -2398,18 +2414,31 @@ eretry()
             local watcher=$!
             wait ${pid} && rc=0 || rc=$?
             ekilltree -SIGKILL ${watcher} &>/dev/null || true
-            wait ${watcher}               &>/dev/null || true
+            wait ${watcher}               &>/dev/null && watcher_rc=0 || watcher_rc=$?
 
             # If the process timedout return 124 to match timeout behavior.
-            local timeout_rc=$(( 128 + ${_eretry_signal} ))
-            [[ ${rc} -eq ${timeout_rc} ]] && rc=124
-
+            if [[ ${watcher_rc} -eq 1 ]]; then
+                rc=124
+            fi
         else
             $(tryrc "${cmd[@]}")
         fi
+
+        # Append list of exit codes we've seen
         exit_codes+=(${rc})
 
-        echo "${_eretry_exit_codes}" | grep -wq "${rc}" && break
+        # Break if the process exited with white listed exit code.
+        if echo "${_eretry_exit_codes}" | grep -wq "${rc}"; then
+            edebug "Command exited with white listed $(lval exitcode=rc exit_codes=_eretry_exit_codes). $(lval attempt cmd)"
+            break
+        fi
+
+        # Break if the process exited due do a signal and we're not ignoring signals.
+        if [[ ${_eretry_ignore_signals} -eq 0 && ${rc} -gt 128 && ${rc} -lt 255 ]]; then
+            local signal=$(( rc - 128 ))
+            edebug "Command interrupted due to $(lval signal). Aborting. $(lval attempt cmd)"
+            break
+        fi
 
         [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
             && ewarn "Command has failed $((attempt+1)) times. Retrying: $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"

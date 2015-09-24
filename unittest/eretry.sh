@@ -66,15 +66,18 @@ ETEST_eretry_hang()
     eretry -t=1s -r=0 sleep infinity && die "eretry should abort" || assert_eq 124 $?
 }
 
-block_sigterm_and_sleep_forever()
+ETEST_eretry_hang_block_sigterm()
 {
-    trap '' SIGTERM
-    sleep infinity
-}
+    block_sigterm_and_sleep_forever()
+    {
+        die_on_abort
+        trap '' SIGTERM
+        sleep infinity
+    }
 
-ETEST_eretry_ignore_signal()
-{
-    eretry -t=1s -r=1 block_sigterm_and_sleep_forever && die "eretry should abort" || assert_eq 137 $?
+    $(tryrc eretry -t=1s -r=1 block_sigterm_and_sleep_forever)
+    einfo "eretry completed with $(lval rc)"
+    assert_eq 124 $rc
 }
 
 ETEST_eretry_multiple_commands()
@@ -100,7 +103,89 @@ ETEST_eretry_alternate_exit_code()
     $(tryrc eretry -e=15 fail_then_pass 10 tmpfile)
     assert_eq 15 ${rc} "return code"
     assert_eq 1 "$(cat tmpfile)" "number of attempts"
-
 }
 
+do_sleep()
+{
+    local ticks=$(cat child.ticks || true)
+    (( ticks += 1 ))
+    
+    echo ${BASHPID}  > child.pid
+    echo ${ticks}    > child.ticks
+    sleep infinity
+}
+
+ETEST_eretry_ignore_signals_off()
+{
+    rm -f child.pid
+    rm -f child.ticks
+    echo -n "0" > child.ticks
+
+    eretry -t=infinity -r=2 do_sleep &
+    local retry_pid=$!
+   
+    # Wait for pid to be there
+    einfo "Waiting for child.pid"
+    until [[ -s child.pid ]]; do
+        sleep 1
+    done
+
+    local sleep_pid=$(cat child.pid)
+    einfo "$(lval retry_pid sleep_pid)"
+
+    # Send SIGTERM to process inside eretry
+    ekilltree -s=SIGTERM ${sleep_pid}
+  
+    # Wait for sleep process to abort and retry process to abort
+    eprogress "Waiting for eretry process to stop"
+    wait ${retry_pid} || true
+    eprogress_kill
+
+    assert process_not_running ${sleep_pid}
+    assert process_not_running ${retry_pid}
+
+    # Should have only run 1 time
+    assert_eq 1 $(cat child.ticks)
+}   
+
+ETEST_eretry_ignore_signals_on()
+{
+    rm -f child.pid
+    rm -f child.ticks
+    echo -n "0" > child.ticks
+
+    local respawns=2
+    eretry -t=infinity -r=${respawns} -i do_sleep &
+    local retry_pid=$!
+   
+    local tries
+    for (( tries=0; tries<${respawns}; tries++ )); do
+
+        # Wait for pid to be there
+        einfo "Waiting for child.pid"
+        until [[ -s child.pid ]]; do
+            sleep 1
+        done
+
+        local sleep_pid=$(cat child.pid)
+        einfo "$(lval retry_pid sleep_pid)"
+
+        # Send SIGTERM to process inside eretry
+        ekilltree -s=SIGTERM ${sleep_pid}
+
+        # Sleep between intervals to give process a chance to respawn
+        sleep 1
+    done
+
+    # Wait for sleep process to abort and retry process to abort
+    eprogress "Waiting for eretry process to stop"
+    wait ${retry_pid} || true
+    eprogress_kill
+
+    assert process_not_running ${sleep_pid}
+    assert process_not_running ${retry_pid}
+
+    # Should have only run 1 time
+    assert_eq ${respawns} $(cat child.ticks)
+}   
 
