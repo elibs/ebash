@@ -79,6 +79,13 @@ ETEST_jenkins_create_and_update()
     einfo "Updating job."
     create_demo_job
     validate_demo_job
+
+    # Also verify that the create-job hook correctly identifies when it's
+    # trying to create a job that already exists with a specific error code of
+    # 50
+    einfo "Verifing that jenkins-cli create-job returns code 50 when attempting to create a job that already exists."
+    $(tryrc jenkins create-job ${DEMO_JOB_NAME})
+    assert_eq 50 ${rc} "create-job return code"
 }
 
 ETEST_jenkins_delete_idempotent()
