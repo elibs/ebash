@@ -22,90 +22,6 @@ jenkins_url()
     fi
 }
 
-
-################################################################################
-# This function is used internally by "jenkins" to execute jenkins-cli
-# commands.  While "jenkins" is called once and performs retries,
-# jenkins_internal is run once per attempt.  It's primary function is related
-# to "hooks".
-#
-# Jenkins cli API does a lot of ridiculous things that it would be nice for it
-# not to do.  So we tweak it to work differently.  If a function named
-# "jenkins_<jenkins API command name>_hook"  exists, I'll run it to allow it
-# take care of processing the results.  (NOTE: bash functions names can't have
-# hyphens in them, but jenkins api commands do, so I replace those with
-# underscores)
-#
-# Command hooks should accept three parameters.  Its responsibility is to do
-# what it wants done with these.  Whatever it returns will actually be returned
-# as the result of this command, and whatever it outputs will be output (i.e.
-# the original streams are hidden to this point so that it can decide what to
-# do with them)
-#    $1: Return code of the jenkins command itself
-#    $2: The stdout stream provided by the jenkins cli
-#    $3: The stderr stream provided by the jenkins cli
-#
-# If you'd like to create special return codes (i.e. ones that jenkins wouldn't
-# typically return that perhaps mean something), please choose them from these
-# ranges:
-#
-#   40-49: A specific error occurred which should be retried (document what
-#          near your hook function)
-#   50-59: A specific error occured that should NOT be retried because a
-#          retry won't help the situation.  Again, document what near your
-#          hook function.
-#
-# If you want to do the "default" thing with those three items, call
-# jenkins_internal_end like this:
-#
-#   jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
-#
-jenkins_internal()
-{
-    $(declare_args)
-
-    local filename=$(opt_get f)
-    local cmd=( "${@}" )
-    local rc=0
-
-    [[ $(array_size cmd) -eq 0 ]] && cmd=("")
-
-    edebug "$(lval cmd filename) $(ls -ltr ${filename})"
-
-    # Execute jenkins API command
-    if [[ -n ${filename:-} ]] ; then
-        $(tryrc -o=stdout -e=stderr \
-            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${cmd[@]}" < "${filename}")
-    else
-        $(tryrc -o=stdout -e=stderr \
-            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${cmd[@]}")
-    fi
-
-    local hookName="jenkins_${cmd[0]:-}_hook"
-    hookName=${hookName//[- ]/_}
-
-    if declare -f ${hookName} &>/dev/null ; then
-        edebug "Calling hook for ${cmd[0]} $(lval hookName rc)"
-        ${hookName} "${rc}" "${stdout}" "${stderr}"
-    else
-        jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
-    fi
-    # NOTE: No statements after if block because we rely on the return code
-    # from the final statement executed in each branch of it.
-}
-
-# Used by jenkins_internal and its hook mechanism.  See comments inside
-# jenkins_internal
-jenkins_internal_end()
-{
-    $(declare_args rc ?stdout ?stderr)
-
-    edebug "Returning ${rc} as result of jenkins command"
-    echo -n "${stdout}"
-    echo -n "${stderr}" >&2
-    return ${rc}
-}
-
 ################################################################################
 # Execute a jenkins-cli command, with automatic timeouts and retries.  For more
 # information on jenkins-cli commands, see the jenkins documentation or run
@@ -139,12 +55,6 @@ jenkins()
     local nonRetryExitCodes=$(echo 0 {50..59})
     eretry -e="${nonRetryExitCodes}" -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-7s} -w=${JENKINS_WARN_EVERY:-3} \
         jenkins_internal "${@}"
-}
-
-jenkins_no_retry()
-{
-    jenkins_prep_jar
-    jenkins_internal "${@}"
 }
 
 jenkins_prep_jar()
@@ -672,8 +582,90 @@ jenkins_delete_files()
 }
 
 ################################################################################
-# jenkins-cli hooks
+# This function is used internally by "jenkins" to execute jenkins-cli
+# commands.  While "jenkins" is called once and performs retries,
+# jenkins_internal is run once per attempt.  It's primary function is related
+# to "hooks".
+#
+# Jenkins cli API does a lot of ridiculous things that it would be nice for it
+# not to do.  So we tweak it to work differently.  If a function named
+# "jenkins_<jenkins API command name>_hook"  exists, I'll run it to allow it
+# take care of processing the results.  (NOTE: bash functions names can't have
+# hyphens in them, but jenkins api commands do, so I replace those with
+# underscores)
+#
+# Command hooks should accept three parameters.  Its responsibility is to do
+# what it wants done with these.  Whatever it returns will actually be returned
+# as the result of this command, and whatever it outputs will be output (i.e.
+# the original streams are hidden to this point so that it can decide what to
+# do with them)
+#    $1: Return code of the jenkins command itself
+#    $2: The stdout stream provided by the jenkins cli
+#    $3: The stderr stream provided by the jenkins cli
+#
+# If you'd like to create special return codes (i.e. ones that jenkins wouldn't
+# typically return that perhaps mean something), please choose them from these
+# ranges:
+#
+#   40-49: A specific error occurred which should be retried (document what
+#          near your hook function)
+#   50-59: A specific error occured that should NOT be retried because a
+#          retry won't help the situation.  Again, document what near your
+#          hook function.
+#
+# If you want to do the "default" thing with those three items, call
+# jenkins_internal_end like this:
+#
+#   jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
+#
+jenkins_internal()
+{
+    $(declare_args)
 
+    local filename=$(opt_get f)
+    local cmd=( "${@}" )
+    local rc=0
+
+    [[ $(array_size cmd) -eq 0 ]] && cmd=("")
+
+    edebug "$(lval cmd filename) $(ls -ltr ${filename})"
+
+    # Execute jenkins API command
+    if [[ -n ${filename:-} ]] ; then
+        $(tryrc -o=stdout -e=stderr \
+            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${cmd[@]}" < "${filename}")
+    else
+        $(tryrc -o=stdout -e=stderr \
+            java -jar "${JENKINS_CLI_JAR}" -s $(jenkins_url) "${cmd[@]}")
+    fi
+
+    local hookName="jenkins_${cmd[0]:-}_hook"
+    hookName=${hookName//[- ]/_}
+
+    if declare -f ${hookName} &>/dev/null ; then
+        edebug "Calling hook for ${cmd[0]} $(lval hookName rc)"
+        ${hookName} "${rc}" "${stdout}" "${stderr}"
+    else
+        jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
+    fi
+    # NOTE: No statements after if block because we rely on the return code
+    # from the final statement executed in each branch of it.
+}
+
+# Used by jenkins_internal and its hook mechanism.  See comments inside
+# jenkins_internal
+jenkins_internal_end()
+{
+    $(declare_args rc ?stdout ?stderr)
+
+    edebug "Returning ${rc} as result of jenkins command"
+    echo -n "${stdout}"
+    echo -n "${stderr}" >&2
+    return ${rc}
+}
+
+################################################################################
+# jenkins-cli hooks
 
 # Called by hooks for update-view, update-job, and update-node to give a
 # specific exit code (50) when the job doesn't exist yet.
