@@ -2311,6 +2311,26 @@ netselect()
 # happens the return code of eretry will be 137 (128+SIGKILL).
 #
 # OPTIONS:
+# -d DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
+#   Note that this value can accept sub-second values, just as the sleep command does.
+#
+# -e <space separated list of numbers>
+#   Any of the exit codes specified in this list will cause eretry to stop
+#   retrying. If eretry receives one of these codes, it will immediately stop
+#   retrying and return that exit code.  By default, only a zero return code
+#   will cause eretry to stop.  If you specify -e, you should consider whether
+#   you want to include 0 in the list.
+#
+# -r RETRIES=<number>
+#   Command will be attempted <number> times total.
+#
+# -s SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
+#   When ${TIMEOUT} seconds have passed since running the command, this will be
+#   the signal to send to the process to make it stop.  The default is TERM.
+#   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
+#   signal doesn't do its job]
+#
+#
 # -t TIMEOUT. After this duration, command will be killed (and retried if that's the
 #   right thing to do).  If unspecified, commands may run as long as they like
 #   and eretry will simply wait for them to finish.
@@ -2320,28 +2340,9 @@ netselect()
 #   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
 #   days, respectively.
 #
-# -d DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
-#   Note that this value can accept sub-second values, just as the sleep command does.
-#
-# -s SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
-#   When ${TIMEOUT} seconds have passed since running the command, this will be
-#   the signal to send to the process to make it stop.  The default is TERM.
-#   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
-#   signal doesn't do its job]
-#
-# -r RETRIES=<number>
-#   Command will be attempted <number> times total.
-#
 # -w WARN=<number>
 #   A warning will be generated every time <number> of retries have been
 #   attemped and failed.
-#
-# -e <space separated list of numbers>
-#   Any of the exit codes specified in this list will cause eretry to stop
-#   retrying. If eretry receives one of these codes, it will immediately stop
-#   retrying and return that exit code.  By default, only a zero return code
-#   will cause eretry to stop.  If you specify -e, you should consider whether
-#   you want to include 0 in the list.
 #
 # All direct parameters to eretry are assumed to be the command to execute, and
 # eretry is careful to retain your quoting.
@@ -2350,12 +2351,12 @@ eretry()
 {
     # Parse options
     $(declare_args)
-    local _eretry_timeout=$(opt_get t "")
     local _eretry_delay=$(opt_get d 0)
-    local _eretry_signal=$(opt_get s SIGTERM)
-    local _eretry_retries=$(opt_get r 5)
-    local _eretry_warn=$(opt_get w 0)
     local _eretry_exit_codes=$(opt_get e 0)
+    local _eretry_retries=$(opt_get r 5)
+    local _eretry_signal=$(opt_get s SIGTERM)
+    local _eretry_timeout=$(opt_get t "")
+    local _eretry_warn=$(opt_get w 0)
     [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
 
     # Convert signal name to number so we can use it's numerical value
