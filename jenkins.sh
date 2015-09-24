@@ -667,6 +667,50 @@ jenkins_internal_end()
 ################################################################################
 # jenkins-cli hooks
 
+# Called by hooks for create-view, create-job, and create-node in order to make
+# them more idempotent.  We hit problems when we try to create a job but then
+# percieve it locally to time out and the server perceives it to complete.
+#
+# This causes create-view, create-job, and create-node to return 50 when they
+# try to create one but it already exists.
+#
+jenkins_create_star_hook()
+{
+    $(declare_args rc ?stdout ?stderr itemType)
+
+    local alreadyExists=0
+    echo "${stderr}" | grep -Piq "${itemType} .* already exists" || alreadyExists=$?
+
+    if [[ ${rc} -eq 255 ]] && ${alreadyExists} -eq 0 ]] ; then
+        stderr="Cannot create ${itemType} as it already exists."
+        stdout=""
+        rc=50
+    fi
+
+    edebug "$(lval rc itemType alreadyExists)"
+    jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
+}
+
+# see jenkins_create_star_hook
+jenkins_update_job_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "job"
+}
+# see jenkins_create_star_hook
+jenkins_update_node_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "node"
+}
+# see jenkins_create_star_hook
+jenkins_update_view_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "view"
+}
+
+
 # Called by hooks for update-view, update-job, and update-node to give a
 # specific exit code (50) when the job doesn't exist yet.
 #
