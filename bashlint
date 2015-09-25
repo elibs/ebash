@@ -28,8 +28,10 @@ fail()
 # Also checks some stylistic issues for consistent coding.
 ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
-    [[ ${fname: -4} == ".swp" ]] && continue
  
+    # If this is a binary file or a swp file skip it
+    file ${filename} | grep -q ELF || [[ ${fname: -4} == ".swp" ]] && continue
+
     # Never do any further parsing on our own file since they would all 
     # be false positives
     [[ ${fname} == "$0" ]] && continue
