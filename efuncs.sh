@@ -271,12 +271,27 @@ tryrc()
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
     trap_add "rm -rf ${tmpdir}"
 
+    # We're creating an "eval command string" inside the command substitution
+    # that the caller is supposed to wrap around tryrc.
+    #
+    # Command substitution really can only run one big command.  In other
+    # words, everything after the first command inside it is passed as an
+    # argument to the first command.  But you can separate multiple commands by
+    # semicolons inside an eval, so we put an eval around the entire output of
+    # tryrc.
+    #
+    # Later you'll see we also put eval around the inside commands.  We
+    # basically quote everything twice and then make up for it by eval-ing
+    # everything twice in order to convince everything to keep whitespace as it
+    # is.
+    echo eval
+
     # STDOUT: Create FIFO for stdout and then background a process to read from 
     # the stdout fifo and emit the necessary commands the caller must invoke.
     local stdout_pipe="${tmpdir}/stdout"
     mkfifo "${stdout_pipe}"
     (
-        local stdout=$(pipe_read_quote ${stdout_pipe})
+        local stdout="$(pipe_read_quote ${stdout_pipe})"
         if [[ -n ${stdout_out} ]]; then
             echo eval "declare ${dflags} ${stdout_out}=${stdout};"
         else
