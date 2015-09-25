@@ -27,7 +27,7 @@ fail()
 # strictness checks that we have found to be sources of really subtle problems.
 # Also checks some stylistic issues for consistent coding.
 ebanner "Validating bash scripts" PATHS
-for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
+for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     [[ ${fname: -4} == ".swp" ]] && continue
  
     # Never do any further parsing on our own file since they would all 
@@ -54,13 +54,9 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} ); do
     echo "${CONTENTS}" | egrep "(:|)/usr/local/share/bashutils(:|/|\"|$)" \
         && fail "Non-versioned bashutils"
 
-    # Consistent bash source quoting
-    echo "${CONTENTS}" | egrep '^(source|esource) "' \
-        && fail "Quoting sourced files"
-
-    # Ensure proper $(esource ...)
-    echo "${CONTENTS}" | grep -P '^\s*esource\b' \
-        && fail "Deprecated esource syntax"
+    # Ensure not using removed $(esource ...)
+    echo "${CONTENTS}" | egrep '\s*\$\(esource ' \
+        && fail "Using removed esource function"
     
     # Ensure not using removed declare_globals or delcare_exports
     echo "${CONTENTS}" | egrep '(declare_globals|declare_exports)' \

@@ -175,7 +175,7 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
         # Skip files that don't contain any tests
         grep -q "^ETEST_" ${testfile} >/dev/null || continue
 
-        $(esource ${testfile})
+        source ${testfile}
 
         # Ensure proper shebang is in the unit test or else bashlint won't be able to validate it
         # and it may not be a proper bash unit test
