@@ -2483,7 +2483,7 @@ eretry()
         # on any errors. The reason for this is any caller who cares about the output of
         # eretry might see part of the output if the process times out. If we just keep
         # emitting that output they'd be getting repeated output from failed attempts
-        # whould could be completely invalid output (e.g. truncated XML, Json, etc).
+        # which could be completely invalid output (e.g. truncated XML, Json, etc).
         stdout=""
         $(tryrc -o=stdout etimeout -t=${_eretry_timeout} -s=${_eretry_signal} "${cmd[@]}")
         
