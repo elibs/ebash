@@ -2316,6 +2316,97 @@ netselect()
     echo -en "${best}"
 }
 
+# etimeout executes arbitrary shell commands for you, enforcing a timeout around the
+# command.  If the command eventually completes successfully etimeout will return 0.
+# Otherwise if it is prematurely terminated via the requested SIGNAL it will return
+# 124 to match behavior with the vanilla timeout(1) command. If the process fails to
+# exit after receiving requested signal it will send SIGKILL to the process. If this
+# happens the return code of etimeout will still be 124 since we rely on that return
+# code to indicate that a process timedout and was prematurely terminated.
+#
+# This function is similar in purpose to the vanilla timeout(1) command only this
+# one is more powerful since it can call any arbitrary shell command including
+# bash functions or eval'd strings.
+#
+# OPTIONS:
+# -s SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
+#   When ${TIMEOUT} seconds have passed since running the command, this will be
+#   the signal to send to the process to make it stop.  The default is TERM.
+#   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
+#   signal doesn't do its job]
+#
+# -t TIMEOUT. After this duration, command will be killed (and retried if that's the
+#   right thing to do).  If unspecified, commands may run as long as they like
+#   and eretry will simply wait for them to finish.
+#
+#   If it's a simple number, the duration will be a number in seconds.  You may
+#   also specify suffixes in the same format the timeout command accepts them.
+#   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
+#   days, respectively.
+#
+# All direct parameters to etimeout are assumed to be the command to execute, and
+# etimeout is careful to retain your quoting.
+etimeout()
+{
+    # Parse options
+    $(declare_args)
+    local _etimeout_signal=$(opt_get s SIGTERM)
+    local _etimeout_timeout=$(opt_get t "")
+    argcheck _etimeout_timeout
+
+    # Background the command to be run
+    local start=${SECONDS}
+    local cmd=("${@}")
+    local rc=""
+    "${cmd[@]}" &
+    local pid=$!
+
+    # Log what's happening
+    edebug "Executing $(lval cmd _etimeout_timeout _etimeout_signal pid)"
+ 
+    # Start watchdog process to kill process if it times out
+    (
+        nodie_on_error
+        die_on_abort
+
+        # Sleep for the requested timeout. If process isn't running
+        # then it exited on it's own and we don't have to kill it. In
+        # this case exit with 0.
+        sleep ${_etimeout_timeout}
+        process_running ${pid} || exit 0
+
+        # Process did not exit on it's own. Send it the intial requested
+        # signal. If it exits now, then exit with 1 so we know it stopped
+        # as requested by timeout.
+        ekilltree -s=${_etimeout_signal} ${pid}
+        sleep 2
+        process_running ${pid} || exit 1
+
+        # If the process still didn't exit with requested signal then send
+        # more forceful SIGKILL and exit with 1.
+        ekilltree -s=KILL ${pid}
+        exit 1
+
+    ) &>/dev/null &
+
+    # Wait for pid which will either be KILLED by watcher or complete normally.
+    local watcher=$!
+    wait ${pid} && rc=0 || rc=$?
+    ekilltree -SIGKILL ${watcher} &>/dev/null || true
+    wait ${watcher}               &>/dev/null && watcher_rc=0 || watcher_rc=$?
+    local stop=${SECONDS}
+    local seconds=$(( ${stop} - ${start} ))
+    
+    # If the process timedout return 124 to match timeout behavior.
+    if [[ ${watcher_rc} -eq 1 ]]; then
+        edebug "Process timed out $(lval cmd rc seconds _etimeout_timeout _etimeout_signal pid)"
+        return 124
+    else
+        edebug "Process completed $(lval cmd rc seconds _etimeout_timeout _etimeout_signal pid)"
+        return ${rc}
+    fi
+}
+
 # eretry executes arbitrary shell commands for you, enforcing a timeout in
 # seconds and retrying up to a specified count.  If the command is successful,
 # retries stop.  If not, eretry will "die".
@@ -2380,71 +2471,35 @@ eretry()
     local _eretry_ignore_signals=$(opt_get i 0)
     local _eretry_retries=$(opt_get r 5)
     local _eretry_signal=$(opt_get s SIGTERM)
-    local _eretry_timeout=$(opt_get t "")
+    local _eretry_timeout=$(opt_get t infinity)
     local _eretry_warn=$(opt_get w 0)
     [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
 
     # Command
     local cmd=("${@}")
-
-    # Tries
     local attempt=0
     local rc=""
     local exit_codes=()
+    local stdout=""
+
     for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
-        edebug "$(lval attempt rc cmd)"
+    
+        edebug "$(lval attempt rc cmd stdout)"
 
-        if [[ -n ${_eretry_timeout} ]] ; then
-
-            "${cmd[@]}" &
-            local pid=$!
-
-            # Start watchdog process to kill it if it timesout
-            (
-                nodie_on_error
-                die_on_abort
-
-                # Sleep for the requested timeout. If process isn't running
-                # then it exited on it's own and we don't have to kill it. In
-                # this case exit with 0.
-                sleep ${_eretry_timeout}
-                process_running ${pid} || exit 0
-
-                # Process did not exit on it's own. Send it the intial requested
-                # signal. If it exits now, then exit with 1 so we know it stopped
-                # as requested by timeout.
-                ekilltree -s=${_eretry_signal} ${pid}
-                sleep 2
-                process_running ${pid} || exit 1
-
-                # If the process still didn't exit with requested signal then send
-                # more forceful SIGKILL and exit with 1.
-                ekilltree -s=KILL ${pid}
-                exit 1
-
-            ) &>/dev/null &
-
-            # Wait for the pid which will either be KILLED by the watcher
-            # or complete normally.
-            local watcher=$!
-            wait ${pid} && rc=0 || rc=$?
-            ekilltree -SIGKILL ${watcher} &>/dev/null || true
-            wait ${watcher}               &>/dev/null && watcher_rc=0 || watcher_rc=$?
-
-            # If the process timedout return 124 to match timeout behavior.
-            if [[ ${watcher_rc} -eq 1 ]]; then
-                rc=124
-            fi
-        else
-            $(tryrc "${cmd[@]}")
-        fi
-
+        # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
+        # on any errors. The reason for this is any caller who cares about the output of
+        # eretry might see part of the output if the process times out. If we just keep
+        # emitting that output they'd be getting repeated output from failed attempts
+        # whould could be completely invalid output (e.g. truncated XML, Json, etc).
+        stdout=""
+        $(tryrc -o=stdout etimeout -t=${_eretry_timeout} -s=${_eretry_signal} "${cmd[@]}")
+        
         # Append list of exit codes we've seen
         exit_codes+=(${rc})
 
         # Break if the process exited with white listed exit code.
         if echo "${_eretry_exit_codes}" | grep -wq "${rc}"; then
-            edebug "Command exited with white listed $(lval exitcode=rc exit_codes=_eretry_exit_codes). $(lval attempt cmd)"
+            edebug "Command exited with white listed $(lval rc _eretry_exit_codes attempt cmd)"
             break
         fi
 
@@ -2456,13 +2511,17 @@ eretry()
         fi
 
         [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
-            && ewarn "Command has failed $((attempt+1)) times. Retrying: $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
+            && ewarn "Command has failed $((attempt+1)) times. Retrying: $(lval cmd _eretry_retries _eretry_timeout exit_codes)"
 
         [[ ${_eretry_delay} -ne 0 ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
     done
 
-    [[ ${rc} -eq 0 ]] || ewarn "Command failed $(lval cmd retries=_eretry_retries timeout=_eretry_timeout exit_codes)"
+    [[ ${rc} -eq 0 ]] || ewarn "Command failed $(lval cmd _eretry_retries _eretry_timeout exit_codes)"
 
+    # Emit stdout
+    echo -n "${stdout}"
+
+    # Return final return code
     return ${rc}
 }
 
