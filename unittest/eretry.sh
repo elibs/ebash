@@ -209,7 +209,7 @@ ETEST_eretry_partial_output()
         return 0
     }
 
-    local output=$(eretry -r=2 -t=2s callback)
+    local output=$(eretry -r=2 callback)
     einfo "$(lval output)"
     echo "${output}" | jq .
     assert_eq '{"key":"value"}' "${output}"
