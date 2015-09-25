@@ -187,5 +187,57 @@ ETEST_eretry_ignore_signals_on()
 
     # Should have only run 1 time
     assert_eq ${respawns} $(cat child.ticks)
-}   
+}
+
+ETEST_eretry_partial_output()
+{
+    echo -n "0" > calls.txt
+
+    callback()
+    {
+        # On first call return partial json output and fail
+        local calls=$(cat calls.txt)
+        einfo "Callback called: $(lval calls)"
+        echo "$(( calls + 1 ))" > calls.txt
+
+        if [[ ${calls} -eq 0 ]]; then
+            echo -n '{"key":"va'
+            return 1
+        fi
+
+        echo -n '{"key":"value"}'
+        return 0
+    }
+
+    local output=$(eretry -r=2 -t=2s callback)
+    einfo "$(lval output)"
+    echo "${output}" | jq .
+    assert_eq '{"key":"value"}' "${output}"
+}
+
+ETEST_eretry_partial_output_timeout()
+{
+    echo -n "0" > calls.txt
+
+    callback()
+    {
+        # On first call return partial json output and fail
+        local calls=$(cat calls.txt)
+        einfo "Callback called: $(lval calls)"
+        echo "$(( calls + 1 ))" > calls.txt
+
+        if [[ ${calls} -eq 0 ]]; then
+            echo -n '{"key":"va'
+            sleep infinity
+        fi
+
+        echo -n '{"key":"value"}'
+        return 0
+    }
+
+    local output=$(eretry -r=2 -t=.5s callback)
+    einfo "$(lval output)"
+    echo "${output}" | jq .
+    assert_eq '{"key":"value"}' "${output}"
+}
 
