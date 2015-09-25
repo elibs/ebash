@@ -82,6 +82,10 @@ edebug_out()
 # TRY / CATCH
 #-----------------------------------------------------------------------------
 
+DIE_MSG_KILLED="\"[Killed]\""
+DIE_MSG_CAUGHT="\"[ExceptionCaught]\""
+DIE_MSG_UNHERR="\"[UnhandledError]\""
+
 # The below aliases allow us to support rich error handling through the use
 # of the try/catch idom typically found in higher level languages. Essentially
 # the 'try' alias creates a subshell and then turns on implicit error handling
@@ -104,7 +108,7 @@ alias try="
     (
         enable_trace
         die_on_abort
-        trap 'die -r=\$? [ExceptionCaught]&>\$(edebug_out)' ERR
+        trap 'die -r=\$? ${DIE_MSG_CAUGHT} &>\$(edebug_out)' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -155,7 +159,7 @@ throw()
 #
 # NOTE: This is extremely unobvious, but setting a trap on ERR implicitly
 # enables 'set -e'.
-alias die_on_error='export __EFUNCS_DIE_ON_ERROR_ENABLED=1; trap "die [UnhandledError]" ERR'
+alias die_on_error='export __EFUNCS_DIE_ON_ERROR_ENABLED=1; trap "die ${DIE_MSG_UNHERR}" ERR'
 
 # Disable calling die on ERROR.
 alias nodie_on_error="export __EFUNCS_DIE_ON_ERROR_ENABLED=0; trap - ERR"
@@ -509,9 +513,9 @@ trap_add()
 
             # See if we need to turn on die or not
             if [[ ${sig} == "ERR" && ${__EFUNCS_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
-                existing="die [UnhandledError]"
+                existing="die ${DIE_MSG_UNHERR}"
             elif [[ ${EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
-                existing="die [killed]"
+                existing="die ${DIE_MSG_KILLED}"
             fi
         fi
 
@@ -550,7 +554,7 @@ die_on_abort()
 
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
-    trap 'die [killed]' ${signals[@]}
+    trap "die ${DIE_MSG_KILLED}" ${signals[@]}
 }
 
 # Disable default traps for all DIE_SIGNALS.
