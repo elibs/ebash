@@ -151,11 +151,8 @@ ETEST_nodie_on_error_with_try_catch()
 }
 
 # Verify we are building up the try/catch enabled stack correctly.
-# NOTE: There are two outer try/catches in etest before this function is called
-# so our starting array should have (1 1)
-# [0]="global_teardown; die [UnhandledError]" [1]="exit \$?"
-ERR_TRAP_DIE="die [UnhandledError]"
-ERR_TRAP_CATCH="die -r=\$? [ExceptionCaught]&>\$(edebug_out)"
+ERR_TRAP_DIE="die ${DIE_MSG_UNHERR}"
+ERR_TRAP_CATCH="die -r=\$? ${DIE_MSG_CAUGHT} &>\$(edebug_out)"
 ERR_TRAP_NONE="-"
 
 assert_stack_eq()
