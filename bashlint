@@ -29,8 +29,8 @@ fail()
 ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
  
-    # If this is a binary file or a swp file skip it
-    file ${filename} | grep -q ELF || [[ ${fname: -4} == ".swp" ]] && continue
+    # If this isn't a bash script skip it
+    file ${fname} | grep -q "bash script" || continue
 
     # Never do any further parsing on our own file since they would all 
     # be false positives
