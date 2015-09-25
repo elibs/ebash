@@ -2335,12 +2335,9 @@ netselect()
 #   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
 #   signal doesn't do its job]
 #
-# -t TIMEOUT. After this duration, command will be killed (and retried if that's the
-#   right thing to do).  If unspecified, commands may run as long as they like
-#   and eretry will simply wait for them to finish.
-#
-#   If it's a simple number, the duration will be a number in seconds.  You may
-#   also specify suffixes in the same format the timeout command accepts them.
+# -t TIMEOUT (REQUIRED). After this duration, command will be killed if it hasn't
+#   exited. If it's a simple number, the duration will be a number in seconds.  You
+#   may also specify suffixes in the same format the timeout command accepts them.
 #   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
 #   days, respectively.
 #
@@ -2407,16 +2404,13 @@ etimeout()
     fi
 }
 
-# eretry executes arbitrary shell commands for you, enforcing a timeout in
-# seconds and retrying up to a specified count.  If the command is successful,
-# retries stop.  If not, eretry will "die".
-#
-# If the command eventually completes successfully eretry will return 0. Otherwise
-# if it is prematurely terminated via the requested SIGNAL it will return 124 to match
-# earlier behavior with timeout based implementations. If the process fails to exit
-# after receiving requested signal it will send SIGKILL to the process. If this
-# happens the return code of eretry will be 137 (128+SIGKILL).
-#
+# eretry executes arbitrary shell commands for you wrapped in a call to etimeout
+# ane retrying up to a specified count. If the command eventually completes
+# successfully eretry will return 0. If the command never completes successfully
+# but continues to fail every time the return code from eretry will be the failing
+# command's return code. If the command is prematurely terminated via etimeout the
+# return code from eretry will be 124.
+
 # OPTIONS:
 # -d DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
 #   Note that this value can accept sub-second values, just as the sleep command does.
@@ -2461,7 +2455,6 @@ etimeout()
 #
 # All direct parameters to eretry are assumed to be the command to execute, and
 # eretry is careful to retain your quoting.
-#
 eretry()
 {
     # Parse options
