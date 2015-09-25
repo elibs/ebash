@@ -364,9 +364,11 @@ chroot_setup()
     catch
     {
         chroot_unmount
-        eerror "chroot_setup failed"
+        edebug "chroot_setup failed"
         return 1
     }
+
+    return 0
 }
 
 # Create an UBUNTU based CHROOT using debootstrap. It will first try to fetch

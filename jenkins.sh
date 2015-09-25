@@ -631,7 +631,7 @@ jenkins_internal()
 
     [[ $(array_size cmd) -eq 0 ]] && cmd=("")
 
-    edebug "$(lval cmd filename) $(ls -ltr ${filename})"
+    edebug "$(lval cmd filename)"
 
     # Execute jenkins API command
     if [[ -n ${filename:-} ]] ; then
