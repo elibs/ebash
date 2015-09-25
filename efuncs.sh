@@ -2403,13 +2403,12 @@ etimeout()
         edebug "Process timed out $(lval cmd rc seconds _etimeout_timeout _etimeout_signal pid)"
         return 124
     else
-        edebug "Process completed $(lval cmd rc seconds _etimeout_timeout _etimeout_signal pid)"
         return ${rc}
     fi
 }
 
 # eretry executes arbitrary shell commands for you wrapped in a call to etimeout
-# ane retrying up to a specified count. If the command eventually completes
+# and retrying up to a specified count. If the command eventually completes
 # successfully eretry will return 0. If the command never completes successfully
 # but continues to fail every time the return code from eretry will be the failing
 # command's return code. If the command is prematurely terminated via etimeout the
