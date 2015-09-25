@@ -125,9 +125,10 @@ jenkins_update()
     # already there.  (Note: jenkins doesn't have an operation that is
     # idempotent for this -- we have to either try update and then create if it
     # fails or try create and then update if it fails)
-    $(tryrc jenkins -f="${newConfig}" update-${itemType} "${name}") &>$(edebug_out)
+    $(tryrc jenkins -o=stdout -e=stderr -f="${newConfig}" update-${itemType} "${name}") &>$(edebug_out)
 
-    # If the job didn't exist to update, it must be created
+    # If the job didn't exist to update, it must be created.  And we don't want
+    # to see the output from jenkins collected into $stdout/$stderr
     if [[ ${rc} -eq 50 ]] ; then
         jenkins -f="${newConfig}" create-${itemType} "${name}" &>$(edebug_out)
 
@@ -135,10 +136,12 @@ jenkins_update()
     elif [[ ${rc} -eq 0 ]] ; then
         return 0
 
-    # If it failed for another reason, jenkins is hosed
+    # If it failed for another reason, jenkins is hosed.  Spew the errors from
+    # the create call in case they're useful.
     else
+        echo -n "${stdout}"
+        echo -n "${stderr}" >&2
         die "Unable to update item because jenkins is not responding $(lval name itemType JENKINS)"
-
     fi
 }
 
