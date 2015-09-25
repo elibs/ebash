@@ -128,7 +128,7 @@ edebug_enabled && ebanner "${DIE_TEST_MSG}" || einfo "${DIE_TEST_MSG}"
 
     die_handler()
     {
-        einfo "DIE_HANDLER called"
+        edebug "DIE_HANDLER called"
         echo "DIE" >> ${DIE_FILE}
     }
 

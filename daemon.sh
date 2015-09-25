@@ -116,6 +116,10 @@ daemon_start()
         touch "${pidfile}"
         local runs=0
 
+        if [[ -n ${cgroup} ]] ; then
+            cgroup_move ${cgroup} ${BASHPID}
+        fi
+
         # Check to ensure that we haven't failed running "respawns" times. If
         # we have, then don't run again. Likewise, ensure that the pidfile
         # exists. If it doesn't it likely means that we have been stopped (via
@@ -141,10 +145,6 @@ daemon_start()
             # requested daemon. After the daemon completes automatically unmount chroot.
             (
                 die_on_abort
-
-                if [[ -n ${cgroup} ]] ; then
-                    cgroup_move ${cgroup} ${BASHPID}
-                fi
 
                 if [[ -n ${chroot} ]]; then
                     export CHROOT=${chroot}
@@ -287,12 +287,12 @@ daemon_status()
         edebug "Checking $(lval name +${optpack})"
 
         # Check pidfile
-        [[ -e ${pidfile} ]] || { eend 1; ewarns "Not Running (no pidfile)"; return 1; }
+        [[ -e ${pidfile} ]] || { eend 1; edebug "Not Running (no pidfile)"; return 1; }
         local pid=$(cat ${pidfile} 2>/dev/null || true)
-        [[ -z ${pid}     ]] && { eend 1; ewarns "Not Running (no pid)"; return 1; }
+        [[ -z ${pid}     ]] && { eend 1; edebug "Not Running (no pid)"; return 1; }
 
         # Check if it's running
-        process_running ${pid} || { eend 1; ewarns "Not Running"; return 1; }
+        process_running ${pid} || { eend 1; edebug "Not Running"; return 1; }
     
         # OK -- It's running
         eend 0
