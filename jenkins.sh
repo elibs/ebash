@@ -125,7 +125,7 @@ jenkins_update()
     # already there.  (Note: jenkins doesn't have an operation that is
     # idempotent for this -- we have to either try update and then create if it
     # fails or try create and then update if it fails)
-    $(tryrc jenkins -o=stdout -e=stderr -f="${newConfig}" update-${itemType} "${name}")
+    $(tryrc -o=stdout -e=stderr jenkins -f="${newConfig}" update-${itemType} "${name}")
 
     # If the job didn't exist to update, it must be created.  And we don't want
     # to see the output from jenkins collected into $stdout/$stderr
