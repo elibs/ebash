@@ -463,8 +463,10 @@ cgroup_kill()
 #
 # Options:
 #       -s=<signal>
-#       -x=space separated list of pids not to kill.  NOTE: $$ and $BASHPID are
-#          always added to this list to avoid killing the calling process.
+#       -x=space separated list of pids not to kill.  WARNING: YOU SHOULD
+#          PROBABLY ALWAYS use -x="${BASHPID} $$" because cgroup_kill_and_wait
+#          may not know the pids of those shells for you and hence you may
+#          commit suicide or end up stuck waiting forever if you do not.
 #       -t=Maximum number of seconds to wait.  If processes still exist at this
 #          point, an error will be returned instead of hanging forever.  The
 #          default is zero, which means to WAIT FOREVER.

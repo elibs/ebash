@@ -260,7 +260,7 @@ daemon_stop()
     if [[ -n ${cgroup} ]] ; then
         edebug "Waiting for all processes in $(lval cgroup) to die"
         local cgroup_timeout=$(opt_get c 300)
-        cgroup_kill_and_wait -s=KILL -t=${cgroup_timeout} ${cgroup}
+        cgroup_kill_and_wait -x="$$ ${BASHPID}" -s=KILL -t=${cgroup_timeout} ${cgroup}
     fi
     
     # Execute optional post_stop hook
