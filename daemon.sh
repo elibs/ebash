@@ -83,8 +83,6 @@ daemon_init()
     if ! pack_contains ${optpack} "pidfile"; then
         pack_set ${optpack} pidfile="/var/run/${base}"
     fi
-
-    edebug "$(lval +${optpack})"
 }
 
 # daemon_start will daemonize the provided command and its arguments as a
