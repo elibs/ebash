@@ -32,6 +32,15 @@
 #   when it exits. This should never be <1s otherwise race conditions in startup
 #   and shutdown are possible. Defaults to 1s.
 #
+# logfile
+#   Optional logfile to send all stdout and stderr to for the daemon. Since it
+#   generally doesn't make sense for the stdout/stderr of the daemon to spew 
+#   into the caller's stdout/stderr, these will default to /dev/null if not
+#   otherwise specified.
+#
+# logfile_rotate
+#   Optional logfile rotation parameter (see elogfile).
+#
 # name
 #   The name of the daemon, for readability purposes. By default this will use
 #   the basename of the command being executed.
@@ -77,6 +86,8 @@ daemon_init()
         cgroup=             \
         chroot=             \
         delay=1             \
+        logfile="/dev/null" \
+        logfile_rotate="0"  \
         pre_start=          \
         pre_stop=           \
         post_start=         \
@@ -95,8 +106,6 @@ daemon_init()
     if ! pack_contains ${optpack} "pidfile"; then
         pack_set ${optpack} pidfile="/var/run/${base}"
     fi
-
-    edebug "$(lval +${optpack})"
 }
 
 # daemon_start will daemonize the provided command and its arguments as a
@@ -123,6 +132,10 @@ daemon_start()
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
+        # Setup logfile
+        [[ -t 2 ]] && EINTERACTIVE=1 || EINTERACTIVE=0
+        elogfile -o=1 -e=1 -r=${logfile_rotate} "${logfile}"
+
         # Create empty pidfile
         mkdir -p $(dirname ${pidfile})
         touch "${pidfile}"
@@ -158,6 +171,9 @@ daemon_start()
             (
                 die_on_abort
 
+                # Setup logfile
+                elogfile -o=1 -e=1 -t=0 -r=${logfile_rotate} "${logfile}"
+
                 if [[ -n ${chroot} ]]; then
                     export CHROOT=${chroot}
                     chroot_mount
@@ -167,7 +183,7 @@ daemon_start()
                     ${cmdline} || true
                 fi
 
-            ) &>$(edebug_out) &
+            ) &>/dev/null &
 
             # Get the PID of the process we just created and store into requested pid file.
             local pid=$!
@@ -183,7 +199,10 @@ daemon_start()
             # it).
             SECONDS=0
             wait ${pid} &>/dev/null || true
-            
+ 
+            # Setup logfile
+            elogfile -o=1 -e=1 -t=0 -r=${logfile_rotate} "${logfile}"
+           
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
  
@@ -206,6 +225,7 @@ daemon_start()
             # give daemon_stop a chance to get everything sorted out
             sleep ${delay}
         done
+
     ) &
 }
 
@@ -230,6 +250,10 @@ daemon_stop()
     $(declare_args optpack)
     $(pack_import ${optpack})
 
+    # Setup logfile
+    [[ -t 2 ]] && EINTERACTIVE=1 || EINTERACTIVE=0
+    elogfile -o=1 -e=1 -r=${logfile_rotate} "${logfile}"
+
     # Options
     local signal=$(opt_get s SIGTERM)
     local timeout=$(opt_get t 5)
@@ -240,7 +264,7 @@ daemon_stop()
 
     # If it's not running just return
     daemon_running ${optpack} \
-        || { eend 0; ewarns "Already stopped"; eend 0; rm -rf ${pidfile}; return 0; }
+        || { eend 0; edebug "Already stopped"; rm -rf ${pidfile}; return 0; }
 
     # Execute optional pre_stop hook
     ${pre_stop}
