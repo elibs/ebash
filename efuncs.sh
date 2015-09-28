@@ -1126,9 +1126,10 @@ process_not_running()
 }
 
 # Kill all pids provided as arguments to this function using the specified signal.
-# This function makes every effort to kill all the specified pids. If there are any
-# errors this function will return non-zero (corresponding to the number of pids
-# that could not be killed successfully).
+# This function is best effort only. It makes every effort to kill all the specified
+# pids but ignores any errors while calling kill. This is largely due to the fact
+# that processes can exit before we get a chance to kill them. If you really care
+# about processes being gone consider using process_not_running or cgroups.
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
@@ -1138,7 +1139,6 @@ ekill()
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
-    local errors=0
 
     # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
     # exist just skip it instead of trying (and failing) to kill it since we're
@@ -1146,29 +1146,18 @@ ekill()
     local pid
     for pid in ${@}; do
 
-        # If process doesn't exist just return instead of trying (and failing) to kill it
-        process_running ${pid} || continue
-
-        # The process is still running. Now kill it. So long as the process does NOT
-        # exist after sending it the specified signal this function will return
-        # success.
         local cmd="$(ps -p ${pid} -o args= || true)"
         edebug "Killing $(lval pid signal cmd)"
+        kill -${signal} ${pid} &>/dev/null || true
 
-        # The process is still running. Now kill it. So long as the process does NOT
-        # exist after sending it the specified signal this function will return success.
-        kill -${signal} ${pid} &>$(edebug_out) || (( errors+=1 ))
     done
-
-    [[ ${errors} -eq 0 ]]
 }
 
 # Kill entire process tree for each provided pid by doing a depth first search to find
 # all the descendents of each pid and kill all leaf nodes in the process tree first.
 # Then it walks back up and kills the parent pids as it traverses back up the tree.
-# This method makes every effort to kill all the requested pids. If there are any errors
-# then the method will return non-zero at the end (which will correspond to the number
-# of pids that could not be killed successfully).
+# Like ekill(), this function is best effort only. If you want more robust guarantees
+# consider process_not_running or cgroups.
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
@@ -1178,7 +1167,6 @@ ekilltree()
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
-    local errors=0
 
     local pid
     for pid in ${@}; do 
@@ -1187,13 +1175,11 @@ ekilltree()
         
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
             edebug "Killing $(lval child)"
-            ekilltree -s=${signal} ${child} || (( errors+=1 ))
+            ekilltree -s=${signal} ${child}
         done
 
-        ekill -s=${signal} ${pid} || (( errors+=1 ))
+        ekill -s=${signal} ${pid} || true
     done
-
-    [[ ${errors} -eq 0 ]]
 }
 
 #-----------------------------------------------------------------------------
