@@ -14,45 +14,57 @@
 # 
 # The following are the keys used to control daemon functionality:
 #
-# cgroup:     Optional cgroup to run the daemon in.  The daemon assumes
-#             ownership of ALL processes in that cgroup and will kill them at
-#             shutdown time.  (So give it its own cgroup).  This cgroup should
-#             already be created.  See cgroups.sh for more information.
+# cgroup
+#   Optional cgroup to run the daemon in. The daemon assumes ownership of ALL
+#   processes in that cgroup and will kill them at shutdown time. (So give it
+#   its own cgroup). This cgroup should already be created. See cgroups.sh for
+#   more information.
 #
-# chroot:     Optional CHROOT to run the daemon in.
+# chroot
+#   Optional CHROOT to run the daemon in.
 #
-# cmdline:    The commandlnie to be run as a daemon. This includes the executable 
-#             as well as any of its arguments.
+# cmdline
+#   The command line to be run as a daemon. This includes the executable as well
+#   as any of its arguments.
 #
-# delay:      The delay, in seconds, to wait before attempting to restart the daemon
-#             when it exits. Generally this should never be <1 otherwise race 
-#             conditions in startup/shutdown are possible. Defaults to 1.
+# delay
+#   The delay to wait, in sleep(1) syntax, before attempting to restart the daemon
+#   when it exits. This should never be <1s otherwise race conditions in startup
+#   and shutdown are possible. Defaults to 1s.
 #
-# name:       The name of the daemon, for readability purposes. By default this will
-#             use the basename of the command being executed.
+# name
+#   The name of the daemon, for readability purposes. By default this will use
+#   the basename of the command being executed.
 #
-# pidfile:    Path to the pidfile for the daemon. By default this is the basename
-#             of the command being executed, stored in /var/run.
+# pidfile
+#   Path to the pidfile for the daemon. By default this is the basename of the
+#   command being executed, stored in /var/run.
 #
-# pre_start:  Optional hook to be executed before starting the daemon. Must be a single
-#             command to be executed. If more complexity is required use a function.
+# pre_start
+#   Optional hook to be executed before starting the daemon. Must be a single
+#   command to be executed. If more complexity is required use a function.
 #
-# pre_stop:   Optional hook to be executed before stopping the daemon. Must be a single
-#             command to be executed. If more complexity is required use a function.
+# pre_stop
+#   Optional hook to be executed before stopping the daemon. Must be a single
+#   command to be executed. If more complexity is required use a function.
 #
-# post_start: Optional hook to be executed after starting the daemon. Must be a single
-#             command to be executed. If more complexity is required use a function.
+# post_start
+#   Optional hook to be executed after starting the daemon. Must be a single
+#   command to be executed. If more complexity is required use a function.
 #
-# post_stop:  Optional hook to be exected after stopping the daemon. Must be a single
-#             command to be executed. If more complexity is required use a function.
+# post_stop
+#   Optional hook to be exected after stopping the daemon. Must be a single
+#   command to be executed. If more complexity is required use a function.
 #
-# respawns:   The maximum number of times to respawn the daemon command before just
-#             giving up. Defaults to 10.
+# respawns
+#   The maximum number of times to respawn the daemon command before just
+#   giving up. Defaults to 10.
 #
-# respawn_interval: Amount of seconds the process must stay up for it to be considered a
-#           successful start. This is used in conjunction with respawn similar to
-#           upstart/systemd. If the process is respawned more than ${respawns} times
-#           within ${respawn_interval} seconds, the process will no longer be respawned.
+# respawn_interval
+#   Amount of seconds the process must stay up for it to be considered a
+#   successful start. This is used in conjunction with respawn similar to
+#   upstart/systemd. If the process is respawned more than ${respawns} times
+#   within ${respawn_interval} seconds, the process will no longer be respawned.
 daemon_init()
 {
     $(declare_args optpack)
