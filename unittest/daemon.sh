@@ -104,9 +104,11 @@ ETEST_daemon_respawn()
     for (( iter=1; iter<=${respawns}; iter++ )); do
 
         # Kill underlying pid
-        local pid=$(cat ${pidfile})
         edebug_enabled && einfo "Killing daemon $(lval pid iter respawns)" || eprogress "Killing daemon $(lval pid iter respawns)"
         {
+            pid=$(cat ${pidfile})
+            ps aux | grep ${pid}
+            assert process_running ${pid}
             ekilltree -s=KILL ${pid}
             eretry -r=30 -d=1 process_not_running ${pid}
             eretry -r=30 -d=1 daemon_not_running sleep_daemon
@@ -256,4 +258,45 @@ ETEST_daemon_pre_start_fail()
     daemon_start sleep_daemon
     eretry -r=30 -d=1 daemon_not_running sleep_daemon
     assert_not_exists ${FUNCNAME}.post_start
+}
+
+# Ensure logfile works inside daemon
+ETEST_daemon_logfile()
+{
+    eend()
+    {
+        true
+    }
+
+    launch()
+    {
+        echo "stdout" >&1
+        echo "stderr" >&2
+        sleep infinity
+    }
+    
+    local mdaemon
+    daemon_init mdaemon         \
+        name="My Daemon"        \
+        cmdline="launch"        \
+        logfile="launch.log"    \
+
+    $(pack_import mdaemon)
+
+    (
+        # Start
+        daemon_start mdaemon
+        eretry -r=30 -d=1 daemon_running mdaemon
+        daemon_stop mdaemon
+        eretry -r=30 -d=1 daemon_not_running mdaemon
+    )
+
+    # Show logfile and verify state
+    ebanner "Showwing logfile..."
+    cat ${logfile}
+    
+    grep --silent "Starting My Daemon" "${logfile}"
+    grep --silent "stdout"             "${logfile}"
+    grep --silent "stderr"             "${logfile}"
+    grep --silent "Stopping My Daemon" "${logfile}"
 }
