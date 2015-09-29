@@ -1528,6 +1528,7 @@ elogrotate()
 # -r=NUM   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0 which is disabled)
 # -o=(0|1) Redirect STDOUT (defaults to 1)
 # -e=(0|1) Redirect STDERR (defaults to 1)
+# -t=(0|1) Tail the output (defaults to 1)
 elogfile()
 {
     $(declare_args)
@@ -1535,7 +1536,8 @@ elogfile()
     local rotate=$(opt_get r 0)
     local stdout=$(opt_get o 1)
     local stderr=$(opt_get e 1)
-    edebug "$(lval rotate stdout stderr)"
+    local dotail=$(opt_get t 1)
+    edebug "$(lval rotate stdout stderr dotail)"
 
     # Rotate logs as necessary but only if they are regular files
     if [[ ${rotate} -gt 0 ]]; then
@@ -1547,8 +1549,14 @@ elogfile()
 
     # Optionally redirect stdout and stderr to tee. Take special care to ensure we keep STDOUT and STDERR
     # are kept separate to ensure the caller's output is unmodified.
-    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}")
-    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >&2)
+    local stdout_redirect=/dev/stdout stderr_redirect=/dev/stderr
+    if [[ ${dotail} -eq 0 ]]; then
+        stdout_redirect=/dev/null
+        stderr_redirect=/dev/null
+    fi
+
+    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}" >${stdout_redirect})
+    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >${stderr_redirect})
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
