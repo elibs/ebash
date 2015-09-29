@@ -252,7 +252,7 @@ cgroup_pids()
             (( rc += 1 ))
             continue
         else
-            edebug "looking for processes $(lval cgroup files)"
+            edebug "looking for processes $(lval cgroup)"
         fi
 
         local subsystem_file 

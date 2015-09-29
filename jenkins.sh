@@ -53,7 +53,7 @@ jenkins()
 {
     jenkins_prep_jar
     local nonRetryExitCodes=$(echo 0 {50..59})
-    eretry -e="${nonRetryExitCodes}" -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-7s} -w=${JENKINS_WARN_EVERY:-3} \
+    eretry -e="${nonRetryExitCodes}" -r=${JENKINS_RETRIES:-20} -t=${JENKINS_TIMEOUT:-10s} -w=${JENKINS_WARN_EVERY:-3} \
         jenkins_internal "${@}"
 }
 
