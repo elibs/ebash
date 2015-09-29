@@ -245,7 +245,7 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
           
             [[ ${REPEAT} -gt 0 ]] && REPEAT_STRING="(${ITERATION}/${REPEAT})" || REPEAT_STRING=""
 
-            [[ ${VERBOSE} -eq 1 ]] || einfo "Starting tests in ${testfile} ${REPEAT_STRING}"
+            [[ ${VERBOSE} -eq 1 ]] && ebanner "Starting tests" testfile REPEAT_STRING || einfo "Starting tests in ${testfile} ${REPEAT_STRING}"
             call_file_setup
 
             for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
