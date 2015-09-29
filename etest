@@ -201,6 +201,9 @@ edebug_enabled && ebanner "${DIE_TEST_MSG}" || einfo "${DIE_TEST_MSG}"
 
 rm -f ${DIE_FILE}
 
+# Remove die_handler so we revert to fatal error handling
+unset -f die_handler
+
 eend
 
 #-------------------------------------------------------------------------------------------------------------------------
