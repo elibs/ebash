@@ -112,7 +112,7 @@ call_file_teardown()
     # Unit test provided teardown
     if declare -f file_teardown &>/dev/null ; then
         einfos "FILE Teardown"
-        file_teardown &> ${REDIRECT} || eerror_stacktrace "File Teardown failed"
+        $(tryrc file_teardown &> ${REDIRECT})
         eend
     fi
 
@@ -151,7 +151,7 @@ call_test_teardown()
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
         etestmsg "Calling test_teardown"
-        teardown &> ${REDIRECT} || eerror_stacktrace "Test Teardown failed."
+        $(tryrc teardown &> ${REDIRECT})
         eend
     fi
 
@@ -200,6 +200,9 @@ edebug_enabled && ebanner "${DIE_TEST_MSG}" || einfo "${DIE_TEST_MSG}"
 } &>$(edebug_out)
 
 rm -f ${DIE_FILE}
+
+# Remove die_handler so we revert to fatal error handling
+unset -f die_handler
 
 eend
 
