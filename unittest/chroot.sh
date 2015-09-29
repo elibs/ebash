@@ -7,7 +7,7 @@ CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
 test_wait()
 {
     local delay=${1:-1}
-    einfo "Sleeping for ${delay} seconds..."
+    etestmsg "Sleeping for ${delay} seconds..."
     sleep ${delay}
 }
 
@@ -56,7 +56,7 @@ ETEST_chroot_daemon_start_stop()
         cmdline="sleep infinity" \
         pidfile="${pidfile}"
 
-    einfo "Starting chroot daemon"
+    etestmsg "Starting chroot daemon"
     daemon_start sleep_daemon
 
     # Wait for process to be running
@@ -65,10 +65,10 @@ ETEST_chroot_daemon_start_stop()
     assert process_running $(cat ${pidfile})
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
-    einfo "Started successfully"
+    etestmsg "Started successfully"
     
     # Now stop it and verify proper shutdown
-    einfo "Stopping chroot daemon"
+    etestmsg "Stopping chroot daemon"
     local pid=$(cat ${pidfile})
     daemon_stop sleep_daemon
     eretry -r=30 -d=1 daemon_not_running sleep_daemon
@@ -76,7 +76,7 @@ ETEST_chroot_daemon_start_stop()
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
-    einfo "Stopped successfully"
+    etestmsg "Stopped successfully"
 }
 
 ETEST_chroot_create_mount()
@@ -148,19 +148,19 @@ ETEST_chroot_kill()
 {
     chroot_mount
 
-    einfo "Starting some chroot processes"
+    etestmsg "Starting some chroot processes"
     chroot_cmd "cat&            echo \$! >> /tmp/pids"
     chroot_cmd "sleep infinity& echo \$! >> /tmp/pids"
     local pids=()
     array_init pids "$(cat ${CHROOT}/tmp/pids)"
-    einfos "$(lval pids)"
+    etestmsgs "$(lval pids)"
 
-    einfo "Killing cat"
+    etestmsg "Killing cat"
     chroot_kill "cat"
     wait ${pids[0]} || true
     ! process_running ${pids[0]} || die "${pids[0]} should have been killed"
 
-    einfo "Killing everything..."
+    etestmsg "Killing everything..."
     chroot_kill
     wait ${pids[0]} || true
     ! process_running ${pids[0]} || die "${pids[0]} should have been killed"
