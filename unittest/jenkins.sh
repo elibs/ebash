@@ -37,13 +37,13 @@ ETEST_jenkins_build_url()
 
 create_demo_job()
 {
-    edebug "Creating jenkins job ${DEMO_JOB_NAME}"
+    etestmsg "Creating jenkins job ${DEMO_JOB_NAME}"
     pushd ${TEMPLATE_DIR}
     jenkins_update job etest_demo_job ${DEMO_JOB_NAME}
     popd
 
     # Wait for jenkins to get its act together and realize that it _has_ created the job
-    edebug "Waiting for jenkins to reflect the created job in its API"
+    etestmsg "Waiting for jenkins to reflect the created job in its API"
     eretry jenkins get-job ${DEMO_JOB_NAME} &>/dev/null
     edebug "Jenkins acknowledged existence of ${DEMO_JOB_NAME}"
 
@@ -114,9 +114,10 @@ ETEST_jenkins_update_missing()
 
 ETEST_jenkins_create_preexisting_job()
 {
-    etestmsg "Trying to create a job that already exists"
-    jobName=$(jenkins list-jobs | head -n 1)
-    $(tryrc jenkins create-job ${jobName})
+    etestmsg "Making sure ${DEMO_JOB_NAME} exists on jenkins"
+    create_demo_job
+    etestmsg "Calling jenkins-cli create-job with same job name"
+    $(tryrc jenkins create-job ${DEMO_JOB_NAME})
     assert_eq 50 ${rc} "create-job return code"
 }
 

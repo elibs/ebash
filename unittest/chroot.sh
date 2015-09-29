@@ -153,7 +153,7 @@ ETEST_chroot_kill()
     chroot_cmd "sleep infinity& echo \$! >> /tmp/pids"
     local pids=()
     array_init pids "$(cat ${CHROOT}/tmp/pids)"
-    etestmsgs "$(lval pids)"
+    etestmsg "$(lval pids)"
 
     etestmsg "Killing cat"
     chroot_kill "cat"
