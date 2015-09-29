@@ -11,6 +11,7 @@ set -o nounset
 set -o functrace
 set -o errtrace
 shopt -s expand_aliases
+shopt -s checkwinsize
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -1140,17 +1141,8 @@ ekill()
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
 
-    # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
-    # exist just skip it instead of trying (and failing) to kill it since we're
-    # already in the desired state if the process is killed already.
-    local pid
-    for pid in ${@}; do
-
-        local cmd="$(ps -p ${pid} -o args= || true)"
-        edebug "Killing $(lval pid signal cmd)"
-        kill -${signal} ${pid} &>/dev/null || true
-
-    done
+    # Kill all requested PIDs using requested signal.
+    kill -${signal} ${@} &>/dev/null || true
 }
 
 # Kill entire process tree for each provided pid by doing a depth first search to find
@@ -1594,13 +1586,10 @@ elogfile()
         stderr_redirect=/dev/null
     fi
 
-    # Setup EINTERACTIVE and store off COLUMNS so that our output formats
-    # properly even though stderr won't be connected to a console anymore.
+    # Setup EINTERACTIVE so our output formats properly even though stderr
+    # won't be connected to a console anymore.
     if [[ ! -v EINTERACTIVE ]]; then
         [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
-    fi
-    if [[ ! -v COLUMNS ]]; then
-        export COLUMNS=$(tput cols)
     fi
     
     # Do actual redirection
