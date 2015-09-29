@@ -51,20 +51,20 @@ create_demo_job()
 
 delete_demo_job()
 {
-    einfo "Deleting ${DEMO_JOB_NAME}..."
+    etestmsg "Deleting ${DEMO_JOB_NAME}..."
     jenkins delete-job ${DEMO_JOB_NAME}
 }
 
 ETEST_jenkins_create_and_update()
 {
-    einfo "Creating job."
+    etestmsg "Creating job."
     create_demo_job
     trap_add "delete_demo_job "
-    einfo "Done creating job.  Retrieving it and checking the description"
+    etestmsg "Done creating job.  Retrieving it and checking the description"
 
     validate_demo_job()
     {
-        einfo "Validating job contents"
+        etestmsg "Validating job contents"
         local jobXml=$(jenkins get-job ${DEMO_JOB_NAME})
         einfo "Job xml:"
         echo "${jobXml}"
@@ -76,14 +76,14 @@ ETEST_jenkins_create_and_update()
 
     validate_demo_job
 
-    einfo "Updating job."
+    etestmsg "Updating job."
     create_demo_job
     validate_demo_job
 
     # Also verify that the create-job hook correctly identifies when it's
     # trying to create a job that already exists with a specific error code of
     # 50
-    einfo "Verifing that jenkins-cli create-job returns code 50 when attempting to create a job that already exists."
+    etestmsg "Verifing that jenkins-cli create-job returns code 50 when attempting to create a job that already exists."
     $(tryrc jenkins create-job ${DEMO_JOB_NAME})
     assert_eq 50 ${rc} "create-job return code"
 }
@@ -98,7 +98,7 @@ ETEST_jenkins_delete_idempotent()
 ETEST_jenkins_delete_missing()
 {
     for type in job node view ; do
-        einfo "Trying to delete a non-existent ${type}"
+        etestmsg "Trying to delete a non-existent ${type}"
         jenkins delete-${type} this-${type}-doesnt-exist-$$
     done
 }
@@ -106,7 +106,7 @@ ETEST_jenkins_delete_missing()
 ETEST_jenkins_update_missing()
 {
     for type in job node view ; do
-        einfo "Trying to update a non-existent job, expecting return code 50"
+        etestmsg "Trying to update a non-existent job, expecting return code 50"
         $(tryrc jenkins update-${type} this-${type}-doesnt-exist-$$)
         assert_eq 50 ${rc} "update-${type} return code"
     done
@@ -114,7 +114,7 @@ ETEST_jenkins_update_missing()
 
 ETEST_jenkins_create_preexisting_job()
 {
-    einfo "Trying to create a job that already exists"
+    etestmsg "Trying to create a job that already exists"
     jobName=$(jenkins list-jobs | head -n 1)
     $(tryrc jenkins create-job ${jobName})
     assert_eq 50 ${rc} "create-job return code"
@@ -122,7 +122,7 @@ ETEST_jenkins_create_preexisting_job()
 
 ETEST_jenkins_run_a_build()
 {
-    einfo "Creating job to run $(lval DEMO_JOB_NAME)"
+    etestmsg "Creating job to run $(lval DEMO_JOB_NAME)"
     create_demo_job
     trap_add "delete_demo_job "
     JENKINS_JOB=${DEMO_JOB_NAME}
@@ -143,10 +143,10 @@ ETEST_jenkins_run_a_build()
 
     #  Wait until the job has a build result (not quite the same as "complete"
     #  for complicated jobs, but pretty darn close for the test one)
-    einfo "Waiting for job to run."
+    etestmsg "Waiting for job to run."
     eretry -r=30 -t=2 -d=1 jenkins_build_result ${buildNumber}
 
-    einfo "Gathering results from job."
+    etestmsg "Gathering results from job."
     local buildJson=$(jenkins_build_json ${buildNumber})
     edebug "$(lval buildJson buildNumber)"
 
@@ -193,7 +193,7 @@ ETEST_jenkins_slave_status()
     local slaveName=$(jenkins_list_slaves | tail -n 1 | awk -F, '{print $1}')
     local slaveStatus=$(jenkins_slave_status ${slaveName})
 
-    einfo "Found slave status $(lval slaveName slaveStatus)"
+    etestmsg "Found slave status $(lval slaveName slaveStatus)"
     assert [[ "${slaveStatus}" == "online" \|\| "${slaveStatus}" == "offline" ]]
 }
 
