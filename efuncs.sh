@@ -1126,9 +1126,10 @@ process_not_running()
 }
 
 # Kill all pids provided as arguments to this function using the specified signal.
-# This function makes every effort to kill all the specified pids. If there are any
-# errors this function will return non-zero (corresponding to the number of pids
-# that could not be killed successfully).
+# This function is best effort only. It makes every effort to kill all the specified
+# pids but ignores any errors while calling kill. This is largely due to the fact
+# that processes can exit before we get a chance to kill them. If you really care
+# about processes being gone consider using process_not_running or cgroups.
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
@@ -1138,7 +1139,6 @@ ekill()
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
-    local errors=0
 
     # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
     # exist just skip it instead of trying (and failing) to kill it since we're
@@ -1146,29 +1146,18 @@ ekill()
     local pid
     for pid in ${@}; do
 
-        # If process doesn't exist just return instead of trying (and failing) to kill it
-        process_running ${pid} || continue
-
-        # The process is still running. Now kill it. So long as the process does NOT
-        # exist after sending it the specified signal this function will return
-        # success.
         local cmd="$(ps -p ${pid} -o args= || true)"
         edebug "Killing $(lval pid signal cmd)"
+        kill -${signal} ${pid} &>/dev/null || true
 
-        # The process is still running. Now kill it. So long as the process does NOT
-        # exist after sending it the specified signal this function will return success.
-        kill -${signal} ${pid} &>$(edebug_out) || (( errors+=1 ))
     done
-
-    [[ ${errors} -eq 0 ]]
 }
 
 # Kill entire process tree for each provided pid by doing a depth first search to find
 # all the descendents of each pid and kill all leaf nodes in the process tree first.
 # Then it walks back up and kills the parent pids as it traverses back up the tree.
-# This method makes every effort to kill all the requested pids. If there are any errors
-# then the method will return non-zero at the end (which will correspond to the number
-# of pids that could not be killed successfully).
+# Like ekill(), this function is best effort only. If you want more robust guarantees
+# consider process_not_running or cgroups.
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
@@ -1178,7 +1167,6 @@ ekilltree()
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
-    local errors=0
 
     local pid
     for pid in ${@}; do 
@@ -1187,13 +1175,11 @@ ekilltree()
         
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
             edebug "Killing $(lval child)"
-            ekilltree -s=${signal} ${child} || (( errors+=1 ))
+            ekilltree -s=${signal} ${child}
         done
 
-        ekill -s=${signal} ${pid} || (( errors+=1 ))
+        ekill -s=${signal} ${pid} || true
     done
-
-    [[ ${errors} -eq 0 ]]
 }
 
 #-----------------------------------------------------------------------------
@@ -1505,17 +1491,37 @@ erestore()
 #   touch /var/log/foo
 #
 # OPTIONS
-# -m=NUM Maximum number of logs to keep (defaults to 5)
+# -c=NUM
+#   Maximum count of logs to keep (defaults to 5).
+#
+# -s=SIZE
+#   Rotate logfiles if the size of most recent file is greater than SIZE.
+#   SIZE can be expressed using syntax accepted by find(1) --size option.
+#   Specifically, you add a suffix to denote the units:
+#   c for bytes
+#   w for two-byte words
+#   k for kilobytes
+#   M for Megabytes
+#   G for gigabytes
+#
 elogrotate()
 {
     $(declare_args name)
-    local max=$(opt_get m 5)
+    local count=$(opt_get c 5)
+    local size=$(opt_get s 0)
     
     # Ensure we don't try to rotate non-files
     [[ -f $(readlink -f "${name}") ]] 
 
+    # If log file exists and is smaller than size threshold just return
+    if [[ -z "$(find "$(dirname "${name}")" -maxdepth 1     \
+               -type f -name "$(basename "${name}")"        \
+               -size ${size} -o -size +${size})" ]]; then
+        return 0
+    fi
+
     local log_idx next
-    for (( log_idx=${max}; log_idx > 0; log_idx-- )); do
+    for (( log_idx=${count}; log_idx > 0; log_idx-- )); do
         next=$(( log_idx+1 ))
         [[ -e ${name}.${log_idx} ]] && mv -f ${name}.${log_idx} ${name}.${next}
     done
@@ -1526,10 +1532,10 @@ elogrotate()
     touch ${name}
 
     # Remove any log files greater than our retention count
-    find "$(dirname "${name}")" -maxdepth 1   \
+    find "$(dirname "${name}")" -maxdepth 1                 \
                -type f -name "$(basename "${name}")"        \
             -o -type f -name "$(basename "${name}").[0-9]*" \
-        | sort --version-sort | awk "NR>${max}" | xargs rm -f
+        | sort --version-sort | awk "NR>${count}" | xargs rm -f
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
@@ -1539,30 +1545,67 @@ elogrotate()
 # STDERR pipes are kept separate to avoid problems with logfiles getting truncated.
 #
 # OPTIONS
-# -r=NUM   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0 which is disabled)
-# -o=(0|1) Redirect STDOUT (defaults to 1)
-# -e=(0|1) Redirect STDERR (defaults to 1)
+#
+# -e=(0|1)
+#   Redirect STDERR (defaults to 1)
+#
+# -o=(0|1)
+#   Redirect STDOUT (defaults to 1)
+#
+# -r=NUM
+#   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0
+#   which is disabled).
+#
+# -s=SIZE
+#   Rotate logfiles via elogrotate if the size of most recent file is greater
+#   than SIZE. SIZE can be expressed using syntax accepted by find(1) --size
+#   option. Specifically, you add a suffix to denote the units:
+#   c for bytes, w for two-byte words, k for kilobytes, M for Megabytes, and
+#   G for gigabytes.
+#
+# -t=(0|1)
+#   Tail the output (defaults to 1)
+#
 elogfile()
 {
     $(declare_args)
 
-    local rotate=$(opt_get r 0)
     local stdout=$(opt_get o 1)
     local stderr=$(opt_get e 1)
-    edebug "$(lval rotate stdout stderr)"
+    local dotail=$(opt_get t 1)
+    local rotate=$(opt_get r 0)
+    local rotate_size=$(opt_get s 0)
+    edebug "$(lval stdout stderr dotail rotate_count rotate_size)"
 
     # Rotate logs as necessary but only if they are regular files
     if [[ ${rotate} -gt 0 ]]; then
         local name
         for name in "${@}"; do
-            [[ -f $(readlink -f "${name}") ]] && elogrotate -m=${rotate} "${name}"
+            [[ -f $(readlink -f "${name}") ]] || continue
+            elogrotate -c=${rotate} -s=${rotate_size} "${name}"
         done
     fi
 
     # Optionally redirect stdout and stderr to tee. Take special care to ensure we keep STDOUT and STDERR
     # are kept separate to ensure the caller's output is unmodified.
-    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}")
-    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >&2)
+    local stdout_redirect=/dev/stdout stderr_redirect=/dev/stderr
+    if [[ ${dotail} -eq 0 ]]; then
+        stdout_redirect=/dev/null
+        stderr_redirect=/dev/null
+    fi
+
+    # Setup EINTERACTIVE and store off COLUMNS so that our output formats
+    # properly even though stderr won't be connected to a console anymore.
+    if [[ ! -v EINTERACTIVE ]]; then
+        [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
+    fi
+    if [[ ! -v COLUMNS ]]; then
+        export COLUMNS=$(tput cols)
+    fi
+    
+    # Do actual redirection
+    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}" >${stdout_redirect})
+    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >${stderr_redirect})
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:

@@ -14,49 +14,69 @@
 # 
 # The following are the keys used to control daemon functionality:
 #
-# cgroup:     Optional cgroup to run the daemon in.  The daemon assumes
-#             ownership of ALL processes in that cgroup and will kill them at
-#             shutdown time.  (So give it its own cgroup).  This cgroup should
-#             already be created.  See cgroups.sh for more information.
+# cgroup
+#   Optional cgroup to run the daemon in. The daemon assumes ownership of ALL
+#   processes in that cgroup and will kill them at shutdown time. (So give it
+#   its own cgroup). This cgroup should already be created. See cgroups.sh for
+#   more information.
 #
-# chroot:     Optional CHROOT to run the daemon in.
+# chroot
+#   Optional CHROOT to run the daemon in.
 #
-# cmdline:    The commandlnie to be run as a daemon. This includes the executable 
-#             as well as any of its arguments.
+# cmdline
+#   The command line to be run as a daemon. This includes the executable as well
+#   as any of its arguments.
 #
-# delay:      The delay, in seconds, to wait before attempting to restart the daemon
-#             when it exits. Generally this should never be <1 otherwise race 
-#             conditions in startup/shutdown are possible. Defaults to 1.
+# delay
+#   The delay to wait, in sleep(1) syntax, before attempting to restart the daemon
+#   when it exits. This should never be <1s otherwise race conditions in startup
+#   and shutdown are possible. Defaults to 1s.
 #
-# name:       The name of the daemon, for readability purposes. By default this will
-#             use the basename of the command being executed.
+# logfile
+#   Optional logfile to send all stdout and stderr to for the daemon. Since it
+#   generally doesn't make sense for the stdout/stderr of the daemon to spew 
+#   into the caller's stdout/stderr, these will default to /dev/null if not
+#   otherwise specified.
 #
-# pidfile:    Path to the pidfile for the daemon. By default this is the basename
-#             of the command being executed, stored in /var/run.
+# logfile_rotate
+#   Optional logfile rotation parameter (see elogfile).
 #
-# pre_start:  Optional hook to be executed before starting the daemon. Must be a single
-#             command to be executed. If more complexity is required use a function.
+# name
+#   The name of the daemon, for readability purposes. By default this will use
+#   the basename of the command being executed.
 #
-# pre_stop:   Optional hook to be executed before stopping the daemon. Must be a single
-#             command to be executed. If more complexity is required use a function.
+# pidfile
+#   Path to the pidfile for the daemon. By default this is the basename of the
+#   command being executed, stored in /var/run.
 #
-# post_start: Optional hook to be executed after starting the daemon. Must be a single
-#             command to be executed. If more complexity is required use a function.
+# pre_start
+#   Optional hook to be executed before starting the daemon. Must be a single
+#   command to be executed. If more complexity is required use a function.
 #
-# post_stop:  Optional hook to be exected after stopping the daemon. Must be a single
-#             command to be executed. If more complexity is required use a function.
+# pre_stop
+#   Optional hook to be executed before stopping the daemon. Must be a single
+#   command to be executed. If more complexity is required use a function.
 #
-# respawns:   The maximum number of times to respawn the daemon command before just
-#             giving up. Defaults to 10.
+# post_start
+#   Optional hook to be executed after starting the daemon. Must be a single
+#   command to be executed. If more complexity is required use a function.
 #
-# respawn_interval: Amount of seconds the process must stay up for it to be considered a
-#           successful start. This is used in conjunction with respawn similar to
-#           upstart/systemd. If the process is respawned more than ${respawns} times
-#           within ${respawn_interval} seconds, the process will no longer be respawned.
+# post_stop
+#   Optional hook to be exected after stopping the daemon. Must be a single
+#   command to be executed. If more complexity is required use a function.
+#
+# respawns
+#   The maximum number of times to respawn the daemon command before just
+#   giving up. Defaults to 10.
+#
+# respawn_interval
+#   Amount of seconds the process must stay up for it to be considered a
+#   successful start. This is used in conjunction with respawn similar to
+#   upstart/systemd. If the process is respawned more than ${respawns} times
+#   within ${respawn_interval} seconds, the process will no longer be respawned.
 daemon_init()
 {
     $(declare_args optpack)
-    edebug "Initializting daemon options $(lval optpack) $@"
 
     # Load defaults into the pack first then add in any additional provided settings
     # Since the last key=val added to the pack will always override prior values
@@ -65,6 +85,8 @@ daemon_init()
         cgroup=             \
         chroot=             \
         delay=1             \
+        logfile="/dev/null" \
+        logfile_rotate="0"  \
         pre_start=          \
         pre_stop=           \
         post_start=         \
@@ -109,6 +131,9 @@ daemon_start()
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
+        # Setup logfile
+        elogfile -o=1 -e=1 -r=${logfile_rotate} "${logfile}"
+
         # Create empty pidfile
         mkdir -p $(dirname ${pidfile})
         touch "${pidfile}"
@@ -144,6 +169,9 @@ daemon_start()
             (
                 die_on_abort
 
+                # Setup logfile
+                elogfile -o=1 -e=1 -t=0 -r=${logfile_rotate} "${logfile}"
+
                 if [[ -n ${chroot} ]]; then
                     export CHROOT=${chroot}
                     chroot_mount
@@ -153,7 +181,7 @@ daemon_start()
                     ${cmdline} || true
                 fi
 
-            ) &>$(edebug_out) &
+            ) &>/dev/null &
 
             # Get the PID of the process we just created and store into requested pid file.
             local pid=$!
@@ -169,7 +197,10 @@ daemon_start()
             # it).
             SECONDS=0
             wait ${pid} &>/dev/null || true
-            
+ 
+            # Setup logfile
+            elogfile -o=1 -e=1 -t=0 -r=${logfile_rotate} "${logfile}"
+           
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
  
@@ -192,6 +223,7 @@ daemon_start()
             # give daemon_stop a chance to get everything sorted out
             sleep ${delay}
         done
+
     ) &
 }
 
@@ -216,6 +248,9 @@ daemon_stop()
     $(declare_args optpack)
     $(pack_import ${optpack})
 
+    # Setup logfile
+    elogfile -o=1 -e=1 -r=${logfile_rotate} "${logfile}"
+
     # Options
     local signal=$(opt_get s SIGTERM)
     local timeout=$(opt_get t 5)
@@ -226,7 +261,7 @@ daemon_stop()
 
     # If it's not running just return
     daemon_running ${optpack} \
-        || { eend 0; ewarns "Already stopped"; eend 0; rm -rf ${pidfile}; return 0; }
+        || { eend 0; edebug "Already stopped"; rm -rf ${pidfile}; return 0; }
 
     # Execute optional pre_stop hook
     ${pre_stop}
