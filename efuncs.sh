@@ -1555,6 +1555,16 @@ elogfile()
         stderr_redirect=/dev/null
     fi
 
+    # Setup EINTERACTIVE and store off COLUMNS so that our output formats
+    # properly even though stderr won't be connected to a console anymore.
+    if [[ ! -v EINTERACTIVE ]]; then
+        [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
+    fi
+    if [[ ! -v COLUMNS ]]; then
+        export COLUMNS=$(tput cols)
+    fi
+    
+    # Do actual redirection
     [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}" >${stdout_redirect})
     [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >${stderr_redirect})
 }

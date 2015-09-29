@@ -132,7 +132,6 @@ daemon_start()
     # return to the caller.
     (
         # Setup logfile
-        [[ -t 2 ]] && EINTERACTIVE=1 || EINTERACTIVE=0
         elogfile -o=1 -e=1 -r=${logfile_rotate} "${logfile}"
 
         # Create empty pidfile
@@ -250,7 +249,6 @@ daemon_stop()
     $(pack_import ${optpack})
 
     # Setup logfile
-    [[ -t 2 ]] && EINTERACTIVE=1 || EINTERACTIVE=0
     elogfile -o=1 -e=1 -r=${logfile_rotate} "${logfile}"
 
     # Options
