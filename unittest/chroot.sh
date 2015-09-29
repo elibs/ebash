@@ -1,24 +1,21 @@
 #!/usr/bin/env bash
 
 # Global settings
-CHROOT_MASTER=${TEST_DIR_OUTPUT}/chroot_master
 CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
 
-test_wait()
+file_setup()
 {
-    local delay=${1:-1}
-    etestmsg "Sleeping for ${delay} seconds..."
-    sleep ${delay}
+    etestmsg "Creating $(lval CHROOT)"
+    efreshdir ${CHROOT}
+    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
+    eprogress_kill
 }
 
-setup()
+file_teardown()
 {
-    [[ -e ${CHROOT_MASTER} ]] || mkchroot ${CHROOT_MASTER} precise oxygen bdr-jenkins amd64
-
-    eprogress "Copying $(lval CHROOT_MASTER) to $(lval CHROOT)"
-    efreshdir ${CHROOT}
-    rsync --archive --whole-file --no-compress ${CHROOT_MASTER}/ ${CHROOT}
-    eprogress_kill
+    etestmsg "Killing $(lval CHROOT)"
+    chroot_kill
+    rm -rf ${CHROOT}
 }
 
 check_mounts()

@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
 
+file_setup()
+{
+    true
+}
+
+file_teardown()
+{
+    true
+}
+
+setup()
+{
+    true
+}
+
+teardown()
+{
+    true
+}
+
+
 ETEST_array_size_zero()
 {
     # NOTE: there is no distinction in bash between empty arrays and unset

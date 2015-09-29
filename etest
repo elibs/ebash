@@ -53,7 +53,7 @@ assert_no_process_leaks()
 
 global_setup()
 {
-    edebug "ETEST global_setup: PID=$$ BASHPID=$BASHPID PPID=$PPID"
+    edebug "Starting global_setup"
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
@@ -65,11 +65,14 @@ global_setup()
     # And a cgroup that will contain all output
     cgroup_create ${ETEST_CGROUP}
     cgroup_move ${ETEST_CGROUP} $$
+
+    edebug "Finished global_setup"
+    return 0
 }
 
 global_teardown()
 {
-    edebug "ETEST global_teardown: PID=$$ BASHPID=$BASHPID PPID=$PPID"
+    edebug "Starting global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
     assert_no_process_leaks
    
@@ -80,32 +83,76 @@ global_teardown()
     fi
 
     edebug "Finished global_teardown"
-}
-
-test_setup()
-{
-    edebug "ETEST test_setup for ${testfunc}: PID=$$ BASHPID=$BASHPID PPID=$PPID"
-
-    # Unit test infrastructure setup
-    argcheck TEST_DIR_OUTPUT
-    mkdir -p ${TEST_DIR_OUTPUT}/${testfunc}
-
-    # Unit test provided setup
-    if declare -f setup &>/dev/null ; then
-        setup
-    fi
-
     return 0
 }
 
-test_teardown()
+call_file_setup()
 {
-    edebug "ETEST test_teardown for ${testfunc}: PID=$$ BASHPID=$BASHPID PPID=$PPID"
+    edebug "Starting call_file_setup"
+
+    # Unit test infrastructure setup
+    argcheck TEST_DIR_OUTPUT
+    mkdir -p ${TEST_DIR_OUTPUT}/${testfile}
+
+    # Unit test provided setup
+    if declare -f file_setup &>/dev/null ; then
+        einfos "FILE Setup"
+        file_setup &> ${REDIRECT}
+        eend
+    fi
+
+    edebug "Finished call_file_setup"
+    return 0
+}
+
+call_file_teardown()
+{
+    edebug "Starting call_file_teardown"
+
+    # Unit test provided teardown
+    if declare -f file_teardown &>/dev/null ; then
+        einfos "FILE Teardown"
+        file_teardown &> ${REDIRECT} || eerror_stacktrace "File Teardown failed"
+        eend
+    fi
+
+    # Unit test infrastructure teardown
+    if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
+        eunmount_recursive ${TEST_DIR_OUTPUT}/${testfile} &>$(edebug_out)
+        rm -rf ${TEST_DIR_OUTPUT}/${testfile}
+    fi
+
+    edebug "Finished call_file_teardown"
+    return 0
+}
+
+call_test_setup()
+{
+    # Unit test infrastructure setup
+    argcheck TEST_DIR_OUTPUT
+    mkdir -p ${TEST_DIR_OUTPUT}/${testfile}/${testfunc}
+
+    # Unit test provided setup
+    if declare -f setup &>/dev/null ; then
+        etestmsg "Calling test_setup"
+        setup &> ${REDIRECT}
+        eend
+    fi
+
+    cd ${TEST_DIR_OUTPUT}/${testfile}/${testfunc}
+    
+    return 0
+}
+
+call_test_teardown()
+{
+    edebug "Starting test_teardown"
 
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
-        etestmsg "Calling provided teardown"
-        teardown || eerror_stacktrace "Teardown failed."
+        etestmsg "Calling test_teardown"
+        teardown &> ${REDIRECT} || eerror_stacktrace "Test Teardown failed."
+        eend
     fi
 
     assert_no_process_leaks
@@ -171,7 +218,7 @@ trap_add global_teardown
 # Now go through and test all unit tests
 for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
 
-    [[ ${VERBOSE} -eq 1 ]] && redirect="/dev/stderr" || redirect="/dev/null"
+    [[ ${VERBOSE} -eq 1 ]] && REDIRECT="/dev/stderr" || REDIRECT="/dev/null"
 
     # Each test file gets its own subshell
     try
@@ -199,7 +246,8 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
             [[ ${REPEAT} -gt 0 ]] && REPEAT_STRING="(${ITERATION}/${REPEAT})" || REPEAT_STRING=""
 
             [[ ${VERBOSE} -eq 1 ]] || einfo "Starting tests in ${testfile} ${REPEAT_STRING}"
-            
+            call_file_setup
+
             for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
 
                 # If debugging is not enabled for testfunc just show a brief message with test name
@@ -210,8 +258,8 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
                 {
                     try
                     {
-                        test_setup
-                        cd ${TEST_DIR_OUTPUT}/${testfunc}
+                        call_test_setup
+                        etestmsg "Calling test"
                         ${testfunc}
                     }
                     catch
@@ -221,13 +269,16 @@ for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
 
                         [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1"
                     }
-                    test_teardown
+                    
+                    call_test_teardown
 
-                } &> ${redirect}
+                } &> ${REDIRECT}
 
                 eend ${testfunc_rc}
                
             done
+
+            call_file_teardown
         
         done
 
