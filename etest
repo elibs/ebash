@@ -34,6 +34,11 @@ export ETEST_CGROUP="etest/$(basename ${TEST_DIR})-$$"
 # TEST UTILITY FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------------------
 
+etestmsg()
+{
+    echo -e "$(EMSG_COLOR="all" emsg 'magenta' '##' 'INFO' "$@")" >&2
+}
+
 assert_no_process_leaks()
 {
     cgroup_move "/etest" $$ ${BASHPID}
@@ -99,6 +104,7 @@ test_teardown()
 
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
+        etestmsg "Calling provided teardown"
         teardown || eerror_stacktrace "Teardown failed."
     fi
 

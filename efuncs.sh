@@ -2086,7 +2086,7 @@ opt_true()
 {
     local _caller
     _caller=( $(caller 0) )
-    [[ $(pack_get _${_caller[1]}_options ${1}) -eq 1 ]]
+    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 1 ]]
 }
 
 # Helper method to be used after declare_args to check if a given option is false (0).
@@ -2094,7 +2094,7 @@ opt_false()
 {
     local _caller
     _caller=( $(caller 0) )
-    [[ $(pack_get _${_caller[1]}_options ${1}) -eq 0 ]]
+    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 0 ]]
 }
 
 # Helper method to be used after declare_args to extract the value of an option.
