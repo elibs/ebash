@@ -21,18 +21,32 @@ ETEST_elogrotate()
     assert_not_exists foo.5
 }
 
-ETEST_elogrotate_custom()
+ETEST_elogrotate_count()
 {
     touch foo
-    elogrotate -m=2 foo
+    elogrotate -c=2 foo
     find . | sort --version-sort
     assert_exists foo foo.1
     assert_not_exists foo.2
 
-    elogrotate -m=2 foo
+    elogrotate -c=2 foo
     find . | sort --version-sort
     assert_exists foo foo.1
     assert_not_exists foo.{2..3}
+}
+
+ETEST_elogrotate_size()
+{
+    eprogress "Creating 1K file"
+    dd if=/dev/random of=foo bs=1K count=1
+    eprogress_kill
+
+    elogrotate -s=1k foo
+    find . | sort --version-sort
+    assert_exists foo foo.1
+    assert_not_exists foo.2
+    assert_false [[ -s foo   ]]
+    assert_true  [[ -s foo.1 ]]
 }
 
 ETEST_elogrotate_prune()
@@ -40,7 +54,7 @@ ETEST_elogrotate_prune()
     touch foo foo.{1..20}
     find . | sort --version-sort
 
-    elogrotate -m=3 foo
+    elogrotate -c=3 foo
     assert_exists foo foo.{1..2}
     assert_not_exists foo.{3..20}
 }
@@ -52,7 +66,7 @@ ETEST_elogrotate_exact()
     einfo "Before log rotation"
     find . | sort --version-sort
 
-    elogrotate -m=3 foo
+    elogrotate -c=3 foo
     einfo "After log rotation"
     find . | sort --version-sort
     assert_exists fooXXX foo. foo foo.{1..2}
@@ -67,7 +81,7 @@ ETEST_elogrotate_nodir()
     einfo "Before log rotation"
     find . | sort --version-sort
 
-    elogrotate -m=3 foo
+    elogrotate -c=3 foo
     einfo "After log rotation"
     find . | sort --version-sort
     assert_exists fooXXX foo foo.{1..2} foo.21
@@ -82,7 +96,7 @@ ETEST_elogrotate_norecursion()
     einfo "Before log rotation"
     find . | sort --version-sort
 
-    elogrotate -m=3 foo
+    elogrotate -c=3 foo
     einfo "After log rotation"
     find . | sort --version-sort
     assert_exists foo foo.{1..2} bar/foo.{1..10}
