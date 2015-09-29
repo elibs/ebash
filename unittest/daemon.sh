@@ -254,6 +254,8 @@ ETEST_daemon_logfile()
     $(pack_import mdaemon)
 
     (
+        die_on_abort
+
         # Start
         daemon_start mdaemon
         eretry -r=30 -d=1 daemon_running mdaemon
