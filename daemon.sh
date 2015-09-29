@@ -15,13 +15,16 @@
 # The following are the keys used to control daemon functionality:
 #
 # cgroup
-#   Optional cgroup to run the daemon in. The daemon assumes ownership of ALL
-#   processes in that cgroup and will kill them at shutdown time. (So give it
-#   its own cgroup). This cgroup should already be created. See cgroups.sh for
-#   more information.
+#   Optional cgroup to run the daemon in. If the cgroup does not exist it will
+#   be created for you. The daemon assumes ownership of ALL processes in that
+#   cgroup and will kill them at shutdown time. (So give it its own cgroup).
+#   See cgroups.sh for more information.
 #
 # chroot
-#   Optional CHROOT to run the daemon in.
+#   Optional CHROOT to run the daemon in. chroot_cmd will be used to execute
+#   the provided command line but all other hooks will be performed outside
+#   of the chroot. Though the CHROOT variable will be availble in the hooks
+#   if needed.
 #
 # cmdline
 #   The command line to be run as a daemon. This includes the executable as well
@@ -38,8 +41,14 @@
 #   into the caller's stdout/stderr, these will default to /dev/null if not
 #   otherwise specified.
 #
-# logfile_rotate
-#   Optional logfile rotation parameter (see elogfile).
+# logfile_count
+#   Maximum number of logfiles to keep (defaults to 5). See elogfile and
+#   elogrotate for more details.
+#
+# logfile_size
+#   Maximum logfile size before logfiles should be rotated. This defaults to 
+#   zero such that if you provide any logfile it will be rotated automatially.
+#   See elogfile and elogrotate for more details.
 #
 # name
 #   The name of the daemon, for readability purposes. By default this will use
@@ -86,7 +95,8 @@ daemon_init()
         chroot=             \
         delay=1             \
         logfile="/dev/null" \
-        logfile_rotate="0"  \
+        logfile_count=0     \
+        logfile_size=0      \
         pre_start=          \
         pre_stop=           \
         post_start=         \
@@ -132,7 +142,7 @@ daemon_start()
     # return to the caller.
     (
         # Setup logfile
-        elogfile -o=1 -e=1 -r=${logfile_rotate} "${logfile}"
+        elogfile -o=1 -e=1 -r=${logfile_count} -s=${logfile_size} "${logfile}"
 
         # Create empty pidfile
         mkdir -p $(dirname ${pidfile})
@@ -140,6 +150,7 @@ daemon_start()
         local runs=0
 
         if [[ -n ${cgroup} ]] ; then
+            cgroup_create ${cgroup}
             cgroup_move ${cgroup} ${BASHPID}
         fi
 
@@ -170,7 +181,7 @@ daemon_start()
                 die_on_abort
 
                 # Setup logfile
-                elogfile -o=1 -e=1 -t=0 -r=${logfile_rotate} "${logfile}"
+                elogfile -o=1 -e=1 -t=0 "${logfile}"
 
                 if [[ -n ${chroot} ]]; then
                     export CHROOT=${chroot}
@@ -199,7 +210,7 @@ daemon_start()
             wait ${pid} &>/dev/null || true
  
             # Setup logfile
-            elogfile -o=1 -e=1 -t=0 -r=${logfile_rotate} "${logfile}"
+            elogfile -o=1 -e=1 -t=0 "${logfile}"
            
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
@@ -249,7 +260,7 @@ daemon_stop()
     $(pack_import ${optpack})
 
     # Setup logfile
-    elogfile -o=1 -e=1 -r=${logfile_rotate} "${logfile}"
+    elogfile -o=1 -e=1 "${logfile}"
 
     # Options
     local signal=$(opt_get s SIGTERM)
