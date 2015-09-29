@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Global settings
-CHROOT=${TEST_DIR_OUTPUT}/chroot_copy
+CHROOT=${TEST_DIR_OUTPUT}/chroot
 
 file_setup()
 {
