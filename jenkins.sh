@@ -413,7 +413,7 @@ jenkins_cancel_running_jobs()
 }
 
 ################################################################################
-# Print out information about available slaves in tab-separated format.  The
+# Print out information about available slaves in comma-separated format.  The
 # fields on each line are:
 #
 #    1: Jenkins slave name (e.g. distbox_odell-dev)
@@ -767,52 +767,6 @@ jenkins_update_view_hook()
     jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
-
-# Called by hooks for get-view, get-job, and get-node.  This is a workaround
-# for our automatic retry behavior.  Sometimes, we get a timeout, but the timed
-# out request has already spewed some or all if its xml.  That job returns a
-# bad exit code (since it timed out), so we retry and run it again.  Assuming
-# that request is successful, we end up with some possibly borked xml followed
-# by good xml.
-#
-# We'd rather have the call always return well-formed xml.  So this hook makes
-# sure to only spew stdout when the exit code was good.  That way we keep
-# retrying until we good a good exit code, and then we get all of the stdout
-# from that (and only that) request.
-#
-jenkins_get_star_hook()
-{
-    $(declare_args rc ?stdout ?stderr itemType)
-
-    # If we returned an error code, don't print stdout, because the "get" calls
-    # expect to return well-formed XML.  We need a single, complete and
-    # successful run for that to work well.
-    if [[ ${rc} -ne 0 ]] ; then
-        edebug "Discarding stdout because exit code from get-${itemType} was bad $(lval rc)"
-        stdout=""
-    fi
-
-    edebug "$(lval rc itemType)"
-    jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
-}
-
-jenkins_get_job_hook()
-{
-    $(declare_args rc ?stdout ?stderr)
-    jenkins_get_star_hook ${rc} "${stdout}" "${stderr}" "job"
-}
-
-jenkins_get_node_hook()
-{
-    $(declare_args rc ?stdout ?stderr)
-    jenkins_get_star_hook ${rc} "${stdout}" "${stderr}" "node"
-}
-
-jenkins_get_view_hook()
-{
-    $(declare_args rc ?stdout ?stderr)
-    jenkins_get_star_hook ${rc} "${stdout}" "${stderr}" "view"
-}
 
 # Called by hooks for delete-view, delete-job, and delete-node.  Jenkins
 # typical behavior for these calls is to _FAIL_ if the job exists.  It would be
