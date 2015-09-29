@@ -11,26 +11,26 @@ ETEST_cgroup_tree()
 
     cgroup_create "${A[@]}" "${B[@]}" "${C[@]}"
 
-    einfo "Testing full cgroup_tree"
+    etestmsg "Testing full cgroup_tree"
     found_tree=($(cgroup_tree))
     for item in ${A[@]} ${B[@]} ${C[@]} ; do
         assert array_contains found_tree $item
     done
 
 
-    einfo "Testing that / is the root cgroup_tree"
+    etestmsg "Testing that / is the root cgroup_tree"
     found_tree=($(cgroup_tree /))
     for item in ${A[@]} ${B[@]} ${C[@]} ; do
         assert array_contains found_tree $item
     done
 
-    einfo "Testing cgroup_tree a"
+    etestmsg "Testing cgroup_tree a"
     found_tree=($(cgroup_tree ${CGROUP}/a))
     for item in ${A[@]} ; do
         assert array_contains found_tree $item
     done
 
-    einfo "Testing cgroup_tree with multiple parameters"
+    etestmsg "Testing cgroup_tree with multiple parameters"
     found_tree=($(cgroup_tree ${CGROUP}/b ${CGROUP}/c))
     for item in ${B[@]} ${C[@]} ; do
         assert array_contains found_tree $item
@@ -56,12 +56,12 @@ ETEST_cgroup_pstree()
 
         local output="$(EDEBUG=0 ETRACE=0 EFUNCS_COLOR=0 cgroup_pstree ${CGROUP} 2>&1 )"
 
-        einfo "Actual pstree output $(lval sleep1 sleep2 CGROUP)"
+        etestmsg "Actual pstree output $(lval sleep1 sleep2 CGROUP)"
         echo "${output}"
 
         # Make sure the output contains some handy strings that I know should
         # be there, such as the PIDs of the two sleeps.
-        einfo "Checking the output:"
+        etestmsg "Checking the output:"
         (
             echo "${output}" | grep -w ${sleep1}
             echo "${output}" | grep -w ${sleep2}
@@ -69,7 +69,7 @@ ETEST_cgroup_pstree()
             echo "${output}" | grep "${CGROUP}/b"
             echo "${output}" | grep "${CGROUP}/c"
         )
-        einfo "Done checking"
+        etestmsg "Done checking"
     )
 }
 
@@ -122,17 +122,17 @@ ETEST_cgroup_exists()
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
     trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
-    einfo "Checking detection of destroyed cgroup"
+    etestmsg "Checking detection of destroyed cgroup"
     cgroup_destroy -r ${CGROUP}
     cgroup_exists ${CGROUP} || rc=$?
     assert [[ ${rc} -eq 1 ]]
 
-    einfo "Checking detection of created cgroup"
+    etestmsg "Checking detection of created cgroup"
     rc=0
     cgroup_create ${CGROUP}
     assert cgroup_exists ${CGROUP}
 
-    einfo "Generates special exit code for inconsistent cgroup"
+    etestmsg "Generates special exit code for inconsistent cgroup"
     rc=0
     rmdir /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${CGROUP}
     find /sys/fs/cgroup -name "${CGROUP}" -ls
@@ -156,7 +156,7 @@ ETEST_cgroup_pids_recursive()
             local allPids
             allPids=($(cgroup_pids -r ${CGROUP}))
 
-            einfo BASHPID=${BASHPID} $(lval allPids PARENT_PID)
+            etestmsg BASHPID=${BASHPID} $(lval allPids PARENT_PID)
 
             assert_true array_contains allPids ${BASHPID}
             assert_true array_contains allPids ${PARENT_PID}
@@ -176,7 +176,7 @@ ETEST_cgroup_move_multiple_pids_at_once()
     sleep infinity &
     PIDS+=($!)
 
-    einfo "Started sleep processes $(lval PIDS)"
+    etestmsg "Started sleep processes $(lval PIDS)"
     cgroup_move ${CGROUP} "${PIDS[@]}"
 
     local foundPids
@@ -257,7 +257,7 @@ ETEST_cgroup_pids_checks_all_subsystems()
     local pid=$!
     cgroup_move ${CGROUP} ${pid}
 
-    einfo "Created a sleep process $(lval pid)"
+    etestmsg "Created a sleep process $(lval pid)"
 
     # Remove it from the cgroup in a single subsystem (arbitrarily #1)
     echo ${pid} > /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[1]}/tasks
@@ -283,10 +283,10 @@ ETEST_cgroup_kill_excepts_current_process()
         # subshell inside this cgroup
 
         cgroup_move ${CGROUP} ${BASHPID}
-        einfo "Joined cgroup $(lval CGROUP) \$\$=$$ \$BASHPID=${BASHPID} pids=$(cgroup_pids -r ${CGROUP})"
+        etestmsg "Joined cgroup $(lval CGROUP) \$\$=$$ \$BASHPID=${BASHPID} pids=$(cgroup_pids -r ${CGROUP})"
         cgroup_kill_and_wait -x="${BASHPID} $$" ${CGROUP}
 
-        einfo "Subshell still exists after cgroup_kill_and_wait"
+        etestmsg "Subshell still exists after cgroup_kill_and_wait"
     )
 
     [[ $? -eq 0 ]] || die "Subshell should not have been killed by cgroup_kill, but it was."
@@ -341,7 +341,7 @@ while true ; do : ; done
 END
     chmod +x ./hang
 
-    einfo "Starting process that ignores sigterm"
+    etestmsg "Starting process that ignores sigterm"
     (
         cgroup_move ${CGROUP} ${BASHPID}
         ./hang
