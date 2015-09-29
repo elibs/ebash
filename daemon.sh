@@ -77,7 +77,6 @@
 daemon_init()
 {
     $(declare_args optpack)
-    edebug "Initializting daemon options $(lval optpack) $@"
 
     # Load defaults into the pack first then add in any additional provided settings
     # Since the last key=val added to the pack will always override prior values
