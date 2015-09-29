@@ -40,7 +40,7 @@ ETEST_daemon_start_stop()
     assert daemon_status  sleep_daemon
 
     # Now stop it and verify proper shutdown
-    local pid=$(cat ${pidfile})
+    local pid=$(cat "${pidfile}")
     daemon_stop sleep_daemon
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
@@ -106,7 +106,7 @@ ETEST_daemon_respawn()
         # Kill underlying pid
         edebug_enabled && einfo "Killing daemon $(lval pid iter respawns)" || eprogress "Killing daemon $(lval pid iter respawns)"
         {
-            pid=$(cat ${pidfile})
+            pid=$(cat "${pidfile}")
             ps aux | grep ${pid}
             assert process_running ${pid}
             ekilltree -s=KILL ${pid}
@@ -124,7 +124,7 @@ ETEST_daemon_respawn()
         edebug_enabled || eprogress "Waiting for daemon to respawn"
         {
             eretry -r=30 -d=1 daemon_running sleep_daemon
-            pid=$(cat ${pidfile})
+            pid=$(cat "${pidfile}")
             eretry -r=30 -d=1 process_running ${pid}
             einfo "Process respawned $(lval pid)"
 
@@ -174,7 +174,7 @@ ETEST_daemon_respawn_reset()
     for (( iter=1; iter<=${respawns}; iter++ )); do
 
         # Kill underlying pid
-        local pid=$(cat ${pidfile})
+        local pid=$(cat "${pidfile}")
         edebug_enabled && einfo "Killing daemon $(lval pid iter respawns)" || eprogress "Killing daemon $(lval pid iter respawns)"
         {
             ekilltree -s=KILL ${pid}
@@ -189,7 +189,7 @@ ETEST_daemon_respawn_reset()
         edebug_enabled || eprogress "Waiting for daemon to respawn"
         {
             eretry -r=30 -d=1 daemon_running sleep_daemon
-            pid=$(cat ${pidfile})
+            pid=$(cat "${pidfile}")
             eretry -r=30 -d=1 process_running ${pid}
             einfo "Process respawned $(lval pid)"
 
@@ -200,7 +200,7 @@ ETEST_daemon_respawn_reset()
     done
 
     # Now stop it and verify proper shutdown
-    local pid=$(cat ${pidfile})
+    local pid=$(cat "${pidfile}")
     daemon_stop sleep_daemon
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
@@ -293,7 +293,7 @@ ETEST_daemon_logfile()
 
     # Show logfile and verify state
     ebanner "Showwing logfile..."
-    cat ${logfile}
+    cat "${logfile}"
     
     grep --silent "Starting My Daemon" "${logfile}"
     grep --silent "stdout"             "${logfile}"
