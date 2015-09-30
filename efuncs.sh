@@ -2509,7 +2509,8 @@ eretry()
         [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
             && ewarn "Command has failed $((attempt+1)) times. Retrying: $(lval cmd _eretry_retries _eretry_timeout exit_codes)"
 
-        [[ ${_eretry_delay} -ne 0 ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
+        # Don't use "-ne" here since delay can have embedded units
+        [[ ${_eretry_delay} != "0" ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
     done
 
     [[ ${rc} -eq 0 ]] || ewarn "Command failed $(lval cmd _eretry_retries _eretry_timeout exit_codes)"
