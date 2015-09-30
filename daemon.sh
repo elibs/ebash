@@ -283,23 +283,18 @@ daemon_stop()
     local pid=$(cat ${pidfile} 2>/dev/null || true)
     rm -f ${pidfile}
     if [[ -n ${pid} ]]; then
-         
-        # Try to kill the process with requested signal
-        try
-        {
-            ekilltree -s=${signal} ${pid}
-            eretry -r=5 -d=$((timeout/5)) process_not_running ${pid}
-        }
-        catch
-        {
+        
+        # kill the process with requested signal
+        ekilltree -s=${signal} ${pid}
+
+        if ! eretry -r=${timeout} -d=1s process_not_running ${pid}; then
             ekilltree -s=SIGKILL ${pid}
-            eretry -r=5 -d=$((timeout/5)) process_not_running ${pid}
-        }
-
+        fi
+        
+        eend $(process_not_running ${pid})
+    else
+        eend 0
     fi
-
-    process_not_running ${pid}
-    eend 0
 
     if [[ -n ${cgroup} ]] ; then
         edebug "Waiting for all processes in $(lval cgroup) to die"
@@ -333,7 +328,7 @@ daemon_status()
         # Check pidfile
         [[ -e ${pidfile} ]] || { eend 1; edebug "Not Running (no pidfile)"; return 1; }
         local pid=$(cat ${pidfile} 2>/dev/null || true)
-        [[ -z ${pid}     ]] && { eend 1; edebug "Not Running (no pid)"; return 1; }
+        [[ -n ${pid}     ]] || { eend 1; edebug "Not Running (no pid)"; return 1; }
 
         # Check if it's running
         process_running ${pid} || { eend 1; edebug "Not Running"; return 1; }

@@ -589,6 +589,11 @@ einteractive()
 
 tput()
 {
+    if [[ "$@" == "cols" && -n ${COLUMNS:-} ]]; then
+        echo -n "${COLUMNS}"
+        return 0
+    fi
+
     TERM=screen-256color /usr/bin/tput $@
 }
 
@@ -1162,15 +1167,14 @@ ekilltree()
 
     local pid
     for pid in ${@}; do 
-        local cmd="$(ps -p ${pid} -o args= || true)"
-        edebug "Killing process tree $(lval pid signal cmd)"
+        edebug "Killing process tree $(lval pid signal)"
         
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
             edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child}
         done
 
-        ekill -s=${signal} ${pid} || true
+        ekill -s=${signal} ${pid}
     done
 }
 
@@ -2394,7 +2398,7 @@ etimeout()
     # Wait for pid which will either be KILLED by watcher or complete normally.
     local watcher=$!
     wait ${pid} && rc=0 || rc=$?
-    ekilltree -SIGKILL ${watcher} &>/dev/null || true
+    ekilltree -SIGKILL ${watcher} &>/dev/null
     wait ${watcher}               &>/dev/null && watcher_rc=0 || watcher_rc=$?
     local stop=${SECONDS}
     local seconds=$(( ${stop} - ${start} ))
@@ -2510,7 +2514,8 @@ eretry()
         [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
             && ewarn "Command has failed $((attempt+1)) times. Retrying: $(lval cmd _eretry_retries _eretry_timeout exit_codes)"
 
-        [[ ${_eretry_delay} -ne 0 ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
+        # Don't use "-ne" here since delay can have embedded units
+        [[ ${_eretry_delay} != "0" ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
     done
 
     [[ ${rc} -eq 0 ]] || ewarn "Command failed $(lval cmd _eretry_retries _eretry_timeout exit_codes)"
