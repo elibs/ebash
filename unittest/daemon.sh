@@ -23,7 +23,8 @@ ETEST_daemon_start_stop()
 {
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
-    
+   
+    etestmsg "Starting infinity daemon"
     daemon_init sleep_daemon                \
         name="Infinity"                     \
         cmdline="sleep infinity"            \
@@ -33,6 +34,7 @@ ETEST_daemon_start_stop()
     daemon_start sleep_daemon
     
     # Wait for process to be running
+    etestmsg "Waiting for daemon to be running"
     eretry -r=30 -d=1 daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
@@ -40,6 +42,7 @@ ETEST_daemon_start_stop()
     assert daemon_status  sleep_daemon
 
     # Now stop it and verify proper shutdown
+    etestmsg "Stopping daemon"
     local pid=$(cat "${pidfile}")
     daemon_stop sleep_daemon
     assert_false daemon_running sleep_daemon
