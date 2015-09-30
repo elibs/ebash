@@ -252,7 +252,7 @@ cgroup_pids()
             (( rc += 1 ))
             continue
         else
-            edebug "looking for processes $(lval cgroup files)"
+            edebug "looking for processes $(lval cgroup)"
         fi
 
         local subsystem_file 
@@ -294,7 +294,7 @@ cgroup_pids()
             | sort -u                           \
             | egrep -vw "${ignore_regex}"))
 
-    edebug "$(lval all_pids found_pids ignorepids ignore_regex )"
+    edebug "$(lval found_pids ignorepids ignore_regex )"
     echo "${found_pids[@]:-}"
     return "${rc}"
 }

@@ -65,7 +65,7 @@ ETEST_daemon_cgroup()
     assert [[ -s ${pidfile} ]]
 
     local running_pids=$(cgroup_pids ${CGROUP})
-    einfo "Daemon running $(lval CGROUP running_pids)"
+    etestmsg "Daemon running $(lval CGROUP running_pids)"
     cgroup_pstree ${CGROUP}
 
     daemon_stop sleep_daemon
@@ -86,51 +86,36 @@ ETEST_daemon_respawn()
         respawn_interval="300"   \
 
     $(pack_import sleep_daemon)
-    edebug_enabled && einfo "Starting daemon $(lval +sleep_daemon)" || eprogress "Starting daemon $(lval +sleep_daemon)"
-    {
-        daemon_start sleep_daemon
-        eretry -r=30 -d=1 daemon_running sleep_daemon
-        assert [[ -s ${pidfile} ]]
-        assert process_running $(cat ${pidfile})
-        assert daemon_running sleep_daemon
-        assert daemon_status  sleep_daemon
-
-    } &>$(edebug_out)
-
-    edebug_enabled || eprogress_kill
+    etestmsg "Starting daemon $(lval +sleep_daemon)"
+    daemon_start sleep_daemon
+    eretry -r=30 -d=1 daemon_running sleep_daemon
+    assert [[ -s ${pidfile} ]]
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
     
     # Now kill it the specified number of respawns
     # and verify it respawns each time
     for (( iter=1; iter<=${respawns}; iter++ )); do
 
         # Kill underlying pid
-        edebug_enabled && einfo "Killing daemon $(lval pid iter respawns)" || eprogress "Killing daemon $(lval pid iter respawns)"
-        {
-            pid=$(cat "${pidfile}")
-            ps aux | grep ${pid}
-            assert process_running ${pid}
-            ekilltree -s=KILL ${pid}
-            eretry -r=30 -d=1 process_not_running ${pid}
-            eretry -r=30 -d=1 daemon_not_running sleep_daemon
-
-        } &>$(edebug_out)
-        
-        edebug_enabled || eprogress_kill
+        pid=$(cat "${pidfile}")
+        etestmsg "Killing daemon $(lval pid iter respawns)"
+        ps aux | grep ${pid}
+        assert process_running ${pid}
+        ekilltree -s=KILL ${pid}
+        eretry -r=30 -d=1 process_not_running ${pid}
+        eretry -r=30 -d=1 daemon_not_running sleep_daemon
 
         # If iter == respawns break out
         [[ ${iter} -lt ${respawns} ]] || break
 
         # Now wait for process to respawn
-        edebug_enabled || eprogress "Waiting for daemon to respawn"
-        {
-            eretry -r=30 -d=1 daemon_running sleep_daemon
-            pid=$(cat "${pidfile}")
-            eretry -r=30 -d=1 process_running ${pid}
-            einfo "Process respawned $(lval pid)"
-
-        } &>$(edebug_out)
-
-        edebug_enabled || eprogress_kill
+        etestmsg "Waiting for daemon to respawn"
+        eretry -r=30 -d=1 daemon_running sleep_daemon
+        pid=$(cat "${pidfile}")
+        eretry -r=30 -d=1 process_running ${pid}
+        etestmsg "Process respawned $(lval pid)"
 
     done
 
@@ -156,46 +141,31 @@ ETEST_daemon_respawn_reset()
         respawn_interval="0"     \
 
     $(pack_import sleep_daemon)
-    edebug_enabled && einfo "Starting daemon $(lval +sleep_daemon)" || eprogress "Starting daemon $(lval +sleep_daemon)"
-    {
-        daemon_start sleep_daemon
-        eretry -r=30 -d=1 daemon_running sleep_daemon
-        assert [[ -s ${pidfile} ]]
-        assert process_running $(cat ${pidfile})
-        assert daemon_running sleep_daemon
-        assert daemon_status  sleep_daemon
+    etestmsg "Starting daemon $(lval +sleep_daemon)"
+    daemon_start sleep_daemon
+    eretry -r=30 -d=1 daemon_running sleep_daemon
+    assert [[ -s ${pidfile} ]]
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
 
-    } &>$(edebug_out)
-
-    edebug_enabled || eprogress_kill
-    
     # Now kill it the specified number of respawns
     # and verify it respawns each time
     for (( iter=1; iter<=${respawns}; iter++ )); do
 
         # Kill underlying pid
         local pid=$(cat "${pidfile}")
-        edebug_enabled && einfo "Killing daemon $(lval pid iter respawns)" || eprogress "Killing daemon $(lval pid iter respawns)"
-        {
-            ekilltree -s=KILL ${pid}
-            eretry -r=30 -d=1 process_not_running ${pid}
-            eretry -r=30 -d=1 daemon_not_running sleep_daemon
-
-        } &>$(edebug_out)
-        
-        edebug_enabled || eprogress_kill
+        etestmsg "Killing daemon $(lval pid iter respawns)"
+        ekilltree -s=KILL ${pid}
+        eretry -r=30 -d=1 process_not_running ${pid}
+        eretry -r=30 -d=1 daemon_not_running sleep_daemon
 
         # Now wait for process to respawn
-        edebug_enabled || eprogress "Waiting for daemon to respawn"
-        {
-            eretry -r=30 -d=1 daemon_running sleep_daemon
-            pid=$(cat "${pidfile}")
-            eretry -r=30 -d=1 process_running ${pid}
-            einfo "Process respawned $(lval pid)"
-
-        } &>$(edebug_out)
-
-        edebug_enabled || eprogress_kill
+        etestmsg "Waiting for daemon to respawn"
+        eretry -r=30 -d=1 daemon_running sleep_daemon
+        pid=$(cat "${pidfile}")
+        eretry -r=30 -d=1 process_running ${pid}
+        etestmsg "Process respawned $(lval pid)"
 
     done
 
@@ -284,6 +254,8 @@ ETEST_daemon_logfile()
     $(pack_import mdaemon)
 
     (
+        die_on_abort
+
         # Start
         daemon_start mdaemon
         eretry -r=30 -d=1 daemon_running mdaemon
