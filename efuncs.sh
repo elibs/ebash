@@ -11,6 +11,7 @@ set -o nounset
 set -o functrace
 set -o errtrace
 shopt -s expand_aliases
+shopt -s checkwinsize
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -1140,17 +1141,8 @@ ekill()
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
 
-    # Iterate over all provided PIDs and kill each one. If any of the PIDS do not
-    # exist just skip it instead of trying (and failing) to kill it since we're
-    # already in the desired state if the process is killed already.
-    local pid
-    for pid in ${@}; do
-
-        local cmd="$(ps -p ${pid} -o args= || true)"
-        edebug "Killing $(lval pid signal cmd)"
-        kill -${signal} ${pid} &>/dev/null || true
-
-    done
+    # Kill all requested PIDs using requested signal.
+    kill -${signal} ${@} &>/dev/null || true
 }
 
 # Kill entire process tree for each provided pid by doing a depth first search to find
@@ -1491,17 +1483,37 @@ erestore()
 #   touch /var/log/foo
 #
 # OPTIONS
-# -m=NUM Maximum number of logs to keep (defaults to 5)
+# -c=NUM
+#   Maximum count of logs to keep (defaults to 5).
+#
+# -s=SIZE
+#   Rotate logfiles if the size of most recent file is greater than SIZE.
+#   SIZE can be expressed using syntax accepted by find(1) --size option.
+#   Specifically, you add a suffix to denote the units:
+#   c for bytes
+#   w for two-byte words
+#   k for kilobytes
+#   M for Megabytes
+#   G for gigabytes
+#
 elogrotate()
 {
     $(declare_args name)
-    local max=$(opt_get m 5)
+    local count=$(opt_get c 5)
+    local size=$(opt_get s 0)
     
     # Ensure we don't try to rotate non-files
     [[ -f $(readlink -f "${name}") ]] 
 
+    # If log file exists and is smaller than size threshold just return
+    if [[ -z "$(find "$(dirname "${name}")" -maxdepth 1     \
+               -type f -name "$(basename "${name}")"        \
+               -size ${size} -o -size +${size})" ]]; then
+        return 0
+    fi
+
     local log_idx next
-    for (( log_idx=${max}; log_idx > 0; log_idx-- )); do
+    for (( log_idx=${count}; log_idx > 0; log_idx-- )); do
         next=$(( log_idx+1 ))
         [[ -e ${name}.${log_idx} ]] && mv -f ${name}.${log_idx} ${name}.${next}
     done
@@ -1512,10 +1524,10 @@ elogrotate()
     touch ${name}
 
     # Remove any log files greater than our retention count
-    find "$(dirname "${name}")" -maxdepth 1   \
+    find "$(dirname "${name}")" -maxdepth 1                 \
                -type f -name "$(basename "${name}")"        \
             -o -type f -name "$(basename "${name}").[0-9]*" \
-        | sort --version-sort | awk "NR>${max}" | xargs rm -f
+        | sort --version-sort | awk "NR>${count}" | xargs rm -f
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
@@ -1525,25 +1537,44 @@ elogrotate()
 # STDERR pipes are kept separate to avoid problems with logfiles getting truncated.
 #
 # OPTIONS
-# -r=NUM   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0 which is disabled)
-# -o=(0|1) Redirect STDOUT (defaults to 1)
-# -e=(0|1) Redirect STDERR (defaults to 1)
-# -t=(0|1) Tail the output (defaults to 1)
+#
+# -e=(0|1)
+#   Redirect STDERR (defaults to 1)
+#
+# -o=(0|1)
+#   Redirect STDOUT (defaults to 1)
+#
+# -r=NUM
+#   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0
+#   which is disabled).
+#
+# -s=SIZE
+#   Rotate logfiles via elogrotate if the size of most recent file is greater
+#   than SIZE. SIZE can be expressed using syntax accepted by find(1) --size
+#   option. Specifically, you add a suffix to denote the units:
+#   c for bytes, w for two-byte words, k for kilobytes, M for Megabytes, and
+#   G for gigabytes.
+#
+# -t=(0|1)
+#   Tail the output (defaults to 1)
+#
 elogfile()
 {
     $(declare_args)
 
-    local rotate=$(opt_get r 0)
     local stdout=$(opt_get o 1)
     local stderr=$(opt_get e 1)
     local dotail=$(opt_get t 1)
-    edebug "$(lval rotate stdout stderr dotail)"
+    local rotate=$(opt_get r 0)
+    local rotate_size=$(opt_get s 0)
+    edebug "$(lval stdout stderr dotail rotate_count rotate_size)"
 
     # Rotate logs as necessary but only if they are regular files
     if [[ ${rotate} -gt 0 ]]; then
         local name
         for name in "${@}"; do
-            [[ -f $(readlink -f "${name}") ]] && elogrotate -m=${rotate} "${name}"
+            [[ -f $(readlink -f "${name}") ]] || continue
+            elogrotate -c=${rotate} -s=${rotate_size} "${name}"
         done
     fi
 
@@ -1555,6 +1586,13 @@ elogfile()
         stderr_redirect=/dev/null
     fi
 
+    # Setup EINTERACTIVE so our output formats properly even though stderr
+    # won't be connected to a console anymore.
+    if [[ ! -v EINTERACTIVE ]]; then
+        [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
+    fi
+    
+    # Do actual redirection
     [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}" >${stdout_redirect})
     [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >${stderr_redirect})
 }
@@ -2080,7 +2118,7 @@ opt_true()
 {
     local _caller
     _caller=( $(caller 0) )
-    [[ $(pack_get _${_caller[1]}_options ${1}) -eq 1 ]]
+    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 1 ]]
 }
 
 # Helper method to be used after declare_args to check if a given option is false (0).
@@ -2088,7 +2126,7 @@ opt_false()
 {
     local _caller
     _caller=( $(caller 0) )
-    [[ $(pack_get _${_caller[1]}_options ${1}) -eq 0 ]]
+    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 0 ]]
 }
 
 # Helper method to be used after declare_args to extract the value of an option.
