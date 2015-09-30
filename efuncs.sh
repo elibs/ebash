@@ -589,6 +589,11 @@ einteractive()
 
 tput()
 {
+    if [[ "$@" == "cols" && -n ${COLUMNS:-} ]]; then
+        echo -n "${COLUMNS}"
+        return 0
+    fi
+
     TERM=screen-256color /usr/bin/tput $@
 }
 
