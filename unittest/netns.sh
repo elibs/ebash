@@ -31,7 +31,7 @@ ETEST_ns_exec()
     
     # Look for network interfaces in the namespace; lo should be the only one
     ifaces=$(ns_exec ${NS_NAME} ls /sys/class/net)
-    assert [[ "${ifaces}" == "lo" ]]
+    assert_eq "${ifaces}" "lo"
 }
 
 ETEST_ns_list()
