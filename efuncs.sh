@@ -1162,15 +1162,14 @@ ekilltree()
 
     local pid
     for pid in ${@}; do 
-        local cmd="$(ps -p ${pid} -o args= || true)"
-        edebug "Killing process tree $(lval pid signal cmd)"
+        edebug "Killing process tree $(lval pid signal)"
         
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
             edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child}
         done
 
-        ekill -s=${signal} ${pid} || true
+        ekill -s=${signal} ${pid}
     done
 }
 
@@ -2394,7 +2393,7 @@ etimeout()
     # Wait for pid which will either be KILLED by watcher or complete normally.
     local watcher=$!
     wait ${pid} && rc=0 || rc=$?
-    ekilltree -SIGKILL ${watcher} &>/dev/null || true
+    ekilltree -SIGKILL ${watcher} &>/dev/null
     wait ${watcher}               &>/dev/null && watcher_rc=0 || watcher_rc=$?
     local stop=${SECONDS}
     local seconds=$(( ${stop} - ${start} ))
