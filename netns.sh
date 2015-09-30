@@ -11,10 +11,10 @@ NETNS_DIR="/run/netns"
 netns_create()
 {
     $(declare_args ns_name)
-    
+
     # Do not create if it already exists
     [[ -e "${NETNS_DIR}/${ns_name}" ]] && return 0
-    
+
     ip netns add "${ns_name}"
     netns_exec "${ns_name}" ip link set dev lo up
 }
