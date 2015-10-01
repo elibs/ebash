@@ -274,7 +274,6 @@ tryrc()
     
     # Temporary directory to hold our FIFOs
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
-    trap_add "rm -rf ${tmpdir}"
 
     # We're creating an "eval command string" inside the command substitution
     # that the caller is supposed to wrap around tryrc.
@@ -330,7 +329,10 @@ tryrc()
     local rc=0
     try
     {
-        "${cmd[@]}"
+        if [[ -n "${cmd[@]:-}" ]]; then
+            "${cmd[@]}"
+        fi
+        
     } >${stdout_pipe} 2>${stderr_pipe}
     catch
     {
@@ -342,6 +344,7 @@ tryrc()
     #       interested in failures due to premature termination of the backgrounded
     #       stdout/stderr pipe reading processes.
     wait ${stdout_pid} ${stderr_pid} &>/dev/null || true
+    rm -rf ${tmpdir}
 
     # Finally we can emit the code the caller needs to execute to set the return code.
     echo eval "declare ${dflags} ${rc_out}=${rc};"
@@ -429,8 +432,6 @@ die()
         __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
     fi
 
-    eprogress_killall
-
     # Clear ERR and DEBUG traps to avoid tracing die code.
     trap - ERR
     trap - DEBUG
@@ -468,6 +469,7 @@ die()
             die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
             __EFUNCS_DIE_IN_PROGRESS=0
         else
+            eprogress_killall
             kill -9 0
         fi
     fi
@@ -1062,7 +1064,6 @@ do_eprogress()
     done
 }
 
-export __EPROGRESS_PIDS=""
 eprogress()
 {
     echo -en "$(emsg 'green' '>>' 'INFO' "$@")" >&2
@@ -1071,8 +1072,8 @@ eprogress()
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
 
     ## Prepend this new eprogress pid to the front of our list of eprogress PIDs
-    do_eprogress &
-    export __EPROGRESS_PIDS="$! ${__EPROGRESS_PIDS}"
+    ( do_eprogress ) &
+    __EPROGRESS_PIDS=( $! ${__EPROGRESS_PIDS[@]:-} )
 }
 
 # Kill the most recent eprogress in the event multiple ones are queued up.
@@ -1089,13 +1090,11 @@ eprogress_kill()
     fi
 
     # Get the most recent pid
-    local pids=()
-    array_init pids "${__EPROGRESS_PIDS}"
-    if [[ $(array_size pids) -gt 0 ]]; then
-        ekill -s=${signal} ${pids[0]}
-        wait ${pids[0]} &>/dev/null || true
+    if [[ $(array_size __EPROGRESS_PIDS) -gt 0 ]]; then
+        ekill -s=${signal} ${__EPROGRESS_PIDS[0]}
+        wait ${__EPROGRESS_PIDS[0]} &>/dev/null || true
 
-        export __EPROGRESS_PIDS="${pids[@]:1}"
+        __EPROGRESS_PIDS=( ${__EPROGRESS_PIDS[@]:1} )
         einteractive && echo "" >&2
         eend ${rc}
     fi
@@ -1106,7 +1105,7 @@ eprogress_kill()
 # Kill all eprogress pids
 eprogress_killall()
 {
-    while [[ -n ${__EPROGRESS_PIDS} ]]; do
+    while [[ $(array_size __EPROGRESS_PIDS) -gt 0 ]]; do
         eprogress_kill 1
     done
 }
@@ -1167,10 +1166,7 @@ ekilltree()
 
     local pid
     for pid in ${@}; do 
-        edebug "Killing process tree $(lval pid signal)"
-        
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
-            edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child}
         done
 
@@ -1684,10 +1680,27 @@ elogfile()
     if [[ ! -v EINTERACTIVE ]]; then
         [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
     fi
+
+    # REDIRECTION WARNING:
+    # It's very very important that we **IGNORE** all signals in the subshells
+    # launched for actually tee'ing stdout and stderr. Otherwise, when tee
+    # receives a signal it would exit immediately. This would then cause any
+    # future attempts to write to these pipes to HANG indefinitely and the process
+    # would become unkillable! The reason for this is because writing to a pipe
+    # is always a blocking operation. Specifically, if there is no reading process
+    # attached to a pipe then the write operation will BLOCK indefinitely. Thus
+    # we want to make very sure that the reader will not get killed prematurely.
+    #
+    # Since we are using exec here there is no danger of orphaned processes since
+    # when the calling process exits bash will immediately ensure the subshell
+    # invoked for the I/O redirection exits properly.
+    if [[ ${stdout} -eq 1 ]]; then
+        exec 1> >( trap "" ${DIE_SIGNALS[@]}; tee -ia "${@}" 1>${stdout_redirect})
+    fi
     
-    # Do actual redirection
-    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}" >${stdout_redirect})
-    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >${stderr_redirect})
+    if [[ ${stderr} -eq 1 ]]; then
+        exec 2> >( trap "" ${DIE_SIGNALS[@]}; tee -ia "${@}" 2>${stderr_redirect})
+    fi
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
@@ -2452,12 +2465,17 @@ etimeout()
     # Background the command to be run
     local start=${SECONDS}
     local cmd=("${@}")
+
+    # If no command to execute just return success immediately
+    if [[ -z "${cmd[@]:-}" ]]; then
+        return 0
+    fi
+
+    # Launch command in the background and store off its pid.
     local rc=""
     "${cmd[@]}" &
     local pid=$!
-
-    # Log what's happening
-    edebug "Executing $(lval cmd _etimeout_timeout _etimeout_signal pid)"
+    edebug "Executing $(lval cmd timeout=_etimeout_timeout signal=_etimeout_signal pid)"
  
     # Start watchdog process to kill process if it times out
     (
@@ -2486,7 +2504,7 @@ etimeout()
 
     # Wait for pid which will either be KILLED by watcher or complete normally.
     local watcher=$!
-    wait ${pid} && rc=0 || rc=$?
+    wait ${pid}                   &>/dev/null && rc=0 || rc=$?
     ekilltree -SIGKILL ${watcher} &>/dev/null
     wait ${watcher}               &>/dev/null && watcher_rc=0 || watcher_rc=$?
     local stop=${SECONDS}
@@ -2494,7 +2512,7 @@ etimeout()
     
     # If the process timedout return 124 to match timeout behavior.
     if [[ ${watcher_rc} -eq 1 ]]; then
-        edebug "Process timed out $(lval cmd rc seconds _etimeout_timeout _etimeout_signal pid)"
+        edebug "Timeout $(lval cmd rc seconds timeout=_etimeout_timeout signal=_etimeout_signal pid)"
         return 124
     else
         return ${rc}
@@ -2507,8 +2525,9 @@ etimeout()
 # but continues to fail every time the return code from eretry will be the failing
 # command's return code. If the command is prematurely terminated via etimeout the
 # return code from eretry will be 124.
-
+#
 # OPTIONS:
+#
 # -d DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
 #   Note that this value can accept sub-second values, just as the sleep command does.
 #
@@ -2528,8 +2547,9 @@ etimeout()
 #   pressing Control-C it is likely intended for the top-level process not the 
 #   process we're iterating on.
 #
-# -r RETRIES=<number>
-#   Command will be attempted <number> times total.
+# -r RETRIES
+#   Command will be attempted RETRIES times total. If no options are provided to
+#   eretry it will use a default retry limit of 5.
 #
 # -s SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
 #   When ${TIMEOUT} seconds have passed since running the command, this will be
@@ -2539,16 +2559,17 @@ etimeout()
 #
 # -t TIMEOUT. After this duration, command will be killed (and retried if that's the
 #   right thing to do).  If unspecified, commands may run as long as they like
-#   and eretry will simply wait for them to finish.
+#   and eretry will simply wait for them to finish. Uses sleep(1) time
+#   syntax.
 #
-#   If it's a simple number, the duration will be a number in seconds.  You may
-#   also specify suffixes in the same format the timeout command accepts them.
-#   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
-#   days, respectively.
+# -T TIMEOUT. Total timeout for entire eretry operation.
+#   This -T flag is different than -t in that -T applies to the entire eretry
+#   operation including all iterations and retry attempts and timeouts of each
+#   individual command. Uses sleep(1) time syntax.
 #
-# -w WARN=<number>
-#   A warning will be generated every time <number> of retries have been
-#   attemped and failed.
+# -w SECONDS
+#   A warning will be generated on (or slightly after) every SECONDS while the
+#   command keeps failing.
 #
 # All direct parameters to eretry are assumed to be the command to execute, and
 # eretry is careful to retain your quoting.
@@ -2559,22 +2580,47 @@ eretry()
     local _eretry_delay=$(opt_get d 0)
     local _eretry_exit_codes=$(opt_get e 0)
     local _eretry_ignore_signals=$(opt_get i 0)
-    local _eretry_retries=$(opt_get r 5)
+    local _eretry_retries=$(opt_get r "")
     local _eretry_signal=$(opt_get s SIGTERM)
     local _eretry_timeout=$(opt_get t infinity)
-    local _eretry_warn=$(opt_get w 0)
-    [[ ${_eretry_retries} -le 0 ]] && _eretry_retries=1
+    local _eretry_timeout_total=$(opt_get T "")
+    local _eretry_warn=$(opt_get w "")
 
+    # If no total timeout or retry limit was specified then default to prior behavior with a max retry of 5.
+    if [[ -z ${_eretry_timeout_total} && -z ${_eretry_retries} ]]; then
+        _eretry_retries=5
+    elif [[ -z ${_eretry_retries} ]]; then
+        _eretry_retries=$(perl -MPOSIX -le 'print LONG_MAX')
+    fi
+
+    # If a total timeout was specified then wrap call to eretry_internal with etimeout
+    if [[ -n ${_eretry_timeout_total} ]]; then
+        etimeout -t=${_eretry_timeout_total} -s=${_eretry_signal} eretry_internal "${@}"
+    else
+        eretry_internal "${@}"
+    fi
+}
+
+# Internal method called by eretry so that we can wrap the call to eretry_internal with a call
+# to etimeout in order to provide upper bound on entire invocation.
+eretry_internal()
+{
     # Command
     local cmd=("${@}")
     local attempt=0
     local rc=""
     local exit_codes=()
     local stdout=""
+    local warn_seconds="${SECONDS}"
+
+    # If no command to execute just return success immediately
+    if [[ -z "${cmd[@]:-}" ]]; then
+        return 0
+    fi
 
     for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
     
-        edebug "$(lval attempt rc cmd stdout)"
+        edebug "Executing $(lval cmd rc stdout) retries=(${attempt}/${_eretry_retries})"
 
         # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
         # on any errors. The reason for this is any caller who cares about the output of
@@ -2589,25 +2635,28 @@ eretry()
 
         # Break if the process exited with white listed exit code.
         if echo "${_eretry_exit_codes}" | grep -wq "${rc}"; then
-            edebug "Command exited with white listed $(lval rc _eretry_exit_codes attempt cmd)"
+            edebug "Command exited with white listed $(lval rc _eretry_exit_codes cmd) retries=(${attempt}/${_eretry_retries})"
             break
         fi
 
         # Break if the process exited due do a signal and we're not ignoring signals.
         if [[ ${_eretry_ignore_signals} -eq 0 && ${rc} -gt 128 && ${rc} -lt 255 ]]; then
             local signal=$(( rc - 128 ))
-            edebug "Command interrupted due to $(lval signal). Aborting. $(lval attempt cmd)"
+            edebug "Command interrupted due to $(lval signal). Aborting. $(lval cmd) retries=(${attempt}/${_eretry_retries})"
             break
         fi
 
-        [[ ${_eretry_warn} -ne 0 ]] && (( (attempt+1) % _eretry_warn == 0 && (attempt+1) < _eretry_retries )) \
-            && ewarn "Command has failed $((attempt+1)) times. Retrying: $(lval cmd _eretry_retries _eretry_timeout exit_codes)"
+        # Show warning if requested
+        if [[ -n ${_eretry_warn} ]] && (( SECONDS - warn_seconds > _eretry_warn )); then
+            ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
+            warn_seconds=${SECONDS}
+        fi
 
         # Don't use "-ne" here since delay can have embedded units
         [[ ${_eretry_delay} != "0" ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
     done
 
-    [[ ${rc} -eq 0 ]] || ewarn "Command failed $(lval cmd _eretry_retries _eretry_timeout exit_codes)"
+    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
 
     # Emit stdout
     echo -n "${stdout}"

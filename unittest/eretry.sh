@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+ETEST_eretry_empty_command()
+{
+    eretry ""
+}
+
+ETEST_etimeout_empty_command()
+{
+    etimeout -t=1 ""
+}
+
 FAIL_TIMES=0
 fail_then_pass()
 {
@@ -44,26 +54,37 @@ ETEST_eretry_warn_every()
 {
     EDEBUG=
 
-    output=$(eretry -r=10 -w=2 false 2>&1 || true)
-    einfo "$(lval output)"
-    assert_eq 5 $(echo "$output" | wc -l)
+    callback()
+    {
+        sleep .1
+        false
+    }
 
-    output=$(eretry -r=30 -w=3 false 2>&1 || true)
+    etestmsg "Calling callback 50 times warn every 1 second -- expecting >= 5"
+    output=$(eretry -r=50 -w=1 callback 2>&1 || true)
     einfo "$(lval output)"
-    assert_eq 10 $(echo "$output" | wc -l)
+    assert [[ "$(echo -n "$output" | wc -l)" -ge 5 ]]
 
-    output=$(eretry -r=3 -w=1 false 2>&1 || true)
+    etestmsg "Calling callback 80 times warn every 3 seconds -- expecting >= 3"
+    output=$(eretry -r=80 -w=3 callback 2>&1 || true)
     einfo "$(lval output)"
-    assert_eq 3 $(echo "$output" | wc -l)
+    assert [[ "$(echo -n "$output" | wc -l)" -ge 3 ]]
 
-    output=$(eretry -r=0 -w=1 false 2>&1 || true)
+    etestmsg "Calling callback 30 times warn every 1 second -- expecting >= 3"
+    output=$(eretry -r=30 -w=1 callback 2>&1 || true)
     einfo "$(lval output)"
-    assert_eq 1 $(echo "$output" | wc -l)
+    assert [[ "$(echo -n "$output" | wc -l)" -ge 3 ]]
+
+    etestmsg "Calling callback 0 times warn every 1 second -- expecting == 0"
+    output=$(eretry -r=0 -w=1 callback 2>&1 || true)
+    einfo "$(lval output)"
+    assert [[ "$(echo -n "$output" | wc -l)" -eq 0 ]]
 }
 
 ETEST_eretry_hang()
 {
-    eretry -t=1s -r=0 sleep infinity && die "eretry should abort" || assert_eq 124 $?
+    $(tryrc eretry -t=1s -r=1 sleep infinity)
+    assert_eq 124 ${rc}
 }
 
 ETEST_eretry_hang_block_sigterm()
@@ -241,3 +262,26 @@ ETEST_eretry_partial_output_timeout()
     assert_eq '{"key":"value"}' "${output}"
 }
 
+ETEST_eretry_total_timeout()
+{
+    $(tryrc eretry -T=1 sleep infinity)
+    assert_eq 124 ${rc}
+}
+
+ETEST_eretry_default_count()
+{
+    echo -n "0" > calls.txt
+
+    callback()
+    {
+        local calls=$(cat calls.txt)
+        einfo "Callback called: $(lval calls)"
+        echo "$(( calls + 1 ))" > calls.txt
+
+        false
+    }
+
+    $(tryrc eretry callback)
+
+    assert_eq "5" "$(cat calls.txt)"
+}
