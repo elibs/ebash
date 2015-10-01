@@ -1594,10 +1594,27 @@ elogfile()
     if [[ ! -v EINTERACTIVE ]]; then
         [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
     fi
+
+    # REDIRECTION WARNING:
+    # It's very very important that we **IGNORE** all signals in the subshells
+    # launched for actually tee'ing stdout and stderr. Otherwise, when tee
+    # receives a signal it would exit immediately. This would then cause any
+    # future attempts to write to these pipes to HANG indefinitely and the process
+    # would become unkillable! The reason for this is because writing to a pipe
+    # is always a blocking operation. Specifically, if there is no reading process
+    # attached to a pipe then the write operation will BLOCK indefinitely. Thus
+    # we want to make very sure that the reader will not get killed prematurely.
+    #
+    # Since we are using exec here there is no danger of orphaned processes since
+    # when the calling process exits bash will immediately ensure the subshell
+    # invoked for the I/O redirection exits properly.
+    if [[ ${stdout} -eq 1 ]]; then
+        exec 1> >( trap "" ${DIE_SIGNALS[@]}; tee -a "${@}" 1>${stdout_redirect})
+    fi
     
-    # Do actual redirection
-    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}" >${stdout_redirect})
-    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >${stderr_redirect})
+    if [[ ${stderr} -eq 1 ]]; then
+        exec 2> >( trap "" ${DIE_SIGNALS[@]}; tee -a "${@}" 2>${stderr_redirect})
+    fi
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
