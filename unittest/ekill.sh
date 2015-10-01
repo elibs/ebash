@@ -62,32 +62,3 @@ ETEST_ekilltree()
         ! process_running ${pid} || die "${pid} failed to exit"
     done
 }
-
-ETEST_ekill_should_log()
-{
-    etestmsg "Testing against $(lval DIE_SIGNALS)"
-    
-    local sig
-    for sig in ${DIE_SIGNALS[@]}; do
-        local short="${sig##SIG}"
-        einfo "${sig}/${short}"
-        
-        if [[ "${sig}" == "SIGKILL" ]]; then
-            assert_false kill_should_log ${sig}
-            assert_false kill_should_log ${short}
-        else
-            assert_true kill_should_log ${sig}
-            assert_true kill_should_log ${short}
-        fi
-    done
-
-    etestmsg "Testing against signals 1..64"
-    for sig in {1..64}; do
-        einfo "$(lval sig)"
-        if [[ ${sig} -eq 9 ]]; then
-            assert_false kill_should_log ${sig}
-        else
-            assert_true kill_should_log ${sig}
-        fi
-    done
-}

@@ -357,5 +357,5 @@ ETEST_elogfile_ekilltree_hang()
         return 0
     }
 
-    die "Test should have exited already."
+    die "Test should have returned"
 }
