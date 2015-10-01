@@ -1166,10 +1166,7 @@ ekilltree()
 
     local pid
     for pid in ${@}; do 
-        edebug "Killing process tree $(lval pid signal)"
-        
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
-            edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child}
         done
 
@@ -1609,11 +1606,11 @@ elogfile()
     # when the calling process exits bash will immediately ensure the subshell
     # invoked for the I/O redirection exits properly.
     if [[ ${stdout} -eq 1 ]]; then
-        exec 1> >( trap "" ${DIE_SIGNALS[@]}; tee -a "${@}" 1>${stdout_redirect})
+        exec 1> >( trap "" ${DIE_SIGNALS[@]}; tee -ia "${@}" 1>${stdout_redirect})
     fi
     
     if [[ ${stderr} -eq 1 ]]; then
-        exec 2> >( trap "" ${DIE_SIGNALS[@]}; tee -a "${@}" 2>${stderr_redirect})
+        exec 2> >( trap "" ${DIE_SIGNALS[@]}; tee -ia "${@}" 2>${stderr_redirect})
     fi
 }
 

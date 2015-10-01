@@ -349,5 +349,6 @@ ETEST_elogfile_ekilltree_hang()
         einfo "Test"
         pstree -p $$
         ekilltree ${BASHPID}
+        ekilltree -s=SIGKILL ${BASHPID}
     )
 }
