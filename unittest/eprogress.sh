@@ -25,7 +25,7 @@ ETEST_eprogress_ticks()
     sleep 1
     eprogress_kill
     cat ${TICK_FILE}
-    [[ $(tail -1 ${TICK_FILE}) -ge 9 ]] || die
+    assert [[ $(tail -1 ${TICK_FILE}) -ge 9 ]]
 }
 
 ETEST_eprogress_ticks_reuse()
@@ -36,13 +36,13 @@ ETEST_eprogress_ticks_reuse()
     sleep 1
     eprogress_kill
     cat ${TICK_FILE}
-    [[ $(tail -1 ${TICK_FILE}) -ge 5 ]] || die
+    assert [[ $(tail -1 ${TICK_FILE}) -ge 5 ]]
     
     eprogress "Waiting for Gentoo to replace Ubuntu"
     sleep 1
     eprogress_kill
     cat ${TICK_FILE}
-    [[ $(tail -1 ${TICK_FILE}) -ge 5 ]] || die
+    assert [[ $(tail -1 ${TICK_FILE}) -ge 5 ]]
 }
 
 # Verify EPROGRESS_TICKER can be used to forcibly enable/disable ticker
@@ -82,4 +82,16 @@ ETEST_eprogress_ticker_on()
     assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[22C[ ok ]\$" "$(cat -evt eprogress.out)"
 }
 
+ETEST_eprogress_inside_eretry()
+{
+    override_function do_eprogress "${FAKE_DO_EPROGRESS}"
 
+    etestmsg "Starting eprogress"
+    eprogress "Waiting for eretry"
+    $(tryrc eretry -T=1s false)
+    eprogress_kill
+
+    etestmsg "Showing tickfile"
+    cat ${TICK_FILE}
+    assert [[ $(tail -1 ${TICK_FILE}) -ge 9 ]]
+}
