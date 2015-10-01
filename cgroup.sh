@@ -417,6 +417,11 @@ cgroup_pstree()
 # all of the specified cgroups (and their children!).  Accepts any number of
 # cgroups.
 #
+# WARNING: We very careful with logging here if the signal is SIGKILL b/c if we kill
+# the tee process created by elogfile with SIGKILL then all future stdout/stderr
+# logging will hang indefinitely. This would prevent us from iterating and killing
+# the other processes in the list. As such, guard any logging with kill_should_log.
+#
 # Options:
 #       -s=<signal>
 #       -x=space separated list of pids not to kill.  NOTE: $$ and $BASHPID are
@@ -433,14 +438,15 @@ cgroup_kill()
 
     ignorepids="$(opt_get x)"
     ignorepids+=" $$ ${BASHPID}"
+    
+    local signal=$(opt_get s SIGTERM)
 
     # NOTE: BASHPID must be added here in addition to above because it's
     # different inside this command substituion (subshell) than it is outside.
     array_init pids "$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" ${cgroups[@]} || true)"
 
     if [[ $(array_size pids) -gt 0 ]] ; then
-        edebug "Killing processes in cgroups $(lval cgroups pids ignorepids)"
-        local signal=$(opt_get s SIGTERM)
+        kill_should_log ${signal} && edebug "Killing processes in cgroups $(lval cgroups pids ignorepids)"
 
         # Ignoring errors here because we don't want to die simply because a
         # process that was in the cgroup disappeared of its own volition before we
@@ -451,7 +457,7 @@ cgroup_kill()
         # cgroup.
         ekill -s=${signal} ${pids[@]} || true
     else
-        edebug "All processes in cgroup are already dead.  $(lval cgroups pids ignorepids)"
+        kill_should_log ${signal} && edebug "All processes in cgroup are already dead.  $(lval cgroups pids ignorepids)"
     fi
 }
 
@@ -460,6 +466,13 @@ cgroup_kill()
 # all of them and waiting until the group is empty.
 #
 # NOTE: This probably won't work well if your script is already in that cgroup.
+#
+#
+# WARNING: We very careful with logging here if the signal is SIGKILL b/c if we kill
+# the tee process created by elogfile with SIGKILL then all future stdout/stderr
+# logging will hang indefinitely. This would prevent us from iterating and killing
+# the other processes in the list. As such, guard any logging with kill_should_log.
+#
 #
 # Options:
 #       -s=<signal>
@@ -483,34 +496,37 @@ cgroup_kill_and_wait()
     # Don't need to add $$ and $BASHPID to ignorepids here because cgroup_kill
     # will do that for me
     local ignorepids=$(opt_get x)
-
-    edebug "Ensuring that there are no processes in $(lval cgroups ignorepids)."
+    local signal=$(opt_get s SIGTERM)
+    
+    kill_should_log ${signal} && edebug "Ensuring that there are no processes in $(lval cgroups ignorepids)."
 
     local times=0
     while true ; do
-        cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGTERM) "${cgroups[@]}"
+        cgroup_kill -x="${ignorepids} ${BASHPID}" -s=${signal} "${cgroups[@]}"
 
         local remaining_pids=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
         if [[ -z ${remaining_pids} ]] ; then
-            edebug "Done.  All processes in cgroup are gone.  $(lval cgroups ignorepids)"
+            kill_should_log ${signal} && edebug "Done.  All processes in cgroup are gone.  $(lval cgroups ignorepids)"
             break
         else
             if [[ ${timeout} -gt 0 ]] && (( SECONDS - startTime > timeout )) ; then
-                eerror "Tried to kill all processes in cgroup, but some remain.  Giving up after ${timeout} seconds.  $(lval cgroup remaining_pids)"
+                kill_should_log ${signal} && eerror "Tried to kill all processes in cgroup, but some remain.  Giving up after ${timeout} seconds.  $(lval cgroup remaining_pids)"
                 return 1
             fi
 
-            edebug_disabled || 
+            if kill_should_log ${signal} && edebug_enabled; then
                 for pid in ${remaining_pids} ; do
                     local ps_output="$(ps hp ${pid} 2>/dev/null || true)"
                     [[ -z ${ps_output} ]] || edebug "   ${ps_output}"
                 done
+            fi
+
             sleep .1
         fi
 
         (( times += 1 ))
         if ((times % 50 == 0 )) ; then
-            ewarn "Still trying to kill processes. $(lval cgroups remaining_pids)"
+            kill_should_log ${signal} && ewarn "Still trying to kill processes. $(lval cgroups remaining_pids)"
         fi
 
     done

@@ -1130,11 +1130,40 @@ process_not_running()
     ! kill -0 ${pid} &>/dev/null
 }
 
+# Check if any of our kill* related functions should log a message or not based
+# on the signal being used in the killing function. The reason this sort of 
+# check is necessary is if we are killing a process list with SIGKILL we may have
+# killed the tee processes created by elogfile. If that happens, then the output
+# ends of those pipes get killed. In bash, if there is no reader attached to the
+# a pipe then writes to the pipe will HANG indefinitely and become UNKILLABLE.
+# 
+# This is ONLY a problem with regards to elogfile with SIGKILL b/c we block all
+# other signals so that the tee processes won't exit prematurely. But we can't
+# block SIGKILL.
+#
+kill_should_log()
+{
+    $(declare_args signal)
+
+    # Convert signal name to number so we can use it's numerical value
+    if [[ ! ${signal} =~ ^[[:digit:]]*$ ]]; then
+        signal=$(kill -l ${signal})
+    fi
+
+    # If the signal is NOT equal to 9 (sigkill) then we should log.
+    [[ ${signal} -ne 9 ]]
+}
+
 # Kill all pids provided as arguments to this function using the specified signal.
 # This function is best effort only. It makes every effort to kill all the specified
 # pids but ignores any errors while calling kill. This is largely due to the fact
 # that processes can exit before we get a chance to kill them. If you really care
 # about processes being gone consider using process_not_running or cgroups.
+#
+# WARNING: We very careful with logging here if the signal is SIGKILL b/c if we kill
+# the tee process created by elogfile with SIGKILL then all future stdout/stderr
+# logging will hang indefinitely. This would prevent us from iterating and killing
+# the other processes in the list. As such, guard any logging with kill_should_log.
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
@@ -1155,6 +1184,11 @@ ekill()
 # Like ekill(), this function is best effort only. If you want more robust guarantees
 # consider process_not_running or cgroups.
 #
+# WARNING: We very careful with logging here if the signal is SIGKILL b/c if we kill
+# the tee process created by elogfile with SIGKILL then all future stdout/stderr
+# logging will hang indefinitely. This would prevent us from iterating and killing
+# the other processes in the list. As such, guard any logging with kill_should_log.
+#
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
 ekilltree()
@@ -1166,7 +1200,11 @@ ekilltree()
 
     local pid
     for pid in ${@}; do 
+
+        kill_should_log ${signal} && edebug "Killing process tree $(lval pid signal)"
+        
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+            kill_should_log ${signal} && edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child}
         done
 

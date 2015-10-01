@@ -341,7 +341,8 @@ ETEST_elogfile_devices()
 
 ETEST_elogfile_ekilltree_hang()
 {
-    (
+    try
+    {
         local mlog="${FUNCNAME}.log"
         trap_add "ewarn AIEEEEE"
 
@@ -350,5 +351,11 @@ ETEST_elogfile_ekilltree_hang()
         pstree -p $$
         ekilltree ${BASHPID}
         ekilltree -s=SIGKILL ${BASHPID}
-    )
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "Test should have exited already."
 }
