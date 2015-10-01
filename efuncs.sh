@@ -1458,6 +1458,95 @@ export_network_interface_names()
     done
 }
 
+# Get a list of the active network ports on this machine. The result is returned as an array of packs stored in the
+# variable passed to the function.
+#
+# Options:
+#  -l Only include listening ports
+#
+# For example:
+# declare -A ports
+# get_listening_ports ports
+# einfo $(lval +ports[5])
+# >> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
+# einfo $(lval +ports[42])
+# ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
+#
+get_network_ports()
+{
+    $(declare_args __ports_list)
+    is_associative_array $__ports_list || die "Argument to get_listening_ports must be an associative array. Try 'declare -A ${__ports_list}'"
+
+    local idx=0
+    local first=1
+    while read line; do
+
+        # Expected netstat format:
+        #  Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+        #  tcp        0      0 10.30.65.166:4013       0.0.0.0:*               LISTEN      42004/sfapp
+        #  tcp        0      0 10.30.65.166:4014       0.0.0.0:*               LISTEN      42002/sfapp
+        #  tcp        0      0 10.30.65.166:8080       0.0.0.0:*               LISTEN      42013/sfapp
+        #  tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      19221/sshd
+        #  tcp        0      0 0.0.0.0:442             0.0.0.0:*               LISTEN      13159/sfconfig
+        #  tcp        0      0 172.30.65.166:2222      192.168.138.137:35198   ESTABLISHED 6112/sshd: root@not
+        # ...
+        #  udp        0      0 0.0.0.0:123             0.0.0.0:*                           45883/ntpd
+        #  udp        0      0 0.0.0.0:161             0.0.0.0:*                           39714/snmpd
+        #  udp        0      0 0.0.0.0:514             0.0.0.0:*                           39746/rsyslogd
+        #
+        # If netstat cannot determine the program that is listening on that port (not enough permissions) it will substitute a "-":
+        #  tcp        0      0 0.0.0.0:902             0.0.0.0:*               LISTEN      -
+        #  udp        0      0 0.0.0.0:43481           0.0.0.0:*                           -
+        #
+
+        # Compare first line to make sure fields are what we expect
+        if [[ ${first} == 1 ]]; then
+            local expected_fields="Proto Recv-Q Send-Q Local Address Foreign Address State PID/Program name"
+            assert_eq "${expected_fields}" "${line}"
+            first=0
+            continue
+        fi
+
+        # Convert the line into an array for easy access to the fields
+        # Replace * with 0 so that we don't get a glob pattern and end up with an array full of filenames from the local directory
+        array_init fields "$(echo ${line} | tr '*' '0')" " :/"
+
+        # Skip this line if this is not TCP or UDP
+        [[ ${fields[0]} =~ (tcp|udp) ]] || continue
+
+        # Skip this line if the -l flag was passed in and this is not a listening port
+        opt_true "l" && [[ ${fields[0]} == "tcp" && ! ${fields[7]} =~ "LISTEN" ]] && continue
+
+        # If there is a - in the line, then netstat could not determine the program listening on this port.
+        # Remove the - and add empty strings for the last two fields (PID and program name)
+        if [[ ${line} =~ "-" ]]; then
+            array_remove fields "-"
+            fields+=("")
+            fields+=("")
+        fi
+
+        # If this is a UDP port, insert an empty string into the "state" field
+        if [[ ${fields[0]} == "udp" ]]; then
+            fields[9]=${fields[8]}
+            fields[8]=${fields[7]}
+            fields[7]=""
+        fi
+
+        pack_set ${__ports_list}[${idx}] proto=${fields[0]} \
+                                         recvq=${fields[1]} \
+                                         sendq=${fields[2]} \
+                                         local_addr=${fields[3]} \
+                                         local_port=${fields[4]} \
+                                         remote_addr=${fields[5]} \
+                                         remote_port=${fields[6]} \
+                                         state=${fields[7]} \
+                                         pid=${fields[8]} \
+                                         prog=${fields[9]}
+        (( idx += 1 ))
+
+    done <<< "$(netstat --all --program --numeric --protocol=inet 2>/dev/null | sed '1d' | tr -s ' ')"
+}
+
 #-----------------------------------------------------------------------------
 # FILESYSTEM HELPERS
 #-----------------------------------------------------------------------------
