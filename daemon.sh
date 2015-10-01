@@ -61,18 +61,22 @@
 # pre_start
 #   Optional hook to be executed before starting the daemon. Must be a single
 #   command to be executed. If more complexity is required use a function.
+#   If this hook fails, the daemon will NOT be started or respawned.
 #
 # pre_stop
 #   Optional hook to be executed before stopping the daemon. Must be a single
 #   command to be executed. If more complexity is required use a function.
+#   Any errors from this hook are ignored.
 #
 # post_start
 #   Optional hook to be executed after starting the daemon. Must be a single
 #   command to be executed. If more complexity is required use a function.
+#   Any errors from this hook are ignored.
 #
 # post_stop
 #   Optional hook to be exected after stopping the daemon. Must be a single
 #   command to be executed. If more complexity is required use a function.
+#   Any errors from this hook are ignored.
 #
 # respawns
 #   The maximum number of times to respawn the daemon command before just
@@ -83,6 +87,7 @@
 #   successful start. This is used in conjunction with respawn similar to
 #   upstart/systemd. If the process is respawned more than ${respawns} times
 #   within ${respawn_interval} seconds, the process will no longer be respawned.
+#
 daemon_init()
 {
     $(declare_args optpack)
@@ -115,6 +120,8 @@ daemon_init()
     if ! pack_contains ${optpack} "pidfile"; then
         pack_set ${optpack} pidfile="/var/run/${base}"
     fi
+
+    return 0
 }
 
 # daemon_start will daemonize the provided command and its arguments as a
@@ -141,6 +148,9 @@ daemon_start()
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
+        # Enable fatal error handling inside subshell
+        die_on_error
+
         # Setup logfile
         elogfile -o=1 -e=1 -r=${logfile_count} -s=${logfile_size} "${logfile}"
 
@@ -172,8 +182,10 @@ daemon_start()
             # Increment run counter
             (( runs+=1 ))
 
-            # Execute optional pre_start hook
-            ${pre_start}
+            # Execute optional pre_start hook. If this fails for any reason do NOT
+            # actually start the daemon.
+            $(tryrc ${pre_start})
+            [[ ${rc} -eq 0 ]] || break
 
             # Construct a subprocess which bind mounts chroot mount points then executes
             # requested daemon. After the daemon completes automatically unmount chroot.
@@ -199,8 +211,8 @@ daemon_start()
             echo "${pid}" > "${pidfile}"
             eend 0
 
-            # Execute optional post_start hook
-            ${post_start}
+            # Execute optional post_start hook. Ignore any errors.
+            $(tryrc ${post_start})
 
             # SECONDS is a magic bash variable keeping track of the number of
             # seconds since the shell started, we can modify it without messing
@@ -236,6 +248,8 @@ daemon_start()
         done
 
     ) &
+
+    return 0
 }
 
 # daemon_stop will find a command currently being run as a pseudo-daemon,
@@ -274,8 +288,8 @@ daemon_stop()
     daemon_running ${optpack} \
         || { eend 0; edebug "Already stopped"; rm -rf ${pidfile}; return 0; }
 
-    # Execute optional pre_stop hook
-    ${pre_stop}
+    # Execute optional pre_stop hook. Ignore any errors.
+    $(tryrc ${pre_stop})
 
     # If it is remove the pidfile then stop the process with provided signal.
     # NOTE: It's important we remove the pidfile BEFORE we kill the process so that
@@ -308,8 +322,10 @@ daemon_stop()
         cgroup_kill_and_wait -x="$$ ${BASHPID}" -s=KILL -t=${cgroup_timeout} ${cgroup}
     fi
     
-    # Execute optional post_stop hook
-    ${post_stop}
+    # Execute optional post_stop hook. Ignore errors.
+    $(tryrc ${post_stop})
+
+    return 0
 }
 
 # Retrieve the status of a daemon.
@@ -340,6 +356,7 @@ daemon_status()
         process_running ${pid} || { eend 1; edebug "Not Running"; return 1; }
     
         # OK -- It's running
+        edebug "Running $(lval name pid +${optpack})"
         eend 0
 
     } &>${redirect}

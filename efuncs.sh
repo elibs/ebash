@@ -330,7 +330,10 @@ tryrc()
     local rc=0
     try
     {
-        "${cmd[@]}"
+        if [[ -n "${cmd[@]:-}" ]]; then
+            "${cmd[@]}"
+        fi
+        
     } >${stdout_pipe} 2>${stderr_pipe}
     catch
     {
@@ -2374,11 +2377,16 @@ etimeout()
     # Background the command to be run
     local start=${SECONDS}
     local cmd=("${@}")
+
+    # If no command to execute just return success immediately
+    if [[ -z "${cmd[@]:-}" ]]; then
+        return 0
+    fi
+
+    # Launch command in the background and store off its pid.
     local rc=""
     "${cmd[@]}" &
     local pid=$!
-
-    # Log what's happening
     edebug "Executing $(lval cmd timeout=_etimeout_timeout signal=_etimeout_signal pid)"
  
     # Start watchdog process to kill process if it times out
@@ -2515,6 +2523,11 @@ eretry_internal()
     local exit_codes=()
     local stdout=""
     local warn_seconds="${SECONDS}"
+
+    # If no command to execute just return success immediately
+    if [[ -z "${cmd[@]:-}" ]]; then
+        return 0
+    fi
 
     for (( count=0 ; count < _eretry_count; count++ )) ; do
     

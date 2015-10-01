@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+ETEST_eretry_empty_command()
+{
+    eretry ""
+}
+
+ETEST_etimeout_empty_command()
+{
+    etimeout -t=1 ""
+}
+
 FAIL_TIMES=0
 fail_then_pass()
 {
