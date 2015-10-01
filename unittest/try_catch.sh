@@ -348,6 +348,15 @@ ETEST_tryrc()
     assert_eq ""    "${stderr}"
 }
 
+ETEST_tryrc_empty_command()
+{
+    $(tryrc -o=stdout -e=stderr "")
+
+    assert_eq 0  "${rc}"
+    assert_eq "" "${stdout}"
+    assert_eq "" "${stderr}"
+}
+
 ETEST_tryrc_declare()
 {
     $(tryrc -o=stdout -e=stderr echo "foo")

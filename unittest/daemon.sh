@@ -35,7 +35,7 @@ ETEST_daemon_start_stop()
     
     # Wait for process to be running
     etestmsg "Waiting for daemon to be running"
-    eretry -r=30 -d=1 daemon_running sleep_daemon
+    eretry -T=30s daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
     assert daemon_running sleep_daemon
@@ -64,7 +64,7 @@ ETEST_daemon_cgroup()
         pidfile="${pidfile}"
 
     daemon_start sleep_daemon
-    eretry -r=30 -d=1 daemon_running sleep_daemon
+    eretry -T=30s daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
 
     local running_pids=$(cgroup_pids ${CGROUP})
@@ -91,7 +91,7 @@ ETEST_daemon_respawn()
     $(pack_import sleep_daemon)
     etestmsg "Starting daemon $(lval +sleep_daemon)"
     daemon_start sleep_daemon
-    eretry -r=30 -d=1 daemon_running sleep_daemon
+    eretry -T=30s daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
     assert daemon_running sleep_daemon
@@ -107,17 +107,17 @@ ETEST_daemon_respawn()
         ps aux | grep ${pid}
         assert process_running ${pid}
         ekilltree -s=KILL ${pid}
-        eretry -r=30 -d=1 process_not_running ${pid}
-        eretry -r=30 -d=1 daemon_not_running sleep_daemon
+        eretry -T=30s process_not_running ${pid}
+        eretry -T=30s daemon_not_running sleep_daemon
 
         # If iter == respawns break out
         [[ ${iter} -lt ${respawns} ]] || break
 
         # Now wait for process to respawn
         etestmsg "Waiting for daemon to respawn"
-        eretry -r=30 -d=1 daemon_running sleep_daemon
+        eretry -T=30s daemon_running sleep_daemon
         pid=$(cat "${pidfile}")
-        eretry -r=30 -d=1 process_running ${pid}
+        eretry -T=30s process_running ${pid}
         etestmsg "Process respawned $(lval pid)"
 
     done
@@ -146,7 +146,7 @@ ETEST_daemon_respawn_reset()
     $(pack_import sleep_daemon)
     etestmsg "Starting daemon $(lval +sleep_daemon)"
     daemon_start sleep_daemon
-    eretry -r=30 -d=1 daemon_running sleep_daemon
+    eretry -T=30s daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
     assert daemon_running sleep_daemon
@@ -160,14 +160,14 @@ ETEST_daemon_respawn_reset()
         local pid=$(cat "${pidfile}")
         etestmsg "Killing daemon $(lval pid iter respawns)"
         ekilltree -s=KILL ${pid}
-        eretry -r=30 -d=1 process_not_running ${pid}
-        eretry -r=30 -d=1 daemon_not_running sleep_daemon
+        eretry -T=30s process_not_running ${pid}
+        eretry -T=30s daemon_not_running sleep_daemon
 
         # Now wait for process to respawn
         etestmsg "Waiting for daemon to respawn"
-        eretry -r=30 -d=1 daemon_running sleep_daemon
+        eretry -T=30s daemon_running sleep_daemon
         pid=$(cat "${pidfile}")
-        eretry -r=30 -d=1 process_running ${pid}
+        eretry -T=30s process_running ${pid}
         etestmsg "Process respawned $(lval pid)"
 
     done
@@ -200,7 +200,7 @@ ETEST_daemon_hooks()
 
     # START
     daemon_start sleep_daemon
-    eretry -r=30 -d=1 daemon_running sleep_daemon
+    eretry -T=30s daemon_running sleep_daemon
     assert_exists ${FUNCNAME}.{pre_start,post_start}
     
     # STOP
@@ -229,7 +229,7 @@ ETEST_daemon_pre_start_fail()
 
     # START
     daemon_start sleep_daemon
-    eretry -r=30 -d=1 daemon_not_running sleep_daemon
+    eretry -T=30s daemon_not_running sleep_daemon
     assert_not_exists ${FUNCNAME}.post_start
 }
 
@@ -261,9 +261,9 @@ ETEST_daemon_logfile()
 
         # Start
         daemon_start mdaemon
-        eretry -r=30 -d=1 daemon_running mdaemon
+        eretry -T=30s daemon_running mdaemon
         daemon_stop mdaemon
-        eretry -r=30 -d=1 daemon_not_running mdaemon
+        eretry -T=30s daemon_not_running mdaemon
     )
 
     # Show logfile and verify state
