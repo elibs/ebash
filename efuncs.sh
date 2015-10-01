@@ -1596,19 +1596,8 @@ elogfile()
     fi
     
     # Do actual redirection
-    trap - SIGPIPE
-    if [[ ${stdout} -eq 1 ]] ; then
-        local oldstdout
-        exec {oldstdout}<&1
-        trap_add "exec 1<&${oldstdout}" SIGPIPE
-        exec 1> >(die_on_abort ; tee -i -a "${@}" || true)
-    fi
-    if [[ ${stderr} -eq 1 ]] ; then
-        local oldstderr
-        exec {oldstderr}<&2
-        trap_add "exec 2<&${oldstderr}" SIGPIPE
-        exec 2> >(die_on_abort ; tee -i -a "${@}" >&2 || true)
-    fi
+    [[ ${stdout} -eq 0 ]] || exec 1> >(tee -a "${@}" >${stdout_redirect})
+    [[ ${stderr} -eq 0 ]] || exec 2> >(tee -a "${@}" >${stderr_redirect})
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
