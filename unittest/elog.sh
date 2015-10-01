@@ -338,3 +338,16 @@ ETEST_elogfile_devices()
         einfo "Test"
     )
 }
+
+ETEST_elogfile_ekilltree_hang()
+{
+    (
+        local mlog="${FUNCNAME}.log"
+        trap_add "ewarn AIEEEEE"
+
+        elogfile -r=1 ${mlog} "/dev/stdout" "/dev/stderr"
+        einfo "Test"
+        pstree -p $$
+        ekilltree ${BASHPID}
+    )
+}
