@@ -2439,9 +2439,6 @@ etimeout()
 # return code from eretry will be 124.
 #
 # OPTIONS:
-# -c COUNT
-#   Command will be attempted COUNT times total. If no options are provided to
-#   eretry it will use a default count limit of 5.
 #
 # -d DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
 #   Note that this value can accept sub-second values, just as the sleep command does.
@@ -2461,6 +2458,10 @@ etimeout()
 #   for this functionality is if the process receives a signal, e.g. SIGINT by 
 #   pressing Control-C it is likely intended for the top-level process not the 
 #   process we're iterating on.
+#
+# -r RETRIES
+#   Command will be attempted RETRIES times total. If no options are provided to
+#   eretry it will use a default retry limit of 5.
 #
 # -s SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
 #   When ${TIMEOUT} seconds have passed since running the command, this will be
@@ -2491,17 +2492,17 @@ eretry()
     local _eretry_delay=$(opt_get d 0)
     local _eretry_exit_codes=$(opt_get e 0)
     local _eretry_ignore_signals=$(opt_get i 0)
-    local _eretry_count=$(opt_get c "")
+    local _eretry_retries=$(opt_get r "")
     local _eretry_signal=$(opt_get s SIGTERM)
     local _eretry_timeout=$(opt_get t infinity)
     local _eretry_timeout_total=$(opt_get T "")
     local _eretry_warn=$(opt_get w "")
 
-    # If no total timeout or count was specified then default to prior behavior with a max count of 5.
-    if [[ -z ${_eretry_timeout_total} && -z ${_eretry_count} ]]; then
-        _eretry_count=5
-    elif [[ -z ${_eretry_count} ]]; then
-        _eretry_count=$(perl -MPOSIX -le 'print LONG_MAX')
+    # If no total timeout or retry limit was specified then default to prior behavior with a max retry of 5.
+    if [[ -z ${_eretry_timeout_total} && -z ${_eretry_retries} ]]; then
+        _eretry_retries=5
+    elif [[ -z ${_eretry_retries} ]]; then
+        _eretry_retries=$(perl -MPOSIX -le 'print LONG_MAX')
     fi
 
     # If a total timeout was specified then wrap call to eretry_internal with etimeout
@@ -2518,7 +2519,7 @@ eretry_internal()
 {
     # Command
     local cmd=("${@}")
-    local count=0
+    local attempt=0
     local rc=""
     local exit_codes=()
     local stdout=""
@@ -2529,9 +2530,9 @@ eretry_internal()
         return 0
     fi
 
-    for (( count=0 ; count < _eretry_count; count++ )) ; do
+    for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
     
-        edebug "Executing $(lval cmd rc stdout) retries=(${count}/${_eretry_count})"
+        edebug "Executing $(lval cmd rc stdout) retries=(${attempt}/${_eretry_retries})"
 
         # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
         # on any errors. The reason for this is any caller who cares about the output of
@@ -2546,20 +2547,20 @@ eretry_internal()
 
         # Break if the process exited with white listed exit code.
         if echo "${_eretry_exit_codes}" | grep -wq "${rc}"; then
-            edebug "Command exited with white listed $(lval rc _eretry_exit_codes count cmd)"
+            edebug "Command exited with white listed $(lval rc _eretry_exit_codes cmd) retries=(${attempt}/${_eretry_retries})"
             break
         fi
 
         # Break if the process exited due do a signal and we're not ignoring signals.
         if [[ ${_eretry_ignore_signals} -eq 0 && ${rc} -gt 128 && ${rc} -lt 255 ]]; then
             local signal=$(( rc - 128 ))
-            edebug "Command interrupted due to $(lval signal). Aborting. $(lval count cmd)"
+            edebug "Command interrupted due to $(lval signal). Aborting. $(lval cmd) retries=(${attempt}/${_eretry_retries})"
             break
         fi
 
         # Show warning if requested
         if [[ -n ${_eretry_warn} ]] && (( SECONDS - warn_seconds > _eretry_warn )); then
-            ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${count}/${_eretry_count})" 
+            ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
             warn_seconds=${SECONDS}
         fi
 
@@ -2567,7 +2568,7 @@ eretry_internal()
         [[ ${_eretry_delay} != "0" ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
     done
 
-    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${count}/${_eretry_count})" 
+    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
 
     # Emit stdout
     echo -n "${stdout}"
