@@ -129,3 +129,15 @@ ETEST_local_variables_masking_errors()
 
     die "try block should have thrown"
 }
+
+ETEST_get_listening_network_ports()
+{
+    declare -A ports
+    get_network_ports -l ports
+
+    # We should always be able to find a listening port on 22
+    for key in $(array_indexes ports); do
+        [[ $(pack_get ports[$key] local_port) == 22 ]] && return 0
+    done
+    die "Could not find port 22"
+}
