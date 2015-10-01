@@ -29,7 +29,7 @@ fail_then_pass()
 
 ETEST_eretry_preserve_exit_code()
 {
-    $(tryrc eretry -c=3 fail_then_pass 3 tmpfile)
+    $(tryrc eretry -r=3 fail_then_pass 3 tmpfile)
     [[ ${rc} -eq 0 ]] && die "eretry should abort" || assert_eq 15 ${rc} "exit code"
 
     # Ensure fail_then_pass was actually called specified number of times
@@ -38,7 +38,7 @@ ETEST_eretry_preserve_exit_code()
 
 ETEST_eretry_fail_till_last()
 {
-    eretry -c=3 fail_then_pass 2 tmpfile
+    eretry -r=3 fail_then_pass 2 tmpfile
     assert_zero $?
 
     # Ensure fail_then_pass was actually called specified number of times
@@ -47,7 +47,7 @@ ETEST_eretry_fail_till_last()
 
 ETEST_eretry_exit_124_on_timeout()
 {
-    eretry -c=1 -t=0.1s sleep infinity && die "eretry should abort" || assert_eq 124 $?
+    eretry -r=1 -t=0.1s sleep infinity && die "eretry should abort" || assert_eq 124 $?
 }
 
 ETEST_eretry_warn_every()
@@ -61,29 +61,29 @@ ETEST_eretry_warn_every()
     }
 
     etestmsg "Calling callback 50 times warn every 1 second -- expecting >= 5"
-    output=$(eretry -c=50 -w=1 callback 2>&1 || true)
+    output=$(eretry -r=50 -w=1 callback 2>&1 || true)
     einfo "$(lval output)"
     assert [[ "$(echo -n "$output" | wc -l)" -ge 5 ]]
 
     etestmsg "Calling callback 80 times warn every 3 seconds -- expecting >= 3"
-    output=$(eretry -c=80 -w=3 callback 2>&1 || true)
+    output=$(eretry -r=80 -w=3 callback 2>&1 || true)
     einfo "$(lval output)"
     assert [[ "$(echo -n "$output" | wc -l)" -ge 3 ]]
 
     etestmsg "Calling callback 30 times warn every 1 second -- expecting >= 3"
-    output=$(eretry -c=30 -w=1 callback 2>&1 || true)
+    output=$(eretry -r=30 -w=1 callback 2>&1 || true)
     einfo "$(lval output)"
     assert [[ "$(echo -n "$output" | wc -l)" -ge 3 ]]
 
     etestmsg "Calling callback 0 times warn every 1 second -- expecting == 0"
-    output=$(eretry -c=0 -w=1 callback 2>&1 || true)
+    output=$(eretry -r=0 -w=1 callback 2>&1 || true)
     einfo "$(lval output)"
     assert [[ "$(echo -n "$output" | wc -l)" -eq 0 ]]
 }
 
 ETEST_eretry_hang()
 {
-    $(tryrc eretry -t=1s -c=1 sleep infinity)
+    $(tryrc eretry -t=1s -r=1 sleep infinity)
     assert_eq 124 ${rc}
 }
 
@@ -96,7 +96,7 @@ ETEST_eretry_hang_block_sigterm()
         sleep infinity
     }
 
-    $(tryrc eretry -t=1s -c=1 block_sigterm_and_sleep_forever)
+    $(tryrc eretry -t=1s -r=1 block_sigterm_and_sleep_forever)
     einfo "eretry completed with $(lval rc)"
     assert_eq 124 $rc
 }
@@ -116,7 +116,7 @@ quoting_was_preserved()
 
 ETEST_eretry_preserves_quoted_whitespace()
 {
-    eretry -c=0 quoting_was_preserved "a b" "c" "the lazy fox jumped!"
+    eretry -r=0 quoting_was_preserved "a b" "c" "the lazy fox jumped!"
 }
 
 ETEST_eretry_alternate_exit_code()
@@ -142,7 +142,7 @@ ETEST_eretry_ignore_signals_off()
     rm -f child.ticks
     echo -n "0" > child.ticks
 
-    eretry -t=infinity -c=2 do_sleep &
+    eretry -t=infinity -r=2 do_sleep &
     local retry_pid=$!
    
     # Wait for pid to be there
@@ -176,7 +176,7 @@ ETEST_eretry_ignore_signals_on()
     echo -n "0" > child.ticks
 
     local respawns=2
-    eretry -t=infinity -c=${respawns} -i do_sleep &
+    eretry -t=infinity -r=${respawns} -i do_sleep &
     local retry_pid=$!
    
     local tries
@@ -230,7 +230,7 @@ ETEST_eretry_partial_output()
         return 0
     }
 
-    local output=$(eretry -c=2 callback)
+    local output=$(eretry -r=2 callback)
     einfo "$(lval output)"
     echo "${output}" | jq .
     assert_eq '{"key":"value"}' "${output}"
@@ -256,7 +256,7 @@ ETEST_eretry_partial_output_timeout()
         return 0
     }
 
-    local output=$(eretry -c=2 -t=.5s callback)
+    local output=$(eretry -r=2 -t=.5s callback)
     einfo "$(lval output)"
     echo "${output}" | jq .
     assert_eq '{"key":"value"}' "${output}"
