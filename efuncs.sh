@@ -274,7 +274,6 @@ tryrc()
     
     # Temporary directory to hold our FIFOs
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
-    trap_add "rm -rf ${tmpdir}"
 
     # We're creating an "eval command string" inside the command substitution
     # that the caller is supposed to wrap around tryrc.
@@ -345,9 +344,10 @@ tryrc()
     #       interested in failures due to premature termination of the backgrounded
     #       stdout/stderr pipe reading processes.
     wait ${stdout_pid} ${stderr_pid} &>/dev/null || true
+    rm -rf ${tmpdir}
 
     # Finally we can emit the code the caller needs to execute to set the return code.
-    echo eval "declare ${dflags} ${rc_out}=${rc};" 2>/dev/null || true
+    echo eval "declare ${dflags} ${rc_out}=${rc};"
 }
 
 #-----------------------------------------------------------------------------
@@ -432,8 +432,6 @@ die()
         __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
     fi
 
-    eprogress_killall
-
     # Clear ERR and DEBUG traps to avoid tracing die code.
     trap - ERR
     trap - DEBUG
@@ -471,6 +469,7 @@ die()
             die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
             __EFUNCS_DIE_IN_PROGRESS=0
         else
+            eprogress_killall
             kill -9 0
         fi
     fi
@@ -1065,7 +1064,6 @@ do_eprogress()
     done
 }
 
-export __EPROGRESS_PIDS=""
 eprogress()
 {
     echo -en "$(emsg 'green' '>>' 'INFO' "$@")" >&2
@@ -1074,8 +1072,8 @@ eprogress()
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
 
     ## Prepend this new eprogress pid to the front of our list of eprogress PIDs
-    do_eprogress &
-    export __EPROGRESS_PIDS="$! ${__EPROGRESS_PIDS}"
+    ( do_eprogress ) &
+    __EPROGRESS_PIDS=( $! ${__EPROGRESS_PIDS[@]:-} )
 }
 
 # Kill the most recent eprogress in the event multiple ones are queued up.
@@ -1092,13 +1090,11 @@ eprogress_kill()
     fi
 
     # Get the most recent pid
-    local pids=()
-    array_init pids "${__EPROGRESS_PIDS}"
-    if [[ $(array_size pids) -gt 0 ]]; then
-        ekill -s=${signal} ${pids[0]}
-        wait ${pids[0]} &>/dev/null || true
+    if [[ $(array_size __EPROGRESS_PIDS) -gt 0 ]]; then
+        ekill -s=${signal} ${__EPROGRESS_PIDS[0]}
+        wait ${__EPROGRESS_PIDS[0]} &>/dev/null || true
 
-        export __EPROGRESS_PIDS="${pids[@]:1}"
+        __EPROGRESS_PIDS=( ${__EPROGRESS_PIDS[@]:1} )
         einteractive && echo "" >&2
         eend ${rc}
     fi
@@ -1109,7 +1105,7 @@ eprogress_kill()
 # Kill all eprogress pids
 eprogress_killall()
 {
-    while [[ -n ${__EPROGRESS_PIDS} ]]; do
+    while [[ $(array_size __EPROGRESS_PIDS) -gt 0 ]]; do
         eprogress_kill 1
     done
 }
