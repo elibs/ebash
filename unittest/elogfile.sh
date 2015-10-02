@@ -36,8 +36,6 @@ ETEST_elogfile_term()
 
     local pid=$!
 
-    eretry -T=30s cat /tmp/foo.txt
-
     eprogress "Running background process for 3 seconds"
     sleep 3
     eprogress_kill
