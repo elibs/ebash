@@ -8,7 +8,7 @@ ETEST_elogfile()
         echo >&2 "stderr"
     )
 
-    einfo "LOG file contents"
+    etestmsg "LOG file contents"
     cat ${FUNCNAME}.log
     
     # Ensure both stdout and stderr
@@ -42,10 +42,10 @@ ETEST_elogfile_term()
     
     etestmsg "Killing backgrounded process"
     ekilltree -s=SIGTERM ${pid}
-    wait ${pid} || true
+    eretry -T=30s process_not_running ${pid}
     process_not_running ${pid}
 
-    einfo "Showing output"
+    etestmsg "Showing output"
     cat ${FUNCNAME}.log
 }
 
@@ -58,7 +58,7 @@ ETEST_elogfile_nostderr()
         echo "stderr" >&2
     )
 
-    einfo "Verifying file"
+    etestmsg "Verifying file"
     cat ${FUNCNAME}.log
     assert_eq "stdout" "$(cat ${FUNCNAME}.log)"
 }
@@ -72,7 +72,7 @@ ETEST_elogfile_nostdout()
         echo "stderr" >&2
     )
 
-    einfo "Verifying file"
+    etestmsg "Verifying file"
     cat ${FUNCNAME}.log
     assert_eq "stderr" "$(cat ${FUNCNAME}.log)"
 }
@@ -88,7 +88,7 @@ ETEST_elogfile_none()
         echo "stderr" >&2
     )
 
-    einfo "Verifying file"
+    etestmsg "Verifying file"
     cat ${FUNCNAME}.log
     assert_eq "" "$(cat ${FUNCNAME}.log)"
 }
@@ -109,7 +109,7 @@ ETEST_elogfile_rotate()
     assert_exists ${FUNCNAME}.log ${FUNCNAME}.log.{1,2}
     assert_not_exists ${FUNCNAME}.log.{3,4,5,6,7}
 
-    einfo "LOG file contents"
+    etestmsg "LOG file contents"
     cat ${FUNCNAME}.log
     grep -q "stdout" ${FUNCNAME}.log
     grep -q "stderr" ${FUNCNAME}.log
@@ -131,7 +131,7 @@ ETEST_elogfile_rotate_multi()
     assert_exists ${FUNCNAME}-{1,2}.log ${FUNCNAME}-{1,2}.log.{1,2}
     assert_not_exists ${FUNCNAME}-{1,2}.log.{3,4,5,6,7}
 
-    einfo "LOG file contents"
+    etestmsg "LOG file contents"
     cat ${FUNCNAME}-{1,2}.log
     grep -q "stdout" ${FUNCNAME}-1.log
     grep -q "stdout" ${FUNCNAME}-2.log
@@ -152,7 +152,7 @@ ETEST_elogfile_path()
         echo "stderr" >&2
     )
 
-    einfo "LOG file contents"
+    etestmsg "LOG file contents"
     cat ${logname}
     grep -q "stdout" ${logname}
     grep -q "stderr" ${logname}
@@ -187,7 +187,7 @@ ETEST_elogfile_truncate_efetch()
 
     (
         elogfile ${FUNCNAME}.log
-        einfo "Test"
+        etestmsg "Test"
         efetch file://src dst
     )
 
@@ -199,7 +199,7 @@ ETEST_elogfile_multiple()
 {
     (
         elogfile ${FUNCNAME}1.log ${FUNCNAME}2.log
-        einfo "Test"
+        etestmsg "Test"
     )
 
     for fname in ${FUNCNAME}{1,2}.log; do
@@ -213,7 +213,7 @@ ETEST_elogfile_nofiles()
 {
     (
         elogfile
-        einfo "Test"
+        etestmsg "Test"
     )
 }
 
@@ -224,7 +224,7 @@ ETEST_elogfile_multiple_spaces()
 
     (
         elogfile "${fname1}" "${fname2}"
-        einfo "Test"
+        etestmsg "Test"
     )
 
     for fname in "${fname1}" "${fname2}"; do
@@ -239,7 +239,7 @@ ETEST_elogfile_devices()
 
     (
         elogfile -r=1 ${mlog} "/dev/stdout" "/dev/stderr"
-        einfo "Test"
+        etestmsg "Test"
     )
 }
 
@@ -263,7 +263,7 @@ ETEST_elogfile_hang_ekilltree()
         trap_add "ewarn AIEEEEE"
 
         elogfile -r=1 ${mlog}
-        einfo "Test"
+        etestmsg "Test"
         pstree -p $$
         ekilltree -s=SIGTERM ${BASHPID}
         ekilltree -s=SIGKILL ${BASHPID}
@@ -285,7 +285,7 @@ ETEST_elogfile_hang_kill_tee()
         trap_add "ewarn AIEEEEE"
 
         elogfile -r=1 ${mlog}
-        einfo "Test"
+        etestmsg "Test"
         pstree -p $$
 
         etestmsg "Killing tee processes"
