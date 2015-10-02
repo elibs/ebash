@@ -1166,7 +1166,10 @@ ekilltree()
 
     local pid
     for pid in ${@}; do 
+        edebug "Killing process tree $(lval pid signal)"
+        
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+            edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child}
         done
 
