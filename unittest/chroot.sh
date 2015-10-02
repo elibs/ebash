@@ -8,7 +8,6 @@ file_setup()
     etestmsg "Creating $(lval CHROOT)"
     efreshdir ${CHROOT}
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
-    eprogress_kill
 }
 
 file_teardown()

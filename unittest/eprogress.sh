@@ -95,3 +95,8 @@ ETEST_eprogress_inside_eretry()
     cat ${TICK_FILE}
     assert [[ $(tail -1 ${TICK_FILE}) -ge 9 ]]
 }
+
+ETEST_eprogress_kill_before_eprogress()
+{
+    eprogress_kill
+}
