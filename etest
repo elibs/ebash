@@ -155,7 +155,7 @@ call_test_teardown()
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
         etestmsg "Calling test_teardown"
-        $(tryrc teardown &> ${REDIRECT})
+        $(tryrc teardown) &> ${REDIRECT}
         eend
     fi
 
