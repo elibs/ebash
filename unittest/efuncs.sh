@@ -132,7 +132,7 @@ ETEST_local_variables_masking_errors()
 
 ETEST_get_listening_network_ports()
 {
-    declare -A ports
+    local ports
     get_network_ports -l ports
 
     # We should always be able to find a listening port on 22

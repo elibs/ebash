@@ -1437,7 +1437,6 @@ export_network_interface_names()
 get_network_ports()
 {
     $(declare_args __ports_list)
-    is_associative_array $__ports_list || die "Argument to get_listening_ports must be an associative array. Try 'declare -A ${__ports_list}'"
 
     local idx=0
     local first=1
@@ -1462,7 +1461,7 @@ get_network_ports()
         #
 
         # Compare first line to make sure fields are what we expect
-        if [[ ${first} == 1 ]]; then
+        if [[ ${first} -eq 1 ]]; then
             local expected_fields="Proto Recv-Q Send-Q Local Address Foreign Address State PID/Program name"
             assert_eq "${expected_fields}" "${line}"
             first=0
@@ -1471,6 +1470,7 @@ get_network_ports()
 
         # Convert the line into an array for easy access to the fields
         # Replace * with 0 so that we don't get a glob pattern and end up with an array full of filenames from the local directory
+        local fields
         array_init fields "$(echo ${line} | tr '*' '0')" " :/"
 
         # Skip this line if this is not TCP or UDP
@@ -1494,16 +1494,18 @@ get_network_ports()
             fields[7]=""
         fi
 
-        pack_set ${__ports_list}[${idx}] proto=${fields[0]} \
-                                         recvq=${fields[1]} \
-                                         sendq=${fields[2]} \
-                                         local_addr=${fields[3]} \
-                                         local_port=${fields[4]} \
-                                         remote_addr=${fields[5]} \
-                                         remote_port=${fields[6]} \
-                                         state=${fields[7]} \
-                                         pid=${fields[8]} \
-                                         prog=${fields[9]}
+        pack_set ${__ports_list}[${idx}] \
+            proto=${fields[0]} \
+            recvq=${fields[1]} \
+            sendq=${fields[2]} \
+            local_addr=${fields[3]} \
+            local_port=${fields[4]} \
+            remote_addr=${fields[5]} \
+            remote_port=${fields[6]} \
+            state=${fields[7]} \
+            pid=${fields[8]} \
+            prog=${fields[9]}
+
         (( idx += 1 ))
 
     done <<< "$(netstat --all --program --numeric --protocol=inet 2>/dev/null | sed '1d' | tr -s ' ')"
