@@ -219,7 +219,7 @@ global_setup
 trap_add global_teardown
 
 # Now go through and test all unit tests
-for testfile in $(find ${TEST_DIR} -name "*.sh" | sort || true); do
+for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
 
     [[ ${VERBOSE} -eq 1 ]] && REDIRECT="/dev/stderr" || REDIRECT="/dev/null"
 
