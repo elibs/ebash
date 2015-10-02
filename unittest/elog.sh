@@ -124,22 +124,31 @@ ETEST_elogfile()
 ETEST_elogfile_term()
 {
     (
+        die_on_abort
+        die_on_error
+
         elogfile ${FUNCNAME}.log
-        
+       
+        SECONDS=0
         while true; do
             echo ${SECONDS}
             sleep 1
         done
 
-    ) &
+    ) &>/dev/null &
 
     local pid=$!
 
+    eretry -T=30s cat /tmp/foo.txt
+
     eprogress "Running background process for 3 seconds"
     sleep 3
-    ekill ${pid}
     eprogress_kill
-    assert_false process_running ${pid}
+    
+    etestmsg "Killing backgrounded process"
+    ekilltree -s=SIGTERM ${pid}
+    wait ${pid} || true
+    process_not_running ${pid}
 
     einfo "Showing output"
     cat ${FUNCNAME}.log
@@ -339,17 +348,29 @@ ETEST_elogfile_devices()
     )
 }
 
-ETEST_elogfile_ekilltree_hang()
+ETEST_elogfile_double_fork()
+{
+    (
+        etestmsg "Ensuring tee processes are not in our process tree"
+        elogfile -r=1 ${FUNCNAME}.log
+        pstree -p $$
+        assert_empty $(pstree -p ${BASHPID} | grep tee)
+    )
+}
+
+ETEST_elogfile_hang_ekilltree()
 {
     try
     {
+        EDEBUG=ekill
+
         local mlog="${FUNCNAME}.log"
         trap_add "ewarn AIEEEEE"
 
-        elogfile -r=1 ${mlog} "/dev/stdout" "/dev/stderr"
+        elogfile -r=1 ${mlog}
         einfo "Test"
         pstree -p $$
-        ekilltree ${BASHPID}
+        ekilltree -s=SIGTERM ${BASHPID}
         ekilltree -s=SIGKILL ${BASHPID}
     }
     catch
@@ -358,4 +379,23 @@ ETEST_elogfile_ekilltree_hang()
     }
 
     die "Test should have returned"
+}
+
+ETEST_elogfile_hang_kill_tee()
+{
+    (
+        EDEBUG=ekill 
+
+        local mlog="${FUNCNAME}.log"
+        trap_add "ewarn AIEEEEE"
+
+        elogfile -r=1 ${mlog}
+        einfo "Test"
+        pstree -p $$
+
+        etestmsg "Killing tee processes"
+        ekilltree -s=SIGKILL $(pstree -p ${BASHPID} | grep tee | grep -o "([[:digit:]]*)" | grep -o "[[:digit:]]*" || true)
+        etestmsg "After killing tee"
+        pstree -p ${BASHPID}
+    )
 }

@@ -1661,6 +1661,11 @@ elogfile()
     local rotate_size=$(opt_get s 0)
     edebug "$(lval stdout stderr dotail rotate_count rotate_size)"
 
+    # Return if nothing to do
+    if opt_false "o" && opt_false "e"; then
+        return 0
+    fi
+
     # Rotate logs as necessary but only if they are regular files
     if [[ ${rotate} -gt 0 ]]; then
         local name
@@ -1684,25 +1689,48 @@ elogfile()
         [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
     fi
 
-    # REDIRECTION WARNING:
-    # It's very very important that we **IGNORE** all signals in the subshells
-    # launched for actually tee'ing stdout and stderr. Otherwise, when tee
-    # receives a signal it would exit immediately. This would then cause any
-    # future attempts to write to these pipes to HANG indefinitely and the process
-    # would become unkillable! The reason for this is because writing to a pipe
-    # is always a blocking operation. Specifically, if there is no reading process
-    # attached to a pipe then the write operation will BLOCK indefinitely. Thus
-    # we want to make very sure that the reader will not get killed prematurely.
-    #
-    # Since we are using exec here there is no danger of orphaned processes since
-    # when the calling process exits bash will immediately ensure the subshell
-    # invoked for the I/O redirection exits properly.
-    if [[ ${stdout} -eq 1 ]]; then
-        exec 1> >( trap "" ${DIE_SIGNALS[@]}; tee -ia "${@}" 1>${stdout_redirect})
-    fi
+    # Temporary directory to hold our FIFOs
+    local tmpdir=$(mktemp -d /tmp/elogfile-XXXXXXXX)
+    trap_add "rm -rf ${tmpdir}"
+    local stdout_pipe="" stderr_pipe=""
+    local pid_pipe="${tmpdir}/pids"
+    mkfifo "${pid_pipe}"
     
+    if [[ ${stdout} -eq 1 ]]; then
+        stdout_pipe="${tmpdir}/stdout"
+        mkfifo "${stdout_pipe}"
+        edebug "$(lval stdout stdout_pipe)"
+
+        (
+            ( 
+                die_on_abort
+                echo "${BASHPID}" >${pid_pipe}
+                tee -a "${@}" <${stdout_pipe} >${stdout_redirect} 2>/dev/null
+            ) &
+
+        ) &
+
+        local stdout_pid=$(cat ${pid_pipe})
+        trap_add "kill -9 ${stdout_pid} 2>/dev/null"
+        exec 1>${stdout_pipe}
+    fi
+
     if [[ ${stderr} -eq 1 ]]; then
-        exec 2> >( trap "" ${DIE_SIGNALS[@]}; tee -ia "${@}" 2>${stderr_redirect})
+        stderr_pipe="${tmpdir}/stderr"
+        mkfifo "${stderr_pipe}"
+        edebug "$(lval stderr stderr_pipe)"
+
+        (
+            (
+                die_on_abort
+                echo "${BASHPID}" >${pid_pipe}
+                tee -a "${@}" <${stderr_pipe} >${stderr_redirect} 2>/dev/null
+            ) &
+        ) &
+
+        local stderr_pid=$(cat ${pid_pipe})
+        trap_add "kill -9 ${stderr_pid} 2>/dev/null"
+        exec 2>${stderr_pipe}
     fi
 }
 
