@@ -172,6 +172,24 @@ die_on_error_enabled()
     trap -p | grep ERR &>$(edebug_out)
 }
 
+# Convert stream names (e.g. 'stdout') to cannonical file descriptor numbers:
+#
+# stdin=0
+# stdout=1
+# stderr=2
+#
+# Any other names will result in an error.
+get_stream_fd()
+{
+    case "$1" in
+        stdin ) echo "0"; return 0 ;;
+        stdout) echo "1"; return 0 ;;
+        stderr) echo "2"; return 0 ;;
+
+        *) die "Unsupported stream=$1"
+    esac
+}
+
 # Helper method to read from a pipe until we see EOF.
 pipe_read()
 {
@@ -1662,9 +1680,7 @@ elogfile()
     edebug "$(lval stdout stderr dotail rotate_count rotate_size)"
 
     # Return if nothing to do
-    if opt_false "o" && opt_false "e"; then
-        return 0
-    fi
+    [[ ${stdout} -eq 1 || ${stderr} -eq 1 ]] || return 0
 
     # Rotate logs as necessary but only if they are regular files
     if [[ ${rotate} -gt 0 ]]; then
@@ -1673,14 +1689,6 @@ elogfile()
             [[ -f $(readlink -f "${name}") ]] || continue
             elogrotate -c=${rotate} -s=${rotate_size} "${name}"
         done
-    fi
-
-    # Optionally redirect stdout and stderr to tee. Take special care to ensure we keep STDOUT and STDERR
-    # are kept separate to ensure the caller's output is unmodified.
-    local stdout_redirect=/dev/stdout stderr_redirect=/dev/stderr
-    if [[ ${dotail} -eq 0 ]]; then
-        stdout_redirect=/dev/null
-        stderr_redirect=/dev/null
     fi
 
     # Setup EINTERACTIVE so our output formats properly even though stderr
@@ -1692,46 +1700,56 @@ elogfile()
     # Temporary directory to hold our FIFOs
     local tmpdir=$(mktemp -d /tmp/elogfile-XXXXXXXX)
     trap_add "rm -rf ${tmpdir}"
-    local stdout_pipe="" stderr_pipe=""
     local pid_pipe="${tmpdir}/pids"
     mkfifo "${pid_pipe}"
-    
-    if [[ ${stdout} -eq 1 ]]; then
-        stdout_pipe="${tmpdir}/stdout"
-        mkfifo "${stdout_pipe}"
-        edebug "$(lval stdout stdout_pipe)"
+ 
+    # Internal function to avoid code duplication in setting up the pipes
+    # and redirection for stdout and stderr.
+    elogfile_redirect()
+    {
+        $(declare_args name)
 
+        # If we're not redirecting the requested stream then just return success
+        [[ ${!name} -eq 1 ]] || return 0
+
+        # Optionally tail the output. Take special care to keep the original
+        # file descriptor intact.
+        local redirect
+        [[ ${dotail} -eq 1 ]] && redirect="/dev/${name}" || redirect="/dev/null"
+
+        # Create pipe
+        local pipe="${tmpdir}/${name}"
+        mkfifo "${pipe}"
+        edebug "$(lval name pipe redirect)"
+
+        # Double fork so that the process doing the tee won't be one of our children
+        # processes anymore. The purose of this is to ensure when we kill our process
+        # tree that we won't kill the tee process. If we allowed tee to get killed
+        # then any future output would HANG indefinitely because there wouldn't be
+        # a reader attached to the pipe. Without a reader attached to the pipe all
+        # writes block indefinitely. Since this is blocking in the kernel the process
+        # essentially becomes unkillable once in this state.
         (
             ( 
                 die_on_abort
                 echo "${BASHPID}" >${pid_pipe}
-                tee -a "${@}" <${stdout_pipe} >${stdout_redirect} 2>/dev/null
+                tee -a "${@}" <${pipe} >${redirect} 2>/dev/null
             ) &
 
         ) &
 
-        local stdout_pid=$(cat ${pid_pipe})
-        trap_add "kill -9 ${stdout_pid} 2>/dev/null"
-        exec 1>${stdout_pipe}
-    fi
+        # Grab the pid of the backgrounded pipe process and setup a trap to ensure
+        # we kill it when we exit for any reason.
+        local pid=$(cat ${pid_pipe})
+        trap_add "kill -9 ${pid} 2>/dev/null"
 
-    if [[ ${stderr} -eq 1 ]]; then
-        stderr_pipe="${tmpdir}/stderr"
-        mkfifo "${stderr_pipe}"
-        edebug "$(lval stderr stderr_pipe)"
+        # Finally re-exec so taht our output stream is redirected to the pipe.
+        eval "exec $(get_stream_fd ${name})>${pipe}"
+    }
 
-        (
-            (
-                die_on_abort
-                echo "${BASHPID}" >${pid_pipe}
-                tee -a "${@}" <${stderr_pipe} >${stderr_redirect} 2>/dev/null
-            ) &
-        ) &
-
-        local stderr_pid=$(cat ${pid_pipe})
-        trap_add "kill -9 ${stderr_pid} 2>/dev/null"
-        exec 2>${stderr_pipe}
-    fi
+    # Redirect stdout and stderr as requested to the provided list of files.
+    elogfile_redirect stdout "${@}"
+    elogfile_redirect stderr "${@}"
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
