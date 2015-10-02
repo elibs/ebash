@@ -62,7 +62,7 @@ global_setup()
     mkdir -p ${TEST_DIR_OUTPUT}
 
     if [[ -n "$(cgroup_pids ${ETEST_CGROUP_BASE})" ]]; then
-        ewarn "Killing stale $(lval CGROUP=ETEST_CGROUP_BASE) processes=($(cgroup_pids ${ETEST_CGROUP_BASE})"
+        ewarn "Killing stale $(lval CGROUP=ETEST_CGROUP_BASE) processes=($(cgroup_pids ${ETEST_CGROUP_BASE}))"
         cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP_BASE}
     fi
 
