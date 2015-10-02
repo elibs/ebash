@@ -457,12 +457,14 @@ die()
     # Show error message immediately. Then call any registered die traps so that
     # we invoke them before we exit or call any die_handler. This will also ensure
     # we kill any existing eprogress tickers as quickly as possible via our trap.
+    echo "" >&2
     eerror "${@}"
     call_die_traps
 
     # Call eerror_stacktrace but skip top three frames to skip over the frames
-    # containing stacktrace_array, eerror_stacktrace and die itself.
-    eerror_stacktrace -f=3
+    # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
+    # over the initial error message since we already displayed it.
+    eerror_stacktrace -f=3 -s
 
     # Call any registered DIE traps so that we invoke the traps before we exit
     # or call any die_handler.
@@ -881,10 +883,7 @@ ewarns()
 
 eerror()
 {
-    local msg="${@}"
-    : ${msg:="[UnspecifiedError]"}
-
-    echo -e "$(emsg 'red' '>>' 'ERROR' "${msg}")" >&2
+    echo -e "$(emsg 'red' '>>' 'ERROR' "$@")" >&2
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
@@ -895,15 +894,23 @@ eerror()
 # the top of the stack and counts up. See also stacktrace and eerror_stacktrace.
 #
 # OPTIONS:
-# -f=N Frame number to start at (defaults to 2 to skip the top frames with
-#      eerror_stacktrace and stacktrace_array).
+# -f=N
+#   Frame number to start at (defaults to 2 to skip the top frames with
+#   eerror_stacktrace and stacktrace_array).
+#
+# -s=(0|1)
+#   Skip the initial error message (e.g. b/c the caller already displayed it).
+#
 eerror_stacktrace()
 {
     $(declare_args)
     local frame=$(opt_get f 2)
+    local skip=$(opt_get s 0)
 
-    echo "" >&2
-    eerror "$@"
+    if [[ ${skip} -eq 0 ]]; then 
+        echo "" >&2
+        eerror "$@"
+    fi
 
     local frames=()
     stacktrace_array -f=${frame} frames
@@ -1125,7 +1132,7 @@ eprogress_kill()
     # If given a list of pids, kill each one. Otherwise kill most recent.
     # If there's nothing to kill just return.
     local pids=( "${@}" )
-    [[ ${#pids[@]:-} -gt 0 ]] || pids=( ${__EPROGRESS_PIDS[@]::1} )
+    [[ ${#pids[@]:-} -eq 0 && -n ${__EPROGRESS_PIDS:-} ]] && pids=( ${__EPROGRESS_PIDS[@]::1} ) || true
     [[ ${#pids[@]:-} -gt 0 ]] || return 0
 
     # Kill requested eprogress pids
