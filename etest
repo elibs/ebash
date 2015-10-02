@@ -28,7 +28,8 @@ BREAK=$(opt_get b ${BREAK:=0})
 edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK)"
 
 # Global cgroup name for all unit tests
-export ETEST_CGROUP="etest/$(basename ${TEST_DIR})-$$"
+export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
+export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
 #-------------------------------------------------------------------------------------------------------------------------
 # TEST UTILITY FUNCTIONS
@@ -41,7 +42,7 @@ etestmsg()
 
 assert_no_process_leaks()
 {
-    cgroup_move "/etest" $$ ${BASHPID}
+    cgroup_move "${ETEST_CGROUP_BASE}" $$ ${BASHPID}
     
     local remaining_processes=$(cgroup_ps ${ETEST_CGROUP} || true)
     if [[ -n ${remaining_processes} ]]; then
@@ -60,7 +61,10 @@ global_setup()
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
     mkdir -p ${TEST_DIR_OUTPUT}
 
-    [[ -n "$(cgroup_pids etest)" ]] && { ewarn "Killing stale etest processes=($(cgroup_pids etest))" ; cgroup_kill_and_wait -s=SIGKILL etest ; }
+    if [[ -n "$(cgroup_pids ${ETEST_CGROUP_BASE})" ]]; then
+        ewarn "Killing stale $(lval CGROUP=ETEST_CGROUP_BASE) processes=($(cgroup_pids ${ETEST_CGROUP_BASE})"
+        cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP_BASE}
+    fi
 
     # And a cgroup that will contain all output
     cgroup_create ${ETEST_CGROUP}
