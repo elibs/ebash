@@ -1458,7 +1458,6 @@ export_network_interface_names()
 get_network_ports()
 {
     $(declare_args __ports_list)
-    is_associative_array $__ports_list || die "Argument to get_listening_ports must be an associative array. Try 'declare -A ${__ports_list}'"
 
     local idx=0
     local first=1
