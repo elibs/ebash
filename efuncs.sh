@@ -172,6 +172,24 @@ die_on_error_enabled()
     trap -p | grep ERR &>$(edebug_out)
 }
 
+# Convert stream names (e.g. 'stdout') to cannonical file descriptor numbers:
+#
+# stdin=0
+# stdout=1
+# stderr=2
+#
+# Any other names will result in an error.
+get_stream_fd()
+{
+    case "$1" in
+        stdin ) echo "0"; return 0 ;;
+        stdout) echo "1"; return 0 ;;
+        stderr) echo "2"; return 0 ;;
+
+        *) die "Unsupported stream=$1"
+    esac
+}
+
 # Helper method to read from a pipe until we see EOF.
 pipe_read()
 {
@@ -436,14 +454,20 @@ die()
     trap - ERR
     trap - DEBUG
 
-    # Call eerror_stacktrace but skip top three frames to skip over
-    # the frames containing stacktrace_array, eerror_stacktrace and
-    # die itself.
-    eerror_stacktrace -f=3 "${@}"
+    # Show error message immediately. Then call any registered die traps so that
+    # we invoke them before we exit or call any die_handler. This will also ensure
+    # we kill any existing eprogress tickers as quickly as possible via our trap.
+    echo "" >&2
+    eerror "${@}"
+    call_die_traps
+
+    # Call eerror_stacktrace but skip top three frames to skip over the frames
+    # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
+    # over the initial error message since we already displayed it.
+    eerror_stacktrace -f=3 -s
 
     # Call any registered DIE traps so that we invoke the traps before we exit
     # or call any die_handler.
-    call_die_traps
     
     # If we're in a subshell signal our parent SIGTERM and then exit. This will
     # allow the parent process to gracefully perform any cleanup before the
@@ -469,7 +493,6 @@ die()
             die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
             __EFUNCS_DIE_IN_PROGRESS=0
         else
-            eprogress_killall
             kill -9 0
         fi
     fi
@@ -871,15 +894,23 @@ eerror()
 # the top of the stack and counts up. See also stacktrace and eerror_stacktrace.
 #
 # OPTIONS:
-# -f=N Frame number to start at (defaults to 2 to skip the top frames with
-#      eerror_stacktrace and stacktrace_array).
+# -f=N
+#   Frame number to start at (defaults to 2 to skip the top frames with
+#   eerror_stacktrace and stacktrace_array).
+#
+# -s=(0|1)
+#   Skip the initial error message (e.g. b/c the caller already displayed it).
+#
 eerror_stacktrace()
 {
     $(declare_args)
     local frame=$(opt_get f 2)
+    local skip=$(opt_get s 0)
 
-    echo "" >&2
-    eerror "$@"
+    if [[ ${skip} -eq 0 ]]; then 
+        echo "" >&2
+        eerror "$@"
+    fi
 
     local frames=()
     stacktrace_array -f=${frame} frames
@@ -1071,16 +1102,25 @@ eprogress()
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
 
-    ## Prepend this new eprogress pid to the front of our list of eprogress PIDs
+    # Prepend this new eprogress pid to the front of our list of eprogress PIDs
+    # Add a trap to ensure we kill this backgrounded process in the event we
+    # die before calling eprogress_kill.
     ( do_eprogress ) &
+    trap_add "eprogress_kill -r=1 $!"
     __EPROGRESS_PIDS=( $! ${__EPROGRESS_PIDS[@]:-} )
 }
 
 # Kill the most recent eprogress in the event multiple ones are queued up.
+# Can optionally pass in a specific list of eprogress pids to kill.
+#
+# Options:
+# -r Return code to use (defaults to 0)
+# -s Signal to send (defaults to SIGTERM)
 eprogress_kill()
 {
-    local rc=${1:-0}
-    local signal=${2:-TERM}
+    $(declare_args)
+    local rc=$(opt_get r 0)
+    local signal=$(opt_get s SIGTERM)
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
@@ -1089,25 +1129,32 @@ eprogress_kill()
         return 0
     fi
 
-    # Get the most recent pid
-    if [[ $(array_size __EPROGRESS_PIDS) -gt 0 ]]; then
-        ekill -s=${signal} ${__EPROGRESS_PIDS[0]}
-        wait ${__EPROGRESS_PIDS[0]} &>/dev/null || true
+    # If given a list of pids, kill each one. Otherwise kill most recent.
+    # If there's nothing to kill just return.
+    local pids=( "${@}" )
+    [[ ${#pids[@]:-} -eq 0 && -n ${__EPROGRESS_PIDS:-} ]] && pids=( ${__EPROGRESS_PIDS[@]::1} ) || true
+    [[ ${#pids[@]:-} -gt 0 ]] || return 0
 
-        __EPROGRESS_PIDS=( ${__EPROGRESS_PIDS[@]:1} )
+    # Kill requested eprogress pids
+    local pid
+    for pid in ${pids[@]}; do
+
+        # Don't kill the pid if it's not an eprogress pid
+        if ! array_contains __EPROGRESS_PIDS ${pid}; then
+            continue
+        fi
+
+        # Kill process and wait for it to complete
+        ekill -s=${signal} ${pid}
+        wait ${pid} &>/dev/null || true
+        array_remove __EPROGRESS_PIDS ${pid}
+        
+        # Output
         einteractive && echo "" >&2
         eend ${rc}
-    fi
+    done
 
     return 0
-}
-
-# Kill all eprogress pids
-eprogress_killall()
-{
-    while [[ $(array_size __EPROGRESS_PIDS) -gt 0 ]]; do
-        eprogress_kill 1
-    done
 }
 
 #-----------------------------------------------------------------------------
@@ -1166,7 +1213,10 @@ ekilltree()
 
     local pid
     for pid in ${@}; do 
+        edebug "Killing process tree $(lval pid signal)"
+        
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+            edebug "Killing $(lval child)"
             ekilltree -s=${signal} ${child}
         done
 
@@ -1660,6 +1710,9 @@ elogfile()
     local rotate_size=$(opt_get s 0)
     edebug "$(lval stdout stderr dotail rotate_count rotate_size)"
 
+    # Return if nothing to do
+    [[ ${stdout} -eq 1 || ${stderr} -eq 1 ]] || return 0
+
     # Rotate logs as necessary but only if they are regular files
     if [[ ${rotate} -gt 0 ]]; then
         local name
@@ -1669,40 +1722,65 @@ elogfile()
         done
     fi
 
-    # Optionally redirect stdout and stderr to tee. Take special care to ensure we keep STDOUT and STDERR
-    # are kept separate to ensure the caller's output is unmodified.
-    local stdout_redirect=/dev/stdout stderr_redirect=/dev/stderr
-    if [[ ${dotail} -eq 0 ]]; then
-        stdout_redirect=/dev/null
-        stderr_redirect=/dev/null
-    fi
-
     # Setup EINTERACTIVE so our output formats properly even though stderr
     # won't be connected to a console anymore.
     if [[ ! -v EINTERACTIVE ]]; then
         [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
     fi
 
-    # REDIRECTION WARNING:
-    # It's very very important that we **IGNORE** all signals in the subshells
-    # launched for actually tee'ing stdout and stderr. Otherwise, when tee
-    # receives a signal it would exit immediately. This would then cause any
-    # future attempts to write to these pipes to HANG indefinitely and the process
-    # would become unkillable! The reason for this is because writing to a pipe
-    # is always a blocking operation. Specifically, if there is no reading process
-    # attached to a pipe then the write operation will BLOCK indefinitely. Thus
-    # we want to make very sure that the reader will not get killed prematurely.
-    #
-    # Since we are using exec here there is no danger of orphaned processes since
-    # when the calling process exits bash will immediately ensure the subshell
-    # invoked for the I/O redirection exits properly.
-    if [[ ${stdout} -eq 1 ]]; then
-        exec 1> >( trap "" ${DIE_SIGNALS[@]}; tee -ia "${@}" 1>${stdout_redirect})
-    fi
-    
-    if [[ ${stderr} -eq 1 ]]; then
-        exec 2> >( trap "" ${DIE_SIGNALS[@]}; tee -ia "${@}" 2>${stderr_redirect})
-    fi
+    # Temporary directory to hold our FIFOs
+    local tmpdir=$(mktemp -d /tmp/elogfile-XXXXXXXX)
+    trap_add "rm -rf ${tmpdir}"
+    local pid_pipe="${tmpdir}/pids"
+    mkfifo "${pid_pipe}"
+ 
+    # Internal function to avoid code duplication in setting up the pipes
+    # and redirection for stdout and stderr.
+    elogfile_redirect()
+    {
+        $(declare_args name)
+
+        # If we're not redirecting the requested stream then just return success
+        [[ ${!name} -eq 1 ]] || return 0
+
+        # Optionally tail the output. Take special care to keep the original
+        # file descriptor intact.
+        local redirect
+        [[ ${dotail} -eq 1 ]] && redirect="/dev/${name}" || redirect="/dev/null"
+
+        # Create pipe
+        local pipe="${tmpdir}/${name}"
+        mkfifo "${pipe}"
+        edebug "$(lval name pipe redirect)"
+
+        # Double fork so that the process doing the tee won't be one of our children
+        # processes anymore. The purose of this is to ensure when we kill our process
+        # tree that we won't kill the tee process. If we allowed tee to get killed
+        # then any future output would HANG indefinitely because there wouldn't be
+        # a reader attached to the pipe. Without a reader attached to the pipe all
+        # writes block indefinitely. Since this is blocking in the kernel the process
+        # essentially becomes unkillable once in this state.
+        (
+            ( 
+                die_on_abort
+                echo "${BASHPID}" >${pid_pipe}
+                tee -a "${@}" <${pipe} >${redirect} 2>/dev/null
+            ) &
+
+        ) &
+
+        # Grab the pid of the backgrounded pipe process and setup a trap to ensure
+        # we kill it when we exit for any reason.
+        local pid=$(cat ${pid_pipe})
+        trap_add "kill -9 ${pid} 2>/dev/null || true"
+
+        # Finally re-exec so taht our output stream is redirected to the pipe.
+        eval "exec $(get_stream_fd ${name})>${pipe}"
+    }
+
+    # Redirect stdout and stderr as requested to the provided list of files.
+    elogfile_redirect stdout "${@}"
+    elogfile_redirect stderr "${@}"
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:
@@ -2309,10 +2387,9 @@ efetch_internal()
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
-    local rc=0
     eprogress "Fetching $(lval url dst)"
-    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure && rc=0 || rc=$?
-    eprogress_kill ${rc}
+    $(tryrc curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure)
+    eprogress_kill -r=${rc}
 
     return ${rc}
 }
