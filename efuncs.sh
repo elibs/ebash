@@ -454,14 +454,18 @@ die()
     trap - ERR
     trap - DEBUG
 
-    # Call eerror_stacktrace but skip top three frames to skip over
-    # the frames containing stacktrace_array, eerror_stacktrace and
-    # die itself.
-    eerror_stacktrace -f=3 "${@}"
+    # Show error message immediately. Then call any registered die traps so that
+    # we invoke them before we exit or call any die_handler. This will also ensure
+    # we kill any existing eprogress tickers as quickly as possible via our trap.
+    eerror "${@}"
+    call_die_traps
+
+    # Call eerror_stacktrace but skip top three frames to skip over the frames
+    # containing stacktrace_array, eerror_stacktrace and die itself.
+    eerror_stacktrace -f=3
 
     # Call any registered DIE traps so that we invoke the traps before we exit
     # or call any die_handler.
-    call_die_traps
     
     # If we're in a subshell signal our parent SIGTERM and then exit. This will
     # allow the parent process to gracefully perform any cleanup before the
@@ -487,7 +491,6 @@ die()
             die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
             __EFUNCS_DIE_IN_PROGRESS=0
         else
-            eprogress_killall
             kill -9 0
         fi
     fi
@@ -878,7 +881,10 @@ ewarns()
 
 eerror()
 {
-    echo -e "$(emsg 'red' '>>' 'ERROR' "$@")" >&2
+    local msg="${@}"
+    : ${msg:="[UnspecifiedError]"}
+
+    echo -e "$(emsg 'red' '>>' 'ERROR' "${msg}")" >&2
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
@@ -1089,16 +1095,25 @@ eprogress()
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
 
-    ## Prepend this new eprogress pid to the front of our list of eprogress PIDs
+    # Prepend this new eprogress pid to the front of our list of eprogress PIDs
+    # Add a trap to ensure we kill this backgrounded process in the event we
+    # die before calling eprogress_kill.
     ( do_eprogress ) &
+    trap_add "eprogress_kill -r=1 $!"
     __EPROGRESS_PIDS=( $! ${__EPROGRESS_PIDS[@]:-} )
 }
 
 # Kill the most recent eprogress in the event multiple ones are queued up.
+# Can optionally pass in a specific list of eprogress pids to kill.
+#
+# Options:
+# -r Return code to use (defaults to 0)
+# -s Signal to send (defaults to SIGTERM)
 eprogress_kill()
 {
-    local rc=${1:-0}
-    local signal=${2:-TERM}
+    $(declare_args)
+    local rc=$(opt_get r 0)
+    local signal=$(opt_get s SIGTERM)
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
@@ -1107,25 +1122,32 @@ eprogress_kill()
         return 0
     fi
 
-    # Get the most recent pid
-    if [[ $(array_size __EPROGRESS_PIDS) -gt 0 ]]; then
-        ekill -s=${signal} ${__EPROGRESS_PIDS[0]}
-        wait ${__EPROGRESS_PIDS[0]} &>/dev/null || true
+    # If given a list of pids, kill each one. Otherwise kill most recent.
+    # If there's nothing to kill just return.
+    local pids=( "${@}" )
+    [[ ${#pids[@]:-} -gt 0 ]] || pids=( ${__EPROGRESS_PIDS[@]::1} )
+    [[ ${#pids[@]:-} -gt 0 ]] || return 0
 
-        __EPROGRESS_PIDS=( ${__EPROGRESS_PIDS[@]:1} )
+    # Kill requested eprogress pids
+    local pid
+    for pid in ${pids[@]}; do
+
+        # Don't kill the pid if it's not an eprogress pid
+        if ! array_contains __EPROGRESS_PIDS ${pid}; then
+            continue
+        fi
+
+        # Kill process and wait for it to complete
+        ekill -s=${signal} ${pid}
+        wait ${pid} &>/dev/null || true
+        array_remove __EPROGRESS_PIDS ${pid}
+        
+        # Output
         einteractive && echo "" >&2
         eend ${rc}
-    fi
+    done
 
     return 0
-}
-
-# Kill all eprogress pids
-eprogress_killall()
-{
-    while [[ $(array_size __EPROGRESS_PIDS) -gt 0 ]]; do
-        eprogress_kill 1
-    done
 }
 
 #-----------------------------------------------------------------------------
@@ -1740,7 +1762,7 @@ elogfile()
         # Grab the pid of the backgrounded pipe process and setup a trap to ensure
         # we kill it when we exit for any reason.
         local pid=$(cat ${pid_pipe})
-        trap_add "kill -9 ${pid} 2>/dev/null"
+        trap_add "kill -9 ${pid} 2>/dev/null || true"
 
         # Finally re-exec so taht our output stream is redirected to the pipe.
         eval "exec $(get_stream_fd ${name})>${pipe}"
@@ -2355,10 +2377,9 @@ efetch_internal()
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
-    local rc=0
     eprogress "Fetching $(lval url dst)"
-    curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure && rc=0 || rc=$?
-    eprogress_kill ${rc}
+    $(tryrc curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure)
+    eprogress_kill -r=${rc}
 
     return ${rc}
 }
