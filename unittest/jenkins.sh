@@ -6,7 +6,7 @@ setup()
     JENKINS=bdr-distbox.eng.solidfire.net
     JENKINS_PORT=8080
 
-    TEMPLATE_DIR=${TOPDIR}/unittest/jenkins_templates/
+    TEMPLATE_DIR=${ETEST_TOPDIR}/unittest/jenkins_templates/
 }
 
 ETEST_jenkins_url()
