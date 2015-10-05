@@ -109,7 +109,7 @@ alias try="
     (
         enable_trace
         die_on_abort
-        trap 'die -r=\$? ${DIE_MSG_CAUGHT} &>\$(edebug_out)' ERR
+        trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &>\$(edebug_out)' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -454,17 +454,19 @@ die()
     trap - ERR
     trap - DEBUG
 
+    local color=$(opt_get c "red")
+
     # Show error message immediately. Then call any registered die traps so that
     # we invoke them before we exit or call any die_handler. This will also ensure
     # we kill any existing eprogress tickers as quickly as possible via our trap.
     echo "" >&2
-    eerror "${@}"
+    eerror -c="${color}" "${@}"
     call_die_traps
 
     # Call eerror_stacktrace but skip top three frames to skip over the frames
     # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
     # over the initial error message since we already displayed it.
-    eerror_stacktrace -f=3 -s
+    eerror_stacktrace -c="${color}" -f=3 -s
 
     # Call any registered DIE traps so that we invoke the traps before we exit
     # or call any die_handler.
@@ -490,7 +492,7 @@ die()
         exit ${__EFUNCS_DIE_IN_PROGRESS}
     else
         if declare -f die_handler &>/dev/null; then
-            die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
+            die_handler -c="${color}" -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
             __EFUNCS_DIE_IN_PROGRESS=0
         else
             ekilltree -s=SIGTERM $$
@@ -884,7 +886,10 @@ ewarns()
 
 eerror()
 {
-    echo -e "$(emsg 'red' '>>' 'ERROR' "$@")" >&2
+    $(declare_args)
+    local color=$(opt_get c "red")
+
+    echo -e "$(emsg "${color}" '>>' 'ERROR' "$@")" >&2
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
@@ -902,15 +907,20 @@ eerror()
 # -s=(0|1)
 #   Skip the initial error message (e.g. b/c the caller already displayed it).
 #
+# -c=(color)
+#   Use the specified color for output messages.  Defaults to red.  Supports
+#   any color that is supported by ecolor.
+#
 eerror_stacktrace()
 {
     $(declare_args)
     local frame=$(opt_get f 2)
     local skip=$(opt_get s 0)
+    local color=$(opt_get c)
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
-        eerror "$@"
+        eerror -c=${color} "$@"
     fi
 
     local frames=()
@@ -924,7 +934,7 @@ eerror_stacktrace()
 
         [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
 
-        printf "$(ecolor red)   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
+        printf "$(ecolor ${color})   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
     done
 }
 
