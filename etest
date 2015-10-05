@@ -221,7 +221,7 @@ edebug_enabled && ebanner "${DIE_TEST_MSG}" || einfo "${DIE_TEST_MSG}"
     }
 
     trap_add "einfo TRAP; echo TRAP >> ${DIE_FILE}"
-    die "Fake death..."
+    die -c=grey19 "Fake death..."
 
     # Assert proper order of events happened
     einfo "Ensuring TRAP was called before DIE"
