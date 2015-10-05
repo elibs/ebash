@@ -9,7 +9,7 @@ ETEST_elogfile()
     )
 
     etestmsg "LOG file contents"
-    cat ${FUNCNAME}.log
+    eretry cat ${FUNCNAME}.log
     
     # Ensure both stdout and stderr
     grep -q "stdout" ${FUNCNAME}.log
@@ -46,7 +46,7 @@ ETEST_elogfile_term()
     process_not_running ${pid}
 
     etestmsg "Showing output"
-    cat ${FUNCNAME}.log
+    eretry cat ${FUNCNAME}.log
 }
 
 ETEST_elogfile_nostderr()
@@ -59,7 +59,7 @@ ETEST_elogfile_nostderr()
     )
 
     etestmsg "Verifying file"
-    cat ${FUNCNAME}.log
+    eretry cat ${FUNCNAME}.log
     assert_eq "stdout" "$(cat ${FUNCNAME}.log)"
 }
 
@@ -73,7 +73,7 @@ ETEST_elogfile_nostdout()
     )
 
     etestmsg "Verifying file"
-    cat ${FUNCNAME}.log
+    eretry cat ${FUNCNAME}.log
     assert_eq "stderr" "$(cat ${FUNCNAME}.log)"
 }
 
@@ -89,7 +89,7 @@ ETEST_elogfile_none()
     )
 
     etestmsg "Verifying file"
-    cat ${FUNCNAME}.log
+    eretry cat ${FUNCNAME}.log
     assert_eq "" "$(cat ${FUNCNAME}.log)"
 }
 
@@ -110,7 +110,7 @@ ETEST_elogfile_rotate()
     assert_not_exists ${FUNCNAME}.log.{3,4,5,6,7}
 
     etestmsg "LOG file contents"
-    cat ${FUNCNAME}.log
+    eretry cat ${FUNCNAME}.log
     grep -q "stdout" ${FUNCNAME}.log
     grep -q "stderr" ${FUNCNAME}.log
 }
@@ -132,7 +132,7 @@ ETEST_elogfile_rotate_multi()
     assert_not_exists ${FUNCNAME}-{1,2}.log.{3,4,5,6,7}
 
     etestmsg "LOG file contents"
-    cat ${FUNCNAME}-{1,2}.log
+    eretry cat ${FUNCNAME}-{1,2}.log
     grep -q "stdout" ${FUNCNAME}-1.log
     grep -q "stdout" ${FUNCNAME}-2.log
     grep -q "stderr" ${FUNCNAME}-1.log
@@ -153,7 +153,7 @@ ETEST_elogfile_path()
     )
 
     etestmsg "LOG file contents"
-    cat ${logname}
+    eretry cat ${logname}
     grep -q "stdout" ${logname}
     grep -q "stderr" ${logname}
 }
