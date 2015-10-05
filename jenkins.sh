@@ -121,18 +121,32 @@ jenkins_update()
     setvars "${newConfig}" setvars_escape_xml
 
 
-    # Try to update the job, under the assumption that most of the time it is
-    # already there.  (Note: jenkins doesn't have an operation that is
-    # idempotent for this -- we have to either try update and then create if it
-    # fails or try create and then update if it fails)
-    $(tryrc -o=stdout -e=stderr jenkins -f="${newConfig}" update-${itemType} "${name}")
+    # Try to create the job.
+    #
+    # Note: jenkins doesn't have an operation that is idempotent for this -- we
+    # must try to create it and then update it if we determine that it already
+    # existed.  We have in the past tried to update first and create if the
+    # update failed, but it didn't work well with our automatic retries.
+    # Specifically, this would occasionally happen.
+    #
+    #   1) Tried update.  It fails because the job does not exist.
+    #   2) Try create.  Locally, it times out because jenkins is slow, but this
+    #      operation eventually succeeded on the server.
+    #   3) Now when create runs, it sees that the job already exists on the
+    #      server and knows better than to keep retrying.  But the create call
+    #      has no way of determining if it's current, so it fails.
+    #
+    # When the order is reversed, this is less of a problem.  If create fails
+    # because the job already exists for any reason, we'll update it just to be
+    # sure.
+    #
+    $(tryrc -o=stdout -e=stderr jenkins -f="${newConfig}" create-${itemType} "${name}")
 
-    # If the job didn't exist to update, it must be created.  And we don't want
-    # to see the output from jenkins collected into $stdout/$stderr
+    # If the job was already there, then we need to update it.
     if [[ ${rc} -eq 50 ]] ; then
-        jenkins -f="${newConfig}" create-${itemType} "${name}" &>$(edebug_out)
+        jenkins -f="${newConfig}" update-${itemType} "${name}" &>$(edebug_out)
 
-    # If the update passed, we're good!
+    # If the create passed, we're good!
     elif [[ ${rc} -eq 0 ]] ; then
         return 0
 
