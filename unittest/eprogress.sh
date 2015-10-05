@@ -79,6 +79,10 @@ ETEST_eprogress_ticker_on()
 
     )
 
+    # The ticker may actuall run for slightly longer than we requested due to
+    # how sleep works. Change instances of 00:00:0[1-9] to 00:00:01 in the output
+    # for easier validation.
+    sed -i "s|:01\]|:00\]|g" eprogress.out
     assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[22C[ ok ]\$" "$(cat -evt eprogress.out)"
 }
 
