@@ -493,7 +493,8 @@ die()
             die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
             __EFUNCS_DIE_IN_PROGRESS=0
         else
-            kill -9 0
+            ekilltree -s=SIGTERM $$
+            exit ${__EFUNCS_DIE_IN_PROGRESS}
         fi
     fi
 }
