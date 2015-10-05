@@ -1774,7 +1774,7 @@ elogfile()
         local pid=$(cat ${pid_pipe})
         trap_add "kill -9 ${pid} 2>/dev/null || true"
 
-        # Finally re-exec so taht our output stream is redirected to the pipe.
+        # Finally re-exec so that our output stream is redirected to the pipe.
         eval "exec $(get_stream_fd ${name})>${pipe}"
     }
 
