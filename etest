@@ -40,15 +40,46 @@ etestmsg()
     echo -e "$(EMSG_COLOR="all" emsg 'magenta' '##' 'INFO' "$@")" >&2
 }
 
+# Returns success if there are no stale processes remaining in the cgroup for
+# this test and failure if there are any.
+#
+no_process_leaks_remain()
+{
+    $(tryrc -r=cgroup_exists cgroup_exists ${ETEST_CGROUP})
+
+    # If the cgroup no longer exists, we're in good shape because you can't
+    # destroy a cgroup until all its processes are dead.
+    if [[ ${cgroup_exists} -ne 0 ]] ; then
+        return 0;
+    fi
+
+    # As long as it existed just now, we can assume cgroup_pids will exist,
+    # because nothing else will destroy the cgroup except for us.
+    local remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
+    edebug "$(lval remaining_pids cgroup_exists ETEST_CGROUP)"
+    [[ -z ${remaining_pids} ]]
+}
+
 assert_no_process_leaks()
 {
     cgroup_move "${ETEST_CGROUP_BASE}" $$ ${BASHPID}
+
+    # Wait for up to 5 seconds for leaked processes to die off.  If anything
+    # lasts beyond that, we'll call it a test failure.
+    $(tryrc eretry -T=5s no_process_leaks_remain)
+
+    if [[ ${rc} -eq 0 ]] ; then
+        cgroup_destroy -r ${ETEST_CGROUP}
     
-    local remaining_processes=$(cgroup_ps ${ETEST_CGROUP} || true)
-    if [[ -n ${remaining_processes} ]]; then
+    else
+        einfo "Killing stale test processes"
+        local leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
+
         cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
         cgroup_destroy -r ${ETEST_CGROUP}
-        die "Stale processes:\n${remaining_processes}"
+
+        die "Leaked processes:\n${leaked_processes}"
+
     fi
 }
 
