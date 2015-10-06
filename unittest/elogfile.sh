@@ -294,3 +294,27 @@ ETEST_elogfile_hang_kill_tee()
         pstree -p ${BASHPID}
     )
 }
+
+ETEST_elogfile_chdir()
+{
+    mkdir src dst
+    ebindmount src dst
+    local orig=${PWD}
+
+    (
+        cd dst
+        elogfile -c=${orig} -t=0 foo.log
+       
+        einfo "Testing..."
+        cd /
+        sleep infinity
+    ) &
+
+    local pid=$!
+    eretry cat foo.log
+
+    umount dst
+
+    ekilltree ${pid}
+    wait ${pid} || true
+}
