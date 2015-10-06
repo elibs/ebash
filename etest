@@ -68,19 +68,16 @@ assert_no_process_leaks()
     # lasts beyond that, we'll call it a test failure.
     $(tryrc eretry -T=5s no_process_leaks_remain)
 
-    if [[ ${rc} -eq 0 ]] ; then
-        cgroup_destroy -r ${ETEST_CGROUP}
-    
-    else
+    if [[ ${rc} -ne 0 ]] ; then
         einfo "Killing stale test processes"
         local leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
 
         cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
-        cgroup_destroy -r ${ETEST_CGROUP}
 
         die "Leaked processes:\n${leaked_processes}"
-
     fi
+
+    cgroup_move "${ETEST_CGROUP}" $$ ${BASHPID}
 }
 
 global_setup()
@@ -110,7 +107,7 @@ global_teardown()
     edebug "Starting global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
     assert_no_process_leaks
-   
+
     argcheck TEST_DIR_OUTPUT
     if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
         eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out)

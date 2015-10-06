@@ -135,7 +135,7 @@ ETEST_cgroup_exists()
     etestmsg "Generates special exit code for inconsistent cgroup"
     rc=0
     rmdir /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${CGROUP}
-    find /sys/fs/cgroup -name "${CGROUP}" -ls
+    find /sys/fs/cgroup -wholename "${CGROUP}" -ls
     cgroup_exists ${CGROUP} || rc=$?
     assert [[ ${rc} -eq 2 ]]
 }
@@ -182,8 +182,11 @@ ETEST_cgroup_move_multiple_pids_at_once()
     local foundPids
     foundPids=($(cgroup_pids -r ${CGROUP}))
     for pid in "${PIDS[@]}" ; do
+        etestmsg "Checking ${pid}"
         assert_true array_contains foundPids ${pid}
+        assert_eq "${CGROUP}" "$(cgroup_current $pid)" "cgroup for pid ${pid}"
     done
+
 }
 
 ETEST_cgroup_pids_except()
@@ -348,8 +351,17 @@ END
     ) &
     cgroup_pstree ${CGROUP}
 
-    assert_false cgroup_kill_and_wait -s=TERM -t=1 ${CGROUP}
+    etestmsg "Trying to kill that process with sigterm (which shouldn't succeed)"
+    assert_false cgroup_kill_and_wait -s=TERM -t=2 ${CGROUP}
+
+    etestmsg "pstree after attempting to kill with sigterm"
+    cgroup_pstree ${CGROUP}
 
     cgroup_kill -s=KILL ${CGROUP}
+}
 
+ETEST_cgroup_current()
+{
+    local current=$(cgroup_current)
+    assert_eq "${ETEST_CGROUP}" "${current}" "cgroup"
 }
