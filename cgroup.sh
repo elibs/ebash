@@ -235,7 +235,7 @@ cgroup_pids()
     for cgroup in "${cgroups[@]}" ; do
         local subsystem_paths=()
         for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
-            subsystem_paths+=("/sys/fs/cgroup/${subsystem}/${cgroup}")
+            subsystem_paths+=("$(readlink -m /sys/fs/cgroup/${subsystem}/${cgroup})")
         done
 
         local files file
@@ -366,16 +366,17 @@ cgroup_tree()
             # Pick out the paths to the subsystem and the cgroup within it --
             # and because we'll be text processing the result, be sure there
             # are not multiple sequential slashes in the output
-            local subsys_path=$(echo /sys/fs/cgroup/${subsys}/ | sed 's#/\+#/#g')
-            local cgroup_path=$(echo ${subsys_path}/${cgroup}/ | sed 's#/\+#/#g')
-
-            edebug $(lval subsys_path cgroup_path)
+            local subsys_path=$(readlink -m /sys/fs/cgroup/${subsys}/)
+            local cgroup_path=$(readlink -m ${subsys_path}/${cgroup}/)
 
             # Then find all the directories inside the cgroup path (while
             # stripping off the part contributed by the subsystem) and again
             # reduce multiple slashes to only one
             array_add found_cgroups \
-                "$(find ${subsys_path}/${cgroup} -type d | sed -e 's#/\+#/#g' -e 's#^'${subsys_path}'##' )"
+                "$(find "${cgroup_path}" -type d | sed -e 's#^'${subsys_path}/'##' )"
+
+            edebug $(lval subsys_path cgroup_path)
+
         done
 
     done
@@ -413,6 +414,20 @@ cgroup_pstree()
 
 
 #-------------------------------------------------------------------------------
+# Display the name of the cgroup that the specified process is in.  Defaults to
+# the current process (i.e. ${BASHPID}).
+#
+cgroup_current()
+{
+    $(declare_args ?pid)
+    : ${pid:=${BASHPID}}
+
+    local line=$(grep -w "${CGROUP_SUBSYSTEMS[0]}" /proc/${pid}/cgroup)
+    echo "${line##*:/}"
+}
+
+
+#-------------------------------------------------------------------------------
 # Recursively KILL (or send a signal to) all of the pids that live underneath
 # all of the specified cgroups (and their children!).  Accepts any number of
 # cgroups.
@@ -426,6 +441,7 @@ cgroup_kill()
 {
     $(declare_args)
     local cgroups=( ${@} )
+    local signal=$(opt_get s SIGTERM)
 
     [[ $(array_size cgroups) -gt 0 ]] || return 0
 
@@ -439,8 +455,7 @@ cgroup_kill()
     array_init pids "$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" ${cgroups[@]} || true)"
 
     if [[ $(array_size pids) -gt 0 ]] ; then
-        edebug "Killing processes in cgroups $(lval cgroups pids ignorepids)"
-        local signal=$(opt_get s SIGTERM)
+        edebug "Killing processes in cgroups $(lval signal cgroups pids ignorepids)"
 
         # Ignoring errors here because we don't want to die simply because a
         # process that was in the cgroup disappeared of its own volition before we
@@ -477,6 +492,7 @@ cgroup_kill_and_wait()
     local cgroups=( ${@} )
     local startTime=${SECONDS}
     local timeout=$(opt_get t 0)
+    local signal=$(opt_get s SIGTERM)
 
     [[ $# -gt 0 ]] || return 0
 
@@ -484,11 +500,11 @@ cgroup_kill_and_wait()
     # will do that for me
     local ignorepids=$(opt_get x)
 
-    edebug "Ensuring that there are no processes in $(lval cgroups ignorepids)."
+    edebug "Ensuring that there are no processes in $(lval cgroups ignorepids signal)."
 
     local times=0
     while true ; do
-        cgroup_kill -x="${ignorepids} ${BASHPID}" -s=$(opt_get s SIGTERM) "${cgroups[@]}"
+        cgroup_kill -x="${ignorepids} ${BASHPID}" -s=${signal} "${cgroups[@]}"
 
         local remaining_pids=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
         if [[ -z ${remaining_pids} ]] ; then
@@ -514,6 +530,8 @@ cgroup_kill_and_wait()
         fi
 
     done
+
+    return 0
 }
 
 

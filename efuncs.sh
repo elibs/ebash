@@ -1773,6 +1773,14 @@ elogfile()
         # essentially becomes unkillable once in this state.
         (
             ( 
+                # If we are in a cgroup, move the tee process out of that
+                # cgroup so that we do not kill the tee.  It will nicely
+                # terminate on its own once the process dies.
+                if [[ ${EUID} -eq 0 && -n "$(cgroup_current)" ]] ; then
+                    edebug "Moving tee process out of cgroup"
+                    cgroup_move "/" ${BASHPID}
+                fi
+
                 die_on_abort
                 echo "${BASHPID}" >${pid_pipe}
                 tee -a "${@}" <${pipe} >${redirect} 2>/dev/null

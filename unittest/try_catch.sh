@@ -78,7 +78,7 @@ ETEST_try_catch_abort()
     local pid=$!
     einfo "Waiting for $(lval pid)"
     sleep 1s
-    kill -TERM ${pid}
+    ekilltree -s=TERM ${pid}
     wait ${pid} && rc=0 || rc=$?
     einfo "Process killed $(lval pid rc)"
     assert_eq 143 ${rc}
