@@ -916,7 +916,7 @@ eerror_stacktrace()
     $(declare_args)
     local frame=$(opt_get f 2)
     local skip=$(opt_get s 0)
-    local color=$(opt_get c)
+    local color=$(opt_get c "red")
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
