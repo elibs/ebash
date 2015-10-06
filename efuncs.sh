@@ -1690,6 +1690,12 @@ elogrotate()
 #
 # OPTIONS
 #
+# -c=DIR
+#   Change to the provided directory as the current working directory for the
+#   backgrounded tee processes. This is useful if you don't want these processes
+#   to be hanging onto the directory they were called from and you will later
+#   need to unmount that directory.
+#
 # -e=(0|1)
 #   Redirect STDERR (defaults to 1)
 #
@@ -1717,9 +1723,10 @@ elogfile()
     local stdout=$(opt_get o 1)
     local stderr=$(opt_get e 1)
     local dotail=$(opt_get t 1)
+    local dopath=$(opt_get c "/")
     local rotate=$(opt_get r 0)
     local rotate_size=$(opt_get s 0)
-    edebug "$(lval stdout stderr dotail rotate_count rotate_size)"
+    edebug "$(lval stdout stderr dotail dopath rotate_count rotate_size)"
 
     # Return if nothing to do
     [[ ${stdout} -eq 1 || ${stderr} -eq 1 ]] || return 0
@@ -1783,6 +1790,12 @@ elogfile()
 
                 die_on_abort
                 echo "${BASHPID}" >${pid_pipe}
+
+                # Change to requested path before starting the process so that
+                # its current working directory is freed up.
+                cd "${dopath}"
+
+                # Launch actual tee process
                 tee -a "${@}" <${pipe} >${redirect} 2>/dev/null
             ) &
 
