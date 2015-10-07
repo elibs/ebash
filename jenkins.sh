@@ -676,8 +676,8 @@ jenkins_internal_end()
     $(declare_args rc ?stdout ?stderr)
 
     edebug "Returning ${rc} as result of jenkins command"
-    echo -n "${stdout}"
-    echo -n "${stderr}" >&2
+    echo "${stdout}"
+    echo "${stderr}" >&2
     return ${rc}
 }
 
@@ -838,6 +838,38 @@ jenkins_delete_view_hook()
 {
     $(declare_args rc ?stdout ?stderr)
     jenkins_delete_star_hook ${rc} "${stdout}" "${stderr}" "view"
+}
+
+jenkins_no_such_slave_common_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+
+    local foundNoSuchNode=0
+    echo "${stderr}" | grep -Piq "No such slave .* exists. Did you mean" || foundNoSuchNode=$?
+
+    if [[ ${rc} -eq 1 && ${foundNoSuchNode} -eq 0 ]] ; then
+        rc=50
+    fi
+
+    jenkins_internal_end "${rc}" "${stdout}" "${stderr}"
+}
+
+jenkins_offline_node_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_no_such_slave_common_hook ${rc} "${stdout}" "${stderr}" "view"
+}
+
+jenkins_online_node_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_no_such_slave_common_hook ${rc} "${stdout}" "${stderr}" "view"
+}
+
+jenkins_wait_node_offline_hook()
+{
+    $(declare_args rc ?stdout ?stderr)
+    jenkins_no_such_slave_common_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
 return 0
