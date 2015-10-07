@@ -87,7 +87,7 @@ global_setup()
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
-    mkdir -p ${TEST_DIR_OUTPUT}
+    efreshdir ${TEST_DIR_OUTPUT}
 
     if [[ -n "$(cgroup_pids ${ETEST_CGROUP_BASE})" ]]; then
         ewarn "Killing stale $(lval CGROUP=ETEST_CGROUP_BASE) processes=($(cgroup_pids ${ETEST_CGROUP_BASE}))"
@@ -124,7 +124,7 @@ call_file_setup()
 
     # Unit test infrastructure setup
     argcheck TEST_DIR_OUTPUT
-    mkdir -p ${TEST_DIR_OUTPUT}/${testfile}
+    efreshdir ${TEST_DIR_OUTPUT}/${testfilename}
 
     # Unit test provided setup
     if declare -f file_setup &>/dev/null ; then
@@ -150,8 +150,8 @@ call_file_teardown()
 
     # Unit test infrastructure teardown
     if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
-        eunmount_recursive ${TEST_DIR_OUTPUT}/${testfile} &>$(edebug_out)
-        rm -rf ${TEST_DIR_OUTPUT}/${testfile}
+        eunmount_recursive ${TEST_DIR_OUTPUT}/${testfilename} &>$(edebug_out)
+        rm -rf ${TEST_DIR_OUTPUT}/${testfilename}
     fi
 
     edebug "Finished call_file_teardown"
@@ -162,7 +162,7 @@ call_test_setup()
 {
     # Unit test infrastructure setup
     argcheck TEST_DIR_OUTPUT
-    mkdir -p ${TEST_DIR_OUTPUT}/${testfile}/${testfunc}
+    mkdir -p ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
 
     # Unit test provided setup
     if declare -f setup &>/dev/null ; then
@@ -171,7 +171,7 @@ call_test_setup()
         eend
     fi
 
-    cd ${TEST_DIR_OUTPUT}/${testfile}/${testfunc}
+    cd ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
     
     return 0
 }
@@ -252,6 +252,8 @@ trap_add global_teardown
 
 # Now go through and test all unit tests
 for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
+    
+    testfilename=$(basename "${testfile}")
 
     [[ ${VERBOSE} -eq 1 ]] && REDIRECT="/dev/stderr" || REDIRECT="/dev/null"
 
@@ -322,7 +324,7 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
     } 
     catch
     {
-        FAILED_FILES+=( $(basename ${testfile}) ) || true
+        FAILED_FILES+=( ${testfilename} ) || true
     }
 
 done
