@@ -297,7 +297,8 @@ ETEST_elogfile_hang_kill_tee()
 
 ETEST_elogfile_chdir()
 {
-    mkdir src dst
+    efreshdir src
+    efreshdir dst
     ebindmount src dst
     local orig=${PWD}
 
