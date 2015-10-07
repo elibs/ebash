@@ -543,7 +543,7 @@ trap_add()
             # See if we need to turn on die or not
             if [[ ${sig} == "ERR" && ${__EFUNCS_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
                 existing="die ${DIE_MSG_UNHERR}"
-            elif [[ ${EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
+            elif [[ ${__EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
                 existing="die ${DIE_MSG_KILLED}"
             fi
         fi
@@ -1731,6 +1731,10 @@ elogfile()
 
     # Return if nothing to do
     [[ ${stdout} -eq 1 || ${stderr} -eq 1 ]] || return 0
+    if [[ $# -eq 0 ]] ; then
+        edebug "No log files specified.  Continuing."
+        return 0
+    fi
 
     # Rotate logs as necessary but only if they are regular files
     if [[ ${rotate} -gt 0 ]]; then
