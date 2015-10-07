@@ -200,10 +200,22 @@ ETEST_jenkins_slave_status()
 
 ETEST_jenkins_nonexistent_slave_is_offline()
 {
-    JENKINS=noserver $(tryrc -o=status jenkins_slave_status this-slave-does-not-really-exist)
+    $(tryrc -o=status jenkins_slave_status this-slave-does-not-really-exist)
 
     assert_eq "0" ${rc}
     assert_eq offline "${status}"
+}
+
+ETEST_jenkins_fail_fast_for_nonexistent_slave()
+{
+    $(tryrc jenkins offline-node this-slave-does-not-really-exist)
+    assert_eq "50" ${rc}
+
+    $(tryrc jenkins online-node this-slave-does-not-really-exist)
+    assert_eq "50" ${rc}
+
+    $(tryrc jenkins wait-node-offline this-slave-does-not-really-exist)
+    assert_eq "50" ${rc}
 }
 
     
