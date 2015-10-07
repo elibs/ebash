@@ -127,7 +127,7 @@ cgroup_exists()
     done
 
     edebug "cgroup_exists: $(lval all cgroup missing_cgroups CGROUP_SUBSYSTEMS)"
-    if [[ $(array_size missing_cgroups) -eq $(( $(array_size CGROUP_SUBSYSTEMS) * $(array_size all) )) ]] ; then
+    if (( ${#missing_cgroups[@]} == ${#CGROUP_SUBSYSTEMS[@]} * ${#all[@]} )) ; then
         edebug "Cgroup doesn't exist in any subsystems $(lval cgroup)"
         return 1
 

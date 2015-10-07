@@ -99,7 +99,7 @@ daemon_init()
         cgroup=             \
         chroot=             \
         delay=1             \
-        logfile="/dev/null" \
+        logfile=            \
         logfile_count=0     \
         logfile_size=0      \
         pre_start=          \
