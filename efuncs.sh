@@ -543,7 +543,11 @@ trap_add()
             # See if we need to turn on die or not
             if [[ ${sig} == "ERR" && ${__EFUNCS_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
                 existing="die ${DIE_MSG_UNHERR}"
-            elif [[ ${__EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
+
+            #### BUG: Yes, this should be __EFUNCS_DIE_ON_ABORT_ENABLED but that causes
+            #### every unit test to explode. We're going to completel re-do how this is
+            #### handled so I'm reverting this back to a working (broken) state again.
+            elif [[ ${EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
                 existing="die ${DIE_MSG_KILLED}"
             fi
         fi
@@ -1730,9 +1734,7 @@ elogfile()
     edebug "$(lval stdout stderr dotail dopath rotate_count rotate_size)"
 
     # Return if nothing to do
-    [[ ${stdout} -eq 1 || ${stderr} -eq 1 ]] || return 0
-    if [[ $# -eq 0 ]] ; then
-        edebug "No log files specified.  Continuing."
+    if [[ ${stdout} -eq 0 && ${stderr} -eq 0 ]] || [[ $# -eq 0 ]]; then
         return 0
     fi
 
