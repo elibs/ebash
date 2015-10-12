@@ -410,6 +410,10 @@ trap_get()
 {
     $(declare_args sig)
 
+    # Normalize the signal description (which might be a name or a number) into
+    # the form trap produces
+    sig="$(signame -s "${sig}")"
+
     local existing=$(trap -p "${sig}")
     existing=${existing##trap -- \'}
     existing=${existing%%\' ${sig}}
@@ -526,6 +530,7 @@ trap_add()
 
     local sig
     for sig in ${signals[@]}; do
+        sig=$(signame -s ${sig})
 
         : ${__EFUNCS_TRAP_ADD_SHELL_LEVEL:=${BASH_SUBSHELL}}
 
@@ -1171,6 +1176,70 @@ eprogress_kill()
 
     return 0
 }
+
+#-----------------------------------------------------------------------------
+# SIGNAL FUNCTIONS
+#-----------------------------------------------------------------------------
+
+# Given a name or number, echo the signal name associated with it.
+#
+signum()
+{
+    if [[ "$1" =~ ^[[:digit:]]$ ]] ; then
+        echo "$1"
+
+    elif [[ "$1" == "EXIT" || "$1" == "ERR" || "$1" == "DEBUG" ]] ; then
+        die "Bash pseudo signal $1 does not have a signal number."
+
+    else
+        kill -l "$1"
+    fi
+    return 0
+}
+
+# Given a signal name or number, echo the signal number associated with it.
+# 
+# Options:
+#   -s: Get the form that (usually) includes SIG.  For real signals this is
+#       something like SIGKILL, SIGINT.  But bash treats its pseudo-signals
+#       differently, so EXIT, ERR, and DEBUG all leave off the SIG.
+#
+signame()
+{
+    $(declare_args)
+    local prefix=""
+    if opt_true s ; then
+        prefix="SIG"
+    fi
+
+    if [[ "$1" =~ ^[[:digit:]]+$ ]] ; then
+        echo "${prefix}$(kill -l "$1")"
+
+    elif [[ "${1^^}" == "EXIT" || "${1^^}" == "SIGEXIT" ]]; then
+        echo "EXIT"
+
+    elif [[ "${1^^}" == "ERR" || "${1^^}" == "SIGERR" ]]; then
+        echo "ERR"
+
+    elif [[ "${1^^}" == "DEBUG" || "${1^^}" == "SIGDEBUG" ]]; then
+        echo "DEBUG"
+
+    else
+        # Find the associated number, and then get the name that bash believes
+        # is associated with that number
+        echo "${prefix}$(kill -l "$(kill -l "$1")")"
+    fi
+    return 0
+}
+
+# Given a signal name or number, echo the exit code that a bash process
+# would produce if it died due to the specified signal.
+sigexitcode()
+{
+    echo "$(( 128 + $(signum $1) ))"
+    return 0
+}
+
 
 #-----------------------------------------------------------------------------
 # PROCESS FUNCTIONS
