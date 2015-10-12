@@ -8,6 +8,7 @@ fi
 
 : ${BASHUTILS:=$(dirname $0)}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
+export BASHUTILS
 
 # Parse arguments. If no test directory was provided use PWD.
 $(declare_args -g ?TEST_DIR)
@@ -21,6 +22,7 @@ ETEST_TOPDIR=${TEST_DIR}
 #            only the test name and result. If set to 1 you'll get more verbose output from etest and each test.
 # -b=(0|1)   Break on failure (defaults to 0)
 FILTER=$(opt_get f ${FILTER:=""})
+EXCLUDE=$(opt_get x ${EXCLUDE:=""})
 REPEAT=$(opt_get r ${REPEAT:=0})
 VERBOSE=$(opt_get v 0)
 [[ ${EDEBUG:-0} != "0" ]] && VERBOSE=1 || true
@@ -45,18 +47,18 @@ etestmsg()
 #
 no_process_leaks_remain()
 {
-    $(tryrc -r=cgroup_exists cgroup_exists ${ETEST_CGROUP})
+    $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
 
     # If the cgroup no longer exists, we're in good shape because you can't
     # destroy a cgroup until all its processes are dead.
-    if [[ ${cgroup_exists} -ne 0 ]] ; then
+    if [[ ${exists_rc} -ne 0 ]] ; then
         return 0;
     fi
 
     # As long as it existed just now, we can assume cgroup_pids will exist,
     # because nothing else will destroy the cgroup except for us.
     local remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
-    edebug "$(lval remaining_pids cgroup_exists ETEST_CGROUP)"
+    edebug "$(lval remaining_pids exists_rc ETEST_CGROUP)"
     [[ -z ${remaining_pids} ]]
 }
 
@@ -265,6 +267,9 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
         # Skip files that don't contain any tests
         grep -q "^ETEST_" ${testfile} >/dev/null || continue
 
+        # Skip files whose name matches the exclude filter
+        [[ -n ${EXCLUDE} && ${testfile} =~ ${EXCLUDE} ]] && continue
+
         source ${testfile}
 
         # Ensure proper shebang is in the unit test or else bashlint won't be able to validate it
@@ -276,6 +281,16 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
                                        || ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
 
         [[ ${#ETEST_FUNCTIONS[@]} -gt 0 ]] || continue
+
+        # Exclude those functions that match the exclude filter
+        if [[ -n ${EXCLUDE} ]] ; then
+            for index in "${!ETEST_FUNCTIONS[@]}" ; do
+                if [[ ${ETEST_FUNCTIONS[$index]} =~ ${EXCLUDE} ]] ; then
+                    unset ETEST_FUNCTIONS[$index]
+                fi
+            done
+        fi
+
 
         # Repeat the selected tests the requested number of times
         for (( ITERATION=0; ITERATION<=${REPEAT:-0}; ITERATION++ )); do
@@ -312,7 +327,13 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
 
                 } &> ${REDIRECT}
 
-                eend ${testfunc_rc}
+                if [[ ${VERBOSE} -eq 0 ]] ; then
+                    eend ${testfunc_rc}
+                else
+                    [[ ${testfunc_rc} -eq 0 ]] \
+                        && einfo "$(ecolor green)${testfunc} PASSED." \
+                        || eerror "${testfunc} FAILED."
+                fi
                
             done
 
@@ -320,7 +341,7 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
         
         done
 
-        array_empty FAILED_TESTS || { eerror_stacktrace "$(lval FAILED_TESTS)"; echo; throw 1; }
+        array_empty FAILED_TESTS || { eerror "$(lval FAILED_TESTS)"; echo; throw 1; }
     } 
     catch
     {
