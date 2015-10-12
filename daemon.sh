@@ -78,6 +78,10 @@
 #   command to be executed. If more complexity is required use a function.
 #   Any errors from this hook are ignored.
 #
+# post_crash
+#   Optional hook to be executed after the daemon stops abnormally (i.e not
+#   through daemon_stop).  Errors from this hook are ignored.
+#
 # respawns
 #   The maximum number of times to respawn the daemon command before just
 #   giving up. Defaults to 10.
@@ -233,6 +237,9 @@ daemon_start()
             if [[ ${SECONDS} -ge ${respawn_interval} ]]; then
                 runs=0
             fi
+
+            # Execute optional post_crash hook and ignore errors.
+            $(tryrc ${post_crash})
            
             # Log specific message
             if [[ ${runs} -ge ${respawns} ]]; then
@@ -376,7 +383,8 @@ daemon_running()
 # Check if the daemon is not running
 daemon_not_running()
 {
-    ! daemon_status -q "${@}"
+    $(tryrc daemon_status -q "${@}")
+    [[ ${rc} -ne 0 ]]
 }
 
 #-----------------------------------------------------------------------------
