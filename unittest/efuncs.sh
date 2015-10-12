@@ -141,3 +141,26 @@ ETEST_get_listening_network_ports()
     done
     die "Could not find port 22"
 }
+
+ETEST_signals()
+{
+    assert_eq "2" "$(signum 2)"
+    assert_eq "2" "$(signum int)"
+    assert_eq "2" "$(signum SIGINT)"
+
+    assert_eq "TERM" "$(signame 15)"
+    assert_eq "TERM" "$(signame term)"
+    assert_eq "TERM" "$(signame SIGTERM)"
+
+    assert_eq "SIGPIPE" "$(signame -s 13)"
+    assert_eq "SIGPIPE" "$(signame -s pipe)"
+    assert_eq "SIGPIPE" "$(signame -s SIGPIPE)"
+
+    assert_eq "EXIT" "$(signame -s exit)"
+    assert_eq "ERR" "$(signame -s err)"
+    assert_eq "DEBUG" "$(signame -s debug)"
+
+    assert_eq "137"  "$(sigexitcode 9)"
+    assert_eq "137"  "$(sigexitcode kill)"
+    assert_eq "137"  "$(sigexitcode SIGKILL)"
+}
