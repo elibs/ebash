@@ -42,6 +42,7 @@ ETEST_elogfile_term()
     
     etestmsg "Killing backgrounded process"
     ekilltree -s=SIGTERM ${pid}
+
     eretry -T=30s process_not_running ${pid}
     process_not_running ${pid}
 

@@ -25,7 +25,7 @@ ETEST_die_subprocesses()
     done
 }
 
-# Ensure if we call die() that any subshell registered traps are executed before death.
+# Ensure if we call die() that any subshell registered traps are executed before exit.
 ETEST_die_traps()
 {
     local fname="die_traps.txt"
