@@ -2680,9 +2680,9 @@ etimeout()
 
     # Wait for pid which will either be KILLED by watcher or complete normally.
     local watcher=$!
-    wait ${pid}                   &>/dev/null && rc=0 || rc=$?
-    ekilltree -SIGKILL ${watcher} &>/dev/null
-    wait ${watcher}               &>/dev/null && watcher_rc=0 || watcher_rc=$?
+    wait ${pid}                     &>/dev/null && rc=0 || rc=$?
+    ekilltree -s=SIGKILL ${watcher} &>/dev/null
+    wait ${watcher}                 &>/dev/null && watcher_rc=0 || watcher_rc=$?
     local stop=${SECONDS}
     local seconds=$(( ${stop} - ${start} ))
     
