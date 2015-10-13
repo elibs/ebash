@@ -468,6 +468,8 @@ cgroup_kill()
     else
         edebug "All processes in cgroup are already dead.  $(lval cgroups pids ignorepids)"
     fi
+
+    return 0
 }
 
 #-------------------------------------------------------------------------------
@@ -496,9 +498,7 @@ cgroup_kill_and_wait()
 
     [[ $# -gt 0 ]] || return 0
 
-    # Don't need to add $$ and $BASHPID to ignorepids here because cgroup_kill
-    # will do that for me
-    local ignorepids=$(opt_get x)
+    local ignorepids="$$ $BASHPID $(opt_get x)"
 
     edebug "Ensuring that there are no processes in $(lval cgroups ignorepids signal)."
 

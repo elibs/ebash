@@ -46,7 +46,7 @@ ETEST_elogfile_term()
     process_not_running ${pid}
 
     etestmsg "Showing output"
-    eretry cat ${FUNCNAME}.log
+    eretry -T=30s cat ${FUNCNAME}.log
 }
 
 ETEST_elogfile_nostderr()
