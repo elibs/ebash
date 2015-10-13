@@ -83,6 +83,9 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
         && fail "Ambiguous return statements"
 
+    echo "${CONTENTS}" | grep -P 'ekill.*-(SIG|TERM|KILL|[0-9])' \
+        && fail "Ekill or ekilltree cannot take a -SIGNAL argument -- you must specify -s=<signal>"
+
     [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }
 done
 
