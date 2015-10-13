@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 : ${BASHUTILS:=$(dirname $0)}
-source $(dirname $0)/efuncs.sh || source ${BASHUTILS}/efuncs.sh || { echo "Unable to source efuncs." ; exit 1 ; }
+source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
 # Options:
 # -q Quiet mode: Send all output to edebug.
@@ -30,7 +30,7 @@ ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
  
     # If this isn't a bash script skip it
-    file ${fname} | grep -q "bash script" || continue
+    file ${fname} | grep -Pq "(bash script|Bourne-Again shell script)" || continue
 
     # Never do any further parsing on our own file since they would all 
     # be false positives
@@ -83,7 +83,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
         && fail "Ambiguous return statements"
 
-    echo "${CONTENTS}" | grep -P 'ekill.*-(SIG|TERM|KILL|[0-9])' \
+    echo "${CONTENTS}" | grep -P 'ekill.*-(SIG|TERM|KILL|INT|[0-9])' \
         && fail "Ekill or ekilltree cannot take a -SIGNAL argument -- you must specify -s=<signal>"
 
     [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }
