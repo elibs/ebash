@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" >&2 ; exit 1 ; }
+
+# NOTE: This is intentionally NOT an etest.  This script must be run in its own
+# shell to be able to test whether die_handler works, because die_handler is
+# only called in the top level shell level.
+#
+# It's run early on by the etest framework, because if die doesn't work, etest
+# isn't likely to work either.
+
+# The caller of this script sets a variable DIE_FILE, which is the file that
+# the script will produce.  It's up to the caller to verify that the right
+# thing happened.
+#
+# Specifically, the output should first contain a line that says DIE and second
+# one that says TRAP.
+
+argcheck DIE_FILE
+rm -f ${DIE_FILE}
+
+die_handler()
+{
+    edebug "DIE_HANDLER called"
+    echo "DIE" >> "${DIE_FILE}"
+}
+
+trap_add "echo TRAP >> ${DIE_FILE}"
+die -c=grey19 "Fake death..."
+
+exit 0
