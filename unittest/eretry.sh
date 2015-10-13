@@ -298,6 +298,6 @@ ETEST_eretry_false()
 
 ETEST_eretry_true()
 {
-    $(tryrc eretry false)
-    assert [[ ${rc} -ne 0 ]]
+    $(tryrc eretry true)
+    assert [[ ${rc} -eq 0 ]]
 }
