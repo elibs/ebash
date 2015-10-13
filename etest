@@ -64,22 +64,17 @@ no_process_leaks_remain()
 
 assert_no_process_leaks()
 {
-    cgroup_move "${ETEST_CGROUP_BASE}" $$ ${BASHPID}
-
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
-    $(tryrc eretry -T=5s no_process_leaks_remain)
+    $(tryrc eretry -d=.1s -T=5s -w=1 no_process_leaks_remain)
 
     if [[ ${rc} -ne 0 ]] ; then
-        einfo "Killing stale test processes"
         local leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
 
         cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
 
         die "Leaked processes:\n${leaked_processes}"
     fi
-
-    cgroup_move "${ETEST_CGROUP}" $$ ${BASHPID}
 }
 
 global_setup()
@@ -91,14 +86,9 @@ global_setup()
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
     efreshdir ${TEST_DIR_OUTPUT}
 
-    if [[ -n "$(cgroup_pids ${ETEST_CGROUP_BASE})" ]]; then
-        ewarn "Killing stale $(lval CGROUP=ETEST_CGROUP_BASE) processes=($(cgroup_pids ${ETEST_CGROUP_BASE}))"
-        cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP_BASE}
-    fi
-
     # And a cgroup that will contain all output
-    cgroup_create ${ETEST_CGROUP}
-    cgroup_move ${ETEST_CGROUP} $$
+    cgroup_create ${ETEST_CGROUP_BASE}
+    cgroup_move ${ETEST_CGROUP_BASE} $$
 
     edebug "Finished global_setup"
     return 0
@@ -107,8 +97,6 @@ global_setup()
 global_teardown()
 {
     edebug "Starting global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
-
-    assert_no_process_leaks
 
     argcheck TEST_DIR_OUTPUT
     if [[ ${ETEST_CLEAN:-1} -ne 0 ]] ; then
@@ -180,8 +168,6 @@ call_test_setup()
 
 call_test_teardown()
 {
-    edebug "Starting test_teardown"
-
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
         etestmsg "Calling test_teardown"
@@ -310,20 +296,28 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
                 {
                     try
                     {
-                        call_test_setup
-                        etestmsg "Calling test"
-                        ${testfunc}
+                        (
+                            cgroup_create ${ETEST_CGROUP}
+                            cgroup_move ${ETEST_CGROUP} $BASHPID
+
+                            call_test_setup
+
+                            etestmsg "Calling test"
+                            ${testfunc}
+                        )
+
+                        call_test_teardown
                     }
                     catch
                     {
                         testfunc_rc=$?
                         eend ${testfunc_rc}
+                        $(tryrc call_test_teardown)
+                        [[ ${rc} -eq 0 ]] || ewarn "${testfunc} teardown failed."
                         FAILED_TESTS+=( ${testfunc/ETEST_/} )
 
                         [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1"
                     }
-                    
-                    call_test_teardown
 
                 } &> ${REDIRECT}
 
