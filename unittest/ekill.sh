@@ -65,12 +65,12 @@ ETEST_ekilltree()
 
 ETEST_ekilltree_excludes_self()
 {
-    > pids
+    > pid
 
     try
     {
         sleep infinity&
-        echo $! >> pids
+        echo $! >> pid
 
         ekilltree -s=TERM ${BASHPID}
         ekilltree -s=KILL ${BASHPID}
@@ -80,31 +80,31 @@ ETEST_ekilltree_excludes_self()
         assert [[ $? -eq 0 ]]
     }
 
-    assert_false process_running $(cat pids)
+    assert_false process_running $(cat pid)
 }
 
 ETEST_ekilltree_exclude_abritrary()
 {
-    > safe_pids
-    > kill_pids
+    > safe_pid
+    > kill_pid
 
     try
     {
         sleep infinity&
-        echo $! >> safe_pids
+        echo $! >> safe_pid
 
         sleep infinity&
-        echo $! >> kill_pids
+        echo $! >> kill_pid
 
-        ekilltree -x="$(cat safe_pids)" -s=TERM ${BASHPID}
+        ekilltree -x="$(cat safe_pid)" -s=TERM ${BASHPID}
     }
     catch
     {
         assert [[ $? -eq 0 ]]
     }
 
-    assert process_running $(cat safe_pids)
-    eretry -T=2s process_not_running $(cat kill_pids)
+    assert process_running $(cat safe_pid)
+    eretry -T=2s process_not_running $(cat kill_pid)
 
-    ekill -s=KILL $(cat safe_pids)
+    ekill -s=KILL $(cat safe_pid)
 }

@@ -1316,8 +1316,6 @@ ekilltree()
 
         if echo "${excluded}" | grep -wq ${pid} ; then
             edebug "Skipping $(lval excluded pid)"
-            # Skip this process
-            :
         else
             ekill -s=${signal} ${pid}
         fi
