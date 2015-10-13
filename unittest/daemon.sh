@@ -57,12 +57,14 @@ ETEST_daemon_cgroup()
 
     local pidfile="${FUNCNAME}.pid"
 
+    etestmsg "Initializing daemon"
     daemon_init sleep_daemon        \
         name="Infinity"             \
         cmdline="sleep infinity"    \
         cgroup=${CGROUP}            \
         pidfile="${pidfile}"
 
+    etestmsg "Running daemon"
     daemon_start sleep_daemon
     eretry -T=30s daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
@@ -254,20 +256,25 @@ ETEST_daemon_logfile()
         cmdline="launch"        \
         logfile="launch.log"    \
 
-    $(pack_import mdaemon)
+    $(pack_import mdaemon logfile)
 
     (
         die_on_abort
 
-        # Start
+        etestmsg "Starting daemon"
         daemon_start mdaemon
+        etestmsg "and waiting for it to run"
         eretry -T=30s daemon_running mdaemon
+
+        etestmsg "Stopping daemon"
         daemon_stop mdaemon
+        etestmsg "waiting for it to stop"
         eretry -T=30s daemon_not_running mdaemon
+        etestmsg "Finished running daemon"
     )
 
     # Show logfile and verify state
-    ebanner "Showwing logfile..."
+    etestmsg "Daemon logfile:"
     cat "${logfile}"
     
     grep --silent "Starting My Daemon" "${logfile}"

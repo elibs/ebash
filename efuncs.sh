@@ -528,6 +528,8 @@ trap_add()
         return 1
     fi
 
+    edebug "Adding trap $(lval cmd signals)"
+
     local sig
     for sig in ${signals[@]}; do
         sig=$(signame -s ${sig})
@@ -3733,4 +3735,5 @@ enable_trace
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
+
 return 0
