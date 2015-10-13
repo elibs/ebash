@@ -296,6 +296,10 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
                 {
                     try
                     {
+                        # We want to make sure that any traps from the tests
+                        # execute _before_ we run teardown, and also we don't
+                        # want the teardown to run inside the test-specific
+                        # cgroup.  This subshell solves both issues.
                         (
                             cgroup_create ${ETEST_CGROUP}
                             cgroup_move ${ETEST_CGROUP} $BASHPID
