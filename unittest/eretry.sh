@@ -61,24 +61,24 @@ ETEST_eretry_warn_every()
     }
 
     etestmsg "Calling callback 50 times warn every 1 second -- expecting >= 5"
-    output=$(eretry -r=50 -w=1 callback 2>&1 || true)
-    einfo "$(lval output)"
-    assert [[ "$(echo -n "$output" | wc -l)" -ge 5 ]]
+    $(EDEBUG="" tryrc -o=stdout -e=stderr eretry -r=50 -w=1 callback)
+    einfo "$(lval stderr stdout)"
+    assert [[ "$(echo -n "$stderr" | wc -l)" -ge 5 ]]
 
     etestmsg "Calling callback 80 times warn every 3 seconds -- expecting >= 3"
-    output=$(eretry -r=80 -w=3 callback 2>&1 || true)
-    einfo "$(lval output)"
-    assert [[ "$(echo -n "$output" | wc -l)" -ge 3 ]]
+    $(EDEBUG="" tryrc -o=stdout -e=stderr eretry -r=80 -w=3 callback)
+    einfo "$(lval stderr)"
+    assert [[ "$(echo -n "$stderr" | wc -l)" -ge 3 ]]
 
     etestmsg "Calling callback 30 times warn every 1 second -- expecting >= 3"
-    output=$(eretry -r=30 -w=1 callback 2>&1 || true)
-    einfo "$(lval output)"
-    assert [[ "$(echo -n "$output" | wc -l)" -ge 3 ]]
+    $(EDEBUG="" tryrc -o=stdout -e=stderr eretry -r=30 -w=1 callback 2>&1)
+    einfo "$(lval stderr)"
+    assert [[ "$(echo -n "$stderr" | wc -l)" -ge 3 ]]
 
     etestmsg "Calling callback 0 times warn every 1 second -- expecting == 0"
-    output=$(eretry -r=0 -w=1 callback 2>&1 || true)
-    einfo "$(lval output)"
-    assert [[ "$(echo -n "$output" | wc -l)" -eq 0 ]]
+    $(EDEBUG="" tryrc -o=stdout -e=stderr eretry -r=0 -w=1 callback)
+    einfo "$(lval stderr)"
+    assert [[ "$(echo -n "$stderr" | wc -l)" -eq 0 ]]
 }
 
 ETEST_eretry_hang()
@@ -264,8 +264,12 @@ ETEST_eretry_partial_output_timeout()
 
 ETEST_eretry_total_timeout()
 {
+    local start=${SECONDS}
     $(tryrc eretry -T=1 sleep infinity)
+    local stop=${SECONDS}
+
     assert_eq 124 ${rc}
+    (( ${stop} - ${start} < 5 ))
 }
 
 ETEST_eretry_default_count()
@@ -284,4 +288,16 @@ ETEST_eretry_default_count()
     $(tryrc eretry callback)
 
     assert_eq "5" "$(cat calls.txt)"
+}
+
+ETEST_eretry_false()
+{
+    $(tryrc eretry false)
+    assert [[ ${rc} -ne 0 ]]
+}
+
+ETEST_eretry_true()
+{
+    $(tryrc eretry false)
+    assert [[ ${rc} -ne 0 ]]
 }

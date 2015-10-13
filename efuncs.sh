@@ -1188,7 +1188,9 @@ signum()
     if [[ "$1" =~ ^[[:digit:]]$ ]] ; then
         echo "$1"
 
-    elif [[ "$1" == "EXIT" || "$1" == "ERR" || "$1" == "DEBUG" ]] ; then
+    # For a complete list of bash pseudo-signals, see help trap (this is the
+    # complete list at time of writing)
+    elif [[ "$1" == "EXIT" || "$1" == "ERR" || "$1" == "DEBUG" || "$1" == "RETURN" ]] ; then
         die "Bash pseudo signal $1 does not have a signal number."
 
     else
