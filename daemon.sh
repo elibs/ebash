@@ -144,8 +144,9 @@ daemon_start()
     # Don't restart the daemon if it is already running.
     if daemon_running ${optpack}; then
         local pid=$(cat ${pidfile} 2>/dev/null || true)
-        einfo "${name} is already running."
+        einfo "${name} is already running"
         edebug "${name} is already running $(lval pid +${optpack})"
+        eend 0
         return 0
     fi
 
@@ -189,7 +190,7 @@ daemon_start()
             # Execute optional pre_start hook. If this fails for any reason do NOT
             # actually start the daemon.
             $(tryrc ${pre_start})
-            [[ ${rc} -eq 0 ]] || break
+            [[ ${rc} -eq 0 ]] || { eend 1; break; }
 
             # Construct a subprocess which bind mounts chroot mount points then executes
             # requested daemon. After the daemon completes automatically unmount chroot.
@@ -351,7 +352,7 @@ daemon_status()
     opt_true "q" && redirect="/dev/null" || redirect="/dev/stderr"
 
     {
-        einfo "Checking ${name}"
+        einfo "${name}"
         edebug "Checking $(lval name +${optpack})"
 
         # Check pidfile

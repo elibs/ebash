@@ -1825,6 +1825,12 @@ elogfile()
         [[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
     fi
 
+    # Export COLUMNS properly so that eend and eprogress output properly
+    # even though stderr won't be connected to a console anymore.
+    if [[ ! -v COLUMNS ]]; then
+        export COLUMNS=$(tput cols)
+    fi
+
     # Temporary directory to hold our FIFOs
     local tmpdir=$(mktemp -d /tmp/elogfile-XXXXXXXX)
     trap_add "rm -rf ${tmpdir}"
