@@ -192,39 +192,36 @@ call_test_teardown()
 # SANITY TEST OF DIE FUNCTIONALITY
 #-------------------------------------------------------------------------------------------------------------------------
 
-# Manually test die() functionality outside of try/catch to ensure basic trap functionality works properly.
-DIE_TEST_MSG="Verifying die() trap functionality"
-edebug_enabled && ebanner "${DIE_TEST_MSG}" || einfo "${DIE_TEST_MSG}"
-{
-    DIE_FILE="etest_die.txt"
+if [[ -x ${ETEST_TOPDIR}/unittest/die ]] ; then
+
+    # Manually test die() functionality outside of try/catch to ensure basic trap functionality works properly.
+    DIE_TEST_MSG="Verifying die() trap functionality"
+    edebug_enabled && ebanner "${DIE_TEST_MSG}" || einfo "${DIE_TEST_MSG}"
+    {
+        export DIE_FILE="etest_die.txt"
+        ${ETEST_TOPDIR}/unittest/die
+
+        # Assert proper order of events happened
+        einfo "Output file:"
+        cat ${DIE_FILE}
+        first=$(head -1 ${DIE_FILE})
+        last=$(tail -1 ${DIE_FILE})
+
+        [[ ${first} == "DIE"  ]] || { eerror "DIE NOT CALLED FIRST";   exit 1; }
+        [[ ${last}  == "TRAP" ]] || { eerror "TRAP NOT CALLED SECOND"; exit 1; }
+
+
+    } &>$(edebug_out)
+
     rm -f ${DIE_FILE}
 
-    die_handler()
-    {
-        edebug "DIE_HANDLER called"
-        echo "DIE" >> ${DIE_FILE}
-    }
+    # Clean up so that die test doesn't affect future ones
+    unset DIE_FILE first last
+    unset -f die_handler
 
-    trap_add "einfo TRAP; echo TRAP >> ${DIE_FILE}"
-    die -c=grey19 "Fake death..."
+    eend
+fi
 
-    # Assert proper order of events happened
-    einfo "Ensuring TRAP was called before DIE"
-    cat ${DIE_FILE}
-    first=$(head -1 ${DIE_FILE})
-    last=$(tail -1 ${DIE_FILE})
-
-    [[ ${first} == "TRAP" ]] || { eerror "TRAP NOT CALLED FIRST"; exit 1; }
-    [[ ${last}  == "DIE"  ]] || { eerror "DIE NOT CALLED LAST";   exit 1; }
-
-} &>$(edebug_out)
-
-rm -f ${DIE_FILE}
-
-# Remove die_handler so we revert to fatal error handling
-unset -f die_handler
-
-eend
 
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
