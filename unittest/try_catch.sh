@@ -598,4 +598,3 @@ ETEST_tryrc_multiline_monster_output()
     assert_eq 0  "${rc}"
     assert_eq "" "${stderr}"
 }
-

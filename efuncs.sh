@@ -605,11 +605,6 @@ nodie_on_abort()
     trap - ${signals[@]}
 }
 
-# Default traps
-die_on_abort
-die_on_error
-enable_trace
-
 #-----------------------------------------------------------------------------
 # FANCY I/O ROUTINES
 #-----------------------------------------------------------------------------
@@ -1809,7 +1804,7 @@ elogfile()
     edebug "$(lval stdout stderr dotail rotate_count rotate_size)"
 
     # Return if nothing to do
-    if [[ ${stdout} -eq 0 && ${stderr} -eq 0 ]] || [[ $# -eq 0 ]]; then
+    if [[ ${stdout} -eq 0 && ${stderr} -eq 0 ]] || [[ -z "$*" ]]; then
         return 0
     fi
 
@@ -3729,6 +3724,11 @@ assert_not_exists()
         [[ ! -e "${name}" ]] || die "'${name}' exists"
     done
 }
+
+# Default traps
+die_on_abort
+die_on_error
+enable_trace
 
 #-----------------------------------------------------------------------------
 # SOURCING
