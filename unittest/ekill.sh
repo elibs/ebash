@@ -59,6 +59,52 @@ ETEST_ekilltree()
     for pid in ${pids[@]}; do
         einfo "Waiting for $(lval pid pids SECONDS)"
         wait $pid || true
-        ! process_running ${pid} || die "${pid} failed to exit"
+        assert_false process_running ${pid}
     done
+}
+
+ETEST_ekilltree_excludes_self()
+{
+    > pids
+
+    try
+    {
+        sleep infinity&
+        echo $! >> pids
+
+        ekilltree -s=TERM ${BASHPID}
+        ekilltree -s=KILL ${BASHPID}
+    }
+    catch
+    {
+        assert [[ $? -eq 0 ]]
+    }
+
+    assert_false process_running $(cat pids)
+}
+
+ETEST_ekilltree_exclude_abritrary()
+{
+    > safe_pids
+    > kill_pids
+
+    try
+    {
+        sleep infinity&
+        echo $! >> safe_pids
+
+        sleep infinity&
+        echo $! >> kill_pids
+
+        ekilltree -x="$(cat safe_pids)" -s=TERM ${BASHPID}
+    }
+    catch
+    {
+        assert [[ $? -eq 0 ]]
+    }
+
+    assert process_running $(cat safe_pids)
+    eretry -T=2s process_not_running $(cat kill_pids)
+
+    ekill -s=KILL $(cat safe_pids)
 }

@@ -255,25 +255,16 @@ ETEST_elogfile_double_fork()
 
 ETEST_elogfile_hang_ekilltree()
 {
-    try
-    {
-        EDEBUG=ekill
+    EDEBUG=ekill
 
-        local mlog="${FUNCNAME}.log"
-        trap_add "ewarn AIEEEEE"
+    local mlog="${FUNCNAME}.log"
+    trap_add "ewarn AIEEEEE"
 
-        elogfile -r=1 ${mlog}
-        etestmsg "Test"
-        pstree -p $$
-        ekilltree -s=SIGTERM ${BASHPID}
-        ekilltree -s=SIGKILL ${BASHPID}
-    }
-    catch
-    {
-        return 0
-    }
-
-    die "Test should have returned"
+    elogfile -r=1 ${mlog}
+    etestmsg "Test"
+    pstree -p $$
+    ekilltree -s=SIGTERM ${BASHPID}
+    ekilltree -s=SIGKILL ${BASHPID}
 }
 
 ETEST_elogfile_hang_kill_tee()

@@ -871,6 +871,8 @@ emsg()
     [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]]   \
         && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none)" >&2 \
         || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@" >&2
+
+    return 0
 }
 
 einfo()
@@ -932,14 +934,14 @@ eerror_stacktrace()
         eerror -c=${color} "$@"
     fi
 
-    local frames=()
+    local frames=() frame
     stacktrace_array -f=${frame} frames
 
     array_empty frames ||
-    for f in "${frames[@]}"; do
-        local line=$(echo ${f} | awk '{print $1}')
-        local func=$(echo ${f} | awk '{print $2}')
-        local file=$(basename $(echo ${f} | awk '{print $3}'))
+    for frame in "${frames[@]}"; do
+        local line=$(echo ${frame} | awk '{print $1}')
+        local func=$(echo ${frame} | awk '{print $2}')
+        local file=$(basename $(echo ${frame} | awk '{print $3}'))
 
         [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
 
@@ -1289,13 +1291,19 @@ ekill()
 # consider process_not_running or cgroups.
 #
 # Options:
-# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
+# -s=SIGNAL 
+#       The signal to send to the pids (defaults to SIGTERM).
+# -x="pids"
+#       Pids to exclude from killing.  $$ and $BASHPID are _ALWAYS_ excluded
+#       from killing.
+#
 ekilltree()
 {
     $(declare_args)
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
+    local excluded="$$ $BASHPID $(opt_get x)"
 
     local pid
     for pid in ${@}; do 
@@ -1303,10 +1311,16 @@ ekilltree()
         
         for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
             edebug "Killing $(lval child)"
-            ekilltree -s=${signal} ${child}
+            ekilltree -x="${excluded}" -s=${signal} ${child}
         done
 
-        ekill -s=${signal} ${pid}
+        if echo "${excluded}" | grep -wq ${pid} ; then
+            edebug "Skipping $(lval excluded pid)"
+            # Skip this process
+            :
+        else
+            ekill -s=${signal} ${pid}
+        fi
     done
 }
 
