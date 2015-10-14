@@ -33,6 +33,8 @@ edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK)"
 export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
+ETEST_BREAK_EXIT_CODE=25
+
 #-------------------------------------------------------------------------------------------------------------------------
 # TEST UTILITY FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------------------
@@ -317,7 +319,7 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
                         [[ ${rc} -eq 0 ]] || ewarn "${testfunc} teardown failed."
                         FAILED_TESTS+=( ${testfunc/ETEST_/} )
 
-                        [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1"
+                        [[ ${BREAK} -eq 0 ]] || die -r=${ETEST_BREAK_EXIT_CODE} "${testfunc} failed and BREAK=1"
                     }
 
                 } &> ${REDIRECT}
@@ -340,6 +342,10 @@ for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
     } 
     catch
     {
+        if [[ $? -eq ${ETEST_BREAK_EXIT_CODE} ]] ; then
+            exit ${ETEST_BREAK_EXIT_CODE}
+        fi
+
         FAILED_FILES+=( ${testfilename} ) || true
     }
 
