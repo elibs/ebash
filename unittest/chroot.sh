@@ -5,14 +5,12 @@ CHROOT=${TEST_DIR_OUTPUT}/chroot
 
 file_setup()
 {
-    etestmsg "Creating $(lval CHROOT)"
     efreshdir ${CHROOT}
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
 }
 
 file_teardown()
 {
-    etestmsg "Killing $(lval CHROOT)"
     chroot_kill
     rm -rf ${CHROOT}
 }

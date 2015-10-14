@@ -110,6 +110,7 @@ daemon_init()
         pre_stop=           \
         post_start=         \
         post_stop=          \
+        post_crash=         \
         respawns=20         \
         respawn_interval=15 \
         "${@}"
