@@ -520,10 +520,7 @@ trap_add()
             if [[ ${sig} == "ERR" && ${__EFUNCS_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
                 existing="die \"${DIE_MSG_UNHERR}\""
 
-            #### BUG: Yes, this should be __EFUNCS_DIE_ON_ABORT_ENABLED but that causes
-            #### every unit test to explode. We're going to completel re-do how this is
-            #### handled so I'm reverting this back to a working (broken) state again.
-            elif [[ ${sig} != "EXIT" && ${EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
+            elif [[ ${sig} != "EXIT" && ${__EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
                 existing="die \"${DIE_MSG_KILLED}\""
             fi
         fi
