@@ -17,8 +17,6 @@ chroot_mount()
         mkdir -p ${CHROOT}${m}
         ebindmount ${m} ${CHROOT}${m}
     done
-
-    grep -v rootfs "${CHROOT}/proc/mounts" | sort -u > "${CHROOT}/etc/mtab"
 }
 
 chroot_unmount()
@@ -136,7 +134,6 @@ chroot_exit()
     chroot_kill
     chroot_unmount
     eunmount_recursive ${CHROOT}
-    rm -rf ${CHROOT}/etc/mtab
 }
 
 # Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE
@@ -331,6 +328,10 @@ chroot_setup()
 
     try
     {
+        # Make /etc/mtab a symlink to /proc/mounts so that it is never out of sync with
+        # our mount points. This matches how more modern Linux distributions work.
+        chroot_cmd "ln -sf /proc/mounts /etc/mtab"
+
         # Because of how we mount things while building up our chroot sometimes
         # /etc/resolv.conf will be bind mounted into ${CHROOT}. When that happens
         # calling 'cp' will fail b/c they refer to the same inodes. So we need
