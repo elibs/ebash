@@ -108,7 +108,6 @@ alias try="
     nodie_on_error
     (
         enable_trace
-        die_on_abort
         trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &>\$(edebug_out)' ERR
     "
 
@@ -421,67 +420,37 @@ trap_get()
     echo -n "${existing}"
 }
 
-# Call all traps associated with DIE_SIGNALS. This is desigend to be called from
-# die() or an overriden version of die(). As such it is designed to skip over die
-# itself in any of the traps so that the caller retains control and can then do
-# other things instead of actually exiting.
-#
-# NOTE: Although this is pretty special purpose for use by die() it's exposed
-# here as an independent function to allow anyone who overrides die() to reuse
-# this code.
-call_die_traps()
-{
-    local commands=()
-    local sig cmd
-    for sig in ${DIE_SIGNALS[@]}; do
-        cmd="$(trap_get ${sig})"
-        array_contains commands "${cmd}" || commands+=( "${cmd}" )
-    done
-
-    # Now execute the requested commands
-    for cmd in "${commands[@]}"; do
-        ( die() { true; }; nodie_on_error; eval "${cmd}" )
-    done
-}
-
 die()
 {
-    $(declare_args)
+    # Disable traps for any signal during most of die.  We'll reset the traps
+    # to existing state prior to exiting so that the exit trap will honor them.
+    local saved_traps=$(trap)
+    trap "" ${DIE_SIGNALS[@]}
 
     if [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
         exit ${__EFUNCS_DIE_IN_PROGRESS}
     else
+        $(declare_args)
         __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
     fi
 
-    # Clear ERR and DEBUG traps to avoid tracing die code.
-    trap - ERR
-    trap - DEBUG
-
     local color=$(opt_get c "red")
 
-    # Show error message immediately. Then call any registered die traps so that
-    # we invoke them before we exit or call any die_handler. This will also ensure
-    # we kill any existing eprogress tickers as quickly as possible via our trap.
+    # Show error message immediately.
     echo "" >&2
     eerror -c="${color}" "${@}"
-    call_die_traps
 
     # Call eerror_stacktrace but skip top three frames to skip over the frames
     # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
     # over the initial error message since we already displayed it.
     eerror_stacktrace -c="${color}" -f=3 -s
 
-    # Call any registered DIE traps so that we invoke the traps before we exit
-    # or call any die_handler.
-    
+    # Restore saved signals
+    eval "${saved_traps}"
+
     # If we're in a subshell signal our parent SIGTERM and then exit. This will
     # allow the parent process to gracefully perform any cleanup before the
     # process ultimately exits.
-    #
-    # If we're not in a subshell invoke any DIE traps that were previously 
-    # registered and then execute optional die_handler. If there is no handler
-    # then kill the process tree to ensure any stale processes are shut down.
     if [[ $$ != ${BASHPID} ]]; then
         
         # Capture off our BASHPID into a local variable so we can use it in subsequent
@@ -520,7 +489,7 @@ trap_add()
 {
     $(declare_args cmd)
     local signals=( "${@}" )
-    [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} EXIT )
+    [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
     
     # Fail if new cmd has single quotes in it.
     if [[ ${cmd} =~ "'" ]]; then
@@ -531,38 +500,36 @@ trap_add()
     edebug "Adding trap $(lval cmd signals)"
 
     local sig
-    for sig in ${signals[@]}; do
+    for sig in "${signals[@]}"; do
         sig=$(signame -s ${sig})
 
-        : ${__EFUNCS_TRAP_ADD_SHELL_LEVEL:=${BASH_SUBSHELL}}
-
-        # If we're at the same shell level then append to the existing trap.
-        # Otherwise if we're changing shell levels, optionally use die() as
-        # base trap if DIE_ON_ERROR/ABORT_ON_ERROR are enabled.
+        # If we're at the same shell level as a previous trap_add invocation,
+        # then append to the existing trap. Otherwise if we're changing shell
+        # levels, optionally use die() as base trap if DIE_ON_ERROR or
+        # ABORT_ON_ERROR are enabled.
         local existing=""
-        if [[ ${__EFUNCS_TRAP_ADD_SHELL_LEVEL} -eq ${BASH_SUBSHELL} ]]; then
+        if [[ ${__EFUNCS_TRAP_ADD_SHELL_LEVEL:-} == ${BASH_SUBSHELL} ]]; then
             existing="$(trap_get ${sig})"
         else
+            __EFUNCS_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
 
             # Clear any existing trap since we're in a subshell
-            trap - ${sig}
+            trap - "${sig}"
 
             # See if we need to turn on die or not
             if [[ ${sig} == "ERR" && ${__EFUNCS_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
-                existing="die ${DIE_MSG_UNHERR}"
+                existing="die \"${DIE_MSG_UNHERR}\""
 
             #### BUG: Yes, this should be __EFUNCS_DIE_ON_ABORT_ENABLED but that causes
             #### every unit test to explode. We're going to completel re-do how this is
             #### handled so I'm reverting this back to a working (broken) state again.
-            elif [[ ${EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
-                existing="die ${DIE_MSG_KILLED}"
+            elif [[ ${sig} != "EXIT" && ${EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
+                existing="die \"${DIE_MSG_KILLED}\""
             fi
         fi
 
         trap -- "$(printf '%s; %s' "${cmd}" "${existing}")" "${sig}"
     done
-
-    __EFUNCS_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
 }
 
 # Set the trace attribute for trap_add function. This is required to modify
@@ -594,7 +561,12 @@ die_on_abort()
 
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
-    trap "die ${DIE_MSG_KILLED}" ${signals[@]}
+
+    local signal
+    for signal in "${signals[@]}" ; do
+        local signame=$(signame -s ${signal})
+        trap "die -r=$(sigexitcode ${signal}) \"[Caught ${signame}]\"" ${signal}
+    done
 }
 
 # Disable default traps for all DIE_SIGNALS.
@@ -2671,7 +2643,6 @@ etimeout()
     # Start watchdog process to kill process if it times out
     (
         nodie_on_error
-        die_on_abort
 
         # Sleep for the requested timeout. If process isn't running
         # then it exited on it's own and we don't have to kill it. In
