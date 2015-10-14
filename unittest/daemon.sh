@@ -109,8 +109,8 @@ ETEST_daemon_respawn()
         ps aux | grep ${pid}
         assert process_running ${pid}
         ekilltree -s=KILL ${pid}
-        eretry -T=30s process_not_running ${pid}
         eretry -T=30s daemon_not_running sleep_daemon
+        eretry -T=30s process_not_running ${pid}
 
         # If iter == respawns break out
         [[ ${iter} -lt ${respawns} ]] || break
