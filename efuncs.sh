@@ -2697,15 +2697,6 @@ etimeout()
 #   will cause eretry to stop.  If you specify -e, you should consider whether
 #   you want to include 0 in the list.
 #
-# -i (0|1) (default=0)
-#   Ignore signals which would otherwise cause the underlying command to abort 
-#   and eretry to stop retrying. If this is 0 (the default) signals are NOT ignored
-#   and any signal received by the command will be interpreted as a failure but 
-#   we'll stop iterating even if we haven't reached max retry count. The intention
-#   for this functionality is if the process receives a signal, e.g. SIGINT by 
-#   pressing Control-C it is likely intended for the top-level process not the 
-#   process we're iterating on.
-#
 # -r RETRIES
 #   Command will be attempted RETRIES times total. If no options are provided to
 #   eretry it will use a default retry limit of 5.
@@ -2738,7 +2729,6 @@ eretry()
     $(declare_args)
     local _eretry_delay=$(opt_get d 0)
     local _eretry_exit_codes=$(opt_get e 0)
-    local _eretry_ignore_signals=$(opt_get i 0)
     local _eretry_retries=$(opt_get r "")
     local _eretry_signal=$(opt_get s SIGTERM)
     local _eretry_timeout=$(opt_get t infinity)
@@ -2795,13 +2785,6 @@ eretry_internal()
         # Break if the process exited with white listed exit code.
         if echo "${_eretry_exit_codes}" | grep -wq "${rc}"; then
             edebug "Command exited with white listed $(lval rc _eretry_exit_codes cmd) retries=(${attempt}/${_eretry_retries})"
-            break
-        fi
-
-        # Break if the process exited due do a signal and we're not ignoring signals.
-        if [[ ${_eretry_ignore_signals} -eq 0 && ${rc} -gt 128 && ${rc} -lt 255 ]]; then
-            local signal=$(( rc - 128 ))
-            edebug "Command interrupted due to $(lval signal). Aborting. $(lval cmd) retries=(${attempt}/${_eretry_retries})"
             break
         fi
 
