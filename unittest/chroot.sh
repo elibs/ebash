@@ -151,13 +151,13 @@ ETEST_chroot_kill()
 
     etestmsg "Killing cat"
     chroot_kill "cat"
-    wait ${pids[0]} || true
-    ! process_running ${pids[0]} || die "${pids[0]} should have been killed"
+    eretry -T=5s process_not_running ${pids[0]}
+    process_running ${pids[1]}
 
     etestmsg "Killing everything..."
     chroot_kill
-    wait ${pids[0]} || true
-    ! process_running ${pids[0]} || die "${pids[0]} should have been killed"
+    eretry -T=5s process_not_running ${pids[0]}
+    eretry -T=5s process_not_running ${pids[1]}
 
     # Exit CHROOT
     chroot_exit
