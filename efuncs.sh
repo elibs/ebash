@@ -1103,12 +1103,10 @@ eprogress()
 #
 # Options:
 # -r Return code to use (defaults to 0)
-# -s Signal to send (defaults to SIGTERM)
 eprogress_kill()
 {
     $(declare_args)
     local rc=$(opt_get r 0)
-    local signal=$(opt_get s SIGTERM)
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
@@ -1127,13 +1125,13 @@ eprogress_kill()
     local pid
     for pid in ${pids[@]}; do
 
-        # Don't kill the pid if it's not an eprogress pid
-        if ! array_contains __EPROGRESS_PIDS ${pid}; then
+        # Don't kill the pid if it's not an eprogress pid or it isn't running
+        if ! array_contains __EPROGRESS_PIDS ${pid} || process_not_running ${pid}; then
             continue
         fi
 
         # Kill process and wait for it to complete
-        ekill -s=${signal} ${pid}
+        ekill ${pid}
         wait ${pid} &>/dev/null || true
         array_remove __EPROGRESS_PIDS ${pid}
         
@@ -3000,7 +2998,7 @@ array_remove()
     for value in "${__array_remove_to_remove[@]}"; do
 
         local idx
-        for idx in $(array_indexes ${__array}) ; do
+        for idx in $(array_indexes ${__array}); do
             eval "local entry=\${${__array}[$idx]:-}"
             [[ "${entry}" == "${value}" ]] || continue
 
@@ -3036,8 +3034,8 @@ array_contains()
     $(declare_args __array __value)
 
     local idx=0
-    for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
-        eval "local entry=\${${__array}[$idx]}"
+    for idx in $(array_indexes ${__array}); do
+        eval "local entry=\${${__array}[$idx]:-}"
         [[ "${entry}" == "${__value}" ]] && return 0
     done
 
