@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+
+: ${BASHUTILS:=~/sf/bashutils}
+source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
+
+#-------------------------------------------------------------------------------
+# ebench
+#
+#   This utility isn't yet all that advanced, but it's good for timing various
+#   operations in bash and helping you to understand the time spent on each.
+#
+#   This should at least help us determine what sort of performance effects we
+#   have as we change things in bashutils.  Or at least, it would do that once
+#   we actually test useful things in here.  For now, it's mostly useful when
+#   you're willing to edit the script and add the timing of things you're
+#   curious about.
+#
+# Options:
+#
+#   -c=<count>
+#      Each item to be benchmarked will be run <count> times.  By default, this
+#      is 1000.
+#
+#   -f=<filter>
+#      Only tests whose name matches <filter> will be run.
+#
+#   -x=<exclude filter>
+#      Any tests whose name matches <exclude filter> will NOT be run.
+#
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Notes to developers:
+#
+#    If you add a function BENCH_<something>, you will have created a new item
+#    to benchmark.  Next time you run ebench, it will be run <count> times.
+#
+#    If you add an additional function named PREBENCH_<something>, where
+#    <something> is the same as above, that function will be run once prior to
+#    the repeated runs of BENCH_<something>.
+#
+#    You can also create POSTBENCH_<something> for cleanup if need be.
+#
+#-------------------------------------------------------------------------------
+
+timestamp()
+{
+    date '+%s%3N'
+}
+
+BENCH_func_call_overhead()
+{
+    :
+}
+
+BENCH_trivial_subshell()
+{
+    (
+        :
+    )
+}
+
+PREBENCH_subshell_with_die_on_abort()
+{
+    (( count = count / 100 ))
+}
+
+BENCH_subshell_with_die_on_abort()
+{
+    (
+        die_on_abort
+    )
+}
+
+BENCH_return_overhead()
+{
+    return 0
+}
+
+BENCH_variable_assign()
+{
+    VAR=a
+    return 0
+}
+
+BENCH_local_variable_assign()
+{
+    local VAR=a
+    return 0
+}
+
+BENCH_call_true_binary()
+{
+    command true
+}
+
+BENCH_command_subst()
+{
+    local VAR=$(echo hi)
+}
+
+BENCH_echo_to_dev_null()
+{
+    echo "####################################################################################################" >/dev/null
+}
+
+BENCH_echo_to_terminal()
+{
+    echo "####################################################################################################" >/dev/tty
+}
+
+PREBENCH_einfo_to_terminal()
+{
+    (( count = count / 100 ))
+}
+
+BENCH_einfo_to_terminal()
+{
+    einfo "####################################################################################################" 2>/dev/tty
+}
+
+BENCH_simple_declare_args()
+{
+    $(declare_args)
+}
+
+$(declare_args)
+
+BENCH_FUNCS=( $(declare -F | awk '$3 ~ "^BENCH_" {print $3}') )
+
+: ${count:=$(opt_get c 1000)}
+: ${filter:=$(opt_get f)}
+: ${exclude:=$(opt_get x)}
+
+RESULTS_FILE=$(readlink -f results)
+: >${RESULTS_FILE}
+trap_add "rm -f ${RESULTS_FILE}"
+
+export EINTERACTIVE=1
+
+for func in "${BENCH_FUNCS[@]}" ; do
+
+    # Skip things that a) don't match a filter if one was specified or b) do
+    # match the exclude if one was specified.
+    [[ -n ${filter:-}  && ! ${func} =~ ${filter}  ]] && continue
+    [[ -n ${exclude:-} &&   ${func} =~ ${exclude} ]] && continue
+
+    # Toss it all in a subshell so individual runs can't create state that
+    # other ones would see
+    (
+        # Run a setup function that can prepare for this benchmark without
+        # being included in the total time.
+        if declare -f "PRE${func}" &>/dev/null ; then
+            "PRE${func}"
+        fi
+
+        einfo "Running ${count} iterations of ${func##BENCH_}." |& tee -a ${RESULTS_FILE}
+        initial=$(timestamp)
+        for (( i = 0 ; i < ${count} ; i++ ));  do
+            "${func}"
+        done
+        final=$(timestamp)
+
+        einfos "$(( final - initial ))ms" |& tee -a ${RESULTS_FILE}
+
+        # Run a teardown function that can prepare for this benchmark without being
+        # included in the total time.
+        if declare -f "POST${func}" &>/dev/null ; then
+            "POST${func}"
+        fi
+    )
+
+done
+
+ebanner "Results"
+cat ${RESULTS_FILE}
+
