@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-ETEST_checksum_basic()
+ETEST_emetadata_basic()
 {
     cp ${BASH_SOURCE} .
     local src="$(basename ${BASH_SOURCE})"
     local meta="${src}.meta"
 
-    echecksum ${src} > ${meta}
+    emetadata ${src} > ${meta}
     cat ${meta}
     pack_set MPACK $(cat ${meta})
     $(pack_import MPACK)
@@ -18,7 +18,7 @@ ETEST_checksum_basic()
     assert_eq "${SHA256}"   "$(sha256sum ${src} | awk '{print $1}')"
 }
 
-ETEST_checksum_pgp()
+ETEST_emetadata_pgp()
 {
     # Grab public and private keys as well as passphrase
     efetch http://bdr-jenkins:/keys/solidfire_packaging_public.asc  public.asc
@@ -28,11 +28,11 @@ ETEST_checksum_pgp()
     cp ${BASH_SOURCE} .
     local src="$(basename ${BASH_SOURCE})"
     local meta="${src}.meta"
-    echecksum -p="private.asc" -k="$(cat phrase.txt)" ${src} > ${meta}
+    emetadata -p="private.asc" -k="$(cat phrase.txt)" ${src} > ${meta}
     cat ${meta}
     pack_set MPACK $(cat ${meta})
     $(pack_import MPACK)
 
     # Now validate what we just signed using public key
-    echecksum_check -p="public.asc" ${src}
+    emetadata_check -p="public.asc" ${src}
 }
