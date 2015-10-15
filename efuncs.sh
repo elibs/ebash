@@ -1978,7 +1978,7 @@ emd5sum_check()
 #    required header and footers before the actual signature body.
 #
 # -k=keyphrase: Optional keyphrase for the PGP Private Key
-echecksum()
+emetadata()
 {
     $(declare_args path)
     [[ -e ${path} ]] || die "${path} does not exist"
@@ -1999,7 +1999,7 @@ echecksum()
 
     # Import that into temporary secret keyring
     local keyring="" keyring_command=""
-    keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
+    keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
     trap_add "rm -f ${keyring}"
     gpg ${keyring_command} --import ${privatekey} &>$(edebug_out)
@@ -2026,7 +2026,7 @@ echecksum()
 # -q=(0|1) Quiet mode (default=0)
 # -p=PathToPublicKey: Use provided PGP Public Key for PGP validation (if PGPSignature
 #                     is present in .meta file).
-echecksum_check()
+emetadata_check()
 {
     $(declare_args path)
     local meta="${path}.meta"
@@ -2073,7 +2073,7 @@ echecksum_check()
             einfos "PGP"
 
             # Import PGP Public Key
-            keyring=$(mktemp /tmp/echecksum-keyring-XXXX)
+            keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
             trap_add "rm -f ${keyring}"
             gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} &>$(edebug_out)
 
@@ -2512,7 +2512,7 @@ efetch_internal()
 #
 # Options:
 # -m=(0|1) Fetch companion .md5 file and validate fetched file's MD5 matches.
-# -M=(0|1) Fetch companion .meta file and validate metadata fields using echecksum_check.
+# -M=(0|1) Fetch companion .meta file and validate metadata fields using emetadata_check.
 # -q=(0|1) Quiet mode (disable eprogress and other info messages)
 efetch()
 {
@@ -2559,7 +2559,7 @@ efetch()
 
             efetch_internal "${url}.meta" "${meta}"
             efetch_internal "${url}"      "${dst}"
-            echecksum_check "${dst}"
+            emetadata_check "${dst}"
         
         ## BASIC file fetching only
         else
