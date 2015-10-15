@@ -2908,6 +2908,50 @@ setvars()
 }
 
 #-----------------------------------------------------------------------------
+# LOCKFILES
+#-----------------------------------------------------------------------------
+
+declare -A __ELOCK_FDMAP
+
+elock_get_fd()
+{
+    $(declare_args fname)
+    echo -n "${__ELOCK_FDMAP[$fname]:-}"
+}
+
+elock()
+{
+    $(declare_args fname)
+    
+    local fd=$(elock_get_fd "${fname}")
+    if [[ -n ${fd} ]]; then
+        eerror "$(lval fname) already locked with $(lval fd)"
+        return 1
+    fi
+    
+    exec {__ELOCK_FDMAP[$fname]}<${fname}
+    local fd=$(elock_get_fd ${fname})
+    
+    edebug "Locking $(lval fname fd)"
+    flock -x ${fd}
+}
+
+eunlock()
+{
+    $(declare_args fname)
+ 
+    local fd=$(elock_get_fd "${fname}")
+    if [[ -z ${fd} ]]; then
+        eerror "$(lval fname) not locked"
+        return 1
+    fi
+    
+    edebug "Unlocking $(lval fname fd)"
+    flock -u ${fd}
+    unset __ELOCK_FDMAP[$fname]
+}
+
+#-----------------------------------------------------------------------------
 # ARRAYS
 #-----------------------------------------------------------------------------
 
