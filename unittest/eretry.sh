@@ -136,80 +136,6 @@ do_sleep()
     sleep infinity
 }
 
-ETEST_eretry_ignore_signals_off()
-{
-    rm -f child.pid
-    rm -f child.ticks
-    echo -n "0" > child.ticks
-
-    eretry -t=infinity -r=2 do_sleep &
-    local retry_pid=$!
-   
-    # Wait for pid to be there
-    einfo "Waiting for child.pid"
-    until [[ -s child.pid ]]; do
-        sleep 1
-    done
-
-    local sleep_pid=$(cat child.pid)
-    einfo "$(lval retry_pid sleep_pid)"
-
-    # Send SIGTERM to process inside eretry
-    ekilltree -s=SIGTERM ${sleep_pid}
-  
-    # Wait for sleep process to abort and retry process to abort
-    eprogress "Waiting for eretry process to stop"
-    wait ${retry_pid} || true
-    eprogress_kill
-
-    assert process_not_running ${sleep_pid}
-    assert process_not_running ${retry_pid}
-
-    # Should have only run 1 time
-    assert_eq 1 $(cat child.ticks)
-}   
-
-ETEST_eretry_ignore_signals_on()
-{
-    rm -f child.pid
-    rm -f child.ticks
-    echo -n "0" > child.ticks
-
-    local respawns=2
-    eretry -t=infinity -r=${respawns} -i do_sleep &
-    local retry_pid=$!
-   
-    local tries
-    for (( tries=0; tries<${respawns}; tries++ )); do
-
-        # Wait for pid to be there
-        einfo "Waiting for child.pid"
-        until [[ -s child.pid ]]; do
-            sleep 1
-        done
-
-        local sleep_pid=$(cat child.pid)
-        einfo "$(lval retry_pid sleep_pid)"
-
-        # Send SIGTERM to process inside eretry
-        ekilltree -s=SIGTERM ${sleep_pid}
-
-        # Sleep between intervals to give process a chance to respawn
-        sleep 1
-    done
-
-    # Wait for sleep process to abort and retry process to abort
-    eprogress "Waiting for eretry process to stop"
-    wait ${retry_pid} || true
-    eprogress_kill
-
-    assert process_not_running ${sleep_pid}
-    assert process_not_running ${retry_pid}
-
-    # Should have only run 1 time
-    assert_eq ${respawns} $(cat child.ticks)
-}
-
 ETEST_eretry_partial_output()
 {
     echo -n "0" > calls.txt
@@ -290,14 +216,36 @@ ETEST_eretry_default_count()
     assert_eq "5" "$(cat calls.txt)"
 }
 
+ETEST_eretry_subshell_die_should_retry()
+{
+    rm -f file
+
+    foo()
+    {
+        (
+            if ! [[ -e file ]] ; then
+                touch file
+                die -r=50 "Die from the subshell, but eretry should continue"
+            else
+                echo "RETRIED" > file
+                einfo "Retried successfully"
+            fi
+        )
+    }
+
+    eretry -r=2 foo
+
+    assert_eq "RETRIED" "$(cat file)"
+}
+
 ETEST_eretry_false()
 {
-    $(tryrc eretry false)
+    $(tryrc eretry -r=2 false)
     assert [[ ${rc} -ne 0 ]]
 }
 
 ETEST_eretry_true()
 {
-    $(tryrc eretry true)
+    $(tryrc eretry -r=2 true)
     assert [[ ${rc} -eq 0 ]]
 }
