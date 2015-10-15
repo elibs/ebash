@@ -82,6 +82,10 @@
 #   Optional hook to be executed after the daemon stops abnormally (i.e not
 #   through daemon_stop).  Errors from this hook are ignored.
 #
+# post_abort
+#   Optional hook to be called after the daemon aborts due to crashing too
+#   many times. Errors from this hook are ignored.
+#
 # respawns
 #   The maximum number of times to respawn the daemon command before just
 #   giving up. Defaults to 10.
@@ -111,6 +115,7 @@ daemon_init()
         post_start=         \
         post_stop=          \
         post_crash=         \
+        post_abort=         \
         respawns=20         \
         respawn_interval=15 \
         "${@}"
@@ -247,6 +252,7 @@ daemon_start()
             if [[ ${runs} -ge ${respawns} ]]; then
                 eerror "${name} crashed too many times (${runs}/${respawns}). Giving up."
                 edebug "$(lval name SECONDS +${optpack})"
+                $(tryrc ${post_abort})
             else
                 ewarn "${name} crashed (${current_runs}/${respawns}). Will respawn in ${delay} seconds."
                 edebug "$(lval name SECONDS +${optpack})"
