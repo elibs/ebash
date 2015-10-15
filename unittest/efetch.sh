@@ -51,14 +51,14 @@ ETEST_efetch_meta()
     local tmpfile
     tmpfile=$(mktemp /tmp/etest-efetch-XXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1M count=2
-    echecksum ${tmpfile} > ${tmpfile}.meta
-    echecksum_check ${tmpfile}
+    emetadata ${tmpfile} > ${tmpfile}.meta
+    emetadata_check ${tmpfile}
 
     efetch -M file://${tmpfile} copy.txt
     [[ -e copy.txt ]]
     [[ -e copy.txt.meta ]]
     diff ${tmpfile} copy.txt
 
-    echecksum_check copy.txt
+    emetadata_check copy.txt
 }
  
