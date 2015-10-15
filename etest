@@ -206,12 +206,12 @@ if [[ -x ${ETEST_TOPDIR}/unittest/die ]] ; then
         # Assert proper order of events happened
         einfo "Output file:"
         cat ${DIE_FILE}
+        assert_eq 2 $(wc -l ${DIE_FILE})
         first=$(head -1 ${DIE_FILE})
         last=$(tail -1 ${DIE_FILE})
 
-        [[ ${first} == "DIE"  ]] || { eerror "DIE NOT CALLED FIRST";   exit 1; }
-        [[ ${last}  == "TRAP" ]] || { eerror "TRAP NOT CALLED SECOND"; exit 1; }
-
+        assert_eq "DIE" "${first}" "die() not called first"
+        assert_eq "TRAP" "${last}" "trap not called second"
 
     } &>$(edebug_out)
 
@@ -224,14 +224,9 @@ if [[ -x ${ETEST_TOPDIR}/unittest/die ]] ; then
     eend
 fi
 
-
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
-
-trap - ${DIE_SIGNALS[@]} ERR EXIT
-die_on_abort
-die_on_error
 
 FAILED_FILES=()
 global_setup
