@@ -3013,7 +3013,7 @@ array_remove()
 
         local idx
         for idx in $(array_indexes ${__array}); do
-            eval "local entry=\${${__array}[$idx]:-}"
+            eval "local entry=\${${__array}[$idx]}"
             [[ "${entry}" == "${value}" ]] || continue
 
             unset ${__array}[$idx]
@@ -3049,7 +3049,7 @@ array_contains()
 
     local idx=0
     for idx in $(array_indexes ${__array}); do
-        eval "local entry=\${${__array}[$idx]:-}"
+        eval "local entry=\${${__array}[$idx]}"
         [[ "${entry}" == "${__value}" ]] && return 0
     done
 
