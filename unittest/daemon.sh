@@ -78,26 +78,89 @@ ETEST_daemon_cgroup()
     assert_empty "${stopped_pids}"
 }
 
+DAEMON_LOCK="daemon.lock"
+DAEMON_STATE="daemon_state"
+
+daemon_react()
+{
+    $(declare_args actual)
+
+    (
+        while true; do
+
+            elock ${DAEMON_LOCK}
+            expected=$(cat ${DAEMON_STATE} || true)
+            if [[ -z ${expected} ]]; then
+                edebug "Waiting for test code to setup expected state..."
+                eunlock ${DAEMON_LOCK}
+                sleep .5
+                continue
+            fi
+
+            assert_eq "${expected}" "${actual}" "Unexpected state $(lval expected actual)"
+            >${DAEMON_STATE}
+            break
+        done
+    )
+}
+
+daemon_expect()
+{
+    $(declare_args state)
+
+    etestmsg "Waiting for daemon to reach $(lval state)"
+    
+    (
+        SECONDS=0
+        elock ${DAEMON_LOCK}
+        echo "${state}" >${DAEMON_STATE}
+        eunlock ${DAEMON_LOCK}
+
+        while true; do
+
+            elock ${DAEMON_LOCK}
+            pending=$(cat "${DAEMON_STATE}" || true)
+            eunlock ${DAEMON_LOCK}
+            [[ -z ${pending} ]] && break
+
+            edebug "Still waiting for daemon to reach $(lval state SECONDS)"
+            assert [[ ${SECONDS} -lt 30 ]]
+            sleep .5
+
+        done
+    )
+
+    etestmsg "Daemon reached $(lval state)"
+}
+
 ETEST_daemon_respawn()
 {
+    touch ${DAEMON_LOCK}
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
-    
-    daemon_init sleep_daemon     \
-        name="Infinity"          \
-        cmdline="sleep infinity" \
-        pidfile="${pidfile}"     \
-        respawns="3"             \
-        respawn_interval="300"   \
+
+    daemon_init sleep_daemon                \
+        name="Infinity"                     \
+        cmdline="sleep infinity"            \
+        pidfile="${pidfile}"                \
+        respawns="3"                        \
+        respawn_interval="300"              \
+        pre_start="daemon_react pre_start"  \
+        post_start="daemon_react start"     \
+        post_stop="daemon_react post_stop"  \
+        post_crash="daemon_react post_crash"\
+        post_abort="daemon_react post_abort"
 
     $(pack_import sleep_daemon)
     etestmsg "Starting daemon $(lval +sleep_daemon)"
     daemon_start sleep_daemon
-    eretry -T=30s daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
-    assert process_running $(cat ${pidfile})
+
+    # Wait for "pre_start" and "start" states then daemon must be running
+    daemon_expect pre_start
+    daemon_expect start
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
+    assert process_running $(cat ${pidfile})
     
     # Now kill it the specified number of respawns
     # and verify it respawns each time
@@ -106,25 +169,28 @@ ETEST_daemon_respawn()
         # Kill underlying pid
         pid=$(cat "${pidfile}")
         etestmsg "Killing daemon $(lval pid iter respawns)"
-        ps aux | grep ${pid}
-        assert process_running ${pid}
         ekilltree -s=KILL ${pid}
-        eretry -T=30s daemon_not_running sleep_daemon
-        eretry -T=30s process_not_running ${pid}
+
+        # Wait for "crash" state. Daemon must be NOT running now.
+        daemon_expect "post_crash"
+        assert daemon_not_running sleep_daemon
+        assert process_not_running ${pid}
 
         # If iter == respawns break out
         [[ ${iter} -lt ${respawns} ]] || break
 
         # Now wait for process to respawn
         etestmsg "Waiting for daemon to respawn"
-        eretry -T=30s daemon_running sleep_daemon
-        pid=$(cat "${pidfile}")
-        eretry -T=30s process_running ${pid}
-        etestmsg "Process respawned $(lval pid)"
-
+        daemon_expect pre_start
+        daemon_expect start
+        assert daemon_running sleep_daemon
+        assert daemon_status  sleep_daemon
+        assert process_running $(cat ${pidfile})
     done
 
     # Process should NOT be running and should NOT respawn b/c we killed it too many times
+    etestmsg "Waiting for daemon to abort"
+    daemon_expect post_abort
     assert_false process_running $(cat ${pidfile})
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
@@ -135,48 +201,61 @@ ETEST_daemon_respawn()
 # such that it should keep respawning (b/c/ failed count resets)
 ETEST_daemon_respawn_reset()
 {
+    touch ${DAEMON_LOCK}
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     
-    daemon_init sleep_daemon     \
-        name="Infinity"          \
-        cmdline="sleep infinity" \
-        pidfile="${pidfile}"     \
-        respawns="3"             \
-        respawn_interval="0"     \
+    daemon_init sleep_daemon                \
+        name="Infinity"                     \
+        cmdline="sleep infinity"            \
+        pidfile="${pidfile}"                \
+        respawns="3"                        \
+        respawn_interval="0"                \
+        pre_start="daemon_react pre_start"  \
+        post_start="daemon_react start"     \
+        post_stop="daemon_react post_stop"  \
+        post_crash="daemon_react post_crash"\
+        post_abort="daemon_react post_abort"
 
     $(pack_import sleep_daemon)
     etestmsg "Starting daemon $(lval +sleep_daemon)"
     daemon_start sleep_daemon
-    eretry -T=30s daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
-    assert process_running $(cat ${pidfile})
+
+    # Wait for "pre_start" and "start" states then daemon must be running
+    daemon_expect pre_start
+    daemon_expect start
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
-
-    # Now kill it the specified number of respawns
-    # and verify it respawns each time
+    assert process_running $(cat ${pidfile})
+ 
+    # Now kill it the specified number of respawns and verify it respawns each time
     for (( iter=1; iter<=${respawns}; iter++ )); do
 
         # Kill underlying pid
         local pid=$(cat "${pidfile}")
         etestmsg "Killing daemon $(lval pid iter respawns)"
         ekilltree -s=KILL ${pid}
-        eretry -T=30s process_not_running ${pid}
-        eretry -T=30s daemon_not_running sleep_daemon
+
+        # Wait for "crash" state. Daemon must be NOT running now.
+        daemon_expect "post_crash"
+        assert daemon_not_running sleep_daemon
+        assert process_not_running ${pid}
 
         # Now wait for process to respawn
         etestmsg "Waiting for daemon to respawn"
-        eretry -T=30s daemon_running sleep_daemon
-        pid=$(cat "${pidfile}")
-        eretry -T=30s process_running ${pid}
-        etestmsg "Process respawned $(lval pid)"
-
+        daemon_expect pre_start
+        daemon_expect start
+        assert daemon_running sleep_daemon
+        assert daemon_status  sleep_daemon
+        assert process_running $(cat ${pidfile})
     done
 
     # Now stop it and verify proper shutdown
-    local pid=$(cat "${pidfile}")
-    daemon_stop sleep_daemon
+    etestmsg "Stopping daemon and waiting for shutdown"
+    daemon_stop sleep_daemon &
+    daemon_expect post_stop
+    wait 
+
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
