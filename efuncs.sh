@@ -71,7 +71,7 @@ edebug()
 
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
-    echo -e "$(EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg 'dimblue' '' 'DEBUG' "$@")" >&2
+    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg 'dimblue' '' 'DEBUG' "$@"
 }
 
 edebug_out()
@@ -857,32 +857,36 @@ emsg()
     # If it's still empty put in the default
     [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
 
+    # Determine flags for echo
+    local echo_flags="-e"
+    opt_true n && echo_flags+="n"
+
     # Color Policy
     [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]]   \
-        && echo -en "$(ecolor ${color})${prefix} $@$(ecolor none)" >&2 \
-        || echo -en "$(ecolor ${color})${prefix}$(ecolor none) $@" >&2
+        && echo ${echo_flags} "$(ecolor ${color})${prefix} $@$(ecolor none)" >&2  \
+        || echo ${echo_flags} "$(ecolor ${color})${prefix}$(ecolor none) $@" >&2
 
     return 0
 }
 
 einfo()
 {
-    echo -e  "$(emsg 'green' '>>' 'INFO' "$@")" >&2
+    emsg "green" ">>" "INFO" "$@"
 }
 
 einfos()
 {
-    echo -e "$(emsg 'green' '   -' 'INFOS' "$@")" >&2
+    emsg "green" "   -" "INFOS" "$@"
 }
 
 ewarn()
 {
-    echo -e "$(emsg 'yellow' '>>' 'WARN' "$@")" >&2
+    emsg "yellow" ">>" "WARN" "$@"
 }
 
 ewarns()
 {
-    echo -e "$(emsg 'yellow' '   -' 'WARNS' "$@")" >&2
+    emsg "yellow" "   -" "WARNS" "$@"
 }
 
 eerror()
@@ -890,7 +894,7 @@ eerror()
     $(declare_args)
     local color=$(opt_get c "red")
 
-    echo -e "$(emsg "${color}" '>>' 'ERROR' "$@")" >&2
+    emsg "${color}" ">>" "ERROR" "$@"
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
@@ -1039,7 +1043,7 @@ compress_spaces()
 
 eend()
 {
-    local rc=${1:-0} #sets rc to first arg if present otherwise defaults to 0
+    local rc=${1:-0}
 
     if einteractive; then
         # Terminal magic that:
@@ -1047,7 +1051,7 @@ eend()
         #       how many we're about to output
         #    2) Moves up a line
         #    3) Moves right the number of columns from #1
-        local columns=${COLUMNS:-$(tput cols)}
+        local columns=$(tput cols)
         local startcol=$(( columns - 6 ))
         [[ ${startcol} -gt 0 ]] && echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
     fi
@@ -1109,7 +1113,7 @@ do_eprogress()
 
 eprogress()
 {
-    echo -en "$(emsg 'green' '>>' 'INFO' "$@")" >&2
+    emsg -n 'green' '>>' 'INFO' "$@"
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0

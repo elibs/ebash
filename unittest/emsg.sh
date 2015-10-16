@@ -25,9 +25,15 @@ emsg_aux()
     EDEBUG=emsg_aux edebug  "This is a debugging message"; show_text
 }
 
-ETEST_emsg_defaults()
+ETEST_emsg()
 {
     emsg_aux
+}
+
+ETEST_emsg_no_newline()
+{
+    emsg -n "none" "" "INFO" "foo" >output
+    assert_eq "foo" "$(cat output)"
 }
 
 ETEST_emsg_time()
