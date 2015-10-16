@@ -2222,7 +2222,6 @@ eunmount_recursive()
 
             # If this path is directly mounted or anything BENEATH it is mounted then proceed
             local matches="$(efindmnt ${mnt} | sort -ur)"
-            edebug "$(lval mnt rdev matches)"
             [[ -n ${matches} ]] || break
 
             local nmatches=$(echo "${matches}" | wc -l)
