@@ -1874,7 +1874,7 @@ elogfile()
                 trap "" ${TTY_SIGNALS[@]}
                 echo "${BASHPID}" >${pid_pipe}
 
-                tee -a "${@}" <${pipe} >${redirect} 2>/dev/null
+                tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
             ) &
 
         ) &
