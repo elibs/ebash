@@ -30,12 +30,6 @@ ETEST_emsg()
     emsg_aux
 }
 
-ETEST_emsg_no_newline()
-{
-    EFUNCS_COLOR=0 emsg -n "red" "" "INFO" "foo" 2>output
-    assert_eq " foo" "$(cat output)"
-}
-
 ETEST_emsg_time()
 {
     EMSG_PREFIX="time" emsg_aux
