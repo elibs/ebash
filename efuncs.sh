@@ -730,7 +730,6 @@ ecolor()
         tput bold
     fi
 
-    tput bold
     tput setaf $(ecolor_code ${c})
 }
 
