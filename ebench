@@ -129,7 +129,6 @@ BENCH_FUNCS=( $(declare -F | awk '$3 ~ "^BENCH_" {print $3}') )
 
 RESULTS_FILE=$(readlink -f results)
 : >${RESULTS_FILE}
-trap_add "rm -f ${RESULTS_FILE}"
 
 export EINTERACTIVE=1
 
