@@ -32,8 +32,8 @@ ETEST_emsg()
 
 ETEST_emsg_no_newline()
 {
-    emsg -n "none" "" "INFO" "foo" >output
-    assert_eq "foo" "$(cat output)"
+    emsg -n "none" "" "INFO" "foo" 2>output
+    assert_eq " foo" "$(cat output)"
 }
 
 ETEST_emsg_time()
