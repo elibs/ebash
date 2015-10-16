@@ -868,15 +868,11 @@ emsg()
         [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}
     fi
 
-    # Determine flags for echo
-    local echo_flags="-e"
-    opt_true n && echo_flags+="n"
-
     # Color Policy
     if [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]] ; then
-        echo ${echo_flags} "${color}${prefix} $@${nocolor}" >&2
+        echo -e "${color}${prefix} $@${nocolor}" >&2
     else
-        echo ${echo_flags} "${color}${prefix}${nocolor} $@" >&2
+        echo -e "${color}${prefix}${nocolor} $@" >&2
     fi
 
     return 0
@@ -1126,7 +1122,7 @@ do_eprogress()
 
 eprogress()
 {
-    emsg -n "green" ">>" "INFO" "$@"
+    echo -en "$(emsg "green" ">>" "INFO" "$@" 2>&1)" >&2
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
