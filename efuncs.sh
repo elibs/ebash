@@ -1091,7 +1091,7 @@ do_eprogress()
 
     # Sentinal for breaking out of the loop on signal from eprogress_kill
     local done=0
-    trap "done=1" SIGINT SIGTERM
+    trap "done=1" ${DIE_SIGNALS[@]}
 
     local start=$(date +"%s")
     while [[ ${done} -ne 1 ]]; do
@@ -1130,8 +1130,8 @@ eprogress()
     # Add a trap to ensure we kill this backgrounded process in the event we
     # die before calling eprogress_kill.
     ( do_eprogress ) &
+    __EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
-    __EPROGRESS_PIDS=( $! ${__EPROGRESS_PIDS[@]:-} )
 }
 
 # Kill the most recent eprogress in the event multiple ones are queued up.
@@ -1153,15 +1153,23 @@ eprogress_kill()
 
     # If given a list of pids, kill each one. Otherwise kill most recent.
     # If there's nothing to kill just return.
-    local pids=( "${@}" )
-    [[ ${#pids[@]:-} -eq 0 && -n ${__EPROGRESS_PIDS:-} ]] && pids=( ${__EPROGRESS_PIDS[@]::1} ) || true
-    [[ ${#pids[@]:-} -gt 0 ]] || return 0
+    local pids=()
+    if [[ $# -gt 0 ]]; then
+        pids=( ${@} )
+    elif array_not_empty __EPROGRESS_PIDS; then 
+        pids=( ${__EPROGRESS_PIDS[-1]} )
+    else
+        return 0
+    fi
 
     # Kill requested eprogress pids
     local pid
     for pid in ${pids[@]}; do
 
-        edebug "Killing eprogress $(lval pid __EPROGRESS_PIDS rc)"
+        # Don't kill the pid if it's not running
+        if process_not_running ${pid}; then
+            continue
+        fi
 
         # Kill process and wait for it to complete
         ekill ${pid}
@@ -3115,6 +3123,13 @@ array_empty()
 {
     $(declare_args __array)
     [[ $(array_size ${__array}) -eq 0 ]]
+}
+
+# Returns true (0) if an array is not empty and false (1) otherwise
+array_not_empty()
+{
+    $(declare_args __array)
+    [[ $(array_size ${__array}) -ne 0 ]]
 }
 
 # array_add will split a given input string on requested delimiters and add them
