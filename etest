@@ -232,6 +232,8 @@ FAILED_FILES=()
 global_setup
 trap_add global_teardown
 
+opt_true c && exit 0
+
 # Now go through and test all unit tests
 for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
     
