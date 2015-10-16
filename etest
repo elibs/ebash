@@ -41,7 +41,7 @@ ETEST_BREAK_EXIT_CODE=25
 
 etestmsg()
 {
-    echo -e "$(EMSG_COLOR="all" emsg 'magenta' '##' 'INFO' "$@")" >&2
+    EMSG_COLOR="all" emsg "magenta" "##" "INFO" "$@"
 }
 
 # Returns success if there are no stale processes remaining in the cgroup for
