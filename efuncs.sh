@@ -2772,7 +2772,7 @@ eretry()
     if [[ -z ${_eretry_timeout_total} && -z ${_eretry_retries} ]]; then
         _eretry_retries=5
     elif [[ -z ${_eretry_retries} ]]; then
-        _eretry_retries=$(perl -MPOSIX -le 'print LONG_MAX')
+        _eretry_retries="infinity"
     fi
 
     # If a total timeout was specified then wrap call to eretry_internal with etimeout
@@ -2800,8 +2800,9 @@ eretry_internal()
         return 0
     fi
 
-    for (( attempt=0 ; attempt < _eretry_retries; attempt++ )) ; do
-    
+    while true; do
+        [[ ${_eretry_retries} != "infinity" && ${attempt} -ge ${_eretry_retries} ]] && break || (( attempt+=1 ))
+        
         edebug "Executing $(lval cmd rc stdout) retries=(${attempt}/${_eretry_retries})"
 
         # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
