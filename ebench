@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-: ${BASHUTILS:=~/sf/bashutils}
+: ${BASHUTILS:=$(dirname $0)}
 source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
 #-------------------------------------------------------------------------------
@@ -73,17 +73,6 @@ BENCH_subshell_with_die_on_abort()
     )
 }
 
-BENCH_return_overhead()
-{
-    return 0
-}
-
-BENCH_variable_assign()
-{
-    VAR=a
-    return 0
-}
-
 BENCH_local_variable_assign()
 {
     local VAR=a
@@ -100,24 +89,29 @@ BENCH_command_subst()
     local VAR=$(echo hi)
 }
 
-BENCH_echo_to_dev_null()
+BENCH_echo()
 {
-    echo "####################################################################################################" >/dev/null
+    echo "####################################################################################################"
 }
 
-BENCH_echo_to_terminal()
+PREBENCH_einfo()
 {
-    echo "####################################################################################################" >/dev/tty
+    (( count = count / 10 ))
 }
 
-PREBENCH_einfo_to_terminal()
+BENCH_einfo()
 {
-    (( count = count / 100 ))
+    EMSG_PREFIX="" einfo "####################################################################################################"
 }
 
-BENCH_einfo_to_terminal()
+PREBENCH_einfo_msg_prefix_all()
 {
-    einfo "####################################################################################################" 2>/dev/tty
+    (( count = count / 10 ))
+}
+
+BENCH_einfo_msg_prefix_all()
+{
+    EMSG_PREFIX="all" einfo "####################################################################################################"
 }
 
 BENCH_simple_declare_args()
