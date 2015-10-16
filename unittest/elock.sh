@@ -2,65 +2,76 @@
 
 ETEST_elock()
 {
-    touch ${FUNCNAME}
+    elock lfile
+    assert_true  elock_locked   lfile
+    assert_false elock_unlocked lfile
 
-    elock ${FUNCNAME}
-    eunlock ${FUNCNAME}
+    eunlock lfile
+    assert_true  elock_unlocked lfile
+    assert_false elock_locked   lfile
+}
+
+ETEST_elock_create()
+{
+    assert_not_exists lfile
+    elock lfile
+    assert_exists lfile
+}
+
+ETEST_elock_get_fd()
+{
+    assert_false elock_get_fd lfile &>/dev/null
+    elock lfile
+    assert_true  elock_get_fd lfile &>/dev/null
 }
 
 ETEST_unlock_before_lock()
 {
-    touch ${FUNCNAME}
-    assert_false eunlock ${FUNCNAME}
+    assert elock_unlocked lfile
+    assert_false eunlock lfile
 }
 
 ETEST_elock_recursive()
 {
-    touch ${FUNCNAME}
-
-    elock ${FUNCNAME}
-    assert_false elock ${FUNCNAME}
+    elock lfile
+    assert_false elock lfile
 }
 
 ETEST_elock_auto_unlock()
 {
-    touch ${FUNCNAME}
-
     (
-        etimeout -t=1s elock ${FUNCNAME}
+        etimeout -t=1s elock lfile
     )
 
     (
-        etimeout -t=1s elock ${FUNCNAME}
+        etimeout -t=1s elock lfile
     )
 }
 
 ETEST_elock_concurrent()
 {
-    touch ${FUNCNAME}
-
     (
-        elock ${FUNCNAME}
+        elock lfile
 
         local idx
         for idx in {1..5}; do
-            echo -n "$idx" >>${FUNCNAME}
+            echo -n "$idx" >>lfile
         done
 
         sleep 5
 
         for idx in {6..10}; do
-            echo -n "$idx" >>${FUNCNAME}
+            echo -n "$idx" >>lfile
         done
     ) &
 
     (
         # Wait for lock
-        eretry -T=30s elock ${FUNCNAME}
+        eretry -T=30s elock lfile
     
         local idx
         for idx in {a..e}; do
-            echo -n "$idx" >>${FUNCNAME}
+            echo -n "$idx" >>lfile
         done
     ) &
 
@@ -69,9 +80,49 @@ ETEST_elock_concurrent()
 
     # Show file
     etestmsg "Showing file"
-    cat ${FUNCNAME}
+    cat lfile
     echo ""
 
     # File should match expected results
-    assert_eq "12345678910abcde" "$(cat ${FUNCNAME})"
+    assert_eq "12345678910abcde" "$(cat lfile)"
+}
+
+# Lockfiles are inherited by subshells. Specifically, a subshell will
+# see the file locked and has the ability to unlock that file. This may
+# seem odd since subshells normally cannot modify parent's state. But in
+# this case it is in-kernel state being modified for the process which 
+# the parent and subshell share.
+ETEST_elock_inherit()
+{
+    elock lfile
+    assert elock_locked lfile
+
+    # Check if locked inside a subshell. Should see it as locked.
+    (
+        assert elock_locked lfile
+    )
+}
+
+# More extensive version of the above that actually UNLOCKS the lock inside
+# a subshell. The effect of this is that the parent then sees the lockfile 
+# as unlocked and can then re-lock the lockfile.
+ETEST_elock_inherit_unlock()
+{
+    elock lfile
+    assert elock_locked lfile
+
+    # Unlock inside subshell
+    (
+        assert elock_locked lfile
+        eunlock lfile
+        assert elock_unlocked lfile
+    )
+
+    # Parent now should see it as unlocked
+    assert elock_unlocked lfile
+
+    # At this point we'll have a stale entry in our lock map.
+    # elock should handle this gracefully.
+    elock lfile
+    assert elock_locked lfile
 }
