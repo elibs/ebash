@@ -723,14 +723,15 @@ ecolor()
     local reset_re="\breset|none|off\b"
     [[ ${c} =~ ${reset_re} ]] && { echo -en "\033[m"; return 0; }
 
-    local bold="$(tput bold)"
     local dimre="^dim"
     if [[ ${c} =~ ${dimre} ]]; then
         c=${c#dim}
-        bold=""
+    else
+        tput bold
     fi
 
-    echo -en ${bold}$(tput setaf $(ecolor_code ${c}))
+    tput bold
+    tput setaf $(ecolor_code ${c})
 }
 
 eclear()
@@ -818,28 +819,33 @@ emsg()
     # Only take known prefix settings
     local emsg_prefix=$(echo ${EMSG_PREFIX:=} | egrep -o "(time|times|level|caller|all)" || true)
 
-    $(declare_args color ?symbol level)
     [[ ${EFUNCS_TIME:=0} -eq 1 ]] && emsg_prefix+=time
+
+    local color=$(ecolor $1)
+    local nocolor=$(ecolor none)
+    local symbol=${2:-}
+    local level=$3
+    shift ; shift ; shift
 
     # Local args to hold the color and regexs for each field
     for field in time level caller msg; do
-        eval "local ${field}_color=$(ecolor none)"
+        local ${field}_color=${nocolor}
         eval "local ${field}_re='\ball|${field}\b'"
     done
 
     # Determine color values for each field used below.
     : ${EMSG_COLOR:="time level caller"}
-    [[ ${EMSG_COLOR} =~ ${time_re}   ]] && time_color=$(ecolor ${color})
-    [[ ${EMSG_COLOR} =~ ${level_re}  ]] && level_color=$(ecolor ${color})
-    [[ ${EMSG_COLOR} =~ ${caller_re} ]] && caller_color=$(ecolor ${color})
+    [[ ${EMSG_COLOR} =~ ${time_re}   ]] && time_color=${color}
+    [[ ${EMSG_COLOR} =~ ${level_re}  ]] && level_color=${color}
+    [[ ${EMSG_COLOR} =~ ${caller_re} ]] && caller_color=${color}
 
     # Build up the prefix for the log message. Each of these may optionally be in color or not. This is
-    # controlled vai EMSG_COLOR which is a list of fields to color. By default this is set to all fields.
+    # controlled via EMSG_COLOR which is a list of fields to color. By default this is set to all fields.
     # The following fields are supported:
     # (1) time    : Timetamp
     # (2) level   : Log Level
     # (3) caller  : file:line:method
-    local delim="$(ecolor none)|"
+    local delim="${nocolor}|"
     local prefix=""
 
     if [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} == "time" ]]; then
@@ -855,16 +861,23 @@ emsg()
     prefix="${prefix#${delim}}"
 
     # If it's still empty put in the default
-    [[ -z ${prefix} ]] && prefix="${symbol}" || { prefix="$(ecolor ${color})[${prefix}$(ecolor ${color})]"; [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}; }
+    if [[ -z ${prefix} ]] ; then
+        prefix="${symbol}"
+    else
+        prefix="${color}[${prefix}${color}]"
+        [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}
+    fi
 
     # Determine flags for echo
     local echo_flags="-e"
     opt_true n && echo_flags+="n"
 
     # Color Policy
-    [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]]   \
-        && echo ${echo_flags} "$(ecolor ${color})${prefix} $@$(ecolor none)" >&2  \
-        || echo ${echo_flags} "$(ecolor ${color})${prefix}$(ecolor none) $@" >&2
+    if [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]] ; then
+        echo ${echo_flags} "${color}${prefix} $@${nocolor}" >&2
+    else
+        echo ${echo_flags} "${color}${prefix}${nocolor} $@" >&2
+    fi
 
     return 0
 }
