@@ -71,7 +71,7 @@ edebug()
 
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
-    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg 'dimblue' '' 'DEBUG' "$@"
+    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dimblue" "" "DEBUG" "$@"
 }
 
 edebug_out()
@@ -1113,7 +1113,7 @@ do_eprogress()
 
 eprogress()
 {
-    emsg -n 'green' '>>' 'INFO' "$@"
+    emsg -n "green" ">>" "INFO" "$@"
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0

@@ -16,7 +16,7 @@ RC=0
 FAILURES=()
 fail()
 {
-    echo -e "$(emsg 'red' '   -' 'ERROR' "$@")" >&2
+    emsg "red" "   -" "ERROR" "$@"
     eend 1
     RC=1
 }
