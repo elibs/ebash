@@ -32,7 +32,7 @@ ETEST_emsg()
 
 ETEST_emsg_no_newline()
 {
-    emsg -n "none" "" "INFO" "foo" 2>output
+    EFUNCS_COLOR=0 emsg -n "red" "" "INFO" "foo" 2>output
     assert_eq " foo" "$(cat output)"
 }
 
