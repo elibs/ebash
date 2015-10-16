@@ -825,7 +825,7 @@ emsg()
     local nocolor=$(ecolor none)
     local symbol=${2:-}
     local level=$3
-    shift ; shift ; shift
+    shift 3
 
     # Local args to hold the color and regexs for each field
     for field in time level caller msg; do
