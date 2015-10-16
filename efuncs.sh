@@ -438,6 +438,11 @@ die()
         : ${__EFUNCS_DIE_BY_SIGNAL:=$(opt_get s)}
     fi
 
+    # Kill any eprogress processes which may still be running
+    if array_not_empty __EPROGRESS_PIDS; then
+        eprogress_kill -r=${__EFUNCS_DIE_IN_PROGRESS} ${__EPROGRESS_PIDS[@]}
+    fi
+
     local color=$(opt_get c "red")
 
     # Show error message immediately.
