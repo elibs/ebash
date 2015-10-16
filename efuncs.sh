@@ -1161,10 +1161,7 @@ eprogress_kill()
     local pid
     for pid in ${pids[@]}; do
 
-        # Don't kill the pid if it's not an eprogress pid or it isn't running
-        if ! array_contains __EPROGRESS_PIDS ${pid} || process_not_running ${pid}; then
-            continue
-        fi
+        edebug "Killing eprogress $(lval pid __EPROGRESS_PIDS rc)"
 
         # Kill process and wait for it to complete
         ekill ${pid}
