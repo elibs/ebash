@@ -384,9 +384,6 @@ mkchroot()
     ## Make sure that debootstrap is installed
     which debootstrap > /dev/null
 
-    ## Setup chroot
-    mkdir -p ${CHROOT}
-
     # Debootstrap image
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
     einfo "Creating $(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
@@ -403,10 +400,12 @@ mkchroot()
     try
     {
         efetch -m "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
+        efreshdir ${CHROOT}
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${dst}/${CHROOT_IMAGE}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
     }
     catch
     {
+        efreshdir ${CHROOT}
         debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
     }
 
