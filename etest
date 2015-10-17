@@ -199,7 +199,8 @@ FAILED_FILES=()
 global_setup
 trap_add global_teardown
 
-opt_get c && exit 0
+# If clean only is requested exit immediately. The "clean" is done via global_setup and global_teardown.
+opt_true c && exit 0
 
 #-------------------------------------------------------------------------------------------------------------------------
 # SANITY TEST OF DIE FUNCTIONALITY
