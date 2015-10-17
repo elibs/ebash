@@ -6,6 +6,8 @@ TICK_FILE=${TEST_DIR_OUTPUT}/ticks
 # don't want the real do_eprogress
 FAKE_DO_EPROGRESS='
 {
+    trap "exit 0" ${DIE_SIGNALS[@]}
+
     local tick=0
     rm -f ${TICK_FILE}
 
