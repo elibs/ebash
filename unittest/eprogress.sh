@@ -97,7 +97,7 @@ ETEST_eprogress_inside_eretry()
 
     etestmsg "Showing tickfile"
     cat ${TICK_FILE}
-    assert [[ $(tail -1 ${TICK_FILE}) -ge 9 ]]
+    assert [[ $(tail -1 ${TICK_FILE}) -ge 5 ]]
 }
 
 ETEST_eprogress_kill_before_eprogress()
