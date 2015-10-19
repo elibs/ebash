@@ -206,7 +206,7 @@ opt_true c && exit 0
 # SANITY TEST OF DIE FUNCTIONALITY
 #-------------------------------------------------------------------------------------------------------------------------
 
-if [[ -x ${ETEST_TOPDIR}/unittest/die && ! ${EXCLUDE} =~ "die" ]] ; then
+if [[ -x ${ETEST_TOPDIR}/unittest/die && -z ${FILTER} && ! ${EXCLUDE} =~ "die" ]] ; then
 
     # Manually test die() functionality outside of try/catch to ensure basic trap functionality works properly.
     DIE_TEST_MSG="Verifying die() trap functionality"
