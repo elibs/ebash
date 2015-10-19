@@ -24,7 +24,7 @@ ETEST_TOPDIR=${TEST_DIR}
 # -c=(0|1)   Clean only then exit.
 FILTER=$(opt_get f ${FILTER:=""})
 EXCLUDE=$(opt_get x ${EXCLUDE:=""})
-REPEAT=$(opt_get r ${REPEAT:=0})
+REPEAT=$(opt_get r ${REPEAT:=1})
 VERBOSE=$(opt_get v 0)
 [[ ${EDEBUG:-0} != "0" ]] && VERBOSE=1 || true
 BREAK=$(opt_get b ${BREAK:=0})
@@ -191,6 +191,118 @@ call_test_teardown()
     return 0
 }
 
+run_single_test()
+{
+    local testfile=$1
+    local testfunc=$2
+    local testfilename=$(basename ${testfile})
+
+    # If debugging is not enabled for testfunc just show a brief message with test name
+    testfunc_rc=0
+    
+    if [[ ${VERBOSE} -eq 1 ]]; then
+        ebanner "${testfunc}" REPEAT=REPEAT_STRING
+    else
+        einfos ${testfunc}
+    fi
+
+    {
+        try
+        {
+            # We want to make sure that any traps from the tests
+            # execute _before_ we run teardown, and also we don't
+            # want the teardown to run inside the test-specific
+            # cgroup.  This subshell solves both issues.
+            (
+                cgroup_create ${ETEST_CGROUP}
+                cgroup_move ${ETEST_CGROUP} $BASHPID
+
+                call_test_setup
+
+                etestmsg "Calling test"
+                ${testfunc}
+            )
+
+            call_test_teardown
+        }
+        catch
+        {
+            testfunc_rc=$?
+            eend ${testfunc_rc}
+            $(tryrc call_test_teardown)
+            [[ ${rc} -eq 0 ]] || ewarn "${testfunc} teardown failed."
+            FAILED_TESTS+=( ${testfunc/ETEST_/} )
+
+            [[ ${BREAK} -eq 0 ]] || die -r=${ETEST_BREAK_EXIT_CODE} "${testfunc} failed and BREAK=1"
+        }
+
+    } &> ${REDIRECT}
+
+    if [[ ${VERBOSE} -eq 0 ]] ; then
+        eend ${testfunc_rc}
+    else
+        [[ ${testfunc_rc} -eq 0 ]] \
+            && einfo "$(ecolor green)${testfunc} PASSED." \
+            || eerror "${testfunc} FAILED."
+    fi
+}
+
+run_all_tests_in_file()
+{
+    local testfile=$1
+    local testfilename=$(basename ${testfile})
+
+    FAILED_TESTS=()
+
+    # Skip files that don't contain any tests
+    grep -q "^ETEST_" ${testfile} >/dev/null || return 0
+
+    # Skip files whose name matches the exclude filter
+    [[ -n ${EXCLUDE} && ${testfile} =~ ${EXCLUDE} ]] && return 0
+
+    try
+    {
+        source ${testfile}
+
+        # Ensure proper shebang is in the unit test or else bashlint won't be able to validate it
+        # and it may not be a proper bash unit test
+        grep -q '^#!/.*bash' ${testfile} || { eerror "No bash shebang in ${testfile}"; throw 1; }
+
+        # Get all function names that begin with ETEST_ (and optionally match $2)
+        [[ ${testfile} =~ ${FILTER} ]] && ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" {print $3}' ) ) \
+                                       || ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
+
+        [[ ${#ETEST_FUNCTIONS[@]} -gt 0 ]] || continue
+
+        # Exclude those functions that match the exclude filter
+        if [[ -n ${EXCLUDE} ]] ; then
+            for index in "${!ETEST_FUNCTIONS[@]}" ; do
+                if [[ ${ETEST_FUNCTIONS[$index]} =~ ${EXCLUDE} ]] ; then
+                    unset ETEST_FUNCTIONS[$index]
+                fi
+            done
+        fi
+
+        [[ ${VERBOSE} -eq 1 ]] || einfo "Starting tests in ${testfile} ${REPEAT_STRING}"
+
+        call_file_setup
+
+        for testfunc in ${ETEST_FUNCTIONS[@]}; do
+            run_single_test ${testfile} ${testfunc}
+        done
+
+        call_file_teardown
+    }
+    catch
+    {
+        if [[ $? -eq ${ETEST_BREAK_EXIT_CODE} ]] ; then
+            exit ${ETEST_BREAK_EXIT_CODE}
+        fi
+
+        FAILED_FILES+=( ${testfilename} ) || true
+    }
+}
+
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
@@ -239,118 +351,15 @@ fi
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
+
+[[ ${VERBOSE} -eq 1 ]] && REDIRECT="/dev/stderr" || REDIRECT="/dev/null"
+
 # Now go through and test all unit tests
-for testfile in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
-    
-    testfilename=$(basename "${testfile}")
-
-    [[ ${VERBOSE} -eq 1 ]] && REDIRECT="/dev/stderr" || REDIRECT="/dev/null"
-
-    # Each test file gets its own subshell
-    try
-    {
-        FAILED_TESTS=()
-
-        # Skip files that don't contain any tests
-        grep -q "^ETEST_" ${testfile} >/dev/null || continue
-
-        # Skip files whose name matches the exclude filter
-        [[ -n ${EXCLUDE} && ${testfile} =~ ${EXCLUDE} ]] && continue
-
-        source ${testfile}
-
-        # Ensure proper shebang is in the unit test or else bashlint won't be able to validate it
-        # and it may not be a proper bash unit test
-        grep -q '^#!/.*bash' ${testfile} || { eerror "No bash shebang in ${testfile}"; throw 1; }
-
-        # Get all function names that begin with ETEST_ (and optionally match $2)
-        [[ ${testfile} =~ ${FILTER} ]] && ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" {print $3}' ) ) \
-                                       || ETEST_FUNCTIONS=( $(declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
-
-        [[ ${#ETEST_FUNCTIONS[@]} -gt 0 ]] || continue
-
-        # Exclude those functions that match the exclude filter
-        if [[ -n ${EXCLUDE} ]] ; then
-            for index in "${!ETEST_FUNCTIONS[@]}" ; do
-                if [[ ${ETEST_FUNCTIONS[$index]} =~ ${EXCLUDE} ]] ; then
-                    unset ETEST_FUNCTIONS[$index]
-                fi
-            done
-        fi
-
-
-        # Repeat the selected tests the requested number of times
-        for (( ITERATION=0; ITERATION<=${REPEAT:-0}; ITERATION++ )); do
-          
-            [[ ${REPEAT} -gt 0 ]] && REPEAT_STRING="(${ITERATION}/${REPEAT})" || REPEAT_STRING=""
-
-            [[ ${VERBOSE} -eq 1 ]] || einfo "Starting tests in ${testfile} ${REPEAT_STRING}"
-            call_file_setup
-
-            for testfunc in "${ETEST_FUNCTIONS[@]}" ; do
-
-                # If debugging is not enabled for testfunc just show a brief message with test name
-                testfunc_rc=0
-                
-                [[ ${VERBOSE} -eq 0 ]] && einfos ${testfunc} || ebanner ${testfunc} REPEAT=REPEAT_STRING
-
-                {
-                    try
-                    {
-                        # We want to make sure that any traps from the tests
-                        # execute _before_ we run teardown, and also we don't
-                        # want the teardown to run inside the test-specific
-                        # cgroup.  This subshell solves both issues.
-                        (
-                            cgroup_create ${ETEST_CGROUP}
-                            cgroup_move ${ETEST_CGROUP} $BASHPID
-
-                            call_test_setup
-
-                            etestmsg "Calling test"
-                            ${testfunc}
-                        )
-
-                        call_test_teardown
-                    }
-                    catch
-                    {
-                        testfunc_rc=$?
-                        eend ${testfunc_rc}
-                        $(tryrc call_test_teardown)
-                        [[ ${rc} -eq 0 ]] || ewarn "${testfunc} teardown failed."
-                        FAILED_TESTS+=( ${testfunc/ETEST_/} )
-
-                        [[ ${BREAK} -eq 0 ]] || die -r=${ETEST_BREAK_EXIT_CODE} "${testfunc} failed and BREAK=1"
-                    }
-
-                } &> ${REDIRECT}
-
-                if [[ ${VERBOSE} -eq 0 ]] ; then
-                    eend ${testfunc_rc}
-                else
-                    [[ ${testfunc_rc} -eq 0 ]] \
-                        && einfo "$(ecolor green)${testfunc} PASSED." \
-                        || eerror "${testfunc} FAILED."
-                fi
-               
-            done
-
-            call_file_teardown
-        
-        done
-
-        array_empty FAILED_TESTS || { eerror "$(lval FAILED_TESTS)"; echo; throw 1; }
-    } 
-    catch
-    {
-        if [[ $? -eq ${ETEST_BREAK_EXIT_CODE} ]] ; then
-            exit ${ETEST_BREAK_EXIT_CODE}
-        fi
-
-        FAILED_FILES+=( ${testfilename} ) || true
-    }
-
+for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
+    [[ ${REPEAT} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${REPEAT})" || REPEAT_STRING=""
+    for filename in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
+        run_all_tests_in_file ${filename}
+    done
 done
 
 array_empty FAILED_FILES || eerror "$(lval FAILED_FILES)"
