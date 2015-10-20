@@ -44,7 +44,6 @@ ETEST_BREAK_EXIT_CODE=25
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
 
-[[ -t 2 ]] && export EINTERACTIVE=1 || export EINTERACTIVE=0
 ETEST_LOG=${TEST_DIR}/etest.log
 elogfile -r=1 -t=${VERBOSE} ${ETEST_LOG}
 
