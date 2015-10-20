@@ -29,6 +29,7 @@ ETEST_TOPDIR=${TEST_DIR}
 FILTER=$(opt_get f ${FILTER:=""})
 EXCLUDE=$(opt_get x ${EXCLUDE:=""})
 REPEAT=$(opt_get r ${REPEAT:=1})
+(( ${REPEAT} < 1 )) && REPEAT=1
 VERBOSE=$(opt_get v 0)
 [[ ${EDEBUG:-0} != "0" ]] && VERBOSE=1 || true
 BREAK=$(opt_get b ${BREAK:=0})
