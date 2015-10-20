@@ -308,6 +308,12 @@ tryrc()
     # is.
     echo eval
 
+    # Need to first make sure we've emitted code to set our output variables in the
+    # event we are interrupted
+    echo eval "declare ${dflags} ${rc_out}=1;"
+    [[ -n ${stdout_out} ]] && echo eval "declare ${dflags} ${stdout_out}="";"
+    [[ -n ${stderr_out} ]] && echo eval "declare ${dflags} ${stderr_out}="";"
+
     # STDOUT: Create FIFO for stdout and then background a process to read from 
     # the stdout fifo and emit the necessary commands the caller must invoke.
     local stdout_pipe="${tmpdir}/stdout"
