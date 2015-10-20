@@ -88,6 +88,9 @@ no_process_leaks_remain()
 
 assert_no_process_leaks()
 {
+    edebug "Checking for process leaks"
+    cgroup_pstree ${ETEST_CGROUP} &>$(edebug_out)
+
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
     $(tryrc eretry -d=.1s -T=5s -w=1 no_process_leaks_remain)
