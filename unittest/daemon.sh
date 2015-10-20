@@ -1,185 +1,8 @@
 #!/usr/bin/env bash
 
-ETEST_daemon_init()
-{
-    local pidfile_real="${FUNCNAME}.pid"
-    local sleep_daemon
-    
-    daemon_init sleep_daemon     \
-        name="Infinity"          \
-        cmdline="sleep infinity" \
-        pidfile="${pidfile_real}"
 
-    $(pack_import sleep_daemon)
-
-    [[ "sleep infinity" == "${cmdline}" ]] || die "$(lval cmdline +sleep_daemon)"
-
-    assert_eq "Infinity"       "${name}"
-    assert_eq "sleep infinity" "${cmdline}"
-    assert_eq "${pidfile_real}" "$(pack_get sleep_daemon pidfile)"
-}
-
-ETEST_daemon_start_stop()
-{
-    local pidfile="${FUNCNAME}.pid"
-    local sleep_daemon
-   
-    etestmsg "Starting infinity daemon"
-    daemon_init sleep_daemon                \
-        name="Infinity"                     \
-        cmdline="sleep infinity"            \
-        cgroup="${ETEST_CGROUP}/daemon"     \
-        pidfile="${pidfile}"
-
-    daemon_start sleep_daemon
-    
-    # Wait for process to be running
-    etestmsg "Waiting for daemon to be running"
-    eretry -T=30s daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
-    assert process_running $(cat ${pidfile})
-    assert daemon_running sleep_daemon
-    assert daemon_status  sleep_daemon
-
-    # Now stop it and verify proper shutdown
-    etestmsg "Stopping daemon"
-    local pid=$(cat "${pidfile}")
-    daemon_stop sleep_daemon
-    assert_false daemon_running sleep_daemon
-    assert_false daemon_status -q sleep_daemon
-    assert_not_exists pidfile
-}
-
-ETEST_daemon_cgroup()
-{
-    CGROUP=${ETEST_CGROUP}/daemon
-    cgroup_create ${CGROUP}
-
-    local pidfile="${FUNCNAME}.pid"
-
-    etestmsg "Initializing daemon"
-    daemon_init sleep_daemon        \
-        name="Infinity"             \
-        cmdline="sleep infinity"    \
-        cgroup=${CGROUP}            \
-        pidfile="${pidfile}"
-
-    etestmsg "Running daemon"
-    daemon_start sleep_daemon
-    eretry -T=30s daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
-
-    local running_pids=$(cgroup_pids ${CGROUP})
-    etestmsg "Daemon running $(lval CGROUP running_pids)"
-    cgroup_pstree ${CGROUP}
-
-    daemon_stop sleep_daemon
-    local stopped_pids=$(cgroup_pids ${CGROUP})
-    assert_empty "${stopped_pids}"
-}
-
-ETEST_daemon_hooks()
-{
-    local pidfile="${FUNCNAME}.pid"
-    local sleep_daemon
-    
-    daemon_init sleep_daemon                      \
-        name="Infinity"                           \
-        cmdline="sleep infinity"                  \
-        pidfile="${pidfile}"                      \
-        pre_start="touch ${FUNCNAME}.pre_start"   \
-        pre_stop="touch ${FUNCNAME}.pre_stop"     \
-        post_start="touch ${FUNCNAME}.post_start" \
-        post_stop="touch ${FUNCNAME}.post_stop"   \
-        respawns="3"                              \
-        respawn_interval="1"                      \
-
-    $(pack_import sleep_daemon)
-
-    # START
-    daemon_start sleep_daemon
-    eretry -T=30s daemon_running sleep_daemon
-    assert_exists ${FUNCNAME}.{pre_start,post_start}
-    
-    # STOP
-    daemon_stop sleep_daemon
-    assert_exists ${FUNCNAME}.{pre_stop,post_stop}
-}
-
-# Ensure if pre_start hook fails we won't call start
-ETEST_daemon_pre_start_fail()
-{
-    local pidfile="${FUNCNAME}.pid"
-    local sleep_daemon
-    
-    daemon_init sleep_daemon                      \
-        name="Infinity"                           \
-        cmdline="sleep infinity"                  \
-        pidfile="${pidfile}"                      \
-        pre_start="false"                         \
-        pre_stop="touch ${FUNCNAME}.pre_stop"     \
-        post_start="touch ${FUNCNAME}.post_start" \
-        post_stop="touch ${FUNCNAME}.post_stop"   \
-        respawns="3"                              \
-        respawn_interval="1"                      \
-
-    $(pack_import sleep_daemon)
-
-    # START
-    daemon_start sleep_daemon
-    eretry -T=30s daemon_not_running sleep_daemon
-    assert_not_exists ${FUNCNAME}.post_start
-}
-
-# Ensure logfile works inside daemon
-ETEST_daemon_logfile()
-{
-    eend()
-    {
-        true
-    }
-
-    launch()
-    {
-        echo "stdout" >&1
-        echo "stderr" >&2
-        sleep infinity
-    }
-    
-    local mdaemon
-    daemon_init mdaemon         \
-        name="My Daemon"        \
-        cmdline="launch"        \
-        logfile="launch.log"    \
-
-    $(pack_import mdaemon logfile)
-
-    (
-        die_on_abort
-
-        etestmsg "Starting daemon"
-        daemon_start mdaemon
-        etestmsg "and waiting for it to run"
-        eretry -T=30s daemon_running mdaemon
-
-        etestmsg "Stopping daemon"
-        daemon_stop mdaemon
-        etestmsg "waiting for it to stop"
-        eretry -T=30s daemon_not_running mdaemon
-        etestmsg "Finished running daemon"
-    )
-
-    # Show logfile and verify state
-    etestmsg "Daemon logfile:"
-    cat "${logfile}"
-    
-    grep --silent "Starting My Daemon" "${logfile}"
-    grep --silent "stdout"             "${logfile}"
-    grep --silent "stderr"             "${logfile}"
-    grep --silent "Stopping My Daemon" "${logfile}"
-}
 #-----------------------------------------------------------------------------
-# DAEMON RESPAWNING TESTS
+# DAEMON TEST INFRASTRUCTURE NOTE
 # 
 # The tests below use a very tightly coupled test mechanism to ensure the 
 # daemon and the test code execute in lockstep so that the tests will be more
@@ -206,6 +29,14 @@ ETEST_daemon_logfile()
 
 DAEMON_LOCK="daemon.lock"
 DAEMON_STATE="daemon_state"
+DAEMON_HOOKS=(
+    pre_start="daemon_react pre_start"
+    pre_stop="daemon_react pre_stop"
+    post_start="daemon_react post_start"
+    post_stop="daemon_react post_stop"
+    post_crash="daemon_react post_crash"
+    post_abort="daemon_react post_abort"
+)
 
 daemon_react()
 {
@@ -217,13 +48,22 @@ daemon_react()
             elock ${DAEMON_LOCK}
             expected=$(cat ${DAEMON_STATE} || true)
             if [[ -z ${expected} ]]; then
-                edebug "Waiting for test code to setup expected state..."
+                edebug "Waiting for test code to setup expected state...$(lval actual)"
                 eunlock ${DAEMON_LOCK}
                 sleep .5
                 continue
             fi
 
-            assert_eq "${expected}" "${actual}" "Unexpected state $(lval expected actual)"
+            # Do NOT clear the state file if it's not the expected state!!
+            # Because most hooks swallow errors intentionally, we can't just call die
+            # here. Instead just emit error message and then sleep forever. The test code
+            # itself will timeout and detect and report the failure.
+            if [[ "${expected}" != "${actual}" ]]; then
+                eunlock ${DAEMON_LOCK}
+                eerror_stacktrace "Unexpected state $(lval expected actual)"
+                sleep infinity
+            fi
+
             >${DAEMON_STATE}
             break
         done
@@ -259,6 +99,200 @@ daemon_expect()
     etestmsg "Daemon reached $(lval state)"
 }
 
+#-----------------------------------------------------------------------------
+# DAEMON TESTS
+#-----------------------------------------------------------------------------
+
+ETEST_daemon_init()
+{
+    local pidfile_real="${FUNCNAME}.pid"
+    local sleep_daemon
+    
+    daemon_init sleep_daemon     \
+        "${DAEMON_HOOKS[@]}"     \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile_real}"
+
+    $(pack_import sleep_daemon)
+
+    [[ "sleep infinity" == "${cmdline}" ]] || die "$(lval cmdline +sleep_daemon)"
+
+    assert_eq "Infinity"       "${name}"
+    assert_eq "sleep infinity" "${cmdline}"
+    assert_eq "${pidfile_real}" "$(pack_get sleep_daemon pidfile)"
+}
+
+ETEST_daemon_start_stop()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+   
+    etestmsg "Starting infinity daemon"
+    daemon_init sleep_daemon                \
+        "${DAEMON_HOOKS[@]}"                \
+        name="Infinity"                     \
+        cmdline="sleep infinity"            \
+        cgroup="${ETEST_CGROUP}/daemon"     \
+        pidfile="${pidfile}"
+
+    daemon_start sleep_daemon
+    
+    # Wait for process to be running
+    daemon_expect pre_start
+    daemon_expect post_start
+    assert_true daemon_running sleep_daemon
+    assert [[ -s ${pidfile} ]]
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
+
+    # Now stop it and verify proper shutdown
+    local pid=$(cat "${pidfile}")
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    assert_not_exists pidfile
+}
+
+ETEST_daemon_cgroup()
+{
+    CGROUP=${ETEST_CGROUP}/daemon
+    cgroup_create ${CGROUP}
+
+    local pidfile="${FUNCNAME}.pid"
+
+    etestmsg "Initializing daemon"
+    daemon_init sleep_daemon        \
+        "${DAEMON_HOOKS[@]}"        \
+        name="Infinity"             \
+        cmdline="sleep infinity"    \
+        cgroup=${CGROUP}            \
+        pidfile="${pidfile}"
+
+    etestmsg "Running daemon"
+    daemon_start sleep_daemon
+    daemon_expect pre_start
+    daemon_expect post_start
+    assert_true daemon_running sleep_daemon
+    assert [[ -s ${pidfile} ]]
+
+    local running_pids=$(cgroup_pids ${CGROUP})
+    etestmsg "Daemon running $(lval CGROUP running_pids)"
+    cgroup_pstree ${CGROUP}
+
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    local stopped_pids=$(cgroup_pids ${CGROUP})
+    assert_empty "${stopped_pids}"
+}
+
+ETEST_daemon_hooks()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+    
+    daemon_init sleep_daemon                \
+        "${DAEMON_HOOKS[@]}"                \
+        name="Infinity"                     \
+        cmdline="sleep infinity"            \
+        pidfile="${pidfile}"                \
+        respawns="3"                        \
+        respawn_interval="1"                \
+
+    # START
+    daemon_start sleep_daemon
+    daemon_expect pre_start
+    daemon_expect post_start
+    assert_true daemon_running sleep_daemon
+    
+    # STOP
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    assert_false daemon_running sleep_daemon
+}
+
+# Ensure if pre_start hook fails we won't call start
+ETEST_daemon_pre_start_fail()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+    
+    daemon_init sleep_daemon                      \
+        name="Infinity"                           \
+        cmdline="sleep infinity"                  \
+        pidfile="${pidfile}"                      \
+        pre_start="false"                         \
+        pre_stop="touch ${FUNCNAME}.pre_stop"     \
+        post_start="touch ${FUNCNAME}.post_start" \
+        post_stop="touch ${FUNCNAME}.post_stop"   \
+        respawns="3"                              \
+        respawn_interval="1"                      \
+
+    # START
+    daemon_start sleep_daemon
+    eretry -T=30s daemon_not_running sleep_daemon
+    assert_not_exists ${FUNCNAME}.post_start
+}
+
+# Ensure logfile works inside daemon
+ETEST_daemon_logfile()
+{
+    eend()
+    {
+        true
+    }
+
+    launch()
+    {
+        echo "stdout" >&1
+        echo "stderr" >&2
+        sleep infinity
+    }
+    
+    local mdaemon
+    daemon_init mdaemon         \
+        "${DAEMON_HOOKS[@]}"    \
+        name="My Daemon"        \
+        cmdline="launch"        \
+        logfile="launch.log"    \
+
+    $(pack_import mdaemon logfile)
+
+    (
+        die_on_abort
+
+        etestmsg "Starting daemon"
+        daemon_start mdaemon
+        daemon_expect pre_start
+        daemon_expect post_start
+        assert_true daemon_running mdaemon
+
+        etestmsg "Stopping daemon"
+        daemon_stop mdaemon &
+        daemon_expect pre_stop
+        daemon_expect post_stop
+        wait
+        assert_true daemon_not_running mdaemon
+    )
+
+    # Show logfile and verify state
+    etestmsg "Daemon logfile:"
+    cat "${logfile}"
+    
+    grep --silent "Starting My Daemon" "${logfile}"
+    grep --silent "stdout"             "${logfile}"
+    grep --silent "stderr"             "${logfile}"
+    grep --silent "Stopping My Daemon" "${logfile}"
+}
+
 ETEST_daemon_respawn()
 {
     touch ${DAEMON_LOCK}
@@ -266,22 +300,18 @@ ETEST_daemon_respawn()
     local sleep_daemon
 
     daemon_init sleep_daemon                \
+        "${DAEMON_HOOKS[@]}"                \
         name="Infinity"                     \
         cmdline="sleep infinity"            \
         pidfile="${pidfile}"                \
         respawns="3"                        \
         respawn_interval="300"              \
-        pre_start="daemon_react pre_start"  \
-        post_start="daemon_react post_start"\
-        post_stop="daemon_react post_stop"  \
-        post_crash="daemon_react post_crash"\
-        post_abort="daemon_react post_abort"
 
     $(pack_import sleep_daemon)
     etestmsg "Starting daemon $(lval +sleep_daemon)"
     daemon_start sleep_daemon
 
-    # Wait for "pre_start" and "start" states then daemon must be running
+    # Wait for pre_start and "start" states then daemon must be running
     daemon_expect pre_start
     daemon_expect post_start
     assert daemon_running sleep_daemon
@@ -298,7 +328,7 @@ ETEST_daemon_respawn()
         ekilltree -s=KILL ${pid}
 
         # Wait for "crash" state. Daemon must be NOT running now.
-        daemon_expect "post_crash"
+        daemon_expect post_crash
         assert daemon_not_running sleep_daemon
         assert process_not_running ${pid}
 
@@ -332,22 +362,18 @@ ETEST_daemon_respawn_reset()
     local sleep_daemon
     
     daemon_init sleep_daemon                \
+        "${DAEMON_HOOKS[@]}"                \
         name="Infinity"                     \
         cmdline="sleep infinity"            \
         pidfile="${pidfile}"                \
         respawns="3"                        \
         respawn_interval="0"                \
-        pre_start="daemon_react pre_start"  \
-        post_start="daemon_react post_start"\
-        post_stop="daemon_react post_stop"  \
-        post_crash="daemon_react post_crash"\
-        post_abort="daemon_react post_abort"
 
     $(pack_import sleep_daemon)
     etestmsg "Starting daemon $(lval +sleep_daemon)"
     daemon_start sleep_daemon
 
-    # Wait for "pre_start" and "start" states then daemon must be running
+    # Wait for pre_start and "start" states then daemon must be running
     daemon_expect pre_start
     daemon_expect post_start
     assert daemon_running sleep_daemon
@@ -363,7 +389,7 @@ ETEST_daemon_respawn_reset()
         ekilltree -s=KILL ${pid}
 
         # Wait for "crash" state. Daemon must be NOT running now.
-        daemon_expect "post_crash"
+        daemon_expect post_crash
         assert daemon_not_running sleep_daemon
         assert process_not_running ${pid}
 
@@ -379,6 +405,7 @@ ETEST_daemon_respawn_reset()
     # Now stop it and verify proper shutdown
     etestmsg "Stopping daemon and waiting for shutdown"
     daemon_stop sleep_daemon &
+    daemon_expect pre_stop
     daemon_expect post_stop
     wait 
 
