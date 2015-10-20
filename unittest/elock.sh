@@ -25,7 +25,7 @@ ETEST_elock_get_fd()
     assert_true  elock_get_fd lfile &>/dev/null
 }
 
-ETEST_unlock_before_lock()
+ETEST_elock_unlock_before_lock()
 {
     assert elock_unlocked lfile
     assert_false eunlock lfile
