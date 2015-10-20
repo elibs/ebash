@@ -187,7 +187,8 @@ run_all_tests_in_file()
     local testfile=$1
     local testfilename=$(basename ${testfile})
 
-    FAILED_TESTS=()
+    # Skip files that don't contain any tests
+    grep -q "^ETEST_" ${testfile} >/dev/null || return 0
 
     # Skip files whose name matches the exclude filter
     [[ -n ${EXCLUDE} && ${testfile} =~ ${EXCLUDE} ]] && return 0
@@ -231,7 +232,7 @@ run_all_tests_in_file()
         {
             eend $? &>${ETEST_OUT}
             [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1" &>${ETEST_OUT}
-            FAILED_FILES+=( ${testfilename} )
+            FAILURES[${testfilename}]+="${testfunc//ETEST_} "
         }
 
         # Unit test infrastructure teardown
@@ -245,7 +246,7 @@ run_all_tests_in_file()
 # GLOBAL SETUP
 #-------------------------------------------------------------------------------------------------------------------------
 
-FAILED_FILES=()
+declare -A FAILURES
 global_setup
 trap_add global_teardown
 
@@ -298,6 +299,6 @@ for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
     done
 done
 
-array_empty FAILED_FILES || eerror "$(lval FAILED_FILES)"
+array_empty FAILURES || eerror "$(lval FAILURES)"
 
-exit ${#FAILED_FILES[@]}
+exit ${#FAILURES[@]}
