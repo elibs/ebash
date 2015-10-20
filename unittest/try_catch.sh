@@ -598,3 +598,8 @@ ETEST_tryrc_multiline_monster_output()
     assert_eq 0  "${rc}"
     assert_eq "" "${stderr}"
 }
+
+ETEST_tryrc_hang_recreate()
+{
+    $(tryrc eretry -T=.1s sleep 1)
+}
