@@ -76,7 +76,7 @@ no_process_leaks_remain()
     # If the cgroup no longer exists, we're in good shape because you can't
     # destroy a cgroup until all its processes are dead.
     if [[ ${exists_rc} -ne 0 ]] ; then
-        return 0;
+        return 0
     fi
 
     # As long as it existed just now, we can assume cgroup_pids will exist,
@@ -237,6 +237,7 @@ run_all_tests_in_file()
         # Unit test infrastructure teardown
         assert_no_process_leaks
         eunmount_recursive ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc} &>$(edebug_out)
+        rm -rf ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
     done
 }
 
