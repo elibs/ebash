@@ -369,9 +369,9 @@ ETEST_tryrc_declare()
 
 ETEST_tryrc_declare_global()
 {
-    rc=1
-    stdout="ORIG"
-    stderr="ORIG"
+    declare -g rc=1
+    declare -g stdout="ORIG"
+    declare -g stderr="ORIG"
 
     call_tryrc()
     {

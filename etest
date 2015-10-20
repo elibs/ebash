@@ -299,6 +299,9 @@ for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
     done
 done
 
-array_empty FAILURES || eerror "$(lval FAILURES)"
+if array_not_empty FAILURES; then
+    eerror "$(lval FAILURES)"
+    exit ${#FAILURES[@]}
+fi
 
-exit ${#FAILURES[@]}
+exit 0
