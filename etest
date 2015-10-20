@@ -2,8 +2,7 @@
 
 ## Check if we're root and re-execute if we're not through sudo ##
 if [[ $(id -u) != "0" ]]; then
-    sudo -E "$0" "$@"
-    exit $?
+    exec sudo -E "$0" "$@"
 fi
 
 : ${BASHUTILS:=$(dirname $0)}
@@ -49,7 +48,7 @@ exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${TEST_DIR}/etest.log
 elogfile -r=1 -t=${VERBOSE} ${ETEST_LOG}
 
-# Setup eTEST_OUTions for the "etest" outpu tand actual "test" output
+# Setup redirection for "etest" and actual "test" output
 if [[ ${VERBOSE} -eq 0 ]]; then
     ETEST_OUT="/proc/self/fd/${ETEST_STDERR_FD}"
     TEST_OUT="/dev/null"

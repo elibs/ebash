@@ -277,7 +277,8 @@ pipe_read_quote()
 #        will go to /dev/stderr as normal. This is NOT BUFFERED and will display
 #        to /dev/stderr in real-time.
 # -g     Make variables global even if called in a local context.
-tryrc()
+alias tryrc='die_on_abort; tryrc_internal'
+tryrc_internal()
 {
     $(declare_args)
     local cmd=("$@")
@@ -2811,7 +2812,7 @@ eretry_internal()
     # Command
     local cmd=("${@}")
     local attempt=0
-    local rc=""
+    local rc=0
     local exit_codes=()
     local stdout=""
     local warn_seconds="${SECONDS}"
@@ -3809,8 +3810,7 @@ discard_qualifiers()
 #
 assert()
 {
-    local cmd
-    cmd=( "${@}" )
+    local cmd=( "${@}" )
     
     $(tryrc -r=__assert_rc eval "${cmd[@]}")
     [[ ${__assert_rc} -eq 0 ]] || die "assert failed :: ${cmd[@]}"
@@ -3823,8 +3823,7 @@ assert_true()
 
 assert_false()
 {
-    local cmd
-    cmd=( "${@}" )
+    local cmd=( "${@}" )
 
     $(tryrc -r=__assert_false_rc eval "${cmd[@]}")
     [[ ${__assert_false_rc} -ne 0 ]] || die "assert_false failed :: ! $(lval cmd)"
