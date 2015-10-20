@@ -45,7 +45,7 @@ ETEST_BREAK_EXIT_CODE=25
 exec {ETEST_STDERR_FD}<&2
 
 ETEST_LOG=${TEST_DIR}/etest.log
-EINTERACTIVE=0 elogfile -r=1 -t=${VERBOSE} ${ETEST_LOG}
+elogfile -r=1 -t=${VERBOSE} ${ETEST_LOG}
 
 # Setup eTEST_OUTions for the "etest" outpu tand actual "test" output
 if [[ ${VERBOSE} -eq 0 ]]; then
