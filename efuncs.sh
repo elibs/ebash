@@ -2152,18 +2152,7 @@ emounted()
     path=$(emount_realpath ${path})
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
-    (
-        local output="" rc=0
-        output=$(grep --perl-regexp "$(emount_regex ${path})" /proc/mounts)
-        rc=$?
-
-        [[ -n ${output} ]] && output="\n${output}"
-        edebug "Checking if $(lval path) is mounted:${output}"
-
-        [[ ${rc} -eq 0 ]] \
-            && { edebug "$(lval path) is mounted ($(emount_count ${path}))";     return 0; } \
-            || { edebug "$(lval path) is NOT mounted ($(emount_count ${path}))"; return 1; }
-    )
+    [[ $(emount_count "${path}") -gt 0 ]]
 }
 
 # Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of
