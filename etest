@@ -128,7 +128,7 @@ global_teardown()
     # Convert logfile to HTML if requested
     if [[ ${HTML} -eq 1 ]] && which ansi2html &>/dev/null; then
         edebug "Converting ${ETEST_LOG} into HTML"
-        cat ${ETEST_LOG} | ansi2html --scheme=solarized > ${ETEST_LOG/.log/.html}
+        cat ${ETEST_LOG} | ansi2html --scheme=xterm > ${ETEST_LOG/.log/.html}
         sed -ir "s:\x1B\[[0-9;]*[mK]::g" ${ETEST_LOG}
     fi
 
