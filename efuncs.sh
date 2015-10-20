@@ -1859,15 +1859,10 @@ elogfile()
         # If we're not redirecting the requested stream then just return success
         [[ ${!name} -eq 1 ]] || return 0
 
-        # Optionally tail the output. Take special care to keep the original
-        # file descriptor intact.
-        local redirect
-        [[ ${dotail} -eq 1 ]] && redirect="/dev/${name}" || redirect="/dev/null"
-
         # Create pipe
         local pipe="${tmpdir}/${name}"
         mkfifo "${pipe}"
-        edebug "$(lval name pipe redirect)"
+        edebug "$(lval name pipe)"
 
         # Double fork so that the process doing the tee won't be one of our children
         # processes anymore. The purose of this is to ensure when we kill our process
@@ -1896,9 +1891,12 @@ elogfile()
                 trap "" ${TTY_SIGNALS[@]}
                 echo "${BASHPID}" >${pid_pipe}
 
-                tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
+                if [[ ${dotail} -eq 1 ]]; then
+                    tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
+                else
+                    tee -a "${@}" <${pipe} &>/dev/null
+                fi
             ) &
-
         ) &
 
         # Grab the pid of the backgrounded pipe process and setup a trap to ensure
