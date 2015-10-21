@@ -24,26 +24,26 @@ ETEST_edebug_one_and_zero()
 
 ETEST_edebug_enabled_matcher()
 {
-    EDEBUG="ETEST_edebug_enabled_matcher" edebug_enabled  || die
-    EDEBUG="efuncs"                       edebug_enabled  || die
-    EDEBUG="something else entirely"      edebug_disabled || die
-    EDEBUG="else and edebug"              edebug_enabled  || die
-    EDEBUG=""                             edebug_disabled || die
+    EDEBUG="${FUNCNAME}"                edebug_enabled
+    EDEBUG="efuncs"                     edebug_enabled
+    EDEBUG="something else entirely"    edebug_disabled
+    EDEBUG="else and edebug"            edebug_enabled
+    EDEBUG=""                           edebug_disabled
 }
 
 ETEST_edebug_and_etrace()
 {
-    EDEBUG="" ETRACE="assert"           assert edebug_enabled
-    EDEBUG="assert" ETRACE=""           assert edebug_enabled
-    EDEBUG="assert" ETRACE=0            assert edebug_enabled
-    EDEBUG=1  ETRACE=""                 assert edebug_enabled
-    EDEBUG=1  ETRACE=0                  assert edebug_enabled
-    EDEBUG="" ETRACE=1                  assert edebug_enabled
-    EDEBUG=0  ETRACE=1                  assert edebug_enabled
+    EDEBUG=""            ETRACE="${FUNCNAME}"   edebug_enabled
+    EDEBUG="${FUNCNAME}" ETRACE=""              edebug_enabled
+    EDEBUG="${FUNCNAME}" ETRACE=0               edebug_enabled
+    EDEBUG=1             ETRACE=""              edebug_enabled
+    EDEBUG=1             ETRACE=0               edebug_enabled
+    EDEBUG=""            ETRACE=1               edebug_enabled
+    EDEBUG=0             ETRACE=1               edebug_enabled
 
-    EDEBUG="" ETRACE=""                 assert edebug_disabled
-    EDEBUG=0  ETRACE=0                  assert edebug_disabled
-    EDEBUG="something" ETRACE="else"    assert edebug_disabled
+    EDEBUG=""            ETRACE=""              edebug_disabled
+    EDEBUG=0             ETRACE=0               edebug_disabled
+    EDEBUG="NOT"         ETRACE="HERE"          edebug_disabled
 }
 
 ETEST_edebug_enabled_skips_edebug_in_stack_frame()
