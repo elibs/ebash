@@ -64,7 +64,7 @@ die_handler()
     local rc=$(opt_get r 1)
 
     # Append any error message to logfile
-    {
+    if [[ ${VERBOSE} -eq 0 ]]; then
         echo "" >&2
         eerror -c="${color}" "${@}"
         
@@ -73,7 +73,7 @@ die_handler()
         # over the initial error message since we already displayed it.
         eerror_stacktrace -c="${color}" -f=4 -s
 
-    } |& tee -a ${ETEST_LOG} &>/dev/null
+    fi &>${ETEST_OUT}
     
     exit ${rc}
 }
