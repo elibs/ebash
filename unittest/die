@@ -18,14 +18,14 @@ DIE_FILE=$(mktemp /tmp/etest-die-output-XXXX.txt)
 DIE_SCRIPT=$(mktemp /tmp/etest-die-script-XXXX.sh)
 trap_add "rm -f ${DIE_FILE} ${DIE_SCRIPT}"
 
-cat <<-EOF >${DIE_SCRIPT}
+cat <<EOF >${DIE_SCRIPT}
 
 source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" >&2 ; exit 1 ; }
 
 die_handler()
 {
-	edebug "DIE_HANDLER called"
-	echo "DIE" >> "${DIE_FILE}"
+    edebug "DIE_HANDLER called"
+    echo "DIE" >> "${DIE_FILE}"
 }
 
 trap_add "echo TRAP >> ${DIE_FILE}"
