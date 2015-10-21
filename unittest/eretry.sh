@@ -50,7 +50,8 @@ ETEST_eretry_exit_124_on_timeout()
     eretry -r=1 -t=0.1s sleep infinity && die "eretry should abort" || assert_eq 124 $?
 }
 
-ETEST_eretry_warn_every()
+# Disabled b/c this test just takes way too long and provides almost no value.
+DISABLED_ETEST_eretry_warn_every()
 {
     EDEBUG=
 
