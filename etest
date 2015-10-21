@@ -58,6 +58,18 @@ fi
 # TEST UTILITY FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------------------
 
+die_handler()
+{
+    $(declare_args)
+    local rc=$(opt_get r 1)
+
+    # Show error message immediately.
+    echo "" >&2
+    eerror "${@}" &>${ETEST_OUT}
+
+    exit ${rc}
+}
+
 etestmsg()
 {
     EMSG_COLOR="all" emsg "magenta" "##" "INFO" "$@"
@@ -181,6 +193,8 @@ run_single_test()
         eerror "${testfunc} FAILED."
     fi
 
+    eend ${rc} &>${ETEST_OUT}
+    
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
         etestmsg "Calling test_teardown"
@@ -234,11 +248,9 @@ run_all_tests_in_file()
         try
         {
             run_single_test ${testfile} ${testfunc} |& tee -a ${ETEST_LOG} &>${TEST_OUT}
-            eend &>${ETEST_OUT}
         }
         catch
         {
-            eend $? &>${ETEST_OUT}
             [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1" &>${ETEST_OUT}
             FAILURES[${testfilename}]+="${testfunc//ETEST_} " || true
         }
@@ -308,8 +320,7 @@ for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
 done
 
 if array_not_empty FAILURES; then
-    eerror "$(lval FAILURES)"
-    exit ${#FAILURES[@]}
+    die "$(lval FAILURES)"
 fi
 
 exit 0
