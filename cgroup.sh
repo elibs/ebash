@@ -286,13 +286,11 @@ cgroup_pids()
     # containing 2k processes, while the following command is nearly
     # instantaneous.
     #
-    local found_pids
+    local found_pids=()
     local ignore_regex="($(echo "${ignorepids[@]:-}" | tr ' ' '\n' | paste -sd\|))"
-    [[ -z "${all_pids:-}" ]]                    \
-        || found_pids=($(echo "${all_pids}"     \
-            | tr ' ' '\n'                       \
-            | sort -u                           \
-            | egrep -vw "${ignore_regex}"))
+    if [[ -n "${all_pids:-}" ]]; then
+        found_pids=( $(echo "${all_pids}" | tr ' ' '\n' | sort -u | egrep -vw "${ignore_regex}") )
+    fi
 
     edebug "$(lval found_pids ignorepids ignore_regex )"
     echo "${found_pids[@]:-}"
