@@ -190,12 +190,8 @@ ETEST_eretry_partial_output_timeout()
 
 ETEST_eretry_total_timeout()
 {
-    local start=${SECONDS}
     $(tryrc eretry -T=1 sleep infinity)
-    local stop=${SECONDS}
-
     assert_eq 124 ${rc}
-    (( ${stop} - ${start} < 5 ))
 }
 
 ETEST_eretry_default_count()
