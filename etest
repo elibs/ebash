@@ -40,11 +40,8 @@ edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK HTML)"
 export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
-ETEST_BREAK_EXIT_CODE=25
-
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
-
 ETEST_LOG=${TEST_DIR}/etest.log
 elogfile -r=1 -t=${VERBOSE} ${ETEST_LOG}
 
