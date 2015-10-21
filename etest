@@ -289,7 +289,7 @@ opt_true c && exit 0
 if [[ -x ${ETEST_TOPDIR}/unittest/die && -z ${FILTER} && ! ${EXCLUDE} =~ "die" ]] ; then
     DIE_MSG="Verifying die() trap functionality"
     einfo "${DIE_MSG}" &>${ETEST_OUT}
-    { ebanner "${DIE_MSG}"; ${ETEST_TOPDIR}/unittest/die; } |& tee -a ${ETEST_LOG}
+    { ebanner "${DIE_MSG}"; ${ETEST_TOPDIR}/unittest/die; } |& tee -a ${ETEST_LOG} &>${TEST_OUT}
     eend &>${ETEST_OUT}
 fi
 
