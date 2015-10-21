@@ -752,7 +752,7 @@ eclear()
 
 etimestamp()
 {
-    echo -en "$(date '+%b %d %T')"
+    printf "%(%b %d %T)T"
 }
 
 # Display a very prominent banner with a provided message which may be multi-line
@@ -1105,9 +1105,9 @@ do_eprogress()
     local done=0
     trap "done=1" ${DIE_SIGNALS[@]}
 
-    local start=$(date +"%s")
+    local start=${SECONDS}
     while [[ ${done} -ne 1 ]]; do
-        local now=$(date +"%s")
+        local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
         echo -en "$(ecolor white)" >&2
