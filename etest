@@ -63,10 +63,18 @@ die_handler()
     $(declare_args)
     local rc=$(opt_get r 1)
 
-    # Show error message immediately.
-    echo "" >&2
-    eerror "${@}" &>${ETEST_OUT}
+    # Append any error message to logfile
+    {
+        echo "" >&2
+        eerror -c="${color}" "${@}"
+        
+        # Call eerror_stacktrace but skip top three frames to skip over the frames
+        # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
+        # over the initial error message since we already displayed it.
+        eerror_stacktrace -c="${color}" -f=4 -s
 
+    } |& tee -a ${ETEST_LOG} &>/dev/null
+    
     exit ${rc}
 }
 
