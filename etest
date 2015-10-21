@@ -282,42 +282,16 @@ trap_add global_teardown
 opt_true c && exit 0
 
 #-------------------------------------------------------------------------------------------------------------------------
-# SANITY TEST OF DIE FUNCTIONALITY
-#-------------------------------------------------------------------------------------------------------------------------
-
-if [[ -x ${ETEST_TOPDIR}/unittest/die && -z ${FILTER} && ! ${EXCLUDE} =~ "die" ]] ; then
-
-    # Manually test die() functionality outside of try/catch to ensure basic trap functionality works properly.
-    DIE_TEST_MSG="Verifying die() trap functionality"
-    edebug_enabled && ebanner "${DIE_TEST_MSG}" || einfo "${DIE_TEST_MSG}"
-    {
-        export DIE_FILE="etest_die.txt"
-        ${ETEST_TOPDIR}/unittest/die
-
-        # Assert proper order of events happened
-        einfo "Output file:"
-        cat ${DIE_FILE}
-        assert_eq 2 $(wc -l ${DIE_FILE})
-        first=$(head -1 ${DIE_FILE})
-        last=$(tail -1 ${DIE_FILE})
-
-        assert_eq "DIE" "${first}" "die() not called first"
-        assert_eq "TRAP" "${last}" "trap not called second"
-
-    } &>$(edebug_out)
-
-    rm -f ${DIE_FILE}
-
-    # Clean up so that die test doesn't affect future ones
-    unset DIE_FILE first last
-    unset -f die_handler
-
-    eend
-fi
-
-#-------------------------------------------------------------------------------------------------------------------------
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
+
+# Sanity test of die
+if [[ -x ${ETEST_TOPDIR}/unittest/die && -z ${FILTER} && ! ${EXCLUDE} =~ "die" ]] ; then
+    DIE_MSG="Verifying die() trap functionality"
+    einfo "${DIE_MSG}" &>${ETEST_OUT}
+    { ebanner "${DIE_MSG}"; ${ETEST_TOPDIR}/unittest/die; } |& tee -a ${ETEST_LOG}
+    eend &>${ETEST_OUT}
+fi
 
 # Now go through and test all unit tests
 for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do

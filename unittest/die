@@ -2,30 +2,50 @@
 
 source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" >&2 ; exit 1 ; }
 
+#-------------------------------------------------------------------------------------------------------------------------
+# SANITY TEST OF DIE FUNCTIONALITY
+#
 # NOTE: This is intentionally NOT an etest.  This script must be run in its own
-# shell to be able to test whether die_handler works, because die_handler is
-# only called in the top level shell level.
+# TOP-LEVEL shell to be able to test whether die_handler works, because die_handler
+# is only called in the top level shell level.
 #
 # It's run early on by the etest framework, because if die doesn't work, etest
 # isn't likely to work either.
+#-------------------------------------------------------------------------------------------------------------------------
 
-# The caller of this script sets a variable DIE_FILE, which is the file that
-# the script will produce.  It's up to the caller to verify that the right
-# thing happened.
-#
-# Specifically, the output should first contain a line that says DIE and second
-# one that says TRAP.
+# Create a script to run
+DIE_FILE=$(mktemp /tmp/etest-die-output-XXXX.txt)
+DIE_SCRIPT=$(mktemp /tmp/etest-die-script-XXXX.sh)
+trap_add "rm -f ${DIE_FILE} ${DIE_SCRIPT}"
 
-argcheck DIE_FILE
-rm -f ${DIE_FILE}
+cat <<-EOF >${DIE_SCRIPT}
+
+source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" >&2 ; exit 1 ; }
 
 die_handler()
 {
-    edebug "DIE_HANDLER called"
-    echo "DIE" >> "${DIE_FILE}"
+	edebug "DIE_HANDLER called"
+	echo "DIE" >> "${DIE_FILE}"
 }
 
 trap_add "echo TRAP >> ${DIE_FILE}"
 die -c=grey19 "Fake death..."
+
+exit 0
+EOF
+chmod +x ${DIE_SCRIPT}
+
+# Run the script we created above
+${DIE_SCRIPT}
+
+# Assert proper order of events happened
+einfo "Output file:"
+cat ${DIE_FILE}
+assert_eq 2 $(wc -l ${DIE_FILE})
+first=$(head -1 ${DIE_FILE})
+last=$(tail -1 ${DIE_FILE})
+
+assert_eq "DIE" "${first}" "die() not called first"
+assert_eq "TRAP" "${last}" "trap not called second"
 
 exit 0
