@@ -41,7 +41,7 @@ etrace()
 
 edebug_enabled()
 {
-    [[ ${EDEBUG:=} == "1" ||  ${ETRACE:=} == "1" ]] && return 0
+    [[ ${EDEBUG:=}  == "1" || ${ETRACE:=}  == "1" ]] && return 0
     [[ ${EDEBUG:-0} == "0" && ${ETRACE:-0} == "0" ]] && return 1
 
     $(declare_args ?_edebug_enabled_caller)
