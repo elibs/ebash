@@ -1178,8 +1178,10 @@ eprogress_kill()
     local pid
     for pid in ${pids[@]}; do
 
-        # Don't kill the pid if it's not running
-        if process_not_running ${pid}; then
+        # Don't kill the pid if it's not running or it's not an eprogress pid.
+        # This catches potentially disasterous errors where someone would do
+        # "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
+        if process_not_running ${pid} || ! array_contains __EPROGRESS_PIDS ${pid}; then
             continue
         fi
 
@@ -2060,59 +2062,67 @@ emetadata_check()
     [[ -e ${path} ]] || die "${path} does not exist"
     [[ -e ${meta} ]] || die "${meta} does not exist"
 
-    # If we're in quiet mode send all STDOUT and STDERR to edebug
-    local redirect=""
-    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
-
+    fail()
     {
-        local metapack="" validated=() expect="" actual="" ctype="" publickey="" keyring="" pgpsignature=""
-        
-        einfo "Verifying integrity of $(lval path meta)"
-        pack_set metapack $(cat "${meta}")
-        pack_print metapack &>$(edebug_out)
+        emsg "red" "   -" "ERROR" "$@"
+        exit 1
+    }
 
-        if pack_contains metapack "Size"; then
-            
-            einfos "Size"
+    local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0
+    pack_set metapack $(cat "${meta}")
+    local publickey=$(opt_get p)
+    local pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
+
+    # Figure out what digests we're going to validate
+    for ctype in Size MD5 SHA1 SHA256; do
+        pack_contains metapack "${ctype}" && digests+=( "${ctype}" )
+    done
+    [[ -n ${publickey} && -n ${pgpsignature} ]] && digests+=( "PGP" )
+
+    opt_true "q" || eprogress "Verifying integrity of $(lval path metadata=digests)"
+    pack_print metapack &>$(edebug_out)
+    local pids=()
+
+    # Validate size
+    if pack_contains metapack "Size"; then
+        (
             expect=$(pack_get metapack Size)
             actual=$(stat --printf="%s" "${path}")
-            [[ ${expect} -eq ${actual} ]] || { ewarn "Size mismatch: $(lval path expect actual)"; return 1; }
-            validated+=( "Size" )
-        fi
+            [[ ${expect} -eq ${actual} ]] || fail "Size mismatch: $(lval path expect actual)"
+        ) &
 
-        # Now validated MD5, SHA1, and SHA256 (if present)
-        for ctype in MD5 SHA1 SHA256; do
-            if pack_contains metapack "${ctype}"; then
-                
-                einfos "${ctype}"
+        pids+=( $! )
+    fi
+
+    # Now validated MD5, SHA1, and SHA256 (if present)
+    for ctype in MD5 SHA1 SHA256; do
+        if pack_contains metapack "${ctype}"; then
+            (
                 expect=$(pack_get metapack ${ctype})
                 actual=$(${ctype,,}sum ${path} | awk '{print $1}')
-                [[ ${expect} == ${actual} ]] || { ewarn "${ctype} mismatch: $(lval path expect actual)"; return 2; }
-                validated+=( ${ctype} )
-            fi
-        done
+                [[ ${expect} == ${actual} ]] || fail "${ctype} mismatch: $(lval path expect actual)"
+            ) &
 
-        # If Public Key was provied and PGPSignature is present validate PGP signature
-        publickey=$(opt_get p)
-        pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
-        if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
-          
-            einfos "PGP"
+            pids+=( $! )
+        fi
+    done
 
-            # Import PGP Public Key
-            keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
+    # If Public Key was provied and PGPSignature is present validate PGP signature
+    if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
+        (
+            local keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
             trap_add "rm -f ${keyring}"
             gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} &>$(edebug_out)
+            echo "${pgpsignature}" | gpg --verify - "${path}" &>$(edebug_out) || fail "PGP verification failure: $(lval path)"
+        ) &
 
-            # Now we can validate the signature
-            echo "${pgpsignature}" | gpg --verify - "${path}" &>$(edebug_out) || { ewarn "PGP verification failure: $(lval path)"; return 3; }
-            validated+=( "PGP" )
-        fi
+        pids+=( $! )
+    fi
 
-        # If we didn't validate anything then that's an error
-        ! array_empty validated || { ewarn "Failed to validate $(lval path)"; return 4; }
-
-    } &>${redirect}
+    # Wait for all pids
+    wait ${pids[@]} && rc=0 || rc=$?
+    opt_true "q" || eprogress_kill -r=${rc}
+    return ${rc}
 }
 
 #-----------------------------------------------------------------------------
