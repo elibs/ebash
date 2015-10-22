@@ -164,3 +164,28 @@ ETEST_signals()
     assert_eq "137"  "$(sigexitcode kill)"
     assert_eq "137"  "$(sigexitcode SIGKILL)"
 }
+
+ETEST_close_fds()
+{
+    touch ${FUNCNAME}_{A..C}
+
+    etestmsg "Opening file descriptors to my test files"
+    exec 53>${FUNCNAME}_A 54>${FUNCNAME}_B 55>${FUNCNAME}_C
+    local localpid=$BASHPID
+    ls -ltr /proc/$localpid/fd/
+
+    # Yup, they're open
+    assert test -L /proc/$localpid/fd/53
+    assert test -L /proc/$localpid/fd/54
+    assert test -L /proc/$localpid/fd/55
+
+    etestmsg "Closing file descriptors"
+    close_fds
+    ls -ltr /proc/$localpid/fd/
+
+    # Yup, they're closed
+    assert_false test -L /proc/$localpid/fd/53
+    assert_false test -L /proc/$localpid/fd/54
+    assert_false test -L /proc/$localpid/fd/55
+}
+

@@ -190,6 +190,44 @@ get_stream_fd()
     esac
 }
 
+# Close file descriptors that are currently open.  This can be important
+# because child processes inherit all of their parent's file descriptors, but
+# frequently don't need access to them.  Sometimes the fact that those
+# descriptors are still open can even cause problems (e.g. if a FIFO has more
+# writers than expected, its reader may not get the EOF it is expecting.)
+#
+# This function closes all open file descriptors EXCEPT stdin (0),
+# stdout (1), and stderr (2).  Technically, you can close those on your own if
+# you want via syntax like this:
+#    exec 0>&- 1>&- 2>&-
+#
+# But practically speaking, it's likely to cause problems.  For instance, hangs
+# or errors when something tries to write to or read from one of those.  It's a
+# better idea to do this intead if you really don't want your
+# stdin/stdout/stderr inherited:
+#
+#   exec 0</dev/null 1>/dev/null 2>/dev/null
+#
+# We also never close fd 255.  Bash considers that its own.  For instance,
+# sometimes that's open to the script you're currently executing.
+#
+close_fds()
+{
+    $(declare_args)
+
+    # Note grab file descriptors for the current process, not the one inside
+    # the command substitution ls here.
+    local pid=$BASHPID
+    local fds=( $(ls /proc/${pid}/fd/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ') )
+
+    edebug "Closing $(lval fds pid)"
+
+    local fd
+    for fd in "${fds[@]}"; do
+        eval "exec $fd>&-"
+    done
+}
+
 # Helper method to read from a pipe until we see EOF.
 pipe_read()
 {
@@ -321,6 +359,11 @@ tryrc_internal()
     mkfifo "${stdout_pipe}"
     (
         nodie_on_abort
+
+        # Don't pass along any fds we don't have to
+        close_fds
+        exec 0</dev/null 2>/dev/null
+
         local stdout="$(pipe_read_quote ${stdout_pipe})"
         if [[ -n ${stdout_out} ]]; then
             echo eval "declare ${dflags} ${stdout_out}=${stdout};"
@@ -342,6 +385,11 @@ tryrc_internal()
 
         (
             nodie_on_abort
+
+            # Don't pass along any fds we don't have to (but we need stdout in order to
+            close_fds
+            exec 0</dev/null 2>/dev/null
+
             local stderr="$(pipe_read_quote ${stderr_pipe})"
             echo eval "declare ${dflags} ${stderr_out}=${stderr};"
         ) &
@@ -1141,7 +1189,7 @@ eprogress()
     # Prepend this new eprogress pid to the front of our list of eprogress PIDs
     # Add a trap to ensure we kill this backgrounded process in the event we
     # die before calling eprogress_kill.
-    ( do_eprogress ) &
+    ( close_fds ; do_eprogress ) &
     __EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
@@ -1879,7 +1927,9 @@ elogfile()
         # writes block indefinitely. Since this is blocking in the kernel the process
         # essentially becomes unkillable once in this state.
         (
+            close_fds
             ( 
+
                 # If we are in a cgroup, move the tee process out of that
                 # cgroup so that we do not kill the tee.  It will nicely
                 # terminate on its own once the process dies.
@@ -2419,24 +2469,21 @@ declare_args()
 # Helper method to print the options after calling declare_args.
 opt_print()
 {
-    local _caller
-    _caller=( $(caller 0) )
+    local _caller=( $(caller 0) )
     pack_print _${_caller[1]}_options
 }
 
 # Helper method to be used after declare_args to check if a given option is true (1).
 opt_true()
 {
-    local _caller
-    _caller=( $(caller 0) )
+    local _caller=( $(caller 0) )
     [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 1 ]]
 }
 
 # Helper method to be used after declare_args to check if a given option is false (0).
 opt_false()
 {
-    local _caller
-    _caller=( $(caller 0) )
+    local _caller=( $(caller 0) )
     [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 0 ]]
 }
 
@@ -2666,6 +2713,8 @@ etimeout()
     local _etimeout_timeout=$(opt_get t "")
     argcheck _etimeout_timeout
 
+    ewarn "etimeout $(lval _etimeout_timeout _etimeout_signal) $@"
+
     # Background the command to be run
     local start=${SECONDS}
     local cmd=("${@}")
@@ -2683,7 +2732,8 @@ etimeout()
  
     # Start watchdog process to kill process if it times out
     (
-        nodie_on_error
+        die_on_abort
+        close_fds
 
         # Sleep for the requested timeout. If process isn't running
         # then it exited on it's own and we don't have to kill it. In
@@ -2775,8 +2825,8 @@ eretry()
     local _eretry_exit_codes=$(opt_get e 0)
     local _eretry_retries=$(opt_get r "")
     local _eretry_signal=$(opt_get s SIGTERM)
-    local _eretry_timeout=$(opt_get t infinity)
     local _eretry_timeout_total=$(opt_get T "")
+    local _eretry_timeout=$(opt_get t ${_eretry_timeout_total:-infinity})
     local _eretry_warn=$(opt_get w "")
 
     # If no total timeout or retry limit was specified then default to prior behavior with a max retry of 5.
@@ -2840,7 +2890,10 @@ eretry_internal()
         fi
 
         # Don't use "-ne" here since delay can have embedded units
-        [[ ${_eretry_delay} != "0" ]] && { edebug "Sleeping $(lval _eretry_delay)" ; sleep ${_eretry_delay} ; }
+        if [[ ${_eretry_delay} != "0" ]] ; then
+            edebug "Sleeping $(lval _eretry_delay)" 
+            sleep ${_eretry_delay}
+        fi
     done
 
     [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
@@ -3018,6 +3071,7 @@ eunlock()
     
     edebug "Unlocking $(lval fname fd)"
     flock --unlock ${fd}
+    eval "exec ${fd}>&-"
     unset __ELOCK_FDMAP[$fname]
 }
 

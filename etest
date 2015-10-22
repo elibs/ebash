@@ -105,21 +105,22 @@ no_process_leaks_remain()
 
 assert_no_process_leaks()
 {
+    edebug "Waiting..."
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
-    $(tryrc eretry -d=.1s -T=5s -w=1 no_process_leaks_remain)
+    $(tryrc eretry -T=10s -w=1 no_process_leaks_remain)
 
     # The above command could have timed out but that doesn't necessarily mean
     # there are leaked processes. So KILL anything that's left, but only DIE
     # if there were actually processes leaked.
     if [[ ${rc} -ne 0 ]] ; then
-        
         local leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
         if [[ -n ${leaked_processes} ]]; then
             cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
-            die "Leaked processes:\n${leaked_processes}"
+            die "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
         fi
     fi
+    edebug "Finished"
 }
 
 global_setup()
@@ -142,6 +143,8 @@ global_setup()
 global_teardown()
 {
     edebug "Starting global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
+
+    cgroup_destroy -r ${ETEST_CGROUP}
 
     eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out)
     rm -rf ${TEST_DIR_OUTPUT}
@@ -302,8 +305,16 @@ for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
     done
 done
 
+
+failure_count=0
 if array_not_empty FAILURES; then
-    die "$(lval FAILURES)"
+    eerror "FAILED TESTS:"
+    for index in ${!FAILURES[@]} ; do
+        for failed_test in ${FAILURES[$index]} ; do
+            (( failure_count += 1 ))
+            echo "$(ecolor red)      ${failed_test}" >&2
+        done
+    done
 fi
 
-exit 0
+exit ${failure_count}

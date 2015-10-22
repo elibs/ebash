@@ -42,6 +42,7 @@ daemon_react()
 {
     $(declare_args actual)
 
+    edebug "Reached hook ${actual}"
     (
         while true; do
 
