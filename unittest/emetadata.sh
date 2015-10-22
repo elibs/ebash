@@ -36,3 +36,18 @@ ETEST_emetadata_pgp()
     # Now validate what we just signed using public key
     emetadata_check -p="public.asc" ${src}
 }
+
+ETEST_emetadata_failure()
+{
+    cp ${BASH_SOURCE} .
+    local src="$(basename ${BASH_SOURCE})"
+    local meta="${src}.meta"
+
+    emetadata ${src} > ${meta}
+    cat ${meta}
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+
+    echo "${SECONDS}" >> ${src}
+    assert_false emetadata_check ${src}
+}
