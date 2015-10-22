@@ -162,6 +162,9 @@ daemon_start()
         # Enable fatal error handling inside subshell
         die_on_error
 
+        close_fds
+        exec 0</dev/null 1>/dev/null 2>/dev/null
+
         # Setup logfile
         elogfile -o=1 -e=1 -r=${logfile_count} -s=${logfile_size} "${logfile}"
 
@@ -312,18 +315,14 @@ daemon_stop()
     local pid=$(cat ${pidfile} 2>/dev/null || true)
     rm -f ${pidfile}
     if [[ -n ${pid} ]]; then
-        
         # kill the process with requested signal
         ekilltree -s=${signal} ${pid}
 
         # Use eretry to wait up to the maximum timeout for the process to exit.
         # if it fails to exit, then elevate the signal and use SIGKILL.
-        if ! eretry -T=${timeout} -d=.1s process_not_running ${pid}; then
+        $(tryrc eretry -T=${timeout} -d=.1s process_not_running ${pid})
+        if [[ ${rc} -ne 0 ]] ; then
             ekilltree -s=SIGKILL ${pid}
-
-            # Wait to see if the process goes away but don't make this a fatal error
-            # or else we won't do the cgroup_kill below!
-            $(tryrc eretry -T=${timeout} -d=.1s process_not_running ${pid})
         fi
         
         eend $(process_not_running ${pid})

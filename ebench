@@ -119,6 +119,48 @@ BENCH_simple_declare_args()
     $(declare_args)
 }
 
+PREBENCH_debug_trap()
+{
+    BASHUTILS_LEVEL=0
+    #trap "[[ ${BASH_SUBSHELL} != ${BASHUTILS_LEVEL} ]] && { BASHUTILS_LEVEL=${BASH_SUBSHELL} ; edebug spawned new \$BASHPID ; }" DEBUG
+    #trap "[[ ${BASH_SUBSHELL} != ${BASHUTILS_LEVEL} ]] && { BASHUTILS_LEVEL=${BASH_SUBSHELL} ; :  ; }" DEBUG
+    trap "if [[ ${BASH_SUBSHELL} != ${BASHUTILS_LEVEL:-} ]] ; then
+            BASHUTILS_LEVEL=${BASH_SUBSHELL}
+          fi " DEBUG
+}
+
+debug_trap_shared()
+{
+    $(declare_args)
+    true
+    (
+        if [[ A == B ]] ; then
+            true
+        fi
+        (( a = $RANDOM + 10 ))
+        VAR=$a
+        edebug "A"
+    )
+}
+
+BENCH_debug_trap()
+{
+    debug_trap_shared
+}
+
+BENCH_no_debug_trap()
+{
+    debug_trap_shared
+}
+
+BENCH_no_debug_trap_plus_comparison()
+{
+    if [[ ${BASH_SUBSHELL} != ${BASHUTILS_LEVEL:-} ]] ; then
+        BASHUTILS_LEVEL=${BASH_SUBSHELL}
+    fi
+    debug_trap_shared
+}
+
 $(declare_args)
 
 BENCH_FUNCS=( $(declare -F | awk '$3 ~ "^BENCH_" {print $3}') )

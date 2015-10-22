@@ -94,11 +94,10 @@ ETEST_eprogress_inside_eretry()
 
     etestmsg "Starting eprogress"
     eprogress "Waiting for eretry"
-    $(tryrc eretry -T=1s false)
+    $(tryrc eretry -T=5s false)
     eprogress_kill
 
-    etestmsg "Showing tickfile"
-    cat ${TICK_FILE}
+    trap_add "etestmsg Showing tickfile ; cat ${TICK_FILE}"
     assert [[ $(tail -1 ${TICK_FILE} || true) -ge 5 ]]
 }
 

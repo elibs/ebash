@@ -167,10 +167,10 @@ cgroup_move()
 
     array_remove -a pids ""
 
+    edebug "$(lval pids cgroup)"
     if [[ $(array_size pids) -gt 0 ]] ; then
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
             local tmp="$(array_join_nl pids)"
-            edebug "$(lval pids tmp)"
             echo -e "${tmp}" > /sys/fs/cgroup/${subsystem}/${cgroup}/tasks
         done
     fi

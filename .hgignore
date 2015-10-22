@@ -2,3 +2,4 @@ syntax: glob
 .bash_history
 etest.log
 etest.html
+results
