@@ -1955,7 +1955,7 @@ elogfile()
                 if [[ ${dotail} -eq 1 ]]; then
                     tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
-                    tee -a "${@}" <${pipe} &>/dev/null
+                    tee -a "${@}" <${pipe} 2>/dev/null 2>&1
                 fi
             ) &
         ) &
