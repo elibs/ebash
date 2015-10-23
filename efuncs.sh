@@ -504,7 +504,7 @@ die()
 
     # Show error message immediately.
     echo "" >&2
-    eerror -c="${color}" "${@}"
+    eerror_internal -c="${color}" "${@}"
 
     # Call eerror_stacktrace but skip top three frames to skip over the frames
     # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
@@ -959,12 +959,16 @@ ewarns()
     emsg "yellow" "   -" "WARNS" "$@"
 }
 
-eerror()
+eerror_internal()
 {
     $(declare_args)
     local color=$(opt_get c "red")
-
     emsg "${color}" ">>" "ERROR" "$@"
+}
+
+eerror()
+{
+    eerror_internal "$@"
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
@@ -995,7 +999,7 @@ eerror_stacktrace()
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
-        eerror -c=${color} "$@"
+        eerror_internal -c=${color} "$@"
     fi
 
     local frames=() frame
