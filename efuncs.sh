@@ -2725,8 +2725,6 @@ etimeout()
     local _etimeout_timeout=$(opt_get t "")
     argcheck _etimeout_timeout
 
-    ewarn "etimeout $(lval _etimeout_timeout _etimeout_signal) $@"
-
     # Background the command to be run
     local start=${SECONDS}
     local cmd=("${@}")
