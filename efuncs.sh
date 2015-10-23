@@ -360,7 +360,8 @@ tryrc_internal()
     (
         nodie_on_abort
 
-        # Don't pass along any fds we don't have to
+        # Don't pass along any fds we don't have to (but we need stdout because
+        # that's where we write the eval command string)
         close_fds
         exec 0</dev/null 2>/dev/null
 
@@ -386,7 +387,8 @@ tryrc_internal()
         (
             nodie_on_abort
 
-            # Don't pass along any fds we don't have to (but we need stdout in order to
+            # Don't pass along any fds we don't have to (but we need stdout
+            # because that's where we write the eval command string)
             close_fds
             exec 0</dev/null 2>/dev/null
 
@@ -1968,7 +1970,7 @@ elogfile()
                 if [[ ${dotail} -eq 1 ]]; then
                     tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
-                    tee -a "${@}" <${pipe} &>/dev/null
+                    tee -a "${@}" <${pipe} 2>/dev/null 2>&1
                 fi
             ) &
         ) &
@@ -2737,8 +2739,6 @@ etimeout()
     local _etimeout_signal=$(opt_get s SIGTERM)
     local _etimeout_timeout=$(opt_get t "")
     argcheck _etimeout_timeout
-
-    ewarn "etimeout $(lval _etimeout_timeout _etimeout_signal) $@"
 
     # Background the command to be run
     local start=${SECONDS}
