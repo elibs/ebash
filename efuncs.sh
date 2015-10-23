@@ -2762,22 +2762,26 @@ etimeout()
 
         # Sleep for the requested timeout. If process_tree is empty 
         # then it exited on its own and we don't have to kill it.
+        edebug "Watcher pre-sleep: Waiting for process to complete $(lval pid)"
         sleep ${_etimeout_timeout}
-        local pids=( $(process_tree ${pid}) )
-        array_empty pids && exit 0
+        local pre_pids=( $(process_tree ${pid}) )
+        edebug "Watcher post-sleep: $(lval pid pre_pids)"
+        array_empty pre_pids && exit 0
 
         # Process did not exit on it's own. Send it the intial requested
         # signal. If its process tree is empty then exit with 1.
-        edebug "Process still running... killing process tree $(lval pids)"
+        edebug "Watcher post-sleep: Process still running! Killing $(lval pid pre_pids signal=_etimeout_signal)"
         ekilltree -s=${_etimeout_signal} ${pid}
         sleep 2
 
         # If there are ANY processes in the original pid list still running OR
         # new processes in the process tree then blast a SIGKILL to all the pids
         # and exit with 1.
-        pids+=( $(process_tree ${pid}) )
-        edebug "Process tree not empty. Elevating to SIGKILL $(lval pid pids)"
-        ekill -s=SIGKILL ${pids[@]}
+        local post_pids=( $(process_tree ${pid}) )
+        array_empty post_pids && exit 1
+        
+        edebug "Watcher post-kill: Process tree not empty! Elevating to SIGKILL $(lval pid pre_pids post_pids)"
+        ekill -s=SIGKILL ${pre_pids[@]} ${post_pids[@]}
         exit 1
 
     ) &>/dev/null &
