@@ -265,7 +265,9 @@ run_all_tests_in_file()
         {
             [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1" &>${ETEST_OUT}
             FAILURES[${testfilename}]+="${testfunc//ETEST_} " || true
+            [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_FAILED_COUNT += 1 ))
         }
+        [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_EXECUTED_COUNT += 1 ))
 
         # Unit test infrastructure teardown
         assert_no_process_leaks
@@ -289,6 +291,9 @@ opt_true c && exit 0
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
 
+TEST_EXECUTED_COUNT=0
+TEST_FAILED_COUNT=0
+
 # Sanity test of die
 if [[ -x ${ETEST_TOPDIR}/unittest/die && -z ${FILTER} && ! ${EXCLUDE} =~ "die" ]] ; then
     DIE_MSG="Verifying die() trap functionality"
@@ -305,16 +310,26 @@ for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
     done
 done
 
+changeset_info=""
+if [[ -d ".hg" ]] ; then
+    changeset_info=" $(hg id --id)"
+fi
 
-failure_count=0
+echo &>${ETEST_OUT}
+if [[ ${TEST_FAILED_COUNT} -gt 0 ]] ; then
+    eerror "Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}.  $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT)) of ${TEST_EXECUTED_COUNT} tests passed." &>${ETEST_OUT}
+else
+    einfo "Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}.  $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT)) of ${TEST_EXECUTED_COUNT} tests passed." &>${ETEST_OUT}
+fi
+echo &>${ETEST_OUT}
+
 if array_not_empty FAILURES; then
     eerror "FAILED TESTS:"
     for index in ${!FAILURES[@]} ; do
         for failed_test in ${FAILURES[$index]} ; do
-            (( failure_count += 1 ))
-            echo "$(ecolor red)      ${failed_test}" >&2
+            echo "$(ecolor red)      ${failed_test}" &>${ETEST_OUT}
         done
     done
 fi
 
-exit ${failure_count}
+exit ${TEST_FAILED_COUNT}
