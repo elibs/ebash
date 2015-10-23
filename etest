@@ -310,8 +310,18 @@ for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
     done
 done
 
+changeset_info=""
+if [[ -d ".hg" ]] ; then
+    changeset_info=" $(hg id --id)"
+fi
+
 echo &>${ETEST_OUT}
-einfo "Finished testing.  $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT )) / ${TEST_EXECUTED_COUNT} passed." &>${ETEST_OUT}
+if [[ ${TEST_FAILED_COUNT} -gt 0 ]] ; then
+    eerror "Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}.  $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT)) of ${TEST_EXECUTED_COUNT} tests passed." &>${ETEST_OUT}
+else
+    einfo "Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}.  $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT)) of ${TEST_EXECUTED_COUNT} tests passed." &>${ETEST_OUT}
+fi
+echo &>${ETEST_OUT}
 
 if array_not_empty FAILURES; then
     eerror "FAILED TESTS:"
