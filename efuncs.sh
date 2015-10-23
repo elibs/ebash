@@ -1332,6 +1332,21 @@ process_not_running()
     ! kill -0 ${pid} &>/dev/null
 }
 
+# Generate a depth first recursive listing of entire process tree beneath a given PID.
+# If the pid does not exist this will produce an empty string.
+process_tree()
+{
+    $(declare_args pid)
+
+    process_not_running "${pid}" && return 0
+
+    for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+        process_tree ${child}
+    done
+
+    echo -n "${pid} "
+}
+
 # Kill all pids provided as arguments to this function using the specified signal.
 # This function is best effort only. It makes every effort to kill all the specified
 # pids but ignores any errors while calling kill. This is largely due to the fact
@@ -2745,22 +2760,24 @@ etimeout()
         die_on_abort
         close_fds
 
-        # Sleep for the requested timeout. If process isn't running
-        # then it exited on it's own and we don't have to kill it. In
-        # this case exit with 0.
+        # Sleep for the requested timeout. If process_tree is empty 
+        # then it exited on its own and we don't have to kill it.
         sleep ${_etimeout_timeout}
-        process_running ${pid} || exit 0
+        local pids=( $(process_tree ${pid}) )
+        array_empty pids && exit 0
 
         # Process did not exit on it's own. Send it the intial requested
-        # signal. If it exits now, then exit with 1 so we know it stopped
-        # as requested by timeout.
+        # signal. If its process tree is empty then exit with 1.
+        edebug "Process still running... killing process tree $(lval pids)"
         ekilltree -s=${_etimeout_signal} ${pid}
         sleep 2
-        process_running ${pid} || exit 1
 
-        # If the process still didn't exit with requested signal then send
-        # more forceful SIGKILL and exit with 1.
-        ekilltree -s=KILL ${pid}
+        # If there are ANY processes in the original pid list still running OR
+        # new processes in the process tree then blast a SIGKILL to all the pids
+        # and exit with 1.
+        pids+=( $(process_tree ${pid}) )
+        edebug "Process tree not empty. Elevating to SIGKILL $(lval pid pids)"
+        ekill -s=SIGKILL ${pids[@]}
         exit 1
 
     ) &>/dev/null &
