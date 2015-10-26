@@ -557,7 +557,7 @@ ETEST_tryrc_stderr_unbuffered()
     # and we'll ensure we see it BEFORE the process completes.
     einfo "Creating background infinite process writing to stderr"
     (
-        $(tryrc eval 'echo "MESSAGE" >&2; sleep infinity') &
+        $(EDEBUG=0 tryrc eval 'echo "MESSAGE" >&2; sleep infinity') &
         echo "$!" >> "${FUNCNAME}.pids"
 
     ) 2>${pipe}

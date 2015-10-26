@@ -315,8 +315,7 @@ pipe_read_quote()
 #        will go to /dev/stderr as normal. This is NOT BUFFERED and will display
 #        to /dev/stderr in real-time.
 # -g     Make variables global even if called in a local context.
-alias tryrc='die_on_abort; tryrc_internal'
-tryrc_internal()
+tryrc()
 {
     $(declare_args)
     local cmd=("$@")
@@ -329,8 +328,13 @@ tryrc_internal()
     local dflags=""
     opt_false g || dflags="-g"
     
-    # Temporary directory to hold our FIFOs
+    # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
+    trap_add "rm -rf ${tmpdir}"
+
+    # Create temporary file for stdout and stderr
+    local stdout_file="${tmpdir}/stdout" stderr_file="/dev/stderr"
+    [[ -n ${stderr_out} ]] && stderr_file="${tmpdir}/stderr"
 
     # We're creating an "eval command string" inside the command substitution
     # that the caller is supposed to wrap around tryrc.
@@ -353,52 +357,6 @@ tryrc_internal()
     [[ -n ${stdout_out} ]] && echo eval "declare ${dflags} ${stdout_out}="";"
     [[ -n ${stderr_out} ]] && echo eval "declare ${dflags} ${stderr_out}="";"
 
-    # STDOUT: Create FIFO for stdout and then background a process to read from 
-    # the stdout fifo and emit the necessary commands the caller must invoke.
-    local stdout_pipe="${tmpdir}/stdout"
-    mkfifo "${stdout_pipe}"
-    (
-        nodie_on_abort
-
-        # Don't pass along any fds we don't have to (but we need stdout because
-        # that's where we write the eval command string)
-        close_fds
-        exec 0</dev/null 2>/dev/null
-
-        local stdout="$(pipe_read_quote ${stdout_pipe})"
-        if [[ -n ${stdout_out} ]]; then
-            echo eval "declare ${dflags} ${stdout_out}=${stdout};"
-        else
-            echo eval "echo -n ${stdout} >&1;"
-        fi
-    ) &
-
-    local stdout_pid=$!
-
-    # STDERR: Optionally create FIFO for stderr if buffering of stderr is requested
-    # and then background a process to read from the stderr fifo and emit the
-    # necessary commands the caller must invoke.
-    local stderr_pipe="/dev/stderr"
-    local stderr_pid=""
-    if [[ -n ${stderr_out} ]]; then
-        stderr_pipe="${tmpdir}/stderr"
-        mkfifo "${stderr_pipe}"
-
-        (
-            nodie_on_abort
-
-            # Don't pass along any fds we don't have to (but we need stdout
-            # because that's where we write the eval command string)
-            close_fds
-            exec 0</dev/null 2>/dev/null
-
-            local stderr="$(pipe_read_quote ${stderr_pipe})"
-            echo eval "declare ${dflags} ${stderr_out}=${stderr};"
-        ) &
-
-        stderr_pid=$!
-    fi
-
     # Execute actual command in try/catch so that any fatal errors in the command
     # properly terminate execution of the command then capture off the return code
     # in the catch block. Send all stdout and stderr to respective pipes which will
@@ -407,24 +365,39 @@ tryrc_internal()
     try
     {
         if [[ -n "${cmd[@]:-}" ]]; then
-            "${cmd[@]}"
+            "${cmd[@]}" >${stdout_file} 2>${stderr_file}
         fi
         
-    } >${stdout_pipe} 2>${stderr_pipe}
+    }
     catch
     {
         rc=$?
     }
 
-    # Wait for the above backgrounded processes to complete.
-    # NOTE: Ignore all stderr and stdout and the return code because we are NOT
-    #       interested in failures due to premature termination of the backgrounded
-    #       stdout/stderr pipe reading processes.
-    wait ${stdout_pid} ${stderr_pid} &>/dev/null || true
-    rm -rf ${tmpdir}
-
-    # Finally we can emit the code the caller needs to execute to set the return code.
+    # Emit commands to assign return code 
     echo eval "declare ${dflags} ${rc_out}=${rc};"
+
+    # Emit commands to assign stdout but ONLY if a stdout file was actually created.
+    # This is because the file is only created on first write. And we don't want this
+    # to fail if the command didn't write any stdout. This is also SAFE because we
+    # initialize stdout_out and stderr_out above to empty strings.
+    if [[ -s ${stdout_file} ]]; then
+        local stdout="$(pipe_read_quote ${stdout_file})"
+        if [[ -n ${stdout_out} ]]; then
+            echo eval "declare ${dflags} ${stdout_out}=${stdout};"
+        else
+            echo eval "echo -n ${stdout} >&1;"
+        fi
+    fi
+
+    # Emit commands to assign stderr
+    if [[ -s ${stderr_file} && -n ${stderr_out} ]]; then
+        local stderr="$(pipe_read_quote ${stderr_file})"
+        echo eval "declare ${dflags} ${stderr_out}=${stderr};"
+    fi
+
+    # Remote temporary directory
+    rm -rf ${tmpdir}
 }
 
 #-----------------------------------------------------------------------------
