@@ -1973,7 +1973,7 @@ elogfile()
                 if [[ ${dotail} -eq 1 ]]; then
                     tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
-                    tee -a "${@}" <${pipe} 2>/dev/null 2>&1
+                    tee -a "${@}" <${pipe} >/dev/null 2>&1
                 fi
             ) &
         ) &
@@ -2765,15 +2765,12 @@ etimeout()
 
         # Sleep for the requested timeout. If process_tree is empty 
         # then it exited on its own and we don't have to kill it.
-        edebug "Watcher pre-sleep: Waiting for process to complete $(lval pid)"
         sleep ${_etimeout_timeout}
         local pre_pids=( $(process_tree ${pid}) )
-        edebug "Watcher post-sleep: $(lval pid pre_pids)"
         array_empty pre_pids && exit 0
 
         # Process did not exit on it's own. Send it the intial requested
         # signal. If its process tree is empty then exit with 1.
-        edebug "Watcher post-sleep: Process still running! Killing $(lval pid pre_pids signal=_etimeout_signal)"
         ekilltree -s=${_etimeout_signal} ${pid}
         sleep 2
 
@@ -2782,8 +2779,6 @@ etimeout()
         # and exit with 1.
         local post_pids=( $(process_tree ${pid}) )
         array_empty post_pids && exit 1
-        
-        edebug "Watcher post-kill: Process tree not empty! Elevating to SIGKILL $(lval pid pre_pids post_pids)"
         ekill -s=SIGKILL ${pre_pids[@]} ${post_pids[@]}
         exit 1
 
@@ -3253,17 +3248,16 @@ array_remove()
 {
     $(declare_args __array)
 
-    local __array_remove_to_remove=("${@}")
-
-    # Simply bail if the array is not set, because bash doesn't really save
-    # arrays with no members.  For instance A=() unsets array A...
-    [[ -v ${__array} ]] || { edebug "array_remove skipping empty array $(lval __array)" ; return 0; }
-
+    # Return immediately if if array is not set or no values were given to be
+    # removed. The reason we don't error out on an unset array is because
+    # bash doesn't save arrays with no members.  For instance A=() unsets array A...
+    [[ -v ${__array} && $# -gt 0 ]] || return 0
+    
     # Remove all instances or only the first?
     local remove_all=$(opt_get a 0)
 
     local value
-    for value in "${__array_remove_to_remove[@]}"; do
+    for value in "${@}"; do
 
         local idx
         for idx in $(array_indexes ${__array}); do
