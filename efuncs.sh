@@ -327,7 +327,7 @@ tryrc()
     # Determine flags to pass into declare
     local dflags=""
     opt_false g || dflags="-g"
-    
+
     # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
     trap_add "rm -rf ${tmpdir}"
