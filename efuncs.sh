@@ -328,6 +328,11 @@ tryrc_internal()
     # Determine flags to pass into declare
     local dflags=""
     opt_false g || dflags="-g"
+
+    # Don't pass along any fds we don't have to.  Since tryrc is always called
+    # inside a (command substitution) subshell, we can't affect our caller so
+    # we believe this is safe to do.
+    close_fds
     
     # Temporary directory to hold our FIFOs
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
@@ -360,9 +365,6 @@ tryrc_internal()
     (
         nodie_on_abort
 
-        # Don't pass along any fds we don't have to (but we need stdout because
-        # that's where we write the eval command string)
-        close_fds
         exec 0</dev/null 2>/dev/null
 
         local stdout="$(pipe_read_quote ${stdout_pipe})"
@@ -387,9 +389,6 @@ tryrc_internal()
         (
             nodie_on_abort
 
-            # Don't pass along any fds we don't have to (but we need stdout
-            # because that's where we write the eval command string)
-            close_fds
             exec 0</dev/null 2>/dev/null
 
             local stderr="$(pipe_read_quote ${stderr_pipe})"
