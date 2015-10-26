@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-TICK_FILE=${TEST_DIR_OUTPUT}/ticks
+OUTPUT=${TEST_DIR_OUTPUT}/ticks
 
 # Fake EPROGRESS function body to use in some of the tests which
 # don't want the real do_eprogress
@@ -9,15 +9,27 @@ FAKE_DO_EPROGRESS='
     trap "exit 0" ${DIE_SIGNALS[@]}
 
     local tick=0
-    rm -f ${TICK_FILE}
+    rm -f ${OUTPUT}
 
     while [[ true ]]; do
-        echo "${tick}" >> ${TICK_FILE}
+        echo "${tick}" >> ${OUTPUT}
         (( tick++ )) || true
         sleep 0.10   || true
     done
 }
 '
+
+wait_for_eprogress()
+{
+    callback()
+    {
+        while true; do
+            [[ -s ${OUTPUT} ]] && return 0
+        done
+    }
+
+    eretry -T=30s callback
+}
 
 ETEST_eprogress_ticks()
 {
@@ -25,9 +37,10 @@ ETEST_eprogress_ticks()
 
     eprogress "Waiting 1 second"
     sleep 1
+    wait_for_eprogress
     eprogress_kill
-    cat ${TICK_FILE}
-    assert [[ $(tail -1 ${TICK_FILE} || true) -ge 9 ]]
+    cat ${OUTPUT}
+    assert [[ $(tail -1 ${OUTPUT} || true) -ge 9 ]]
 }
 
 ETEST_eprogress_ticks_reuse()
@@ -36,22 +49,24 @@ ETEST_eprogress_ticks_reuse()
 
     eprogress "Waiting for Ubuntu to stop sucking"
     sleep 1
+    wait_for_eprogress
     eprogress_kill
-    cat ${TICK_FILE}
-    assert [[ $(tail -1 ${TICK_FILE} || true) -ge 5 ]]
+    cat ${OUTPUT}
+    assert [[ $(tail -1 ${OUTPUT} || true) -ge 5 ]]
     
     eprogress "Waiting for Gentoo to replace Ubuntu"
     sleep 1
+    eretry -T=30s cat ${OUTPUT}
     eprogress_kill
-    cat ${TICK_FILE}
-    assert [[ $(tail -1 ${TICK_FILE} || true) -ge 5 ]]
+    cat ${OUTPUT}
+    assert [[ $(tail -1 ${OUTPUT} || true) -ge 5 ]]
 }
 
 # Verify EPROGRESS_TICKER can be used to forcibly enable/disable ticker
 ETEST_eprogress_ticker_off()
 {
     (
-        exec &> >(tee eprogress.out)
+        exec &> >(tee ${OUTPUT})
 
         COLUMNS=28
         EFUNCS_COLOR=0
@@ -63,13 +78,14 @@ ETEST_eprogress_ticker_off()
 
     )
 
-    assert_eq ">> Waiting.[ ok ]" "$(cat eprogress.out)"
+    wait_for_eprogress
+    assert_eq ">> Waiting.[ ok ]" "$(cat ${OUTPUT})"
 }
 
 ETEST_eprogress_ticker_on()
 {
     (
-        exec &> >(tee eprogress.out)
+        exec &> >(tee ${OUTPUT})
 
         COLUMNS=28
         EFUNCS_COLOR=0
@@ -81,11 +97,13 @@ ETEST_eprogress_ticker_on()
 
     )
 
+    wait_for_eprogress
+
     # The ticker may actuall run for slightly longer than we requested due to
     # how sleep works. Change instances of 00:00:0[1-9] to 00:00:01 in the output
     # for easier validation.
-    sed -i "s|:01\]|:00\]|g" eprogress.out
-    assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[22C[ ok ]\$" "$(cat -evt eprogress.out)"
+    sed -i "s|:01\]|:00\]|g" ${OUTPUT}
+    assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[22C[ ok ]\$" "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_inside_eretry()
@@ -96,9 +114,9 @@ ETEST_eprogress_inside_eretry()
     eprogress "Waiting for eretry"
     $(tryrc eretry -T=5s false)
     eprogress_kill
-
-    trap_add "etestmsg Showing tickfile ; cat ${TICK_FILE}"
-    assert [[ $(tail -1 ${TICK_FILE} || true) -ge 5 ]]
+    
+    trap_add "etestmsg Showing tickfile ; cat ${OUTPUT}"
+    assert [[ $(tail -1 ${OUTPUT} || true) -ge 5 ]]
 }
 
 ETEST_eprogress_kill_before_eprogress()
