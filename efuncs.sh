@@ -220,8 +220,6 @@ close_fds()
     local pid=$BASHPID
     local fds=( $(ls /proc/${pid}/fd/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ') )
 
-    edebug "Closing $(lval fds pid)"
-
     local fd
     for fd in "${fds[@]}"; do
         eval "exec $fd>&-"
