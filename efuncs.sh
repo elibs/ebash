@@ -386,7 +386,7 @@ tryrc()
         if [[ -n ${stdout_out} ]]; then
             echo eval "declare ${dflags} ${stdout_out}=${stdout};"
         else
-            echo eval "echo -n ${stdout} >&1;"
+            echo eval "echo ${stdout} >&1;"
         fi
     fi
 

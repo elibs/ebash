@@ -249,8 +249,8 @@ ETEST_elogfile_double_fork()
     (
         etestmsg "Ensuring tee processes are not in our process tree"
         elogfile -r=1 ${FUNCNAME}.log
-        pstree -p $$
-        assert_empty $(pstree -p ${BASHPID} | grep tee)
+        $(tryrc pstree -p $$)
+        assert_empty $(pstree -p ${BASHPID} | grep tee || true)
     )
 }
 
@@ -263,7 +263,7 @@ ETEST_elogfile_hang_ekilltree()
 
     elogfile -r=1 ${mlog}
     etestmsg "Test"
-    pstree -p $$
+    $(tryrc pstree -p $$)
     ekilltree -s=SIGTERM ${BASHPID}
     ekilltree -s=SIGKILL ${BASHPID}
 }
@@ -278,7 +278,7 @@ ETEST_elogfile_hang_kill_tee()
 
         elogfile -r=1 ${mlog}
         etestmsg "Test"
-        pstree -p $$
+        $(tryrc pstree -p $$)
 
         etestmsg "Killing tee processes"
         ekilltree -s=SIGKILL $(pstree -p ${BASHPID} | grep tee | grep -o "([[:digit:]]*)" | grep -o "[[:digit:]]*" || true)
