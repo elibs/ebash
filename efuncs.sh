@@ -775,7 +775,7 @@ eclear()
 
 etimestamp()
 {
-    printf "%(%b %d %T)T"
+    echo -en "$(date '+%b %d %T')"
 }
 
 # Display a very prominent banner with a provided message which may be multi-line
