@@ -283,7 +283,7 @@ ETEST_elogfile_hang_kill_tee()
         etestmsg "Killing tee processes"
         ekilltree -s=SIGKILL $(pstree -p ${BASHPID} | grep tee | grep -o "([[:digit:]]*)" | grep -o "[[:digit:]]*" || true)
         etestmsg "After killing tee"
-        pstree -p ${BASHPID}
+        $(tryrc pstree -p ${BASHPID})
     )
 }
 
