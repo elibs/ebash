@@ -1,5 +1,30 @@
 #!/usr/bin/env bash
 
+ETEST_array_size_empty_and_undefined()
+{
+    declare -a empty_array
+    declare -A empty_aa
+
+    assert_eq 0 $(array_size empty_array)
+    assert_eq 0 $(array_size empty_aa)
+
+    empty_string=""
+    assert array_empty empty_string
+    assert_false array_not_empty empty_string
+
+    unset C
+    assert_eq 0 $(array_size C)
+}
+
+ETEST_array_that_is_holey()
+{
+    A=(1 2 3 4)
+    unset A[0]
+    unset A[2]
+
+    assert_false array_empty A
+}
+
 ETEST_array_size_zero()
 {
     # NOTE: there is no distinction in bash between empty arrays and unset
@@ -296,7 +321,10 @@ ETEST_array_remove_all()
     array_init array "${input}"
     declare -p array
 
+    etestmsg "Removing all a(s)"
     array_remove -a array a
+    declare -p array
+
     assert_eq "b c d e" "$(array_join array)"
 }
 
