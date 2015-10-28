@@ -275,6 +275,7 @@ run_all_tests_in_file()
         assert_no_process_leaks
         eunmount_recursive ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc} &>$(edebug_out)
         rm -rf ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
+
     done
 }
 
@@ -317,24 +318,26 @@ if [[ -d ".hg" ]] ; then
     changeset_info=" $(hg id --id)"
 fi
 
-echo &>${ETEST_OUT}
-message="Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}.  $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT)) of ${TEST_EXECUTED_COUNT} tests passed"
-message+=" in $(( SECONDS - START_TIME )) seconds."
+{
+    echo
+    message="Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}.  $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT)) of ${TEST_EXECUTED_COUNT} tests passed"
+    message+=" in $(( SECONDS - START_TIME )) seconds."
 
-if [[ ${TEST_FAILED_COUNT} -gt 0 ]] ; then
-    eerror "${message}" &>${ETEST_OUT}
-else
-    einfo "${message}" &>${ETEST_OUT}
-fi
-echo &>${ETEST_OUT}
+    if [[ ${TEST_FAILED_COUNT} -gt 0 ]] ; then
+        eerror "${message}"
+    else
+        einfo "${message}"
+    fi
+    echo
 
-if array_not_empty FAILURES; then
-    eerror "FAILED TESTS:"
-    for index in ${!FAILURES[@]} ; do
-        for failed_test in ${FAILURES[$index]} ; do
-            echo "$(ecolor red)      ${failed_test}" &>${ETEST_OUT}
+    if array_not_empty FAILURES; then
+        eerror "FAILED TESTS:"
+        for index in ${!FAILURES[@]} ; do
+            for failed_test in ${FAILURES[$index]} ; do
+                echo "$(ecolor red)      ${failed_test}"
+            done
         done
-    done
-fi
+    fi
+} |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
 
 exit ${TEST_FAILED_COUNT}
