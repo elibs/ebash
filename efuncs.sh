@@ -3167,15 +3167,17 @@ array_size()
 {
     $(declare_args __array)
 
-    if [[ ! -v ${__array}[@] ]] ; then
-        # Treat unset variables as being an empty array, because when you tell
-        # bash to create an empty array it doesn't really allow you to
-        # distinguish that from an unset variable.  (i.e. it doesn't show you
-        # the variable until you put something in it)
+    # Treat unset variables as being an empty array, because when you tell
+    # bash to create an empty array it doesn't really allow you to
+    # distinguish that from an unset variable.  (i.e. it doesn't show you
+    # the variable until you put something in it)
+    local value=$(eval "echo \${${__array}[*]:-}")
+    if [[ -z "${value}" ]]; then
         echo 0
     else
         eval "echo \${#${__array}[@]}"
     fi
+
     return 0
 }
 
