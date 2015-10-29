@@ -298,10 +298,11 @@ TEST_EXECUTED_COUNT=0
 TEST_FAILED_COUNT=0
 
 # Sanity test of die
-if [[ -x ${ETEST_TOPDIR}/unittest/die && -z ${FILTER} && ! ${EXCLUDE} =~ "die" ]] ; then
+if [[ -x ${ETEST_TOPDIR}/unittest/die && ( -z ${FILTER} || ${FILTER} =~ "die" ) && ! ${EXCLUDE} =~ "die" ]] ; then
     DIE_MSG="Verifying die() trap functionality"
     einfo "${DIE_MSG}" &>${ETEST_OUT}
-    { ebanner "${DIE_MSG}"; ${ETEST_TOPDIR}/unittest/die; } |& tee -a ${ETEST_LOG} &>${TEST_OUT}
+    ebanner "${DIE_MSG}"
+    ${ETEST_TOPDIR}/unittest/die
     eend &>${ETEST_OUT}
 fi
 
