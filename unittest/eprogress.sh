@@ -11,7 +11,7 @@ FAKE_DO_EPROGRESS='
     local tick=0
     rm -f ${OUTPUT}
 
-    while [[ true ]]; do
+    while true; do
         echo "${tick}" >> ${OUTPUT}
         (( tick++ )) || true
         sleep 0.10   || true
@@ -21,14 +21,10 @@ FAKE_DO_EPROGRESS='
 
 wait_for_eprogress()
 {
-    callback()
-    {
-        while true; do
-            [[ -s ${OUTPUT} ]] && return 0
-        done
-    }
-
-    eretry -T=30s callback
+    while true; do
+        [[ -s ${OUTPUT} ]] && return 0
+        sleep .1
+    done
 }
 
 ETEST_eprogress_ticks()
