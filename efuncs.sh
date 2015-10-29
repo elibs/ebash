@@ -76,7 +76,7 @@ edebug()
 
 edebug_out()
 {
-    edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
+    edebug_enabled && echo -n "/proc/self/fd/2" || echo -n "/dev/null"
 }
 
 #-----------------------------------------------------------------------------
@@ -307,11 +307,11 @@ pipe_read_quote()
 # OPTIONS:
 # -r=VAR The variable to assign the return code to (OPTIONAL, defaults to 'rc').
 # -o=VAR The variable to assign STDOUT to (OPTIONAL). If not provided STDOUT
-#        will go to /dev/stdout as normal. This is BUFFERED and not displayed
+#        will go to stdout as normal. This is BUFFERED and not displayed
 #        until the call completes.
 # -e=VAR The variable to assign STDERR to (OPTIONAL). If not provided STDERR
-#        will go to /dev/stderr as normal. This is NOT BUFFERED and will display
-#        to /dev/stderr in real-time.
+#        will go to stderr as normal. This is NOT BUFFERED and will display
+#        to stderr in real-time.
 # -g     Make variables global even if called in a local context.
 tryrc()
 {
@@ -331,7 +331,7 @@ tryrc()
     trap_add "rm -rf ${tmpdir}"
 
     # Create temporary file for stdout and stderr
-    local stdout_file="${tmpdir}/stdout" stderr_file="/dev/stderr"
+    local stdout_file="${tmpdir}/stdout" stderr_file="/proc/self/fd/2"
     [[ -n ${stderr_out} ]] && stderr_file="${tmpdir}/stderr"
 
     # We're creating an "eval command string" inside the command substitution
@@ -2590,7 +2590,7 @@ efetch()
 
     # If we're in quiet mode send all STDOUT and STDERR to edebug
     local redirect=""
-    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
+    opt_true "q" && redirect="$(edebug_out)" || redirect="/proc/self/fd/2"
 
     try
     {
