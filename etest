@@ -261,7 +261,7 @@ run_all_tests_in_file()
        
         try
         {
-            run_single_test ${testfile} ${testfunc} |& tee -a ${ETEST_LOG} &>${TEST_OUT}
+            run_single_test ${testfile} ${testfunc}
         }
         catch
         {
