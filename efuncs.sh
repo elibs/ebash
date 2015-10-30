@@ -73,10 +73,7 @@ edebug()
     if [[ $# -gt 0 ]]; then
         msg="${@}"
     else
-        local line=""
-        while IFS= read -r line || [[ -n "${line}" ]]; do
-            msg+="${line}\n"
-        done
+        msg="$(cat)"
     fi
     
     # If debugging isn't enabled then simply return without writing anything.
@@ -87,7 +84,6 @@ edebug()
 
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
-
     EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dimblue" "" "DEBUG" "${msg}"
 }
 

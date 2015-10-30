@@ -52,8 +52,7 @@ ETEST_edebug_pipe_multiple_lines()
 {
     local input="$(dmesg)"
     local output=$(EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")
-
-    assert_eq "${input}" "${output}"
+    diff --unified <(echo -en "${input}") <(echo -en "${output}")
 }
 
 ETEST_edebug_pipe_return_code()
