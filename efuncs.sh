@@ -67,8 +67,6 @@ edebug_disabled()
 
 edebug()
 {
-    edebug_enabled || return 0
-
     # Take intput either from arguments or if no arguments were provided take input from
     # standard input.
     local msg=""
@@ -80,9 +78,16 @@ edebug()
             msg+="${line}\n"
         done
     fi
+    
+    # If debugging isn't enabled then simply return without writing anything.
+    # NOTE: We can't return at the top of this function in the event the caller has
+    # piped output into edebug. We have to consume their output so that they don't
+    # get an error or block.
+    edebug_enabled || return 0
 
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
+
     EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dimblue" "" "DEBUG" "${msg}"
 }
 
