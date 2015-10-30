@@ -376,7 +376,7 @@ tryrc()
         if [[ -n "${cmd[@]:-}" ]]; then
 
             # Redirect subshell's STDOUT and STDERR to requested locations
-            exec 1>${stdout_file}
+            exec >${stdout_file}
             [[ -n ${stderr_out} ]] && exec 2>${stderr_file}
 
             # Run command
