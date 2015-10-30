@@ -324,8 +324,9 @@ jenkins_build_is_running()
 
     try
     {
-        local result rc
-        result=$(jenkins_build_json ${buildNum} building | jq --raw-output '.building') && rc=0 || rc=$?
+        local json=$(jenkins_build_json ${buildNum} building)
+        local result=$(echo "${json}" | jq --raw-output '.building')
+        edebug "$(lval json result)"
 
         [[ ${result} == "true" ]] 
         return 0
@@ -335,7 +336,6 @@ jenkins_build_is_running()
         return $?
     }
 }
-
 #
 # Retrieves a list of artifacts associated with a particular jenkins build.
 #
