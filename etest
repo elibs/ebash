@@ -148,7 +148,7 @@ global_teardown()
 
     cgroup_destroy -r ${ETEST_CGROUP}
 
-    eunmount_recursive ${TEST_DIR_OUTPUT} &>$(edebug_out)
+    eunmount_recursive ${TEST_DIR_OUTPUT} |& edebug
     rm -rf ${TEST_DIR_OUTPUT}
 
     # Convert logfile to HTML if requested
@@ -273,7 +273,7 @@ run_all_tests_in_file()
 
         # Unit test infrastructure teardown
         assert_no_process_leaks
-        eunmount_recursive ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc} &>$(edebug_out)
+        eunmount_recursive ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc} |& edebug
         rm -rf ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
 
     done
