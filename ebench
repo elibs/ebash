@@ -161,6 +161,35 @@ BENCH_no_debug_trap_plus_comparison()
     debug_trap_shared
 }
 
+BENCH_edebug_disabled()
+{
+    EDEBUG=0 edebug ""
+}
+
+BENCH_edebug_enabled()
+{
+    ( EDEBUG=1 edebug "" )
+}
+
+BENCH_edebug_pipe_disabled()
+{
+    ( EDEBUG=0 echo "" | edebug )
+}
+
+BENCH_edebug_pipe_enabled()
+{
+    ( EDEBUG=1 echo "" | edebug )
+}
+
+BENCH_edebug_pipe_disabled_massive_output()
+{
+    ( EDEBUG=0 dmesg | edebug )
+}
+
+#-----------------------------------------------------------------------------
+# MAIN
+#-----------------------------------------------------------------------------
+
 $(declare_args)
 
 BENCH_FUNCS=( $(declare -F | awk '$3 ~ "^BENCH_" {print $3}') )
