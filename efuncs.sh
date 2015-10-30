@@ -67,6 +67,17 @@ edebug_disabled()
 
 edebug()
 {
+    # If edebug is disabled we're going to return 0. But we must consume any standard
+    # input passed into this function so that the caller doesn't hang or get an error.
+    if edebug_disabled; then
+
+        if [[ $# -eq 0 ]]; then
+            while read -r; do : ; done
+        fi
+
+        return 0
+    fi
+
     # Take intput either from arguments or if no arguments were provided take input from
     # standard input.
     local msg=""
@@ -79,15 +90,8 @@ edebug()
         done
     fi
     
-    # If debugging isn't enabled then simply return without writing anything.
-    # NOTE: We can't return at the top of this function in the event the caller has
-    # piped output into edebug. We have to consume their output so that they don't
-    # get an error or block.
-    edebug_enabled || return 0
-
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
-
     EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dimblue" "" "DEBUG" "${msg}"
 }
 
