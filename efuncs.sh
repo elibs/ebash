@@ -2099,7 +2099,7 @@ emetadata()
 
     # Output PGPSignature encoded in base64
     echo "PGPKey=$(basename ${privatekey})"
-    echo "PGPSignature=$(gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} | base64 --wrap 0)"
+    echo "PGPSignature=$(gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>/dev/null | base64 --wrap 0)"
 }
 
 # Validate an exiting source file against a companion *.meta file which contains
