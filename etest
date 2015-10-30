@@ -321,7 +321,8 @@ fi
 
 {
     echo
-    message="Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}.  $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT)) of ${TEST_EXECUTED_COUNT} tests passed"
+    message="Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}."
+    message+=" $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT))/${TEST_EXECUTED_COUNT} tests passed"
     message+=" in $(( SECONDS - START_TIME )) seconds."
 
     if [[ ${TEST_FAILED_COUNT} -gt 0 ]] ; then

@@ -69,9 +69,21 @@ edebug()
 {
     edebug_enabled || return 0
 
+    # Take intput either from arguments or if no arguments were provided take input from
+    # standard input.
+    local msg=""
+    if [[ $# -gt 0 ]]; then
+        msg="${@}"
+    else
+        local line=""
+        while IFS= read -r line || [[ -n "${line}" ]]; do
+            msg+="${line}\n"
+        done
+    fi
+
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
-    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dimblue" "" "DEBUG" "$@"
+    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dimblue" "" "DEBUG" "${msg}"
 }
 
 edebug_out()
@@ -109,7 +121,7 @@ alias try="
     (
         enable_trace
         die_on_abort
-        trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &>\$(edebug_out)' ERR
+        trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} |& edebug' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -169,7 +181,7 @@ alias nodie_on_error="export __EFUNCS_DIE_ON_ERROR_ENABLED=0; trap - ERR"
 # (1) otherwise.
 die_on_error_enabled()
 {
-    trap -p | grep ERR &>$(edebug_out)
+    trap -p | grep ERR |& edebug
 }
 
 # Convert stream names (e.g. 'stdout') to cannonical file descriptor numbers:
@@ -2029,7 +2041,7 @@ emd5sum_check()
     local dname=$(dirname  "${path}")
 
     pushd "${dname}"
-    md5sum -c "${fname}.md5" >$(edebug_out)
+    md5sum -c "${fname}.md5" | edebug
     popd
 }
 
@@ -2073,7 +2085,7 @@ emetadata()
     keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
     trap_add "rm -f ${keyring}"
-    gpg ${keyring_command} --import ${privatekey} &>$(edebug_out)
+    gpg ${keyring_command} --import ${privatekey} |& edebug
 
     # Get optional keyphrase
     local keyphrase="" keyphrase_command=""
@@ -2082,7 +2094,7 @@ emetadata()
 
     # Output PGPSignature encoded in base64
     echo "PGPKey=$(basename ${privatekey})"
-    echo "PGPSignature=$(gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>$(edebug_out) | base64 --wrap 0)"
+    echo "PGPSignature=$(gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} | base64 --wrap 0)"
 }
 
 # Validate an exiting source file against a companion *.meta file which contains
@@ -2122,7 +2134,7 @@ emetadata_check()
     [[ -n ${publickey} && -n ${pgpsignature} ]] && digests+=( "PGP" )
 
     opt_true "q" || eprogress "Verifying integrity of $(lval path metadata=digests)"
-    pack_print metapack &>$(edebug_out)
+    pack_print metapack |& edebug
     local pids=()
 
     # Validate size
@@ -2154,8 +2166,8 @@ emetadata_check()
         (
             local keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
             trap_add "rm -f ${keyring}"
-            gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} &>$(edebug_out)
-            echo "${pgpsignature}" | gpg --verify - "${path}" &>$(edebug_out) || fail "PGP verification failure: $(lval path)"
+            gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} |& edebug
+            echo "${pgpsignature}" | gpg --verify - "${path}" |& edebug || fail "PGP verification failure: $(lval path)"
         ) &
 
         pids+=( $! )
@@ -2222,9 +2234,9 @@ ebindmount()
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
     # machine outside that chroot.
-    mount --make-rprivate "${src}" &>$(edebug_out)  || true
+    mount --make-rprivate "${src}"  |& edebug || true
     emount --rbind "${@}" "${src}" "${dest}"
-    mount --make-rprivate "${dest}" &>$(edebug_out) || true
+    mount --make-rprivate "${dest}" |& edebug || true
 }
 
 emount()
@@ -2588,12 +2600,11 @@ efetch()
     local md5="${dst}.md5"
     local meta="${dst}.meta"
 
-    # If we're in quiet mode send all STDOUT and STDERR to edebug
-    local redirect=""
-    opt_true "q" && redirect="$(edebug_out)" || redirect="/dev/stderr"
-
     try
     {
+        # Optionally suppress all output from this subshell
+        opt_true "q" && exec &>/dev/null
+
         ## If requested, fetch MD5 file
         if opt_true "m"; then
 
@@ -2629,7 +2640,9 @@ efetch()
         else
             efetch_internal "${url}" "${dst}"
         fi
-    } &>${redirect}
+    
+        einfos "Successfully fetched $(lval url dst)"
+    }
     catch
     {
         local rc=$?
@@ -2637,8 +2650,6 @@ efetch()
         rm -rf "${dst}" "${md5}" "${meta}"
         return ${rc}
     }
-
-    einfos "Successfully fetched $(lval url dst)" &>${redirect}
 }
 
 netselect()
@@ -3897,6 +3908,18 @@ assert_ne()
 {
     $(declare_args ?lh ?rh ?msg)
     [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_like()
+{
+    $(declare_args ?lh ?rh ?msg)
+    [[ "${lh}" =~ "${rh}" ]] || die "assert_like failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_not_like()
+{
+    $(declare_args ?lh ?rh ?msg)
+    [[ ! "${lh}" =~ "${rh}" ]] || die "assert_like failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_zero()

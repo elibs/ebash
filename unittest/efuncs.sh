@@ -16,42 +16,6 @@ ETEST_argcheck()
     die "argcheck should have thrown"
 }
 
-ETEST_edebug_one_and_zero()
-{
-    EDEBUG=1 edebug_enabled || die "edebug should be enabled"
-    EDEBUG=0 edebug_enabled && die "edebug should not be enabled" || true
-}
-
-ETEST_edebug_enabled_matcher()
-{
-    EDEBUG="${FUNCNAME}"                edebug_enabled
-    EDEBUG="efuncs"                     edebug_enabled
-    EDEBUG="something else entirely"    edebug_disabled
-    EDEBUG="else and edebug"            edebug_enabled
-    EDEBUG=""                           edebug_disabled
-}
-
-ETEST_edebug_and_etrace()
-{
-    EDEBUG=""            ETRACE="${FUNCNAME}"   edebug_enabled
-    EDEBUG="${FUNCNAME}" ETRACE=""              edebug_enabled
-    EDEBUG="${FUNCNAME}" ETRACE=0               edebug_enabled
-    EDEBUG=1             ETRACE=""              edebug_enabled
-    EDEBUG=1             ETRACE=0               edebug_enabled
-    EDEBUG=""            ETRACE=1               edebug_enabled
-    EDEBUG=0             ETRACE=1               edebug_enabled
-
-    EDEBUG=""            ETRACE=""              edebug_disabled
-    EDEBUG=0             ETRACE=0               edebug_disabled
-    EDEBUG="NOT"         ETRACE="HERE"          edebug_disabled
-}
-
-ETEST_edebug_enabled_skips_edebug_in_stack_frame()
-{
-    output=$(EDEBUG="ETEST_edebug_enabled_skips_edebug_in_stack_frame" edebug "hello" 2>&1)
-    [[ ${output} =~ hello ]] || die
-}
-
 ETEST_fully_qualify_hostname_ignores_case()
 {
     assert_eq 'bdr-jenkins.eng.solidfire.net' $(fully_qualify_hostname bdr-jenkins)
