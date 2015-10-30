@@ -171,12 +171,12 @@ ETEST_elogfile_truncate()
         echo "/dev/stderr" >/dev/stderr
         echo "/dev/fd/1"   >/dev/fd/1
         echo "/dev/fd/2"   >/dev/fd/2
-        echo "edebug_out"  >$(edebug_out)
+        echo "edebug"      |& edebug
         echo "&1"          >&1
         echo "&2"          >&2
     )
 
-    for match in "/dev/stdout" "/dev/stderr" "/dev/fd/1" "/dev/fd/2" "edebug_out" "&1" "&2"; do
+    for match in "/dev/stdout" "/dev/stderr" "/dev/fd/1" "/dev/fd/2" "edebug" "&1" "&2"; do
         grep --quiet "${match}" ${FUNCNAME}.log || die "Logfile was truncated"
     done
 }

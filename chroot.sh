@@ -144,7 +144,7 @@ chroot_readlink()
     argcheck CHROOT
     $(declare_args path)
 
-    echo -n "${CHROOT}$(chroot_cmd readlink -f "${path}" 2>$(edebug_out))"
+    echo -n "${CHROOT}$(chroot_cmd readlink -f "${path}" 2>/dev/null)"
 }
 
 #-----------------------------------------------------------------------------
@@ -181,7 +181,7 @@ chroot_install_check()
     # BUG: https://bugs.launchpad.net/ubuntu/+source/aptitude/+bug/919216
     # 'aptitude install' silently fails with success if a bogus package is given whereas 'aptitude show'
     # gives back a proper error code. So first do a check with aptitude show first.
-    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} show $(echo $* | sed -e 's/\(>=\|<=\)/=/g')" >$(edebug_out)
+    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} show $(echo $* | sed -e 's/\(>=\|<=\)/=/g')" |& edebug
 }
 
 chroot_install()

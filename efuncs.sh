@@ -121,7 +121,7 @@ alias try="
     (
         enable_trace
         die_on_abort
-        trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} |& edebug' ERR
+        trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &> >(edebug)' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -181,7 +181,7 @@ alias nodie_on_error="export __EFUNCS_DIE_ON_ERROR_ENABLED=0; trap - ERR"
 # (1) otherwise.
 die_on_error_enabled()
 {
-    trap -p | grep ERR |& edebug
+    trap -p | grep -q ERR
 }
 
 # Convert stream names (e.g. 'stdout') to cannonical file descriptor numbers:

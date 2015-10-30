@@ -9,7 +9,7 @@ ETEST_edebug_one_and_zero()
 ETEST_edebug_enabled_matcher()
 {
     EDEBUG="${FUNCNAME}"                edebug_enabled
-    EDEBUG="efuncs"                     edebug_enabled
+    EDEBUG="edebug"                     edebug_enabled
     EDEBUG="something else entirely"    edebug_disabled
     EDEBUG="else and edebug"            edebug_enabled
     EDEBUG=""                           edebug_disabled
@@ -54,4 +54,20 @@ ETEST_edebug_pipe_multiple_lines()
     local output=$(EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")
 
     assert_eq "${input}" "${output}"
+}
+
+ETEST_edebug_pipe_return_code()
+{
+    try
+    {
+        false |& edebug
+        throw 100
+    }
+    catch
+    {
+        [[ $? -eq 100 ]] && die "edebug suppressed a failure"
+        return 0
+    }
+
+    die "Test should have thrown or returned"
 }

@@ -62,7 +62,7 @@ jenkins_prep_jar()
     if [[ -z ${JENKINS_CLI_JAR:=} || ! -r ${JENKINS_CLI_JAR} ]] ; then
         local tempDir
         tempDir=$(mktemp -d /tmp/jenkins.sh.tmp-XXXXXXXX)
-        efetch "$(jenkins_url)/jnlpJars/jenkins-cli.jar" "${tempDir}" 2>$(edebug_out)
+        efetch "$(jenkins_url)/jnlpJars/jenkins-cli.jar" "${tempDir}" |& edebug
         export JENKINS_CLI_JAR="${tempDir}/jenkins-cli.jar"
         trap_add "edebug \"Deleting ${JENKINS_CLI_JAR}.\" ; rm -rf \"${tempDir}\""
     fi
@@ -144,7 +144,7 @@ jenkins_update()
 
     # If the job was already there, then we need to update it.
     if [[ ${rc} -eq 50 ]] ; then
-        jenkins -f="${newConfig}" update-${itemType} "${name}" &>$(edebug_out)
+        jenkins -f="${newConfig}" update-${itemType} "${name}" |& edebug
 
     # If the create passed, we're good!
     elif [[ ${rc} -eq 0 ]] ; then
@@ -378,9 +378,9 @@ jenkins_cancel_queue_jobs()
     # nicely tell jq to skip them.
     local ids
     ids=$(curl --fail --silent $(jenkins_url)/queue/api/json \
-                    | jq '.items[] | select( .actions[].parameters[].value == "'${dtest_title}'" and .actions[].parameters[].name == "DTEST_TITLE")' 2> $(edebug_out) \
-                    | jq .id \
-                    | sed 's/"//g' || true)
+        | jq '.items[] | select( .actions[].parameters[].value == "'${dtest_title}'" and .actions[].parameters[].name == "DTEST_TITLE")' 2> /dev/null \
+        | jq .id \
+        | sed 's/"//g' || true)
 
     edebug "Killing jenkins queued items $(lval ids)"
     for id in ${ids} ; do

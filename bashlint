@@ -4,9 +4,9 @@
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
 # Options:
-# -q Quiet mode: Send all output to edebug.
+# -q Quiet mode
 $(declare_args -g)
-opt_true "q" && exec &>$(edebug_out)
+opt_true "q" && exec &>/dev/null
 
 # Paths to recursively parse
 PATHS=( ${@:-.} )

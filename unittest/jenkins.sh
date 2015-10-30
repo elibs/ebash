@@ -151,7 +151,7 @@ ETEST_jenkins_run_a_build()
     local buildJson=$(jenkins_build_json ${buildNumber})
     edebug "$(lval buildJson buildNumber)"
 
-    echo "${buildJson}" | jq . &>$(edebug_out)
+    echo "${buildJson}" | jq . |& edebug
     
     # Check that the parameter made it in to the job
     $(json_import -q=".actions[0].parameters[0]" <<< ${buildJson} )
