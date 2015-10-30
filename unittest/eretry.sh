@@ -247,7 +247,11 @@ ETEST_eretry_true()
     assert [[ ${rc} -eq 0 ]]
 }
 
-ETEST_eretry_dead_stdout_stderr_symlink()
+# This test is disabled because it's dangerous to be removing /dev/{stdout,stderr}. 
+# Unfortunately that was the only way to recreate this bug. But now that it's fixed
+# there's no reason to run this continuously. But I'm leaving it in here because it
+# may be useful in the future if we encounter this bug again.
+DISABLED_ETEST_eretry_dead_stdout_stderr_symlink()
 {
     local dname="/proc/${FUNCNAME}-${BASHPID}"
     assert_not_exists "${dname}"
