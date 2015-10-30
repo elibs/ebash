@@ -152,7 +152,7 @@ ETEST_nodie_on_error_with_try_catch()
 
 # Verify we are building up the try/catch enabled stack correctly.
 ERR_TRAP_DIE="die ${DIE_MSG_UNHERR}"
-ERR_TRAP_CATCH="die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} |& edebug"
+ERR_TRAP_CATCH="die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &> >(edebug)"
 ERR_TRAP_NONE="-"
 
 assert_stack_eq()
@@ -602,30 +602,4 @@ ETEST_tryrc_multiline_monster_output()
 ETEST_tryrc_hang_recreate()
 {
     $(tryrc eretry -T=.1s sleep 1)
-}
-
-ETEST_tryrc_stderr_closed()
-{
-    rm -f /dev/stdout /dev/stderr
-    assert_not_exists /dev/stdout /dev/stderr
-
-    # Make them dangling symlinks
-    ln -s /proc/XXXXXX/fd/1 /dev/stdout
-    ln -s /proc/XXXXXX/fd/2 /dev/stderr
-
-    callback()
-    {
-        EFUNCS_COLOR=0
-        einfo "In callback"
-        echo "Output"
-        exit 0
-    }
-
-    eretry callback
-
-    #$(tryrc -o=stdout callback)
-
-    #assert_eq 0 "${rc}"
-#    assert_eq ">> In callback" "${stderr}"
-    #assert_eq "Output"         "${stdout}"
 }
