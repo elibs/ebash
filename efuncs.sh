@@ -343,8 +343,7 @@ tryrc()
     trap_add "rm -rf ${tmpdir}"
 
     # Create temporary file for stdout and stderr
-    local stdout_file="${tmpdir}/stdout" stderr_file="/dev/stderr"
-    [[ -n ${stderr_out} ]] && stderr_file="${tmpdir}/stderr"
+    local stdout_file="${tmpdir}/stdout" stderr_file="${tmpdir}/stderr"
 
     # We're creating an "eval command string" inside the command substitution
     # that the caller is supposed to wrap around tryrc.
@@ -375,9 +374,14 @@ tryrc()
     try
     {
         if [[ -n "${cmd[@]:-}" ]]; then
-            "${cmd[@]}" >${stdout_file} 2>${stderr_file}
+
+            # Redirect subshell's STDOUT and STDERR to requested locations
+            exec 1>${stdout_file}
+            [[ -n ${stderr_out} ]] && exec 2>${stderr_file}
+
+            # Run command
+            "${cmd[@]}"
         fi
-        
     }
     catch
     {
@@ -401,7 +405,7 @@ tryrc()
     fi
 
     # Emit commands to assign stderr
-    if [[ -s ${stderr_file} && -n ${stderr_out} ]]; then
+    if [[ -n ${stderr_out} && -s ${stderr_file} ]]; then
         local stderr="$(pipe_read_quote ${stderr_file})"
         echo eval "declare ${dflags} ${stderr_out}=${stderr};"
     fi

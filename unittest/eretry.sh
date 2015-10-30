@@ -246,3 +246,32 @@ ETEST_eretry_true()
     $(tryrc eretry -r=2 true)
     assert [[ ${rc} -eq 0 ]]
 }
+
+ETEST_eretry_dead_stdout_stderr_symlink()
+{
+    local dname="/proc/${FUNCNAME}-${BASHPID}"
+    assert_not_exists "${dname}"
+    
+    # Setup traps to ensure we fix /dev/stdout and /dev/stderr
+    trap_add "ln -sf /proc/self/fd/1 /dev/stdout"
+    trap_add "ln -sf /proc/self/fd/2 /dev/stderr"
+
+    # Forcibly remove /dev/stdout and /dev/stderr
+    rm -f /dev/stdout /dev/stderr
+    assert_not_exists /dev/stdout /dev/stderr
+    
+    # Make them dangling symlinks
+    ln -s ${dname}/fd/1 /dev/stdout
+    ln -s ${dname}/fd/2 /dev/stderr
+    
+    callback()
+    {
+        EFUNCS_COLOR=0
+        einfo "In callback"
+        echo "Output"
+        exit 0
+    }
+    
+    local output=$(eretry callback)
+    assert_eq "Output" "${output}"
+}
