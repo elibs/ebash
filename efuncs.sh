@@ -3915,16 +3915,16 @@ assert_ne()
     [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
 }
 
-assert_like()
+assert_match()
 {
     $(declare_args ?lh ?rh ?msg)
-    [[ "${lh}" =~ "${rh}" ]] || die "assert_like failed [${msg:-}] :: $(lval lh rh)"
+    [[ "${lh}" =~ "${rh}" ]] || die "assert_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
-assert_not_like()
+assert_not_match()
 {
     $(declare_args ?lh ?rh ?msg)
-    [[ ! "${lh}" =~ "${rh}" ]] || die "assert_like failed [${msg:-}] :: $(lval lh rh)"
+    [[ ! "${lh}" =~ "${rh}" ]] || die "assert_not_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_zero()

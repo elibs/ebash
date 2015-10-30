@@ -33,13 +33,13 @@ ETEST_edebug_and_etrace()
 ETEST_edebug_enabled_skips_edebug_in_stack_frame()
 {
     local output=$(EDEBUG=${FUNCNAME}; edebug "hello" 2>&1)
-    assert_like "${output}" "hello"
+    assert_match "${output}" "hello"
 }
 
 ETEST_edebug_pipe_input()
 {
     local output=$(EDEBUG=${FUNCNAME}; echo "foo" | edebug 2>&1)
-    assert_like "${output}" "foo"
+    assert_match "${output}" "foo"
 }
 
 ETEST_edebug_pipe_empty()
