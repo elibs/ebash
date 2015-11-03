@@ -1879,6 +1879,9 @@ elogrotate()
 # -t=(0|1)
 #   Tail the output (defaults to 1)
 #
+# -u=(0|1)
+#   Unify STDOUT and STDERR output streams into a single stream on STDOUT.
+#
 elogfile()
 {
     $(declare_args)
@@ -1888,7 +1891,8 @@ elogfile()
     local dotail=$(opt_get t 1)
     local rotate=$(opt_get r 0)
     local rotate_size=$(opt_get s 0)
-    edebug "$(lval stdout stderr dotail rotate_count rotate_size)"
+    local unify=$(opt_get u 0)
+    edebug "$(lval stdout stderr dotail rotate_count rotate_size unify)"
 
     # Return if nothing to do
     if [[ ${stdout} -eq 0 && ${stderr} -eq 0 ]] || [[ -z "$*" ]]; then
@@ -1966,7 +1970,12 @@ elogfile()
                 echo "${BASHPID}" >${pid_pipe}
 
                 if [[ ${dotail} -eq 1 ]]; then
-                    tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
+
+                    if [[ ${unify} -eq 1 ]]; then
+                        tee -a "${@}" <${pipe} 2>/dev/null
+                    else
+                        tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
+                    fi
                 else
                     tee -a "${@}" <${pipe} >/dev/null 2>&1
                 fi
@@ -1978,13 +1987,22 @@ elogfile()
         local pid=$(cat ${pid_pipe})
         trap_add "kill -9 ${pid} 2>/dev/null || true"
 
-        # Finally re-exec so that our output stream is redirected to the pipe.
-        eval "exec $(get_stream_fd ${name})>${pipe}"
+        # Finally re-exec so that our output stream(s) are redirected to the pipe.
+        # NOTE: If we're unifying stdout+stderr we redirect both streams into the pipe
+        if [[ ${unify} -eq 1 ]]; then
+            eval "exec &>${pipe}"
+        else
+            eval "exec $(get_stream_fd ${name})>${pipe}"
+        fi
     }
 
     # Redirect stdout and stderr as requested to the provided list of files.
-    elogfile_redirect stdout "${@}"
-    elogfile_redirect stderr "${@}"
+    if [[ ${unify} -eq 1 ]]; then
+        elogfile_redirect stdout "${@}"
+    else
+        elogfile_redirect stdout "${@}"
+        elogfile_redirect stderr "${@}"
+    fi
 }
 
 # etar is a wrapper around the normal 'tar' command with a few enhancements:

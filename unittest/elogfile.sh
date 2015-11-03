@@ -287,3 +287,53 @@ ETEST_elogfile_hang_kill_tee()
     )
 }
 
+ETEST_elogfile_unify_off()
+{
+    (
+        exec 1>stdout
+        exec 2>stderr
+
+        (
+            EDEBUG=0
+            EFUNCS_COLOR=0
+
+            elogfile -u=0 ${FUNCNAME}.log
+            
+            echo "stdout" >&1
+            echo "stderr" >&2
+
+        )
+    )
+
+    etestmsg "Verifying file"
+    eretry cat ${FUNCNAME}.log
+    assert_eq stdout$'\n'stderr "$(cat ${FUNCNAME}.log)"
+    assert_eq "stdout" "$(cat stdout)"
+    assert_eq "stderr" "$(cat stderr)"
+}
+
+ETEST_elogfile_unify_on()
+{
+    (
+        exec 1>stdout
+        exec 2>stderr
+
+        (
+            EDEBUG=0
+            EFUNCS_COLOR=0
+
+            elogfile -u=1 ${FUNCNAME}.log
+            
+            echo "stdout" >&1
+            echo "stderr" >&2
+
+        )
+    )
+
+    etestmsg "Verifying file"
+    eretry cat ${FUNCNAME}.log
+    assert_eq stdout$'\n'stderr "$(cat ${FUNCNAME}.log)"
+    assert_eq stdout$'\n'stderr "$(cat stdout)"
+    assert_empty                "$(cat stderr)"
+}
+
