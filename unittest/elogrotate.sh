@@ -37,12 +37,25 @@ ETEST_elogrotate_count()
 
 ETEST_elogrotate_size()
 {
-    eprogress "Creating 1K file"
-    dd if=/dev/random of=foo bs=1K count=1
-    eprogress_kill
+    # Create another file large enough to rotate in the same directory -- at
+    # one time a bug in the elogrotate implementation caused this to make
+    # rotation occur
+    dd if=/dev/zero of=unrelated-file bs=1K count=10 &>/dev/null
+    echo "hi" >foo
+    ls -ltr
 
-    elogrotate -s=1k foo
-    find . | sort --version-sort
+    etestmsg "Making sure not to rotate with small log file"
+    elogrotate -s=2k foo
+
+    ls -ltr
+    assert_exists foo
+    assert_not_exists foo.1
+
+    etestmsg "trying with 3k log file (which should rotate)"
+    dd if=/dev/zero of=foo bs=1K count=3 &>/dev/null
+    elogrotate -s=2k foo
+
+    ls -ltr
     assert_exists foo foo.1
     assert_not_exists foo.2
     assert_false [[ -s foo   ]]
