@@ -1970,12 +1970,7 @@ elogfile()
                 echo "${BASHPID}" >${pid_pipe}
 
                 if [[ ${dotail} -eq 1 ]]; then
-
-                    if [[ ${unify} -eq 1 ]]; then
-                        tee -a "${@}" <${pipe} 2>/dev/null
-                    else
-                        tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
-                    fi
+                    tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
                     tee -a "${@}" <${pipe} >/dev/null 2>&1
                 fi
