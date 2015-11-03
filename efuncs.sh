@@ -1820,10 +1820,16 @@ elogrotate()
     # Ensure we don't try to rotate non-files
     [[ -f $(readlink -f "${name}") ]] 
 
+    # Find log files by exactly this name that are of the size that should be rotated
+    local files="$(find "$(dirname "${name}")" -maxdepth 1          \
+                   -type f                                          \
+                   -a -name "$(basename "${name}")"                 \
+                   -a \( -size ${size} -o -size +${size} \) )"
+
+    edebug "$(lval name files count size)"
+
     # If log file exists and is smaller than size threshold just return
-    if [[ -z "$(find "$(dirname "${name}")" -maxdepth 1     \
-               -type f -name "$(basename "${name}")"        \
-               -size ${size} -o -size +${size})" ]]; then
+    if [[ -z "${files}"  ]]; then
         return 0
     fi
 
