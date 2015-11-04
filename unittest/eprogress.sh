@@ -140,3 +140,8 @@ ETEST_eprogress_killall()
     done
 }
 
+ETEST_eprogress_killall_empty()
+{
+    eprogress_kill -a
+}
+
