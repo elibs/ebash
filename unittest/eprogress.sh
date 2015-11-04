@@ -133,7 +133,7 @@ ETEST_eprogress_killall()
         assert process_running ${pid}
     done
 
-    # Kill all eprogress pids and verify the exit
+    # Kill all eprogress pids and verify they exit
     eprogress_kill -a
     for pid in "${pids[@]}"; do
         eretry -T=5s process_not_running ${pid}
