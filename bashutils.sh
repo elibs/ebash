@@ -10,6 +10,4 @@ source ${BASHUTILS}/daemon.sh
 source ${BASHUTILS}/dpkg.sh
 source ${BASHUTILS}/jenkins.sh
 source ${BASHUTILS}/netns.sh
-source ${BASHUTILS}/omconfig.sh
-source ${BASHUTILS}/plymouth.sh
 
