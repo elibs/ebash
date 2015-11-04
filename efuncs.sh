@@ -1188,6 +1188,7 @@ eprogress()
 #
 # Options:
 # -r Return code to use (defaults to 0)
+# -a Kill all eprogress pids.
 eprogress_kill()
 {
     $(declare_args)
@@ -1205,8 +1206,10 @@ eprogress_kill()
     local pids=()
     if [[ $# -gt 0 ]]; then
         pids=( ${@} )
+    elif opt_true a; then
+        pids=( "${__EPROGRESS_PIDS[@]}" )
     elif array_not_empty __EPROGRESS_PIDS; then 
-        pids=( ${__EPROGRESS_PIDS[-1]} )
+        pids=( "${__EPROGRESS_PIDS[-1]}" )
     else
         return 0
     fi

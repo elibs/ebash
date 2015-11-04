@@ -119,3 +119,24 @@ ETEST_eprogress_kill_before_eprogress()
 {
     eprogress_kill
 }
+
+ETEST_eprogress_killall()
+{
+    eprogress "Processing" &> /dev/null
+    eprogress "More Stuff" &> /dev/null
+
+    local pids=( "${__EPROGRESS_PIDS[@]}" )
+    assert_eq 2 $(array_size pids)
+   
+    local pid=
+    for pid in "${pids[@]}"; do
+        assert process_running ${pid}
+    done
+
+    # Kill all eprogress pids and verify the exit
+    eprogress_kill -a
+    for pid in "${pids[@]}"; do
+        eretry -T=5s process_not_running ${pid}
+    done
+}
+
