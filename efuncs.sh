@@ -903,7 +903,7 @@ emsg()
         local times_re="\ball|times\b"
         [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} =~ ${times_re} || ${emsg_prefix} =~ ${time_re} ]] && prefix+="${time_color}$(etimestamp)"
         [[ ${emsg_prefix} =~ ${level_re}  ]] && prefix+="${delim}${level_color}$(printf "%s"  ${level%%S})"
-        [[ ${emsg_prefix} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')))"
+        [[ ${emsg_prefix} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')) || true)"
     fi
 
     # Strip of extra leading delimiter if present
