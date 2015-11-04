@@ -287,7 +287,7 @@ ETEST_elogfile_hang_kill_tee()
     )
 }
 
-ETEST_elogfile_unify_off()
+ETEST_elogfile_merge_off()
 {
     (
         exec 1>stdout
@@ -297,7 +297,7 @@ ETEST_elogfile_unify_off()
             EDEBUG=0
             EFUNCS_COLOR=0
 
-            elogfile -u=0 ${FUNCNAME}.log
+            elogfile -m=0 ${FUNCNAME}.log
             
             echo "stdout" >&1
             echo "stderr" >&2
@@ -312,7 +312,7 @@ ETEST_elogfile_unify_off()
     assert_eq "stderr" "$(cat stderr)"
 }
 
-ETEST_elogfile_unify_on()
+ETEST_elogfile_merge_on()
 {
     (
         exec 1>stdout
@@ -322,7 +322,7 @@ ETEST_elogfile_unify_on()
             EDEBUG=0
             EFUNCS_COLOR=0
 
-            elogfile -u=1 ${FUNCNAME}.log
+            elogfile -m=1 ${FUNCNAME}.log
             
             echo "stdout" >&1
             echo "stderr" >&2
