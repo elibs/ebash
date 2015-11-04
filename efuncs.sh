@@ -1874,8 +1874,8 @@ elogrotate()
 # -t=(0|1)
 #   Tail the output (defaults to 1)
 #
-# -u=(0|1)
-#   Unify STDOUT and STDERR output streams into a single stream on STDOUT.
+# -m=(0|1)
+#   Merge STDOUT and STDERR output streams into a single stream on STDOUT.
 #
 elogfile()
 {
@@ -1886,8 +1886,8 @@ elogfile()
     local dotail=$(opt_get t 1)
     local rotate=$(opt_get r 0)
     local rotate_size=$(opt_get s 0)
-    local unify=$(opt_get u 0)
-    edebug "$(lval stdout stderr dotail rotate_count rotate_size unify)"
+    local merge=$(opt_get m 0)
+    edebug "$(lval stdout stderr dotail rotate_count rotate_size merge)"
 
     # Return if nothing to do
     if [[ ${stdout} -eq 0 && ${stderr} -eq 0 ]] || [[ -z "$*" ]]; then
@@ -1978,8 +1978,8 @@ elogfile()
         trap_add "kill -9 ${pid} 2>/dev/null || true"
 
         # Finally re-exec so that our output stream(s) are redirected to the pipe.
-        # NOTE: If we're unifying stdout+stderr we redirect both streams into the pipe
-        if [[ ${unify} -eq 1 ]]; then
+        # NOTE: If we're merging stdout+stderr we redirect both streams into the pipe
+        if [[ ${merge} -eq 1 ]]; then
             eval "exec &>${pipe}"
         else
             eval "exec $(get_stream_fd ${name})>${pipe}"
@@ -1987,7 +1987,7 @@ elogfile()
     }
 
     # Redirect stdout and stderr as requested to the provided list of files.
-    if [[ ${unify} -eq 1 ]]; then
+    if [[ ${merge} -eq 1 ]]; then
         elogfile_redirect stdout "${@}"
     else
         elogfile_redirect stdout "${@}"
