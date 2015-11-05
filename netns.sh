@@ -101,20 +101,22 @@ netns_init()
 #
 netns_check_pack()
 {
-    $(declare_args pack)
+    $(declare_args netns_args)
 
     local key
     for key in ns_name devname peer_devname connected_nic bridge_cidr nic_cidr ; do
-        if ! pack_contains ${pack} ${key} ; then
-            pack_set $(pack_get ${pack} netns_args_name) API_Error_message="ERROR: pack key missing (${key})"
+        if ! pack_contains ${netns_args} ${key} ; then
+            edebug "ERROR: netns_args key missing (${key})"
+            pack_set $(pack_get ${netns_args} netns_args_name) API_Error_message="ERROR: netns_args key missing (${key})"
             return 1
         fi
     done
 
-    $(pack_import ${pack} ns_name bridge_cidr nic_cidr)
+    $(pack_import ${netns_args} ns_name bridge_cidr nic_cidr)
 
     if [[ ${#ns_name} -gt 12 ]] ; then
-        pack_set $(pack_get ${pack} netns_args_name) API_Error_message="ERROR: namespace name too long (Max: 12 chars)"
+        edebug "ERROR: namespace name too long (Max: 12 chars)"
+        pack_set $(pack_get ${netns_args} netns_args_name) API_Error_message="ERROR: namespace name too long (Max: 12 chars)"
         return 1
     fi
 
@@ -125,12 +127,14 @@ netns_check_pack()
     local cidr_regex="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}"
 
     if ! [[ ${bridge_cidr} =~ ${cidr_regex} ]] ; then
-        pack_set $(pack_get ${pack} netns_args_name) API_Error_message="ERROR: bridge cidr is wrong"
+        edebug "ERROR: bridge_cidr is wrong [${bridge_cidr}]"
+        pack_set $(pack_get ${netns_args} netns_args_name) API_Error_message="ERROR: bridge_cidr is wrong [${bridge_cidr}]"
         return 1
     fi
 
     if ! [[ ${nic_cidr} =~ ${cidr_regex} ]] ; then
-        pack_set $(pack_get ${pack} netns_args_name) API_Error_message="ERROR: bridge cidr is wrong"
+        edebug "ERROR: nic_cidr is wrong [${nic_cidr}]"
+        pack_set $(pack_get ${netns_args} netns_args_name) API_Error_message="ERROR: nic_cidr is wrong [${nic_cidr}]"
         return 1
     fi
 }
@@ -142,9 +146,9 @@ netns_check_pack()
 #
 netns_chroot_exec()
 {
-    $(declare_args pack chroot_root)
+    $(declare_args netns_args chroot_root)
 
-    $(pack_import pack ns_name)
+    $(pack_import ${netns_args} ns_name)
 
     edebug "Executing command in namespace [${ns_name}] and chroot [${chroot_root}]: ${@}"
     netns_exec ${ns_name} chroot "${chroot_root}" "${@}"
@@ -162,11 +166,11 @@ netns_chroot_exec()
 #
 netns_setup_connected_network()
 {
-    $(declare_args pack)
+    $(declare_args netns_args)
 
-    netns_check_pack ${pack}
+    netns_check_pack ${netns_args}
 
-    $(pack_import ${pack})
+    $(pack_import ${netns_args})
 
     # this allows packets to come in on the real nic and be forwarded to the
     # virtual nic.  It turns on routing in the kernel.
@@ -229,11 +233,11 @@ netns_setup_connected_network()
 #
 netns_remove_network()
 {
-    $(declare_args pack)
+    $(declare_args netns_args)
 
-    netns_check_pack ${pack}
+    netns_check_pack ${netns_args}
 
-    $(pack_import ${pack} ns_name connected_nic)
+    $(pack_import ${netns_args} ns_name connected_nic)
 
     local device
     for device in /sys/class/net/${ns_name}* ; do
@@ -254,11 +258,11 @@ netns_remove_network()
 #
 netns_add_iptables_rules()
 {
-    $(declare_args pack)
+    $(declare_args netns_args)
 
-    netns_check_pack ${pack}
+    netns_check_pack ${netns_args}
 
-    $(pack_import ${pack} ns_name)
+    $(pack_import ${netns_args} ns_name)
 
     local device
     for device in ${@} ; do
@@ -275,11 +279,11 @@ netns_add_iptables_rules()
 #
 netns_remove_iptables_rules()
 {
-    $(declare_args pack)
+    $(declare_args netns_args)
 
-    netns_check_pack ${pack}
+    netns_check_pack ${netns_args}
 
-    $(pack_import ${pack} ns_name)
+    $(pack_import ${netns_args} ns_name)
 
     local device
     for device in ${@} ; do
@@ -296,11 +300,11 @@ netns_remove_iptables_rules()
 #
 netns_iptables_rule_exists()
 {
-    $(declare_args pack devname)
+    $(declare_args netns_args devname)
 
-    netns_check_pack ${pack}
+    netns_check_pack ${netns_args}
 
-    $(pack_import ${pack} ns_name)
+    $(pack_import ${netns_args} ns_name)
 
     iptables -t nat -nvL           | \
       sed -n '/POSTROUTING/,/^$/p' | \
