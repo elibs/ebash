@@ -2728,17 +2728,18 @@ netselect()
 # bash functions or eval'd strings.
 #
 # OPTIONS:
-# -s SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
-#   When ${TIMEOUT} seconds have passed since running the command, this will be
-#   the signal to send to the process to make it stop.  The default is TERM.
-#   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
-#   signal doesn't do its job]
+# -s=<signal>
+#   Accepts both signal names and numbers. When ${TIMEOUT} seconds have passed
+#   since running the command, this will be the signal to send to the process
+#   to make it stop.  The default is TERM. [NOTE: KILL will _also_ be sent two
+#   seconds after the timeout if the first signal doesn't do its job]
 #
-# -t TIMEOUT (REQUIRED). After this duration, command will be killed if it hasn't
-#   exited. If it's a simple number, the duration will be a number in seconds.  You
-#   may also specify suffixes in the same format the timeout command accepts them.
-#   For instance, you might specify 5m or 1h or 2d for 5 minutes, 1 hour, or 2
-#   days, respectively.
+# -t=<timeout>
+#   (REQUIRED). After this duration, command will be killed if it hasn't
+#   exited. If it's a simple number, the duration will be a number in seconds.
+#   You may also specify suffixes in the same format the timeout command
+#   accepts them. For instance, you might specify 5m or 1h or 2d for 5 minutes,
+#   1 hour, or 2 days, respectively.
 #
 # All direct parameters to etimeout are assumed to be the command to execute, and
 # etimeout is careful to retain your quoting.
@@ -2817,37 +2818,39 @@ etimeout()
 #
 # OPTIONS:
 #
-# -d DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
-#   Note that this value can accept sub-second values, just as the sleep command does.
+# -d=DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
+#   Note that this value can accept sub-second values, just as the sleep
+#   command does.  This parameter will be passed directly to sleep, so you can
+#   specify any arguments it accepts such as .01s, 5m, or 3d.
 #
-# -e <space separated list of numbers>
+# -e=<space separated list of numbers>
 #   Any of the exit codes specified in this list will cause eretry to stop
 #   retrying. If eretry receives one of these codes, it will immediately stop
 #   retrying and return that exit code.  By default, only a zero return code
 #   will cause eretry to stop.  If you specify -e, you should consider whether
 #   you want to include 0 in the list.
 #
-# -r RETRIES
+# -r=RETRIES
 #   Command will be attempted RETRIES times total. If no options are provided to
 #   eretry it will use a default retry limit of 5.
 #
-# -s SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
+# -s=SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
 #   When ${TIMEOUT} seconds have passed since running the command, this will be
 #   the signal to send to the process to make it stop.  The default is TERM.
 #   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
 #   signal doesn't do its job]
 #
-# -t TIMEOUT. After this duration, command will be killed (and retried if that's the
+# -t=TIMEOUT. After this duration, command will be killed (and retried if that's the
 #   right thing to do).  If unspecified, commands may run as long as they like
 #   and eretry will simply wait for them to finish. Uses sleep(1) time
 #   syntax.
 #
-# -T TIMEOUT. Total timeout for entire eretry operation.
+# -T=TIMEOUT. Total timeout for entire eretry operation.
 #   This -T flag is different than -t in that -T applies to the entire eretry
 #   operation including all iterations and retry attempts and timeouts of each
 #   individual command. Uses sleep(1) time syntax.
 #
-# -w SECONDS
+# -w=SECONDS
 #   A warning will be generated on (or slightly after) every SECONDS while the
 #   command keeps failing.
 #

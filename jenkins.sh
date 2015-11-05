@@ -326,7 +326,6 @@ jenkins_build_is_running()
     {
         local json=$(jenkins_build_json ${buildNum} building)
         local result=$(echo "${json}" | jq --raw-output '.building')
-        edebug "$(lval json result)"
 
         [[ ${result} == "true" ]] 
         return 0
@@ -384,7 +383,7 @@ jenkins_cancel_queue_jobs()
 
     edebug "Killing jenkins queued items $(lval ids)"
     for id in ${ids} ; do
-        curl --fail --data "id=${id}" $(jenkins_url)/queue/cancelItem || true
+        curl --fail --silent --data "id=${id}" $(jenkins_url)/queue/cancelItem |& edebug || true
     done
 }
 
