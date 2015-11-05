@@ -73,42 +73,42 @@ ETEST_netns_list()
 
 ETEST_netns_pack()
 {
-    #make empty pack
+    etestmsg "make empty pack"
     netns_init pack1
 
-    #check that the empty pack doesn't contain ns_name (it will contain the key, but no value)
+    etestmsg "check that the empty pack doesn't contain ns_name (it will contain the key, but no value)"
     assert_false pack_contains pack1 ns_name
 
-    #check that the empty pack is not valid
+    etestmsg "check that the empty pack is not valid"
     assert_false netns_check_pack pack1
 
-    #add values
+    etestmsg "add values"
     pack_set pack1 ns_name=foo devname=dev peer_devname=pdev connected_nic=blah bridge_cidr=1.2.3.4/12 nic_cidr=2.3.4.5/15
 
-    #check that the populated pack is ok
+    etestmsg "check that the populated pack is ok"
     assert_true netns_check_pack pack1
 
-    #change the ns_name to be 20 characters
+    etestmsg "change the ns_name to be 20 characters"
     pack_set pack1 ns_name=abcdefghijklmnopqrst
 
-    #check that the pack is not valid
+    etestmsg "check that the pack is not valid"
     assert_false netns_check_pack pack1
 
-    #change the ns_name back and give bridge_cidr just an ip address
+    etestmsg "change the ns_name back and give bridge_cidr just an ip address"
     pack_set pack1 ns_name=foo bridge_cidr=1.2.3.4
 
-    #check that the pack is not valid
+    etestmsg "check that the pack is not valid"
     assert_false netns_check_pack pack1
 
-    #change the bridge_cidr back and give nic_cidr just an ip address
+    etestmsg "change the bridge_cidr back and give nic_cidr just an ip address"
     pack_set pack1 bridge_cidr=1.2.3.4/12 nic_cidr=2.3.4.5
 
-    #check that the pack is not valid
+    etestmsg "check that the pack is not valid"
     assert_false netns_check_pack pack1
 
-    #change the nic_cidr back
+    etestmsg "change the nic_cidr back"
     pack_set pack1 nic_cidr=2.3.4.5/15
 
-    #check that the pack is valid
+    etestmsg "check that the pack is valid"
     assert_true netns_check_pack pack1
 }

@@ -3904,7 +3904,7 @@ assert()
     local cmd=( "${@}" )
     
     $(tryrc -r=__assert_rc eval "${cmd[@]}")
-    [[ ${__assert_rc} -eq 0 ]] || die "assert failed (${__assert_rc}) :: ${cmd[@]}"
+    [[ ${__assert_rc} -eq 0 ]] || die "assert failed (rc=${__assert_rc}) :: ${cmd[@]}"
 }
 
 assert_true()
