@@ -472,8 +472,7 @@ die()
 {
     # Disable traps for any signal during most of die.  We'll reset the traps
     # to existing state prior to exiting so that the exit trap will honor them.
-    local saved_traps=$(trap)
-    trap "" ${DIE_SIGNALS[@]}
+    disable_signals
 
     if [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
         exit ${__EFUNCS_DIE_IN_PROGRESS}
@@ -494,8 +493,7 @@ die()
     # over the initial error message since we already displayed it.
     eerror_stacktrace -c="${color}" -f=3 -s
 
-    # Restore saved signals
-    eval "${saved_traps}"
+    reenable_signals
 
     # If we're in a subshell signal our parent SIGTERM and then exit. This will
     # allow the parent process to gracefully perform any cleanup before the
@@ -531,6 +529,23 @@ die()
             exit ${__EFUNCS_DIE_IN_PROGRESS}
         fi
     fi
+}
+
+# Save off the current state of signal-based traps and disable them.  You may
+# be interested in doing this if you're very concerned that a short bit of code
+# should not be interrupted by a signal.  Be _SURE_ to call renable signals
+# when you're done.
+#
+disable_signals()
+{
+    declare -Ag _BASHUTILS_SAVED_TRAPS
+    _BASHUTILS_SAVED_TRAPS[$BASHPID]=$(trap -p "${DIE_SIGNALS[@]}")
+    trap "" "${DIE_SIGNALS[@]}"
+}
+
+reenable_signals()
+{
+    eval "${_BASHUTILS_SAVED_TRAPS[$BASHPID]}"
 }
 
 # Appends a command to a trap. By default this will use the default list of
@@ -569,6 +584,11 @@ trap_add()
         local existing=""
         if [[ ${__EFUNCS_TRAP_ADD_SHELL_LEVEL:-} == ${BASH_SUBSHELL} ]]; then
             existing="$(trap_get ${sig})"
+
+            # Strip off our bashutils internal cleanup from the trap, because
+            # we'll add it back in later.
+            existing=${existing%%; _bashutils_on_exit_end}
+            existing=${existing##_bashutils_on_exit_start; }
         else
             __EFUNCS_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
 
@@ -584,8 +604,23 @@ trap_add()
             fi
         fi
 
-        trap -- "$(printf '%s; %s' "${cmd}" "${existing}")" "${sig}"
+        local complete_trap
+        [[ ${sig} == "EXIT" ]] && complete_trap+="_bashutils_on_exit_start; "
+        [[ -n "${cmd}"      ]] && complete_trap+="${cmd}; "
+        [[ -n "${existing}" ]] && complete_trap+="${existing}; "
+        [[ ${sig} == "EXIT" ]] && complete_trap+="_bashutils_on_exit_end"
+        trap -- "${complete_trap}" "${sig}"
     done
+}
+
+_bashutils_on_exit_start()
+{
+    disable_signals
+}
+
+_bashutils_on_exit_end()
+{
+    reenable_signals
 }
 
 # Set the trace attribute for trap_add function. This is required to modify
@@ -2918,7 +2953,7 @@ eretry_internal()
 
         # Break if the process exited with white listed exit code.
         if echo "${_eretry_exit_codes}" | grep -wq "${rc}"; then
-            edebug "Command exited with white listed $(lval rc _eretry_exit_codes cmd) retries=(${attempt}/${_eretry_retries})"
+            edebug "Command exited with success $(lval rc _eretry_exit_codes cmd) retries=(${attempt}/${_eretry_retries})"
             break
         fi
 
