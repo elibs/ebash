@@ -12,6 +12,8 @@ file_setup()
 file_teardown()
 {
     chroot_kill
+    chroot_unmount
+    eunmount_recursive ${CHROOT}
     rm -rf ${CHROOT}
 }
 
@@ -37,40 +39,6 @@ ETEST_chroot_readlink()
 {
     local real=$(chroot_readlink /var/run)
     assert_eq "${CHROOT}/run" "${real}"
-}
-
-ETEST_chroot_daemon_start_stop()
-{
-    local pidfile="${FUNCNAME}.pid"
-    local sleep_daemon
-    
-    daemon_init sleep_daemon     \
-        chroot="${CHROOT}"       \
-        name="Infinity"          \
-        cmdline="sleep infinity" \
-        pidfile="${pidfile}"
-
-    etestmsg "Starting chroot daemon"
-    daemon_start sleep_daemon
-
-    # Wait for process to be running
-    eretry -r=30 -d=1 daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
-    assert process_running $(cat ${pidfile})
-    assert daemon_running sleep_daemon
-    assert daemon_status  sleep_daemon
-    etestmsg "Started successfully"
-    
-    # Now stop it and verify proper shutdown
-    etestmsg "Stopping chroot daemon"
-    local pid=$(cat ${pidfile})
-    daemon_stop sleep_daemon
-    eretry -r=30 -d=1 daemon_not_running sleep_daemon
-    eretry -r=30 -d=1 process_not_running "${pid}"
-    assert_false daemon_running sleep_daemon
-    assert_false daemon_status -q sleep_daemon
-    assert_not_exists pidfile
-    etestmsg "Stopped successfully"
 }
 
 ETEST_chroot_create_mount()
@@ -176,4 +144,126 @@ ETEST_chroot_install()
 
     # Done
     chroot_exit
+}
+
+#-----------------------------------------------------------------------------
+# CHROOT DAEMON TESTS
+#-----------------------------------------------------------------------------
+
+ETEST_chroot_daemon_start_stop()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+    
+    daemon_init sleep_daemon     \
+        chroot="${CHROOT}"       \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        logfile="logfile.log"    \
+        pidfile="${pidfile}"
+
+    etestmsg "Starting chroot daemon"
+    daemon_start sleep_daemon
+
+    # Wait for process to be running
+    eretry -r=30 -d=1 daemon_running sleep_daemon
+    assert [[ -s ${pidfile} ]]
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
+    etestmsg "Started successfully"
+    
+    # Now stop it and verify proper shutdown
+    etestmsg "Stopping chroot daemon"
+    local pid=$(cat ${pidfile})
+    daemon_stop sleep_daemon
+    eretry -r=30 -d=1 daemon_not_running sleep_daemon
+    eretry -r=30 -d=1 process_not_running "${pid}"
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    assert_not_exists pidfile
+    etestmsg "Stopped successfully"
+}
+
+# Test that verifies additional bindmounts can be specified to chroot daemons
+ETEST_chroot_daemon_bindmount()
+{
+    etestmsg "Creating temporary directories"
+    local tmpdir1=$(mktemp -d /tmp/${FUNCNAME}1-XXXXXXXX)
+    local tmpdir2=$(mktemp -d /tmp/${FUNCNAME}2-XXXXXXXX)
+    trap_add "rm -rf ${tmpdir1} ${tmpdir2}"
+    touch ${tmpdir1}/{1,2,3,4,5} ${tmpdir2}/{1,2,3,4,5}
+
+    etestmsg "Initializating daemon"
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+    daemon_init sleep_daemon                        \
+        chroot="${CHROOT}"                          \
+        chroot_bindmounts="${tmpdir1} ${tmpdir2}"   \
+        name="Infinity"                             \
+        cmdline="sleep infinity"                    \
+        logfile="logfile.log"                       \
+        pidfile="${pidfile}"
+
+    etestmsg "Starting chroot daemon"
+    daemon_start sleep_daemon
+    eretry -T=30s daemon_running sleep_daemon
+
+    # Verify mounts are mounted
+    etestmsg "Verifying mounts were mounted"
+    assert_true emounted ${CHROOT}/${tmpdir1}
+    assert_true emounted ${CHROOT}/${tmpdir2}
+
+    # Stop the daemon
+    etestmsg "Stopping daemon"
+    daemon_stop sleep_daemon
+ 
+    # Verify mounts are NOT mounted
+    etestmsg "Verifying mounts were unmounted"
+    einfo "${CHROOT}${tmpdir1}"
+    assert_false emounted ${CHROOT}/${tmpdir1}
+    einfo "${CHROOT}${tmpdir1}"
+    assert_false emounted ${CHROOT}/${tmpdir2}
+}
+
+ETEST_chroot_daemon_bindmount_file()
+{
+    etestmsg "Creating temporary directories"
+    local tmpdir1=$(mktemp -d /tmp/${FUNCNAME}1-XXXXXXXX)
+    local tmpdir2=$(mktemp -d /tmp/${FUNCNAME}2-XXXXXXXX)
+    trap_add "rm -rf ${tmpdir1} ${tmpdir2}"
+    touch ${tmpdir1}/{1,2,3,4,5} ${tmpdir2}/{1,2,3,4,5}
+    local bindmounts=( $(find ${tmpdir1} ${tmpdir2} -type f) )
+    touch ${tmpdir1}/XXX
+
+    etestmsg "Initializating daemon $(lval bindmounts)"
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+    daemon_init sleep_daemon                 \
+        chroot="${CHROOT}"                   \
+        chroot_bindmounts="${bindmounts[*]} ${tmpdir1}/XXX:${tmpdir1}/YYY" \
+        name="Infinity"                      \
+        cmdline="sleep infinity"             \
+        logfile="logfile.log"                \
+        pidfile="${pidfile}"
+
+    etestmsg "Starting chroot daemon"
+    daemon_start sleep_daemon
+    eretry -T=30s daemon_running sleep_daemon
+
+    # Verify mounts are mounted
+    etestmsg "Verifying mounts were mounted"
+    for mnt in "${bindmounts[@]} ${tmpdir1}/YYY"; do
+        assert_true emounted ${CHROOT}/${mnt}
+    done
+
+    # Stop the daemon
+    etestmsg "Stopping daemon"
+    daemon_stop sleep_daemon
+ 
+    # Verify mounts are NOT mounted
+    etestmsg "Verifying mounts were unmounted"
+     for mnt in "${bindmounts[@]} ${tmpdir1}/YYY"; do
+        assert_false emounted ${CHROOT}/${mnt}
+    done
 }

@@ -26,6 +26,15 @@
 #   of the chroot. Though the CHROOT variable will be availble in the hooks
 #   if needed.
 #
+# chroot_bindmounts
+#   Optional whitespace separated list of additional paths which whould be
+#   bind mounted into the chroot by the daemon process during daemon_start.
+#   A trap will be setup so that the bind mounts are automatically unmounted
+#   when the process exits. The syntax for these bind mounts allow mounting
+#   them into alternative paths inside the chroot using a colon to delimit
+#   the source path outside the chroot and the desired mount point inside the
+#   chroot. (e.g. /var/log/kern.log:/var/log/host_kern.log)
+#
 # cmdline
 #   The command line to be run as a daemon. This includes the executable as well
 #   as any of its arguments.
@@ -106,6 +115,7 @@ daemon_init()
     pack_set ${optpack}     \
         cgroup=             \
         chroot=             \
+        chroot_bindmounts=  \
         delay=1             \
         logfile=            \
         logfile_count=0     \
@@ -162,11 +172,22 @@ daemon_start()
         # Enable fatal error handling inside subshell
         die_on_error
 
-        close_fds
-        exec 0</dev/null 1>/dev/null 2>/dev/null
-
         # Setup logfile
         elogfile -o=1 -e=1 -r=${logfile_count} -s=${logfile_size} "${logfile}"
+
+        # Info
+        einfo "Starting ${name}"
+
+        # Since we are backgrounding this process we don't want to hold onto 
+        # any open file descriptors our parent may have open. So go ahead and
+        # close them now. There's a special case if no logfile was provided 
+        # where we also need to close STDOUT and STDERR (which normally would
+        # have been done by elogfile).
+        exec 0</dev/null
+        close_fds
+        if [[ -z ${logfile} ]]; then
+            exec 1>/dev/null 2>/dev/null
+        fi
 
         # Create empty pidfile
         mkdir -p $(dirname ${pidfile})
@@ -184,15 +205,6 @@ daemon_start()
         # daemon_stop) and we really don't want to run again.
         while [[ -e "${pidfile}" && ${runs} -lt ${respawns} ]]; do
 
-            # Info
-            if [[ ${runs} -eq 0 ]]; then
-                einfo "Starting ${name}"
-                edebug "Starting $(lval name +${optpack})"
-            else
-                einfo "Restarting ${name}"
-                edebug "Restarting $(lval name +${optpack})"
-            fi
-            
             # Increment run counter
             (( runs+=1 ))
 
@@ -213,6 +225,29 @@ daemon_start()
                     export CHROOT=${chroot}
                     chroot_mount
                     trap_add chroot_unmount
+
+                    # If there are additional chroot_bindmounts requested mount them as well
+                    # with associated traps to ensure they are unmounted.
+                    if [[ -n ${chroot_bindmounts} ]]; then
+                        local mounts=( ${chroot_bindmounts} )
+                        local mnt
+                        for mnt in ${mounts[@]}; do
+                            local src="${mnt%%:*}"
+                            local dest="${mnt#*:}"
+                            [[ -z ${dest} ]] && dest="${src}"
+
+                            if [[ -d ${src} ]]; then
+                                mkdir -p ${CHROOT}/${dest}
+                            else
+                                mkdir -p "$(dirname ${CHROOT}/${dest})"
+                                touch ${CHROOT}/${dest}
+                            fi
+
+                            ebindmount "${src}" "${CHROOT}/${dest}"
+                            trap_add "eunmount ${CHROOT}/${dest}"
+                        done
+                    fi
+
                     chroot_cmd ${cmdline} || true
                 else
                     ${cmdline} || true

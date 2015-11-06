@@ -29,7 +29,8 @@
 
 DAEMON_LOCK="daemon.lock"
 DAEMON_STATE="daemon_state"
-DAEMON_HOOKS=(
+DAEMON_ARGS=(
+    logfile="logfile.log"
     pre_start="daemon_react pre_start"
     pre_stop="daemon_react pre_stop"
     post_start="daemon_react post_start"
@@ -110,7 +111,7 @@ ETEST_daemon_init()
     local sleep_daemon
     
     daemon_init sleep_daemon     \
-        "${DAEMON_HOOKS[@]}"     \
+        "${DAEMON_ARGS[@]}"      \
         name="Infinity"          \
         cmdline="sleep infinity" \
         pidfile="${pidfile_real}"
@@ -130,11 +131,11 @@ ETEST_daemon_start_stop()
     local sleep_daemon
    
     etestmsg "Starting infinity daemon"
-    daemon_init sleep_daemon                \
-        "${DAEMON_HOOKS[@]}"                \
-        name="Infinity"                     \
-        cmdline="sleep infinity"            \
-        cgroup="${ETEST_CGROUP}/daemon"     \
+    daemon_init sleep_daemon            \
+        "${DAEMON_ARGS[@]}"             \
+        name="Infinity"                 \
+        cmdline="sleep infinity"        \
+        cgroup="${ETEST_CGROUP}/daemon" \
         pidfile="${pidfile}"
 
     daemon_start sleep_daemon
@@ -167,11 +168,11 @@ ETEST_daemon_cgroup()
     local pidfile="${FUNCNAME}.pid"
 
     etestmsg "Initializing daemon"
-    daemon_init sleep_daemon        \
-        "${DAEMON_HOOKS[@]}"        \
-        name="Infinity"             \
-        cmdline="sleep infinity"    \
-        cgroup=${CGROUP}            \
+    daemon_init sleep_daemon     \
+        "${DAEMON_ARGS[@]}"      \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        cgroup=${CGROUP}         \
         pidfile="${pidfile}"
 
     etestmsg "Running daemon"
@@ -198,13 +199,13 @@ ETEST_daemon_hooks()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     
-    daemon_init sleep_daemon                \
-        "${DAEMON_HOOKS[@]}"                \
-        name="Infinity"                     \
-        cmdline="sleep infinity"            \
-        pidfile="${pidfile}"                \
-        respawns="3"                        \
-        respawn_interval="1"                \
+    daemon_init sleep_daemon     \
+        "${DAEMON_ARGS[@]}"      \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile}"     \
+        respawns="3"             \
+        respawn_interval="1"
 
     # START
     daemon_start sleep_daemon
@@ -259,11 +260,10 @@ ETEST_daemon_logfile()
     }
     
     local mdaemon
-    daemon_init mdaemon         \
-        "${DAEMON_HOOKS[@]}"    \
-        name="My Daemon"        \
-        cmdline="launch"        \
-        logfile="launch.log"    \
+    daemon_init mdaemon      \
+        "${DAEMON_ARGS[@]}"  \
+        name="My Daemon"     \
+        cmdline="launch"
 
     $(pack_import mdaemon logfile)
 
@@ -300,13 +300,13 @@ ETEST_daemon_respawn()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
 
-    daemon_init sleep_daemon                \
-        "${DAEMON_HOOKS[@]}"                \
-        name="Infinity"                     \
-        cmdline="sleep infinity"            \
-        pidfile="${pidfile}"                \
-        respawns="3"                        \
-        respawn_interval="300"              \
+    daemon_init sleep_daemon     \
+        "${DAEMON_ARGS[@]}"      \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile}"     \
+        respawns="3"             \
+        respawn_interval="300"
 
     $(pack_import sleep_daemon)
     etestmsg "Starting daemon $(lval +sleep_daemon)"
@@ -362,13 +362,13 @@ ETEST_daemon_respawn_reset()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     
-    daemon_init sleep_daemon                \
-        "${DAEMON_HOOKS[@]}"                \
-        name="Infinity"                     \
-        cmdline="sleep infinity"            \
-        pidfile="${pidfile}"                \
-        respawns="3"                        \
-        respawn_interval="0"                \
+    daemon_init sleep_daemon     \
+        "${DAEMON_ARGS[@]}"      \
+        name="Infinity"          \
+        cmdline="sleep infinity" \
+        pidfile="${pidfile}"     \
+        respawns="3"             \
+        respawn_interval="0"
 
     $(pack_import sleep_daemon)
     etestmsg "Starting daemon $(lval +sleep_daemon)"
@@ -414,4 +414,3 @@ ETEST_daemon_respawn_reset()
     assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
 }
-
