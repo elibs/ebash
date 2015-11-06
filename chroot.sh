@@ -293,7 +293,7 @@ chroot_apt_setup()
     chroot_apt_update
 
     # Install Aptitude since we use that for everything in chroot
-    einfo "Installing minimial package set"
+    einfo "Installing minimal package set"
     chroot_install_with_apt_get apt aptitude
     chroot_install curl vim wget
 
