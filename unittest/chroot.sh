@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ${ETEST_TOPDIR}/unittest/daemon_expect.sh
+
 # Global settings
 CHROOT=${TEST_DIR_OUTPUT}/chroot
 
@@ -156,6 +158,7 @@ ETEST_chroot_daemon_start_stop()
     local sleep_daemon
     
     daemon_init sleep_daemon     \
+        "${DAEMON_EXPECT[@]}"    \
         chroot="${CHROOT}"       \
         name="Infinity"          \
         cmdline="sleep infinity" \
@@ -164,24 +167,17 @@ ETEST_chroot_daemon_start_stop()
 
     etestmsg "Starting chroot daemon"
     daemon_start sleep_daemon
-
-    # Wait for process to be running
-    eretry -r=30 -d=1 daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
-    assert process_running $(cat ${pidfile})
-    assert daemon_running sleep_daemon
-    assert daemon_status  sleep_daemon
+    daemon_expect pre_start
+    daemon_expect post_start
     etestmsg "Started successfully"
     
     # Now stop it and verify proper shutdown
     etestmsg "Stopping chroot daemon"
     local pid=$(cat ${pidfile})
-    daemon_stop sleep_daemon
-    eretry -r=30 -d=1 daemon_not_running sleep_daemon
-    eretry -r=30 -d=1 process_not_running "${pid}"
-    assert_false daemon_running sleep_daemon
-    assert_false daemon_status -q sleep_daemon
-    assert_not_exists pidfile
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
     etestmsg "Stopped successfully"
 }
 
@@ -198,6 +194,7 @@ ETEST_chroot_daemon_bindmount()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     daemon_init sleep_daemon                        \
+        "${DAEMON_EXPECT[@]}"                       \
         chroot="${CHROOT}"                          \
         chroot_bindmounts="${tmpdir1} ${tmpdir2}"   \
         name="Infinity"                             \
@@ -207,7 +204,8 @@ ETEST_chroot_daemon_bindmount()
 
     etestmsg "Starting chroot daemon"
     daemon_start sleep_daemon
-    eretry -T=30s daemon_running sleep_daemon
+    daemon_expect pre_start
+    daemon_expect post_start
 
     # Verify mounts are mounted
     etestmsg "Verifying mounts were mounted"
@@ -216,7 +214,10 @@ ETEST_chroot_daemon_bindmount()
 
     # Stop the daemon
     etestmsg "Stopping daemon"
-    daemon_stop sleep_daemon
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
  
     # Verify mounts are NOT mounted
     etestmsg "Verifying mounts were unmounted"
@@ -240,6 +241,7 @@ ETEST_chroot_daemon_bindmount_file()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     daemon_init sleep_daemon                 \
+        "${DAEMON_EXPECT[@]}"                \
         chroot="${CHROOT}"                   \
         chroot_bindmounts="${bindmounts[*]} ${tmpdir1}/XXX:${tmpdir1}/YYY" \
         name="Infinity"                      \
@@ -249,7 +251,8 @@ ETEST_chroot_daemon_bindmount_file()
 
     etestmsg "Starting chroot daemon"
     daemon_start sleep_daemon
-    eretry -T=30s daemon_running sleep_daemon
+    daemon_expect pre_start
+    daemon_expect post_start
 
     # Verify mounts are mounted
     etestmsg "Verifying mounts were mounted"
@@ -259,7 +262,10 @@ ETEST_chroot_daemon_bindmount_file()
 
     # Stop the daemon
     etestmsg "Stopping daemon"
-    daemon_stop sleep_daemon
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
  
     # Verify mounts are NOT mounted
     etestmsg "Verifying mounts were unmounted"
