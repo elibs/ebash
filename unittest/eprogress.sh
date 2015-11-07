@@ -27,16 +27,26 @@ wait_for_eprogress()
     done
 }
 
+wait_for_ticks()
+{
+    $(declare_args expected)
+
+    while true; do
+        local actual=$(tail -1 ${OUTPUT} || true)
+        [[ ${actual} -ge ${expected} ]] && return 0
+        
+        echo "Ticks: ${actual}/${expected}"
+        sleep .1
+    done
+}
+
 ETEST_eprogress_ticks()
 {
     override_function do_eprogress "${FAKE_DO_EPROGRESS}"
 
     eprogress "Waiting 1 second"
-    sleep 1
-    wait_for_eprogress
+    wait_for_ticks 9
     eprogress_kill
-    cat ${OUTPUT}
-    assert [[ $(tail -1 ${OUTPUT} || true) -ge 9 ]]
 }
 
 ETEST_eprogress_ticks_reuse()
@@ -44,18 +54,12 @@ ETEST_eprogress_ticks_reuse()
     override_function do_eprogress "${FAKE_DO_EPROGRESS}"
 
     eprogress "Waiting for Ubuntu to stop sucking"
-    sleep 1
-    wait_for_eprogress
+    wait_for_ticks 5
     eprogress_kill
-    cat ${OUTPUT}
-    assert [[ $(tail -1 ${OUTPUT} || true) -ge 5 ]]
     
     eprogress "Waiting for Gentoo to replace Ubuntu"
-    sleep 1
-    eretry -T=30s cat ${OUTPUT}
+    wait_for_ticks 5
     eprogress_kill
-    cat ${OUTPUT}
-    assert [[ $(tail -1 ${OUTPUT} || true) -ge 5 ]]
 }
 
 # Verify EPROGRESS_TICKER can be used to forcibly enable/disable ticker
@@ -110,8 +114,6 @@ ETEST_eprogress_inside_eretry()
     eprogress "Waiting for eretry"
     $(tryrc eretry -T=5s false)
     eprogress_kill
-    
-    trap_add "etestmsg Showing tickfile ; cat ${OUTPUT}"
     assert [[ $(tail -1 ${OUTPUT} || true) -ge 5 ]]
 }
 
