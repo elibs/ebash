@@ -263,7 +263,7 @@ ETEST_chroot_daemon_bindmount_file()
  
     # Verify mounts are NOT mounted
     etestmsg "Verifying mounts were unmounted"
-     for mnt in "${bindmounts[@]} ${tmpdir1}/YYY"; do
+    for mnt in "${bindmounts[@]} ${tmpdir1}/YYY"; do
         assert_false emounted ${CHROOT}/${mnt}
     done
 }
