@@ -8,7 +8,7 @@ ETEST_daemon_init()
     local sleep_daemon
     
     daemon_init sleep_daemon     \
-        "${DAEMON_ARGS[@]}"      \
+        "${DAEMON_EXPECT[@]}"    \
         name="Infinity"          \
         cmdline="sleep infinity" \
         pidfile="${pidfile_real}"
@@ -29,7 +29,7 @@ ETEST_daemon_start_stop()
    
     etestmsg "Starting infinity daemon"
     daemon_init sleep_daemon            \
-        "${DAEMON_ARGS[@]}"             \
+        "${DAEMON_EXPECT[@]}"           \
         name="Infinity"                 \
         cmdline="sleep infinity"        \
         cgroup="${ETEST_CGROUP}/daemon" \
@@ -66,7 +66,7 @@ ETEST_daemon_cgroup()
 
     etestmsg "Initializing daemon"
     daemon_init sleep_daemon     \
-        "${DAEMON_ARGS[@]}"      \
+        "${DAEMON_EXPECT[@]}"    \
         name="Infinity"          \
         cmdline="sleep infinity" \
         cgroup=${CGROUP}         \
@@ -97,7 +97,7 @@ ETEST_daemon_hooks()
     local sleep_daemon
     
     daemon_init sleep_daemon     \
-        "${DAEMON_ARGS[@]}"      \
+        "${DAEMON_EXPECT[@]}"    \
         name="Infinity"          \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"     \
@@ -158,7 +158,7 @@ ETEST_daemon_logfile()
     
     local mdaemon
     daemon_init mdaemon      \
-        "${DAEMON_ARGS[@]}"  \
+        "${DAEMON_EXPECT[@]}"\
         name="My Daemon"     \
         cmdline="launch"
 
@@ -198,7 +198,7 @@ ETEST_daemon_respawn()
     local sleep_daemon
 
     daemon_init sleep_daemon     \
-        "${DAEMON_ARGS[@]}"      \
+        "${DAEMON_EXPECT[@]}"    \
         name="Infinity"          \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"     \
@@ -260,7 +260,7 @@ ETEST_daemon_respawn_reset()
     local sleep_daemon
     
     daemon_init sleep_daemon     \
-        "${DAEMON_ARGS[@]}"      \
+        "${DAEMON_EXPECT[@]}"    \
         name="Infinity"          \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"     \
