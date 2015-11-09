@@ -14,6 +14,15 @@
 # 
 # The following are the keys used to control daemon functionality:
 #
+# bindmounts
+#   Optional whitespace separated list of additional paths which whould be
+#   bind mounted into the chroot by the daemon process during daemon_start.
+#   A trap will be setup so that the bind mounts are automatically unmounted
+#   when the process exits. The syntax for these bind mounts allow mounting
+#   them into alternative paths inside the chroot using a colon to delimit
+#   the source path outside the chroot and the desired mount point inside the
+#   chroot. (e.g. /var/log/kern.log:/var/log/host_kern.log)
+#
 # cgroup
 #   Optional cgroup to run the daemon in. If the cgroup does not exist it will
 #   be created for you. The daemon assumes ownership of ALL processes in that
@@ -25,15 +34,6 @@
 #   the provided command line but all other hooks will be performed outside
 #   of the chroot. Though the CHROOT variable will be availble in the hooks
 #   if needed.
-#
-# chroot_bindmounts
-#   Optional whitespace separated list of additional paths which whould be
-#   bind mounted into the chroot by the daemon process during daemon_start.
-#   A trap will be setup so that the bind mounts are automatically unmounted
-#   when the process exits. The syntax for these bind mounts allow mounting
-#   them into alternative paths inside the chroot using a colon to delimit
-#   the source path outside the chroot and the desired mount point inside the
-#   chroot. (e.g. /var/log/kern.log:/var/log/host_kern.log)
 #
 # cmdline
 #   The command line to be run as a daemon. This includes the executable as well
@@ -113,9 +113,9 @@ daemon_init()
     # Since the last key=val added to the pack will always override prior values
     # this allows caller to override the defaults.
     pack_set ${optpack}     \
+        bindmounts=         \
         cgroup=             \
         chroot=             \
-        chroot_bindmounts=  \
         delay=1             \
         logfile=            \
         logfile_count=0     \
@@ -226,10 +226,10 @@ daemon_start()
                     chroot_mount
                     trap_add chroot_unmount
 
-                    # If there are additional chroot_bindmounts requested mount them as well
+                    # If there are additional bindmounts requested mount them as well
                     # with associated traps to ensure they are unmounted.
-                    if [[ -n ${chroot_bindmounts} ]]; then
-                        local mounts=( ${chroot_bindmounts} )
+                    if [[ -n ${bindmounts} ]]; then
+                        local mounts=( ${bindmounts} )
                         local mnt
                         for mnt in ${mounts[@]}; do
                             local src="${mnt%%:*}"
