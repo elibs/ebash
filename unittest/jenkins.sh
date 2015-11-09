@@ -151,22 +151,24 @@ ETEST_jenkins_run_a_build()
     local buildJson=$(jenkins_build_json ${buildNumber})
     edebug "$(lval buildJson buildNumber)"
 
-    echo "${buildJson}" | jq . |& edebug
+    echo "${buildJson}" | jq .
     
     # Check that the parameter made it in to the job
     $(json_import -q=".actions[0].parameters[0]" <<< ${buildJson} )
     assert [[ ${name} == "PARAM" ]]
     assert [[ ${value} == "${BUILD_ARGS[PARAM]}" ]]
 
+    etestmsg "Jenkins console output"
+    curl --silent --fail "$(jenkins_build_url ${buildNumber})/consoleText"
 
     # That it was successful
     $(json_import result url <<< ${buildJson} )
     assert_eq "SUCCESS" "${result}" "build result extracted from json"
-
     assert_eq "SUCCESS" "$(jenkins_build_result ${buildNumber})" "jenkins_build_result output"
 
     # And that our build_url jenkins_function works
     assert [[ "${url}"    == "$(jenkins_build_url ${buildNumber})" ]]
+
 
 }
 
