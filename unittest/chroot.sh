@@ -193,13 +193,13 @@ ETEST_chroot_daemon_bindmount()
     etestmsg "Initializating daemon"
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
-    daemon_init sleep_daemon                        \
-        "${DAEMON_EXPECT[@]}"                       \
-        chroot="${CHROOT}"                          \
-        chroot_bindmounts="${tmpdir1} ${tmpdir2}"   \
-        name="Infinity"                             \
-        cmdline="sleep infinity"                    \
-        logfile="logfile.log"                       \
+    daemon_init sleep_daemon                 \
+        "${DAEMON_EXPECT[@]}"                \
+        bindmounts="${tmpdir1} ${tmpdir2}"   \
+        chroot="${CHROOT}"                   \
+        name="Infinity"                      \
+        cmdline="sleep infinity"             \
+        logfile="logfile.log"                \
         pidfile="${pidfile}"
 
     etestmsg "Starting chroot daemon"
@@ -242,8 +242,8 @@ ETEST_chroot_daemon_bindmount_file()
     local sleep_daemon
     daemon_init sleep_daemon                 \
         "${DAEMON_EXPECT[@]}"                \
+        bindmounts="${bindmounts[*]} ${tmpdir1}/XXX:${tmpdir1}/YYY" \
         chroot="${CHROOT}"                   \
-        chroot_bindmounts="${bindmounts[*]} ${tmpdir1}/XXX:${tmpdir1}/YYY" \
         name="Infinity"                      \
         cmdline="sleep infinity"             \
         logfile="logfile.log"                \
