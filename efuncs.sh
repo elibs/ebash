@@ -891,6 +891,8 @@ ebanner()
     # Close the banner
     echo -e "|" >&2
     echo -e "+${str}+$(ecolor none)" >&2
+
+    return 0
 }
 
 emsg()
