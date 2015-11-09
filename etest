@@ -212,7 +212,7 @@ run_single_test()
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
         etestmsg "Calling test_teardown"
-        $(tryrc teardown)
+        $(tryrc -r=teardown_rc teardown)
     fi
 
     return ${rc}
