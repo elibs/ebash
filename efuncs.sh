@@ -3429,16 +3429,18 @@ array_sort()
 
     } |& edebug
 
-    local idx=0
-    readarray -t ${__array} < <(
-        for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
+    readarray -t ${__array}_tmp < <(
+        local idx
+        for idx in $(array_indexes ${__array}); do
             edebug "echo \${${__array}[$idx]} -> $(eval "echo \${${__array}[$idx]}")"
             eval "echo \${${__array}[$idx]}"
         done | sort ${flags[@]:-}
     )
 
-    edebug "$(lval ${__array})"
+    edebug "$(lval ${__array} ${__array}_tmp)"
     declare -p ${__array} |& edebug
+
+    eval "${__array}=( \"\${${__array}_tmp[@]}\" )"
 }
 
 #-----------------------------------------------------------------------------
