@@ -372,6 +372,20 @@ ETEST_array_sort_version()
 ETEST_array_sort_rtfi()
 {
     local keep_paths=( "/sf/etc/origin.json" "bar" "foo" )
+   
+    etestmsg "Does sort work?"
+    echo "${keep_paths[@]}" | tr ' ' '\n' | sort
+
+    readarray -t results < <(
+        {
+            echo "/sf/etc/origin.json" ; echo "bar" ; echo "foo" ;
+        } | sort --unique
+    )
+
+    etestmsg "readarray"
+    declare -p results
+
+    etestmsg "Calling array_sort"
     array_sort -u keep_paths
     export SF_KEEP_PATHS="${keep_paths[@]}"
     assert_eq "bar foo /sf/etc/origin.json" "${SF_KEEP_PATHS}"
