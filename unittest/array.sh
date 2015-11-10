@@ -364,7 +364,7 @@ ETEST_array_sort_unique()
 
 ETEST_array_sort_version()
 {
-    array=(a.1 a.2 a.100)
+    local array=(a.1 a.2 a.100)
     array_sort -V array
     assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
 }
