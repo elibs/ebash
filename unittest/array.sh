@@ -368,3 +368,12 @@ ETEST_array_sort_version()
     array_sort -V array
     assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
 }
+
+ETEST_array_sort_rtfi()
+{
+    local keep_paths=( "/sf/etc/origin.json" "bar" "foo" )
+    array_sort -u keep_paths
+    export SF_KEEP_PATHS="${keep_paths[@]}"
+    assert_eq "bar foo /sf/etc/origin.json" "${SF_KEEP_PATHS}"
+}
+
