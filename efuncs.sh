@@ -3421,16 +3421,18 @@ array_sort()
     opt_true "V" && flags+=("--version-sort")
     
     edebug "$(lval ${__array} flags)"
+    declare -p ${__array} |& edebug
 
     local idx=0
     readarray -t ${__array} < <(
         for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
-            edebug "echo \${${__array}[$idx]}"
+            edebug "echo \${${__array}[$idx]} -> $(eval "echo \${${__array}[$idx]}")"
             eval "echo \${${__array}[$idx]}"
         done | sort ${flags[@]:-}
     )
 
     edebug "$(lval ${__array})"
+    declare -p ${__array} |& edebug
 }
 
 #-----------------------------------------------------------------------------
