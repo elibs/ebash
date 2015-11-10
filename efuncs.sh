@@ -3422,6 +3422,12 @@ array_sort()
     
     edebug "$(lval ${__array} flags)"
     declare -p ${__array} |& edebug
+    {
+        declare -fp sort || true
+        type sort        || true
+        alias sort       || true
+
+    } |& edebug
 
     local idx=0
     readarray -t ${__array} < <(
