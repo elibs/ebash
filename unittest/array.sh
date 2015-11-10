@@ -373,13 +373,17 @@ ETEST_array_sort_rtfi()
 {
     local keep_paths=( "/sf/etc/origin.json" "bar" "foo" )
    
-    etestmsg "Does sort work?"
-    echo "${keep_paths[@]}" | tr ' ' '\n' | sort
+    etestmsg "Does /bin/sort work?"
+    echo "${keep_paths[@]}" | tr ' ' '\n' | /bin/sort
+ 
+    etestmsg "Does /usr/bin/sort work?"
+    echo "${keep_paths[@]}" | tr ' ' '\n' | /usr/bin/sort
+
 
     readarray -t results < <(
         {
             echo "/sf/etc/origin.json" ; echo "bar" ; echo "foo" ;
-        } | sort --unique
+        } | /usr/bin/sort --unique
     )
 
     etestmsg "readarray"
