@@ -372,7 +372,10 @@ ETEST_array_sort_version()
 ETEST_array_sort_rtfi()
 {
     local keep_paths=( "/sf/etc/origin.json" "bar" "foo" )
-  
+
+    etestmsg "locale"
+    locale
+
     etestmsg "sort info"
     sort --version
     echo "$(lval LC_ALL)"
