@@ -13,6 +13,10 @@ set -o errtrace
 shopt -s expand_aliases
 shopt -s checkwinsize
 
+# Locale setup to ensure sort and other GNU tools behave sanely
+export LC_ALL=en_US.utf8
+export LANG=en_US.utf8
+
 #-----------------------------------------------------------------------------
 # DEBUGGING
 #-----------------------------------------------------------------------------
@@ -3420,27 +3424,12 @@ array_sort()
     opt_true "u" && flags+=("--unique")
     opt_true "V" && flags+=("--version-sort")
     
-    edebug "$(lval ${__array} flags)"
-    declare -p ${__array} |& edebug
-    {
-        declare -fp sort || true
-        type sort        || true
-        alias sort       || true
-
-    } |& edebug
-
-    readarray -t ${__array}_tmp < <(
+    readarray -t ${__array} < <(
         local idx
         for idx in $(array_indexes ${__array}); do
-            edebug "echo \${${__array}[$idx]} -> $(eval "echo \${${__array}[$idx]}")"
             eval "echo \${${__array}[$idx]}"
         done | sort ${flags[@]:-}
     )
-
-    edebug "$(lval ${__array} ${__array}_tmp)"
-    declare -p ${__array} |& edebug
-
-    eval "${__array}=( \"\${${__array}_tmp[@]}\" )"
 }
 
 #-----------------------------------------------------------------------------

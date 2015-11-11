@@ -369,34 +369,12 @@ ETEST_array_sort_version()
     assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
 }
 
-ETEST_array_sort_rtfi()
+# Verify sort isn't insane. It uses LANG and LC_ALL to decide sort order.
+# see 'man sort' and read WARNING around locale settings. We set these at the
+# top of efuncs.sh.
+ETEST_array_sort_locale()
 {
     local keep_paths=( "/sf/etc/origin.json" "bar" "foo" )
-
-    etestmsg "locale"
-    locale
-
-    etestmsg "sort info"
-    sort --version
-    echo "$(lval LC_ALL)"
-
-    etestmsg "Does /bin/sort work?"
-    echo "${keep_paths[@]}" | tr ' ' '\n' | /bin/sort
- 
-    etestmsg "Does /usr/bin/sort work?"
-    echo "${keep_paths[@]}" | tr ' ' '\n' | /usr/bin/sort
-
-
-    readarray -t results < <(
-        {
-            echo "/sf/etc/origin.json" ; echo "bar" ; echo "foo" ;
-        } | /usr/bin/sort --unique
-    )
-
-    etestmsg "readarray"
-    declare -p results
-
-    etestmsg "Calling array_sort"
     array_sort -u keep_paths
     export SF_KEEP_PATHS="${keep_paths[@]}"
     assert_eq "bar foo /sf/etc/origin.json" "${SF_KEEP_PATHS}"
