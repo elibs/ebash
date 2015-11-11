@@ -186,7 +186,7 @@ jenkins_start_build()
     # Skip jenkins' "quiet period"
     local args="-d delay=0sec "
 
-    edebug "Starting build $(lval JENKINS_JOB BUILD_ARGS)"
+    edebug "Starting build $(lval JENKINS_JOB)"
 
     for arg in ${!BUILD_ARGS[@]} ; do
         args+="-d ${arg}=${BUILD_ARGS[$arg]} "
