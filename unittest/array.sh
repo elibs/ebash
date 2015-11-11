@@ -375,6 +375,7 @@ ETEST_array_sort_rtfi()
   
     etestmsg "sort info"
     sort --version
+    echo "$(lval LC_ALL)"
 
     etestmsg "Does /bin/sort work?"
     echo "${keep_paths[@]}" | tr ' ' '\n' | /bin/sort
