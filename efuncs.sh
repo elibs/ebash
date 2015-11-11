@@ -3022,7 +3022,10 @@ setvars()
     [[ -f ${filename} ]] || die "$(lval filename) does not exist"
 
     # If this file is a binary file skip it
-    file ${filename} | grep -q ELF && continue || true
+    if file ${filename} | grep -q ELF ; then
+        edebug "Skipping binary file $(lval filename): $(file ${filename})"
+        return 0
+    fi
 
     for arg in $(grep -o "__\S\+__" ${filename} | sort --unique || true); do
         local key="${arg//__/}"
