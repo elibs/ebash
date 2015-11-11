@@ -80,7 +80,7 @@ chroot_shell()
     # regardless of how we leave this function.
     chroot_mount
     trap_add "chroot_unmount"
-    chroot ${CHROOT} ${CHROOT_ENV} -i || true
+    chroot ${CHROOT} ${CHROOT_ENV} -i --login || true
 }
 
 chroot_cmd()
