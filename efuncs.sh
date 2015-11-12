@@ -3444,11 +3444,9 @@ array_sort()
 # variable.  This is much like an associative array, but has a few differences
 #
 #   1) You can store packs INSIDE associative arrays (example in unit tests)
-#   2) It treats keys case insensitively (which may not be a benefit in your
-#      case, but there it is)
-#   3) The "keys" in a pack may not contain an equal sign, nor may they contain
-#      whitespace"
-#   4) Packed values cannot contain newlines.
+#   2) The "keys" in a pack may not contain an equal sign, nor may they contain
+#      whitespace.
+#   3) Packed values cannot contain newlines.
 #
 #
 
