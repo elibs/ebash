@@ -992,7 +992,7 @@ eerror_internal()
 
 eerror()
 {
-    eerror_internal "$@"
+    emsg "red" ">>" "ERROR" "$@"
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
