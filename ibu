@@ -15,7 +15,13 @@ trap_add "rm -f \"${HISTFILE}\""
 DEFAULT_SIGINT=$(trap -p SIGINT)
 protected_read()
 {
-    trap "cmd='' ; echo ; return 120 ; trap \"$DEFAULT_SIGINT\" SIGINT" SIGINT
+    # I don't strictly understand this bash behavior, but having "return" in
+    # this trap ensures that when you start typing on a line and hit Ctrl-C,
+    # that you get a new clean line.
+    #
+    # The return code does not get passed to the caller, which is strange.  But
+    # having return there definitely makes a behavior difference.
+    trap "cmd='' ; echo ; eval \"${DEFAULT_SIGINT}\" ; return 0" SIGINT
     read "${@}"
 }
 
@@ -51,7 +57,7 @@ set +u
 # the same shell afterward.
 die_handler()
 {
-    eerror "Error detected and ignored."
+    edebug "Error detected and ignored."
     cmd=""
     return 0
 }
