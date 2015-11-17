@@ -78,16 +78,16 @@ netns_exists()
 #
 netns_init()
 {
-    $(declare_args netns_args)
+    $(declare_args netns_args_packname)
 
-    pack_set ${netns_args}            \
-        netns_args_name=${netns_args} \
-        ns_name=                      \
-        devname=                      \
-        peer_devname=                 \
-        connected_nic=                \
-        bridge_cidr=                  \
-        nic_cidr=                     \
+    pack_set ${netns_args_packname}             \
+        netns_args_name=${netns_args_packname}  \
+        ns_name=                                \
+        devname=                                \
+        peer_devname=                           \
+        connected_nic=                          \
+        bridge_cidr=                            \
+        nic_cidr=                               \
         "${@}"
 
     return 0
@@ -101,23 +101,19 @@ netns_init()
 #
 netns_check_pack()
 {
-    $(declare_args netns_args)
+    $(declare_args netns_args_packname)
 
     local key
     for key in ns_name devname peer_devname connected_nic bridge_cidr nic_cidr ; do
-        if ! pack_contains ${netns_args} ${key} ; then
-            edebug "ERROR: netns_args key missing (${key})"
-            pack_set $(pack_get ${netns_args} netns_args_name) API_Error_message="ERROR: netns_args key missing (${key})"
-            return 1
+        if ! pack_contains ${netns_args_packname} ${key} ; then
+            die "ERROR: netns_args key missing (${key})"
         fi
     done
 
-    $(pack_import ${netns_args} ns_name bridge_cidr nic_cidr)
+    $(pack_import ${netns_args_packname} ns_name bridge_cidr nic_cidr)
 
     if [[ ${#ns_name} -gt 12 ]] ; then
-        edebug "ERROR: namespace name too long (Max: 12 chars)"
-        pack_set $(pack_get ${netns_args} netns_args_name) API_Error_message="ERROR: namespace name too long (Max: 12 chars)"
-        return 1
+        die "ERROR: namespace name too long (Max: 12 chars)"
     fi
 
     # a cidr is an ip address with the number of static (or network) bits 
@@ -128,13 +124,13 @@ netns_check_pack()
 
     if ! [[ ${bridge_cidr} =~ ${cidr_regex} ]] ; then
         edebug "ERROR: bridge_cidr is wrong [${bridge_cidr}]"
-        pack_set $(pack_get ${netns_args} netns_args_name) API_Error_message="ERROR: bridge_cidr is wrong [${bridge_cidr}]"
+        pack_set $(pack_get ${netns_args_packname} netns_args_name) API_Error_message="ERROR: bridge_cidr is wrong [${bridge_cidr}]"
         return 1
     fi
 
     if ! [[ ${nic_cidr} =~ ${cidr_regex} ]] ; then
         edebug "ERROR: nic_cidr is wrong [${nic_cidr}]"
-        pack_set $(pack_get ${netns_args} netns_args_name) API_Error_message="ERROR: nic_cidr is wrong [${nic_cidr}]"
+        pack_set $(pack_get ${netns_args_packname} netns_args_name) API_Error_message="ERROR: nic_cidr is wrong [${nic_cidr}]"
         return 1
     fi
 }
@@ -146,9 +142,9 @@ netns_check_pack()
 #
 netns_chroot_exec()
 {
-    $(declare_args netns_args chroot_root)
+    $(declare_args netns_args_packname chroot_root)
 
-    $(pack_import ${netns_args} ns_name)
+    $(pack_import ${netns_args_packname} ns_name)
 
     edebug "Executing command in namespace [${ns_name}] and chroot [${chroot_root}]: ${@}"
     netns_exec ${ns_name} chroot "${chroot_root}" "${@}"
@@ -166,11 +162,11 @@ netns_chroot_exec()
 #
 netns_setup_connected_network()
 {
-    $(declare_args netns_args)
+    $(declare_args netns_args_packname)
 
-    netns_check_pack ${netns_args}
+    netns_check_pack ${netns_args_packname}
 
-    $(pack_import ${netns_args})
+    $(pack_import ${netns_args_packname})
 
     # this allows packets to come in on the real nic and be forwarded to the
     # virtual nic.  It turns on routing in the kernel.
@@ -214,7 +210,7 @@ netns_setup_connected_network()
     ip netns exec ${ns_name} ip link set dev ${devname}p name ${peer_devname}
 
     # Add iptables rules to allow the bridge and the connected nic to MASQARADE
-    netns_add_iptables_rules ${ns_name} ${ns_name}_br ${connected_nic}
+    netns_add_iptables_rules ${netns_args_packname}
 
     #add the cidr address to the nic in the namespace
     ip netns exec ${ns_name} ip addr add ${nic_cidr} dev ${peer_devname}
@@ -233,11 +229,11 @@ netns_setup_connected_network()
 #
 netns_remove_network()
 {
-    $(declare_args netns_args)
+    $(declare_args netns_args_packname)
 
-    netns_check_pack ${netns_args}
+    netns_check_pack ${netns_args_packname}
 
-    $(pack_import ${netns_args} ns_name connected_nic)
+    $(pack_import ${netns_args_packname} ns_name connected_nic)
 
     local device
     for device in /sys/class/net/${ns_name}* ; do
@@ -248,7 +244,7 @@ netns_remove_network()
       fi
     done
 
-    netns_remove_iptables_rules ${ns_name} ${ns_name}_br ${connected_nic}
+    netns_remove_iptables_rules ${netns_args_packname}
 }
 
 #-------------------------------------------------------------------------------
@@ -258,15 +254,15 @@ netns_remove_network()
 #
 netns_add_iptables_rules()
 {
-    $(declare_args netns_args)
+    $(declare_args netns_args_packname)
 
-    netns_check_pack ${netns_args}
+    netns_check_pack ${netns_args_packname}
 
-    $(pack_import ${netns_args} ns_name)
+    $(pack_import ${netns_args_packname} ns_name connected_nic)
 
     local device
-    for device in ${@} ; do
-        $(tryrc netns_iptables_rule_exists ${ns_name} ${device})
+    for device in ${ns_name}_br ${connected_nic} ${@} ; do
+        $(tryrc netns_iptables_rule_exists ${netns_args_packname} ${device})
         [[ ${rc} -eq 0 ]] && continue
         iptables -t nat -A POSTROUTING -o ${device} -j MASQUERADE
     done
@@ -279,15 +275,15 @@ netns_add_iptables_rules()
 #
 netns_remove_iptables_rules()
 {
-    $(declare_args netns_args)
+    $(declare_args netns_args_packname)
 
-    netns_check_pack ${netns_args}
+    netns_check_pack ${netns_args_packname}
 
-    $(pack_import ${netns_args} ns_name)
+    $(pack_import ${netns_args_packname} ns_name connected_nic)
 
     local device
-    for device in ${@} ; do
-        $(tryrc netns_iptables_rule_exists ${ns_name} ${device})
+    for device in ${ns_name}_br ${connected_nic} ${@} ; do
+        $(tryrc netns_iptables_rule_exists ${netns_args_packname} ${device})
         [[ ${rc} -ne 0 ]] && continue
         iptables -t nat -D POSTROUTING -o ${device} -j MASQUERADE
     done
@@ -300,11 +296,11 @@ netns_remove_iptables_rules()
 #
 netns_iptables_rule_exists()
 {
-    $(declare_args netns_args devname)
+    $(declare_args netns_args_packname devname)
 
-    netns_check_pack ${netns_args}
+    netns_check_pack ${netns_args_packname}
 
-    $(pack_import ${netns_args} ns_name)
+    $(pack_import ${netns_args_packname} ns_name)
 
     iptables -t nat -nvL           | \
       sed -n '/POSTROUTING/,/^$/p' | \
