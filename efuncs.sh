@@ -237,6 +237,8 @@ close_fds()
     local pid=$BASHPID
     local fds=( $(ls /proc/${pid}/fd/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ') )
 
+    array_empty fds && return 0
+
     local fd
     for fd in "${fds[@]}"; do
         eval "exec $fd>&-"
