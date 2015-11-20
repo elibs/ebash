@@ -1575,21 +1575,21 @@ fully_qualify_hostname()
 getipaddress()
 {
     $(declare_args iface)
-    local ip=$(/sbin/ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2 || true)
+    local ip=$(ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2 || true)
     echo -n "${ip//[[:space:]]}"
 }
 
 getnetmask()
 {
     $(declare_args iface)
-    local netmask=$(/sbin/ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2 || true)
+    local netmask=$(ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2 || true)
     echo -n "${netmask//[[:space:]]}"
 }
 
 getbroadcast()
 {
     $(declare_args iface)
-    local bcast=$(/sbin/ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2 || true)
+    local bcast=$(ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2 || true)
     echo -n "${bcast//[[:space:]]}"
 }
 
