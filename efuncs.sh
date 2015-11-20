@@ -1585,7 +1585,7 @@ getipaddress()
 # Get the netmask (IPv4 dotted notation) currently set on the requested
 # interface (if any). It is not an error for an interface to be unbound so this
 # method will not fail if no Netmask has been set on an interface. Instead it
-# will simply return an empty string. Thist method
+# will simply return an empty string.
 getnetmask()
 {
     $(declare_args iface)
