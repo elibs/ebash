@@ -1647,7 +1647,7 @@ getbroadcast()
 # empty string.
 getgateway()
 {
-    route -n | grep 'UG[ \t]' | awk '{print $2}' || true
+    route -n | awk '/UG[ \t]/ { print $2 }' || true
 }
 
 # Compute the subnet given the current IPAddress (ip) and Netmask (nm). If either
