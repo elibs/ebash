@@ -1575,29 +1575,46 @@ fully_qualify_hostname()
 getipaddress()
 {
     $(declare_args iface)
-    local ip=$(ifconfig ${iface} | grep -o 'inet addr:\S*' | cut -d: -f2 || true)
-    echo -n "${ip//[[:space:]]}"
+    ip addr show "${iface}" | grep -P "inet [\d.]+.*${iface}$" | grep -Po 'inet \K[\d.]+'
+}
+
+# From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
+netmask2cidr ()
+{
+    # Assumes there's no "255." after a non-255 byte in the mask 
+    set -- 0^^^128^192^224^240^248^252^254^ ${#1} ${1##*255.} 
+    set -- $(( ($2 - ${#3})*2 )) ${1%%${3%%.*}*} 
+    echo $(( $1 + (${#2}/4) ))
+}
+
+# From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
+cidr2netmask ()
+{
+    # Number of args to shift, 255..255, first non-255 byte, zeroes
+    set -- $(( 5 - ($1 / 8) )) 255 255 255 255 $(( (255 << (8 - ($1 % 8))) & 255 )) 0 0 0
+    [ $1 -gt 1 ] && shift $1 || shift
+    echo ${1-0}.${2-0}.${3-0}.${4-0}
 }
 
 getnetmask()
 {
     $(declare_args iface)
-    local netmask=$(ifconfig ${iface} | grep -o 'Mask:\S*' | cut -d: -f2 || true)
-    echo -n "${netmask//[[:space:]]}"
+    local cidr="$(ip addr show "${iface}" | grep -P "inet [\d.]+.*${iface}$" | grep -Po 'inet [\d.]+/\K[\d.]+')"
+    [[ -z "${cidr}" ]] && return 1
+
+    cidr2netmask "${cidr}"
 }
 
 getbroadcast()
 {
     $(declare_args iface)
-    local bcast=$(ifconfig ${iface} | grep -o 'Bcast::\S*' | cut -d: -f2 || true)
-    echo -n "${bcast//[[:space:]]}"
+    ip addr show "${iface}" | grep -Po 'inet [\d.]+.*brd \K[\d.]+'
 }
 
 # Gets the default gateway that is currently in use
 getgateway()
 {
-    local gw=$(route -n | grep 'UG[ \t]' | awk '{print $2}' || true)
-    echo -n "${gw//[[:space:]]}"
+    route -n | grep 'UG[ \t]' | awk '{print $2}'
 }
 
 # Compute the subnet given the current IPAddress (ip) and Netmask (nm)
@@ -1609,6 +1626,13 @@ getsubnet()
     IFS=. read -r m1 m2 m3 m4 <<< "${nm}"
 
     printf "%d.%d.%d.%d" "$((i1 & m1))" "$(($i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+}
+
+# Get the MTU that is currently set on a given interface.
+getmtu()
+{
+    $(declare_args iface)
+    ip addr show "${iface}" | grep -Po 'mtu \K[\d.]+'
 }
 
 # Get list of network interfaces
