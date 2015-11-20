@@ -3459,25 +3459,6 @@ array_join_nl()
     array_join "$1" $'\n'
 }
 
-# array_quote creates a single flat string representation of an array with
-# an extra level of proper bash quoting around everything so it's suitable
-# to be eval'd.
-array_quote()
-{
-    $(declare_args __array)
-
-    local __output=()
-    local __entry=""
-
-    local idx=0
-    for (( idx=0; idx < $(array_size ${__array}); idx++ )); do
-        eval "local entry=\${${__array}[$idx]}"
-        __output+=( "$(printf %q "${entry}")" )
-    done
-
-    echo -n "${__output[@]}"
-}
-
 # Sort an array in-place.
 #
 # OPTIONS:
