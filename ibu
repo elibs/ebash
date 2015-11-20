@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-: ${BASHUTILS:=/home/modell/sf/bashutils}
+: ${BASHUTILS:=$(dirname $0)}
 source ${BASHUTILS}/bashutils.sh || { echo "Failed to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
 HISTFILE=$(mktemp /tmp/ibashutils_$$_XXXXXX)
