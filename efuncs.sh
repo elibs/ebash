@@ -1575,7 +1575,7 @@ fully_qualify_hostname()
 getipaddress()
 {
     $(declare_args iface)
-    ip addr show "${iface}" | grep -P "inet [\d.]+.*${iface}$" | grep -Po 'inet \K[\d.]+'
+    ip addr show "${iface}" | grep -P "inet [\d.]+.*${iface}$" | grep -Po 'inet \K[\d.]+' || true
 }
 
 # From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
@@ -1599,8 +1599,8 @@ cidr2netmask ()
 getnetmask()
 {
     $(declare_args iface)
-    local cidr="$(ip addr show "${iface}" | grep -P "inet [\d.]+.*${iface}$" | grep -Po 'inet [\d.]+/\K[\d.]+')"
-    [[ -z "${cidr}" ]] && return 1
+    local cidr="$(ip addr show "${iface}" | grep -P "inet [\d.]+.*${iface}$" | grep -Po 'inet [\d.]+/\K[\d.]+')" || true
+    [[ -z "${cidr}" ]] && return 0
 
     cidr2netmask "${cidr}"
 }
@@ -1608,19 +1608,20 @@ getnetmask()
 getbroadcast()
 {
     $(declare_args iface)
-    ip addr show "${iface}" | grep -Po 'inet [\d.]+.*brd \K[\d.]+'
+    ip addr show "${iface}" | grep -Po 'inet [\d.]+.*brd \K[\d.]+' || true
 }
 
 # Gets the default gateway that is currently in use
 getgateway()
 {
-    route -n | grep 'UG[ \t]' | awk '{print $2}'
+    route -n | grep 'UG[ \t]' | awk '{print $2}' || true
 }
 
 # Compute the subnet given the current IPAddress (ip) and Netmask (nm)
 getsubnet()
 {
-    $(declare_args ip nm)
+    $(declare_args ?ip ?nm)
+    [[ -z "${ip}" || -z "${nm}" ]] && return 0
 
     IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
     IFS=. read -r m1 m2 m3 m4 <<< "${nm}"
