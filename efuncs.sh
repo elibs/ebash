@@ -1572,12 +1572,42 @@ fully_qualify_hostname()
     return 0
 }
 
+# Get the IPAddress currently bound to the requested interface (if any). It is
+# not an error for an interface to be unbound so this function will not fail if
+# no IPAddress is set on the interface. Instead it will simply return an empty
+# string.
 getipaddress()
 {
     $(declare_args iface)
-    ip addr show "${iface}" | grep -P "inet [\d.]+.*${iface}$" | grep -Po 'inet \K[\d.]+' || true
+    ip addr show "${iface}" | awk '/inet [0-9./]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
+# Get the netmask (IPv4 dotted notation) currently set on the requested
+# interface (if any). It is not an error for an interface to be unbound so this
+# method will not fail if no Netmask has been set on an interface. Instead it
+# will simply return an empty string. Thist method
+getnetmask()
+{
+    $(declare_args iface)
+    local cidr=$(ip addr show "${iface}" | awk '/inet [0-9./]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
+    [[ -z "${cidr}" ]] && return 0
+
+    cidr2netmask "${cidr}"
+}
+
+# Convert a netmask in IPv4 dotted notation into CIDR notation (e.g 255.255.255.0 => 24).
+# Below is the official chart of all possible valid Netmasks in quad-dotted decimal notation
+# with the associated CIDR value:
+#
+# { "255.255.255.255", 32 }, { "255.255.255.254", 31 }, { "255.255.255.252", 30 }, { "255.255.255.248", 29 },
+# { "255.255.255.240", 28 }, { "255.255.255.224", 27 }, { "255.255.255.192", 26 }, { "255.255.255.128", 25 },
+# { "255.255.255.0",   24 }, { "255.255.254.0",   23 }, { "255.255.252.0",   22 }, { "255.255.248.0",   21 },
+# { "255.255.240.0",   20 }, { "255.255.224.0",   19 }, { "255.255.192.0",   18 }, { "255.255.128.0",   17 },
+# { "255.255.0.0",     16 }, { "255.254.0.0",     15 }, { "255.252.0.0",     14 }, { "255.248.0.0",     13 },
+# { "255.240.0.0",     12 }, { "255.224.0.0",     11 }, { "255.192.0.0",     10 }, { "255.128.0.0",      9 },
+# { "255.0.0.0",        8 }, { "254.0.0.0",        7 }, { "252.0.0.0",        6 }, { "248.0.0.0",        5 },
+# { "240.0.0.0",        4 }, { "224.0.0.0",        3 }, { "192.0.0.0",        2 }, { "128.0.0.0",        1 },
+#
 # From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
 netmask2cidr ()
 {
@@ -1587,6 +1617,12 @@ netmask2cidr ()
     echo $(( $1 + (${#2}/4) ))
 }
 
+# Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0).
+# This function takes input in the form of just a singular number (e.g. 24) and will echo to
+# standard output the associated IPv4 dotted notation form of that netmask (e.g. 255.255.255.0).
+#
+# See comments in netmask2cidr for a table of all possible netmask/cidr mappings.
+#
 # From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
 cidr2netmask ()
 {
@@ -1596,28 +1632,29 @@ cidr2netmask ()
     echo ${1-0}.${2-0}.${3-0}.${4-0}
 }
 
-getnetmask()
-{
-    $(declare_args iface)
-    local cidr="$(ip addr show "${iface}" | grep -P "inet [\d.]+.*${iface}$" | grep -Po 'inet [\d.]+/\K[\d.]+')" || true
-    [[ -z "${cidr}" ]] && return 0
-
-    cidr2netmask "${cidr}"
-}
-
+# Get the broadcast address for the requested interface, if any. It is not an
+# error for a network interface not to have a broadcast address associated with
+# it (e.g. loopback interfaces). If no broadcast address is set this will just
+# echo an empty string.
 getbroadcast()
 {
     $(declare_args iface)
-    ip addr show "${iface}" | grep -Po 'inet [\d.]+.*brd \K[\d.]+' || true
+    ip addr show "${iface}" | awk '/inet [0-9./]+ brd .*'${iface}'$/ { print $4 }' || true
 }
 
-# Gets the default gateway that is currently in use
+# Gets the default gateway that is currently in use, if any. It is not an
+# error for there to be no gateway set. In that case this will simply echo an
+# empty string.
 getgateway()
 {
     route -n | grep 'UG[ \t]' | awk '{print $2}' || true
 }
 
-# Compute the subnet given the current IPAddress (ip) and Netmask (nm)
+# Compute the subnet given the current IPAddress (ip) and Netmask (nm). If either
+# the provided IPAddress or Netmask is empty then we cannot compute the subnet.
+# As it's not an error to have no IPAddress or Netmask assigned to an unbound
+# interface, getsubnet will not fail in this case. The output will be an empty
+# string and it will return 0.
 getsubnet()
 {
     $(declare_args ?ip ?nm)
@@ -1921,7 +1958,7 @@ elogrotate()
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
 # and STDERR and send them both to a list of files while simultaneously displaying
-# them to the console. Using this method is much preferred over manually doing this
+# them to the console. Using this function is much preferred over manually doing this
 # with tee and named pipe redirection as we take special care to ensure STDOUT and
 # STDERR pipes are kept separate to avoid problems with logfiles getting truncated.
 #
