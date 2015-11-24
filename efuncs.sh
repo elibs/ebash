@@ -2812,6 +2812,16 @@ dopt_get()
     echo "${__OPT[$1]}"
 }
 
+dopt_true()
+{
+    [[ $(dopt_get $1) -ne 0 ]]
+}
+
+dopt_false()
+{
+    [[ $(dopt_get $1) -eq 0 ]]
+}
+
 # Helper method to print the options after calling declare_args.
 opt_print()
 {
