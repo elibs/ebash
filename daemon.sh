@@ -11,7 +11,7 @@
 # various hooks if desired. If a chroot is provided it is only used inside the
 # body that calls ${cmdline}. If you need to be in the chroot to execute a given
 # hook you're responsible for doing that yourself.
-# 
+#
 # The following are the keys used to control daemon functionality:
 #
 # bindmounts
@@ -46,7 +46,7 @@
 #
 # logfile
 #   Optional logfile to send all stdout and stderr to for the daemon. Since it
-#   generally doesn't make sense for the stdout/stderr of the daemon to spew 
+#   generally doesn't make sense for the stdout/stderr of the daemon to spew
 #   into the caller's stdout/stderr, these will default to /dev/null if not
 #   otherwise specified.
 #
@@ -55,7 +55,7 @@
 #   elogrotate for more details.
 #
 # logfile_size
-#   Maximum logfile size before logfiles should be rotated. This defaults to 
+#   Maximum logfile size before logfiles should be rotated. This defaults to
 #   zero such that if you provide any logfile it will be rotated automatially.
 #   See elogfile and elogrotate for more details.
 #
@@ -105,6 +105,11 @@
 #   upstart/systemd. If the process is respawned more than ${respawns} times
 #   within ${respawn_interval} seconds, the process will no longer be respawned.
 #
+# netns_name
+#   Network namespce to run the daemon in.  The namespace must be created and
+#   properly configured before use.  if you use this, you need to source
+#   netns.sh from bashutils prior to calling daemon_start
+#
 daemon_init()
 {
     $(declare_args optpack)
@@ -128,14 +133,15 @@ daemon_init()
         post_abort=         \
         respawns=20         \
         respawn_interval=15 \
+        netns_name=         \
         "${@}"
-    
+
     # Set name if missing
     local base=$(basename $(pack_get ${optpack} "cmdline" | awk '{print $1}'))
     if ! pack_contains ${optpack} "name"; then
         pack_set ${optpack} name=${base}
     fi
-   
+
     # Set pidfile if missing
     if ! pack_contains ${optpack} "pidfile"; then
         pack_set ${optpack} pidfile="/var/run/${base}"
@@ -166,6 +172,17 @@ daemon_start()
         return 0
     fi
 
+    # create variable to hold either "" or the command prefix to run the daemon
+    # in a network namespace.
+    local netns_cmd_prefix=
+    if [[ -n ${netns_name} ]] ; then
+        if ! netns_exists ${netns_name} ; then
+            die "Network namespace '${netns_name}' doesn't exist"
+        fi
+        netns_cmd_prefix="netns_exec ${netns_name}"
+    fi
+
+
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
@@ -178,9 +195,9 @@ daemon_start()
         # Info
         einfo "Starting ${name}"
 
-        # Since we are backgrounding this process we don't want to hold onto 
+        # Since we are backgrounding this process we don't want to hold onto
         # any open file descriptors our parent may have open. So go ahead and
-        # close them now. There's a special case if no logfile was provided 
+        # close them now. There's a special case if no logfile was provided
         # where we also need to close STDOUT and STDERR (which normally would
         # have been done by elogfile).
         exec 0</dev/null
@@ -248,9 +265,9 @@ daemon_start()
                         done
                     fi
 
-                    chroot_cmd ${cmdline} || true
+                    $netns_cmd_prefix chroot_cmd ${cmdline} || true
                 else
-                    ${cmdline} || true
+                    $netns_cmd_prefix ${cmdline} || true
                 fi
 
             ) &>/dev/null &
@@ -269,13 +286,13 @@ daemon_start()
             # it).
             SECONDS=0
             wait ${pid} &>/dev/null || true
- 
+
             # Setup logfile
             elogfile -o=1 -e=1 -t=0 "${logfile}"
-           
+
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
- 
+
             # Check that we have run for the minimum duration so we can decide
             # if we're going to respawn or not.
             local current_runs=${runs}
@@ -285,7 +302,7 @@ daemon_start()
 
             # Execute optional post_crash hook and ignore errors.
             $(tryrc ${post_crash})
-           
+
             # Log specific message
             if [[ ${runs} -ge ${respawns} ]]; then
                 eerror "${name} crashed too many times (${runs}/${respawns}). Giving up."
@@ -312,7 +329,7 @@ daemon_start()
 #
 # OPTIONS:
 # -s=SIGNAL  Signal to use when gracefully stopping the daemon. Default=SIGTERM.
-# -t=timeout How much time to wait for process to gracefully shutdown before 
+# -t=timeout How much time to wait for process to gracefully shutdown before
 #            killing it with SIGKILL. Default=5.
 # -c=timeout After everything has been sent a SIGKILL, if this daemon has
 #            cgroup support, this function will continue to wait until all
@@ -359,7 +376,7 @@ daemon_stop()
         if [[ ${rc} -ne 0 ]] ; then
             ekilltree -s=SIGKILL ${pid}
         fi
-        
+
         eend $(process_not_running ${pid})
     else
         eend 0
@@ -370,7 +387,7 @@ daemon_stop()
         local cgroup_timeout=$(opt_get c 300)
         cgroup_kill_and_wait -x="$$ ${BASHPID}" -s=KILL -t=${cgroup_timeout} ${cgroup}
     fi
-    
+
     # Execute optional post_stop hook. Ignore errors.
     $(tryrc ${post_stop})
 
@@ -403,13 +420,13 @@ daemon_status()
 
         # Check if it's running
         process_running ${pid} || { eend 1; edebug "Not Running"; return 1; }
-    
+
         # OK -- It's running
         edebug "Running $(lval name pid +${optpack})"
         eend 0
 
     } &>${redirect}
-    
+
     return 0
 }
 
