@@ -35,11 +35,18 @@ ETEST_declare_opts_boolean()
         "f" "")
 
     assert_eq 1 "$(dopt_get a)"
+    assert_true dopt_true a
     assert_eq 1 "$(dopt_get b)"
+    assert_true dopt_true b
     assert_eq 1 "$(dopt_get c)"
+    assert_true dopt_true c
+
     assert_eq 0 "$(dopt_get d)"
+    assert_false dopt_true d
     assert_eq 0 "$(dopt_get e)"
+    assert_false dopt_true e
     assert_eq 0 "$(dopt_get f)"
+    assert_false dopt_true f
 }
 
 ETEST_declare_opts_boolean_multi()
@@ -55,6 +62,11 @@ ETEST_declare_opts_boolean_multi()
     assert_eq 1 "$(dopt_get another)"
     assert_eq 1 "$(dopt_get something)"
     assert_eq 1 "$(dopt_get else)"
+
+    assert_true dopt_get verbose
+    assert_true dopt_get another
+    assert_true dopt_get something
+    assert_true dopt_get else
 }
 
 ETEST_declare_opts_short()
@@ -230,6 +242,32 @@ ETEST_declare_opts_default()
     assert_eq 5 "$(dopt_get alpha)"
     assert_eq 3 "$(dopt_get beta)"
     assert_eq "with whitespace" "$(dopt_get white)"
+}
+
+ETEST_declare_opts_boolean_defaults()
+{
+    set -- -a -b
+    $(declare_opts  \
+        "a=0" ""    \
+        "b=1" ""    \
+        "c=0" ""    \
+        "d=1" "")
+
+    assert_eq 1  "$(dopt_get a)"
+    assert_true  dopt_true a
+    assert_false dopt_false a
+
+    assert_eq 1  "$(dopt_get b)"
+    assert_true  dopt_true b
+    assert_false dopt_false b
+
+    assert_eq 0  "$(dopt_get c)"
+    assert_false dopt_true c
+    assert_true  dopt_false c
+
+    assert_eq 1  "$(dopt_get d)"
+    assert_true  dopt_true d
+    assert_false dopt_false a
 }
 
 # TODO --no-option
