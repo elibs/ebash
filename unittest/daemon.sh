@@ -6,7 +6,7 @@ ETEST_daemon_init()
 {
     local pidfile_real="${FUNCNAME}.pid"
     local sleep_daemon
-    
+
     daemon_init sleep_daemon     \
         "${DAEMON_EXPECT[@]}"    \
         name="Infinity"          \
@@ -26,7 +26,7 @@ ETEST_daemon_start_stop()
 {
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
-   
+
     etestmsg "Starting infinity daemon"
     daemon_init sleep_daemon            \
         "${DAEMON_EXPECT[@]}"           \
@@ -36,7 +36,7 @@ ETEST_daemon_start_stop()
         pidfile="${pidfile}"
 
     daemon_start sleep_daemon
-    
+
     # Wait for process to be running
     daemon_expect pre_start
     daemon_expect post_start
@@ -55,6 +55,85 @@ ETEST_daemon_start_stop()
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
+}
+
+ETEST_daemon_netns()
+{
+# This test is different.  12.04 doesn't have a way to ask the system what netns
+# a program is running in, and it's difficult to tell when you are in a namespace
+# that you are there, and if you are there, which one you are in.
+#
+# So, I'm naming the internal nic something unique that I can look for.  Then I
+# I run a script in the namespace that will return 1 if the nic doesn't exist and
+# sleep forever (like a daemon) if it does find it.
+
+    local pidfile="${FUNCNAME}.pid"
+    local sleep_daemon
+    local testns_args
+
+    netns_init testns_args       \
+        ns_name=testns           \
+        devname=testns_eth0      \
+        peer_devname=eth0_testns \
+        connected_nic=eth0       \
+        bridge_cidr=127.0.0.2/24 \
+        nic_cidr=127.0.0.3/24
+
+    $(pack_import testns_args)
+
+    assert_false netns_exists ${ns_name}
+
+    etestmsg "Creating namespace"
+    netns_create ${ns_name}
+
+    assert netns_exists ${ns_name}
+
+    etestmsg "Creating network in namespace"
+    netns_setup_connected_network testns_args
+
+    # This script is run from the directory output/daemon.sh/ETEST_daemon.sh/, 
+    # which is a transient directory that only exists during the test run and
+    # is cleaned up immediately after.  Regardless, that is why the cmdline
+    # specifies the script to run the way it does.
+    etestmsg "Starting infinity daemon"
+    daemon_init sleep_daemon                        \
+        "${DAEMON_EXPECT[@]}"                       \
+        name="Infinity"                             \
+        cmdline="../../../unittest/netns_runner.sh" \
+        netns_name=testns                           \
+        cgroup="${ETEST_CGROUP}/daemon"             \
+        pidfile="${pidfile}"
+
+    echo $(lval +sleep_daemon)
+
+    $(pack_import sleep_daemon)
+
+    daemon_start sleep_daemon
+
+    etestmsg "Waiting for infinity daemon"
+    # Wait for process to be running
+    daemon_expect pre_start
+    daemon_expect post_start
+    assert_true daemon_running sleep_daemon
+    assert [[ -s ${pidfile} ]]
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
+
+    # Now stop it and verify proper shutdown
+    local pid=$(cat "${pidfile}")
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    assert_not_exists pidfile
+
+    netns_remove_network testns_args
+    netns_delete ${ns_name}
+
+    assert_false netns_exists ${ns_name}
 }
 
 ETEST_daemon_cgroup()
@@ -95,7 +174,7 @@ ETEST_daemon_hooks()
 {
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
-    
+
     daemon_init sleep_daemon     \
         "${DAEMON_EXPECT[@]}"    \
         name="Infinity"          \
@@ -109,7 +188,7 @@ ETEST_daemon_hooks()
     daemon_expect pre_start
     daemon_expect post_start
     assert_true daemon_running sleep_daemon
-    
+
     # STOP
     daemon_stop sleep_daemon &
     daemon_expect pre_stop
@@ -123,7 +202,7 @@ ETEST_daemon_pre_start_fail()
 {
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
-    
+
     daemon_init sleep_daemon                      \
         name="Infinity"                           \
         cmdline="sleep infinity"                  \
@@ -155,7 +234,7 @@ ETEST_daemon_logfile()
         echo "stderr" >&2
         sleep infinity
     }
-    
+
     local mdaemon
     daemon_init mdaemon      \
         "${DAEMON_EXPECT[@]}"\
@@ -184,7 +263,7 @@ ETEST_daemon_logfile()
     # Show logfile and verify state
     etestmsg "Daemon logfile:"
     cat "${logfile}"
-    
+
     grep --silent "Starting My Daemon" "${logfile}"
     grep --silent "stdout"             "${logfile}"
     grep --silent "stderr"             "${logfile}"
@@ -215,7 +294,7 @@ ETEST_daemon_respawn()
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
     assert process_running $(cat ${pidfile})
-    
+
     # Now kill it the specified number of respawns
     # and verify it respawns each time
     for (( iter=1; iter<=${respawns}; iter++ )); do
@@ -258,7 +337,7 @@ ETEST_daemon_respawn_reset()
     touch ${DAEMON_LOCK}
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
-    
+
     daemon_init sleep_daemon     \
         "${DAEMON_EXPECT[@]}"    \
         name="Infinity"          \
@@ -277,7 +356,7 @@ ETEST_daemon_respawn_reset()
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
     assert process_running $(cat ${pidfile})
- 
+
     # Now kill it the specified number of respawns and verify it respawns each time
     for (( iter=1; iter<=${respawns}; iter++ )); do
 
@@ -305,7 +384,7 @@ ETEST_daemon_respawn_reset()
     daemon_stop sleep_daemon &
     daemon_expect pre_stop
     daemon_expect post_stop
-    wait 
+    wait
 
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon

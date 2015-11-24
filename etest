@@ -26,6 +26,7 @@ ETEST_TOPDIR=${TEST_DIR}
 # -v=(0|1)   Optional value for VERBOSE setting. If set to 0 you'll get terse output from etest showing
 #            only the test name and result. If set to 1 you'll get more verbose output from etest and each test.
 # -b=(0|1)   Break on failure (defaults to 0)
+# -k=(0|1)   Keep all output
 # -c=(0|1)   Clean only then exit.
 # -h=(0|1)   Produce HTML logfile and strip color codes from etest.log
 FILTER=$(opt_get f ${FILTER:=""})
@@ -35,6 +36,7 @@ REPEAT=$(opt_get r ${REPEAT:=1})
 VERBOSE=$(opt_get v 0)
 [[ ${EDEBUG:-0} != "0" ]] && VERBOSE=1 || true
 BREAK=$(opt_get b ${BREAK:=0})
+KEEPOUTPUT=$(opt_get k 0)
 HTML=$(opt_get h 0)
 edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK HTML)"
 
@@ -144,6 +146,7 @@ global_setup()
 
 global_teardown()
 {
+    [[ $KEEPOUTPUT -eq 1 ]] && edebug "Skipping global_teardown" && return 0
     edebug "Starting global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
     cgroup_destroy -r ${ETEST_CGROUP}
@@ -274,7 +277,9 @@ run_all_tests_in_file()
         # Unit test infrastructure teardown
         assert_no_process_leaks
         eunmount_recursive ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc} |& edebug
-        rm -rf ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
+        if [[ $KEEPOUTPUT -eq 0 ]] ; then 
+            rm -rf ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
+        fi
 
     done
 }
