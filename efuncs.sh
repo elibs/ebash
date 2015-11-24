@@ -2609,6 +2609,209 @@ declare_args()
     echo "eval ${_declare_args_cmd}"
 }
 
+# Assumptions:
+#   - The argument to an option may NOT start with a hyphen character (-).
+#   - Option names may not contain whitespace.
+#   - Options may themselves have arguments (:) or even optional (?) arguments.
+#   - All options and their arguments must occur on the command line before
+#     positional arguments
+#   - Options that don't have an argument are assumed to be numeric.  If they
+#     never occur, they're set to zero, and each time they occur on the command
+#     line the number is incremented.
+declare_opts()
+{
+    echo "eval "
+    declare_opts_internal_setup "${@}"
+
+    # __FULL_ARGS is the list of arguments as initially passed to declare_opts.
+    # declare_args_internal will modifiy __ARGS to be whatever was left to be
+    # processed after it is finished.
+    # Note: here $@ is quoted so it refers to the caller's arguments
+    echo 'declare __FULL_ARGS=("$@") ; '
+    echo 'declare __ARGS=("$@") ; '
+    echo "declare_opts_internal ; "
+    echo '[[ ${#__ARGS[@]:-} -gt 0 ]] && set -- "${__ARGS[@]}" || set -- '
+}
+
+declare_opts_internal_setup()
+{
+    local opt_cmd="__OPT=( "
+    local regex_cmd="__REGEX=( "
+    local expects_cmd="__EXPECTS=( "
+
+    while (( $# )) ; do
+        # Arguments to this function come in pairs.  First the option
+        # definition and second the docstring for that option.  Both are
+        # required.
+        local opt_def=$1 ; shift
+        local docstring=$1 ; shift
+
+        # The default is any text in the argument definition after the first equal sign.
+        local default=0
+        if [[ ${opt_def} =~ ^[^=]+(=(.*))$ ]] ; then
+            default=${BASH_REMATCH[2]}
+        fi
+
+        # Possible "__EXPECTS[option]" values are:
+        #   0: This option has no argument
+        #   1: This option is required to have an argument
+        local expects=0
+        [[ ${opt_def} =~ ([:?])?([^=]+)(=.*)? ]]
+        if [[ ${BASH_REMATCH[1]} == ":" ]] ; then
+            expects=1
+        elif [[ ${BASH_REMATCH[1]} == "?" ]] ; then
+            expects=2
+        fi
+
+        # Same regular expression -- second match is the full list of
+        # alternative strings that can represent this option.
+        local all_opts=${BASH_REMATCH[2]}
+        local regex=^\(${all_opts// /|}\)$
+
+        # The canonical option name is the first name for the option that is specified
+        [[ ${all_opts} =~ ([^\t ]+).* ]]
+        local canonical=${all_opts%%[ 	]*}
+        [[ -n ${canonical} ]]
+
+
+        # Now that they're all computed, add them to the command that will generate associative arrays
+        opt_cmd+="[${canonical}]='${default}' "
+        regex_cmd+="[${canonical}]='${regex}' "
+        expects_cmd+="[${canonical}]='$expects' "
+
+    done
+
+    opt_cmd+=")"
+    regex_cmd+=")"
+    expects_cmd+=")"
+
+    printf "declare -A %s %s %s ; " "${opt_cmd}" "${regex_cmd}" "${expects_cmd}"
+}
+
+declare_opts_internal()
+{
+    # No arguments?  Nothing to do.
+    if [[ ${#__FULL_ARGS[@]:-} -eq 0 ]] ; then
+        return 0
+    fi
+
+    set -- "${__FULL_ARGS[@]}"
+
+    local shift_count=0
+    while (( $# )) ; do
+        case "$1" in
+            --)
+                break
+                ;;
+            --*)
+                # Drop the initial hyphens, grab the option name and capture
+                # "=value" from the end if there is one
+                [[ $1 =~ ^--([^=]+)(=(.*))?$ ]]
+                local long_opt=${BASH_REMATCH[1]}
+                local has_arg=${BASH_REMATCH[2]}
+                local opt_arg=${BASH_REMATCH[3]}
+
+                local canonical=$(declare_opts_find_canonical ${long_opt})
+                [[ -n ${canonical} ]] || die "Unexpected option --${long_opt}"
+
+                if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
+                    # If it wasn't specified after an equal sign, instead grab
+                    # the next argument off the command line
+                    if [[ -z ${has_arg} ]] ; then
+                        [[ $# -ge 2 ]] || die "Option --${long_opt} requires an argument but didn't receive one."
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                    fi
+
+                    __OPT[$canonical]=${opt_arg}
+                else
+                        if [[ -n ${has_arg} ]] ; then
+                            die "Option --${long_opt} does not accept an argument, but was passed ${opt_arg}"
+                        fi
+                    __OPT[$canonical]=1
+                fi
+                ;;
+
+            -*)
+                # Drop the initial hyphen, grab the single-character options as
+                # a blob, and capture an "=value" if there is one.
+                [[ $1 =~ ^-([^=]+)(=(.*))?$ ]]
+                local short_opts=${BASH_REMATCH[1]}
+                local has_arg=${BASH_REMATCH[2]}
+                local opt_arg=${BASH_REMATCH[3]}
+
+                # Iterate over the single character options except the last,
+                # handling each in turn
+                local index
+                for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
+                    local char=${short_opts:$index:1}
+                    local canonical=$(declare_opts_find_canonical ${char})
+                    [[ -n ${canonical} ]] || die "Unexpected option --${long_opt}"
+
+                    if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
+                        die "Option -${char} requires an argument but didn't receive one."
+                    fi
+
+                    __OPT[$canonical]=1
+                done
+
+                # Handle the last one separately, because it might have an argument.
+                local char=${short_opts:$index}
+                local canonical=$(declare_opts_find_canonical ${char})
+                [[ -n ${canonical} ]] || die "Unexpected option -${char}"
+
+                # If it expects an argument, make sure it has one and use it.  (Note: handled 
+                if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
+
+                    # If it wasn't specified after an equal sign, instead grab
+                    # the next argument off the command line
+                    if [[ -z ${has_arg} ]] ; then
+                        [[ $# -ge 2 ]] || die "Option -${char} requires an argument but didn't receive one."
+
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                    fi
+                    __OPT[$canonical]=${opt_arg}
+                else
+                    # And if not, make sure it doesn't.
+                    if [[ -n ${has_arg} ]] ; then
+                        die "Option -${char} does not accept an argument, but was passed ${opt_arg}"
+                    fi
+                    __OPT[$canonical]=1
+                fi
+                ;;
+            *)
+                break
+                einfo "ARG:  $1"
+                ;;
+        esac
+
+        # Move on to the next item, recognizing that an option may have consumed the last one
+        shift && (( shift_count += 1 )) || break
+    done
+
+    # Assign to the __ARGS array so that the declare_opts macro can make its
+    # contents the remaining set of arguments in the calling function.
+    if [[ ${#__ARGS[@]:-} -gt 0 ]] ; then
+        __ARGS=( "${__ARGS[@]:$shift_count}" )
+    fi
+}
+
+declare_opts_find_canonical()
+{
+    for option in "${!__OPT[@]}" ; do
+        if [[ ${1} =~ ${__REGEX[$option]} ]] ; then
+            echo "${option}"
+            return 0
+        fi
+    done
+}
+
+dopt_get()
+{
+    echo "${__OPT[$1]}"
+}
+
 # Helper method to print the options after calling declare_args.
 opt_print()
 {
