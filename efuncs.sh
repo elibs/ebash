@@ -2615,9 +2615,8 @@ declare_args()
 #   - Options may themselves have arguments (:) or even optional (?) arguments.
 #   - All options and their arguments must occur on the command line before
 #     positional arguments
-#   - Options that don't have an argument are assumed to be numeric.  If they
-#     never occur, they're set to zero, and each time they occur on the command
-#     line the number is incremented.
+#   - Options that don't have an argument are assumed to be boolean.  If they
+#     exist on the command line, they're true and if not, they're false.
 declare_opts()
 {
     echo "eval "
@@ -2645,6 +2644,7 @@ declare_opts_internal_setup()
         # required.
         local opt_def=$1 ; shift
         local docstring=$1 ; shift
+        [[ -n ${opt_def} ]] || die "Invalid declare_opts syntax.  Option definition is empty."
 
         # The default is any text in the argument definition after the first equal sign.
         local default=0
@@ -2760,7 +2760,7 @@ declare_opts_internal()
                 local canonical=$(declare_opts_find_canonical ${char})
                 [[ -n ${canonical} ]] || die "Unexpected option -${char}"
 
-                # If it expects an argument, make sure it has one and use it.  (Note: handled 
+                # If it expects an argument, make sure it has one and use it.
                 if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab

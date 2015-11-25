@@ -3,11 +3,11 @@
 ETEST_declare_opts()
 {
     set -- --file some_file --longer --long --whitespace "arg with whitespace" -shktlc blue -m -n arg1 arg2 arg3
-    $(declare_opts \
-        ":file f" "Which file should be processed." \
-        ":color c=yellow" "Color to be used." \
-        "?long l longer s h k t m n" "option with lots of variants" \
-        ":whitespace w" "option expecting to receive something containing whitespace")
+    $(declare_opts                                                          \
+        ":file f"                       "Which file should be processed."   \
+        ":color c=yellow"               "Color to be used."                 \
+        "?long l longer s h k t m n"    "option with lots of variants"      \
+        ":whitespace w"                 "option expecting to receive something containing whitespace")
 
     assert_eq "blue" "$(dopt_get color)"
     assert_eq "some_file" "$(dopt_get file)"
@@ -15,12 +15,6 @@ ETEST_declare_opts()
     assert_eq "arg1" "$1"
     assert_eq "arg2" "$2"
     assert_eq "arg3" "$3"
-
-    declare -p __OPT
-
-    echo "color: $(dopt_get color)"
-    echo "file: $(dopt_get file)"
-    echo "whitespace: $(dopt_get whitespace)"
 }
 
 ETEST_declare_opts_boolean()
@@ -53,10 +47,10 @@ ETEST_declare_opts_boolean_multi()
 {
     set -- --another -va --verbose -vv -s --else
     $(declare_opts          \
-        "verbose v" ""      \
-        "another a" ""      \
-        "something s" ""    \
-        "else e" "")
+        "verbose v"     ""  \
+        "another a"     ""  \
+        "something s"   ""  \
+        "else e"        "")
 
     assert_eq 1 "$(dopt_get verbose)"
     assert_eq 1 "$(dopt_get another)"
@@ -72,11 +66,11 @@ ETEST_declare_opts_boolean_multi()
 ETEST_declare_opts_short()
 {
     set -- -nf a_file -c salmon -d=door
-    $(declare_opts \
-        ":file f" "the file" \
-        "numeric n" "a number" \
-        ":color c" "the color" \
-        ":door d" "another argument")
+    $(declare_opts                  \
+        ":file f"   "the file"      \
+        "numeric n" "a number"      \
+        ":color c"  "the color"     \
+        ":door d"   "another argument")
 
 
     assert_eq "a_file" $(dopt_get file)
@@ -268,6 +262,52 @@ ETEST_declare_opts_boolean_defaults()
     assert_eq 1  "$(dopt_get d)"
     assert_true  dopt_true d
     assert_false dopt_false a
+}
+
+ETEST_declare_opts_get_fails_on_undeclared_option()
+{
+    set -- -a
+    $(declare_opts "a" "")
+
+    assert_false dopt_get b
+    assert_false dopt_get alpha
+    assert_false dopt_true b
+    assert_false dopt_true alpha
+
+    assert_true dopt_get a
+}
+
+ETEST_declare_opts_recursive()
+{
+
+    foo()
+    {
+        $(declare_opts \
+            ":as a" "" \
+            ":be b" "" \
+            ":c"    "")
+
+        bar --as 6 -b=5 -c 4
+
+        assert_eq 3 $(dopt_get as)
+        assert_eq 2 $(dopt_get be)
+        assert_eq 1 $(dopt_get c)
+    }
+
+    bar()
+    {
+        $(declare_opts \
+            ":as a" "" \
+            ":be b" "" \
+            ":c"    "")
+
+        assert_eq 6 $(dopt_get as)
+        assert_eq 5 $(dopt_get be)
+        assert_eq 4 $(dopt_get c)
+
+    }
+
+    foo  --as 3 -b=2 -c 1
 }
 
 # TODO --no-option
