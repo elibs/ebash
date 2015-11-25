@@ -1,3 +1,16 @@
+# Bashutils 1.2
+
+    - Removed the option parsing functionality from declare_args and let its
+      single purpose be handling positional arguments.
+
+    - Added declare_opts to do option parsing.  To use it, you'll typically
+      call declare_opts prior to declare_args in any function that you want to
+      handle options.  Declare_opts supports both short and long options and is
+      friendlier to callers of functions that use it.  For instance, you don't
+      have to use an equal sign to specify a value for an option (although you
+      still may)
+
+
 # Bashutils 1.1
 
     - Added tryrc function to aid in running code that you expect might fail,
