@@ -124,9 +124,12 @@ alias try="
     __EFUNCS_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
     (
-        enable_trace
-        die_on_abort
-        trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &> >(edebug)' ERR
+        true
+        (
+            __EFUNCS_TRY_SHELL=1
+            enable_trace
+            die_on_abort
+            trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &> >(edebug)' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -155,7 +158,7 @@ alias try="
 # (4) The dangling "||" here requries the caller to put something after the
 #     catch block which sufficiently handles the error or the code won't be
 #     valid.
-alias catch=" );
+alias catch=" ); );
     __EFUNCS_TRY_CATCH_RC=\$?
     __EFUNCS_DIE_ON_ERROR_TRAP=\"\${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
     unset __EFUNCS_DIE_ON_ERROR_TRAP_STACK[\${#__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]}-1]
@@ -512,7 +515,18 @@ die()
         # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
         #          parent of $$ not necessarily the parent of ${BASHPID}!
         local pid=${BASHPID}
-        ekill -s=SIGTERM $(ps -o pid --no-headers --ppid ${pid})
+
+        # Kill the parent shell.  This is how we detect failures inside command
+        # substituion shells.  Bash would typically ignore them, but this
+        # causes the shell calling the command substitution to fail and call die.
+        #
+        # Note: The shell that makes up the "try" body of a try/catch is
+        # special.  We don't want to kill the try, we want to let the catch
+        # handle things.
+        #
+        if [[ ${__EFUNCS_TRY_SHELL:-0} != 1 ]] ; then
+            ekill -s=SIGTERM $(ps -o ppid --no-headers --pid ${pid})
+        fi
         ekilltree -s=SIGTERM ${pid}
 
         # When a process dies as the result of a signal, the proper thing to do
