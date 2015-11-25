@@ -3,3 +3,4 @@ syntax: glob
 etest.log
 etest.html
 results
+output
