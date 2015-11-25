@@ -1,3 +1,7 @@
+# Bashutils 1.3
+
+    - Fixed a bug that caused die not to signal its parent when aborting.
+
 # Bashutils 1.2
 
     - Removed the option parsing functionality from declare_args and let its
