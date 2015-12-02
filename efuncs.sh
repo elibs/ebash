@@ -14,8 +14,14 @@ shopt -s expand_aliases
 shopt -s checkwinsize
 
 # Locale setup to ensure sort and other GNU tools behave sanely
-export LC_ALL=en_US.utf8
-export LANG=en_US.utf8
+: ${__BASHUTILS_OS:=$(uname)}
+if [[ "${__BASHUTILS_OS}" == Linux ]] ; then
+    export LC_ALL="en_US.utf8"
+    export LANG="en_US.utf8"
+elif [[ "${__BASHUTILS_OS}" == Darwin ]] ; then
+    export LC_ALL="en_US.UTF-8"
+    export LANG="en_US.UTF-8"
+fi
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -231,6 +237,11 @@ get_stream_fd()
 close_fds()
 {
     $(declare_args)
+
+    if [[ ${__BASHUTILS_OS} != "Linux" ]] ; then
+        # Not supported away from linux at the moment.
+        return 0
+    fi
 
     # Note grab file descriptors for the current process, not the one inside
     # the command substitution ls here.
@@ -512,7 +523,7 @@ die()
         # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
         #          parent of $$ not necessarily the parent of ${BASHPID}!
         local pid=${BASHPID}
-        ekill -s=SIGTERM $(ps -o pid --no-headers --ppid ${pid})
+        ekill -s=SIGTERM $(ps eo ppid,pid | awk '$1 == '${pid}' {print $2}')
         ekilltree -s=SIGTERM ${pid}
 
         # When a process dies as the result of a signal, the proper thing to do
@@ -1377,7 +1388,7 @@ process_tree()
 
     process_not_running "${pid}" && return 0
 
-    for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+    for child in $(ps eo ppid,pid | awk '$1 == '${pid}' {print $2}' || true); do
         process_tree ${child}
     done
 
@@ -1428,7 +1439,7 @@ ekilltree()
     for pid in ${@}; do 
         edebug "Killing process tree $(lval pid signal)"
         
-        for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+        for child in $(ps eo ppid,pid | awk '$1 == '${pid}' {print $2}' ); do
             edebug "Killing $(lval child)"
             ekilltree -x="${excluded}" -s=${signal} ${child}
         done
@@ -3707,7 +3718,7 @@ _unpack()
 {
     # NOTE: BSD base64 is really chatty and this is the reason we discard its
     # error output
-    base64 -d 2>/dev/null | tr '\0' '\n'
+    base64 --decode 2>/dev/null | tr '\0' '\n'
 }
 
 _pack()
