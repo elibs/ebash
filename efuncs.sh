@@ -523,7 +523,7 @@ die()
         # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
         #          parent of $$ not necessarily the parent of ${BASHPID}!
         local pid=${BASHPID}
-        ekill -s=SIGTERM $(ps eo ppid,pid | awk '$1 == '${pid}' {print $2}')
+        ekill -s=SIGTERM $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}')
         ekilltree -s=SIGTERM ${pid}
 
         # When a process dies as the result of a signal, the proper thing to do
@@ -1388,7 +1388,7 @@ process_tree()
 
     process_not_running "${pid}" && return 0
 
-    for child in $(ps eo ppid,pid | awk '$1 == '${pid}' {print $2}' || true); do
+    for child in $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}' || true); do
         process_tree ${child}
     done
 
@@ -1439,7 +1439,7 @@ ekilltree()
     for pid in ${@}; do 
         edebug "Killing process tree $(lval pid signal)"
         
-        for child in $(ps eo ppid,pid | awk '$1 == '${pid}' {print $2}' ); do
+        for child in $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}' ); do
             edebug "Killing $(lval child)"
             ekilltree -x="${excluded}" -s=${signal} ${child}
         done
