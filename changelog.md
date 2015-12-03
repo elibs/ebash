@@ -67,6 +67,8 @@
 
     - Substantial hardening and new tests in jenkins.sh.
 
+    - Bashutils now explicitly chooses a locale (en_US.utf8)
+
 
 # Bashutils 1.0
 

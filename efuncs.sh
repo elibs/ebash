@@ -14,8 +14,14 @@ shopt -s expand_aliases
 shopt -s checkwinsize
 
 # Locale setup to ensure sort and other GNU tools behave sanely
-export LC_ALL=en_US.utf8
-export LANG=en_US.utf8
+: ${__BASHUTILS_OS:=$(uname)}
+if [[ "${__BASHUTILS_OS}" == Linux ]] ; then
+    export LC_ALL="en_US.utf8"
+    export LANG="en_US.utf8"
+elif [[ "${__BASHUTILS_OS}" == Darwin ]] ; then
+    export LC_ALL="en_US.UTF-8"
+    export LANG="en_US.UTF-8"
+fi
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -525,7 +531,7 @@ die()
         # handle things.
         #
         if [[ ${__EFUNCS_TRY_SHELL:-0} != 1 ]] ; then
-            ekill -s=SIGTERM $(ps -o ppid --no-headers --pid ${pid})
+            ekill -s=SIGTERM $(ps -eo ppid,pid | awk '$2 == '${pid}' {print $1}')
         fi
         ekilltree -s=SIGTERM ${pid}
 
@@ -1391,7 +1397,7 @@ process_tree()
 
     process_not_running "${pid}" && return 0
 
-    for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+    for child in $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}' || true); do
         process_tree ${child}
     done
 
@@ -1442,7 +1448,7 @@ ekilltree()
     for pid in ${@}; do 
         edebug "Killing process tree $(lval pid signal)"
         
-        for child in $(ps -o pid --no-headers --ppid ${pid} || true); do
+        for child in $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}' ); do
             edebug "Killing $(lval child)"
             ekilltree -x="${excluded}" -s=${signal} ${child}
         done
@@ -3934,7 +3940,7 @@ _unpack()
 {
     # NOTE: BSD base64 is really chatty and this is the reason we discard its
     # error output
-    base64 -d 2>/dev/null | tr '\0' '\n'
+    base64 --decode 2>/dev/null | tr '\0' '\n'
 }
 
 _pack()
