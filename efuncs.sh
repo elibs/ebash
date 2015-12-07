@@ -1590,7 +1590,7 @@ fully_qualify_hostname()
 getipaddress()
 {
     $(declare_args iface)
-    ip addr show "${iface}" | awk '/inet [0-9./]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
+    ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
 # Get the netmask (IPv4 dotted notation) currently set on the requested
@@ -1600,7 +1600,7 @@ getipaddress()
 getnetmask()
 {
     $(declare_args iface)
-    local cidr=$(ip addr show "${iface}" | awk '/inet [0-9./]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
+    local cidr=$(ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
     cidr2netmask "${cidr}"
@@ -1650,7 +1650,7 @@ cidr2netmask ()
 getbroadcast()
 {
     $(declare_args iface)
-    ip addr show "${iface}" | awk '/inet [0-9./]+ brd .*'${iface}'$/ { print $4 }' || true
+    ip addr show "${iface}" | awk '/inet [0-9.\/]+ brd .*'${iface}'$/ { print $4 }' || true
 }
 
 # Gets the default gateway that is currently in use, if any. It is not an
