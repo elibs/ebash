@@ -9,17 +9,15 @@ ETEST_daemon_init()
 
     daemon_init sleep_daemon     \
         "${DAEMON_EXPECT[@]}"    \
-        name="Infinity"          \
+        name="Init Test Daemon"  \
         cmdline="sleep infinity" \
         pidfile="${pidfile_real}"
 
     $(pack_import sleep_daemon)
 
-    [[ "sleep infinity" == "${cmdline}" ]] || die "$(lval cmdline +sleep_daemon)"
-
-    assert_eq "Infinity"       "${name}"
-    assert_eq "sleep infinity" "${cmdline}"
-    assert_eq "${pidfile_real}" "$(pack_get sleep_daemon pidfile)"
+    assert_eq "Init Test Daemon" "${name}"
+    assert_eq "sleep infinity"   "${cmdline}"
+    assert_eq "${pidfile_real}"  "$(pack_get sleep_daemon pidfile)"
 }
 
 ETEST_daemon_start_stop()
@@ -30,7 +28,7 @@ ETEST_daemon_start_stop()
     etestmsg "Starting infinity daemon"
     daemon_init sleep_daemon            \
         "${DAEMON_EXPECT[@]}"           \
-        name="Infinity"                 \
+        name="Test Daemon"              \
         cmdline="sleep infinity"        \
         cgroup="${ETEST_CGROUP}/daemon" \
         pidfile="${pidfile}"
@@ -98,7 +96,7 @@ ETEST_daemon_netns()
     etestmsg "Starting infinity daemon"
     daemon_init sleep_daemon                        \
         "${DAEMON_EXPECT[@]}"                       \
-        name="Infinity"                             \
+        name="Netns test daemon"                    \
         cmdline="../../../unittest/netns_runner.sh" \
         netns_name=testns                           \
         cgroup="${ETEST_CGROUP}/daemon"             \
@@ -144,11 +142,11 @@ ETEST_daemon_cgroup()
     local pidfile="${FUNCNAME}.pid"
 
     etestmsg "Initializing daemon"
-    daemon_init sleep_daemon     \
-        "${DAEMON_EXPECT[@]}"    \
-        name="Infinity"          \
-        cmdline="sleep infinity" \
-        cgroup=${CGROUP}         \
+    daemon_init sleep_daemon      \
+        "${DAEMON_EXPECT[@]}"     \
+        name="cgroup test daemon" \
+        cmdline="sleep infinity"  \
+        cgroup=${CGROUP}          \
         pidfile="${pidfile}"
 
     etestmsg "Running daemon"
@@ -177,7 +175,7 @@ ETEST_daemon_hooks()
 
     daemon_init sleep_daemon     \
         "${DAEMON_EXPECT[@]}"    \
-        name="Infinity"          \
+        name="hooks daemon"      \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"     \
         respawns="3"             \
@@ -204,7 +202,7 @@ ETEST_daemon_pre_start_fail()
     local sleep_daemon
 
     daemon_init sleep_daemon                      \
-        name="Infinity"                           \
+        name="pre_start_fail daemon"              \
         cmdline="sleep infinity"                  \
         pidfile="${pidfile}"                      \
         pre_start="false"                         \
@@ -278,7 +276,7 @@ ETEST_daemon_respawn()
 
     daemon_init sleep_daemon     \
         "${DAEMON_EXPECT[@]}"    \
-        name="Infinity"          \
+        name="respawning daemon" \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"     \
         respawns="3"             \
@@ -338,12 +336,12 @@ ETEST_daemon_respawn_reset()
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
 
-    daemon_init sleep_daemon     \
-        "${DAEMON_EXPECT[@]}"    \
-        name="Infinity"          \
-        cmdline="sleep infinity" \
-        pidfile="${pidfile}"     \
-        respawns="3"             \
+    daemon_init sleep_daemon        \
+        "${DAEMON_EXPECT[@]}"       \
+        name="respawn_reset daemon" \
+        cmdline="sleep infinity"    \
+        pidfile="${pidfile}"        \
+        respawns="3"                \
         respawn_interval="0"
 
     $(pack_import sleep_daemon)

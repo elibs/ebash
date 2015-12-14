@@ -1,6 +1,32 @@
 # Bashutils 1.3
 
-    - Fixed a bug that caused die not to signal its parent when aborting.
+    - Fixed a bug that caused die not to signal its parent when aborting.  It
+      is through this mechanism that we intend to catch errors that happen in
+      command substitution shells, so this may unearth some errors that were
+      previously undetected.  If you want to disable this for a particular
+      shell, you can call disable_die_parent in it.
+
+    - New functions to assist in ascertaining your position in the process
+      hierarchy.  Process_tree already existed, but process_children,
+      process_parent, and process_ancestors are new.
+
+    - ekill now supports an option (--kill-after) to send the initial signal,
+      plus send sigkill later if the process doesn't die, and similar
+      functionality has been added to other functions that kill such as
+      ekilltree.
+
+    - Rather than depth-first iteration, ekilltree now kills the children of a
+      process all at the same time.
+
+    - Die now only kills itself via the terminating signal it caught when that
+      signal is one of the TTY signals.  Doing that on other signals such as
+      sigterm can cause bash not to execute exit traps.
+
+    - Chroot_kill now defaults to sigterm rather than sigkill.
+
+    - Exceptions, unhandled errors, and caught signals now report the pid of
+      the running process and the command running at the time of occurrence.
+
 
 # Bashutils 1.2
 

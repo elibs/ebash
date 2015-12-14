@@ -12,6 +12,34 @@ ETEST_ekill()
     ! process_running ${pid} || die "${pid} should have been killed!"
 }
 
+ETEST_ekill_elevate()
+{
+    ignore_term()
+    {
+        disable_die_parent
+        die_on_abort
+        trap '' SIGTERM
+        etestmsg "signals ignored in ${BASHPID}, starting endless loop."
+        while true ; do
+            :
+        done
+        ewarn "endless loop finished"
+    }
+
+    ignore_term &
+    local pid=$!
+
+    assert process_running ${pid}
+    local tree=$(process_tree ${pid})
+    etestmsg "Background processes running $(lval tree)."
+
+    etestmsg "Sending SIGTERM which will be ignored, but ekill will elevate to SIGKILL a second later."
+    ekilltree -s=TERM -k=1s ${pid}
+
+    etestmsg "Waiting for processes to get killed."
+    eretry -T=4s process_not_running ${tree}
+}
+
 ETEST_ekill_multiple()
 {
     > pids

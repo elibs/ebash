@@ -16,14 +16,11 @@ ETEST_elogfile()
     grep -q "stderr" ${FUNCNAME}.log
 }
 
-# Create a log running process writing to a file then kill it ane ensure it
+# Create a log running process writing to a file then kill it and ensure it
 # properly shuts down.
 ETEST_elogfile_term()
 {
     (
-        die_on_abort
-        die_on_error
-
         elogfile ${FUNCNAME}.log
        
         SECONDS=0
@@ -40,7 +37,7 @@ ETEST_elogfile_term()
     sleep 3
     eprogress_kill
     
-    etestmsg "Killing backgrounded process"
+    etestmsg "Killing backgrounded process BASHPID=${BASHPID}"
     ekilltree -s=SIGTERM ${pid}
 
     eretry -T=30s process_not_running ${pid}
@@ -278,12 +275,15 @@ ETEST_elogfile_hang_kill_tee()
 
         elogfile -r=1 ${mlog}
         etestmsg "Test"
-        $(tryrc pstree -p $$)
+        $(tryrc pstree -lp $$)
 
-        etestmsg "Killing tee processes"
-        ekilltree -s=SIGKILL $(pstree -p ${BASHPID} | grep tee | grep -o "([[:digit:]]*)" | grep -o "[[:digit:]]*" || true)
+        local pid=${BASHPID}
+
+        local processes=$(pstree -lp ${pid} | grep tee | grep -o "([[:digit:]]*)" | grep -o "[[:digit:]]*" || true)
+        etestmsg "Killing tee processes $(lval processes)"
+        ekilltree -s=SIGKILL ${processes}
         etestmsg "After killing tee"
-        $(tryrc pstree -p ${BASHPID})
+        $(tryrc pstree -lp ${pid})
     )
 }
 

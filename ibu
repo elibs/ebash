@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
-: ${BASHUTILS:=$(dirname $0)}
-source ${BASHUTILS}/bashutils.sh || { echo "Failed to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
+reload()
+{
+    : ${BASHUTILS:=$(dirname $0)}
+    source ${BASHUTILS}/bashutils.sh || { echo "Failed to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
+}
+reload
 
 HISTFILE=$(mktemp /tmp/ibashutils_$$_XXXXXX)
 trap_add "rm -f \"${HISTFILE}\""

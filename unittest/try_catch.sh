@@ -152,7 +152,7 @@ ETEST_nodie_on_error_with_try_catch()
 
 # Verify we are building up the try/catch enabled stack correctly.
 ERR_TRAP_DIE="die ${DIE_MSG_UNHERR}"
-ERR_TRAP_CATCH="die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &> >(edebug)"
+ERR_TRAP_CATCH="die -r=\$? ${DIE_MSG_CAUGHT}"
 ERR_TRAP_NONE="-"
 
 assert_stack_eq()
@@ -558,7 +558,7 @@ ETEST_tryrc_stderr_unbuffered()
     einfo "Creating background infinite process writing to stderr"
     (
         $(EDEBUG=0 tryrc eval 'echo "MESSAGE" >&2; sleep infinity') &
-        echo "$!" >> "${FUNCNAME}.pids"
+        process_tree "$!" >> "${FUNCNAME}.pids"
 
     ) 2>${pipe}
     echo "$!" >> "${FUNCNAME}.pids"
@@ -566,7 +566,7 @@ ETEST_tryrc_stderr_unbuffered()
     wait
 
     # Kill any background processes that have survived to this point.
-    $(tryrc ekilltree -s=SIGKILL $(cat ${FUNCNAME}.pids))
+    ekilltree -s=SIGKILL $(cat ${FUNCNAME}.pids)
 }
 
 ETEST_tryrc_no_eol()

@@ -112,7 +112,7 @@ assert_no_process_leaks()
     edebug "Waiting..."
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
-    $(tryrc eretry -T=10s -w=1 no_process_leaks_remain)
+    $(tryrc eretry -T=5s -w=1 no_process_leaks_remain)
 
     # The above command could have timed out but that doesn't necessarily mean
     # there are leaked processes. So KILL anything that's left, but only DIE
@@ -137,7 +137,7 @@ global_setup()
     efreshdir ${TEST_DIR_OUTPUT}
 
     # And a cgroup that will contain all output
-    cgroup_create ${ETEST_CGROUP_BASE}
+    cgroup_create ${ETEST_CGROUP}
     cgroup_move ${ETEST_CGROUP_BASE} $$
 
     edebug "Finished global_setup"
@@ -185,6 +185,11 @@ run_single_test()
     # cgroup.  This subshell solves both issues.
     try
     {
+        # Pretend that the test _not_ executing inside a try/catch so that the
+        # error stack will get printed if part of the test fails, as if etest
+        # weren't running it inside a try/catch
+        __EFUNCS_INSIDE_TRY=0
+
         cgroup_create ${ETEST_CGROUP}
         cgroup_move ${ETEST_CGROUP} ${BASHPID}
 
@@ -264,7 +269,13 @@ run_all_tests_in_file()
        
         try
         {
-            run_single_test ${testfile} ${testfunc}
+            # Pretend that the test _not_ executing inside a try/catch so that
+            # the error stack will get printed if part of the test fails, as if
+            # etest weren't running it inside a try/catch
+            __EFUNCS_INSIDE_TRY=0
+
+            ( run_single_test ${testfile} ${testfunc} )
+            assert_no_process_leaks
         }
         catch
         {
@@ -275,7 +286,6 @@ run_all_tests_in_file()
         [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_EXECUTED_COUNT += 1 ))
 
         # Unit test infrastructure teardown
-        assert_no_process_leaks
         eunmount_recursive ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc} |& edebug
         if [[ $KEEPOUTPUT -eq 0 ]] ; then 
             rm -rf ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}

@@ -186,8 +186,11 @@ daemon_start()
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
-        # Enable fatal error handling inside subshell
+        # Enable fatal error handling inside subshell but do not signal the
+        # parent of failures.
         die_on_error
+        disable_die_parent
+        enable_trace
 
         # Setup logfile
         elogfile -o=1 -e=1 -r=${logfile_count} -s=${logfile_size} "${logfile}"
@@ -234,6 +237,8 @@ daemon_start()
             # requested daemon. After the daemon completes automatically unmount chroot.
             (
                 die_on_abort
+                disable_die_parent
+                enable_trace
 
                 # Setup logfile
                 elogfile -o=1 -e=1 -t=0 "${logfile}"

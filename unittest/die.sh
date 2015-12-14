@@ -113,3 +113,36 @@ ETEST_trap_add_single_quotes()
         return 0
     }
 }
+
+ETEST_die_from_command_subst()
+{
+    foo()
+    {
+        die_on_abort
+        einfo "foo BASHPID=${BASHPID}"
+        assert die_on_error_enabled
+        echo eval
+        $(bar)
+        echo " ; echo hi_from_foo=$BASHPID ;"
+    }
+
+    bar()
+    {
+        die_on_abort
+        einfo "bar BASHPID=${BASHPID}"
+        assert die_on_error_enabled
+        echo "echo echo hi_from_bar=$BASHPID"
+        die "Called die from bar"
+    }
+
+    try
+    {
+        $(foo)
+
+        die -r=243 "Should have never reached this point."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}

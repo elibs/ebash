@@ -107,8 +107,8 @@ edebug_out()
 #-----------------------------------------------------------------------------
 
 DIE_MSG_KILLED="\"[Killed]\""
-DIE_MSG_CAUGHT="\"[ExceptionCaught]\""
-DIE_MSG_UNHERR="\"[UnhandledError]\""
+DIE_MSG_CAUGHT="\"[Exception caught in process \${BASHPID} on statement: \${BASH_COMMAND}]\""
+DIE_MSG_UNHERR="\"[Unhandled error in process \${BASHPID} on statement: \${BASH_COMMAND}]\""
 
 # The below aliases allow us to support rich error handling through the use
 # of the try/catch idom typically found in higher level languages. Essentially
@@ -130,12 +130,11 @@ alias try="
     __EFUNCS_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
     (
-        true
-        (
-            __EFUNCS_TRY_SHELL=1
-            enable_trace
-            die_on_abort
-            trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &> >(edebug)' ERR
+        __EFUNCS_INSIDE_TRY=1
+        declare __EFUNCS_DISABLE_DIE_PARENT_PID=\${BASHPID}
+        enable_trace
+        die_on_abort
+        trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -164,7 +163,7 @@ alias try="
 # (4) The dangling "||" here requries the caller to put something after the
 #     catch block which sufficiently handles the error or the code won't be
 #     valid.
-alias catch=" ); );
+alias catch=" );
     __EFUNCS_TRY_CATCH_RC=\$?
     __EFUNCS_DIE_ON_ERROR_TRAP=\"\${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
     unset __EFUNCS_DIE_ON_ERROR_TRAP_STACK[\${#__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]}-1]
@@ -176,6 +175,14 @@ alias catch=" ); );
 throw()
 {
     exit $1
+}
+
+# Returns true (0) if the current code is executing inside a try/catch block
+# and false otherwise.
+#
+inside_try()
+{
+    [[ ${__EFUNCS_INSIDE_TRY:-0} -eq 1 ]]
 }
 
 # die_on_error is a simple alias to register our trap handler for ERR. It is
@@ -190,6 +197,15 @@ alias die_on_error='export __EFUNCS_DIE_ON_ERROR_ENABLED=1; trap "die ${DIE_MSG_
 
 # Disable calling die on ERROR.
 alias nodie_on_error="export __EFUNCS_DIE_ON_ERROR_ENABLED=0; trap - ERR"
+
+# Prevent an error or other die call in the _current_ shell from killing its
+# parent.  By default with bashutils, errors propagate to the parent by sending
+# the parent a sigterm.
+#
+# You might want to use this in shells that you put in the background if you
+# don't want an error in them to cause you to be notified via sigterm.
+#
+alias disable_die_parent="declare __EFUNCS_DISABLE_DIE_PARENT_PID=\${BASHPID}"
 
 # Check if die_on_error is enabled. Returns success (0) if enabled and failure
 # (1) otherwise.
@@ -485,6 +501,14 @@ trap_get()
 
 die()
 {
+    # Capture off our BASHPID into a local variable so we can use it in subsequent
+    # commands which cannot use BASHPID directly because they are in subshells and
+    # the value of BASHPID would be altered by their context. 
+    # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
+    #          parent of $$ not necessarily the parent of ${BASHPID}!
+    local pid=${BASHPID}
+    local parent=$(process_parent ${pid})
+
     # Disable traps for any signal during most of die.  We'll reset the traps
     # to existing state prior to exiting so that the exit trap will honor them.
     disable_signals
@@ -497,16 +521,24 @@ die()
         : ${__EFUNCS_DIE_BY_SIGNAL:=$(opt_get s)}
     fi
 
-    local color=$(opt_get c "red")
+    local color=$(opt_get c)
 
-    # Show error message immediately.
-    echo "" >&2
-    eerror_internal -c="${color}" "${@}"
+    # Generate a stack trace if that's appropriate for this die.
+    if inside_try && edebug_enabled ; then
+        echo "" >&2
+        eerror_internal   -c="grey19" "${@}"
+        eerror_stacktrace -c="grey19" -f=3 -s
 
-    # Call eerror_stacktrace but skip top three frames to skip over the frames
-    # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
-    # over the initial error message since we already displayed it.
-    eerror_stacktrace -c="${color}" -f=3 -s
+    elif inside_try && edebug_disabled ; then
+        # Don't print a stack trace for errors that were caught (unless edebug
+        # was enabled)
+        :
+
+    else
+        echo "" >&2
+        eerror_internal   -c="red" "${@}"
+        eerror_stacktrace -c="red" -f=3 -s
+    fi
 
     reenable_signals
 
@@ -515,13 +547,6 @@ die()
     # process ultimately exits.
     if [[ $$ != ${BASHPID} ]]; then
         
-        # Capture off our BASHPID into a local variable so we can use it in subsequent
-        # commands which cannot use BASHPID directly because they are in subshells and
-        # the value of BASHPID would be altered by their context. 
-        # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
-        #          parent of $$ not necessarily the parent of ${BASHPID}!
-        local pid=${BASHPID}
-
         # Kill the parent shell.  This is how we detect failures inside command
         # substituion shells.  Bash would typically ignore them, but this
         # causes the shell calling the command substitution to fail and call die.
@@ -530,19 +555,29 @@ die()
         # special.  We don't want to kill the try, we want to let the catch
         # handle things.
         #
-        if [[ ${__EFUNCS_TRY_SHELL:-0} != 1 ]] ; then
-            ekill -s=SIGTERM $(ps -eo ppid,pid | awk '$2 == '${pid}' {print $1}')
+        if [[ ${__EFUNCS_DISABLE_DIE_PARENT_PID:-0} != ${pid} ]] ; then
+            edebug "Sending kill to parent $(lval parent pid __EFUNCS_DISABLE_DIE_PARENT_PID)"
+            ekill -s=SIGTERM ${parent}
         fi
-        ekilltree -s=SIGTERM ${pid}
 
-        # When a process dies as the result of a signal, the proper thing to do
-        # is not to exit but to kill self with that same signal.  See
-        # http://www.cons.org/cracauer/sigint.html and
-        # http://mywiki.wooledge.org/SignalTrap
-        #
+        # Then kill all children of the current process (but not the current process)
+        ekilltree -s=SIGTERM -k=2s -x=${pid} ${pid}
+
+        # Last, finish up the current process. 
         if [[ -n "${__EFUNCS_DIE_BY_SIGNAL}" ]] ; then
-            trap - ${__EFUNCS_DIE_BY_SIGNAL}
-            kill -${__EFUNCS_DIE_BY_SIGNAL} ${BASHPID}
+            # When a process dies as the result of a SIGINT or other tty
+            # signals, the proper thing to do is not to exit but to kill self
+            # with that same signal.
+            # 
+            # See http://www.cons.org/cracauer/sigint.html and
+            # http://mywiki.wooledge.org/SignalTrap
+            #
+            if array_contains TTY_SIGNALS "${__EFUNCS_DIE_BY_SIGNAL}" ; then
+                trap - ${__EFUNCS_DIE_BY_SIGNAL}
+                ekill -s=${__EFUNCS_DIE_BY_SIGNAL} ${BASHPID}
+            else
+                exit $(sigexitcode "${__EFUNCS_DIE_BY_SIGNAL}")
+            fi
         else
             exit ${__EFUNCS_DIE_IN_PROGRESS}
         fi
@@ -551,7 +586,7 @@ die()
             die_handler -c="${color}" -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
             __EFUNCS_DIE_IN_PROGRESS=0
         else
-            ekilltree -s=SIGTERM $$
+            ekilltree -s=SIGTERM -k=2s $$
             exit ${__EFUNCS_DIE_IN_PROGRESS}
         fi
     fi
@@ -692,7 +727,7 @@ die_on_abort()
     local signal
     for signal in "${signals[@]}" ; do
         local signal_name=$(signame -s ${signal})
-        trap "die -s=${signal_name} \"[\${BASHPID} caught ${signal_name}]\"" ${signal}
+        trap "die -s=${signal_name} \"[Caught ${signal_name} in process \${BASHPID} on statement: \${BASH_COMMAND}\"]" ${signal}
     done
 }
 
@@ -1135,7 +1170,7 @@ eprompt_with_options()
 
     ## Keep reading input until a valid response is given
     while true; do
-        response=$(die_on_abort; eprompt "${msg}")
+        response=$(eprompt "${msg}")
         matches=( $(echo "${valid}" | grep -io "^${response}\S*" || true) )
         edebug "$(lval response opt secret matches valid)"
         [[ ${#matches[@]} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
@@ -1373,35 +1408,89 @@ sigexitcode()
 # PROCESS FUNCTIONS
 #-----------------------------------------------------------------------------
 
-# Check if a given process is running. Returns success (0) if the process is
-# running and failure (1) otherwise.
+# Check if a given process is running. Returns success (0) if all of the
+# specified processes are running and failure (1) otherwise.
 process_running()
 {
-    $(declare_args pid)
-    kill -0 ${pid} &>/dev/null
+    local pid
+    for pid in "${@}" ; do
+        ps -p ${pid} &>/dev/null
+    done
 }
 
-# Check if a given process is NOT running. Returns success (0) if the process
-# is not running and failure (1) otherwise.
+# Check if a given process is NOT running. Returns success (0) if all of the
+# specified processes are not running and failure (1) otherwise.
 process_not_running()
 {
-    $(declare_args pid)
-    ! kill -0 ${pid} &>/dev/null
+    local pid
+    for pid in "${@}" ; do
+        ! ps -p ${pid} &>/dev/null
+    done
 }
 
 # Generate a depth first recursive listing of entire process tree beneath a given PID.
 # If the pid does not exist this will produce an empty string.
 process_tree()
 {
-    $(declare_args pid)
-
-    process_not_running "${pid}" && return 0
-
-    for child in $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}' || true); do
-        process_tree ${child}
+    local parent
+    for parent in ${@} ; do
+        # We don't want to throw errors if a process doesn't exist, because it
+        # could go away at any time.  Testing to see if the process exists prior to
+        # running pstree still leaves us with that race condition, so we mostly
+        # just ignore errors here in ways that will lead to no output if there are
+        # no processes to report.
+        local raw_output=$(pstree -lp ${parent} || true)
+        echo "${raw_output}" | grep -oP '\(\d+\)' | tr -d '()' || true
     done
+}
 
-    echo -n "${pid} "
+# Print the pids of all children of the specified list of processes.  If no
+# processes were specified, default to ${BASHPID}.
+#
+process_children()
+{
+    # If nothing was specified, assume the current process
+    if [[ ! $# -gt 0 ]] ; then
+        set -- ${BASHPID}
+    fi
+
+    local parent
+    for parent in "${@}" ; do
+        ps -eo ppid,pid | awk '$1 == '${parent}' {print $2}'
+    done | tr '\n' ' '
+}
+
+# Print the pid of the parent of the specified process, or of $BASHPID if none
+# is specified.
+#
+process_parent()
+{
+    $(declare_args ?child)
+    [[ $# -gt 0 ]] && die "process_parent only accepts one child to check."
+
+    [[ -z ${child} ]] && child=${BASHPID}
+
+    ps -eo ppid,pid | awk '$2 == '${child}' {print $1}'
+}
+
+# Print pids of all ancestores of the specified list of processes, up to and
+# including init (pid 1).  If no processes are specified as arguments, defaults
+# to ${BASHPID}
+#
+process_ancestors()
+{
+    $(declare_args ?child)
+    [[ $# -gt 0 ]] && die "process_ancestors only accepts one child to check."
+
+    [[ -z ${child} ]] && child=${BASHPID}
+
+    local ps_all=$(ps -eo ppid,pid)
+
+    local parent=${child}
+    while [[ ${parent} != 1 ]] ; do
+        parent=$(echo "${ps_all}" | awk '$2 == '${parent}' {print $1}')
+        echo ${parent}
+    done | tr '\n' ' '
 }
 
 # Kill all pids provided as arguments to this function using the specified signal.
@@ -1412,15 +1501,40 @@ process_tree()
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
+# -k=duration 
+#   Elevate to SIGKILL after waiting for the specified duration after sending
+#   the initial signal.  If unspecified, ekill does not elevate.
 ekill()
 {
     $(declare_args)
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
+    local processes=( $@ )
+    local elevate_duration=$(opt_get k)
+
+    # When debugging, display the full list of processes to kill
+    if edebug_enabled ; then
+        edebug "killing $(lval signal processes elevate_duration) BASHPID=${BASHPID}"
+
+        # Print some process info for any processes that are still alive
+        ps -o "pid,user,start,command" -p $(array_join processes ',') | tail -n +2 >&2 || true
+    fi
 
     # Kill all requested PIDs using requested signal.
-    kill -${signal} ${@} &>/dev/null || true
+    kill -${signal} ${processes[@]} &>/dev/null || true
+
+    if [[ -n ${elevate_duration} && $(signame ${signal}) != "KILL" ]] ; then
+        # Note: double fork here (subshell plus background bash) in order to
+        # keep ekilltree from paying any attention to these processes.
+        (
+            close_fds
+            disable_die_parent 
+
+            sleep ${elevate_duration}
+            kill -SIGKILL ${processes[@]} &>/dev/null || true
+        ) &
+    fi
 }
 
 # Kill entire process tree for each provided pid by doing a depth first search to find
@@ -1433,8 +1547,13 @@ ekill()
 # -s=SIGNAL 
 #       The signal to send to the pids (defaults to SIGTERM).
 # -x="pids"
-#       Pids to exclude from killing.  $$ and $BASHPID are _ALWAYS_ excluded
-#       from killing.
+#       Pids to exclude from killing.  Ancestors of the current process are
+#       _ALWAYS_ excluded (because if not, it would likely prevent ekilltree
+#       from succeeding)
+# -k=duration 
+#       Elevate to SIGKILL after waiting for the specified duration after
+#       sending the initial signal.  If unspecified, ekilltree does not
+#       elevate.
 #
 ekilltree()
 {
@@ -1442,23 +1561,17 @@ ekilltree()
 
     # Determine what signal to send to the processes
     local signal=$(opt_get s SIGTERM)
-    local excluded="$$ $BASHPID $(opt_get x)"
+    local excluded="$(process_ancestors ${BASHPID}) $(opt_get x)"
+    local elevate_duration=$(opt_get k)
 
-    local pid
-    for pid in ${@}; do 
-        edebug "Killing process tree $(lval pid signal)"
-        
-        for child in $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}' ); do
-            edebug "Killing $(lval child)"
-            ekilltree -x="${excluded}" -s=${signal} ${child}
-        done
+    local processes=( $(process_tree ${@}) )
+    array_remove -a processes ${excluded}
 
-        if echo "${excluded}" | grep -wq ${pid} ; then
-            edebug "Skipping $(lval excluded pid)"
-        else
-            ekill -s=${signal} ${pid}
-        fi
-    done
+    if array_not_empty processes ; then
+        ekill -s=${signal} -k=${elevate_duration} "${processes[@]}"
+    fi
+
+    return 0
 }
 
 #-----------------------------------------------------------------------------
@@ -2073,6 +2186,7 @@ elogfile()
         # writes block indefinitely. Since this is blocking in the kernel the process
         # essentially becomes unkillable once in this state.
         (
+            disable_die_parent
             close_fds
             ( 
 
@@ -3022,7 +3136,7 @@ netselect()
     declare -a results sorted rows
 
     for h in ${hosts}; do
-        local entry=$(die_on_abort; ping -c10 -w5 -q $h 2>/dev/null | \
+        local entry=$(ping -c10 -w5 -q $h 2>/dev/null | \
             awk '/^PING / {host=$2}
                  /packet loss/ {loss=$6}
                  /min\/avg\/max/ {
@@ -3100,43 +3214,47 @@ etimeout()
 
     # Launch command in the background and store off its pid.
     local rc=""
-    "${cmd[@]}" &
+    (
+        disable_die_parent
+        "${cmd[@]}"
+    ) &
     local pid=$!
     edebug "Executing $(lval cmd timeout=_etimeout_timeout signal=_etimeout_signal pid)"
  
     # Start watchdog process to kill process if it times out
     (
-        die_on_abort
+        disable_die_parent
+        nodie_on_error
         close_fds
 
-        # Sleep for the requested timeout. If process_tree is empty 
-        # then it exited on its own and we don't have to kill it.
         sleep ${_etimeout_timeout}
+
+        # If process_tree is empty then it exited on its own and we don't have
+        # to kill it.
         local pre_pids=( $(process_tree ${pid}) )
         array_empty pre_pids && exit 0
 
-        # Process did not exit on it's own. Send it the intial requested
+        # Process did not exit on its own. Send it the intial requested
         # signal. If its process tree is empty then exit with 1.
-        ekilltree -s=${_etimeout_signal} ${pid}
-        sleep 2
-
-        # If there are ANY processes in the original pid list still running OR
-        # new processes in the process tree then blast a SIGKILL to all the pids
-        # and exit with 1.
-        local post_pids=( $(process_tree ${pid}) )
-        array_empty post_pids && exit 1
-        ekill -s=SIGKILL ${pre_pids[@]} ${post_pids[@]}
+        ekilltree -s=${_etimeout_signal} -k=2s ${pid}
         exit 1
 
     ) &>/dev/null &
 
     # Wait for pid which will either be KILLED by watcher or complete normally.
-    local watcher=$!
-    wait ${pid}                     &>/dev/null && rc=0 || rc=$?
-    ekilltree -s=SIGKILL ${watcher} &>/dev/null
-    wait ${watcher}                 &>/dev/null && watcher_rc=0 || watcher_rc=$?
-    local stop=${SECONDS}
-    local seconds=$(( ${stop} - ${start} ))
+    {
+        local watcher=$!
+        wait ${pid} && rc=0 || rc=$?
+
+        # Kill the children of the watcher (i.e. its sleep).  At that point, the
+        # watcher WILL exit quickly, so we can wait for it.
+        ekilltree -s=SIGKILL -x=${watcher} ${watcher}
+        wait ${watcher} && watcher_rc=0 || watcher_rc=$?
+
+        # How long did all that take?
+        local stop=${SECONDS}
+        local seconds=$(( ${stop} - ${start} ))
+    } &>/dev/null
     
     # If the process timedout return 124 to match timeout behavior.
     if [[ ${watcher_rc} -eq 1 ]]; then
@@ -3627,7 +3745,7 @@ array_remove()
 
             unset ${__array}[$idx]
 
-            [[ ${remove_all} -eq 1 ]] || return 0
+            [[ ${remove_all} -eq 1 ]] || break
         done
     done
 }
@@ -3692,6 +3810,27 @@ array_join_nl()
     array_join "$1" $'\n'
 }
 
+# Create a regular expression that will match any one of the items in this
+# array.  Suppose you had an array containing the first four letters of the
+# alphabet.  Calling array_regex on that array will produce:
+#
+#    (a|b|c|d)
+#
+# Perhaps this is an esoteric thing to do, but it's pretty handy when you want
+# it.
+#
+# NOTE: Be sure to quote the output of your array_regex call, because bash
+# finds parantheses and pipe characters to be very important.
+#
+array_regex()
+{
+    $(declare_args __array)
+
+    echo -n "("
+    array_join ${__array}
+    echo -n ")"
+}
+
 # Sort an array in-place.
 #
 # OPTIONS:
@@ -3699,18 +3838,22 @@ array_join_nl()
 # -V Perform a natural (version) sort.
 array_sort()
 {
-    $(declare_args __array)
-    local flags=()
+    $(declare_args)
 
-    opt_true "u" && flags+=("--unique")
-    opt_true "V" && flags+=("--version-sort")
-    
-    readarray -t ${__array} < <(
-        local idx
-        for idx in $(array_indexes ${__array}); do
-            eval "echo \${${__array}[$idx]}"
-        done | sort ${flags[@]:-}
-    )
+    local __array
+    for __array in "${@}" ; do
+        local flags=()
+
+        opt_true "u" && flags+=("--unique")
+        opt_true "V" && flags+=("--version-sort")
+        
+        readarray -t ${__array} < <(
+            local idx
+            for idx in $(array_indexes ${__array}); do
+                eval "echo \${${__array}[$idx]}"
+            done | sort ${flags[@]:-}
+        )
+    done
 }
 
 #-----------------------------------------------------------------------------
