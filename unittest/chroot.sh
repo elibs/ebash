@@ -7,8 +7,11 @@ CHROOT=${TEST_DIR_OUTPUT}/chroot
 
 file_setup()
 {
+    einfo "Making chroot in ${CHROOT}"
     efreshdir ${CHROOT}
+    etestmsg "Cleaned ${CHROOT}"
     mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
+    etestmsg "Finished creating ${CHROOT}"
 }
 
 file_teardown()
@@ -32,8 +35,8 @@ check_mounts()
 
 ETEST_chroot_create()
 {
-    # Chroot created via setup routine so nothing to do
-    :
+    etestmsg "Chroot was created via setup routine -- verifying it looks minimally sane."
+    assert [[ -x ${CHROOT}/bin/bash ]]
 }
 
 
@@ -113,8 +116,8 @@ ETEST_chroot_kill()
     chroot_mount
 
     etestmsg "Starting some chroot processes"
-    chroot_cmd "cat&            echo \$! >> /tmp/pids"
-    chroot_cmd "sleep infinity& echo \$! >> /tmp/pids"
+    chroot_cmd "disable_die_parent ; cat&            echo \$! >> /tmp/pids"
+    chroot_cmd "disable_die_parent ; sleep infinity& echo \$! >> /tmp/pids"
     local pids=()
     array_init pids "$(cat ${CHROOT}/tmp/pids)"
     etestmsg "$(lval pids)"
@@ -197,7 +200,7 @@ ETEST_chroot_daemon_bindmount()
         "${DAEMON_EXPECT[@]}"                \
         bindmounts="${tmpdir1} ${tmpdir2}"   \
         chroot="${CHROOT}"                   \
-        name="Infinity"                      \
+        name="daemon with bindmount"         \
         cmdline="sleep infinity"             \
         logfile="logfile.log"                \
         pidfile="${pidfile}"
@@ -218,7 +221,12 @@ ETEST_chroot_daemon_bindmount()
     daemon_expect pre_stop
     daemon_expect post_stop
     wait
- 
+
+    etestmsg "Begin daemon logfile"
+    echo "$(ecolor salmon)"
+    cat logfile.log
+    etestmsg "End daemon logfile"
+
     # Verify mounts are NOT mounted
     etestmsg "Verifying mounts were unmounted"
     einfo "${CHROOT}${tmpdir1}"

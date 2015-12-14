@@ -160,7 +160,7 @@ ETEST_declare_opts_arg_hyphen()
     set -- --foo - arg1
     $(declare_opts ":foo" "")
 
-    assert_eq "-" "$(dopt_get foo)"
+    [[ "$(dopt_get foo)" == "-" ]] || die "Foo argument was wrong"
 
     assert_eq "arg1" "$1"
 }
@@ -309,6 +309,22 @@ ETEST_declare_opts_recursive()
 
     foo  --as 3 -b=2 -c 1
 }
+
+# NOTE: Please ignore for the moment.  Declare_opts is still a work in progress
+# and isn't integrated into anything for "real" use yet.
+#ETEST_declare_opts_refuses_option_starting_with_no()
+#{
+#    try
+#    {
+#        $(declare_opts "no-option" "")
+#
+#        die -r=243 "Should have failed before reaching this point."
+#    }
+#    catch
+#    {
+#        assert_ne 243 $?
+#    }
+#}
 
 # TODO --no-option
 # TODO replace old opt_get functions with new ones
