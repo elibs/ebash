@@ -632,7 +632,7 @@ trap_add()
         return 1
     fi
 
-    edebug "Adding trap $(lval cmd signals)"
+    edebug "Adding trap $(lval cmd signals) in process ${BASHPID}"
 
     local sig
     for sig in "${signals[@]}"; do
