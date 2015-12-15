@@ -257,6 +257,10 @@ close_fds()
 {
     $(declare_args)
 
+    if [[ ${__BASHUTILS_OS} != "Linux" ]] ; then
+        # Not supported away from linux at the moment.
+        return 0
+    fi
     # Note grab file descriptors for the current process, not the one inside
     # the command substitution ls here.
     local pid=$BASHPID
