@@ -51,12 +51,16 @@ ETEST_die_traps_parent()
     local fname2="die_traps_child.txt"
 
     (
+        disable_die_parent
         touch "${fname1}"
         trap_add "echo \"PARENT: Removing ${fname1}\"; rm -f ${fname1}"
 
+        einfo "PARENT: Traps:"$'\n'"$(trap -p)"
         (
+            disable_die_parent
             touch "${fname2}"
             trap_add "echo \"CHILD: Removing ${fname2}\"; rm -f ${fname2}"
+            einfo "CHILD: Traps:"$'\n'"$(trap -p)"
             die "Aborting subshell"
 
         ) || true
