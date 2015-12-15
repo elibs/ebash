@@ -1525,14 +1525,17 @@ ekill()
     kill -${signal} ${processes[@]} &>/dev/null || true
 
     if [[ -n ${elevate_duration} && $(signame ${signal}) != "KILL" ]] ; then
-        # Note: double fork here (subshell plus background bash) in order to
-        # keep ekilltree from paying any attention to these processes.
+        # Note: double fork here in order to keep ekilltree from paying any
+        # attention to these processes.
         (
-            close_fds
-            disable_die_parent 
+            :
+            (
+                close_fds
+                disable_die_parent
 
-            sleep ${elevate_duration}
-            kill -SIGKILL ${processes[@]} &>/dev/null || true
+                sleep ${elevate_duration}
+                kill -SIGKILL ${processes[@]} &>/dev/null || true
+            ) &
         ) &
     fi
 }
@@ -3821,6 +3824,10 @@ array_join_nl()
 #
 # NOTE: Be sure to quote the output of your array_regex call, because bash
 # finds parantheses and pipe characters to be very important.
+#
+# WARNING: This probably only works if your array contains items that do not
+# have whitespace or regex-y characters in them.  Pids are good.  Other stuff,
+# probably not so much.
 #
 array_regex()
 {
