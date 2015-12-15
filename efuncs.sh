@@ -107,8 +107,8 @@ edebug_out()
 #-----------------------------------------------------------------------------
 
 DIE_MSG_KILLED="\"[Killed]\""
-DIE_MSG_CAUGHT="\"[Exception caught in process \${BASHPID} on statement: \${BASH_COMMAND}]\""
-DIE_MSG_UNHERR="\"[Unhandled error in process \${BASHPID} on statement: \${BASH_COMMAND}]\""
+DIE_MSG_CAUGHT="\"[ExceptionCaught pid=\${BASHPID} cmd=\${BASH_COMMAND}]\""
+DIE_MSG_UNHERR="\"[UnhandledError pid=\${BASHPID} cmd=\${BASH_COMMAND}]\""
 
 # The below aliases allow us to support rich error handling through the use
 # of the try/catch idom typically found in higher level languages. Essentially
@@ -727,7 +727,7 @@ die_on_abort()
     local signal
     for signal in "${signals[@]}" ; do
         local signal_name=$(signame -s ${signal})
-        trap "die -s=${signal_name} \"[Caught ${signal_name} in process \${BASHPID} on statement: \${BASH_COMMAND}\"]" ${signal}
+        trap "die -s=${signal_name} \"[Caught ${signal_name} pid=\${BASHPID} cmd=\${BASH_COMMAND}\"]" ${signal}
     done
 }
 
