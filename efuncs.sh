@@ -1412,6 +1412,15 @@ sigexitcode()
 # PROCESS FUNCTIONS
 #-----------------------------------------------------------------------------
 
+# This is a simple override of the linux pstree command.  The trouble with that
+# command is that it likes to segfault.  It's buggy.  So here, we simply ignore
+# the error codes that would come from it.
+#
+pstree()
+{
+    command pstree "${@}" || true
+}
+
 # Check if a given process is running. Returns success (0) if all of the
 # specified processes are running and failure (1) otherwise.
 process_running()
@@ -1459,9 +1468,12 @@ process_children()
     fi
 
     local parent
+    local children=()
     for parent in "${@}" ; do
-        ps -eo ppid,pid | awk '$1 == '${parent}' {print $2}'
-    done | tr '\n' ' '
+        children+=( $(ps -eo ppid,pid | awk '$1 == '${parent}' {print $2}') )
+    done
+
+    echo "${children[@]}"
 }
 
 # Print the pid of the parent of the specified process, or of $BASHPID if none
@@ -1491,10 +1503,13 @@ process_ancestors()
     local ps_all=$(ps -eo ppid,pid)
 
     local parent=${child}
+    local ancestors=()
     while [[ ${parent} != 1 ]] ; do
         parent=$(echo "${ps_all}" | awk '$2 == '${parent}' {print $1}')
-        echo ${parent}
-    done | tr '\n' ' '
+        ancestors+=( ${parent} )
+    done
+
+    echo "${ancestors[@]}"
 }
 
 # Kill all pids provided as arguments to this function using the specified signal.

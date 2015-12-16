@@ -199,6 +199,16 @@ ETEST_process_hierarchy()
     local ancestors_noarg=( $(cat ${ancestors_noarg_file}) )
     local children=( $(cat ${children_file}) )
     local tree=( $(cat ${tree_file}) )
+
+    etestmsg "Verifying children $(lval my_processes children first)"
+    etestmsg "$(declare -p my_processes)"
+    assert_eq 1 $(array_size children)
+    assert_eq "${my_processes[1]}" "${children[0]}"
+
+
+    # The rest of the verification steps are just checking that a list of
+    # processes match, not checking them in order, so we'll sort them to make
+    # that easier.
     array_sort my_processes ancestors ancestors_noarg children tree
 
 
@@ -215,10 +225,6 @@ ETEST_process_hierarchy()
 
     assert_false array_contains ancestors 0
     assert_false array_contains ancestors_noarg 0
-
-    etestmsg "Verifying children"
-    assert_eq 1 $(array_size children)
-    assert_eq "${my_processes[1]}" "${children[0]}"
 
     etestmsg "Verifying tree contains my processes"
     for process in ${my_processes[@]} ; do
