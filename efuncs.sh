@@ -2795,11 +2795,21 @@ declare_opts_internal_setup()
     local expects_cmd="__EXPECTS=( "
 
     while (( $# )) ; do
-        # Arguments to this function come in pairs.  First the option
-        # definition and second the docstring for that option.  Both are
-        # required.
-        local opt_def=$1 ; shift
-        local docstring=$1 ; shift
+
+        local complete_arg=$1 ; shift
+
+        # Arguments to declare_opts may contain multiple chunks of data,
+        # separated by pipe characters.  Whitespace at the ends of these chunks
+        # of data are ignored to make it easy to space things out in a way that's more readable.
+        if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
+            local opt_def=${BASH_REMATCH[1]%%[ 	]}
+            opt_def=${opt_def##[ 	]}
+            local docstring=${BASH_REMATCH[3]%%[ 	]}
+            docstring=${docstring##[ 	]}
+        else
+            die "Invalid option declaration: ${complete_arg}"
+        fi
+
         [[ -n ${opt_def} ]] || die "Invalid declare_opts syntax.  Option definition is empty."
 
         # The default is any text in the argument definition after the first equal sign.
