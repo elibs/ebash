@@ -1443,7 +1443,10 @@ sigexitcode()
 #
 pstree()
 {
-    command pstree "${@}" || true
+    (
+        ulimit -c 0
+        command pstree "${@}" || true
+    )
 }
 
 # Check if a given process is running. Returns success (0) if all of the
