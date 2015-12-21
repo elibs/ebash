@@ -157,12 +157,12 @@ ERR_TRAP_NONE="-"
 
 assert_stack_eq()
 {
-    assert_eq $# $(array_size __EFUNCS_DIE_ON_ERROR_TRAP_STACK)
+    assert_eq $# $(array_size __BU_DIE_ON_ERROR_TRAP_STACK)
 
     local frame=0
     for code in "${@}"; do
         eval "local expect="\${ERR_TRAP_${code}}""
-        local actual="${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[$frame]}"
+        local actual="${__BU_DIE_ON_ERROR_TRAP_STACK[$frame]}"
 
         einfo "$(lval frame expect actual)"
         assert_eq "${expect}" "${actual}"
