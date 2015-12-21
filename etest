@@ -15,8 +15,18 @@ export BASHUTILS
 
 START_TIME=$SECONDS
 
+$(declare_opts \
+    ":filter  f=${FILTER:-}    | Only tests whose name or file matches this tests will be run." \
+    ":exclude x=${EXCLUDE:-}   | Tests whose name or file match this will not be run." \
+    ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test" \
+    "verbose  v=${VERBOSE:-0}  | If specified, you'll get verbose output for each test" \
+    "break    b=${BREAK:-0}    | If specified, etest will stop immediately on first failure" \
+    "keep     k=0              | If specified, etest will not cleanup output files so you can examine them." \
+    "clean    c=0              | If specified, etest will clean only and then exit." \
+    "html     h=0              | If specified, etest will produce an HTML logfile and strip color codes out of etest.log")
+
 # If no test directory was provided use PWD.
-$(declare_args -g ?TEST_DIR)
+$(newdecl_args ?TEST_DIR)
 : ${TEST_DIR:=$(readlink -f .)}
 ETEST_TOPDIR=${TEST_DIR}
 
@@ -29,15 +39,15 @@ ETEST_TOPDIR=${TEST_DIR}
 # -k=(0|1)   Keep all output
 # -c=(0|1)   Clean only then exit.
 # -h=(0|1)   Produce HTML logfile and strip color codes from etest.log
-FILTER=$(opt_get f ${FILTER:=""})
-EXCLUDE=$(opt_get x ${EXCLUDE:=""})
-REPEAT=$(opt_get r ${REPEAT:=1})
+FILTER=$(dopt_get filter)
+EXCLUDE=$(dopt_get exclude)
+REPEAT=$(dopt_get repeat)
 (( ${REPEAT} < 1 )) && REPEAT=1
-VERBOSE=$(opt_get v 0)
+VERBOSE=$(dopt_get verbose)
 [[ ${EDEBUG:-0} != "0" ]] && VERBOSE=1 || true
-BREAK=$(opt_get b ${BREAK:=0})
-KEEPOUTPUT=$(opt_get k 0)
-HTML=$(opt_get h 0)
+BREAK=$(dopt_get break)
+KEEPOUTPUT=$(dopt_get keep)
+HTML=$(dopt_get html)
 edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK HTML)"
 
 # Global cgroup name for all unit tests
@@ -64,8 +74,10 @@ fi
 
 die_handler()
 {
-    $(declare_args)
-    local rc=$(opt_get r 1)
+    $(declare_opts \
+        ":return-code rc r=1 | Return code that die will exit with")
+
+    local rc=$(dopt_get return-code)
 
     # Append any error message to logfile
     if [[ ${VERBOSE} -eq 0 ]]; then
@@ -242,7 +254,7 @@ run_all_tests_in_file()
     grep -q '^#!/.*bash' ${testfile} || { eerror "No bash shebang in ${testfile}"; throw 1; }
 
     # Get all function names that begin with ETEST_ (and optionally match $2)
-    if [[ ${testfile} =~ ${FILTER} ]]; then
+    if [[ -z ${FILTER} || ${testfile} =~ ${FILTER} ]]; then
         ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" {print $3}' ) )
     else
         ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
@@ -303,7 +315,7 @@ global_setup
 trap_add global_teardown
 
 # If clean only is requested exit immediately. The "clean" is done via global_setup and global_teardown.
-opt_true c && exit 0
+dopt_true clean && exit 0
 
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
