@@ -54,7 +54,7 @@ edebug_enabled()
     [[ ${EDEBUG:=}  == "1" || ${ETRACE:=}  == "1" ]] && return 0
     [[ ${EDEBUG:-0} == "0" && ${ETRACE:-0} == "0" ]] && return 1
 
-    $(declare_args ?_edebug_enabled_caller)
+    $(newdecl_args ?_edebug_enabled_caller)
 
     if [[ -z ${_edebug_enabled_caller} ]]; then
         _edebug_enabled_caller=( $(caller 0) )
@@ -255,8 +255,6 @@ get_stream_fd()
 #
 close_fds()
 {
-    $(declare_args)
-
     if [[ ${__BASHUTILS_OS} != "Linux" ]] ; then
         # Not supported away from linux at the moment.
         return 0
@@ -277,7 +275,7 @@ close_fds()
 # Helper method to read from a pipe until we see EOF.
 pipe_read()
 {
-    $(declare_args pipe)
+    $(newdecl_args pipe)
     local line
     
     # Read returns an error when it reaches EOF. But we still want to emit that
@@ -302,7 +300,7 @@ pipe_read()
 #       in it ("''").
 pipe_read_quote()
 {
-    $(declare_args pipe)
+    $(newdecl_args pipe)
     local output=$(pipe_read ${pipe})
     if [[ -n ${output} ]]; then
         printf %q "$(printf "%q" "${output}")"
@@ -363,16 +361,20 @@ pipe_read_quote()
 # -g     Make variables global even if called in a local context.
 tryrc()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":rc r=rc  | Variable to assign the return code to." \
+        ":stdout o | Write stdout to the specified variable rather than letting it go to stdout." \
+        ":stderr e | Write stderr to the specified variable rather than letting it go to stderr." \
+        "global g  | Make variables created global rather than local")
+
     local cmd=("$@")
-    local rc_out=$(opt_get r "rc")
-    local stdout_out=$(opt_get o)
-    local stderr_out=$(opt_get e)
-    local global=$(opt_get g 0)
+    local rc_out=$(dopt_get rc)
+    local stdout_out=$(dopt_get stdout)
+    local stderr_out=$(dopt_get stderr)
 
     # Determine flags to pass into declare
     local dflags=""
-    opt_false g || dflags="-g"
+    dopt_false global || dflags="-g"
 
     # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
@@ -463,8 +465,8 @@ tryrc()
 # -f=N Frame number to start at.
 stacktrace()
 {
-    $(declare_args)
-    local frame=$(opt_get f 0)
+    $(declare_opts ":frame f=0 | Frame number to start at if not the current one")
+    local frame=$(dopt_get frame)
 
     while caller ${frame}; do
         (( frame+=1 ))
@@ -480,8 +482,9 @@ stacktrace()
 #      frame that this function calls.)
 stacktrace_array()
 {
-    $(declare_args array)
-    local frame=$(opt_get f 1)
+    $(declare_opts ":frame f=1 | Frame number to start at")
+    $(newdecl_args array)
+    local frame=$(dopt_get frame)
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
 
@@ -490,7 +493,7 @@ stacktrace_array()
 # trap for use in other functions such as call_die_traps and trap_add.
 trap_get()
 {
-    $(declare_args sig)
+    $(newdecl_args sig)
 
     # Normalize the signal description (which might be a name or a number) into
     # the form trap produces
@@ -520,12 +523,14 @@ die()
     if [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
         exit ${__EFUNCS_DIE_IN_PROGRESS}
     else
-        $(declare_args)
-        __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
-        : ${__EFUNCS_DIE_BY_SIGNAL:=$(opt_get s)}
-    fi
+        $(declare_opts \
+            ":return-code rc r=1 | Return code that die will eventually exit with." \
+            ":signal s           | Signal that caused this die to occur." \
+            ":color c            | DEPRECATED OPTION -- no longer has any effect.")
 
-    local color=$(opt_get c)
+        __EFUNCS_DIE_IN_PROGRESS=$(dopt_get return-code)
+        : ${__EFUNCS_DIE_BY_SIGNAL:=$(dopt_get signal)}
+    fi
 
     # Generate a stack trace if that's appropriate for this die.
     if inside_try && edebug_enabled ; then
@@ -587,7 +592,7 @@ die()
         fi
     else
         if declare -f die_handler &>/dev/null; then
-            die_handler -c="${color}" -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
+            die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
             __EFUNCS_DIE_IN_PROGRESS=0
         else
             ekilltree -s=SIGTERM -k=2s $$
@@ -626,7 +631,7 @@ reenable_signals()
 #       reliably extract the trap and eval it later.
 trap_add()
 {
-    $(declare_args cmd)
+    $(newdecl_args cmd)
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
     
@@ -1046,8 +1051,8 @@ ewarns()
 
 eerror_internal()
 {
-    $(declare_args)
-    local color=$(opt_get c "red")
+    $(declare_opts ":color c=red | Color to print the message in.  Defaults to red.")
+    local color=$(dopt_get color)
     emsg "${color}" ">>" "ERROR" "$@"
 }
 
@@ -1077,10 +1082,14 @@ eerror()
 #
 eerror_stacktrace()
 {
-    $(declare_args)
-    local frame=$(opt_get f 2)
-    local skip=$(opt_get s 0)
-    local color=$(opt_get c "red")
+    $(declare_opts \
+        ":frame f=2   | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
+        "skip s       | Skip the initial error message.  Useful if the caller already displayed it." \
+        ":color c=red | Use the specified color for output messages.  Defaults to red.")
+
+    local frame=$(dopt_get frame)
+    local skip=$(dopt_get skip)
+    local color=$(dopt_get color)
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
@@ -1105,7 +1114,7 @@ eerror_stacktrace()
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
 etable()
 {
-    $(declare_args columns)
+    $(newdecl_args columns)
     local lengths=()
     local parts=()
     local idx=0
@@ -1168,7 +1177,7 @@ eprompt()
 # user but will be accepted as a valid response.
 eprompt_with_options()
 {
-    $(declare_args msg opt ?secret)
+    $(newdecl_args msg opt ?secret)
     local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"
 
@@ -1185,13 +1194,23 @@ eprompt_with_options()
 
 epromptyn()
 {
-    $(declare_args msg)
+    $(newdecl_args msg)
     eprompt_with_options "${msg}" "Yes,No"
 }
 
 trim()
 {
-    echo "$1" | sed -e 's/^[[:space:]]\+//' -e 's/[[:space:]]\+$//'
+    local text="$*"
+    if [[ ${text} =~ ^[[:space:]]*$ ]] ; then
+        # Don't print anything, they gave us only whitespace
+        echo
+    else
+        # Otherwise, use a regular expression to grab the stuff inside
+        # whitespace and print it
+        [[ ${text} =~ ^[[:space:]]*(.*[^[:space:]])[[:space:]]*$ ]]
+        echo "${BASH_REMATCH[1]}"
+    fi
+    return 0
 }
 
 compress_spaces()
@@ -1293,8 +1312,11 @@ eprogress()
 # -a Kill all eprogress pids.
 eprogress_kill()
 {
-    $(declare_args)
-    local rc=$(opt_get r 0)
+    $(declare_opts \
+        ":rc return-code r=0  | Should this eprogress show a mark for success or failure?" \
+        "all a                | If set, kill ALL known eprogress processes, not just the current one")
+
+    local rc=$(dopt_get rc)
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
@@ -1309,7 +1331,7 @@ eprogress_kill()
     if [[ $# -gt 0 ]]; then
         pids=( ${@} )
     elif array_not_empty __EPROGRESS_PIDS; then 
-        if opt_true a; then
+        if dopt_true all; then
             pids=( "${__EPROGRESS_PIDS[@]}" )
         else
             pids=( "${__EPROGRESS_PIDS[-1]}" )
@@ -1365,17 +1387,20 @@ signum()
 }
 
 # Given a signal name or number, echo the signal number associated with it.
-# 
-# Options:
-#   -s: Get the form that (usually) includes SIG.  For real signals this is
-#       something like SIGKILL, SIGINT.  But bash treats its pseudo-signals
-#       differently, so EXIT, ERR, and DEBUG all leave off the SIG.
 #
+# With the --include-sig option, SIG will be part of the name for signals where
+# that is appropriate.  For instance, SIGTERM or SIGABRT rather than TERM or
+# ABRT.  Note that bash pseudo signals never use SIG.  This function treats
+# those appropriately (i.e. even with --include sig will return EXIT rather
+# than SIGEXIT)
+# 
 signame()
 {
-    $(declare_args)
+    $(declare_opts \
+        "include-sig s | Get the form of the signal name that includes SIG.")
+
     local prefix=""
-    if opt_true s ; then
+    if dopt_true include-sig ; then
         prefix="SIG"
     fi
 
@@ -1481,7 +1506,7 @@ process_children()
 #
 process_parent()
 {
-    $(declare_args ?child)
+    $(newdecl_args ?child)
     [[ $# -gt 0 ]] && die "process_parent only accepts one child to check."
 
     [[ -z ${child} ]] && child=${BASHPID}
@@ -1495,7 +1520,7 @@ process_parent()
 #
 process_ancestors()
 {
-    $(declare_args ?child)
+    $(newdecl_args ?child)
     [[ $# -gt 0 ]] && die "process_ancestors only accepts one child to check."
 
     [[ -z ${child} ]] && child=${BASHPID}
@@ -1525,12 +1550,14 @@ process_ancestors()
 #   the initial signal.  If unspecified, ekill does not elevate.
 ekill()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":signal sig s=SIGTERM | The signal to send to specified processes, either as a number or a signal name." \
+        ":kill-after k         | Elevate to SIGKILL after waiting for this duration after sending the initial signal.  Accepts any duration that sleep would accept.")
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s SIGTERM)
+    local signal=$(dopt_get signal)
     local processes=( $@ )
-    local elevate_duration=$(opt_get k)
+    local elevate_duration=$(dopt_get kill-after)
 
     # When debugging, display the full list of processes to kill
     if edebug_enabled ; then
@@ -1565,6 +1592,9 @@ ekill()
 # Like ekill(), this function is best effort only. If you want more robust guarantees
 # consider process_not_running or cgroups.
 #
+# Note that ekilltree will never kill the current process or ancestors of the
+# current process, as that would cause ekilltree to be unable to succeed.
+
 # Options:
 # -s=SIGNAL 
 #       The signal to send to the pids (defaults to SIGTERM).
@@ -1579,12 +1609,15 @@ ekill()
 #
 ekilltree()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":signal sig s=SIGTERM | The signal to send to the process tree, either as a number or a name." \
+        ":exclude x            | Processes to exclude from being killed." \
+        ":kill-after k         | Elevate to SIGKILL after this duration if the processes haven't died.")
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s SIGTERM)
-    local excluded="$(process_ancestors ${BASHPID}) $(opt_get x)"
-    local elevate_duration=$(opt_get k)
+    local signal=$(dopt_get signal)
+    local excluded="$(process_ancestors ${BASHPID}) $(dopt_get exclude)"
+    local elevate_duration=$(dopt_get kill-after)
 
     local processes=( $(process_tree ${@}) )
     array_remove -a processes ${excluded}
@@ -1675,7 +1708,7 @@ lval()
 #-----------------------------------------------------------------------------
 valid_ip()
 {
-    $(declare_args ip)
+    $(newdecl_args ip)
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -1688,7 +1721,7 @@ valid_ip()
 
 hostname_to_ip()
 {
-    $(declare_args hostname)
+    $(newdecl_args hostname)
 
     local output hostrc ip
     output="$(host ${hostname} | grep ' has address ' || true)"
@@ -1733,7 +1766,7 @@ fully_qualify_hostname()
 # string.
 getipaddress()
 {
-    $(declare_args iface)
+    $(newdecl_args iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
@@ -1743,7 +1776,7 @@ getipaddress()
 # will simply return an empty string.
 getnetmask()
 {
-    $(declare_args iface)
+    $(newdecl_args iface)
     local cidr=$(ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
@@ -1793,7 +1826,7 @@ cidr2netmask ()
 # echo an empty string.
 getbroadcast()
 {
-    $(declare_args iface)
+    $(newdecl_args iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ brd .*'${iface}'$/ { print $4 }' || true
 }
 
@@ -1812,7 +1845,7 @@ getgateway()
 # string and it will return 0.
 getsubnet()
 {
-    $(declare_args ?ip ?nm)
+    $(newdecl_args ?ip ?nm)
     [[ -z "${ip}" || -z "${nm}" ]] && return 0
 
     IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
@@ -1824,7 +1857,7 @@ getsubnet()
 # Get the MTU that is currently set on a given interface.
 getmtu()
 {
-    $(declare_args iface)
+    $(newdecl_args iface)
     ip addr show "${iface}" | grep -Po 'mtu \K[\d.]+'
 }
 
@@ -1866,7 +1899,7 @@ get_network_interfaces_10g()
 #       work on all cards since the firmware has to support it properly.
 get_permanent_mac_address()
 {
-    $(declare_args ifname)
+    $(newdecl_args ifname)
 
     if [[ -e /sys/class/net/${ifname}/master ]]; then
         sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
@@ -1881,7 +1914,7 @@ get_permanent_mac_address()
 # NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
 get_network_pci_device()
 {
-    $(declare_args ifname)
+    $(newdecl_args ifname)
 
     (cd /sys/class/net/${ifname}/device; basename $(pwd -P))
 }
@@ -1920,7 +1953,8 @@ export_network_interface_names()
 #
 get_network_ports()
 {
-    $(declare_args __ports_list)
+    $(declare_opts "listening l | Only include listening ports")
+    $(newdecl_args __ports_list)
 
     local idx=0
     local first=1
@@ -1961,7 +1995,7 @@ get_network_ports()
         [[ ${fields[0]} =~ (tcp|udp) ]] || continue
 
         # Skip this line if the -l flag was passed in and this is not a listening port
-        opt_true "l" && [[ ${fields[0]} == "tcp" && ! ${fields[7]} =~ "LISTEN" ]] && continue
+        dopt_true "listening" && [[ ${fields[0]} == "tcp" && ! ${fields[7]} =~ "LISTEN" ]] && continue
 
         # If there is a - in the line, then netstat could not determine the program listening on this port.
         # Remove the - and add empty strings for the last two fields (PID and program name)
@@ -2013,7 +2047,7 @@ popd()
 echmodown()
 {
     [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
-    $(declare_args mode owner)
+    $(newdecl_args mode owner)
 
     chmod ${mode} $@
     chown ${owner} $@
@@ -2022,7 +2056,7 @@ echmodown()
 # Unmount (if mounted) and remove directory (if it exists) then create it anew
 efreshdir()
 {
-    $(declare_args mnt)
+    $(newdecl_args mnt)
 
     eunmount_recursive ${mnt}
     rm -rf ${mnt}
@@ -2032,14 +2066,14 @@ efreshdir()
 # Copies the given file to *.bak if it doesn't already exist
 ebackup()
 {
-    $(declare_args src)
+    $(newdecl_args src)
 
     [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak" || true
 }
 
 erestore()
 {
-    $(declare_args src)
+    $(newdecl_args src)
 
     [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
 }
@@ -2073,9 +2107,13 @@ erestore()
 #
 elogrotate()
 {
-    $(declare_args name)
-    local count=$(opt_get c 5)
-    local size=$(opt_get s 0)
+    $(declare_opts \
+        ":count c=5 | Maximum number of logs to keep" \
+        ":size s=0  | If specified, rotate logs at this specified size rather than each call to elogrotate")
+    $(newdecl_args name)
+
+    local count=$(dopt_get count)
+    local size=$(dopt_get size)
     
     # Ensure we don't try to rotate non-files
     [[ -f $(readlink -f "${name}") ]] 
@@ -2190,7 +2228,7 @@ elogfile()
     # and redirection for stdout and stderr.
     elogfile_redirect()
     {
-        $(declare_args name)
+        $(newdecl_args name)
 
         # If we're not redirecting the requested stream then just return success
         [[ ${!name} -eq 1 ]] || return 0
@@ -2304,7 +2342,7 @@ etar()
 # This function will die on failure.
 emd5sum()
 {
-    $(declare_args path)
+    $(newdecl_args path)
 
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
@@ -2320,7 +2358,7 @@ emd5sum()
 # 'md5'. This method will die on failure.
 emd5sum_check()
 {
-    $(declare_args path)
+    $(newdecl_args path)
 
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
@@ -2348,7 +2386,10 @@ emd5sum_check()
 # -k=keyphrase: Optional keyphrase for the PGP Private Key
 emetadata()
 {
-    $(declare_args path)
+    $(declare_opts \
+        ":private-key p | Also check the PGP signature based on this private key." \
+        ":keyphrase k   | The keyphrase to use for the specified private key.")
+    $(newdecl_args path)
     [[ -e ${path} ]] || die "${path} does not exist"
 
     echo "Filename=$(basename ${path})"
@@ -2362,7 +2403,7 @@ emetadata()
 
     # If PGP signature is NOT requested we can simply return
     local privatekey=""
-    privatekey=$(opt_get p)
+    privatekey=$(dopt_get private-key)
     [[ -n ${privatekey} ]] || return 0
 
     # Import that into temporary secret keyring
@@ -2374,7 +2415,7 @@ emetadata()
 
     # Get optional keyphrase
     local keyphrase="" keyphrase_command=""
-    keyphrase=$(opt_get k)
+    keyphrase=$(dopt_get keyphrase)
     [[ -z ${keyphrase} ]] || keyphrase_command="--batch --passphrase ${keyphrase}"
 
     # Output PGPSignature encoded in base64
@@ -2396,7 +2437,11 @@ emetadata()
 #                     is present in .meta file).
 emetadata_check()
 {
-    $(declare_args path)
+    $(declare_opts \
+        "quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
+        ":public-key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file.")
+
+    $(newdecl_args path)
     local meta="${path}.meta"
     [[ -e ${path} ]] || die "${path} does not exist"
     [[ -e ${meta} ]] || die "${meta} does not exist"
@@ -2409,7 +2454,7 @@ emetadata_check()
 
     local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0
     pack_set metapack $(cat "${meta}")
-    local publickey=$(opt_get p)
+    local publickey=$(dopt_get public-key)
     local pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
 
     # Figure out what digests we're going to validate
@@ -2418,7 +2463,7 @@ emetadata_check()
     done
     [[ -n ${publickey} && -n ${pgpsignature} ]] && digests+=( "PGP" )
 
-    opt_true "q" || eprogress "Verifying integrity of $(lval path metadata=digests)"
+    dopt_true "quiet" || eprogress "Verifying integrity of $(lval path metadata=digests)"
     pack_print metapack |& edebug
     local pids=()
 
@@ -2460,7 +2505,7 @@ emetadata_check()
 
     # Wait for all pids
     wait ${pids[@]} && rc=0 || rc=$?
-    opt_true "q" || eprogress_kill -r=${rc}
+    dopt_true "quiet" || eprogress_kill -r=${rc}
     return ${rc}
 }
 
@@ -2474,7 +2519,7 @@ emetadata_check()
 # while the destination path is still mounted.
 emount_realpath()
 {
-    $(declare_args path)
+    $(newdecl_args path)
     path="${path//\\040\(deleted\)/}"
     echo -n "$(readlink -m ${path} 2>/dev/null || true)"
 }
@@ -2482,14 +2527,14 @@ emount_realpath()
 # Echo the emount regex for a given path
 emount_regex()
 {
-    $(declare_args path)
+    $(newdecl_args path)
     echo -n "(^| )${path}(\\\\040\\(deleted\\))* "
 }
 
 # Echo the number of times a given directory is mounted.
 emount_count()
 {
-    $(declare_args path)
+    $(newdecl_args path)
     path=$(emount_realpath ${path})
     local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts || true)
     echo -n ${num_mounts}
@@ -2497,7 +2542,7 @@ emount_count()
 
 emounted()
 {
-    $(declare_args path)
+    $(newdecl_args path)
     path=$(emount_realpath ${path})
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
@@ -2514,7 +2559,7 @@ emounted()
 #
 ebindmount()
 {
-    $(declare_args src dest)
+    $(newdecl_args src dest)
 
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
@@ -2549,7 +2594,7 @@ eunmount()
 # (2) findmnt doesn't find mount points beneath a non-root directory
 efindmnt()
 {
-    $(declare_args path)
+    $(newdecl_args path)
     path=$(emount_realpath ${path})
 
     # First check if the requested path itself is mounted
@@ -2610,7 +2655,7 @@ isgentoo()
 # strings and even worse being completely incapable of comparing floats.
 compare()
 {
-    $(declare_args ?lh op ?rh)
+    $(newdecl_args ?lh op ?rh)
 
     ## =~
     if [[ ${op} == "=~" ]]; then
@@ -2765,6 +2810,34 @@ declare_args()
     echo "eval ${_declare_args_cmd}"
 }
 
+# TODO modell
+newdecl_args()
+{
+    local _declare_args_optional=0
+    local _declare_args_variable=""
+    local _declare_args_cmd=""
+
+    while [[ $# -gt 0 ]]; do
+        # If the variable name is "_" then don't bother assigning it to anything
+        [[ $1 == "_" ]] && _declare_args_cmd+="shift; " && { shift; continue; }
+
+        # Check if the argument is optional or not as indicated by a leading '?'.
+        # If the leading '?' is present then REMOVE It so that code after it can
+        # correctly use the key name as the variable to assign it to.
+        [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
+        _declare_args_variable="${1#\?}"
+
+        # Declare the variable and then call argcheck if required
+        _declare_args_cmd+="declare ${_declare_args_variable}=\${1:-}; shift &>/dev/null || true; "
+        [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
+
+        shift
+    done
+
+    echo "eval ${_declare_args_cmd}"
+
+}
+
 # Assumptions:
 #   - The argument to an option may NOT start with a hyphen character (-).
 #   - Option names may not contain whitespace.
@@ -2799,22 +2872,23 @@ declare_opts_internal_setup()
         local complete_arg=$1 ; shift
 
         # Arguments to declare_opts may contain multiple chunks of data,
-        # separated by pipe characters.  Whitespace at the ends of these chunks
-        # of data are ignored to make it easy to space things out in a way that's more readable.
+        # separated by pipe characters.
+        #if [[ ${complete_arg} =~ ^[[:space:]]*([^|]*)[[:space:]]*(\|([^|]*))?$ ]] ; then
+        #if [[ ${complete_arg} =~ ^[[:space:]]*([^|]*[^|[:space]])(\|.*)$ ]] ; then
         if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
-            local opt_def=${BASH_REMATCH[1]%%[ 	]}
-            opt_def=${opt_def##[ 	]}
-            local docstring=${BASH_REMATCH[3]%%[ 	]}
-            docstring=${docstring##[ 	]}
+            local opt_def=$(trim "${BASH_REMATCH[1]}")
+            local docstring=$(trim "${BASH_REMATCH[3]}")
+
         else
             die "Invalid option declaration: ${complete_arg}"
         fi
 
-        [[ -n ${opt_def} ]] || die "Invalid declare_opts syntax.  Option definition is empty."
+        [[ -n ${opt_def} ]] || die "${FUNCNAME[2]}: invalid declare_opts syntax.  Option definition is empty."
 
-        # The default is any text in the argument definition after the first equal sign.
+        # The default is any text in the argument definition after the first
+        # equal sign.  Ignore whitespace at both ends.
         local default=0
-        if [[ ${opt_def} =~ ^[^=]+(=(.*))$ ]] ; then
+        if [[ ${opt_def} =~ ^[^=]+(=(.*))*$ ]] ; then
             default=${BASH_REMATCH[2]}
         fi
 
@@ -2822,11 +2896,22 @@ declare_opts_internal_setup()
         #   0: This option has no argument
         #   1: This option is required to have an argument
         local expects=0
-        [[ ${opt_def} =~ ([:?])?([^=]+)(=.*)? ]]
+
+        # Determine if this option requires argument (def starts with a colon
+        # character) or is a boolean
+        [[ ${opt_def} =~ (:)?([^=]+)(=.*)? ]]
+
+        # This option requires an argument
         if [[ ${BASH_REMATCH[1]} == ":" ]] ; then
             expects=1
-        elif [[ ${BASH_REMATCH[1]} == "?" ]] ; then
-            expects=2
+
+        else
+            # Boolean options default to 0 unless otherwise specified
+            [[ ${default} == "" ]] && default=0
+
+            if [[ ${default} != 0 && ${default} != 1 ]] ; then
+                die "${FUNCNAME[2]}: boolean option has invalid default of ${default}"
+            fi
         fi
 
         # Same regular expression -- second match is the full list of
@@ -2878,13 +2963,13 @@ declare_opts_internal()
                 local opt_arg=${BASH_REMATCH[3]}
 
                 local canonical=$(declare_opts_find_canonical ${long_opt})
-                [[ -n ${canonical} ]] || die "Unexpected option --${long_opt}"
+                [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
                 if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "Option --${long_opt} requires an argument but didn't receive one."
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument but didn't receive one."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
@@ -2892,7 +2977,7 @@ declare_opts_internal()
                     __OPT[$canonical]=${opt_arg}
                 else
                         if [[ -n ${has_arg} ]] ; then
-                            die "Option --${long_opt} does not accept an argument, but was passed ${opt_arg}"
+                            die "${FUNCNAME[1]}: option --${long_opt} does not accept an argument, but was passed ${opt_arg}"
                         fi
                     __OPT[$canonical]=1
                 fi
@@ -2912,10 +2997,10 @@ declare_opts_internal()
                 for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
                     local char=${short_opts:$index:1}
                     local canonical=$(declare_opts_find_canonical ${char})
-                    [[ -n ${canonical} ]] || die "Unexpected option --${long_opt}"
+                    [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
                     if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
-                        die "Option -${char} requires an argument but didn't receive one."
+                        die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
                     fi
 
                     __OPT[$canonical]=1
@@ -2924,7 +3009,7 @@ declare_opts_internal()
                 # Handle the last one separately, because it might have an argument.
                 local char=${short_opts:$index}
                 local canonical=$(declare_opts_find_canonical ${char})
-                [[ -n ${canonical} ]] || die "Unexpected option -${char}"
+                [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.
                 if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
@@ -2932,7 +3017,7 @@ declare_opts_internal()
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "Option -${char} requires an argument but didn't receive one."
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
 
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
@@ -2941,14 +3026,13 @@ declare_opts_internal()
                 else
                     # And if not, make sure it doesn't.
                     if [[ -n ${has_arg} ]] ; then
-                        die "Option -${char} does not accept an argument, but was passed ${opt_arg}"
+                        die "${FUNCNAME[1]}: option -${char} does not accept an argument, but was passed ${opt_arg}"
                     fi
                     __OPT[$canonical]=1
                 fi
                 ;;
             *)
                 break
-                einfo "ARG:  $1"
                 ;;
         esac
 
@@ -2975,17 +3059,28 @@ declare_opts_find_canonical()
 
 dopt_get()
 {
+    [[ -v __OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
     echo "${__OPT[$1]}"
 }
 
 dopt_true()
 {
+    [[ -v __OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
     [[ $(dopt_get $1) -ne 0 ]]
 }
 
 dopt_false()
 {
+    [[ -v __OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
     [[ $(dopt_get $1) -eq 0 ]]
+}
+
+dopt_dump()
+{
+    for option in "${!__OPT[@]}" ; do
+        echo -n "${option}=\"${__OPT[$option]}\" "
+    done
+    echo
 }
 
 # Helper method to print the options after calling declare_args.
@@ -3014,7 +3109,7 @@ opt_false()
 # the event the requested option was not provided.
 opt_get()
 {
-    $(declare_args key ?default)
+    $(newdecl_args key ?default)
     local _caller=( $(caller 0) )
     local _value=$(pack_get _${_caller[1]}_options ${key})
     : ${_value:=${default}}
@@ -3046,7 +3141,7 @@ save_function()
 # times.
 override_function()
 {
-    $(declare_args func body)
+    $(newdecl_args func body)
 
     # Don't save the function off it already exists to avoid infinite recursion
     declare -f "${func}_real" >/dev/null || save_function ${func}
@@ -3077,7 +3172,7 @@ numcores()
 # caller for handling.
 efetch_internal()
 {
-    $(declare_args url dst)
+    $(newdecl_args url dst)
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
@@ -3100,7 +3195,12 @@ efetch_internal()
 # -q=(0|1) Quiet mode (disable eprogress and other info messages)
 efetch()
 {
-    $(declare_args url ?dst)
+    $(declare_opts \
+        "md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
+        "meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
+        "quiet q | Quiet mode.  (Disable eprogress and other info messages)")
+
+    $(newdecl_args url ?dst)
     : ${dst:=/tmp}
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     
@@ -3111,10 +3211,10 @@ efetch()
     try
     {
         # Optionally suppress all output from this subshell
-        opt_true "q" && exec &>/dev/null
+        dopt_true "quiet" && exec &>/dev/null
 
         ## If requested, fetch MD5 file
-        if opt_true "m"; then
+        if dopt_true "md5"; then
 
             efetch_internal "${url}.md5" "${md5}"
             efetch_internal "${url}"     "${dst}"
@@ -3138,7 +3238,7 @@ efetch()
             md5sum --check "${md5_fname}" >/dev/null
 
         ## If requested fetch *.meta file and validate using contained fields
-        elif opt_true "M"; then
+        elif dopt_true "meta"; then
 
             efetch_internal "${url}.meta" "${meta}"
             efetch_internal "${url}"      "${dst}"
@@ -3229,10 +3329,12 @@ netselect()
 # etimeout is careful to retain your quoting.
 etimeout()
 {
-    # Parse options
-    $(declare_args)
-    local _etimeout_signal=$(opt_get s SIGTERM)
-    local _etimeout_timeout=$(opt_get t "")
+    $(declare_opts \
+        ":signal sig s=TERM | First signal to send if the process doesn't complete in time.  KILL will still be sent later if it's not dead." \
+        ":timeout t         | After this duration, command will be killed if it hasn't already completed.")
+
+    local _etimeout_signal=$(dopt_get signal)
+    local _etimeout_timeout=$(dopt_get timeout)
     argcheck _etimeout_timeout
 
     # Background the command to be run
@@ -3346,15 +3448,23 @@ etimeout()
 # eretry is careful to retain your quoting.
 eretry()
 {
-    # Parse options
-    $(declare_args)
-    local _eretry_delay=$(opt_get d 0)
-    local _eretry_exit_codes=$(opt_get e 0)
-    local _eretry_retries=$(opt_get r "")
-    local _eretry_signal=$(opt_get s SIGTERM)
-    local _eretry_timeout_total=$(opt_get T "")
-    local _eretry_timeout=$(opt_get t ${_eretry_timeout_total:-infinity})
-    local _eretry_warn=$(opt_get w "")
+    $(declare_opts \
+        ":delay d=0            | Time to sleep between failed attempts before retrying." \
+        ":fatal-exit-codes e=0 | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
+        ":retries r=5          | Command will be attempted once plus this number of retries if it continues to fail." \
+        ":signal sig s=TERM    | Signal to be send to the command if it takes longer than the timeout." \
+        ":timeout t            | If one attempt takes longer than this duration, kill it and retry if appropriate." \
+        ":max-timeout T        | If all attempts take longer than this duration, kill what's running and stop retrying." \
+        ":warn-every w         | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
+
+    local _eretry_delay=$(dopt_get delay)
+    local _eretry_exit_codes=$(dopt_get fatal-exit-codes)
+    local _eretry_retries=$(dopt_get retries)
+    local _eretry_signal=$(dopt_get signal)
+    local _eretry_timeout_total=$(dopt_get max-timeout)
+    local _eretry_timeout=$(dopt_get timeout)
+    : ${_eretry_timeout:=${_eretry_timeout_total:-infinity}}
+    local _eretry_warn=$(dopt_get warn-every)
 
     # If no total timeout or retry limit was specified then default to prior behavior with a max retry of 5.
     if [[ -z ${_eretry_timeout_total} && -z ${_eretry_retries} ]]; then
@@ -3464,7 +3574,7 @@ eretry_internal()
 #   will then be used by setvars as the replacement value.
 setvars()
 {
-    $(declare_args filename ?callback)
+    $(newdecl_args filename ?callback)
     edebug "Setting variables $(lval filename callback)"
     [[ -f ${filename} ]] || die "$(lval filename) does not exist"
 
@@ -3547,7 +3657,7 @@ declare -A __ELOCK_FDMAP
 #
 elock()
 {
-    $(declare_args fname)
+    $(newdecl_args fname)
     
     # Create file if it doesn't exist
     [[ -e ${fname} ]] || touch ${fname} 
@@ -3591,7 +3701,7 @@ elock()
 # close remove the file descriptor from our file descriptor associative array.
 eunlock()
 {
-    $(declare_args fname)
+    $(newdecl_args fname)
  
     local fd=$(elock_get_fd "${fname}" || true)
     if [[ -z ${fd} ]]; then
@@ -3611,7 +3721,7 @@ eunlock()
 #
 elock_get_fd()
 {
-    $(declare_args fname)
+    $(newdecl_args fname)
     local fd="${__ELOCK_FDMAP[$fname]:-}"
     if [[ -z "${fd}" ]]; then
         return 1
@@ -3627,7 +3737,7 @@ elock_get_fd()
 # if we have a file locked or not.
 elock_locked()
 {
-    $(declare_args fname)
+    $(newdecl_args fname)
 
     # If the file doesn't exist then we can't check if it's locked
     [[ -e ${fname} ]] || return 1
@@ -3662,7 +3772,7 @@ elock_unlocked()
 #  $3: (optional) character(s) to be used as delimiters.
 array_init()
 {
-    $(declare_args __array ?__string ?__delim)
+    $(newdecl_args __array ?__string ?__delim)
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
@@ -3694,7 +3804,7 @@ array_init_json()
 # But this functions makes for symmertry with pack (i.e. pack_size).
 array_size()
 {
-    $(declare_args __array)
+    $(newdecl_args __array)
 
     # Treat unset variables as being an empty array, because when you tell
     # bash to create an empty array it doesn't really allow you to
@@ -3713,14 +3823,14 @@ array_size()
 # Return true (0) if an array is empty and false (1) otherwise
 array_empty()
 {
-    $(declare_args __array)
+    $(newdecl_args __array)
     [[ $(array_size ${__array}) -eq 0 ]]
 }
 
 # Returns true (0) if an array is not empty and false (1) otherwise
 array_not_empty()
 {
-    $(declare_args __array)
+    $(newdecl_args __array)
     [[ $(array_size ${__array}) -ne 0 ]]
 }
 
@@ -3732,7 +3842,7 @@ array_not_empty()
 # $3: (optional) character(s) to be used as delimiters.
 array_add()
 {
-    $(declare_args __array ?__string ?__delim)
+    $(newdecl_args __array ?__string ?__delim)
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && return 0
@@ -3757,7 +3867,8 @@ array_add_nl()
 # -a=(0|1) Remove all instances (defaults to only removing the first instance)
 array_remove()
 {
-    $(declare_args __array)
+    $(declare_opts "all a | Remove all instances of the item instead of just the first.")
+    $(newdecl_args __array)
 
     # Return immediately if if array is not set or no values were given to be
     # removed. The reason we don't error out on an unset array is because
@@ -3765,7 +3876,7 @@ array_remove()
     [[ -v ${__array} && $# -gt 0 ]] || return 0
     
     # Remove all instances or only the first?
-    local remove_all=$(opt_get a 0)
+    local remove_all=$(dopt_get all)
 
     local value
     for value in "${@}"; do
@@ -3792,7 +3903,7 @@ array_remove()
 #
 array_indexes()
 {
-    $(declare_args __array_indexes_array)
+    $(newdecl_args __array_indexes_array)
     eval "echo \${!${__array_indexes_array}[@]}"
 }
 
@@ -3804,7 +3915,7 @@ array_indexes()
 # $2: value to check for existance in the array
 array_contains()
 {
-    $(declare_args __array __value)
+    $(newdecl_args __array __value)
 
     local idx=0
     for idx in $(array_indexes ${__array}); do
@@ -3822,7 +3933,7 @@ array_contains()
 # $2: (optional) delimiter
 array_join()
 {
-    $(declare_args __array ?__delim)
+    $(newdecl_args __array ?__delim)
 
     # If the array is empty return empty string
     array_empty ${__array} && { echo -n ""; return 0; } || true
@@ -3860,7 +3971,7 @@ array_join_nl()
 #
 array_regex()
 {
-    $(declare_args __array)
+    $(newdecl_args __array)
 
     echo -n "("
     array_join ${__array}
@@ -3869,19 +3980,18 @@ array_regex()
 
 # Sort an array in-place.
 #
-# OPTIONS:
-# -u Make resulting array unique.
-# -V Perform a natural (version) sort.
 array_sort()
 {
-    $(declare_args)
+    $(declare_opts \
+        "unique u  | Remove all but one copy of each item in the array." \
+        "version V | Perform a natural (version number) sort.")
 
     local __array
     for __array in "${@}" ; do
         local flags=()
 
-        opt_true "u" && flags+=("--unique")
-        opt_true "V" && flags+=("--version-sort")
+        dopt_true "unique"  && flags+=("--unique")
+        dopt_true "version" && flags+=("--version-sort")
         
         readarray -t ${__array} < <(
             local idx
@@ -4042,15 +4152,20 @@ pack_iterate()
 # -e: Emit exported variables with 'export' keyword
 pack_import()
 {
-    $(declare_args _pack_import_pack)
+    $(declare_opts \
+        "local l=1 | Emit local variables via local builtin (default)." \
+        "global g  | Emit global variables instead of local (i.e. undeclared variables)." \
+        "export e  | Emit exported variables via export builtin.")
+
+    $(newdecl_args _pack_import_pack)
     local _pack_import_keys=("${@}")
     [[ $(array_size _pack_import_keys) -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 
     # Determine requested scope for the variables
     local _pack_import_scope="local"
-    opt_true "l" && _pack_import_scope="local"
-    opt_true "g" && _pack_import_scope=""
-    opt_true "e" && _pack_import_scope="export"
+    dopt_true "local"  && _pack_import_scope="local"
+    dopt_true "global" && _pack_import_scope=""
+    dopt_true "export" && _pack_import_scope="export"
 
     local _pack_import_cmd=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
@@ -4152,7 +4267,7 @@ _pack()
 # KB, MB, GB, TB
 to_upper_snake_case()
 {
-    $(declare_args input)
+    $(newdecl_args input)
 
     echo "${input}"         \
         | sed -e 's|KB|Kb|' \
@@ -4202,7 +4317,7 @@ to_json()
 array_to_json()
 {
     # This will store a copy of the specified array's contents into __array
-    $(declare_args __array)
+    $(newdecl_args __array)
     eval "local __array=(\"\${${__array}[@]}\")"
 
     echo -n "["
@@ -4286,25 +4401,32 @@ json_escape()
 #     keys use quotes around them: -x "foo bar"
 json_import()
 {
-    $(declare_args)
+    $(declare_opts \
+        "local l=1          | Emit local variables using 'local' builtin (the default)." \
+        "global g           | Emit global variables instead of local ones." \
+        "export e           | Emit exported variables instead of local ones." \
+        ":file f=-          | Parse contents of provided file instead of stdin." \
+        "upper-snake-case u | Convert all keys into UPPER_SNAKE_CASE." \
+        ":prefix p          | Prefix all keys with the provided required prefix." \
+        ":query jq q        | Use JQ style query expression on given JSON before parsing." \
+        ":exclude x         | Whitespace separated list of keys to exclude while importing.")
 
     # Determine requested scope for the variables
     local _json_import_qualifier="local"
-    opt_true "l" && _json_import_qualifier="local"
-    opt_true "g" && _json_import_qualifier=""
-    opt_true "e" && _json_import_qualifier="export"
+    dopt_true "local" && _json_import_qualifier="local"
+    dopt_true "global" && _json_import_qualifier=""
+    dopt_true "export" && _json_import_qualifier="export"
 
     # Lookup optional prefix to use
-    local _json_import_prefix="$(opt_get p)"
+    local _json_import_prefix="$(dopt_get prefix)"
 
     # Lookup optional jq query to use
-    local _json_import_query="$(opt_get q)"
+    local _json_import_query="$(dopt_get query)"
     : ${_json_import_query:=.}
 
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
     # In either case read into a local variable so we can parse it repeatedly in this function.
-    local _json_import_filename="$(opt_get f)"
-    : ${_json_import_filename:=-}
+    local _json_import_filename="$(dopt_get file)"
     local _json_import_data=$(cat ${_json_import_filename} | jq -r "${_json_import_query}")
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
@@ -4313,7 +4435,7 @@ json_import()
 
     # Get list of optional keys to exclude
     local _json_import_keys_excluded
-    array_init _json_import_keys_excluded "$(opt_get x)"
+    array_init _json_import_keys_excluded "$(dopt_get exclude)"
 
     # Debugging
     edebug $(lval _json_import_prefix _json_import_query _json_import_filename _json_import_data _json_import_keys _json_import_keys_excluded)
@@ -4324,7 +4446,7 @@ json_import()
 
         local val=$(jq -r .${key} <<< ${_json_import_data})
         edebug $(lval key val)
-        opt_true "u" && key=$(to_upper_snake_case "${key}")
+        dopt_true "upper-snake-case" && key=$(to_upper_snake_case "${key}")
 
         cmd+="${_json_import_qualifier} ${_json_import_prefix}${key}=\"${val}\";"
     done
@@ -4402,8 +4524,14 @@ assert()
 {
     local cmd=( "${@}" )
     
-    $(tryrc -r=__assert_rc eval "${cmd[@]}")
-    [[ ${__assert_rc} -eq 0 ]] || die "assert failed (rc=${__assert_rc}) :: ${cmd[@]}"
+    try
+    {
+        eval "${cmd[@]}"
+    }
+    catch
+    {
+        [[ $? -eq 0 ]] || die "assert failed (rc=$?}) :: ${cmd[@]}"
+    }
 }
 
 assert_true()
@@ -4414,9 +4542,15 @@ assert_true()
 assert_false()
 {
     local cmd=( "${@}" )
-
-    $(tryrc -r=__assert_false_rc eval "${cmd[@]}")
-    [[ ${__assert_false_rc} -ne 0 ]] || die "assert_false failed :: ! $(lval cmd)"
+    
+    try
+    {
+        eval "${cmd[@]}"
+    }
+    catch
+    {
+        [[ $? -ne 0 ]] || die "assert failed (rc=$?) :: ${cmd[@]}"
+    }
 }
 
 assert_op()
@@ -4426,25 +4560,25 @@ assert_op()
 
 assert_eq()
 {
-    $(declare_args ?lh ?rh ?msg)
+    $(newdecl_args ?lh ?rh ?msg)
     [[ "${lh}" == "${rh}" ]] || die "assert_eq failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_ne()
 {
-    $(declare_args ?lh ?rh ?msg)
+    $(newdecl_args ?lh ?rh ?msg)
     [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_match()
 {
-    $(declare_args ?lh ?rh ?msg)
+    $(newdecl_args ?lh ?rh ?msg)
     [[ "${lh}" =~ "${rh}" ]] || die "assert_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_not_match()
 {
-    $(declare_args ?lh ?rh ?msg)
+    $(newdecl_args ?lh ?rh ?msg)
     [[ ! "${lh}" =~ "${rh}" ]] || die "assert_not_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
