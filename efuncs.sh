@@ -14,11 +14,11 @@ shopt -s expand_aliases
 shopt -s checkwinsize
 
 # Locale setup to ensure sort and other GNU tools behave sanely
-: ${__BASHUTILS_OS:=$(uname)}
-if [[ "${__BASHUTILS_OS}" == Linux ]] ; then
+: ${__BU_OS:=$(uname)}
+if [[ "${__BU_OS}" == Linux ]] ; then
     export LC_ALL="en_US.utf8"
     export LANG="en_US.utf8"
-elif [[ "${__BASHUTILS_OS}" == Darwin ]] ; then
+elif [[ "${__BU_OS}" == Darwin ]] ; then
     export LC_ALL="en_US.UTF-8"
     export LANG="en_US.UTF-8"
 fi
@@ -123,15 +123,15 @@ DIE_MSG_UNHERR="\"[UnhandledError pid=\${BASHPID} cmd=\${BASH_COMMAND}]\""
 # stack we are in so that the parent's ERR trap won't get triggered and cause
 # the process to exit. Because we WANT the try subshell to exit and allow the
 # failure to be handled inside the catch block.
-__EFUNCS_DIE_ON_ERROR_TRAP_STACK=()
+__BU_DIE_ON_ERROR_TRAP_STACK=()
 alias try="
-    __EFUNCS_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
-    : \${__EFUNCS_DIE_ON_ERROR_TRAP:=-}
-    __EFUNCS_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" )
+    __BU_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
+    : \${__BU_DIE_ON_ERROR_TRAP:=-}
+    __BU_DIE_ON_ERROR_TRAP_STACK+=( \"\${__BU_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
     (
-        __EFUNCS_INSIDE_TRY=1
-        declare __EFUNCS_DISABLE_DIE_PARENT_PID=\${BASHPID}
+        __BU_INSIDE_TRY=1
+        declare __BU_DISABLE_DIE_PARENT_PID=\${BASHPID}
         enable_trace
         die_on_abort
         trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
@@ -164,11 +164,11 @@ alias try="
 #     catch block which sufficiently handles the error or the code won't be
 #     valid.
 alias catch=" );
-    __EFUNCS_TRY_CATCH_RC=\$?
-    __EFUNCS_DIE_ON_ERROR_TRAP=\"\${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
-    unset __EFUNCS_DIE_ON_ERROR_TRAP_STACK[\${#__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]}-1]
-    trap \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" ERR
-    ( exit \${__EFUNCS_TRY_CATCH_RC} ) || "
+    __BU_TRY_CATCH_RC=\$?
+    __BU_DIE_ON_ERROR_TRAP=\"\${__BU_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
+    unset __BU_DIE_ON_ERROR_TRAP_STACK[\${#__BU_DIE_ON_ERROR_TRAP_STACK[@]}-1]
+    trap \"\${__BU_DIE_ON_ERROR_TRAP}\" ERR
+    ( exit \${__BU_TRY_CATCH_RC} ) || "
 
 # Throw is just a simple wrapper around exit but it looks a little nicer inside
 # a 'try' block to see 'throw' instead of 'exit'.
@@ -182,7 +182,7 @@ throw()
 #
 inside_try()
 {
-    [[ ${__EFUNCS_INSIDE_TRY:-0} -eq 1 ]]
+    [[ ${__BU_INSIDE_TRY:-0} -eq 1 ]]
 }
 
 # die_on_error is a simple alias to register our trap handler for ERR. It is
@@ -193,10 +193,10 @@ inside_try()
 #
 # NOTE: This is extremely unobvious, but setting a trap on ERR implicitly
 # enables 'set -e'.
-alias die_on_error='export __EFUNCS_DIE_ON_ERROR_ENABLED=1; trap "die ${DIE_MSG_UNHERR}" ERR'
+alias die_on_error='export __BU_DIE_ON_ERROR_ENABLED=1; trap "die ${DIE_MSG_UNHERR}" ERR'
 
 # Disable calling die on ERROR.
-alias nodie_on_error="export __EFUNCS_DIE_ON_ERROR_ENABLED=0; trap - ERR"
+alias nodie_on_error="export __BU_DIE_ON_ERROR_ENABLED=0; trap - ERR"
 
 # Prevent an error or other die call in the _current_ shell from killing its
 # parent.  By default with bashutils, errors propagate to the parent by sending
@@ -205,7 +205,7 @@ alias nodie_on_error="export __EFUNCS_DIE_ON_ERROR_ENABLED=0; trap - ERR"
 # You might want to use this in shells that you put in the background if you
 # don't want an error in them to cause you to be notified via sigterm.
 #
-alias disable_die_parent="declare __EFUNCS_DISABLE_DIE_PARENT_PID=\${BASHPID}"
+alias disable_die_parent="declare __BU_DISABLE_DIE_PARENT_PID=\${BASHPID}"
 
 # Check if die_on_error is enabled. Returns success (0) if enabled and failure
 # (1) otherwise.
@@ -255,7 +255,7 @@ get_stream_fd()
 #
 close_fds()
 {
-    if [[ ${__BASHUTILS_OS} != "Linux" ]] ; then
+    if [[ ${__BU_OS} != "Linux" ]] ; then
         # Not supported away from linux at the moment.
         return 0
     fi
@@ -520,16 +520,16 @@ die()
     # to existing state prior to exiting so that the exit trap will honor them.
     disable_signals
 
-    if [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
-        exit ${__EFUNCS_DIE_IN_PROGRESS}
+    if [[ ${__BU_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
+        exit ${__BU_DIE_IN_PROGRESS}
     else
         $(declare_opts \
             ":return-code rc r=1 | Return code that die will eventually exit with." \
             ":signal s           | Signal that caused this die to occur." \
             ":color c            | DEPRECATED OPTION -- no longer has any effect.")
 
-        __EFUNCS_DIE_IN_PROGRESS=$(dopt_get return-code)
-        : ${__EFUNCS_DIE_BY_SIGNAL:=$(dopt_get signal)}
+        __BU_DIE_IN_PROGRESS=$(dopt_get return-code)
+        : ${__BU_DIE_BY_SIGNAL:=$(dopt_get signal)}
     fi
 
     # Generate a stack trace if that's appropriate for this die.
@@ -564,8 +564,8 @@ die()
         # special.  We don't want to kill the try, we want to let the catch
         # handle things.
         #
-        if [[ ${__EFUNCS_DISABLE_DIE_PARENT_PID:-0} != ${pid} ]] ; then
-            edebug "Sending kill to parent $(lval parent pid __EFUNCS_DISABLE_DIE_PARENT_PID)"
+        if [[ ${__BU_DISABLE_DIE_PARENT_PID:-0} != ${pid} ]] ; then
+            edebug "Sending kill to parent $(lval parent pid __BU_DISABLE_DIE_PARENT_PID)"
             ekill -s=SIGTERM ${parent}
         fi
 
@@ -573,7 +573,7 @@ die()
         ekilltree -s=SIGTERM -k=2s -x=${pid} ${pid}
 
         # Last, finish up the current process. 
-        if [[ -n "${__EFUNCS_DIE_BY_SIGNAL}" ]] ; then
+        if [[ -n "${__BU_DIE_BY_SIGNAL}" ]] ; then
             # When a process dies as the result of a SIGINT or other tty
             # signals, the proper thing to do is not to exit but to kill self
             # with that same signal.
@@ -581,22 +581,22 @@ die()
             # See http://www.cons.org/cracauer/sigint.html and
             # http://mywiki.wooledge.org/SignalTrap
             #
-            if array_contains TTY_SIGNALS "${__EFUNCS_DIE_BY_SIGNAL}" ; then
-                trap - ${__EFUNCS_DIE_BY_SIGNAL}
-                ekill -s=${__EFUNCS_DIE_BY_SIGNAL} ${BASHPID}
+            if array_contains TTY_SIGNALS "${__BU_DIE_BY_SIGNAL}" ; then
+                trap - ${__BU_DIE_BY_SIGNAL}
+                ekill -s=${__BU_DIE_BY_SIGNAL} ${BASHPID}
             else
-                exit $(sigexitcode "${__EFUNCS_DIE_BY_SIGNAL}")
+                exit $(sigexitcode "${__BU_DIE_BY_SIGNAL}")
             fi
         else
-            exit ${__EFUNCS_DIE_IN_PROGRESS}
+            exit ${__BU_DIE_IN_PROGRESS}
         fi
     else
         if declare -f die_handler &>/dev/null; then
-            die_handler -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
-            __EFUNCS_DIE_IN_PROGRESS=0
+            die_handler -r=${__BU_DIE_IN_PROGRESS} "${@}"
+            __BU_DIE_IN_PROGRESS=0
         else
             ekilltree -s=SIGTERM -k=2s $$
-            exit ${__EFUNCS_DIE_IN_PROGRESS}
+            exit ${__BU_DIE_IN_PROGRESS}
         fi
     fi
 }
@@ -652,7 +652,7 @@ trap_add()
         # levels, optionally use die() as base trap if DIE_ON_ERROR or
         # ABORT_ON_ERROR are enabled.
         local existing=""
-        if [[ ${__EFUNCS_TRAP_ADD_SHELL_LEVEL:-} == ${BASH_SUBSHELL} ]]; then
+        if [[ ${__BU_TRAP_ADD_SHELL_LEVEL:-} == ${BASH_SUBSHELL} ]]; then
             existing="$(trap_get ${sig})"
 
             # Strip off our bashutils internal cleanup from the trap, because
@@ -660,16 +660,16 @@ trap_add()
             existing=${existing%%; _bashutils_on_exit_end}
             existing=${existing##_bashutils_on_exit_start; }
         else
-            __EFUNCS_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
+            __BU_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
 
             # Clear any existing trap since we're in a subshell
             trap - "${sig}"
 
             # See if we need to turn on die or not
-            if [[ ${sig} == "ERR" && ${__EFUNCS_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
+            if [[ ${sig} == "ERR" && ${__BU_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
                 existing="die \"${DIE_MSG_UNHERR}\""
 
-            elif [[ ${sig} != "EXIT" && ${__EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
+            elif [[ ${sig} != "EXIT" && ${__BU_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
                 existing="die \"${DIE_MSG_KILLED}\""
             fi
         fi
@@ -728,7 +728,7 @@ TTY_SIGNALS=( SIGINT SIGQUIT SIGTSTP )
 # Enable default traps for all DIE_SIGNALS to call die().
 die_on_abort()
 {
-    export __EFUNCS_DIE_ON_ABORT_ENABLED=1
+    export __BU_DIE_ON_ABORT_ENABLED=1
 
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
@@ -743,7 +743,7 @@ die_on_abort()
 # Disable default traps for all DIE_SIGNALS.
 nodie_on_abort()
 {
-    export __EFUNCS_DIE_ON_ABORT_ENABLED=0
+    export __BU_DIE_ON_ABORT_ENABLED=0
 
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
@@ -1300,7 +1300,7 @@ eprogress()
     # Add a trap to ensure we kill this backgrounded process in the event we
     # die before calling eprogress_kill.
     ( close_fds ; do_eprogress ) &
-    __EPROGRESS_PIDS+=( $! )
+    __BU_EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
 
@@ -1330,11 +1330,11 @@ eprogress_kill()
     local pids=()
     if [[ $# -gt 0 ]]; then
         pids=( ${@} )
-    elif array_not_empty __EPROGRESS_PIDS; then 
+    elif array_not_empty __BU_EPROGRESS_PIDS; then 
         if dopt_true all; then
-            pids=( "${__EPROGRESS_PIDS[@]}" )
+            pids=( "${__BU_EPROGRESS_PIDS[@]}" )
         else
-            pids=( "${__EPROGRESS_PIDS[-1]}" )
+            pids=( "${__BU_EPROGRESS_PIDS[-1]}" )
         fi
     else
         return 0
@@ -1347,14 +1347,14 @@ eprogress_kill()
         # Don't kill the pid if it's not running or it's not an eprogress pid.
         # This catches potentially disasterous errors where someone would do
         # "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
-        if process_not_running ${pid} || ! array_contains __EPROGRESS_PIDS ${pid}; then
+        if process_not_running ${pid} || ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
             continue
         fi
 
         # Kill process and wait for it to complete
         ekill ${pid}
         wait ${pid} &>/dev/null || true
-        array_remove __EPROGRESS_PIDS ${pid}
+        array_remove __BU_EPROGRESS_PIDS ${pid}
         
         # Output
         einteractive && echo "" >&2
@@ -2854,21 +2854,21 @@ declare_opts()
     echo "eval "
     declare_opts_internal_setup "${@}"
 
-    # __FULL_ARGS is the list of arguments as initially passed to declare_opts.
-    # declare_args_internal will modifiy __ARGS to be whatever was left to be
-    # processed after it is finished.
+    # __BU_FULL_ARGS is the list of arguments as initially passed to
+    # declare_opts. declare_args_internal will modifiy __BU_ARGS to be whatever
+    # was left to be processed after it is finished.
     # Note: here $@ is quoted so it refers to the caller's arguments
-    echo 'declare __FULL_ARGS=("$@") ; '
-    echo 'declare __ARGS=("$@") ; '
+    echo 'declare __BU_FULL_ARGS=("$@") ; '
+    echo 'declare __BU_ARGS=("$@") ; '
     echo "declare_opts_internal ; "
-    echo '[[ ${#__ARGS[@]:-} -gt 0 ]] && set -- "${__ARGS[@]}" || set -- '
+    echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- '
 }
 
 declare_opts_internal_setup()
 {
-    local opt_cmd="__OPT=( "
-    local regex_cmd="__REGEX=( "
-    local expects_cmd="__EXPECTS=( "
+    local opt_cmd="__BU_OPT=( "
+    local regex_cmd="__BU_OPT_REGEX=( "
+    local expects_cmd="__BU_OPT_EXPECTS=( "
 
     while (( $# )) ; do
 
@@ -2895,7 +2895,7 @@ declare_opts_internal_setup()
             default=${BASH_REMATCH[2]}
         fi
 
-        # Possible "__EXPECTS[option]" values are:
+        # Possible "__BU_OPT_EXPECTS[option]" values are:
         #   0: This option has no argument
         #   1: This option is required to have an argument
         local expects=0
@@ -2945,11 +2945,11 @@ declare_opts_internal_setup()
 declare_opts_internal()
 {
     # No arguments?  Nothing to do.
-    if [[ ${#__FULL_ARGS[@]:-} -eq 0 ]] ; then
+    if [[ ${#__BU_FULL_ARGS[@]:-} -eq 0 ]] ; then
         return 0
     fi
 
-    set -- "${__FULL_ARGS[@]}"
+    set -- "${__BU_FULL_ARGS[@]}"
 
     local shift_count=0
     while (( $# )) ; do
@@ -2968,7 +2968,7 @@ declare_opts_internal()
                 local canonical=$(declare_opts_find_canonical ${long_opt})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
+                if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
@@ -2977,12 +2977,12 @@ declare_opts_internal()
                         shift && (( shift_count += 1 ))
                     fi
 
-                    __OPT[$canonical]=${opt_arg}
+                    __BU_OPT[$canonical]=${opt_arg}
                 else
                         if [[ -n ${has_arg} ]] ; then
                             die "${FUNCNAME[1]}: option --${long_opt} does not accept an argument, but was passed ${opt_arg}"
                         fi
-                    __OPT[$canonical]=1
+                    __BU_OPT[$canonical]=1
                 fi
                 ;;
 
@@ -3002,11 +3002,11 @@ declare_opts_internal()
                     local canonical=$(declare_opts_find_canonical ${char})
                     [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                    if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
+                    if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
                         die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
                     fi
 
-                    __OPT[$canonical]=1
+                    __BU_OPT[$canonical]=1
                 done
 
                 # Handle the last one separately, because it might have an argument.
@@ -3015,7 +3015,7 @@ declare_opts_internal()
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.
-                if [[ ${__EXPECTS[$canonical]} -eq 1 ]] ; then
+                if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
@@ -3025,13 +3025,13 @@ declare_opts_internal()
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
-                    __OPT[$canonical]=${opt_arg}
+                    __BU_OPT[$canonical]=${opt_arg}
                 else
                     # And if not, make sure it doesn't.
                     if [[ -n ${has_arg} ]] ; then
                         die "${FUNCNAME[1]}: option -${char} does not accept an argument, but was passed ${opt_arg}"
                     fi
-                    __OPT[$canonical]=1
+                    __BU_OPT[$canonical]=1
                 fi
                 ;;
             *)
@@ -3043,17 +3043,17 @@ declare_opts_internal()
         shift && (( shift_count += 1 )) || break
     done
 
-    # Assign to the __ARGS array so that the declare_opts macro can make its
+    # Assign to the __BU_ARGS array so that the declare_opts macro can make its
     # contents the remaining set of arguments in the calling function.
-    if [[ ${#__ARGS[@]:-} -gt 0 ]] ; then
-        __ARGS=( "${__ARGS[@]:$shift_count}" )
+    if [[ ${#__BU_ARGS[@]:-} -gt 0 ]] ; then
+        __BU_ARGS=( "${__BU_ARGS[@]:$shift_count}" )
     fi
 }
 
 declare_opts_find_canonical()
 {
-    for option in "${!__OPT[@]}" ; do
-        if [[ ${1} =~ ${__REGEX[$option]} ]] ; then
+    for option in "${!__BU_OPT[@]}" ; do
+        if [[ ${1} =~ ${__BU_OPT_REGEX[$option]} ]] ; then
             echo "${option}"
             return 0
         fi
@@ -3062,26 +3062,26 @@ declare_opts_find_canonical()
 
 dopt_get()
 {
-    [[ -v __OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
-    echo "${__OPT[$1]}"
+    [[ -v __BU_OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
+    echo "${__BU_OPT[$1]}"
 }
 
 dopt_true()
 {
-    [[ -v __OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
+    [[ -v __BU_OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
     [[ $(dopt_get $1) -ne 0 ]]
 }
 
 dopt_false()
 {
-    [[ -v __OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
+    [[ -v __BU_OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
     [[ $(dopt_get $1) -eq 0 ]]
 }
 
 dopt_dump()
 {
-    for option in "${!__OPT[@]}" ; do
-        echo -n "${option}=\"${__OPT[$option]}\" "
+    for option in "${!__BU_OPT[@]}" ; do
+        echo -n "${option}=\"${__BU_OPT[$option]}\" "
     done
     echo
 }
@@ -3623,7 +3623,7 @@ setvars()
 # LOCKFILES
 #-----------------------------------------------------------------------------
 
-declare -A __ELOCK_FDMAP
+declare -A __BU_ELOCK_FDMAP
 
 # elock is a wrapper around flock(1) to create a file-system level lockfile
 # associated with a given filename. This is an advisory lock only and requires
@@ -3648,7 +3648,7 @@ declare -A __ELOCK_FDMAP
 # file locked and has the ability to unlock that file. This may seem odd since
 # subshells normally cannot modify parent's state. But in this case it is
 # in-kernel state being modified for the process which the parent and subshell
-# share. The one catch here is that our internal state variable __ELOCK_FDMAP
+# share. The one catch here is that our internal state variable __BU_ELOCK_FDMAP
 # will become out of sync when this happens because a call to unlock inside
 # a subshell will unlock it but cannot remove from our parent's FDMAP. All of
 # these functions deal with this possibility properly by not considering the
@@ -3688,7 +3688,7 @@ elock()
 
     if flock --exclusive ${fd}; then
         edebug "Successfully locked $(lval fname fd)"
-        __ELOCK_FDMAP[$fname]=${fd}
+        __BU_ELOCK_FDMAP[$fname]=${fd}
         return 0
     else
         edebug "Failed to lock $(lval fname fd)"
@@ -3715,7 +3715,7 @@ eunlock()
     edebug "Unlocking $(lval fname fd)"
     flock --unlock ${fd}
     eval "exec ${fd}>&-"
-    unset __ELOCK_FDMAP[$fname]
+    unset __BU_ELOCK_FDMAP[$fname]
 }
 
 # Get the file descriptor (if any) that our process has associated with a given
@@ -3725,7 +3725,7 @@ eunlock()
 elock_get_fd()
 {
     $(newdecl_args fname)
-    local fd="${__ELOCK_FDMAP[$fname]:-}"
+    local fd="${__BU_ELOCK_FDMAP[$fname]:-}"
     if [[ -z "${fd}" ]]; then
         return 1
     else

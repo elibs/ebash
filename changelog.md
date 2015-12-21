@@ -1,5 +1,14 @@
 # Bashutils 1.3
 
+    - Pulled option parsing functionality out of declare_args and created a new
+      declare_opts function.  Its implementation supports both short and long
+      options (and "golfing" short options).  It detects errors on the command
+      line that would've previously been ignored such as passing an unsupported
+      option to a command.  This is not backward compatible, though.  Calling
+      code must change to use declare_opts if it wants to read options (e.g. -g
+      or -f),  but declare_args still handles positional arguments as it always
+      did.
+
     - Fixed a bug that caused die not to signal its parent when aborting.  It
       is through this mechanism that we intend to catch errors that happen in
       command substitution shells, so this may unearth some errors that were
@@ -27,6 +36,9 @@
     - Exceptions, unhandled errors, and caught signals now report the pid of
       the running process and the command running at the time of occurrence.
 
+    - Renamed all internal "global" variables to begin with "\_\_BU\_".  It's
+      often shorter than what we were previously using which is nice, but the
+      big thing here is that we can tell people to not use those.
 
 # Bashutils 1.2
 
