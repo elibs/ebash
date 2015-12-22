@@ -127,7 +127,7 @@ ETEST_eprogress_killall()
     eprogress "Processing" &> /dev/null
     eprogress "More Stuff" &> /dev/null
 
-    local pids=( "${__EPROGRESS_PIDS[@]}" )
+    local pids=( "${__BU_EPROGRESS_PIDS[@]}" )
     assert_eq 2 $(array_size pids)
    
     local pid=
