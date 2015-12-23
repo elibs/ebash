@@ -12,6 +12,7 @@ set -o functrace
 set -o errtrace
 shopt -s expand_aliases
 shopt -s checkwinsize
+shopt -s extglob
 
 # Locale setup to ensure sort and other GNU tools behave sanely
 : ${__BU_OS:=$(uname)}
@@ -39,8 +40,8 @@ etrace()
         local _etrace_enabled=0
 
         for _etrace_enabled_tmp in ${ETRACE}; do
-            [[ ${BASH_SOURCE[1]:-} =~ ${_etrace_enabled_tmp}
-                || ${FUNCNAME[1]:-} =~ ${_etrace_enabled_tmp} ]] && { _etrace_enabled=1; break; }
+            [[ ${BASH_SOURCE[1]:-} = *"${_etrace_enabled_tmp}"*
+                || ${FUNCNAME[1]:-} = *"${_etrace_enabled_tmp}"* ]] && { _etrace_enabled=1; break; }
         done
 
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
@@ -64,7 +65,7 @@ edebug_enabled()
 
     local _edebug_enabled_tmp
     for _edebug_enabled_tmp in ${EDEBUG} ${ETRACE} ; do
-        [[ "${_edebug_enabled_caller[@]:1}" =~ ${_edebug_enabled_tmp} ]] && return 0
+        [[ "${_edebug_enabled_caller[@]:1}" = *"${_edebug_enabled_tmp}"* ]] && return 0
     done
 
     return 1
@@ -368,13 +369,10 @@ tryrc()
         "global g  | Make variables created global rather than local")
 
     local cmd=("$@")
-    local rc_out=$(dopt_get rc)
-    local stdout_out=$(dopt_get stdout)
-    local stderr_out=$(dopt_get stderr)
 
     # Determine flags to pass into declare
     local dflags=""
-    dopt_false global || dflags="-g"
+    [[ ${global} -eq 1 ]] && dflags="-g"
 
     # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
@@ -400,22 +398,22 @@ tryrc()
 
     # Need to first make sure we've emitted code to set our output variables in the
     # event we are interrupted
-    echo eval "declare ${dflags} ${rc_out}=1;"
-    [[ -n ${stdout_out} ]] && echo eval "declare ${dflags} ${stdout_out}="";"
-    [[ -n ${stderr_out} ]] && echo eval "declare ${dflags} ${stderr_out}="";"
+    echo eval "declare ${dflags} ${rc}=1;"
+    [[ -n ${stdout} ]] && echo eval "declare ${dflags} ${stdout}="";"
+    [[ -n ${stderr} ]] && echo eval "declare ${dflags} ${stderr}="";"
 
     # Execute actual command in try/catch so that any fatal errors in the command
     # properly terminate execution of the command then capture off the return code
     # in the catch block. Send all stdout and stderr to respective pipes which will
     # be read in by the above background processes.
-    local rc=0
+    local actual_rc=0
     try
     {
         if [[ -n "${cmd[@]:-}" ]]; then
 
             # Redirect subshell's STDOUT and STDERR to requested locations
             exec >${stdout_file}
-            [[ -n ${stderr_out} ]] && exec 2>${stderr_file}
+            [[ -n ${stderr} ]] && exec 2>${stderr_file}
 
             # Run command
             "${cmd[@]}"
@@ -423,29 +421,29 @@ tryrc()
     }
     catch
     {
-        rc=$?
+        actual_rc=$?
     }
 
     # Emit commands to assign return code 
-    echo eval "declare ${dflags} ${rc_out}=${rc};"
+    echo eval "declare ${dflags} ${rc}=${actual_rc};"
 
     # Emit commands to assign stdout but ONLY if a stdout file was actually created.
     # This is because the file is only created on first write. And we don't want this
     # to fail if the command didn't write any stdout. This is also SAFE because we
-    # initialize stdout_out and stderr_out above to empty strings.
+    # initialize stdout and stderr above to empty strings.
     if [[ -s ${stdout_file} ]]; then
-        local stdout="$(pipe_read_quote ${stdout_file})"
-        if [[ -n ${stdout_out} ]]; then
-            echo eval "declare ${dflags} ${stdout_out}=${stdout};"
+        local actual_stdout="$(pipe_read_quote ${stdout_file})"
+        if [[ -n ${stdout} ]]; then
+            echo eval "declare ${dflags} ${stdout}=${actual_stdout};"
         else
-            echo eval "echo ${stdout} >&1;"
+            echo eval "echo ${actual_stdout} >&1;"
         fi
     fi
 
     # Emit commands to assign stderr
-    if [[ -n ${stderr_out} && -s ${stderr_file} ]]; then
-        local stderr="$(pipe_read_quote ${stderr_file})"
-        echo eval "declare ${dflags} ${stderr_out}=${stderr};"
+    if [[ -n ${stderr} && -s ${stderr_file} ]]; then
+        local actual_stderr="$(pipe_read_quote ${stderr_file})"
+        echo eval "declare ${dflags} ${stderr}=${actual_stderr};"
     fi
 
     # Remote temporary directory
@@ -466,7 +464,6 @@ tryrc()
 stacktrace()
 {
     $(declare_opts ":frame f=0 | Frame number to start at if not the current one")
-    local frame=$(dopt_get frame)
 
     while caller ${frame}; do
         (( frame+=1 ))
@@ -484,7 +481,7 @@ stacktrace_array()
 {
     $(declare_opts ":frame f=1 | Frame number to start at")
     $(newdecl_args array)
-    local frame=$(dopt_get frame)
+
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
 
@@ -528,8 +525,8 @@ die()
             ":signal s           | Signal that caused this die to occur." \
             ":color c            | DEPRECATED OPTION -- no longer has any effect.")
 
-        __BU_DIE_IN_PROGRESS=$(dopt_get return-code)
-        : ${__BU_DIE_BY_SIGNAL:=$(dopt_get signal)}
+        __BU_DIE_IN_PROGRESS=${return_code}
+        : ${__BU_DIE_BY_SIGNAL:=${signal}}
     fi
 
     # Generate a stack trace if that's appropriate for this die.
@@ -1052,7 +1049,6 @@ ewarns()
 eerror_internal()
 {
     $(declare_opts ":color c=red | Color to print the message in.  Defaults to red.")
-    local color=$(dopt_get color)
     emsg "${color}" ">>" "ERROR" "$@"
 }
 
@@ -1086,10 +1082,6 @@ eerror_stacktrace()
         ":frame f=2   | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
         "skip s       | Skip the initial error message.  Useful if the caller already displayed it." \
         ":color c=red | Use the specified color for output messages.  Defaults to red.")
-
-    local frame=$(dopt_get frame)
-    local skip=$(dopt_get skip)
-    local color=$(dopt_get color)
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
@@ -1316,8 +1308,6 @@ eprogress_kill()
         ":rc return-code r=0  | Should this eprogress show a mark for success or failure?" \
         "all a                | If set, kill ALL known eprogress processes, not just the current one")
 
-    local rc=$(dopt_get rc)
-
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
         einteractive && echo "" >&2
@@ -1331,7 +1321,7 @@ eprogress_kill()
     if [[ $# -gt 0 ]]; then
         pids=( ${@} )
     elif array_not_empty __BU_EPROGRESS_PIDS; then 
-        if dopt_true all; then
+        if [[ ${all} -eq 1 ]] ; then
             pids=( "${__BU_EPROGRESS_PIDS[@]}" )
         else
             pids=( "${__BU_EPROGRESS_PIDS[-1]}" )
@@ -1400,7 +1390,7 @@ signame()
         "include-sig s | Get the form of the signal name that includes SIG.")
 
     local prefix=""
-    if dopt_true include-sig ; then
+    if [[ ${include_sig} -eq 1 ]] ; then
         prefix="SIG"
     fi
 
@@ -1558,13 +1548,11 @@ ekill()
         ":kill-after k         | Elevate to SIGKILL after waiting for this duration after sending the initial signal.  Accepts any duration that sleep would accept.")
 
     # Determine what signal to send to the processes
-    local signal=$(dopt_get signal)
     local processes=( $@ )
-    local elevate_duration=$(dopt_get kill-after)
 
     # When debugging, display the full list of processes to kill
     if edebug_enabled ; then
-        edebug "killing $(lval signal processes elevate_duration) BASHPID=${BASHPID}"
+        edebug "killing $(lval signal processes kill_after) BASHPID=${BASHPID}"
 
         # Print some process info for any processes that are still alive
         ps -o "pid,user,start,command" -p $(array_join processes ',') | tail -n +2 >&2 || true
@@ -1573,7 +1561,7 @@ ekill()
     # Kill all requested PIDs using requested signal.
     kill -${signal} ${processes[@]} &>/dev/null || true
 
-    if [[ -n ${elevate_duration} && $(signame ${signal}) != "KILL" ]] ; then
+    if [[ -n ${kill_after} && $(signame ${signal}) != "KILL" ]] ; then
         # Note: double fork here in order to keep ekilltree from paying any
         # attention to these processes.
         (
@@ -1582,7 +1570,7 @@ ekill()
                 close_fds
                 disable_die_parent
 
-                sleep ${elevate_duration}
+                sleep ${kill_after}
                 kill -SIGKILL ${processes[@]} &>/dev/null || true
             ) &
         ) &
@@ -1618,15 +1606,13 @@ ekilltree()
         ":kill-after k         | Elevate to SIGKILL after this duration if the processes haven't died.")
 
     # Determine what signal to send to the processes
-    local signal=$(dopt_get signal)
-    local excluded="$(process_ancestors ${BASHPID}) $(dopt_get exclude)"
-    local elevate_duration=$(dopt_get kill-after)
+    local excluded="$(process_ancestors ${BASHPID}) ${exclude}"
 
     local processes=( $(process_tree ${@}) )
     array_remove -a processes ${excluded}
 
     if array_not_empty processes ; then
-        ekill -s=${signal} -k=${elevate_duration} "${processes[@]}"
+        ekill -s=${signal} -k=${kill_after} "${processes[@]}"
     fi
 
     return 0
@@ -1998,7 +1984,7 @@ get_network_ports()
         [[ ${fields[0]} =~ (tcp|udp) ]] || continue
 
         # Skip this line if the -l flag was passed in and this is not a listening port
-        dopt_true "listening" && [[ ${fields[0]} == "tcp" && ! ${fields[7]} =~ "LISTEN" ]] && continue
+        [[ ${listening} -eq 1 && ${fields[0]} == "tcp" && ! ${fields[7]} =~ "LISTEN" ]] && continue
 
         # If there is a - in the line, then netstat could not determine the program listening on this port.
         # Remove the - and add empty strings for the last two fields (PID and program name)
@@ -2115,9 +2101,6 @@ elogrotate()
         ":size s=0  | If specified, rotate logs at this specified size rather than each call to elogrotate")
     $(newdecl_args name)
 
-    local count=$(dopt_get count)
-    local size=$(dopt_get size)
-    
     # Ensure we don't try to rotate non-files
     [[ -f $(readlink -f "${name}") ]] 
 
@@ -2405,24 +2388,21 @@ emetadata()
     done
 
     # If PGP signature is NOT requested we can simply return
-    local privatekey=""
-    privatekey=$(dopt_get private-key)
-    [[ -n ${privatekey} ]] || return 0
+    [[ -n ${private_key} ]] || return 0
 
     # Import that into temporary secret keyring
     local keyring="" keyring_command=""
     keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
     trap_add "rm -f ${keyring}"
-    gpg ${keyring_command} --import ${privatekey} |& edebug
+    gpg ${keyring_command} --import ${private_key} |& edebug
 
     # Get optional keyphrase
-    local keyphrase="" keyphrase_command=""
-    keyphrase=$(dopt_get keyphrase)
+    local keyphrase_command=""
     [[ -z ${keyphrase} ]] || keyphrase_command="--batch --passphrase ${keyphrase}"
 
     # Output PGPSignature encoded in base64
-    echo "PGPKey=$(basename ${privatekey})"
+    echo "PGPKey=$(basename ${private_key})"
     echo "PGPSignature=$(gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>/dev/null | base64 --wrap 0)"
 }
 
@@ -2457,16 +2437,15 @@ emetadata_check()
 
     local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0
     pack_set metapack $(cat "${meta}")
-    local publickey=$(dopt_get public-key)
     local pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
 
     # Figure out what digests we're going to validate
     for ctype in Size MD5 SHA1 SHA256; do
         pack_contains metapack "${ctype}" && digests+=( "${ctype}" )
     done
-    [[ -n ${publickey} && -n ${pgpsignature} ]] && digests+=( "PGP" )
+    [[ -n ${public_key} && -n ${pgpsignature} ]] && digests+=( "PGP" )
 
-    dopt_true "quiet" || eprogress "Verifying integrity of $(lval path metadata=digests)"
+    [[ ${quiet} -eq 1 ]] || eprogress "Verifying integrity of $(lval path metadata=digests)"
     pack_print metapack |& edebug
     local pids=()
 
@@ -2495,11 +2474,11 @@ emetadata_check()
     done
 
     # If Public Key was provied and PGPSignature is present validate PGP signature
-    if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
+    if [[ -n ${public_key} && -n ${pgpsignature} ]]; then
         (
             local keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
             trap_add "rm -f ${keyring}"
-            gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} |& edebug
+            gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} |& edebug
             echo "${pgpsignature}" | gpg --verify - "${path}" |& edebug || fail "PGP verification failure: $(lval path)"
         ) &
 
@@ -2508,7 +2487,7 @@ emetadata_check()
 
     # Wait for all pids
     wait ${pids[@]} && rc=0 || rc=$?
-    dopt_true "quiet" || eprogress_kill -r=${rc}
+    [[ ${quiet} -eq 1 ]] || eprogress_kill -r=${rc}
     return ${rc}
 }
 
@@ -2861,7 +2840,12 @@ declare_opts()
     echo 'declare __BU_FULL_ARGS=("$@") ; '
     echo 'declare __BU_ARGS=("$@") ; '
     echo "declare_opts_internal ; "
-    echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- '
+    echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- ; '
+
+    echo 'declare opt ; '
+    echo 'for opt in "${!__BU_OPT[@]}" ; do'
+        echo 'declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+    echo 'done ; '
 }
 
 declare_opts_internal_setup()
@@ -2876,8 +2860,6 @@ declare_opts_internal_setup()
 
         # Arguments to declare_opts may contain multiple chunks of data,
         # separated by pipe characters.
-        #if [[ ${complete_arg} =~ ^[[:space:]]*([^|]*)[[:space:]]*(\|([^|]*))?$ ]] ; then
-        #if [[ ${complete_arg} =~ ^[[:space:]]*([^|]*[^|[:space]])(\|.*)$ ]] ; then
         if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
             local opt_def=$(trim "${BASH_REMATCH[1]}")
             local docstring=$(trim "${BASH_REMATCH[3]}")
@@ -2920,7 +2902,7 @@ declare_opts_internal_setup()
         # Same regular expression -- second match is the full list of
         # alternative strings that can represent this option.
         local all_opts=${BASH_REMATCH[2]}
-        local regex=^\(${all_opts// /|}\)$
+        local regex=^\(${all_opts//+( )/|}\)$
 
         # The canonical option name is the first name for the option that is specified
         [[ ${all_opts} =~ ([^\t ]+).* ]]
@@ -3060,24 +3042,6 @@ declare_opts_find_canonical()
     done
 }
 
-dopt_get()
-{
-    [[ -v __BU_OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
-    echo "${__BU_OPT[$1]}"
-}
-
-dopt_true()
-{
-    [[ -v __BU_OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
-    [[ $(dopt_get $1) -ne 0 ]]
-}
-
-dopt_false()
-{
-    [[ -v __BU_OPT[$1] ]] || die "${FUNCNAME[1]}: option $1 was not declared."
-    [[ $(dopt_get $1) -eq 0 ]]
-}
-
 dopt_dump()
 {
     for option in "${!__BU_OPT[@]}" ; do
@@ -3208,27 +3172,27 @@ efetch()
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     
     # Companion files we may fetch
-    local md5="${dst}.md5"
-    local meta="${dst}.meta"
+    local md5_file="${dst}.md5"
+    local meta_file="${dst}.meta"
 
     try
     {
         # Optionally suppress all output from this subshell
-        dopt_true "quiet" && exec &>/dev/null
+        [[ ${quiet} -eq 1 ]] && exec &>/dev/null
 
         ## If requested, fetch MD5 file
-        if dopt_true "md5"; then
+        if [[ ${md5} -eq 1 ]] ; then
 
-            efetch_internal "${url}.md5" "${md5}"
+            efetch_internal "${url}.md5" "${md5_file}"
             efetch_internal "${url}"     "${dst}"
 
             # Verify MD5
-            einfos "Verifying MD5 $(lval dst md5)"
+            einfos "Verifying MD5 $(lval dst md5_file)"
 
             local dst_dname=$(dirname  "${dst}")
             local dst_fname=$(basename "${dst}")
-            local md5_dname=$(dirname  "${md5}")
-            local md5_fname=$(basename "${md5}")
+            local md5_dname=$(dirname  "${md5_file}")
+            local md5_fname=$(basename "${md5_file}")
 
             cd "${dst_dname}"
 
@@ -3241,9 +3205,9 @@ efetch()
             md5sum --check "${md5_fname}" >/dev/null
 
         ## If requested fetch *.meta file and validate using contained fields
-        elif dopt_true "meta"; then
+        elif [[ ${meta} -eq 1 ]]; then
 
-            efetch_internal "${url}.meta" "${meta}"
+            efetch_internal "${url}.meta" "${meta_file}"
             efetch_internal "${url}"      "${dst}"
             emetadata_check "${dst}"
         
@@ -3257,8 +3221,8 @@ efetch()
     catch
     {
         local rc=$?
-        edebug "Removing $(lval dst md5 meta rc)"
-        rm -rf "${dst}" "${md5}" "${meta}"
+        edebug "Removing $(lval dst md5_file meta_file rc)"
+        rm -rf "${dst}" "${md5_file}" "${meta_file}"
         return ${rc}
     }
 }
@@ -3336,9 +3300,7 @@ etimeout()
         ":signal sig s=TERM | First signal to send if the process doesn't complete in time.  KILL will still be sent later if it's not dead." \
         ":timeout t         | After this duration, command will be killed if it hasn't already completed.")
 
-    local _etimeout_signal=$(dopt_get signal)
-    local _etimeout_timeout=$(dopt_get timeout)
-    argcheck _etimeout_timeout
+    argcheck timeout
 
     # Background the command to be run
     local start=${SECONDS}
@@ -3356,7 +3318,7 @@ etimeout()
         "${cmd[@]}"
     ) &
     local pid=$!
-    edebug "Executing $(lval cmd timeout=_etimeout_timeout signal=_etimeout_signal pid)"
+    edebug "Executing $(lval cmd timeout signal pid)"
  
     # Start watchdog process to kill process if it times out
     (
@@ -3364,7 +3326,7 @@ etimeout()
         nodie_on_error
         close_fds
 
-        sleep ${_etimeout_timeout}
+        sleep ${timeout}
 
         # If process_tree is empty then it exited on its own and we don't have
         # to kill it.
@@ -3373,7 +3335,7 @@ etimeout()
 
         # Process did not exit on its own. Send it the intial requested
         # signal. If its process tree is empty then exit with 1.
-        ekilltree -s=${_etimeout_signal} -k=2s ${pid}
+        ekilltree -s=${signal} -k=2s ${pid}
         exit 1
 
     ) &>/dev/null &
@@ -3395,7 +3357,7 @@ etimeout()
     
     # If the process timedout return 124 to match timeout behavior.
     if [[ ${watcher_rc} -eq 1 ]]; then
-        edebug "Timeout $(lval cmd rc seconds timeout=_etimeout_timeout signal=_etimeout_signal pid)"
+        edebug "Timeout $(lval cmd rc seconds timeout signal pid)"
         return 124
     else
         return ${rc}
@@ -3460,25 +3422,19 @@ eretry()
         ":max-timeout T        | If all attempts take longer than this duration, kill what's running and stop retrying." \
         ":warn-every w         | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
 
-    local _eretry_delay=$(dopt_get delay)
-    local _eretry_exit_codes=$(dopt_get fatal-exit-codes)
-    local _eretry_retries=$(dopt_get retries)
-    local _eretry_signal=$(dopt_get signal)
-    local _eretry_timeout_total=$(dopt_get max-timeout)
-    local _eretry_timeout=$(dopt_get timeout)
-    : ${_eretry_timeout:=${_eretry_timeout_total:-infinity}}
-    local _eretry_warn=$(dopt_get warn-every)
+    # If unspecified, limit timeout to the same as max_timeout
+    : ${timeout:=${max_timeout:-infinity}}
 
     # If no total timeout or retry limit was specified then default to prior behavior with a max retry of 5.
-    if [[ -z ${_eretry_timeout_total} && -z ${_eretry_retries} ]]; then
-        _eretry_retries=5
-    elif [[ -z ${_eretry_retries} ]]; then
-        _eretry_retries="infinity"
+    if [[ -z ${max_timeout} && -z ${retries} ]]; then
+        retries=5
+    elif [[ -z ${retries} ]]; then
+        retries="infinity"
     fi
 
     # If a total timeout was specified then wrap call to eretry_internal with etimeout
-    if [[ -n ${_eretry_timeout_total} ]]; then
-        etimeout -t=${_eretry_timeout_total} -s=${_eretry_signal} eretry_internal "${@}"
+    if [[ -n ${max_timeout} ]]; then
+        etimeout -t=${max_timeout} -s=${signal} eretry_internal "${@}"
     else
         eretry_internal "${@}"
     fi
@@ -3502,9 +3458,9 @@ eretry_internal()
     fi
 
     while true; do
-        [[ ${_eretry_retries} != "infinity" && ${attempt} -ge ${_eretry_retries} ]] && break || (( attempt+=1 ))
+        [[ ${retries} != "infinity" && ${attempt} -ge ${retries} ]] && break || (( attempt+=1 ))
         
-        edebug "Executing $(lval cmd rc stdout) retries=(${attempt}/${_eretry_retries})"
+        edebug "Executing $(lval cmd rc stdout) retries=(${attempt}/${retries})"
 
         # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
         # on any errors. The reason for this is any caller who cares about the output of
@@ -3512,31 +3468,31 @@ eretry_internal()
         # emitting that output they'd be getting repeated output from failed attempts
         # which could be completely invalid output (e.g. truncated XML, Json, etc).
         stdout=""
-        $(tryrc -o=stdout etimeout -t=${_eretry_timeout} -s=${_eretry_signal} "${cmd[@]}")
+        $(tryrc -o=stdout etimeout -t=${timeout} -s=${signal} "${cmd[@]}")
         
         # Append list of exit codes we've seen
         exit_codes+=(${rc})
 
         # Break if the process exited with white listed exit code.
-        if echo "${_eretry_exit_codes}" | grep -wq "${rc}"; then
-            edebug "Command exited with success $(lval rc _eretry_exit_codes cmd) retries=(${attempt}/${_eretry_retries})"
+        if echo "${fatal_exit_codes}" | grep -wq "${rc}"; then
+            edebug "Command exited with success $(lval rc fatal_exit_codes cmd) retries=(${attempt}/${retries})"
             break
         fi
 
         # Show warning if requested
-        if [[ -n ${_eretry_warn} ]] && (( SECONDS - warn_seconds > _eretry_warn )); then
-            ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
+        if [[ -n ${warn_every} ]] && (( SECONDS - warn_seconds > warn_every )); then
+            ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})" 
             warn_seconds=${SECONDS}
         fi
 
         # Don't use "-ne" here since delay can have embedded units
-        if [[ ${_eretry_delay} != "0" ]] ; then
-            edebug "Sleeping $(lval _eretry_delay)" 
-            sleep ${_eretry_delay}
+        if [[ ${delay} != "0" ]] ; then
+            edebug "Sleeping $(lval delay)" 
+            sleep ${delay}
         fi
     done
 
-    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
+    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})" 
 
     # Emit stdout
     echo -n "${stdout}"
@@ -3878,9 +3834,6 @@ array_remove()
     # bash doesn't save arrays with no members.  For instance A=() unsets array A...
     [[ -v ${__array} && $# -gt 0 ]] || return 0
     
-    # Remove all instances or only the first?
-    local remove_all=$(dopt_get all)
-
     local value
     for value in "${@}"; do
 
@@ -3891,7 +3844,8 @@ array_remove()
 
             unset ${__array}[$idx]
 
-            [[ ${remove_all} -eq 1 ]] || break
+            # Remove all instances or only the first?
+            [[ ${all} -eq 1 ]] || break
         done
     done
 }
@@ -3993,8 +3947,8 @@ array_sort()
     for __array in "${@}" ; do
         local flags=()
 
-        dopt_true "unique"  && flags+=("--unique")
-        dopt_true "version" && flags+=("--version-sort")
+        [[ ${unique} -eq 1 ]]  && flags+=("--unique")
+        [[ ${version} -eq 1 ]] && flags+=("--version-sort")
         
         readarray -t ${__array} < <(
             local idx
@@ -4166,9 +4120,9 @@ pack_import()
 
     # Determine requested scope for the variables
     local _pack_import_scope="local"
-    dopt_true "local"  && _pack_import_scope="local"
-    dopt_true "global" && _pack_import_scope=""
-    dopt_true "export" && _pack_import_scope="export"
+    [[ ${local} -eq 1 ]]  && _pack_import_scope="local"
+    [[ ${global} -eq 1 ]] && _pack_import_scope=""
+    [[ ${export} -eq 1 ]] && _pack_import_scope="export"
 
     local _pack_import_cmd=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
@@ -4416,42 +4370,37 @@ json_import()
 
     # Determine requested scope for the variables
     local _json_import_qualifier="local"
-    dopt_true "local" && _json_import_qualifier="local"
-    dopt_true "global" && _json_import_qualifier=""
-    dopt_true "export" && _json_import_qualifier="export"
+    [[ ${local} -eq 1 ]]  && _json_import_qualifier="local"
+    [[ ${global} -eq 1 ]] && _json_import_qualifier=""
+    [[ ${export} -eq 1 ]] && _json_import_qualifier="export"
 
-    # Lookup optional prefix to use
-    local _json_import_prefix="$(dopt_get prefix)"
-
-    # Lookup optional jq query to use
-    local _json_import_query="$(dopt_get query)"
-    : ${_json_import_query:=.}
+    # optional jq query, or . which selects everything in jq
+    : ${query:=.}
 
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
     # In either case read into a local variable so we can parse it repeatedly in this function.
-    local _json_import_filename="$(dopt_get file)"
-    local _json_import_data=$(cat ${_json_import_filename} | jq -r "${_json_import_query}")
+    local _json_import_data=$(cat ${file} | jq -r "${query}")
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
     local _json_import_keys=("${@:-}")
     [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
 
     # Get list of optional keys to exclude
-    local _json_import_keys_excluded
-    array_init _json_import_keys_excluded "$(dopt_get exclude)"
+    local excluded
+    array_init excluded "${exclude}"
 
     # Debugging
-    edebug $(lval _json_import_prefix _json_import_query _json_import_filename _json_import_data _json_import_keys _json_import_keys_excluded)
+    edebug $(lval prefix query file _json_import_data _json_import_keys excluded)
 
     local cmd key val
     for key in "${_json_import_keys[@]}"; do
-        array_contains _json_import_keys_excluded ${key} && continue
+        array_contains excluded ${key} && continue
 
         local val=$(jq -r .${key} <<< ${_json_import_data})
         edebug $(lval key val)
-        dopt_true "upper-snake-case" && key=$(to_upper_snake_case "${key}")
+        [[ ${upper_snake_case} -eq 1 ]] && key=$(to_upper_snake_case "${key}")
 
-        cmd+="${_json_import_qualifier} ${_json_import_prefix}${key}=\"${val}\";"
+        cmd+="${_json_import_qualifier} ${prefix}${key}=\"${val}\";"
     done
 
     echo -n "eval ${cmd}"

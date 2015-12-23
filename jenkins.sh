@@ -638,7 +638,6 @@ jenkins_internal()
 {
     $(declare_opts ":filename file f | Name of file to send to specified jenkins command as its input.")
 
-    local filename=$(dopt_get filename)
     local cmd=( "${@}" )
     local rc=0
 
