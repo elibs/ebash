@@ -38,7 +38,7 @@ DAEMON_EXPECT=(
 
 daemon_react()
 {
-    $(declare_args actual)
+    $(newdecl_args actual)
 
     edebug "Reached hook ${actual}"
     (
@@ -71,7 +71,7 @@ daemon_react()
 
 daemon_expect()
 {
-    $(declare_args state)
+    $(newdecl_args state)
 
     etestmsg "Waiting for daemon to reach $(lval state)"
     
