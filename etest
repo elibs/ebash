@@ -30,25 +30,9 @@ $(newdecl_args ?TEST_DIR)
 : ${TEST_DIR:=$(readlink -f .)}
 ETEST_TOPDIR=${TEST_DIR}
 
-# OPTIONS:
-# -f=FILTER: Optional filter of tests to run (defaults to FILTER which defaults to "").
-# -r=NUM:    Number of times to repeat matching tests (defaults to REPEAT which defaults to 0).
-# -v=(0|1)   Optional value for VERBOSE setting. If set to 0 you'll get terse output from etest showing
-#            only the test name and result. If set to 1 you'll get more verbose output from etest and each test.
-# -b=(0|1)   Break on failure (defaults to 0)
-# -k=(0|1)   Keep all output
-# -c=(0|1)   Clean only then exit.
-# -h=(0|1)   Produce HTML logfile and strip color codes from etest.log
-FILTER=$(dopt_get filter)
-EXCLUDE=$(dopt_get exclude)
-REPEAT=$(dopt_get repeat)
-(( ${REPEAT} < 1 )) && REPEAT=1
-VERBOSE=$(dopt_get verbose)
-[[ ${EDEBUG:-0} != "0" ]] && VERBOSE=1 || true
-BREAK=$(dopt_get break)
-KEEPOUTPUT=$(dopt_get keep)
-HTML=$(dopt_get html)
-edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK HTML)"
+(( ${repeat} < 1 )) && repeat=1
+[[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
+edebug "$(lval TEST_DIR) $(dopt_dump)"
 
 # Global cgroup name for all unit tests
 export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
@@ -57,10 +41,10 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${TEST_DIR}/etest.log
-elogfile -r=1 -t=${VERBOSE} ${ETEST_LOG}
+elogfile -r=1 -t=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
-if [[ ${VERBOSE} -eq 0 ]]; then
+if [[ ${verbose} -eq 0 ]]; then
     ETEST_OUT="/proc/self/fd/${ETEST_STDERR_FD}"
     TEST_OUT="/dev/null"
 else
@@ -77,10 +61,8 @@ die_handler()
     $(declare_opts \
         ":return-code rc r=1 | Return code that die will exit with")
 
-    local rc=$(dopt_get return-code)
-
     # Append any error message to logfile
-    if [[ ${VERBOSE} -eq 0 ]]; then
+    if [[ ${verbose} -eq 0 ]]; then
         echo "" >&2
         eerror "${@}"
         
@@ -91,7 +73,7 @@ die_handler()
 
     fi &>${ETEST_OUT}
     
-    exit ${rc}
+    exit ${return_code}
 }
 
 etestmsg()
@@ -158,7 +140,7 @@ global_setup()
 
 global_teardown()
 {
-    [[ $KEEPOUTPUT -eq 1 ]] && edebug "Skipping global_teardown" && return 0
+    [[ ${keep} -eq 1 ]] && edebug "Skipping global_teardown" && return 0
     edebug "Starting global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
     cgroup_destroy -r ${ETEST_CGROUP}
@@ -167,7 +149,7 @@ global_teardown()
     rm -rf ${TEST_DIR_OUTPUT}
 
     # Convert logfile to HTML if requested
-    if [[ ${HTML} -eq 1 ]] && which ansi2html &>/dev/null; then
+    if [[ ${html} -eq 1 ]] && which ansi2html &>/dev/null; then
         edebug "Converting ${ETEST_LOG} into HTML"
         cat ${ETEST_LOG} | ansi2html --scheme=xterm > ${ETEST_LOG/.log/.html}
         sed -i "s:\x1B\[[0-9;]*[mK]::g" ${ETEST_LOG}
@@ -247,26 +229,26 @@ run_all_tests_in_file()
     grep -q "^ETEST_" ${testfile} >/dev/null || return 0
 
     # Skip files whose name matches the exclude filter
-    [[ -n ${EXCLUDE} && ${testfile} =~ ${EXCLUDE} ]] && return 0
+    [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] && return 0
 
     # Ensure proper shebang is in the unit test or else bashlint won't be able to validate it
     # and it may not be a proper bash unit test
     grep -q '^#!/.*bash' ${testfile} || { eerror "No bash shebang in ${testfile}"; throw 1; }
 
     # Get all function names that begin with ETEST_ (and optionally match $2)
-    if [[ -z ${FILTER} || ${testfile} =~ ${FILTER} ]]; then
+    if [[ -z ${filter} || ${testfile} =~ ${filter} ]]; then
         ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" {print $3}' ) )
     else
-        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
+        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${filter}'" {print $3}') )
     fi
     edebug $(lval testfile ETEST_FUNCTIONS)
 
     [[ ${#ETEST_FUNCTIONS[@]} -gt 0 ]] || return 0
 
     # Exclude those functions that match the exclude filter
-    if [[ -n ${EXCLUDE} ]] ; then
+    if [[ -n ${exclude} ]] ; then
         for index in "${!ETEST_FUNCTIONS[@]}" ; do
-            if [[ ${ETEST_FUNCTIONS[$index]} =~ ${EXCLUDE} ]] ; then
+            if [[ ${ETEST_FUNCTIONS[$index]} =~ ${exclude} ]] ; then
                 unset ETEST_FUNCTIONS[$index]
             fi
         done
@@ -291,7 +273,7 @@ run_all_tests_in_file()
         }
         catch
         {
-            [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1" &>${ETEST_OUT}
+            [[ ${break} -eq 0 ]] || die "${testfunc} failed and break=1" &>${ETEST_OUT}
             FAILURES[${testfilename}]+="${testfunc//ETEST_} " || true
             [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_FAILED_COUNT += 1 ))
         }
@@ -299,7 +281,7 @@ run_all_tests_in_file()
 
         # Unit test infrastructure teardown
         eunmount_recursive ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc} |& edebug
-        if [[ $KEEPOUTPUT -eq 0 ]] ; then 
+        if [[ ${keep} -eq 0 ]] ; then 
             rm -rf ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
         fi
 
@@ -315,7 +297,7 @@ global_setup
 trap_add global_teardown
 
 # If clean only is requested exit immediately. The "clean" is done via global_setup and global_teardown.
-dopt_true clean && exit 0
+[[ ${clean} -eq 1 ]] && exit 0
 
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
@@ -325,7 +307,7 @@ TEST_EXECUTED_COUNT=0
 TEST_FAILED_COUNT=0
 
 # Sanity test of die
-if [[ -x ${ETEST_TOPDIR}/unittest/die && ( -z ${FILTER} || ${FILTER} =~ "die" ) && ! ${EXCLUDE} =~ "die" ]] ; then
+if [[ -x ${ETEST_TOPDIR}/unittest/die && ( -z ${filter} || ${filter} =~ "die" ) && ! ${exclude} =~ "die" ]] ; then
     DIE_MSG="Verifying die() trap functionality"
     einfo "${DIE_MSG}" &>${ETEST_OUT}
     ebanner "${DIE_MSG}"
@@ -334,8 +316,8 @@ if [[ -x ${ETEST_TOPDIR}/unittest/die && ( -z ${FILTER} || ${FILTER} =~ "die" ) 
 fi
 
 # Now go through and test all unit tests
-for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
-    [[ ${REPEAT} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${REPEAT})" || REPEAT_STRING=""
+for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
+    [[ ${repeat} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${repeat})" || REPEAT_STRING=""
     for filename in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
         run_all_tests_in_file ${filename}
     done

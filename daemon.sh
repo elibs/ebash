@@ -356,10 +356,6 @@ daemon_stop()
     # Setup logfile
     elogfile -o=1 -e=1 "${logfile}"
 
-    # Options
-    local signal=$(dopt_get signal)
-    local timeout=$(dopt_get timeout)
-
     # Info
     einfo "Stopping ${name}"
     edebug "Stopping $(lval name signal timeout +${optpack})"
@@ -394,7 +390,6 @@ daemon_stop()
 
     if [[ -n ${cgroup} ]] ; then
         edebug "Waiting for all processes in $(lval cgroup) to die"
-        local cgroup_timeout=$(dopt_get cgroup-timeout)
         cgroup_kill_and_wait -x="$$ ${BASHPID}" -s=KILL -t=${cgroup_timeout} ${cgroup}
     fi
 
@@ -418,7 +413,7 @@ daemon_status()
     $(pack_import ${optpack})
 
     local redirect
-    dopt_true "quiet" && redirect="/dev/null" || redirect="/dev/stderr"
+    [[ ${quiet} -eq 1 ]] && redirect="/dev/null" || redirect="/dev/stderr"
 
     {
         einfo "${name}"

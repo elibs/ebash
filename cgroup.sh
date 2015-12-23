@@ -81,7 +81,7 @@ cgroup_destroy()
 
     local msg
     msg="destroying cgroups ${@}"
-    dopt_false recursive || msg+=" recursively"
+    [[ ${recursive} -eq 1 ]] && msg+=" recursively"
     edebug "${msg}"
 
     for cgroup in "${@}" ; do
@@ -91,7 +91,7 @@ cgroup_destroy()
             local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
             [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys_path} that is already gone." ; continue ; }
 
-            if dopt_true recursive ; then
+            if [[ ${recursive} -eq 1 ]] ; then
                 find ${subsys_path} -depth -type d -exec rmdir {} \;
             else
                 rmdir ${subsys_path}
@@ -225,7 +225,7 @@ cgroup_pids()
     cgroups=( ${@} )
     rc=0
 
-    array_init ignorepids "$(dopt_get exclude)"
+    array_init ignorepids "${exclude}"
 
     for cgroup in "${cgroups[@]}" ; do
         local subsystem_paths=()
@@ -234,7 +234,7 @@ cgroup_pids()
         done
 
         local files file
-        if dopt_true recursive ; then
+        if [[ ${recursive} -eq 1 ]] ; then
             array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks 2>/dev/null)"
         else
             for file in "${subsystem_paths[@]}" ; do
@@ -303,10 +303,10 @@ cgroup_ps()
     $(newdecl_args cgroup)
 
     local options=()
-    dopt_true recursive && options+=("-r")
+    [[ ${recursive} -eq 1 ]] && options+=("-r")
 
     local pid cgroup_pids
-    cgroup_pids=($(cgroup_pids ${options[@]:-} -x="${BASHPID} $(dopt_get exclude)" ${cgroup}))
+    cgroup_pids=($(cgroup_pids ${options[@]:-} -x="${BASHPID} ${exclude}" ${cgroup}))
 
     array_empty cgroup_pids && return 0
 
@@ -434,14 +434,12 @@ cgroup_kill()
         ":exclude x     | Space separated list of processes not to kill.  Note: current process and ancestors are always excluded.")
 
     local cgroups=( ${@} )
-    local signal=$(dopt_get signal SIGTERM)
 
     [[ $(array_size cgroups) -gt 0 ]] || return 0
 
     local ignorepids pids
 
-    ignorepids="$(dopt_get exclude)"
-    ignorepids+=" $$ ${BASHPID}"
+    ignorepids+="${exclude} $$ ${BASHPID}"
 
     # NOTE: BASHPID must be added here in addition to above because it's
     # different inside this command substituion (subshell) than it is outside.
@@ -489,12 +487,10 @@ cgroup_kill_and_wait()
         ":timeout max t=0 | Maximum number of seconds to wait for all processes to die.  If some still exist at that point, an error code will be returned.")
     local cgroups=( ${@} )
     local startTime=${SECONDS}
-    local timeout=$(dopt_get timeout)
-    local signal=$(dopt_get signal)
 
     [[ $# -gt 0 ]] || return 0
 
-    local ignorepids="$$ $BASHPID $(dopt_get exclude)"
+    local ignorepids="$$ $BASHPID ${exclude}"
 
     edebug "Ensuring that there are no processes in $(lval cgroups ignorepids signal)."
 
