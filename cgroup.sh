@@ -38,6 +38,11 @@ CGROUP_SUBSYSTEMS=(cpu memory freezer)
 #
 cgroup_supported()
 {
+    if [[ ! -e /proc/cgroups ]] ; then
+        edebug "No support for cgroups."
+        return 255
+    fi
+
     local subsystem missing_count=0
     for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
         if ! grep -qw "^${subsystem}" /proc/cgroups ; then

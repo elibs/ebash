@@ -1,7 +1,9 @@
 #!/bin/bash
-
+#
 # Copyright 2015, SolidFire, Inc. All rights reserved.
 
+
+[[ ${__BU_OS} != Linux ]] && return 0
 
 NETNS_DIR="/run/netns"
 
