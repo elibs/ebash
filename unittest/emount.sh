@@ -60,7 +60,7 @@ ETEST_emount_partial_match()
 
 check_mounts()
 {
-    $(declare_args path count)
+    $(newdecl_args path count)
 
     [[ ${count} -eq 0 ]] && assert_false emounted ${path} || assert_true emounted ${path}
     assert_eq ${count} $(emount_count ${path})

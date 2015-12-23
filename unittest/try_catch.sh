@@ -425,8 +425,7 @@ ETEST_tryrc_command_with_no_output()
     $(tryrc -o=so -e=se false)
     assert_ne 0 "${rc}"
     assert_eq "" "${so}"
-    # TODO modell
-    #assert_eq "" "${se}"
+    assert_eq "" "${se}"
 
     $(tryrc true)
     assert_eq 0 "${rc}"

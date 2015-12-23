@@ -33,7 +33,7 @@ chroot_unmount()
 
 chroot_prompt()
 {
-    $(declare_args ?name)
+    $(newdecl_args ?name)
     argcheck CHROOT
 
     # If no name given use basename of CHROOT
@@ -70,7 +70,7 @@ chroot_prompt()
 
 chroot_shell()
 {
-    $(declare_args ?name)
+    $(newdecl_args ?name)
     argcheck CHROOT
 
     # Setup CHROOT prompt
@@ -108,7 +108,7 @@ chroot_cmd()
 chroot_kill()
 {
     argcheck CHROOT
-    $(declare_args ?regex)
+    $(newdecl_args ?regex)
     local signal=$(opt_get s SIGTERM)
 
     local pids=""
@@ -147,7 +147,7 @@ chroot_exit()
 chroot_readlink()
 {
     argcheck CHROOT
-    $(declare_args path)
+    $(newdecl_args path)
 
     echo -n "${CHROOT}$(chroot_cmd readlink -f "${path}" 2>/dev/null)"
 }
@@ -274,7 +274,7 @@ chroot_uninstall_filter()
 
 chroot_apt_setup()
 {
-    $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
+    $(newdecl_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
 
     ## Set up DPKG options so we don't get prompted for anything
     einfo "Setting up dpkg.cfg"
@@ -328,7 +328,7 @@ chroot_apt_setup()
 
 chroot_setup()
 {
-    $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
+    $(newdecl_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
     einfo "Setting up $(lval CHROOT)"
 
     try
@@ -383,7 +383,7 @@ chroot_setup()
 # debootstrap. 
 mkchroot()
 {
-    $(declare_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
+    $(newdecl_args CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
     edebug "$(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
 
     ## Make sure that debootstrap is installed
