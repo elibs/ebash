@@ -34,9 +34,14 @@ ETEST_TOPDIR=${TEST_DIR}
 [[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
 edebug "$(lval TEST_DIR) $(opt_dump)"
 
-# Global cgroup name for all unit tests
-export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
-export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
+if ! cgroup_supported ; then
+    ewarn "Cgroups not supported on this system.  Process leaks will not be detected."
+else
+    # Global cgroup name for all unit tests
+    export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
+    export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
+fi
+
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
@@ -130,9 +135,11 @@ global_setup()
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
     efreshdir ${TEST_DIR_OUTPUT}
 
-    # And a cgroup that will contain all output
-    cgroup_create ${ETEST_CGROUP}
-    cgroup_move ${ETEST_CGROUP_BASE} $$
+    if cgroup_supported ; then
+        # And a cgroup that will contain all output
+        cgroup_create ${ETEST_CGROUP}
+        cgroup_move ${ETEST_CGROUP_BASE} $$
+    fi
 
     edebug "Finished global_setup"
     return 0
@@ -270,7 +277,10 @@ run_all_tests_in_file()
             __EFUNCS_INSIDE_TRY=0
 
             ( run_single_test ${testfile} ${testfunc} )
-            assert_no_process_leaks
+
+            if cgroup_supported ; then
+                assert_no_process_leaks
+            fi
         }
         catch
         {
