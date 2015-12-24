@@ -348,7 +348,7 @@ daemon_stop()
     $(declare_opts \
         ":signal s=TERM        | Signal to use when gracefully stopping the daemon." \
         ":timeout t=5          | Number of seconds to wait after initial signal before sending SIGKILL." \
-        ":cgroup-timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear.  Requires cgroup support.")
+        ":cgroup_timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear.  Requires cgroup support.")
 
     $(newdecl_args optpack)
     $(pack_import ${optpack})
