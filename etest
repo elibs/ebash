@@ -59,7 +59,7 @@ fi
 die_handler()
 {
     $(declare_opts \
-        ":return-code rc r=1 | Return code that die will exit with")
+        ":rc return_code r=1 | Return code that die will exit with")
 
     # Append any error message to logfile
     if [[ ${verbose} -eq 0 ]]; then
@@ -73,7 +73,7 @@ die_handler()
 
     fi &>${ETEST_OUT}
     
-    exit ${return_code}
+    exit ${rc}
 }
 
 etestmsg()

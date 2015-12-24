@@ -521,7 +521,7 @@ die()
         exit ${__BU_DIE_IN_PROGRESS}
     else
         $(declare_opts \
-            ":return-code rc r=1 | Return code that die will eventually exit with." \
+            ":return_code rc r=1 | Return code that die will eventually exit with." \
             ":signal s           | Signal that caused this die to occur." \
             ":color c            | DEPRECATED OPTION -- no longer has any effect.")
 
@@ -1305,7 +1305,7 @@ eprogress()
 eprogress_kill()
 {
     $(declare_opts \
-        ":rc return-code r=0  | Should this eprogress show a mark for success or failure?" \
+        ":rc return_code r=0  | Should this eprogress show a mark for success or failure?" \
         "all a                | If set, kill ALL known eprogress processes, not just the current one")
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
@@ -1387,7 +1387,7 @@ signum()
 signame()
 {
     $(declare_opts \
-        "include-sig s | Get the form of the signal name that includes SIG.")
+        "include_sig s | Get the form of the signal name that includes SIG.")
 
     local prefix=""
     if [[ ${include_sig} -eq 1 ]] ; then
@@ -1545,7 +1545,7 @@ ekill()
 {
     $(declare_opts \
         ":signal sig s=SIGTERM | The signal to send to specified processes, either as a number or a signal name." \
-        ":kill-after k         | Elevate to SIGKILL after waiting for this duration after sending the initial signal.  Accepts any duration that sleep would accept.")
+        ":kill_after k         | Elevate to SIGKILL after waiting for this duration after sending the initial signal.  Accepts any duration that sleep would accept.")
 
     # Determine what signal to send to the processes
     local processes=( $@ )
@@ -1603,7 +1603,7 @@ ekilltree()
     $(declare_opts \
         ":signal sig s=SIGTERM | The signal to send to the process tree, either as a number or a name." \
         ":exclude x            | Processes to exclude from being killed." \
-        ":kill-after k         | Elevate to SIGKILL after this duration if the processes haven't died.")
+        ":kill_after k         | Elevate to SIGKILL after this duration if the processes haven't died.")
 
     # Determine what signal to send to the processes
     local excluded="$(process_ancestors ${BASHPID}) ${exclude}"
@@ -2373,7 +2373,7 @@ emd5sum_check()
 emetadata()
 {
     $(declare_opts \
-        ":private-key p | Also check the PGP signature based on this private key." \
+        ":private_key p | Also check the PGP signature based on this private key." \
         ":keyphrase k   | The keyphrase to use for the specified private key.")
     $(newdecl_args path)
     [[ -e ${path} ]] || die "${path} does not exist"
@@ -2422,7 +2422,7 @@ emetadata_check()
 {
     $(declare_opts \
         "quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
-        ":public-key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file.")
+        ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file.")
 
     $(newdecl_args path)
     local meta="${path}.meta"
@@ -2907,7 +2907,11 @@ declare_opts_internal_setup()
         # The canonical option name is the first name for the option that is specified
         [[ ${all_opts} =~ ([^\t ]+).* ]]
         local canonical=${all_opts%%[ 	]*}
-        [[ -n ${canonical} ]]
+
+        # And that name must be non-empty and must not contain hyphens (because
+        # hyphens are not allowed in bash variable names)
+        [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid declare_opts syntax.  Canonical name is empty."
+        [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: option name ${canonical} is not allowed to contain hyphens."
 
 
         # Now that they're all computed, add them to the command that will generate associative arrays
@@ -2947,7 +2951,11 @@ declare_opts_internal()
                 local has_arg=${BASH_REMATCH[2]}
                 local opt_arg=${BASH_REMATCH[3]}
 
-                local canonical=$(declare_opts_find_canonical ${long_opt})
+                # Find the internal name of the long option (using its name
+                # with underscores, which is how we treat it throughout the
+                # declare_opts code rather than with hyphens which is how it
+                # should be specified on the command line)
+                local canonical=$(declare_opts_find_canonical ${long_opt//-/_})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
                 if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
@@ -3415,12 +3423,12 @@ eretry()
 {
     $(declare_opts \
         ":delay d=0            | Time to sleep between failed attempts before retrying." \
-        ":fatal-exit-codes e=0 | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
+        ":fatal_exit_codes e=0 | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
         ":retries r=5          | Command will be attempted once plus this number of retries if it continues to fail." \
         ":signal sig s=TERM    | Signal to be send to the command if it takes longer than the timeout." \
         ":timeout t            | If one attempt takes longer than this duration, kill it and retry if appropriate." \
-        ":max-timeout T        | If all attempts take longer than this duration, kill what's running and stop retrying." \
-        ":warn-every w         | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
+        ":max_timeout T        | If all attempts take longer than this duration, kill what's running and stop retrying." \
+        ":warn_every w         | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
 
     # If unspecified, limit timeout to the same as max_timeout
     : ${timeout:=${max_timeout:-infinity}}
@@ -4363,7 +4371,7 @@ json_import()
         "global g           | Emit global variables instead of local ones." \
         "export e           | Emit exported variables instead of local ones." \
         ":file f=-          | Parse contents of provided file instead of stdin." \
-        "upper-snake-case u | Convert all keys into UPPER_SNAKE_CASE." \
+        "upper_snake_case u | Convert all keys into UPPER_SNAKE_CASE." \
         ":prefix p          | Prefix all keys with the provided required prefix." \
         ":query jq q        | Use JQ style query expression on given JSON before parsing." \
         ":exclude x         | Whitespace separated list of keys to exclude while importing.")
