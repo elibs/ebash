@@ -112,7 +112,7 @@
 #
 daemon_init()
 {
-    $(declare_args optpack)
+    $(newdecl_args optpack)
 
     # Load defaults into the pack first then add in any additional provided settings
     # Since the last key=val added to the pack will always override prior values
@@ -160,7 +160,7 @@ daemon_init()
 daemon_start()
 {
     # Pull in our argument pack then import all of its settings for use.
-    $(declare_args optpack)
+    $(newdecl_args optpack)
     $(pack_import ${optpack})
 
     # Don't restart the daemon if it is already running.
@@ -345,15 +345,16 @@ daemon_start()
 daemon_stop()
 {
     # Pull in our argument pack then import all of its settings for use.
-    $(declare_args optpack)
+    $(declare_opts \
+        ":signal s=TERM        | Signal to use when gracefully stopping the daemon." \
+        ":timeout t=5          | Number of seconds to wait after initial signal before sending SIGKILL." \
+        ":cgroup_timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear.  Requires cgroup support.")
+
+    $(newdecl_args optpack)
     $(pack_import ${optpack})
 
     # Setup logfile
     elogfile -o=1 -e=1 "${logfile}"
-
-    # Options
-    local signal=$(opt_get s SIGTERM)
-    local timeout=$(opt_get t 5)
 
     # Info
     einfo "Stopping ${name}"
@@ -389,7 +390,6 @@ daemon_stop()
 
     if [[ -n ${cgroup} ]] ; then
         edebug "Waiting for all processes in $(lval cgroup) to die"
-        local cgroup_timeout=$(opt_get c 300)
         cgroup_kill_and_wait -x="$$ ${BASHPID}" -s=KILL -t=${cgroup_timeout} ${cgroup}
     fi
 
@@ -408,11 +408,12 @@ daemon_stop()
 daemon_status()
 {
     # Pull in our argument pack then import all of its settings for use.
-    $(declare_args optpack)
+    $(declare_opts "quiet q | Make the status function produce no output.")
+    $(newdecl_args optpack)
     $(pack_import ${optpack})
 
     local redirect
-    opt_true "q" && redirect="/dev/null" || redirect="/dev/stderr"
+    [[ ${quiet} -eq 1 ]] && redirect="/dev/null" || redirect="/dev/stderr"
 
     {
         einfo "${name}"

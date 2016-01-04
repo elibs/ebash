@@ -10,8 +10,8 @@ ETEST_declare_opts()
         ":whitespace w               |   option expecting to receive something containing whitespace")
     etestmsg "$(dopt_dump)"
 
-    assert_eq "blue" "$(dopt_get color)"
-    assert_eq "some_file" "$(dopt_get file)"
+    assert_eq "blue" "${color}"
+    assert_eq "some_file" "${file}"
 
     assert_eq "arg1" "$1"
     assert_eq "arg2" "$2"
@@ -24,19 +24,13 @@ ETEST_declare_opts_boolean()
     $(declare_opts "a" "b" "c" "d" "e" "f" )
     etestmsg "$(dopt_dump)"
 
-    assert_eq 1 "$(dopt_get a)"
-    assert_true dopt_true a
-    assert_eq 1 "$(dopt_get b)"
-    assert_true dopt_true b
-    assert_eq 1 "$(dopt_get c)"
-    assert_true dopt_true c
+    assert_eq 1 "${a}"
+    assert_eq 1 "${b}"
+    assert_eq 1 "${c}"
 
-    assert_eq 0 "$(dopt_get d)"
-    assert_false dopt_true d
-    assert_eq 0 "$(dopt_get e)"
-    assert_false dopt_true e
-    assert_eq 0 "$(dopt_get f)"
-    assert_false dopt_true f
+    assert_eq 0 "${d}"
+    assert_eq 0 "${e}"
+    assert_eq 0 "${f}"
 }
 
 ETEST_declare_opts_boolean_multi()
@@ -49,15 +43,10 @@ ETEST_declare_opts_boolean_multi()
         "else e") 
     etestmsg "$(dopt_dump)"
 
-    assert_eq 1 "$(dopt_get verbose)"
-    assert_eq 1 "$(dopt_get another)"
-    assert_eq 1 "$(dopt_get something)"
-    assert_eq 1 "$(dopt_get else)"
-
-    assert_true dopt_get verbose
-    assert_true dopt_get another
-    assert_true dopt_get something
-    assert_true dopt_get else
+    assert_eq 1 "${verbose}"
+    assert_eq 1 "${another}"
+    assert_eq 1 "${something}"
+    assert_eq 1 "${else}"
 }
 
 ETEST_declare_opts_short()
@@ -71,9 +60,9 @@ ETEST_declare_opts_short()
     etestmsg "$(dopt_dump)"
 
 
-    assert_eq "a_file" $(dopt_get file)
-    assert_eq "salmon" $(dopt_get color)
-    assert_eq "door"   $(dopt_get door)
+    assert_eq "a_file" "${file}"
+    assert_eq "salmon" "${color}"
+    assert_eq "door"   "${door}"
 }
 
 ETEST_declare_opts_long()
@@ -85,9 +74,9 @@ ETEST_declare_opts_long()
         ":baz")
     etestmsg "$(dopt_dump)"
 
-    assert_eq "alpha" $(dopt_get foo)
-    assert_eq "10"    $(dopt_get bar)
-    assert_eq "30"    $(dopt_get baz)
+    assert_eq "alpha" "${foo}"
+    assert_eq "10"    "${bar}"
+    assert_eq "30"    "${baz}"
 }
 
 ETEST_declare_opts_required_arg()
@@ -112,9 +101,9 @@ ETEST_declare_opts_shorts_crammed_together_with_arg()
     $(declare_opts "a" "b" ":c") 
     etestmsg "$(dopt_dump)"
 
-    assert_eq 1 $(dopt_get a)
-    assert_eq 1 $(dopt_get b)
-    assert_eq optarg $(dopt_get c)
+    assert_eq 1 "${a}"
+    assert_eq 1 "${b}"
+    assert_eq optarg "${c}"
 
     assert_eq "arg" "$1"
 }
@@ -137,19 +126,19 @@ ETEST_declare_opts_shorts_crammed_together_required_arg()
 
 ETEST_declare_opts_crazy_option_args()
 {
-    alpha="how about	whitespace?"
-    beta="[]"
-    gamma="*"
-    kappa="\$1"
+    real_alpha="how about	whitespace?"
+    real_beta="[]"
+    real_gamma="*"
+    real_kappa="\$1"
 
-    set -- --alpha "${alpha}" --beta "${beta}" --gamma "${gamma}" --kappa "${kappa}"
+    set -- --alpha "${real_alpha}" --beta "${real_beta}" --gamma "${real_gamma}" --kappa "${real_kappa}"
     $(declare_opts ":alpha" ":beta" ":gamma" ":kappa")
     etestmsg "$(dopt_dump)"
 
-    assert_eq "${alpha}" "$(dopt_get alpha)"
-    assert_eq "${gamma}" "$(dopt_get gamma)"
-    assert_eq "${beta}"  "$(dopt_get beta)"
-    assert_eq "${kappa}" "$(dopt_get kappa)"
+    assert_eq "${real_alpha}" "${alpha}"
+    assert_eq "${real_gamma}" "${gamma}"
+    assert_eq "${real_beta}"  "${beta}"
+    assert_eq "${real_kappa}" "${kappa}"
 }
 
 ETEST_declare_opts_arg_hyphen()
@@ -158,7 +147,7 @@ ETEST_declare_opts_arg_hyphen()
     $(declare_opts ":foo")
     etestmsg "$(dopt_dump)"
 
-    [[ "$(dopt_get foo)" == "-" ]] || die "Foo argument was wrong"
+    [[ "${foo}" == "-" ]] || die "Foo argument was wrong"
 
     assert_eq "arg1" "$1"
 }
@@ -232,7 +221,7 @@ ETEST_declare_opts_equal_empty()
     set -- -f=
     $(declare_opts ":foo f")
     etestmsg "$(dopt_dump)"
-    assert_empty "$(dopt_get foo)"
+    assert_empty "${foo}"
 }
 
 ETEST_declare_opts_default()
@@ -244,9 +233,9 @@ ETEST_declare_opts_default()
         ":white w=with whitespace")
     etestmsg "$(dopt_dump)"
 
-    assert_eq 1 "$(dopt_get alpha)"
-    assert_eq 3 "$(dopt_get beta)"
-    assert_eq "with whitespace" "$(dopt_get white)"
+    assert_eq 1 "${alpha}"
+    assert_eq 3 "${beta}"
+    assert_eq "with whitespace" "${white}"
 }
 
 ETEST_declare_opts_boolean_defaults()
@@ -255,40 +244,14 @@ ETEST_declare_opts_boolean_defaults()
     $(declare_opts "a=0" "b=1" "c=0" "d=1")
     etestmsg "$(dopt_dump)"
 
-    assert_eq 1  "$(dopt_get a)"
-    assert_true  dopt_true a
-    assert_false dopt_false a
-
-    assert_eq 1  "$(dopt_get b)"
-    assert_true  dopt_true b
-    assert_false dopt_false b
-
-    assert_eq 0  "$(dopt_get c)"
-    assert_false dopt_true c
-    assert_true  dopt_false c
-
-    assert_eq 1  "$(dopt_get d)"
-    assert_true  dopt_true d
-    assert_false dopt_false a
-}
-
-ETEST_declare_opts_get_fails_on_undeclared_option()
-{
-    set -- -a
-    $(declare_opts "a")
-    etestmsg "$(dopt_dump)"
-
-    assert_false dopt_get b
-    assert_false dopt_get alpha
-    assert_false dopt_true b
-    assert_false dopt_true alpha
-
-    assert_true dopt_get a
+    assert_eq 1  "${a}"
+    assert_eq 1  "${b}"
+    assert_eq 0  "${c}"
+    assert_eq 1  "${d}"
 }
 
 ETEST_declare_opts_recursive()
 {
-
     foo()
     {
         $(declare_opts \
@@ -299,9 +262,9 @@ ETEST_declare_opts_recursive()
 
         bar --as 6 -b=5 -c 4
 
-        assert_eq 3 $(dopt_get as)
-        assert_eq 2 $(dopt_get be)
-        assert_eq 1 $(dopt_get c)
+        assert_eq 3 "${as}"
+        assert_eq 2 "${be}"
+        assert_eq 1 "${c}"
     }
 
     bar()
@@ -312,9 +275,9 @@ ETEST_declare_opts_recursive()
             ":c")
         etestmsg "${FUNCNAME}: $(dopt_dump)"
 
-        assert_eq 6 $(dopt_get as)
-        assert_eq 5 $(dopt_get be)
-        assert_eq 4 $(dopt_get c)
+        assert_eq 6 "${as}"
+        assert_eq 5 "${be}"
+        assert_eq 4 "${c}"
 
     }
 
@@ -328,8 +291,8 @@ ETEST_declare_opts_dump()
 
     etestmsg "$(dopt_dump)"
 
-    assert_eq 10 $(dopt_get alpha)
-    assert_eq 20 $(dopt_get beta)
+    assert_eq 10 "${alpha}"
+    assert_eq 20 "${beta}"
 
     local dump=$(dopt_dump)
     [[ "${dump}" =~ alpha ]]
@@ -346,6 +309,22 @@ ETEST_declare_opts_no_options()
     $(declare_opts "a" ":b" "c=0")
     etestmsg "$(dopt_dump)"
     etestmsg "Succcess."
+}
+
+ETEST_declare_opts_no_hyphen_in_name()
+{
+    try
+    {
+        set --
+        $(declare_opts "a-b")
+
+        die -r=243 "Should have failed before this."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+
 }
 
 # NOTE: Please ignore for the moment.  Declare_opts is still a work in progress
