@@ -3929,9 +3929,9 @@ json_import()
             val=$(jq -r ".${key}//empty" <<< ${_json_import_data})
         else
             # Ensure the data has the requested key by appending a 'has' filter which emit 'true' or 'false' if the key was
-            # present. Adding "-e" option to jq will cause it to exit with non-zero if the last filter produces 'false'.
-            # We don't actually care about the 'true/false' so we remove that from what we ultimately store into our value
-            # via 'head -1'.
+            # present. Adding '-e' option to jq will cause it to exit with non-zero if the last filter produces 'null' or 'false'.
+            # We don't actually care about the 'true/false' since we're relying on the return code being non-zero to trigger
+            # set -e error handling. So, we remove that from what we ultimately store into our value via 'head -1'.
             val=$(jq -r -e '.'${key}', has("'${key}'")' <<< ${_json_import_data} | head -1)
         fi
 
