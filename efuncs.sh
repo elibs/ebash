@@ -3874,9 +3874,7 @@ json_escape()
 # $(curl ... | $(json_import)
 #
 # OPTIONS:
-# -l: Emit local variables with 'local' scope qualifier (default)
-# -g: Emit global variables with no scope qualifier
-# -e: Emit exported variables with 'export' keyword
+# -g: Make variables global even if called in a local context.
 # -f: Parse the contents of provided file instead of stdin (e.g. -f=MyFile)
 # -u: Convert all keys into upper snake case.
 # -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
@@ -3887,11 +3885,9 @@ json_import()
 {
     $(declare_args)
 
-    # Determine requested scope for the variables
-    local _json_import_qualifier="local"
-    opt_true "l" && _json_import_qualifier="local"
-    opt_true "g" && _json_import_qualifier=""
-    opt_true "e" && _json_import_qualifier="export"
+    # Determine flags to pass into declare
+    local dflags=""
+    opt_false g || dflags="-g"
 
     # Lookup optional prefix to use
     local _json_import_prefix="$(opt_get p)"
@@ -3925,7 +3921,7 @@ json_import()
         edebug $(lval key val)
         opt_true "u" && key=$(to_upper_snake_case "${key}")
 
-        cmd+="${_json_import_qualifier} ${_json_import_prefix}${key}=\"${val}\";"
+        cmd+="declare ${dflags} ${_json_import_prefix}${key}=\"${val}\";"
     done
 
     echo -n "eval ${cmd}"
