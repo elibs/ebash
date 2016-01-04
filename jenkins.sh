@@ -85,7 +85,7 @@ jenkins_prep_jar()
 #
 jenkins_update()
 {
-    $(declare_args itemType template name)
+    $(newdecl_args itemType template name)
 
     # Old versions of jenkins_update expected the template name to contain
     # .xml.  Drop the .xml if old clients provide it.
@@ -163,7 +163,7 @@ jenkins_update()
 # can be inserted into an xml file
 setvars_escape_xml()
 {
-    $(declare_args _ ?val)
+    $(newdecl_args _ ?val)
     echo "${val}" | xmlstarlet esc
 }
 
@@ -212,7 +212,7 @@ jenkins_start_build()
 #
 jenkins_get_build_number()
 {
-    $(declare_args queueUrl)
+    $(newdecl_args queueUrl)
     local number rc
 
     number=$(curl --fail --silent ${queueUrl} | jq -M ".executable.number") && rc=0 || rc=$?
@@ -228,7 +228,7 @@ jenkins_get_build_number()
 #
 jenkins_build_url()
 {
-    $(declare_args buildNum ?format)
+    $(newdecl_args buildNum ?format)
     echo -n "$(jenkins_url)/job/${JENKINS_JOB}/${buildNum}/"
 
     [[ ${format} == "json" ]] && echo -n "api/json"
@@ -254,7 +254,7 @@ jenkins_build_url()
 #
 jenkins_build_json()
 {
-    $(declare_args buildNum ?tree)
+    $(newdecl_args buildNum ?tree)
     local url treeparm="" json rc
 
     url=$(jenkins_build_url ${buildNum} json)
@@ -287,7 +287,7 @@ jenkins_build_json()
 #
 jenkins_build_result()
 {
-    $(declare_args buildNum)
+    $(newdecl_args buildNum)
 
     try
     {
@@ -319,7 +319,7 @@ jenkins_build_result()
 #
 jenkins_build_is_running()
 {
-    $(declare_args buildNum)
+    $(newdecl_args buildNum)
     argcheck JENKINS_JOB
 
     try
@@ -340,7 +340,7 @@ jenkins_build_is_running()
 #
 jenkins_list_artifacts()
 {
-    $(declare_args buildNum)
+    $(newdecl_args buildNum)
     argcheck JENKINS_JOB
 
     local json rc url
@@ -358,7 +358,7 @@ jenkins_list_artifacts()
 
 jenkins_get_artifact()
 {
-    $(declare_args buildNum artifact)
+    $(newdecl_args buildNum artifact)
     argcheck JENKINS_JOB
 
     curl --fail --silent "$(jenkins_build_url ${buildNum})artifact/${artifact}"
@@ -369,7 +369,7 @@ jenkins_get_artifact()
 #
 jenkins_cancel_queue_jobs()
 {
-    $(declare_args dtest_title)
+    $(newdecl_args dtest_title)
 
     # NOTE: I'm ignoring a jq error here -- the select I'm using ignores the
     # fact that not all items in the .actions array have .parameters[] in them.
@@ -389,7 +389,7 @@ jenkins_cancel_queue_jobs()
 
 jenkins_stop_build()
 {
-    $(declare_args buildNum ?job)
+    $(newdecl_args buildNum ?job)
     : ${job:=${JENKINS_JOB}}
 
     edebug "Stopping jenkins build ${job}/${buildNum} on ${JENKINS}."
@@ -405,7 +405,7 @@ jenkins_stop_build()
 #
 jenkins_stop_build_by_url()
 {
-    $(declare_args buildUrl)
+    $(newdecl_args buildUrl)
 
     edebug $(lval buildUrl)
 
@@ -466,7 +466,7 @@ jenkins_list_slaves()
 #
 jenkins_slave_status()
 {
-    $(declare_args slaveName)
+    $(newdecl_args slaveName)
 
     try
     {
@@ -532,7 +532,7 @@ ssh_jenkins()
 #
 jenkins_file_url()
 {
-    $(declare_args file)
+    $(newdecl_args file)
     argcheck JENKINS
 
     echo "http://${JENKINS}/tmp/${file}"
@@ -547,7 +547,7 @@ jenkins_file_url()
 #
 jenkins_put_file()
 {
-    $(declare_args file ?outputFile)
+    $(newdecl_args file ?outputFile)
     argcheck JENKINS
     : ${outputFile:=$(basename $file)}
 
@@ -562,7 +562,7 @@ jenkins_put_file()
 #
 jenkins_read_file()
 {
-    $(declare_args file)
+    $(newdecl_args file)
 
     curl --fail --silent $(jenkins_file_url ${file})
 }
@@ -575,7 +575,7 @@ jenkins_read_file()
 #
 jenkins_get_file()
 {
-    $(declare_args file ?outputFile)
+    $(newdecl_args file ?outputFile)
     : ${outputFile:=$(basename $file)}
 
     jenkins_read_file ${file} > ${outputFile} 
@@ -636,9 +636,8 @@ jenkins_delete_files()
 #
 jenkins_internal()
 {
-    $(declare_args)
+    $(declare_opts ":filename file f | Name of file to send to specified jenkins command as its input.")
 
-    local filename=$(opt_get f)
     local cmd=( "${@}" )
     local rc=0
 
@@ -672,7 +671,7 @@ jenkins_internal()
 # jenkins_internal
 jenkins_internal_end()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
 
     edebug "Returning ${rc} as result of jenkins command"
     echo "${stdout}"
@@ -692,7 +691,7 @@ jenkins_internal_end()
 #
 jenkins_create_star_hook()
 {
-    $(declare_args rc ?stdout ?stderr itemType)
+    $(newdecl_args rc ?stdout ?stderr itemType)
 
     local alreadyExists=0
     echo "${stderr}" | grep -Piq "${itemType} .* already exists" || alreadyExists=$?
@@ -710,19 +709,19 @@ jenkins_create_star_hook()
 # see jenkins_create_star_hook
 jenkins_create_job_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_create_star_hook ${rc} "${stdout}" "${stderr}" "job"
 }
 # see jenkins_create_star_hook
 jenkins_create_node_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_create_star_hook ${rc} "${stdout}" "${stderr}" "node"
 }
 # see jenkins_create_star_hook
 jenkins_create_view_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_create_star_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
@@ -732,7 +731,7 @@ jenkins_create_view_hook()
 #
 jenkins_update_star_hook()
 {
-    $(declare_args rc ?stdout ?stderr itemType)
+    $(newdecl_args rc ?stdout ?stderr itemType)
     local foundNoSuchItem=0
 
     local regex
@@ -762,21 +761,21 @@ jenkins_update_star_hook()
 # see jenkins_update_star_hook
 jenkins_update_job_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "job"
 }
 
 # see jenkins_update_star_hook
 jenkins_update_node_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "node"
 }
 
 # see jenkins_update_star_hook
 jenkins_update_view_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_update_star_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
@@ -795,7 +794,7 @@ jenkins_update_view_hook()
 #
 jenkins_delete_star_hook()
 {
-    $(declare_args rc ?stdout ?stderr itemType)
+    $(newdecl_args rc ?stdout ?stderr itemType)
 
     local regex
     case ${itemType} in
@@ -825,23 +824,23 @@ jenkins_delete_star_hook()
 
 jenkins_delete_job_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_delete_star_hook ${rc} "${stdout}" "${stderr}" "job"
 }
 jenkins_delete_node_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_delete_star_hook ${rc} "${stdout}" "${stderr}" "node"
 }
 jenkins_delete_view_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_delete_star_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
 jenkins_no_such_slave_common_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
 
     local foundNoSuchNode=0
     echo "${stderr}" | grep -Piq "No such slave .* exists. Did you mean" || foundNoSuchNode=$?
@@ -855,19 +854,19 @@ jenkins_no_such_slave_common_hook()
 
 jenkins_offline_node_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_no_such_slave_common_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
 jenkins_online_node_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_no_such_slave_common_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
 jenkins_wait_node_offline_hook()
 {
-    $(declare_args rc ?stdout ?stderr)
+    $(newdecl_args rc ?stdout ?stderr)
     jenkins_no_such_slave_common_hook ${rc} "${stdout}" "${stderr}" "view"
 }
 
