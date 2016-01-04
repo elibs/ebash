@@ -3861,9 +3861,15 @@ json_escape()
 }
 
 # Import all of the key:value pairs from a non-nested Json object directly into
-# the caller's environment as proper bash variables. Similar to a lot of other
-# methods inside bashutils, this uses the "eval command invocation string" idom.
-# So, the proper calling convention for this is:
+# the caller's environment as proper bash variables. By default this will import all
+# the keys available into the caller's environment. Alternatively you can provide
+# an optional list of keys to restrict what is imported. If any of the explicitly
+# requested keys are not present this will be interpreted as an error and json_import
+# will return non-zero. Keys can be marked optional via the '?' prefix before the key
+# name in which case they will be set to an empty string if the key is missing. 
+#
+# Similar to a lot of other  methods inside bashutils, this uses the "eval command
+# invocation string" idom. So, the proper calling convention for this is:
 #
 # $(json_import)
 #
@@ -3917,7 +3923,18 @@ json_import()
     for key in "${_json_import_keys[@]}"; do
         array_contains _json_import_keys_excluded ${key} && continue
 
-        local val=$(jq -r .${key} <<< ${_json_import_data})
+        # If the key is marked as optional then add filter "//empty" so that 'null' literal is replaced with an empty string
+        if [[ ${key} == \?* ]]; then
+            key="${key#\?}"
+            val=$(jq -r ".${key}//empty" <<< ${_json_import_data})
+        else
+            # Ensure the data has the requested key by appending a 'has' filter which emit 'true' or 'false' if the key was
+            # present. Adding "-e" option to jq will cause it to exit with non-zero if the last filter produces 'false'.
+            # We don't actually care about the 'true/false' so we remove that from what we ultimately store into our value
+            # via 'head -1'.
+            val=$(jq -r -e '.'${key}', has("'${key}'")' <<< ${_json_import_data} | head -1)
+        fi
+
         edebug $(lval key val)
         opt_true "u" && key=$(to_upper_snake_case "${key}")
 
