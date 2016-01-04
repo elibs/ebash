@@ -121,11 +121,12 @@ ETEST_json_import_explicit_keys()
 
 ETEST_json_import_optional_keys()
 {
-    $(json_import ?driveA driveSize ?driveB lsiFirmware ?driveC <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
+    $(json_import ?driveA driveSize ?driveB lsiFirmware ?driveC <<< '{ "driveA": 5, "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
     argcheck driveSize lsiFirmware
     assert_eq "100"     "${driveSize}"
     assert_eq "1.0.2.3" "${lsiFirmware}"
-    assert_empty        "${driveA}" "${driveB}" "${driveC}"
+    assert_eq "5"       "${driveA}"
+    assert_empty        "${driveB}" "${driveC}"
 }
 
 ETEST_json_import_missing_keys()
