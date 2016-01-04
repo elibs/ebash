@@ -119,6 +119,32 @@ ETEST_json_import_explicit_keys()
     assert_empty        sliceDriveSize
 }
 
+ETEST_json_import_optional_keys()
+{
+    $(json_import ?driveA driveSize ?driveB lsiFirmware ?driveC <<< '{ "driveA": 5, "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
+    argcheck driveSize lsiFirmware
+    assert_eq "100"     "${driveSize}"
+    assert_eq "1.0.2.3" "${lsiFirmware}"
+    assert_eq "5"       "${driveA}"
+    assert_empty        "${driveB}" "${driveC}"
+}
+
+ETEST_json_import_missing_keys()
+{
+    try
+    {
+        $(json_import driveSize lsiFirmware driveVendor <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
+        throw 101
+    }
+    catch
+    {
+        assert_ne 101 $?
+        return 0
+    }
+
+    die "json_import should have thrown an exception"
+}
+
 ETEST_json_import_upper_snake_case()
 {
     $(json_import -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
@@ -144,15 +170,6 @@ ETEST_json_import_local()
     
     assert_eq 'declare -- DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
     assert_eq 'declare -- LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
-}
-
-ETEST_json_import_export()
-{
-    $(json_import -ue <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
-	argcheck DRIVE_SIZE LSI_FIRMWARE
-    
-    assert_eq 'declare -x DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
-    assert_eq 'declare -x LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
 }
 
 ETEST_json_import_prefix()
