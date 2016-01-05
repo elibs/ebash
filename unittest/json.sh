@@ -163,15 +163,6 @@ ETEST_json_import_default_local()
     assert_eq 'declare -- LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
 }
 
-ETEST_json_import_local()
-{
-    $(json_import -ul <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
-	argcheck DRIVE_SIZE LSI_FIRMWARE
-    
-    assert_eq 'declare -- DRIVE_SIZE="100"'       "$(declare -p DRIVE_SIZE)"
-    assert_eq 'declare -- LSI_FIRMWARE="1.0.2.3"' "$(declare -p LSI_FIRMWARE)"
-}
-
 ETEST_json_import_export()
 {
     $(json_import -ue <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
