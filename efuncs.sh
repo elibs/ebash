@@ -3881,6 +3881,7 @@ json_escape()
 #
 # OPTIONS:
 # -g: Make variables global even if called in a local context.
+# -e: Emit exported variables (via declare -x)
 # -f: Parse the contents of provided file instead of stdin (e.g. -f=MyFile)
 # -u: Convert all keys into upper snake case.
 # -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
@@ -3893,7 +3894,8 @@ json_import()
 
     # Determine flags to pass into declare
     local dflags=""
-    opt_false g || dflags="-g"
+    opt_true g && dflags+=" -g"
+    opt_true e && dflags+=" -x"
 
     # Lookup optional prefix to use
     local _json_import_prefix="$(opt_get p)"
