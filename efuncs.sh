@@ -4360,15 +4360,6 @@ json_escape()
 # $(json_import <<< ${json})
 # $(curl ... | $(json_import)
 #
-# OPTIONS:
-# -g: Make variables global even if called in a local context.
-# -e: Emit exported variables (via declare -x)
-# -f: Parse the contents of provided file instead of stdin (e.g. -f=MyFile)
-# -u: Convert all keys into upper snake case.
-# -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
-# -q: Use JQ style query expression on given JSON before parsing.
-# -x: Whitespace sparated list of keys to exclude while importing. If using multiple
-#     keys use quotes around them: -x "foo bar"
 json_import()
 {
     $(declare_opts \
