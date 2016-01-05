@@ -3894,8 +3894,8 @@ json_import()
 
     # Determine flags to pass into declare
     local dflags=""
-    opt_false g || dflags+=" -g"
-    opt_true  e && dflags+=" -x"
+    opt_true g && dflags+=" -g"
+    opt_true e && dflags+=" -x"
 
     # Lookup optional prefix to use
     local _json_import_prefix="$(opt_get p)"
