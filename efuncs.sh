@@ -553,15 +553,15 @@ die()
 
     if [[ ${__BU_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
         exit ${__BU_DIE_IN_PROGRESS}
-    else
+    fi
         $(declare_opts \
             ":return_code rc r=1 | Return code that die will eventually exit with." \
             ":signal s           | Signal that caused this die to occur." \
-            ":color c            | DEPRECATED OPTION -- no longer has any effect.")
+            ":color c            | DEPRECATED OPTION -- no longer has any effect." \
+            ":frames f=3         | Number of stack frames to skip.")
 
-        __BU_DIE_IN_PROGRESS=${return_code}
-        : ${__BU_DIE_BY_SIGNAL:=${signal}}
-    fi
+    __BU_DIE_IN_PROGRESS=${return_code}
+    : ${__BU_DIE_BY_SIGNAL:=${signal}}
 
     # Generate a stack trace if that's appropriate for this die.
     if inside_try && edebug_enabled ; then
@@ -577,7 +577,7 @@ die()
     else
         echo "" >&2
         eerror_internal   -c="red" "${@}"
-        eerror_stacktrace -c="red" -f=3 -s
+        eerror_stacktrace -c="red" -f=${frames} -s
     fi
 
     reenable_signals
@@ -662,7 +662,7 @@ reenable_signals()
 #       reliably extract the trap and eval it later.
 trap_add()
 {
-    $(newdecl_args cmd)
+    $(newdecl_args ?cmd)
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
     
@@ -728,7 +728,7 @@ _bashutils_on_exit_end()
     # If we are at the top of the process stack and we are exiting with a non-zero return code 
     # then we have to guarnatee die() gets called. 
     if [[ $$ -eq ${BASHPID} && ${__BU_INTERNAL_EXIT:=0} -ne 1 && ${__BU_EXIT_CODE} -ne 0 ]]; then
-        eval "die ${DIE_MSG_UNHERR}"
+        eval "die -f=4 ${DIE_MSG_UNHERR}"
     fi
 }
 
@@ -4635,6 +4635,13 @@ assert_not_exists()
 die_on_abort
 die_on_error
 enable_trace
+
+# Add default trap for EXIT so that we can ensure _bashutils_on_exit_start
+# and _bashutils_on_exit_end get called when the process exits. Generally, 
+# this allows us to do any error handling and cleanup needed when a process
+# exits. But the main reason this exists is to ensure we can intercept
+# abnormal exits from things like unbound variables (e.g. set -u).
+trap_add "" EXIT
 
 #-----------------------------------------------------------------------------
 # SOURCING
