@@ -322,6 +322,8 @@ done
 changeset_info=""
 if [[ -d ".hg" ]] ; then
     changeset_info=" $(hg id --id)"
+elif [[ -d ".git" ]] ; then
+    changeset_info=" $(git rev-parse --short HEAD)"
 fi
 
 {
