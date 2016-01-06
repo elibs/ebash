@@ -123,7 +123,7 @@ assert_no_process_leaks()
 
 global_setup()
 {
-    edebug "Starting global_setup"
+    edebug "Running global_setup"
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
@@ -141,7 +141,7 @@ global_setup()
 global_teardown()
 {
     [[ ${keep} -eq 1 ]] && edebug "Skipping global_teardown" && return 0
-    edebug "Starting global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
+    edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
     cgroup_destroy -r ${ETEST_CGROUP}
 
@@ -254,7 +254,7 @@ run_all_tests_in_file()
         done
     fi
 
-    einfo "Starting tests in ${testfile} ${REPEAT_STRING}" &>${ETEST_OUT}
+    einfo "Running tests in ${testfile} ${REPEAT_STRING}" &>${ETEST_OUT}
 
     for testfunc in file_setup ${ETEST_FUNCTIONS[@]} file_teardown; do
      
@@ -306,19 +306,27 @@ trap_add global_teardown
 TEST_EXECUTED_COUNT=0
 TEST_FAILED_COUNT=0
 
-# Sanity test of die
-if [[ -x ${ETEST_TOPDIR}/unittest/die && ( -z ${filter} || ${filter} =~ "die" ) && ! ${exclude} =~ "die" ]] ; then
-    DIE_MSG="Verifying die() trap functionality"
-    einfo "${DIE_MSG}" &>${ETEST_OUT}
-    ebanner "${DIE_MSG}"
-    ${ETEST_TOPDIR}/unittest/die
-    eend &>${ETEST_OUT}
-fi
-
-# Now go through and test all unit tests
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
     [[ ${repeat} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${repeat})" || REPEAT_STRING=""
-    for filename in $(find ${TEST_DIR} -type f -name "*.sh" | sort || true); do
+
+    # Run all standalone *.etest scripts directly outside of etest framework
+    einfo "Running standalone tests ${REPEAT_STRING}" &>${ETEST_OUT}
+    for filename in $(find ${TEST_DIR} -type f -name "*.etest" -executable | sort || true); do
+
+        base=$(basename "${filename}")
+
+        if [[ ( -z ${filter} || ${filter} =~ ${base} ) && ! ${exclude} =~ ${base} ]] ; then
+            MSG="Running standalone $(lval script=base)"
+            einfos "ETEST_${base%%.etest}" &>${ETEST_OUT}
+            ebanner "${MSG}"
+            ${filename}
+            eend &>${ETEST_OUT}
+        fi
+
+    done
+
+    # Run *.etest files which are not executable and need to be sourced and run inside etest
+    for filename in $(find ${TEST_DIR} -type f -name "*.etest" ! -executable | sort || true); do
         run_all_tests_in_file ${filename}
     done
 done
