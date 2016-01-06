@@ -26,7 +26,7 @@ die_handler()
     local rc=\$(opt_get r)
     edebug "DIE_HANDLER called with \$(lval rc)"
     
-    # On unboudn variables, bash exits with 1
+    # On unbound variables, bash exits with 1
     assert_eq 1 \${rc}
 
     echo "DIE" >> "${OUTPUT}"
