@@ -14,36 +14,36 @@ source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bash
 #-------------------------------------------------------------------------------------------------------------------------
 
 # Create a script to run
-DIE_FILE=$(mktemp /tmp/etest-die-output-XXXX.txt)
-DIE_SCRIPT=$(mktemp /tmp/etest-die-script-XXXX.sh)
-trap_add "rm -f ${DIE_FILE} ${DIE_SCRIPT}"
+OUTPUT=$(mktemp /tmp/etest-output-XXXX.txt)
+SCRIPT=$(mktemp /tmp/etest-script-XXXX.sh)
+trap_add "rm -f ${OUTPUT} ${SCRIPT}"
 
-cat <<EOF >${DIE_SCRIPT}
+cat <<EOF >${SCRIPT}
 
 source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" >&2 ; exit 1 ; }
 
 die_handler()
 {
     edebug "DIE_HANDLER called"
-    echo "DIE" >> "${DIE_FILE}"
+    echo "DIE" >> "${OUTPUT}"
 }
 
-trap_add "echo TRAP >> ${DIE_FILE}"
+trap_add "echo TRAP >> ${OUTPUT}"
 die -c=grey19 "Fake death..."
 
 exit 0
 EOF
-chmod +x ${DIE_SCRIPT}
+chmod +x ${SCRIPT}
 
 # Run the script we created above
-${DIE_SCRIPT}
+${SCRIPT}
 
 # Assert proper order of events happened
 einfo "Output file:"
-cat ${DIE_FILE}
-assert_eq 2 $(wc -l ${DIE_FILE})
-first=$(head -1 ${DIE_FILE})
-last=$(tail -1 ${DIE_FILE})
+cat ${OUTPUT}
+assert_eq 2 $(wc -l ${OUTPUT})
+first=$(head -1 ${OUTPUT})
+last=$(tail -1 ${OUTPUT})
 
 assert_eq "DIE" "${first}" "die() not called first"
 assert_eq "TRAP" "${last}" "trap not called second"
