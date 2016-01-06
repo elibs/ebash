@@ -2894,7 +2894,7 @@ declare_opts_internal_setup()
 {
     local opt_cmd="__BU_OPT=( "
     local regex_cmd="__BU_OPT_REGEX=( "
-    local expects_cmd="__BU_OPT_EXPECTS=( "
+    local type_cmd="__BU_OPT_TYPE=( "
 
     while (( $# )) ; do
 
@@ -2919,20 +2919,20 @@ declare_opts_internal_setup()
             default=${BASH_REMATCH[2]}
         fi
 
-        # Possible "__BU_OPT_EXPECTS[option]" values are:
-        #   0: This option has no argument
-        #   1: This option is required to have an argument
-        local expects=0
-
         # Determine if this option requires argument (def starts with a colon
         # character) or is a boolean
         [[ ${opt_def} =~ (:)?([^=]+)(=.*)? ]]
 
+        local opt_type="unknown"
+
         # This option requires an argument
         if [[ ${BASH_REMATCH[1]} == ":" ]] ; then
+            opt_type="string"
             expects=1
 
         else
+            opt_type="boolean"
+
             # Boolean options default to 0 unless otherwise specified
             [[ ${default} == "" ]] && default=0
 
@@ -2962,15 +2962,15 @@ declare_opts_internal_setup()
         # Now that they're all computed, add them to the command that will generate associative arrays
         opt_cmd+="[${canonical}]='${default}' "
         regex_cmd+="[${canonical}]='${regex}' "
-        expects_cmd+="[${canonical}]='$expects' "
+        type_cmd+="[${canonical}]='${opt_type}' "
 
     done
 
     opt_cmd+=")"
     regex_cmd+=")"
-    expects_cmd+=")"
+    type_cmd+=")"
 
-    printf "declare -A %s %s %s ; " "${opt_cmd}" "${regex_cmd}" "${expects_cmd}"
+    printf "declare -A %s %s %s ; " "${opt_cmd}" "${regex_cmd}" "${type_cmd}"
 }
 
 declare_opts_internal()
@@ -3003,7 +3003,7 @@ declare_opts_internal()
                 local canonical=$(declare_opts_find_canonical ${long_opt//-/_})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
+                if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
@@ -3013,18 +3013,27 @@ declare_opts_internal()
                     fi
 
                     __BU_OPT[$canonical]=${opt_arg}
-                else
-                    # For boolean options...
-                    #   1) Make sure it wasn't passed an argument
-                    #   2) Set the value to 0 if the long name started with --no-
-                    #   3) Otherwise, set it to 1
+
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+
+                    # The value that will get assigned to this boolean option
+                    local value=1
                     if [[ -n ${has_arg} ]] ; then
-                        die "${FUNCNAME[1]}: option --${long_opt} does not accept an argument, but was passed ${opt_arg}"
-                    elif [[ ${long_opt} = no-* ]] ; then
-                        __BU_OPT[$canonical]=0
-                    else
-                        __BU_OPT[$canonical]=1
+                        value=${opt_arg}
                     fi
+
+                    # Negate the value it was if the option starts with no
+                    if [[ ${long_opt} = no-* ]] ; then
+                        if [[ ${value} -eq 1 ]] ; then
+                            value=0
+                        else
+                            value=1
+                        fi
+                    fi
+
+                    __BU_OPT[$canonical]=${value}
+                else
+                    die "${FUNCNAME[1]}: option --${long_opt} has an invalid type ${__BU_OPT_TYPE[$canonical]}"
                 fi
                 ;;
 
@@ -3044,7 +3053,7 @@ declare_opts_internal()
                     local canonical=$(declare_opts_find_canonical ${char})
                     [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                    if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
+                    if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
                         die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
                     fi
 
@@ -3057,7 +3066,7 @@ declare_opts_internal()
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.
-                if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
+                if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
@@ -3068,12 +3077,19 @@ declare_opts_internal()
                         shift && (( shift_count += 1 ))
                     fi
                     __BU_OPT[$canonical]=${opt_arg}
-                else
-                    # And if not, make sure it doesn't.
+
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+
+                    # Boolean options may optionally be specified a value via
+                    # -b=(0|1).  Take it if it's there.
                     if [[ -n ${has_arg} ]] ; then
-                        die "${FUNCNAME[1]}: option -${char} does not accept an argument, but was passed ${opt_arg}"
+                        __BU_OPT[$canonical]=${opt_arg}
+                    else
+                        __BU_OPT[$canonical]=1
                     fi
-                    __BU_OPT[$canonical]=1
+
+                else
+                    die "${FUNCNAME[1]}: option -${char} has an invalid type ${__BU_OPT_TYPE[$canonical]}"
                 fi
                 ;;
             *)

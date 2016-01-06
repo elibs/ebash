@@ -184,38 +184,6 @@ ETEST_declare_opts_unexpected_long()
     }
 }
 
-ETEST_declare_opts_unexpected_equal_long()
-{
-    set -- --foo=1
-    try
-    {
-        $(declare_opts "foo")
-        etestmsg "$(dopt_dump)"
-
-        die -r=243 "Failed to blow up on unexpected argument to option"
-    }
-    catch
-    {
-        assert_ne 243 $?
-    }
-}
-
-ETEST_declare_opts_unexpected_equal_short()
-{
-    set -- -f=1
-    try
-    {
-        $(declare_opts "foo f")
-        etestmsg "$(dopt_dump)"
-
-        die -r=243 "Failed to blow up on unexpected argument to option"
-    }
-    catch
-    {
-        assert_ne 243 $?
-    }
-}
-
 ETEST_declare_opts_equal_empty()
 {
     set -- -f=
@@ -351,3 +319,16 @@ ETEST_declare_opts_implicit_no()
     assert_eq "1" "${c}"
     assert_eq "1" "${d}"
 }
+
+ETEST_declare_opts_boolean_specify()
+{
+    set -- -a=0 -b=1 --no-c=0 --no-d=1
+
+    $(declare_opts "a" "b" "c" "d")
+
+    assert_eq "0" "${a}"
+    assert_eq "1" "${b}"
+    assert_eq "1" "${c}"
+    assert_eq "0" "${d}"
+}
+
