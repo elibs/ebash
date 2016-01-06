@@ -485,6 +485,40 @@ trap_get()
     echo -n "${existing}"
 }
 
+# Replace normal exit function with our own internal exit function so we can
+# detect abnormal exit conditions through an EXIT trap which we setup to ensure
+# die() is called on exit if it didn't go through our own internal exit mechanism.
+# 
+# The primary use case for this trickery is to detect and catch unset variables.
+# With "set -u" turned on, bash immediately exits the program -- NOT by calling
+# bash exit function but by calling the C exit(2) function. The problem is that 
+# even though it exits, it does NOT call the ERR trap. Thus die() doesn't get 
+# invoked even though there was a fatal error causing abnormal termination. We
+# can catch this scenario by setting up an EXIT trap and invoking die() if exit
+# was invoked outside of our internal exit function.
+#
+# The other advantage to this approach is that if someone calls exit directly
+# inside bash code sourcing bashutils in order to gracefully exit they probably
+# do NOT want to see a stacktrace and have die() get invoked. This mechanism
+# will ensure that works properly b/c they will go through our internal exit
+# function and that will bypass die().
+#
+exit()
+{
+    # Mark that this was an internal exit so that in our die mechanism we
+    # won't call die if it already went through our internal exit function.
+    __BU_INTERNAL_EXIT=1
+    builtin exit $1
+}
+
+# die is our central error handling function for all bashutils code which is
+# called on any unhandled error or via the ERR trap. It is responsible for
+# printing a stacktrace to STDERR indicating the source of the fatal error
+# and then killing our process tree and finally signalling our parent process
+# that we died via SIGTERM. With this careful setup, we do not need to do any
+# error checking in our bash scripts. Instead we rely on the ERR trap getting
+# invoked for any unhandled error which will call die(). At that point we 
+# take extra care to ensure that process and all its children exit with error.
 die()
 {
     # Disable traps for any signal during most of die.  We'll reset the traps
@@ -632,12 +666,20 @@ trap_add()
 
 _bashutils_on_exit_start()
 {
+    # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
+    __BU_EXIT_CODE=$?
     disable_signals
 }
 
 _bashutils_on_exit_end()
 {
     reenable_signals
+
+    # If we are at the top of the process stack and we are exiting with a non-zero return code 
+    # then we have to guarnatee die() gets called. 
+    if [[ $$ -eq ${BASHPID} && ${__BU_INTERNAL_EXIT:=0} -ne 1 && ${__BU_EXIT_CODE} -ne 0 ]]; then
+        eval "die ${DIE_MSG_UNHERR}"
+    fi
 }
 
 # Set the trace attribute for trap_add function. This is required to modify
@@ -4108,6 +4150,15 @@ assert_not_exists()
 die_on_abort
 die_on_error
 enable_trace
+
+# Default trap so if exit gets called with non-zero value without going through
+# our normal die trap mechanism that we'll in turn call die. The motivator for
+# something like this is set -u bypasses the ERR trap handler.
+exit()
+{
+    __BU_INTERNAL_EXIT=1
+    builtin exit $1
+}
 
 #-----------------------------------------------------------------------------
 # SOURCING
