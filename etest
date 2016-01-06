@@ -304,10 +304,10 @@ for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
     einfo "Running standalone tests ${REPEAT_STRING}" &>${ETEST_OUT}
     for filename in $(find ${TEST_DIR} -type f -name "*.etest" -executable | sort || true); do
 
-        base=$(basename "${filename}")
+        base=$(basename "${filename}" .etest)
 
         if [[ ( -z ${FILTER} || ${FILTER} =~ ${base} ) && ! ${EXCLUDE} =~ ${base} ]] ; then
-            MSG="Running standalone $(lval script=base)"
+            MSG="Running standalone $(lval script=filename)"
             einfos "ETEST_${base%%.etest}" &>${ETEST_OUT}
             ebanner "${MSG}"
             ${filename}
