@@ -4151,15 +4151,6 @@ die_on_abort
 die_on_error
 enable_trace
 
-# Default trap so if exit gets called with non-zero value without going through
-# our normal die trap mechanism that we'll in turn call die. The motivator for
-# something like this is set -u bypasses the ERR trap handler.
-exit()
-{
-    __BU_INTERNAL_EXIT=1
-    builtin exit $1
-}
-
 #-----------------------------------------------------------------------------
 # SOURCING
 #-----------------------------------------------------------------------------
