@@ -2944,7 +2944,7 @@ declare_opts_internal_setup()
         # Same regular expression -- second match is the full list of
         # alternative strings that can represent this option.
         local all_opts=${BASH_REMATCH[2]}
-        local regex=^\(${all_opts//+( )/|}\)$
+        local regex=^\(no_\)?\(${all_opts//+( )/|}\)$
 
         # The canonical option name is the first name for the option that is specified
         [[ ${all_opts} =~ ([^\t ]+).* ]]
@@ -2955,6 +2955,9 @@ declare_opts_internal_setup()
         [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid declare_opts syntax.  Canonical name is empty."
         [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: option name ${canonical} is not allowed to contain hyphens."
 
+        # Boolean options get an implicit no-option version, so make sure
+        # they're expecting that.
+        [[ ! ${canonical} = no_* ]] || die "${FUNCNAME[2]}: Option names specified to declare_opts may not begin with no_ because declare_opts implicitly creates no versions of the options."
 
         # Now that they're all computed, add them to the command that will generate associative arrays
         opt_cmd+="[${canonical}]='${default}' "
@@ -3011,10 +3014,17 @@ declare_opts_internal()
 
                     __BU_OPT[$canonical]=${opt_arg}
                 else
-                        if [[ -n ${has_arg} ]] ; then
-                            die "${FUNCNAME[1]}: option --${long_opt} does not accept an argument, but was passed ${opt_arg}"
-                        fi
-                    __BU_OPT[$canonical]=1
+                    # For boolean options...
+                    #   1) Make sure it wasn't passed an argument
+                    #   2) Set the value to 0 if the long name started with --no-
+                    #   3) Otherwise, set it to 1
+                    if [[ -n ${has_arg} ]] ; then
+                        die "${FUNCNAME[1]}: option --${long_opt} does not accept an argument, but was passed ${opt_arg}"
+                    elif [[ ${long_opt} = no-* ]] ; then
+                        __BU_OPT[$canonical]=0
+                    else
+                        __BU_OPT[$canonical]=1
+                    fi
                 fi
                 ;;
 
