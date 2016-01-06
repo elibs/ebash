@@ -527,22 +527,24 @@ die()
 
     if [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
         exit ${__EFUNCS_DIE_IN_PROGRESS}
-    else
-        $(declare_args)
-        __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
-        : ${__EFUNCS_DIE_BY_SIGNAL:=$(opt_get s)}
     fi
 
+    $(declare_args)
+    __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
+    : ${__EFUNCS_DIE_BY_SIGNAL:=$(opt_get s)}
+
     local color=$(opt_get c "red")
+    local frames=$(opt_get f 3)
 
     # Show error message immediately.
     echo "" >&2
     eerror_internal -c="${color}" "${@}"
 
-    # Call eerror_stacktrace but skip top three frames to skip over the frames
-    # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
-    # over the initial error message since we already displayed it.
-    eerror_stacktrace -c="${color}" -f=3 -s
+    # Call eerror_stacktrace but skip requested number of frames. By default this
+    # skips top three frames to skip over the frames for stacktrace_array,
+    # eerror_stacktrace and die itself. Also skip over the initial error message
+    # since we already displayed it.
+    eerror_stacktrace -c="${color}" -f=${frames} -s
 
     reenable_signals
 
@@ -612,7 +614,7 @@ reenable_signals()
 #       reliably extract the trap and eval it later.
 trap_add()
 {
-    $(declare_args cmd)
+    $(declare_args ?cmd)
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
     
@@ -678,7 +680,7 @@ _bashutils_on_exit_end()
     # If we are at the top of the process stack and we are exiting with a non-zero return code 
     # then we have to guarnatee die() gets called. 
     if [[ $$ -eq ${BASHPID} && ${__BU_INTERNAL_EXIT:=0} -ne 1 && ${__BU_EXIT_CODE} -ne 0 ]]; then
-        eval "die ${DIE_MSG_UNHERR}"
+        eval "die -f=4 ${DIE_MSG_UNHERR}"
     fi
 }
 
@@ -4150,6 +4152,13 @@ assert_not_exists()
 die_on_abort
 die_on_error
 enable_trace
+
+# Add default trap for EXIT so that we can ensure _bashutils_on_exit_start
+# and _bashutils_on_exit_end get called when the process exits. Generally, 
+# this allows us to do any error handling and cleanup needed when a process
+# exits. But the main reason this exists is to ensure we can intercept
+# abnormal exits from things like unbound variables (e.g. set -u).
+trap_add "" EXIT
 
 #-----------------------------------------------------------------------------
 # SOURCING
