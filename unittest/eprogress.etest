@@ -29,7 +29,7 @@ wait_for_eprogress()
 
 wait_for_ticks()
 {
-    $(newdecl_args expected)
+    $(declare_args expected)
 
     while true; do
         local actual=$(tail -1 ${OUTPUT} || true)

@@ -112,7 +112,7 @@
 #
 daemon_init()
 {
-    $(newdecl_args optpack)
+    $(declare_args optpack)
 
     # Load defaults into the pack first then add in any additional provided settings
     # Since the last key=val added to the pack will always override prior values
@@ -160,7 +160,7 @@ daemon_init()
 daemon_start()
 {
     # Pull in our argument pack then import all of its settings for use.
-    $(newdecl_args optpack)
+    $(declare_args optpack)
     $(pack_import ${optpack})
 
     # Don't restart the daemon if it is already running.
@@ -350,7 +350,7 @@ daemon_stop()
         ":timeout t=5          | Number of seconds to wait after initial signal before sending SIGKILL." \
         ":cgroup_timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear.  Requires cgroup support.")
 
-    $(newdecl_args optpack)
+    $(declare_args optpack)
     $(pack_import ${optpack})
 
     # Setup logfile
@@ -409,7 +409,7 @@ daemon_status()
 {
     # Pull in our argument pack then import all of its settings for use.
     $(declare_opts "quiet q | Make the status function produce no output.")
-    $(newdecl_args optpack)
+    $(declare_args optpack)
     $(pack_import ${optpack})
 
     local redirect

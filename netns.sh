@@ -10,7 +10,7 @@ NETNS_DIR="/run/netns"
 #
 netns_create()
 {
-    $(newdecl_args ns_name)
+    $(declare_args ns_name)
 
     # Do not create if it already exists
     [[ -e "${NETNS_DIR}/${ns_name}" ]] && return 0
@@ -24,7 +24,7 @@ netns_create()
 #
 netns_delete()
 {
-    $(newdecl_args ns_name)
+    $(declare_args ns_name)
 
     # Do not delete if it does not exist
     [[ ! -e "${NETNS_DIR}/${ns_name}" ]] && return 0
@@ -38,7 +38,7 @@ netns_delete()
 #
 netns_exec()
 {
-    $(newdecl_args ns_name)
+    $(declare_args ns_name)
     ip netns exec "${ns_name}" "$@"
 }
 
@@ -55,7 +55,7 @@ netns_list()
 #
 netns_exists()
 {
-    $(newdecl_args ns_name)
+    $(declare_args ns_name)
     [[ -e "${NETNS_DIR}/${ns_name}" ]] && return 0 || return 1
 }
 
@@ -78,7 +78,7 @@ netns_exists()
 #
 netns_init()
 {
-    $(newdecl_args netns_args_packname)
+    $(declare_args netns_args_packname)
 
     pack_set ${netns_args_packname}             \
         netns_args_name=${netns_args_packname}  \
@@ -101,7 +101,7 @@ netns_init()
 #
 netns_check_pack()
 {
-    $(newdecl_args netns_args_packname)
+    $(declare_args netns_args_packname)
 
     local key
     for key in ns_name devname peer_devname connected_nic bridge_cidr nic_cidr ; do
@@ -142,7 +142,7 @@ netns_check_pack()
 #
 netns_chroot_exec()
 {
-    $(newdecl_args netns_args_packname chroot_root)
+    $(declare_args netns_args_packname chroot_root)
 
     $(pack_import ${netns_args_packname} ns_name)
 
@@ -162,7 +162,7 @@ netns_chroot_exec()
 #
 netns_setup_connected_network()
 {
-    $(newdecl_args netns_args_packname)
+    $(declare_args netns_args_packname)
 
     netns_check_pack ${netns_args_packname}
 
@@ -229,7 +229,7 @@ netns_setup_connected_network()
 #
 netns_remove_network()
 {
-    $(newdecl_args netns_args_packname)
+    $(declare_args netns_args_packname)
 
     netns_check_pack ${netns_args_packname}
 
@@ -254,7 +254,7 @@ netns_remove_network()
 #
 netns_add_iptables_rules()
 {
-    $(newdecl_args netns_args_packname)
+    $(declare_args netns_args_packname)
 
     netns_check_pack ${netns_args_packname}
 
@@ -275,7 +275,7 @@ netns_add_iptables_rules()
 #
 netns_remove_iptables_rules()
 {
-    $(newdecl_args netns_args_packname)
+    $(declare_args netns_args_packname)
 
     netns_check_pack ${netns_args_packname}
 
@@ -296,7 +296,7 @@ netns_remove_iptables_rules()
 #
 netns_iptables_rule_exists()
 {
-    $(newdecl_args netns_args_packname devname)
+    $(declare_args netns_args_packname devname)
 
     netns_check_pack ${netns_args_packname}
 

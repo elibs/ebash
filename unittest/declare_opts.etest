@@ -8,7 +8,7 @@ ETEST_declare_opts()
         ":color c=yellow             |   Color to be used."                 \
         "long l longer s h k t m n   |   option with lots of variants"      \
         ":whitespace w               |   option expecting to receive something containing whitespace")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq "blue" "${color}"
     assert_eq "some_file" "${file}"
@@ -22,7 +22,7 @@ ETEST_declare_opts_boolean()
 {
     set -- -a -b -c d e f
     $(declare_opts "a" "b" "c" "d" "e" "f" )
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq 1 "${a}"
     assert_eq 1 "${b}"
@@ -41,7 +41,7 @@ ETEST_declare_opts_boolean_multi()
         "another a"     \
         "something s"   \
         "else e") 
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq 1 "${verbose}"
     assert_eq 1 "${another}"
@@ -57,7 +57,7 @@ ETEST_declare_opts_short()
         "numeric n | a number"      \
         ":color c  | the color"     \
         ":door d   | another argument")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
 
     assert_eq "a_file" "${file}"
@@ -72,7 +72,7 @@ ETEST_declare_opts_long()
         ":foo" \
         ":bar" \
         ":baz")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq "alpha" "${foo}"
     assert_eq "10"    "${bar}"
@@ -85,7 +85,7 @@ ETEST_declare_opts_required_arg()
     try
     {
         $(declare_opts ":a") 
-        etestmsg "$(dopt_dump)"
+        etestmsg "$(opt_dump)"
 
         die -r=243 "Should have failed parsing options."
     }
@@ -99,7 +99,7 @@ ETEST_declare_opts_shorts_crammed_together_with_arg()
 {
     set -- -abc optarg arg
     $(declare_opts "a" "b" ":c") 
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq 1 "${a}"
     assert_eq 1 "${b}"
@@ -114,7 +114,7 @@ ETEST_declare_opts_shorts_crammed_together_required_arg()
     try
     {
         $(declare_opts "a" "b" ":c") 
-        etestmsg "$(dopt_dump)"
+        etestmsg "$(opt_dump)"
 
         die -r=243 "Should have failed when parsing options but did not."
     }
@@ -133,7 +133,7 @@ ETEST_declare_opts_crazy_option_args()
 
     set -- --alpha "${real_alpha}" --beta "${real_beta}" --gamma "${real_gamma}" --kappa "${real_kappa}"
     $(declare_opts ":alpha" ":beta" ":gamma" ":kappa")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq "${real_alpha}" "${alpha}"
     assert_eq "${real_gamma}" "${gamma}"
@@ -145,7 +145,7 @@ ETEST_declare_opts_arg_hyphen()
 {
     set -- --foo - arg1
     $(declare_opts ":foo")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     [[ "${foo}" == "-" ]] || die "Foo argument was wrong"
 
@@ -158,7 +158,7 @@ ETEST_declare_opts_unexpected_short()
     try
     {
         $(declare_opts "b")
-        etestmsg "$(dopt_dump)"
+        etestmsg "$(opt_dump)"
 
         die -r=243 "Failed to blow up on unexpected option"
     }
@@ -174,7 +174,7 @@ ETEST_declare_opts_unexpected_long()
     try
     {
         $(declare_opts "bar")
-        etestmsg "$(dopt_dump)"
+        etestmsg "$(opt_dump)"
 
         die -r=243 "Failed to blow up on unexpected option"
     }
@@ -188,7 +188,7 @@ ETEST_declare_opts_equal_empty()
 {
     set -- -f=
     $(declare_opts ":foo f")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
     assert_empty "${foo}"
 }
 
@@ -199,7 +199,7 @@ ETEST_declare_opts_default()
         "alpha a=1"                 \
         ":beta b=3"                 \
         ":white w=with whitespace")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq 1 "${alpha}"
     assert_eq 3 "${beta}"
@@ -210,7 +210,7 @@ ETEST_declare_opts_boolean_defaults()
 {
     set -- -a -b
     $(declare_opts "a=0" "b=1" "c=0" "d=1")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq 1  "${a}"
     assert_eq 1  "${b}"
@@ -226,7 +226,7 @@ ETEST_declare_opts_recursive()
             ":as a"    \
             ":be b"    \
             ":c")
-        etestmsg "${FUNCNAME}: $(dopt_dump)"
+        etestmsg "${FUNCNAME}: $(opt_dump)"
 
         bar --as 6 -b=5 -c 4
 
@@ -241,7 +241,7 @@ ETEST_declare_opts_recursive()
             ":as a"    \
             ":be b"    \
             ":c")
-        etestmsg "${FUNCNAME}: $(dopt_dump)"
+        etestmsg "${FUNCNAME}: $(opt_dump)"
 
         assert_eq 6 "${as}"
         assert_eq 5 "${be}"
@@ -257,12 +257,12 @@ ETEST_declare_opts_dump()
     set -- --alpha 10 --beta 20
     $(declare_opts ":alpha" ":beta")
 
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
 
     assert_eq 10 "${alpha}"
     assert_eq 20 "${beta}"
 
-    local dump=$(dopt_dump)
+    local dump=$(opt_dump)
     [[ "${dump}" =~ alpha ]]
     [[ "${dump}" =~ 10 ]]
     [[ "${dump}" =~ beta ]]
@@ -275,7 +275,7 @@ ETEST_declare_opts_without_options()
     etestmsg "Trying to run declare_opts in a function that received no arguments or options"
     set --
     $(declare_opts "a" ":b" "c=0")
-    etestmsg "$(dopt_dump)"
+    etestmsg "$(opt_dump)"
     etestmsg "Succcess."
 }
 
