@@ -2770,14 +2770,22 @@ declare_args()
     [[ ${export} -eq 1 ]] && dflags="-gx"
 
     while [[ $# -gt 0 ]]; do
+
+        if [[ ! $1 =~ ^([^[:space:]]+)[[:space:]]*(\|[[:space:]]*(.*))?$ ]] ; then
+            die "Invalid argument passed to declare_args: $1"
+        fi
+
+        local arg_full=${BASH_REMATCH[1]}
+        local docstring=${BASH_REMATCH[3]:-}
+
         # If the variable name is "_" then don't bother assigning it to anything
-        [[ $1 == "_" ]] && cmd+="shift; " && { shift; continue; }
+        [[ ${arg_full} == "_" ]] && cmd+="shift; " && { shift; continue; }
 
         # Check if the argument is optional or not as indicated by a leading '?'.
         # If the leading '?' is present then REMOVE It so that code after it can
         # correctly use the key name as the variable to assign it to.
-        [[ ${1:0:1} == "?" ]] && optional=1 || optional=0
-        variable="${1#\?}"
+        [[ ${arg_full:0:1} == "?" ]] && optional=1 || optional=0
+        variable="${arg_full#\?}"
 
         # Declare the variable and then call argcheck if required
         cmd+="declare ${dflags} ${variable}=\${1:-}; shift &>/dev/null || true; "
