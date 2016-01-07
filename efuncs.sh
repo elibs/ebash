@@ -55,7 +55,7 @@ edebug_enabled()
     [[ ${EDEBUG:=}  == "1" || ${ETRACE:=}  == "1" ]] && return 0
     [[ ${EDEBUG:-0} == "0" && ${ETRACE:-0} == "0" ]] && return 1
 
-    $(newdecl_args ?_edebug_enabled_caller)
+    $(declare_args ?_edebug_enabled_caller)
 
     if [[ -z ${_edebug_enabled_caller} ]]; then
         _edebug_enabled_caller=( $(caller 0) )
@@ -276,7 +276,7 @@ close_fds()
 # Helper method to read from a pipe until we see EOF.
 pipe_read()
 {
-    $(newdecl_args pipe)
+    $(declare_args pipe)
     local line
     
     # Read returns an error when it reaches EOF. But we still want to emit that
@@ -301,7 +301,7 @@ pipe_read()
 #       in it ("''").
 pipe_read_quote()
 {
-    $(newdecl_args pipe)
+    $(declare_args pipe)
     local output=$(pipe_read ${pipe})
     if [[ -n ${output} ]]; then
         printf %q "$(printf "%q" "${output}")"
@@ -480,7 +480,7 @@ stacktrace()
 stacktrace_array()
 {
     $(declare_opts ":frame f=1 | Frame number to start at")
-    $(newdecl_args array)
+    $(declare_args array)
 
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
@@ -490,7 +490,7 @@ stacktrace_array()
 # trap for use in other functions such as call_die_traps and trap_add.
 trap_get()
 {
-    $(newdecl_args sig)
+    $(declare_args sig)
 
     # Normalize the signal description (which might be a name or a number) into
     # the form trap produces
@@ -662,7 +662,7 @@ reenable_signals()
 #       reliably extract the trap and eval it later.
 trap_add()
 {
-    $(newdecl_args ?cmd)
+    $(declare_args ?cmd)
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
     
@@ -1148,7 +1148,7 @@ eerror_stacktrace()
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
 etable()
 {
-    $(newdecl_args columns)
+    $(declare_args columns)
     local lengths=()
     local parts=()
     local idx=0
@@ -1211,7 +1211,7 @@ eprompt()
 # user but will be accepted as a valid response.
 eprompt_with_options()
 {
-    $(newdecl_args msg opt ?secret)
+    $(declare_args msg opt ?secret)
     local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"
 
@@ -1228,7 +1228,7 @@ eprompt_with_options()
 
 epromptyn()
 {
-    $(newdecl_args msg)
+    $(declare_args msg)
     eprompt_with_options "${msg}" "Yes,No"
 }
 
@@ -1541,7 +1541,7 @@ process_children()
 #
 process_parent()
 {
-    $(newdecl_args ?child)
+    $(declare_args ?child)
     [[ $# -gt 0 ]] && die "process_parent only accepts one child to check."
 
     [[ -z ${child} ]] && child=${BASHPID}
@@ -1555,7 +1555,7 @@ process_parent()
 #
 process_ancestors()
 {
-    $(newdecl_args ?child)
+    $(declare_args ?child)
     [[ $# -gt 0 ]] && die "process_ancestors only accepts one child to check."
 
     [[ -z ${child} ]] && child=${BASHPID}
@@ -1739,7 +1739,7 @@ lval()
 #-----------------------------------------------------------------------------
 valid_ip()
 {
-    $(newdecl_args ip)
+    $(declare_args ip)
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -1752,7 +1752,7 @@ valid_ip()
 
 hostname_to_ip()
 {
-    $(newdecl_args hostname)
+    $(declare_args hostname)
 
     local output hostrc ip
     output="$(host ${hostname} | grep ' has address ' || true)"
@@ -1797,7 +1797,7 @@ fully_qualify_hostname()
 # string.
 getipaddress()
 {
-    $(newdecl_args iface)
+    $(declare_args iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
@@ -1807,7 +1807,7 @@ getipaddress()
 # will simply return an empty string.
 getnetmask()
 {
-    $(newdecl_args iface)
+    $(declare_args iface)
     local cidr=$(ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
@@ -1857,7 +1857,7 @@ cidr2netmask ()
 # echo an empty string.
 getbroadcast()
 {
-    $(newdecl_args iface)
+    $(declare_args iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ brd .*'${iface}'$/ { print $4 }' || true
 }
 
@@ -1876,7 +1876,7 @@ getgateway()
 # string and it will return 0.
 getsubnet()
 {
-    $(newdecl_args ?ip ?nm)
+    $(declare_args ?ip ?nm)
     [[ -z "${ip}" || -z "${nm}" ]] && return 0
 
     IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
@@ -1888,7 +1888,7 @@ getsubnet()
 # Get the MTU that is currently set on a given interface.
 getmtu()
 {
-    $(newdecl_args iface)
+    $(declare_args iface)
     ip addr show "${iface}" | grep -Po 'mtu \K[\d.]+'
 }
 
@@ -1930,7 +1930,7 @@ get_network_interfaces_10g()
 #       work on all cards since the firmware has to support it properly.
 get_permanent_mac_address()
 {
-    $(newdecl_args ifname)
+    $(declare_args ifname)
 
     if [[ -e /sys/class/net/${ifname}/master ]]; then
         sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
@@ -1945,7 +1945,7 @@ get_permanent_mac_address()
 # NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
 get_network_pci_device()
 {
-    $(newdecl_args ifname)
+    $(declare_args ifname)
 
     (cd /sys/class/net/${ifname}/device; basename $(pwd -P))
 }
@@ -1985,7 +1985,7 @@ export_network_interface_names()
 get_network_ports()
 {
     $(declare_opts "listening l | Only include listening ports")
-    $(newdecl_args __ports_list)
+    $(declare_args __ports_list)
 
     local idx=0
     local first=1
@@ -2078,7 +2078,7 @@ popd()
 echmodown()
 {
     [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
-    $(newdecl_args mode owner)
+    $(declare_args mode owner)
 
     chmod ${mode} $@
     chown ${owner} $@
@@ -2087,7 +2087,7 @@ echmodown()
 # Unmount (if mounted) and remove directory (if it exists) then create it anew
 efreshdir()
 {
-    $(newdecl_args mnt)
+    $(declare_args mnt)
 
     eunmount_recursive ${mnt}
     rm -rf ${mnt}
@@ -2097,14 +2097,14 @@ efreshdir()
 # Copies the given file to *.bak if it doesn't already exist
 ebackup()
 {
-    $(newdecl_args src)
+    $(declare_args src)
 
     [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak" || true
 }
 
 erestore()
 {
-    $(newdecl_args src)
+    $(declare_args src)
 
     [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
 }
@@ -2141,7 +2141,7 @@ elogrotate()
     $(declare_opts \
         ":count c=5 | Maximum number of logs to keep" \
         ":size s=0  | If specified, rotate logs at this specified size rather than each call to elogrotate")
-    $(newdecl_args name)
+    $(declare_args name)
 
     # Ensure we don't try to rotate non-files
     [[ -f $(readlink -f "${name}") ]] 
@@ -2210,15 +2210,15 @@ elogrotate()
 #
 elogfile()
 {
-    $(declare_args)
+    $(declare_opts \
+        "stderr e=1        | Whether to redirect stderr to the logfile." \
+        "stdout o=1        | Whether to redirect stdout to the logfile." \
+        ":rotate_count r=0 | When rotating log files, keep this number of log files." \
+        ":rotate_size s=0  | Rotate log files when they reach this size. Units as accepted by find." \
+        "tail t=1          | Whether to continue to display output on local stdout and stderr." \
+        "merge m           | Whether to merge stdout and stderr into a single stream on stdout.")
 
-    local stdout=$(opt_get o 1)
-    local stderr=$(opt_get e 1)
-    local dotail=$(opt_get t 1)
-    local rotate=$(opt_get r 0)
-    local rotate_size=$(opt_get s 0)
-    local merge=$(opt_get m 0)
-    edebug "$(lval stdout stderr dotail rotate_count rotate_size merge)"
+    edebug "$(lval stdout stderr tail rotate_count rotate_size merge)"
 
     # Return if nothing to do
     if [[ ${stdout} -eq 0 && ${stderr} -eq 0 ]] || [[ -z "$*" ]]; then
@@ -2226,11 +2226,11 @@ elogfile()
     fi
 
     # Rotate logs as necessary but only if they are regular files
-    if [[ ${rotate} -gt 0 ]]; then
+    if [[ ${rotate_count} -gt 0 ]]; then
         local name
         for name in "${@}"; do
             [[ -f $(readlink -f "${name}") ]] || continue
-            elogrotate -c=${rotate} -s=${rotate_size} "${name}"
+            elogrotate -c=${rotate_count} -s=${rotate_size} "${name}"
         done
     fi
 
@@ -2256,7 +2256,7 @@ elogfile()
     # and redirection for stdout and stderr.
     elogfile_redirect()
     {
-        $(newdecl_args name)
+        $(declare_args name)
 
         # If we're not redirecting the requested stream then just return success
         [[ ${!name} -eq 1 ]] || return 0
@@ -2296,7 +2296,7 @@ elogfile()
                 trap "" ${TTY_SIGNALS[@]}
                 echo "${BASHPID}" >${pid_pipe}
 
-                if [[ ${dotail} -eq 1 ]]; then
+                if [[ ${tail} -eq 1 ]]; then
                     tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
                     tee -a "${@}" <${pipe} >/dev/null 2>&1
@@ -2370,7 +2370,7 @@ etar()
 # This function will die on failure.
 emd5sum()
 {
-    $(newdecl_args path)
+    $(declare_args path)
 
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
@@ -2386,7 +2386,7 @@ emd5sum()
 # 'md5'. This method will die on failure.
 emd5sum_check()
 {
-    $(newdecl_args path)
+    $(declare_args path)
 
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
@@ -2417,7 +2417,7 @@ emetadata()
     $(declare_opts \
         ":private_key p | Also check the PGP signature based on this private key." \
         ":keyphrase k   | The keyphrase to use for the specified private key.")
-    $(newdecl_args path)
+    $(declare_args path)
     [[ -e ${path} ]] || die "${path} does not exist"
 
     echo "Filename=$(basename ${path})"
@@ -2466,7 +2466,7 @@ emetadata_check()
         "quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
         ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file.")
 
-    $(newdecl_args path)
+    $(declare_args path)
     local meta="${path}.meta"
     [[ -e ${path} ]] || die "${path} does not exist"
     [[ -e ${meta} ]] || die "${meta} does not exist"
@@ -2543,7 +2543,7 @@ emetadata_check()
 # while the destination path is still mounted.
 emount_realpath()
 {
-    $(newdecl_args path)
+    $(declare_args path)
     path="${path//\\040\(deleted\)/}"
     echo -n "$(readlink -m ${path} 2>/dev/null || true)"
 }
@@ -2551,14 +2551,14 @@ emount_realpath()
 # Echo the emount regex for a given path
 emount_regex()
 {
-    $(newdecl_args path)
+    $(declare_args path)
     echo -n "(^| )${path}(\\\\040\\(deleted\\))* "
 }
 
 # Echo the number of times a given directory is mounted.
 emount_count()
 {
-    $(newdecl_args path)
+    $(declare_args path)
     path=$(emount_realpath ${path})
     local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts || true)
     echo -n ${num_mounts}
@@ -2566,7 +2566,7 @@ emount_count()
 
 emounted()
 {
-    $(newdecl_args path)
+    $(declare_args path)
     path=$(emount_realpath ${path})
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
@@ -2583,7 +2583,7 @@ emounted()
 #
 ebindmount()
 {
-    $(newdecl_args src dest)
+    $(declare_args src dest)
 
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
@@ -2618,7 +2618,7 @@ eunmount()
 # (2) findmnt doesn't find mount points beneath a non-root directory
 efindmnt()
 {
-    $(newdecl_args path)
+    $(declare_args path)
     path=$(emount_realpath ${path})
 
     # First check if the requested path itself is mounted
@@ -2679,7 +2679,7 @@ isgentoo()
 # strings and even worse being completely incapable of comparing floats.
 compare()
 {
-    $(newdecl_args ?lh op ?rh)
+    $(declare_args ?lh op ?rh)
 
     ## =~
     if [[ ${op} == "=~" ]]; then
@@ -2731,21 +2731,7 @@ argcheck()
 }
 
 # declare_args takes a list of names and declares a variable for each name from
-# the positional arguments in the CALLER's context. It also implicitly looks for
-# any options which may have been passed into the called function in the initial
-# arguments and stores them into an internal pack for later inspection.
-#
-# Options Rules:
-# (0) Will repeatedily parse first argument and shift so long as first arg contains
-#     options.
-# (1) Only single character arguments are supported
-# (2) Options may be grouped if they do not take arguments (e.g. -abc == -a -b -c)
-# (3) Options may take arguments by using an equal sign (e.g. -a=foobar -b="x y z")
-#
-# All options will get exported into an internal pack named after the caller's
-# function. If the caller's function name is 'foo' then the internal pack is named
-# '_foo_options'. Instead of interacting with this pack direclty simply use the
-# helper methods: opt_true, opt_false, opt_get.
+# the positional arguments in the CALLER's context.
 #
 # We want all code generated by this function to be invoked in the caller's
 # environment instead of within this function. BUT, we don't want to have to use
@@ -2768,97 +2754,38 @@ argcheck()
 #    the argument is literally '_' it will be anonymous but if it is '_a' it is
 #    NOT an anonymous variable.
 #
-# OPTIONS:
-# -n: Do not parse options at all
-# -l: Emit local variables with 'local' scope qualifier (default)
-# -g: Emit global variables with no scope qualifier
-# -e: Emit exported variables with 'export' keyword
-#
-# WARNING: DO NOT CALL EDEBUG INSIDE THIS FUNCTION OR YOU WILL CAUSE INFINITE RECURSION!!
 declare_args()
 {
-    local _declare_args_parse_options=1
-    local _declare_args_qualifier="local"
-    local _declare_args_optional=0
-    local _declare_args_variable=""
-    local _declare_args_cmd=""
+    $(declare_opts \
+        "global g   | Make variables created by declare_opts to be global.  Default is local." \
+        "export e x | Make variables created by declare_opts to be exported.")
 
-    # Check the internal declare_args options. We cannot at present reuse the code
-    # below which parses options as that's baked into the internal implementation
-    # of delcare_args itself and cannot at present be extracted usefully.
-    # This is a MUCH more limited version of option parsing.
-    if [[ $# -gt 0 && ${1:0:1} == "-" ]]; then
-        [[ $1 =~ "n" ]] && _declare_args_parse_options=0
-        [[ $1 =~ "l" ]] && _declare_args_qualifier="local"
-        [[ $1 =~ "g" ]] && _declare_args_qualifier=""
-        [[ $1 =~ "e" ]] && _declare_args_qualifier="export"
-        shift
-    fi
+    local optional=0
+    local variable=""
+    local cmd=""
 
-    # Look at the first argument and see if it starts with a '-'. If so, then grab each
-    # character in the first argument and store them into an array so caller can check
-    # if particular flags were passed in or not.
-    # NOTE: We always declare the _options pack in the caller's environment so code
-    #       doesn't have to handle any error cases where it's not defined.
-    local _declare_args_caller _declare_args_options
-    _declare_args_caller=( $(caller 0) )
-    _declare_args_options="_${_declare_args_caller[1]}_options"
-    _declare_args_cmd+="declare ${_declare_args_options}='';"
-    if [[ ${_declare_args_parse_options} -eq 1 ]]; then
-        _declare_args_cmd+="
-        while [[ \$# -gt 0 && \${1:0:1} == '-' ]]; do
-            [[ \${1:1} =~ '=' ]]
-                && pack_set ${_declare_args_options} \"\${1:1}\"
-                || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' '; true);
-        shift;
-        done;"
-    fi
+    local declare_options=""
+    [[ ${global} -eq 1 ]] && declare_options+="-g "
+    [[ ${export} -eq 1 ]] && declare_options+="-gx "
 
     while [[ $# -gt 0 ]]; do
         # If the variable name is "_" then don't bother assigning it to anything
-        [[ $1 == "_" ]] && _declare_args_cmd+="shift; " && { shift; continue; }
+        [[ $1 == "_" ]] && cmd+="shift; " && { shift; continue; }
 
         # Check if the argument is optional or not as indicated by a leading '?'.
         # If the leading '?' is present then REMOVE It so that code after it can
         # correctly use the key name as the variable to assign it to.
-        [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
-        _declare_args_variable="${1#\?}"
+        [[ ${1:0:1} == "?" ]] && optional=1 || optional=0
+        variable="${1#\?}"
 
         # Declare the variable and then call argcheck if required
-        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\${1:-}; shift &>/dev/null || true; "
-        [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
+        cmd+="declare ${declare_options} ${variable}=\${1:-}; shift &>/dev/null || true; "
+        [[ ${optional} -eq 0 ]] && cmd+="argcheck ${variable}; "
 
         shift
     done
 
-    echo "eval ${_declare_args_cmd}"
-}
-
-# TODO modell
-newdecl_args()
-{
-    local _declare_args_optional=0
-    local _declare_args_variable=""
-    local _declare_args_cmd=""
-
-    while [[ $# -gt 0 ]]; do
-        # If the variable name is "_" then don't bother assigning it to anything
-        [[ $1 == "_" ]] && _declare_args_cmd+="shift; " && { shift; continue; }
-
-        # Check if the argument is optional or not as indicated by a leading '?'.
-        # If the leading '?' is present then REMOVE It so that code after it can
-        # correctly use the key name as the variable to assign it to.
-        [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
-        _declare_args_variable="${1#\?}"
-
-        # Declare the variable and then call argcheck if required
-        _declare_args_cmd+="declare ${_declare_args_variable}=\${1:-}; shift &>/dev/null || true; "
-        [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
-
-        shift
-    done
-
-    echo "eval ${_declare_args_cmd}"
+    echo "eval ${cmd}"
 
 }
 
@@ -2894,7 +2821,7 @@ declare_opts_internal_setup()
 {
     local opt_cmd="__BU_OPT=( "
     local regex_cmd="__BU_OPT_REGEX=( "
-    local expects_cmd="__BU_OPT_EXPECTS=( "
+    local type_cmd="__BU_OPT_TYPE=( "
 
     while (( $# )) ; do
 
@@ -2919,20 +2846,20 @@ declare_opts_internal_setup()
             default=${BASH_REMATCH[2]}
         fi
 
-        # Possible "__BU_OPT_EXPECTS[option]" values are:
-        #   0: This option has no argument
-        #   1: This option is required to have an argument
-        local expects=0
-
         # Determine if this option requires argument (def starts with a colon
         # character) or is a boolean
         [[ ${opt_def} =~ (:)?([^=]+)(=.*)? ]]
 
+        local opt_type="unknown"
+
         # This option requires an argument
         if [[ ${BASH_REMATCH[1]} == ":" ]] ; then
+            opt_type="string"
             expects=1
 
         else
+            opt_type="boolean"
+
             # Boolean options default to 0 unless otherwise specified
             [[ ${default} == "" ]] && default=0
 
@@ -2944,7 +2871,7 @@ declare_opts_internal_setup()
         # Same regular expression -- second match is the full list of
         # alternative strings that can represent this option.
         local all_opts=${BASH_REMATCH[2]}
-        local regex=^\(${all_opts//+( )/|}\)$
+        local regex=^\(no_\)?\(${all_opts//+( )/|}\)$
 
         # The canonical option name is the first name for the option that is specified
         [[ ${all_opts} =~ ([^\t ]+).* ]]
@@ -2955,19 +2882,22 @@ declare_opts_internal_setup()
         [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid declare_opts syntax.  Canonical name is empty."
         [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: option name ${canonical} is not allowed to contain hyphens."
 
+        # Boolean options get an implicit no-option version, so make sure
+        # they're expecting that.
+        [[ ! ${canonical} = no_* ]] || die "${FUNCNAME[2]}: Option names specified to declare_opts may not begin with no_ because declare_opts implicitly creates no versions of the options."
 
         # Now that they're all computed, add them to the command that will generate associative arrays
         opt_cmd+="[${canonical}]='${default}' "
         regex_cmd+="[${canonical}]='${regex}' "
-        expects_cmd+="[${canonical}]='$expects' "
+        type_cmd+="[${canonical}]='${opt_type}' "
 
     done
 
     opt_cmd+=")"
     regex_cmd+=")"
-    expects_cmd+=")"
+    type_cmd+=")"
 
-    printf "declare -A %s %s %s ; " "${opt_cmd}" "${regex_cmd}" "${expects_cmd}"
+    printf "declare -A %s %s %s ; " "${opt_cmd}" "${regex_cmd}" "${type_cmd}"
 }
 
 declare_opts_internal()
@@ -3000,7 +2930,7 @@ declare_opts_internal()
                 local canonical=$(declare_opts_find_canonical ${long_opt//-/_})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
+                if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
@@ -3010,11 +2940,27 @@ declare_opts_internal()
                     fi
 
                     __BU_OPT[$canonical]=${opt_arg}
-                else
-                        if [[ -n ${has_arg} ]] ; then
-                            die "${FUNCNAME[1]}: option --${long_opt} does not accept an argument, but was passed ${opt_arg}"
+
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+
+                    # The value that will get assigned to this boolean option
+                    local value=1
+                    if [[ -n ${has_arg} ]] ; then
+                        value=${opt_arg}
+                    fi
+
+                    # Negate the value it was if the option starts with no
+                    if [[ ${long_opt} = no-* ]] ; then
+                        if [[ ${value} -eq 1 ]] ; then
+                            value=0
+                        else
+                            value=1
                         fi
-                    __BU_OPT[$canonical]=1
+                    fi
+
+                    __BU_OPT[$canonical]=${value}
+                else
+                    die "${FUNCNAME[1]}: option --${long_opt} has an invalid type ${__BU_OPT_TYPE[$canonical]}"
                 fi
                 ;;
 
@@ -3034,7 +2980,7 @@ declare_opts_internal()
                     local canonical=$(declare_opts_find_canonical ${char})
                     [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                    if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
+                    if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
                         die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
                     fi
 
@@ -3047,7 +2993,7 @@ declare_opts_internal()
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.
-                if [[ ${__BU_OPT_EXPECTS[$canonical]} -eq 1 ]] ; then
+                if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
@@ -3058,12 +3004,19 @@ declare_opts_internal()
                         shift && (( shift_count += 1 ))
                     fi
                     __BU_OPT[$canonical]=${opt_arg}
-                else
-                    # And if not, make sure it doesn't.
+
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+
+                    # Boolean options may optionally be specified a value via
+                    # -b=(0|1).  Take it if it's there.
                     if [[ -n ${has_arg} ]] ; then
-                        die "${FUNCNAME[1]}: option -${char} does not accept an argument, but was passed ${opt_arg}"
+                        __BU_OPT[$canonical]=${opt_arg}
+                    else
+                        __BU_OPT[$canonical]=1
                     fi
-                    __BU_OPT[$canonical]=1
+
+                else
+                    die "${FUNCNAME[1]}: option -${char} has an invalid type ${__BU_OPT_TYPE[$canonical]}"
                 fi
                 ;;
             *)
@@ -3092,7 +3045,7 @@ declare_opts_find_canonical()
     done
 }
 
-dopt_dump()
+opt_dump()
 {
     for option in "${!__BU_OPT[@]}" ; do
         echo -n "${option}=\"${__BU_OPT[$option]}\" "
@@ -3100,39 +3053,6 @@ dopt_dump()
     echo
 }
 
-# Helper method to print the options after calling declare_args.
-opt_print()
-{
-    local _caller=( $(caller 0) )
-    pack_print _${_caller[1]}_options
-}
-
-# Helper method to be used after declare_args to check if a given option is true (1).
-opt_true()
-{
-    local _caller=( $(caller 0) )
-    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 1 ]]
-}
-
-# Helper method to be used after declare_args to check if a given option is false (0).
-opt_false()
-{
-    local _caller=( $(caller 0) )
-    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 0 ]]
-}
-
-# Helper method to be used after declare_args to extract the value of an option.
-# Unlike opt_get this one allows you to specify a default value to be used in
-# the event the requested option was not provided.
-opt_get()
-{
-    $(newdecl_args key ?default)
-    local _caller=( $(caller 0) )
-    local _value=$(pack_get _${_caller[1]}_options ${key})
-    : ${_value:=${default}}
-
-    echo -n "${_value}"
-}
 
 #-----------------------------------------------------------------------------
 # MISC HELPERS
@@ -3158,7 +3078,7 @@ save_function()
 # times.
 override_function()
 {
-    $(newdecl_args func body)
+    $(declare_args func body)
 
     # Don't save the function off it already exists to avoid infinite recursion
     declare -f "${func}_real" >/dev/null || save_function ${func}
@@ -3189,7 +3109,7 @@ numcores()
 # caller for handling.
 efetch_internal()
 {
-    $(newdecl_args url dst)
+    $(declare_args url dst)
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
@@ -3217,7 +3137,7 @@ efetch()
         "meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
         "quiet q | Quiet mode.  (Disable eprogress and other info messages)")
 
-    $(newdecl_args url ?dst)
+    $(declare_args url ?dst)
     : ${dst:=/tmp}
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     
@@ -3583,7 +3503,7 @@ eretry_internal()
 #   will then be used by setvars as the replacement value.
 setvars()
 {
-    $(newdecl_args filename ?callback)
+    $(declare_args filename ?callback)
     edebug "Setting variables $(lval filename callback)"
     [[ -f ${filename} ]] || die "$(lval filename) does not exist"
 
@@ -3666,7 +3586,7 @@ declare -A __BU_ELOCK_FDMAP
 #
 elock()
 {
-    $(newdecl_args fname)
+    $(declare_args fname)
     
     # Create file if it doesn't exist
     [[ -e ${fname} ]] || touch ${fname} 
@@ -3710,7 +3630,7 @@ elock()
 # close remove the file descriptor from our file descriptor associative array.
 eunlock()
 {
-    $(newdecl_args fname)
+    $(declare_args fname)
  
     local fd=$(elock_get_fd "${fname}" || true)
     if [[ -z ${fd} ]]; then
@@ -3730,7 +3650,7 @@ eunlock()
 #
 elock_get_fd()
 {
-    $(newdecl_args fname)
+    $(declare_args fname)
     local fd="${__BU_ELOCK_FDMAP[$fname]:-}"
     if [[ -z "${fd}" ]]; then
         return 1
@@ -3746,7 +3666,7 @@ elock_get_fd()
 # if we have a file locked or not.
 elock_locked()
 {
-    $(newdecl_args fname)
+    $(declare_args fname)
 
     # If the file doesn't exist then we can't check if it's locked
     [[ -e ${fname} ]] || return 1
@@ -3781,7 +3701,7 @@ elock_unlocked()
 #  $3: (optional) character(s) to be used as delimiters.
 array_init()
 {
-    $(newdecl_args __array ?__string ?__delim)
+    $(declare_args __array ?__string ?__delim)
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
@@ -3813,7 +3733,7 @@ array_init_json()
 # But this functions makes for symmertry with pack (i.e. pack_size).
 array_size()
 {
-    $(newdecl_args __array)
+    $(declare_args __array)
 
     # Treat unset variables as being an empty array, because when you tell
     # bash to create an empty array it doesn't really allow you to
@@ -3832,14 +3752,14 @@ array_size()
 # Return true (0) if an array is empty and false (1) otherwise
 array_empty()
 {
-    $(newdecl_args __array)
+    $(declare_args __array)
     [[ $(array_size ${__array}) -eq 0 ]]
 }
 
 # Returns true (0) if an array is not empty and false (1) otherwise
 array_not_empty()
 {
-    $(newdecl_args __array)
+    $(declare_args __array)
     [[ $(array_size ${__array}) -ne 0 ]]
 }
 
@@ -3851,7 +3771,7 @@ array_not_empty()
 # $3: (optional) character(s) to be used as delimiters.
 array_add()
 {
-    $(newdecl_args __array ?__string ?__delim)
+    $(declare_args __array ?__string ?__delim)
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && return 0
@@ -3877,7 +3797,7 @@ array_add_nl()
 array_remove()
 {
     $(declare_opts "all a | Remove all instances of the item instead of just the first.")
-    $(newdecl_args __array)
+    $(declare_args __array)
 
     # Return immediately if if array is not set or no values were given to be
     # removed. The reason we don't error out on an unset array is because
@@ -3910,7 +3830,7 @@ array_remove()
 #
 array_indexes()
 {
-    $(newdecl_args __array_indexes_array)
+    $(declare_args __array_indexes_array)
     eval "echo \${!${__array_indexes_array}[@]}"
 }
 
@@ -3922,7 +3842,7 @@ array_indexes()
 # $2: value to check for existance in the array
 array_contains()
 {
-    $(newdecl_args __array __value)
+    $(declare_args __array __value)
 
     local idx=0
     for idx in $(array_indexes ${__array}); do
@@ -3940,7 +3860,7 @@ array_contains()
 # $2: (optional) delimiter
 array_join()
 {
-    $(newdecl_args __array ?__delim)
+    $(declare_args __array ?__delim)
 
     # If the array is empty return empty string
     array_empty ${__array} && { echo -n ""; return 0; } || true
@@ -3978,7 +3898,7 @@ array_join_nl()
 #
 array_regex()
 {
-    $(newdecl_args __array)
+    $(declare_args __array)
 
     echo -n "("
     array_join ${__array}
@@ -4164,7 +4084,7 @@ pack_import()
         "global g  | Emit global variables instead of local (i.e. undeclared variables)." \
         "export e  | Emit exported variables via export builtin.")
 
-    $(newdecl_args _pack_import_pack)
+    $(declare_args _pack_import_pack)
     local _pack_import_keys=("${@}")
     [[ $(array_size _pack_import_keys) -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 
@@ -4274,7 +4194,7 @@ _pack()
 # KB, MB, GB, TB
 to_upper_snake_case()
 {
-    $(newdecl_args input)
+    $(declare_args input)
 
     echo "${input}"         \
         | sed -e 's|KB|Kb|' \
@@ -4324,7 +4244,7 @@ to_json()
 array_to_json()
 {
     # This will store a copy of the specified array's contents into __array
-    $(newdecl_args __array)
+    $(declare_args __array)
     eval "local __array=(\"\${${__array}[@]}\")"
 
     echo -n "["
@@ -4567,25 +4487,25 @@ assert_op()
 
 assert_eq()
 {
-    $(newdecl_args ?lh ?rh ?msg)
+    $(declare_args ?lh ?rh ?msg)
     [[ "${lh}" == "${rh}" ]] || die "assert_eq failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_ne()
 {
-    $(newdecl_args ?lh ?rh ?msg)
+    $(declare_args ?lh ?rh ?msg)
     [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_match()
 {
-    $(newdecl_args ?lh ?rh ?msg)
+    $(declare_args ?lh ?rh ?msg)
     [[ "${lh}" =~ "${rh}" ]] || die "assert_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_not_match()
 {
-    $(newdecl_args ?lh ?rh ?msg)
+    $(declare_args ?lh ?rh ?msg)
     [[ ! "${lh}" =~ "${rh}" ]] || die "assert_not_match failed [${msg:-}] :: $(lval lh rh)"
 }
 

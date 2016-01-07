@@ -5,7 +5,7 @@
 
 dpkg_compare_versions()
 {
-    $(newdecl_args v1 op v2)
+    $(declare_args v1 op v2)
 
 	[[ ${op} == "<<" ]] && op="lt"
 	[[ ${op} == "<=" ]] && op="le"
@@ -23,7 +23,7 @@ dpkg_compare_versions()
 
 dpkg_parsedeps()
 {
-    $(newdecl_args deb ?tag)
+    $(declare_args deb ?tag)
     : ${tag:="Depends"}
 
     dpkg -I "${deb}" | ( grep "^ ${tag}:" || true ) | sed -e "s| ${tag}:||" -e 's/ (\(>=\|<=\|<<\|>>\|\=\)\s*/\1/g' -e 's|)||g' -e 's|,||g'
@@ -31,7 +31,7 @@ dpkg_parsedeps()
 
 dpkg_depends()
 {
-    $(newdecl_args input ?tag)
+    $(declare_args input ?tag)
     : ${tag:="Depends"}
 
     [[ -f ${input} ]] || die "${input} does not exist"
