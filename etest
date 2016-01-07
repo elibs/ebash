@@ -26,13 +26,13 @@ $(declare_opts \
     "html     h=0              | If specified, etest will produce an HTML logfile and strip color codes out of etest.log")
 
 # If no test directory was provided use PWD.
-$(newdecl_args ?TEST_DIR)
+$(declare_args ?TEST_DIR)
 : ${TEST_DIR:=$(readlink -f .)}
 ETEST_TOPDIR=${TEST_DIR}
 
 (( ${repeat} < 1 )) && repeat=1
 [[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
-edebug "$(lval TEST_DIR) $(dopt_dump)"
+edebug "$(lval TEST_DIR) $(opt_dump)"
 
 # Global cgroup name for all unit tests
 export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
@@ -41,7 +41,7 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${TEST_DIR}/etest.log
-elogfile -r=1 -t=${verbose} ${ETEST_LOG}
+elogfile --rotate_count=1 --tail=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
 if [[ ${verbose} -eq 0 ]]; then
@@ -255,6 +255,7 @@ run_all_tests_in_file()
     fi
 
     einfo "Running tests in ${testfile} ${REPEAT_STRING}" &>${ETEST_OUT}
+    local file_start=${SECONDS}
 
     for testfunc in file_setup ${ETEST_FUNCTIONS[@]} file_teardown; do
      
@@ -286,6 +287,8 @@ run_all_tests_in_file()
         fi
 
     done
+
+    einfos "Finished $(basename ${testfile}) in $(( SECONDS - file_start )) seconds.  ${REPEAT_STRING}" &>${ETEST_OUT}
 }
 
 #-------------------------------------------------------------------------------------------------------------------------
