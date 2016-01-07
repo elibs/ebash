@@ -24,7 +24,7 @@ file_teardown()
 
 check_mounts()
 {
-    $(newdecl_args count)
+    $(declare_args count)
 
     # Verify chroot paths not mounted
     for path in ${CHROOT_MOUNTS[@]}; do

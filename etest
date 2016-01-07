@@ -26,7 +26,7 @@ $(declare_opts \
     "html     h=0              | If specified, etest will produce an HTML logfile and strip color codes out of etest.log")
 
 # If no test directory was provided use PWD.
-$(newdecl_args ?TEST_DIR)
+$(declare_args ?TEST_DIR)
 : ${TEST_DIR:=$(readlink -f .)}
 ETEST_TOPDIR=${TEST_DIR}
 
