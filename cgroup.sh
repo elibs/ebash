@@ -54,6 +54,7 @@ cgroup_supported()
     return ${missing_count}
 }
 
+[[ ${__BU_OS} == Linux ]] || return 0
 
 #-------------------------------------------------------------------------------
 # Prior to using a cgroup, you must create it.  It is safe to attempt to

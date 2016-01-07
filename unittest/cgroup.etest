@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 ETEST_cgroup_tree()
 {
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
