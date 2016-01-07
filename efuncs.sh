@@ -2210,15 +2210,15 @@ elogrotate()
 #
 elogfile()
 {
-    $(declare_args)
+    $(declare_opts \
+        "stderr e=1        | Whether to redirect stderr to the logfile." \
+        "stdout o=1        | Whether to redirect stdout to the logfile." \
+        ":rotate_count r=0 | When rotating log files, keep this number of log files." \
+        ":rotate_size s=0  | Rotate log files when they reach this size. Units as accepted by find." \
+        "tail t=1          | Whether to continue to display output on local stdout and stderr." \
+        "merge m           | Whether to merge stdout and stderr into a single stream on stdout.")
 
-    local stdout=$(opt_get o 1)
-    local stderr=$(opt_get e 1)
-    local dotail=$(opt_get t 1)
-    local rotate=$(opt_get r 0)
-    local rotate_size=$(opt_get s 0)
-    local merge=$(opt_get m 0)
-    edebug "$(lval stdout stderr dotail rotate_count rotate_size merge)"
+    edebug "$(lval stdout stderr tail rotate_count rotate_size merge)"
 
     # Return if nothing to do
     if [[ ${stdout} -eq 0 && ${stderr} -eq 0 ]] || [[ -z "$*" ]]; then
@@ -2226,11 +2226,11 @@ elogfile()
     fi
 
     # Rotate logs as necessary but only if they are regular files
-    if [[ ${rotate} -gt 0 ]]; then
+    if [[ ${rotate_count} -gt 0 ]]; then
         local name
         for name in "${@}"; do
             [[ -f $(readlink -f "${name}") ]] || continue
-            elogrotate -c=${rotate} -s=${rotate_size} "${name}"
+            elogrotate -c=${rotate_count} -s=${rotate_size} "${name}"
         done
     fi
 
@@ -2296,7 +2296,7 @@ elogfile()
                 trap "" ${TTY_SIGNALS[@]}
                 echo "${BASHPID}" >${pid_pipe}
 
-                if [[ ${dotail} -eq 1 ]]; then
+                if [[ ${tail} -eq 1 ]]; then
                     tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
                     tee -a "${@}" <${pipe} >/dev/null 2>&1
@@ -3118,7 +3118,7 @@ declare_opts_find_canonical()
     done
 }
 
-dopt_dump()
+opt_dump()
 {
     for option in "${!__BU_OPT[@]}" ; do
         echo -n "${option}=\"${__BU_OPT[$option]}\" "
@@ -3126,39 +3126,6 @@ dopt_dump()
     echo
 }
 
-# Helper method to print the options after calling declare_args.
-opt_print()
-{
-    local _caller=( $(caller 0) )
-    pack_print _${_caller[1]}_options
-}
-
-# Helper method to be used after declare_args to check if a given option is true (1).
-opt_true()
-{
-    local _caller=( $(caller 0) )
-    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 1 ]]
-}
-
-# Helper method to be used after declare_args to check if a given option is false (0).
-opt_false()
-{
-    local _caller=( $(caller 0) )
-    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 0 ]]
-}
-
-# Helper method to be used after declare_args to extract the value of an option.
-# Unlike opt_get this one allows you to specify a default value to be used in
-# the event the requested option was not provided.
-opt_get()
-{
-    $(newdecl_args key ?default)
-    local _caller=( $(caller 0) )
-    local _value=$(pack_get _${_caller[1]}_options ${key})
-    : ${_value:=${default}}
-
-    echo -n "${_value}"
-}
 
 #-----------------------------------------------------------------------------
 # MISC HELPERS

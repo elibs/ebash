@@ -99,17 +99,14 @@ chroot_cmd()
 #        If no pattern is specified, ALL proceses in the chroot will be
 #        signalled.
 #
-# Options:
-# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM)
-# -k=duration
-#      Automatically elevate and send a sigkill if the specified processes
-#      don't die after <duration>.  By default, chroot_kill will elevate after
-#      2 seconds.
 chroot_kill()
 {
+    $(declare_opts \
+        ":signal s=TERM   | The signal to send to killed pids." \
+        ":kill_after k    | Also send SIGKILL to processes that are still alive after this duration.  (Does not block)")
+
     argcheck CHROOT
     $(newdecl_args ?regex)
-    local signal=$(opt_get s SIGTERM)
 
     local pids=""
     local errors=0
@@ -124,7 +121,7 @@ chroot_kill()
 
         # Kill this process
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        ekilltree -s=${signal} -k=$(opt_get k 2s) ${pid} || (( errors+=1 ))
+        ekilltree -s=${signal} --kill-after=${kill_after} ${pid} || (( errors+=1 ))
     done
 
     [[ ${errors} -eq 0 ]]
