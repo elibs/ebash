@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+[[ ${__BU_OS} == Linux ]] || return 0
+
+ETEST_emount_bind()
+{
+    mkdir src
+    touch src/file
+    echo "Love" > src/file
+
+    # Bind mount and verify mounted and verify content
+    mkdir dst
+    ebindmount src dst
+    assert_true emounted dst
+    assert_true diff src/file dst/file
+}
+
+ETEST_emount_unmount()
+{
+    # Bind mount src to dst
+    mkdir src dst
+    ebindmount src dst
+
+    # Verify mounted, unmount, then verify unmounted
+    assert_true  emounted dst
+    assert_false emounted src
+}
+
+ETEST_emount_unmount_recursive()
+{
+    # Bind mount a couple of nested directories
+    mkdir -p src1 src2 dst/dst1 dst/dst2
+    ebindmount  src1 dst/dst1
+    ebindmount  src2 dst/dst2
+
+    # Verify state
+    assert_false emounted dst
+    assert_true  emounted dst/dst1
+    assert_true  emounted dst/dst2
+
+    # Recursive unmount using top-level directory structure even though it isn't mounted
+    eunmount_recursive dst
+    assert_false emounted dst/dst1
+    assert_false emounted dst/dst2
+}
+
+ETEST_emount_partial_match()
+{
+    # Bind mount a couple of nested directories
+    mkdir -p src1 src2 dst/dst1 dst/dst2
+    ebindmount src1 dst/dst1
+    ebindmount src2 dst/dst2
+
+    # Verify state
+    assert_false emounted dst
+    assert_true  emounted dst/dst1
+    assert_true  emounted dst/dst2
+
+    # Use a partial match -- should NOT find any mounts
+    assert_false emounted dst/d
+}
