@@ -125,3 +125,16 @@ ETEST_declare_args_legacy()
     do_declare_args_legacy "a1 a2 a3" 1 2 3
     do_declare_args_legacy "a1 a2 a3 a4" aristotle kant hobbes rosseau
 }
+
+ETEST_declare_args_ignore_docstring()
+{
+    set -- a b "g 1"
+    $(declare_args \
+        "alpha | Something to ignore." \
+        "beta  | something else to ignore." \
+        "gamma | something else to ignore.")
+
+    assert_eq "a"   "${alpha}"
+    assert_eq "b"   "${beta}"
+    assert_eq "g 1" "${gamma}"
+}
