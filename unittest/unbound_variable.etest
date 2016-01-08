@@ -21,13 +21,16 @@ source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bash
 
 die_handler()
 {
-    \$(declare_args)
-    
-    local rc=\$(opt_get r)
-    edebug "DIE_HANDLER called with \$(lval rc)"
+    \$(declare_opts \
+        ":return_code rc r=1 | Return code that die will eventually exit with." \
+        ":signal s           | Signal that caused this die to occur." \
+        ":color c            | DEPRECATED OPTION -- no longer has any effect." \
+        ":frames f=3         | Number of stack frames to skip.")
+
+    edebug "DIE_HANDLER called with \$(lval return_code)"
     
     # On unbound variables, bash exits with 1
-    assert_eq 1 \${rc}
+    assert_eq 1 \${return_code}
 
     echo "DIE" >> "${OUTPUT}"
 
