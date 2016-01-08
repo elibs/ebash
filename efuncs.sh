@@ -2765,9 +2765,9 @@ declare_args()
     local variable=""
     local cmd=""
 
-    local declare_options=""
-    [[ ${global} -eq 1 ]] && declare_options+="-g "
-    [[ ${export} -eq 1 ]] && declare_options+="-gx "
+    local dflags=""
+    [[ ${global} -eq 1 ]] && dflags="-g"
+    [[ ${export} -eq 1 ]] && dflags="-gx"
 
     while [[ $# -gt 0 ]]; do
         # If the variable name is "_" then don't bother assigning it to anything
@@ -2780,7 +2780,7 @@ declare_args()
         variable="${1#\?}"
 
         # Declare the variable and then call argcheck if required
-        cmd+="declare ${declare_options} ${variable}=\${1:-}; shift &>/dev/null || true; "
+        cmd+="declare ${dflags} ${variable}=\${1:-}; shift &>/dev/null || true; "
         [[ ${optional} -eq 0 ]] && cmd+="argcheck ${variable}; "
 
         shift
@@ -4336,8 +4336,8 @@ json_import()
 
     # Determine flags to pass into declare
     local dflags=""
-    [[ ${global} -eq 1 ]] && dflags+=" -g"
-    [[ ${export} -eq 1 ]] && dflags+=" -x"
+    [[ ${global} -eq 1 ]] && dflags="-g"
+    [[ ${export} -eq 1 ]] && dflags="-gx"
 
     # optional jq query, or . which selects everything in jq
     : ${query:=.}
