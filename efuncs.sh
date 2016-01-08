@@ -554,11 +554,12 @@ die()
     if [[ ${__BU_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
         exit ${__BU_DIE_IN_PROGRESS}
     fi
-        $(declare_opts \
-            ":return_code rc r=1 | Return code that die will eventually exit with." \
-            ":signal s           | Signal that caused this die to occur." \
-            ":color c            | DEPRECATED OPTION -- no longer has any effect." \
-            ":frames f=3         | Number of stack frames to skip.")
+    
+    $(declare_opts \
+        ":return_code rc r=1 | Return code that die will eventually exit with." \
+        ":signal s           | Signal that caused this die to occur." \
+        ":color c            | DEPRECATED OPTION -- no longer has any effect." \
+        ":frames f=3         | Number of stack frames to skip.")
 
     __BU_DIE_IN_PROGRESS=${return_code}
     : ${__BU_DIE_BY_SIGNAL:=${signal}}
