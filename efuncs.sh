@@ -2798,14 +2798,149 @@ declare_args()
 
 }
 
-# Assumptions:
-#   - The argument to an option may NOT start with a hyphen character (-).
-#   - Option names may not contain whitespace.
-#   - Options may themselves have arguments (:) or even optional (?) arguments.
-#   - All options and their arguments must occur on the command line before
-#     positional arguments
-#   - Options that don't have an argument are assumed to be boolean.  If they
-#     exist on the command line, they're true and if not, they're false.
+## declare_opts
+## ============
+## 
+## Terminology
+## -----------
+##
+## First a quick bit of background on the terminology used for bashutils
+## parameter parsing.  Different well-meaning folks use different terms for the
+## same things, but these are the definitions as they apply within bashutils
+## documentation.
+##
+## First, here's an example command line you might use to search for lines that
+## do not contain "alpha" within a file named "somefile".
+##
+##     grep --word-regexp -v alpha somefile
+## 
+## In this case --word-regexp and -v are _options_.  That is to say, they're
+## optional flags to the command whose names start with hyphens.  Options
+## follow the GNU style in that single character options have one hyphen before
+## their name, while long options have two hyphens before their name.
+##
+## Typically, a single functionality within a tool can be controlled by the
+## caller's choice of either a long option or a short option.  For instance,
+## grep considers -v and --invert to be equivalent options.
+##
+## _Arguments_ are the positional things that must occur on the command line
+## following all of the options.  If you're ever concerned that there could be
+## ambiguity, you can explicitly separate the two with a pair of hyphens on
+## their own.  The following is equivalent to the first example.
+##
+##     grep --word-regex -v -- alpha somefile
+##
+## 
+## To add to the confusing terminology, some options accept their own
+## arguments.  For example, grep can limit the number of matches with the
+## --max-count option.  This will print the first line in somefile that matches
+## alpha.
+##
+##     grep --max-count 1 alpha somefile.
+##
+## So we say that if --max-count is specified, it requires an _argument_.
+##
+##
+## Overview
+## --------
+##
+## Declare_opts allows you to handle options in your bash functions or scripts
+## in a concise way.  It does not assist with arguments.  Look at declare_args
+## for something similar that helps with arguments.
+##
+## To accept arguments in your code, you simply call declare_opts and tell it
+## which arguments are valid.  For instance, to accept a few of the grep
+## options you might use declare_opts like this.
+##
+##
+##     $(declare_opts \
+##         "word_regex w | if specified, match only complete words" \
+##         "invert v     | if specified, match only lines that do NOT contain the regex.")
+##
+##     [[ ${word_regex} -eq 1 ]] && # do stuff for words
+##     [[ ${invert}     -eq 1 ]] && # do stuff for inverting
+##
+##  
+## Each argument to declare_opts defines a single option.  All words prior to
+## the first pipe character are considered to be synonyms for the option.
+## Declare_opts creates a local variable for each option using the first name
+## given.
+##
+## Everything between the first pipe character and the end of the string is
+## considered to be a documentation string for this option.  It is not
+## currently used, but might be used in the future to provide automatic help or
+## for generation of man pages.
+##
+## This means that -w and --word-regex are equivalent, and so are --invert and
+## -v.  Note that there's a translation here in the name of the option.
+## By convention, words are separated with hyphens in option names, but hyphens
+## are not allowed to be characters in bash variables, so we use underscores
+## in the variable name and automatically translate that to a hyphen in the
+## option name.
+##
+##
+## Boolean Options
+## ---------------
+##
+## Word_regex and invert in the example above are both boolean options.  That
+## is, they're either on the command line (in which case declare_opts assigns 1
+## to the variable) or not on the command line (in which case declare_opts
+## assigns 0 to the variable).
+##
+## You can also be explicit about the value you'd like to choose for an option
+## by specifying =0 or =1 at the end of the option.  For instance, these are
+## equivalent and would enable the word_regex option and disable the invert
+## option.
+##
+##     cmd --invert=0 --word-regex=1
+##     cmd -i=0 -w=1
+## 
+## Note that these two options are considered to be boolean.  Either they were
+## specified on the command line or they were not.  When specified, the value
+## of the variable will be 1, when not specified it will be zero.
+##
+## The long option versions of boolean options also implicitly support a
+## negation by prepending the option name with no-.  For example, this is also
+## equivalent to the above examples.
+##
+##     cmd --no-invert --word-regex
+##
+##
+## String Options
+## --------------
+## 
+## Declare_opts also supports options whose value is a string.  When specified
+## on the command line, these _require_ an argument, even if it is an empty
+## string.  In order to get a string option, you prepend its name with a colon
+## character.
+##
+##     func()
+##     {
+##         $(declare_opts ":string s")
+##         echo "STRING: X${string}X"
+##     }
+##
+##     func --string "alpha"
+##     # output -- STRING: XalphaX
+##     func --string ""
+##     # output -- STRING: XX
+##
+##     func --string=alpha
+##     # output -- STRING: XalphaX
+##     func --string=
+##     # output -- STRING: XX
+##
+##
+## Default Values
+## --------------
+##
+## By default, the value of boolean options is false and string options are an
+## empty string, but you can specify a default in your definition.
+##
+##     $(declare_opts \
+##         "boolean b=1         | Boolean option that defaults to true" \
+##         ":string s=something | String option that defaults to "something")
+##
 declare_opts()
 {
     echo "eval "
