@@ -3437,7 +3437,6 @@ etimeout()
     # Start watchdog process to kill process if it times out
     (
         disable_die_parent
-        nodie_on_error
         close_fds
 
         sleep ${timeout}
