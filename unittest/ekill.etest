@@ -84,11 +84,7 @@ ETEST_ekilltree()
     einfo "Killing $(lval main_pid) -- Expecting death from $(lval pids)"
     ekilltree ${main_pid}
 
-    for pid in ${pids[@]}; do
-        einfo "Waiting for $(lval pid pids SECONDS)"
-        wait $pid || true
-        assert_false process_running ${pid}
-    done
+    eretry --timeout 2s process_not_running ${pids[@]}
 }
 
 ETEST_ekilltree_excludes_self()

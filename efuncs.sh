@@ -28,6 +28,14 @@ fi
 # DEBUGGING
 #-----------------------------------------------------------------------------
 
+if [[ ${__BU_OS} == Linux ]] ; then
+    BU_WORD_BEGIN='\<'
+    BU_WORD_END='\>'
+elif [[ ${__BU_OS} == Darwin ]] ; then
+    BU_WORD_BEGIN='[[:<:]]'
+    BU_WORD_END='[[:>:]]'
+fi
+
 alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DEBUG || trap - DEBUG'
 
 etrace()
@@ -260,6 +268,7 @@ close_fds()
         # Not supported away from linux at the moment.
         return 0
     fi
+
     # Note grab file descriptors for the current process, not the one inside
     # the command substitution ls here.
     local pid=$BASHPID
@@ -271,6 +280,19 @@ close_fds()
     for fd in "${fds[@]}"; do
         eval "exec $fd>&-"
     done
+}
+
+fd_path()
+{
+    if [[ ${__BU_OS} == Linux ]] ; then
+        echo /proc/${BASHPID}/fd/
+
+    elif [[ ${__BU_OS} == Darwin ]] ; then
+        echo /dev/fd/
+
+    else
+        die "Unsupported OS $(lval __BU_OS)"
+    fi
 }
 
 # Helper method to read from a pipe until we see EOF.
@@ -602,6 +624,7 @@ die()
         fi
 
         # Then kill all children of the current process (but not the current process)
+        edebug "Killing children of ${pid}"
         ekilltree -s=SIGTERM -k=2s -x=${pid} ${pid}
 
         # Last, finish up the current process. 
@@ -1008,7 +1031,7 @@ ebanner()
 emsg()
 {
     # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX:=} | egrep -o "(time|times|level|caller|all)" || true)
+    local emsg_prefix=$(echo ${EMSG_PREFIX:-} | grep -E -o "(time|times|level|caller|all)" || true)
 
     [[ ${EFUNCS_TIME:=0} -eq 1 ]] && emsg_prefix+=time
 
@@ -1021,7 +1044,8 @@ emsg()
     # Local args to hold the color and regexs for each field
     for field in time level caller msg; do
         local ${field}_color=${nocolor}
-        eval "local ${field}_re='\ball|${field}\b'"
+        eval "local ${field}_re='${BU_WORD_BEGIN}(all|${field})${BU_WORD_END}'"
+
     done
 
     # Determine color values for each field used below.
@@ -1042,13 +1066,13 @@ emsg()
     if [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} == "time" ]]; then
         :
     else
-        local times_re="\ball|times\b"
+        local times_re="${BU_WORD_BEGIN}(all|times)${BU_WORD_END}"
         [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} =~ ${times_re} || ${emsg_prefix} =~ ${time_re} ]] && prefix+="${time_color}$(etimestamp)"
         [[ ${emsg_prefix} =~ ${level_re}  ]] && prefix+="${delim}${level_color}$(printf "%s"  ${level%%S})"
-        [[ ${emsg_prefix} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')) || true)"
+        [[ ${emsg_prefix} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" "$(basename ${BASH_SOURCE[2]}):${BASH_LINENO[1]}:${FUNCNAME[2]:-}" || true)"
     fi
 
-    # Strip of extra leading delimiter if present
+    # Strip off extra leading delimiter if present
     prefix="${prefix#${delim}}"
 
     # If it's still empty put in the default
@@ -1474,13 +1498,15 @@ sigexitcode()
 # command is that it likes to segfault.  It's buggy.  So here, we simply ignore
 # the error codes that would come from it.
 #
-pstree()
-{
-    (
-        ulimit -c 0
-        command pstree "${@}" || true
-    )
-}
+if [[ ${__BU_OS} == Linux ]] ; then
+    pstree()
+    {
+        (
+            ulimit -c 0
+            command pstree "${@}" || true
+        )
+    }
+fi
 
 # Check if a given process is running. Returns success (0) if all of the
 # specified processes are running and failure (1) otherwise.
@@ -1504,25 +1530,45 @@ process_not_running()
 
 # Generate a depth first recursive listing of entire process tree beneath a given PID.
 # If the pid does not exist this will produce an empty string.
+#
 process_tree()
 {
+    $(declare_opts \
+        ":ps_all | Pre-prepared output of \"ps -eo ppid,pid\" so I can avoid calling ps repeatedly")
+    : ${ps_all:=$(ps -eo ppid,pid)}
+
+
+    # Assume current process if none is specified
+    if [[ ! $# -gt 0 ]] ; then
+        set -- ${BASHPID}
+    fi
+
     local parent
     for parent in ${@} ; do
-        # We don't want to throw errors if a process doesn't exist, because it
-        # could go away at any time.  Testing to see if the process exists prior to
-        # running pstree still leaves us with that race condition, so we mostly
-        # just ignore errors here in ways that will lead to no output if there are
-        # no processes to report.
-        local raw_output=$(pstree -lp ${parent} || true)
-        echo "${raw_output}" | grep -oP '\(\d+\)' | tr -d '()' || true
+
+        echo ${parent}
+
+        local children=$(process_children --ps-all "${ps_all}" ${parent})
+        local child
+        for child in ${children} ; do
+            process_tree --ps-all "${ps_all}" "${child}"
+        done
+
     done
 }
 
 # Print the pids of all children of the specified list of processes.  If no
 # processes were specified, default to ${BASHPID}.
 #
+# Note, this doesn't print grandchildren and other descendants.  Just children.
+# See process_tree for a recursive tree of descendants.
+#
 process_children()
 {
+    $(declare_opts \
+        ":ps_all | The contents of \"ps -eo ppid,pid\", produced ahead of time to avoid calling ps over and over")
+    : ${ps_all:=$(ps -eo ppid,pid)}
+
     # If nothing was specified, assume the current process
     if [[ ! $# -gt 0 ]] ; then
         set -- ${BASHPID}
@@ -1531,10 +1577,10 @@ process_children()
     local parent
     local children=()
     for parent in "${@}" ; do
-        children+=( $(ps -eo ppid,pid | awk '$1 == '${parent}' {print $2}') )
+        children+=( $(echo "${ps_all}" | awk '$1 == '${parent}' {print $2}') )
     done
 
-    echo "${children[@]}"
+    echo "${children[@]:-}"
 }
 
 # Print the pid of the parent of the specified process, or of $BASHPID if none
@@ -1592,6 +1638,14 @@ ekill()
 
     # Determine what signal to send to the processes
     local processes=( $@ )
+
+    # Don't kill init, unless init has been replaced by our parent bash script
+    # in which case we really do want to kill it.
+    if [[ $$ != "1" ]] ; then
+        array_remove processes 1
+        array_empty processes && { edebug "nothing besides init to kill." ; return 0 ; }
+    fi
+
 
     # When debugging, display the full list of processes to kill
     if edebug_enabled ; then
@@ -1654,6 +1708,7 @@ ekilltree()
     local processes=( $(process_tree ${@}) )
     array_remove -a processes ${excluded}
 
+    edebug "Killing $(lval processes signal kill_after excluded)"
     if array_not_empty processes ; then
         ekill -s=${signal} -k=${kill_after} "${processes[@]}"
     fi
@@ -1735,331 +1790,6 @@ lval()
     done
 }
 
-#-----------------------------------------------------------------------------
-# NETWORKING FUNCTIONS
-#-----------------------------------------------------------------------------
-valid_ip()
-{
-    $(declare_args ip)
-    local stat=1
-
-    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        array_init ip "${ip}" "."
-        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
-        stat=$?
-    fi
-    return $stat
-}
-
-hostname_to_ip()
-{
-    $(declare_args hostname)
-
-    local output hostrc ip
-    output="$(host ${hostname} | grep ' has address ' || true)"
-    hostrc=$?
-    edebug "hostname_to_ip $(lval hostname output)"
-    [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-
-    [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-
-    ip=$(echo ${output} | awk '{print $4}')
-
-    valid_ip ${ip} || { ewarn "Resolved ${hostname} into invalid ip address ${ip}." ; return 1 ; }
-
-    echo ${ip}
-    return 0
-}
-
-fully_qualify_hostname()
-{
-    local hostname=${1,,}
-    argcheck hostname
-
-    local output hostrc fqhostname
-    output=$(host ${hostname})
-    hostrc=$?
-    edebug "fully_qualify_hostname: hostname=${hostname} output=${output}"
-    [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-
-    [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-    fqhostname=$(echo ${output} | awk '{print $1}')
-    fqhostname=${fqhostname,,}
-
-    [[ ${fqhostname} =~ ${hostname} ]] || { ewarn "Invalid fully qualified name ${fqhostname} from ${hostname}." ; return 1 ; }
-
-    echo ${fqhostname}
-    return 0
-}
-
-# Get the IPAddress currently bound to the requested interface (if any). It is
-# not an error for an interface to be unbound so this function will not fail if
-# no IPAddress is set on the interface. Instead it will simply return an empty
-# string.
-getipaddress()
-{
-    $(declare_args iface)
-    ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
-}
-
-# Get the netmask (IPv4 dotted notation) currently set on the requested
-# interface (if any). It is not an error for an interface to be unbound so this
-# method will not fail if no Netmask has been set on an interface. Instead it
-# will simply return an empty string.
-getnetmask()
-{
-    $(declare_args iface)
-    local cidr=$(ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
-    [[ -z "${cidr}" ]] && return 0
-
-    cidr2netmask "${cidr}"
-}
-
-# Convert a netmask in IPv4 dotted notation into CIDR notation (e.g 255.255.255.0 => 24).
-# Below is the official chart of all possible valid Netmasks in quad-dotted decimal notation
-# with the associated CIDR value:
-#
-# { "255.255.255.255", 32 }, { "255.255.255.254", 31 }, { "255.255.255.252", 30 }, { "255.255.255.248", 29 },
-# { "255.255.255.240", 28 }, { "255.255.255.224", 27 }, { "255.255.255.192", 26 }, { "255.255.255.128", 25 },
-# { "255.255.255.0",   24 }, { "255.255.254.0",   23 }, { "255.255.252.0",   22 }, { "255.255.248.0",   21 },
-# { "255.255.240.0",   20 }, { "255.255.224.0",   19 }, { "255.255.192.0",   18 }, { "255.255.128.0",   17 },
-# { "255.255.0.0",     16 }, { "255.254.0.0",     15 }, { "255.252.0.0",     14 }, { "255.248.0.0",     13 },
-# { "255.240.0.0",     12 }, { "255.224.0.0",     11 }, { "255.192.0.0",     10 }, { "255.128.0.0",      9 },
-# { "255.0.0.0",        8 }, { "254.0.0.0",        7 }, { "252.0.0.0",        6 }, { "248.0.0.0",        5 },
-# { "240.0.0.0",        4 }, { "224.0.0.0",        3 }, { "192.0.0.0",        2 }, { "128.0.0.0",        1 },
-#
-# From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
-netmask2cidr ()
-{
-    # Assumes there's no "255." after a non-255 byte in the mask 
-    set -- 0^^^128^192^224^240^248^252^254^ ${#1} ${1##*255.} 
-    set -- $(( ($2 - ${#3})*2 )) ${1%%${3%%.*}*} 
-    echo $(( $1 + (${#2}/4) ))
-}
-
-# Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0).
-# This function takes input in the form of just a singular number (e.g. 24) and will echo to
-# standard output the associated IPv4 dotted notation form of that netmask (e.g. 255.255.255.0).
-#
-# See comments in netmask2cidr for a table of all possible netmask/cidr mappings.
-#
-# From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
-cidr2netmask ()
-{
-    # Number of args to shift, 255..255, first non-255 byte, zeroes
-    set -- $(( 5 - ($1 / 8) )) 255 255 255 255 $(( (255 << (8 - ($1 % 8))) & 255 )) 0 0 0
-    [ $1 -gt 1 ] && shift $1 || shift
-    echo ${1-0}.${2-0}.${3-0}.${4-0}
-}
-
-# Get the broadcast address for the requested interface, if any. It is not an
-# error for a network interface not to have a broadcast address associated with
-# it (e.g. loopback interfaces). If no broadcast address is set this will just
-# echo an empty string.
-getbroadcast()
-{
-    $(declare_args iface)
-    ip addr show "${iface}" | awk '/inet [0-9.\/]+ brd .*'${iface}'$/ { print $4 }' || true
-}
-
-# Gets the default gateway that is currently in use, if any. It is not an
-# error for there to be no gateway set. In that case this will simply echo an
-# empty string.
-getgateway()
-{
-    route -n | awk '/UG[ \t]/ { print $2 }' || true
-}
-
-# Compute the subnet given the current IPAddress (ip) and Netmask (nm). If either
-# the provided IPAddress or Netmask is empty then we cannot compute the subnet.
-# As it's not an error to have no IPAddress or Netmask assigned to an unbound
-# interface, getsubnet will not fail in this case. The output will be an empty
-# string and it will return 0.
-getsubnet()
-{
-    $(declare_args ?ip ?nm)
-    [[ -z "${ip}" || -z "${nm}" ]] && return 0
-
-    IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
-    IFS=. read -r m1 m2 m3 m4 <<< "${nm}"
-
-    printf "%d.%d.%d.%d" "$((i1 & m1))" "$(($i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
-}
-
-# Get the MTU that is currently set on a given interface.
-getmtu()
-{
-    $(declare_args iface)
-    ip addr show "${iface}" | grep -Po 'mtu \K[\d.]+'
-}
-
-# Get list of network interfaces
-get_network_interfaces()
-{
-    ls -1 /sys/class/net | egrep -v '(bonding_masters|Bond)' | tr '\n' ' ' || true
-}
-
-# Get list network interfaces with specified "Supported Ports" query.
-get_network_interfaces_with_port()
-{
-    local query="$1"
-    local ifname port
-    local results=()
-
-    for ifname in $(get_network_interfaces); do
-        port=$(ethtool ${ifname} | grep "Supported ports:" || true)
-        [[ ${port} =~ "${query}" ]] && results+=( ${ifname} )
-    done
-
-    echo -n "${results[@]}"
-}
-
-# Get list of 1G network interfaces
-get_network_interfaces_1g()
-{
-    get_network_interfaces_with_port "TP"
-}
-
-# Get list of 10G network interfaces
-get_network_interfaces_10g()
-{
-    get_network_interfaces_with_port "FIBRE"
-}
-
-# Get the permanent MAC address for given ifname.
-# NOTE: Do NOT use ethtool -P for this as that doesn't reliably
-#       work on all cards since the firmware has to support it properly.
-get_permanent_mac_address()
-{
-    $(declare_args ifname)
-
-    if [[ -e /sys/class/net/${ifname}/master ]]; then
-        sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
-            | grep "Permanent HW addr" \
-            | sed -e "s/Permanent HW addr: //"
-    else
-        cat /sys/class/net/${ifname}/address
-    fi
-}
-
-# Get the PCI device location for a given ifname
-# NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
-get_network_pci_device()
-{
-    $(declare_args ifname)
-
-    (cd /sys/class/net/${ifname}/device; basename $(pwd -P))
-}
-
-# Export ethernet device names in the form ETH_1G_0=eth0, etc.
-export_network_interface_names()
-{
-    local idx=0
-    local ifname
-
-    for ifname in $(get_network_interfaces_10g); do
-        eval "ETH_10G_${idx}=${ifname}"
-        (( idx+=1 ))
-    done
-
-    idx=0
-    for ifname in $(get_network_interfaces_1g); do
-        eval "ETH_1G_${idx}=${ifname}"
-        (( idx+=1 ))
-    done
-}
-
-# Get a list of the active network ports on this machine. The result is returned as an array of packs stored in the
-# variable passed to the function.
-#
-# Options:
-#  -l Only include listening ports
-#
-# For example:
-# declare -A ports
-# get_listening_ports ports
-# einfo $(lval +ports[5])
-# >> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
-# einfo $(lval +ports[42])
-# ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
-#
-get_network_ports()
-{
-    $(declare_opts "listening l | Only include listening ports")
-    $(declare_args __ports_list)
-
-    local idx=0
-    local first=1
-    while read line; do
-
-        # Expected netstat format:
-        #  Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
-        #  tcp        0      0 10.30.65.166:4013       0.0.0.0:*               LISTEN      42004/sfapp
-        #  tcp        0      0 10.30.65.166:4014       0.0.0.0:*               LISTEN      42002/sfapp
-        #  tcp        0      0 10.30.65.166:8080       0.0.0.0:*               LISTEN      42013/sfapp
-        #  tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      19221/sshd
-        #  tcp        0      0 0.0.0.0:442             0.0.0.0:*               LISTEN      13159/sfconfig
-        #  tcp        0      0 172.30.65.166:2222      192.168.138.137:35198   ESTABLISHED 6112/sshd: root@not
-        # ...
-        #  udp        0      0 0.0.0.0:123             0.0.0.0:*                           45883/ntpd
-        #  udp        0      0 0.0.0.0:161             0.0.0.0:*                           39714/snmpd
-        #  udp        0      0 0.0.0.0:514             0.0.0.0:*                           39746/rsyslogd
-        #
-        # If netstat cannot determine the program that is listening on that port (not enough permissions) it will substitute a "-":
-        #  tcp        0      0 0.0.0.0:902             0.0.0.0:*               LISTEN      -
-        #  udp        0      0 0.0.0.0:43481           0.0.0.0:*                           -
-        #
-
-        # Compare first line to make sure fields are what we expect
-        if [[ ${first} -eq 1 ]]; then
-            local expected_fields="Proto Recv-Q Send-Q Local Address Foreign Address State PID/Program name"
-            assert_eq "${expected_fields}" "${line}"
-            first=0
-            continue
-        fi
-
-        # Convert the line into an array for easy access to the fields
-        # Replace * with 0 so that we don't get a glob pattern and end up with an array full of filenames from the local directory
-        local fields
-        array_init fields "$(echo ${line} | tr '*' '0')" " :/"
-
-        # Skip this line if this is not TCP or UDP
-        [[ ${fields[0]} =~ (tcp|udp) ]] || continue
-
-        # Skip this line if the -l flag was passed in and this is not a listening port
-        [[ ${listening} -eq 1 && ${fields[0]} == "tcp" && ! ${fields[7]} =~ "LISTEN" ]] && continue
-
-        # If there is a - in the line, then netstat could not determine the program listening on this port.
-        # Remove the - and add empty strings for the last two fields (PID and program name)
-        if [[ ${line} =~ "-" ]]; then
-            array_remove fields "-"
-            fields+=("")
-            fields+=("")
-        fi
-
-        # If this is a UDP port, insert an empty string into the "state" field
-        if [[ ${fields[0]} == "udp" ]]; then
-            fields[9]=${fields[8]}
-            fields[8]=${fields[7]}
-            fields[7]=""
-        fi
-
-        pack_set ${__ports_list}[${idx}] \
-            proto=${fields[0]} \
-            recvq=${fields[1]} \
-            sendq=${fields[2]} \
-            local_addr=${fields[3]} \
-            local_port=${fields[4]} \
-            remote_addr=${fields[5]} \
-            remote_port=${fields[6]} \
-            state=${fields[7]} \
-            pid=${fields[8]} \
-            prog=${fields[9]}
-
-        (( idx += 1 ))
-
-    done <<< "$(netstat --all --program --numeric --protocol=inet 2>/dev/null | sed '1d' | tr -s ' ')"
-}
 
 #-----------------------------------------------------------------------------
 # FILESYSTEM HELPERS
@@ -2282,7 +2012,7 @@ elogfile()
                 # If we are in a cgroup, move the tee process out of that
                 # cgroup so that we do not kill the tee.  It will nicely
                 # terminate on its own once the process dies.
-                if [[ ${EUID} -eq 0 && -n "$(cgroup_current)" ]] ; then
+                if cgroup_supported && [[ ${EUID} -eq 0 && -n "$(cgroup_current)" ]] ; then
                     edebug "Moving tee process out of cgroup"
                     cgroup_move "/" ${BASHPID}
                 fi
@@ -2342,13 +2072,13 @@ etar()
     # Provided an explicit compression program wasn't provided via "-I/--use-compress-program"
     # then automatically determine the compression program to use based on file
     # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    local match=$(echo "$@" | egrep '(-I|--use-compress-program)' || true)
+    local match=$(echo "$@" | grep -E '(-I|--use-compress-program)' || true)
     if [[ -z ${match} ]]; then
 
         local prog=""
-        if [[ -n $(echo "$@" | egrep "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
+        if [[ -n $(echo "$@" | grep -E "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
             prog="pbzip2"
-        elif [[ -n $(echo "$@" | egrep "\.gz|\.tgz|\.taz" || true) ]]; then
+        elif [[ -n $(echo "$@" | grep -E "\.gz|\.tgz|\.taz" || true) ]]; then
             prog="pigz"
         fi
 
@@ -2561,7 +2291,7 @@ emount_count()
 {
     $(declare_args path)
     path=$(emount_realpath ${path})
-    local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts || true)
+    local num_mounts=$(list_mounts | grep --count --perl-regexp "$(emount_regex ${path})" || true)
     echo -n ${num_mounts}
 }
 
@@ -2626,7 +2356,20 @@ efindmnt()
     emounted "${path}" && echo "${path}" || true
 
     # Now look for anything beneath that directory
-    grep --perl-regexp "(^| )${path}[/ ]" /proc/mounts | awk '{print $2}' | sed '/^$/d' || true
+    list_mounts | grep --perl-regexp "(^| )${path}[/ ]" | awk '{print $2}' | sed '/^$/d' || true
+}
+
+list_mounts()
+{
+    if [[ ${__BU_OS} == Linux ]] ; then
+        cat /proc/mounts
+
+    elif [[ ${__BU_OS} == Darwin ]] ; then
+        mount
+
+    else
+        die "Cannot list mounts for unsupported OS $(lval __BU_OS)"
+    fi
 }
 
 eunmount_recursive()
@@ -2775,6 +2518,9 @@ declare_args()
             die "Invalid argument passed to declare_args: $1"
         fi
 
+# TODO modell
+newdecl_args()
+{
         local arg_full=${BASH_REMATCH[1]}
         local docstring=${BASH_REMATCH[3]:-}
 
@@ -3430,6 +3176,7 @@ etimeout()
     (
         disable_die_parent
         "${cmd[@]}"
+        local rc=$?
     ) &
     local pid=$!
     edebug "Executing $(lval cmd timeout signal pid)"
@@ -3688,149 +3435,6 @@ setvars()
     return 0
 }
 
-#-----------------------------------------------------------------------------
-# LOCKFILES
-#-----------------------------------------------------------------------------
-
-declare -A __BU_ELOCK_FDMAP
-
-# elock is a wrapper around flock(1) to create a file-system level lockfile
-# associated with a given filename. This is an advisory lock only and requires
-# all callers to use elock/eunlock in order to protect the file. This method
-# is easier to use than calling flock directly since it will automatically
-# open a file descriptor to associate with the lockfile and store that off in
-# an associative array for later use.
-#
-# These locks are exclusive. In the future we may support a -s option to pass
-# into flock to make them shared but at present we don't need that behavior.
-#
-# These locks are NOT recursive. Which means if you already own the lock and
-# you try to acquire the lock again it will return an error immediately to
-# avoid hanging.
-#
-# The file descriptor associated with the lockfile is what keeps the lock
-# alive. This means you need to either explicitly call eunlock to unlock the
-# file and close the file descriptor OR simply put it in a subshell and it
-# will automatically be closed and freed up when the subshell exits.
-#
-# Lockfiles are inherited by subshells. Specifically, a subshell will see the
-# file locked and has the ability to unlock that file. This may seem odd since
-# subshells normally cannot modify parent's state. But in this case it is
-# in-kernel state being modified for the process which the parent and subshell
-# share. The one catch here is that our internal state variable __BU_ELOCK_FDMAP
-# will become out of sync when this happens because a call to unlock inside
-# a subshell will unlock it but cannot remove from our parent's FDMAP. All of
-# these functions deal with this possibility properly by not considering the
-# FDMAP authoritative. Instead, rely on flock for error handling where possible
-# and even if we have a value in our map check if it's locked or not before
-# failing any operations.
-#
-# To match flock behavior, if the file doesn't exist it is created.
-#
-elock()
-{
-    $(declare_args fname)
-    
-    # Create file if it doesn't exist
-    [[ -e ${fname} ]] || touch ${fname} 
- 
-    # Check if we already have a file descriptor for this lockfile. If we do
-    # don't fail immediately but check if that file is actually locked. If so
-    # return an error to avoid causing deadlock. If it's not locked, purge the
-    # stale entry with a warning.
-    local fd=$(elock_get_fd "${fname}" || true)
-    if [[ -n ${fd} ]]; then
-
-        if elock_locked "${fname}"; then
-            eerror "$(lval fname) already locked"
-            return 1
-        fi
-
-        ewarn "Purging stale lock entry $(lval fname fd)"
-        eunlock ${fname}
-    fi
-   
-    # Open an auto-assigned file descriptor with the associated file
-    edebug "Locking $(lval fname)"
-    local fd
-    exec {fd}<${fname}
-
-    if flock --exclusive ${fd}; then
-        edebug "Successfully locked $(lval fname fd)"
-        __BU_ELOCK_FDMAP[$fname]=${fd}
-        return 0
-    else
-        edebug "Failed to lock $(lval fname fd)"
-        exec ${fd}<&-
-        return 1
-    fi
-}
-
-# eunlock is the logical analogue to elock. It's still essentially a wrapper 
-# around "flock -u" to unlock a previously locked file. This will ensure the
-# lock file is in our associative array and if not return an error. Then it
-# will simply call into flock to unlock the file. If successful, it will 
-# close remove the file descriptor from our file descriptor associative array.
-eunlock()
-{
-    $(declare_args fname)
- 
-    local fd=$(elock_get_fd "${fname}" || true)
-    if [[ -z ${fd} ]]; then
-        eerror "$(lval fname) not locked"
-        return 1
-    fi
-    
-    edebug "Unlocking $(lval fname fd)"
-    flock --unlock ${fd}
-    eval "exec ${fd}>&-"
-    unset __BU_ELOCK_FDMAP[$fname]
-}
-
-# Get the file descriptor (if any) that our process has associated with a given
-# on-disk lockfile. This is largely for convenience inside elock and eunlock
-# to avoid some code duplication but could also be used externally if needed.
-#
-elock_get_fd()
-{
-    $(declare_args fname)
-    local fd="${__BU_ELOCK_FDMAP[$fname]:-}"
-    if [[ -z "${fd}" ]]; then
-        return 1
-    else
-        echo -n "${fd}"
-        return 0
-    fi
-}
-
-
-# Check if a file is locked via elock. This simply looks for the file inside
-# our associative array because flock doesn't provide a native way to check
-# if we have a file locked or not.
-elock_locked()
-{
-    $(declare_args fname)
-
-    # If the file doesn't exist then we can't check if it's locked
-    [[ -e ${fname} ]] || return 1
-
-    local fd
-    exec {fd}<${fname}
-    if flock --exclusive --nonblock ${fd}; then
-        flock --unlock ${fd}
-        return 1
-    else
-        return 0
-    fi
-}
-
-# Check if a file is not locked via elock. This simply loosk for the file inside
-# our associative array because flock doesn't provide a native way to check
-# if we have a file locked or not.
-elock_unlocked()
-{
-    ! elock_locked $@
-}
 
 #-----------------------------------------------------------------------------
 # ARRAYS
