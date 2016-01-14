@@ -2481,6 +2481,13 @@ eunmount_recursive()
     done
 }
 
+# Recursively unmount and recursively remove a given list of paths.
+eunmount_rm()
+{
+    eunmount_recursive "${@}"
+    rm -rf "${@}"
+}
+
 #-----------------------------------------------------------------------------
 # DISTRO-SPECIFIC
 #-----------------------------------------------------------------------------
