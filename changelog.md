@@ -40,6 +40,10 @@
       often shorter than what we were previously using which is nice, but the
       big thing here is that we can tell people to not use those.
 
+    - Etest now runs under Mac OS, given appropriate GNU toolchains installed
+      with names prefixed with "g" (which seems to be the default for both
+      homebrew and macports).
+
 # Bashutils 1.2
 
     - Removed the option parsing functionality from declare_args and let its
