@@ -45,7 +45,6 @@ squashfs_list()
 # squashfs_mount will perform the following actions:
 # (1) Mount squashfs image read-only
 # (2) Mount read-write later on top of the read-only layer using overlayfs
-# (3) Mount pseudo-filesystem directories on top (e.g. /dev, /sys, /proc).
 squashfs_mount()
 {
     $(declare_args src dest)

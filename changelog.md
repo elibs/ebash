@@ -10,6 +10,11 @@
       have to use an equal sign to specify a value for an option (although you
       still may)
 
+    - Added squashfs module to provide cleaner and more consistent interface
+      for operating on squashfs images. Provides a common set of functions 
+      for easier use of squashfs images, including: create, extract, list,
+      mount, unmount, to_iso, from_iso, to_tar, from_tar, diff, save_rw_layer.
+
 
 # Bashutils 1.1
 
