@@ -8,7 +8,7 @@
 #-----------------------------------------------------------------------------
 valid_ip()
 {
-    $(newdecl_args ip)
+    $(declare_args ip)
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -21,7 +21,7 @@ valid_ip()
 
 hostname_to_ip()
 {
-    $(newdecl_args hostname)
+    $(declare_args hostname)
 
     local output hostrc ip
     output="$(host ${hostname} | grep ' has address ' || true)"
@@ -72,7 +72,7 @@ fully_qualify_hostname()
 # string.
 getipaddress()
 {
-    $(newdecl_args iface)
+    $(declare_args iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
@@ -82,7 +82,7 @@ getipaddress()
 # will simply return an empty string.
 getnetmask()
 {
-    $(newdecl_args iface)
+    $(declare_args iface)
     local cidr=$(ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
@@ -132,7 +132,7 @@ cidr2netmask ()
 # echo an empty string.
 getbroadcast()
 {
-    $(newdecl_args iface)
+    $(declare_args iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ brd .*'${iface}'$/ { print $4 }' || true
 }
 
@@ -151,7 +151,7 @@ getgateway()
 # string and it will return 0.
 getsubnet()
 {
-    $(newdecl_args ?ip ?nm)
+    $(declare_args ?ip ?nm)
     [[ -z "${ip}" || -z "${nm}" ]] && return 0
 
     IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
@@ -163,14 +163,14 @@ getsubnet()
 # Get the MTU that is currently set on a given interface.
 getmtu()
 {
-    $(newdecl_args iface)
+    $(declare_args iface)
     ip addr show "${iface}" | grep -Po 'mtu \K[\d.]+'
 }
 
 # Get list of network interfaces
 get_network_interfaces()
 {
-    ls -1 /sys/class/net | grep -E -v '(bonding_masters|Bond)' | tr '\n' ' ' || true
+    ls -1 /sys/class/net | egrep -v '(bonding_masters|Bond)' | tr '\n' ' ' || true
 }
 
 # Get list network interfaces with specified "Supported Ports" query.
@@ -205,7 +205,7 @@ get_network_interfaces_10g()
 #       work on all cards since the firmware has to support it properly.
 get_permanent_mac_address()
 {
-    $(newdecl_args ifname)
+    $(declare_args ifname)
 
     if [[ -e /sys/class/net/${ifname}/master ]]; then
         sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
@@ -220,7 +220,7 @@ get_permanent_mac_address()
 # NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
 get_network_pci_device()
 {
-    $(newdecl_args ifname)
+    $(declare_args ifname)
 
     (cd /sys/class/net/${ifname}/device; basename $(pwd -P))
 }
@@ -260,7 +260,7 @@ export_network_interface_names()
 get_network_ports()
 {
     $(declare_opts "listening l | Only include listening ports")
-    $(newdecl_args __ports_list)
+    $(declare_args __ports_list)
 
     local idx=0
     local first=1
