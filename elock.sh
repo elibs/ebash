@@ -47,7 +47,7 @@ declare -A __BU_ELOCK_FDMAP
 #
 elock()
 {
-    $(newdecl_args fname)
+    $(declare_args fname)
     
     # Create file if it doesn't exist
     [[ -e ${fname} ]] || touch ${fname} 
@@ -91,7 +91,7 @@ elock()
 # close remove the file descriptor from our file descriptor associative array.
 eunlock()
 {
-    $(newdecl_args fname)
+    $(declare_args fname)
  
     local fd=$(elock_get_fd "${fname}" || true)
     if [[ -z ${fd} ]]; then
@@ -111,7 +111,7 @@ eunlock()
 #
 elock_get_fd()
 {
-    $(newdecl_args fname)
+    $(declare_args fname)
     local fd="${__BU_ELOCK_FDMAP[$fname]:-}"
     if [[ -z "${fd}" ]]; then
         return 1
@@ -127,7 +127,7 @@ elock_get_fd()
 # if we have a file locked or not.
 elock_locked()
 {
-    $(newdecl_args fname)
+    $(declare_args fname)
 
     # If the file doesn't exist then we can't check if it's locked
     [[ -e ${fname} ]] || return 1

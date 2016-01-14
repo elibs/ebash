@@ -264,15 +264,10 @@ get_stream_fd()
 #
 close_fds()
 {
-    if [[ ${__BU_OS} != "Linux" ]] ; then
-        # Not supported away from linux at the moment.
-        return 0
-    fi
-
     # Note grab file descriptors for the current process, not the one inside
     # the command substitution ls here.
     local pid=$BASHPID
-    local fds=( $(ls /proc/${pid}/fd/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ') )
+    local fds=( $(ls $(fd_path)/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ') )
 
     array_empty fds && return 0
 
@@ -285,10 +280,10 @@ close_fds()
 fd_path()
 {
     if [[ ${__BU_OS} == Linux ]] ; then
-        echo /proc/${BASHPID}/fd/
+        echo /proc/self/fd
 
     elif [[ ${__BU_OS} == Darwin ]] ; then
-        echo /dev/fd/
+        echo /dev/fd
 
     else
         die "Unsupported OS $(lval __BU_OS)"
@@ -2008,7 +2003,6 @@ elogfile()
             disable_die_parent
             close_fds
             ( 
-
                 # If we are in a cgroup, move the tee process out of that
                 # cgroup so that we do not kill the tee.  It will nicely
                 # terminate on its own once the process dies.
@@ -2026,6 +2020,7 @@ elogfile()
                 #
                 trap "" ${TTY_SIGNALS[@]}
                 echo "${BASHPID}" >${pid_pipe}
+
 
                 if [[ ${tail} -eq 1 ]]; then
                     tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
