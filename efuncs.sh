@@ -2518,9 +2518,6 @@ declare_args()
             die "Invalid argument passed to declare_args: $1"
         fi
 
-# TODO modell
-newdecl_args()
-{
         local arg_full=${BASH_REMATCH[1]}
         local docstring=${BASH_REMATCH[3]:-}
 
