@@ -3,6 +3,8 @@
 # Copyright 2012-2013, SolidFire, Inc. All rights reserved.
 #
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 # daemon_init is used to initialize the options pack that all of the various
 # daemon_* functions will use. This makes it easy to specify global settings
 # for all of these daemon functions without having to worry about consistent

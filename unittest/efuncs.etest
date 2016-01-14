@@ -94,6 +94,8 @@ ETEST_local_variables_masking_errors()
     die "try block should have thrown"
 }
 
+if [[ ${__BU_OS} == Linux ]] ; then
+
 ETEST_get_listening_network_ports()
 {
     local ports
@@ -105,6 +107,8 @@ ETEST_get_listening_network_ports()
     done
     die "Could not find port 22"
 }
+
+fi
 
 ETEST_signals()
 {
@@ -136,21 +140,21 @@ ETEST_close_fds()
     etestmsg "Opening file descriptors to my test files"
     exec 53>${FUNCNAME}_A 54>${FUNCNAME}_B 55>${FUNCNAME}_C
     local localpid=$BASHPID
-    ls -ltr /proc/$localpid/fd/
+    ls -ltr $(fd_path)
 
     # Yup, they're open
-    assert test -L /proc/$localpid/fd/53
-    assert test -L /proc/$localpid/fd/54
-    assert test -L /proc/$localpid/fd/55
+    assert test -e $(fd_path)/53
+    assert test -e $(fd_path)/54
+    assert test -e $(fd_path)/55
 
     etestmsg "Closing file descriptors"
     close_fds
-    ls -ltr /proc/$localpid/fd/
+    ls -ltr $(fd_path)
 
     # Yup, they're closed
-    assert_false test -L /proc/$localpid/fd/53
-    assert_false test -L /proc/$localpid/fd/54
-    assert_false test -L /proc/$localpid/fd/55
+    assert_false test -e $(fd_path)/53
+    assert_false test -e $(fd_path)/54
+    assert_false test -e $(fd_path)/55
 }
 
 ETEST_process_hierarchy()
@@ -171,7 +175,7 @@ ETEST_process_hierarchy()
                 echo $BASHPID >> ${my_processes_file}
                 (
                     etestmsg "Process tree"
-                    pstree -lp $$
+                    pstree $$
 
                     process_ancestors ${BASHPID} > ${ancestors_file}
                     process_ancestors > ${ancestors_noarg_file}
@@ -212,7 +216,7 @@ ETEST_process_hierarchy()
     array_sort my_processes ancestors ancestors_noarg children tree
 
 
-    etestmsg "Verifying ancestors"
+    etestmsg "Verifying ancestors $(lval ancestors process)"
     # Note: there will be ancestors in the list that I don't know about
     # (for instance, the etest processes), but I know that the processes I
     # created and added to pids should be in there.  And so should init -- it's
@@ -226,7 +230,7 @@ ETEST_process_hierarchy()
     assert_false array_contains ancestors 0
     assert_false array_contains ancestors_noarg 0
 
-    etestmsg "Verifying tree contains my processes"
+    etestmsg "Verifying tree contains my processes $(lval tree my_processes)"
     for process in ${my_processes[@]} ; do
         assert array_contains tree ${process}
     done
