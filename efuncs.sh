@@ -1711,7 +1711,7 @@ print_value()
 # Log a list of variable in tag="value" form similar to our C++ logging idiom.
 # This function is variadic (takes variable number of arguments) and will log
 # the tag="value" for each of them. If multiple arguments are given, they will
-# be separated by a space, as in: tag="value" tag2="value" tag3="value3"
+# be separated by a space, as in: tag="value" tag2="value2" tag3="value3"
 #
 # This is implemented via calling print_value on each entry in the argument
 # list. The one other really handy thing this does is understand our C++
