@@ -334,5 +334,3 @@ get_network_ports()
 
     done <<< "$(netstat --all --program --numeric --protocol=inet 2>/dev/null | sed '1d' | tr -s ' ')"
 }
-
-fi
