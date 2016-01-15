@@ -38,6 +38,11 @@ CGROUP_SUBSYSTEMS=(cpu memory freezer)
 #
 cgroup_supported()
 {
+    if [[ ! -e /proc/cgroups ]] ; then
+        edebug "No support for cgroups."
+        return 1
+    fi
+
     local subsystem missing_count=0
     for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
         if ! grep -qw "^${subsystem}" /proc/cgroups ; then
@@ -49,6 +54,7 @@ cgroup_supported()
     return ${missing_count}
 }
 
+[[ ${__BU_OS} == Linux ]] || return 0
 
 #-------------------------------------------------------------------------------
 # Prior to using a cgroup, you must create it.  It is safe to attempt to
