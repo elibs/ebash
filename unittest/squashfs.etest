@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 teardown()
 {
     # Ensure there are no stale squashfs mounts
