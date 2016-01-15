@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2015, SolidFire, Inc. All rights reserved.
+# Copyright 2016, SolidFire, Inc. All rights reserved.
 
 #-------------------------------------------------------------------------------
 # The squashfs module is the bashutils interface around squashfs images. It
@@ -8,19 +8,27 @@
 # existing install and test code bases. Basically adding new functions to better
 # encapsulate our use of squashfs images and provide missing functionality not
 # provided by upstream squashfs-tools package.
+#
+# squashfs images are rapidly becoming a very common medium used throughout our
+# build, install, test and upgrade code due to their high compressibility, small
+# resultant size, massive parallelization on both create and unpack and that 
+# they can be directly mounted and booted into. Given how much we use them 
+# it made sense to build a common set of utilities around their use.
 #-------------------------------------------------------------------------------
 
 # Create a squashfs image from a given directory. This is simply a passthrough
 # operation into native mksquashfs from squashfs-tools. Please see that tool's
 # documentation for usage and flags.
+# 
+# NOTE: mksquashfs requires any option flags be at the END of the command line.
 squashfs_create()
 {
     mksquashfs "${@}"
 }
 
-# Extract a previously constructed squashfs image. This is simply a passthrough
-# operation into native unsquashfs from squashfs-tools. Please see that tool's
-# documentation for usage and flags.
+# Extract a previously constructed squashfs image. This is not a passthrough
+# operation into unsquashfs b/c that tool requires any options must be BEFORE
+# the mount points to be unmounted which is really inconvenient for passthrough.
 squashfs_extract()
 {
     $(declare_args src dest)
@@ -28,7 +36,9 @@ squashfs_extract()
     unsquashfs -dest "${dest}" "${src}"
 }
 
-# Simple function to list the contents of a squashfs image.
+# Simple function to list the contents of a squashfs image. squashfs-tools
+# doesn't provide a way to do this natively, so this function has to mount
+# the requested image in order to view its contents.
 squashfs_list()
 {
     $(declare_args src)
@@ -42,30 +52,64 @@ squashfs_list()
     )
 }
 
-# squashfs_mount will perform the following actions:
-# (1) Mount squashfs image read-only
-# (2) Mount read-write later on top of the read-only layer using overlayfs
+# squashfs_mount mounts one or more squashfs images read-write. The two really
+# important things about this function that set it apart from doing a normal
+# mount of a squashfs image:
+#
+# (1) Takes multiple squashfs images and layers them on top of one another
+#     so the contents of all of them are seen in the final mounted directory.
+#     This is a read-through filesystem such that higher layers mask out the 
+#     contents of lower layers in the event of conflicts.
+#
+# (2) The final mounted directory is read-write rather than read-only. This
+#     is super important since normally squashfs images can only be mounted
+#     read-only. This is achieved by mounting the squashfs image into a temp
+#     directory, then using overlayfs to mount a read-write layer on top of
+#     the read-only layer. Any CHANGES are NOT PERSISTENT! You can use
+#     the squashfs_save_changes function to save the changes if necessary.
+#
+# NOTE: The last argument in the list of positional parameters is the final
+#       mount point to mount all the images at.
 squashfs_mount()
 {
-    $(declare_args src dest)
+    if [[ $# -lt 2 ]]; then
+        eerror "squashfs_mount requires 2 or more arguments"
+        return 1
+    fi
+
+    # Parse positional arguments into a bashutils array. Then grab final mount
+    # point from args and create lowerdir parameter by joining all images with colon
+    # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
+    local args=( "$@" )
+    local dest=${args[${#args[@]}-1]}
+    unset args[${#args[@]}-1]
+   
+    # Iterate through all the images and mount each one into a temporary directory
+    local arg
+    local layers=()
+    for arg in "${args[@]}"; do
+        local tmp=$(mktemp -d /tmp/squashfs-ro-XXXX)
+        mount --types squashfs --read-only "${arg}" "${tmp}"
+        trap_add "eunmount_rm ${tmp} |& edebug"
+        layers+=( "${tmp}" )
+    done
 
     # Create temporary directory to hold read-only and read-write layers
-    local dest_ro="$(mktemp -d /tmp/squashfs-ro-XXXX)"
-    local dest_rw="$(mktemp -d /tmp/squashfs-rw-XXXX)"
-    local dest_work="$(mktemp -d /tmp/squashfs-work-XXXX)"
-    trap_add "eunmount_rm ${dest_ro} ${dest_rw} ${dest_work} |& edebug"
+    local lower=$(array_join layers ":")
+    local upper="$(mktemp -d /tmp/squashfs-rw-XXXX)"
+    local work="$(mktemp -d /tmp/squashfs-work-XXXX)"
+    trap_add "eunmount_rm ${upper} ${work} |& edebug"
 
-    # Mount squashfs read-only at dest_ro
-    mount --types squashfs --read-only "${src}" "${dest_ro}"
-    
     # Mount layered mounts at requested destination, creating if it doesn't exist.
     mkdir -p "${dest}"
-    mount --types overlay overlay -o lowerdir="${dest_ro}",upperdir="${dest_rw}",workdir="${dest_work}" "${dest}"
+    mount --types overlay overlay -o lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
 }
 
 # squashfs_unmount will unmount a squashfs image that was previously mounted
-# by calling squashfs_mount. It takes multiple arguments where each is the final
-# mount point that the squashfs image was mounted at.
+# via squashfs_mount. It takes multiple arguments where each is the final
+# mount point that the squashfs image was mounted at. In the event there are
+# multiple squashfs images layered into the final mount image, they will all 
+# be unmounted as well.
 squashfs_unmount()
 {
     # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
@@ -73,14 +117,17 @@ squashfs_unmount()
 
     local mnt
     for mnt in "$@"; do
-    
+  
         # Parse out the lower, upper and work directories to be unmounted
         local output="$(grep "overlay $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
         local work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
-        eunmount "${lower}" "${upper}" "${work}" "${mnt}"
-
+        
+        # Split 'lower' on ':' so we can unmount each of the lower layers 
+        local parts
+        array_init parts "${lower}" ":"
+        eunmount ${parts[@]} "${upper}" "${work}" "${mnt}"
     done
 }
 
@@ -111,9 +158,8 @@ squashfs_to_iso()
         fi
 
         local dest_abs="$(readlink -m "${dest}")"
-        pushd ${mnt}
+        cd ${mnt}
         mkisofs -quiet -r "${iso_flags}" -cache-inodes -J -l -o "${dest_abs}" .
-        popd
     )        
 }
 
@@ -145,9 +191,8 @@ squashfs_to_tar()
         # TAR up the given directory and write it out to the requested destination. This will automatically
         # use correct compression based on the file extension.
         local dest_abs="$(readlink -m "${dest}")"
-        pushd "${mnt}"
+        cd "${mnt}"
         etar --create --file "${dest_abs}" .
-        popd
     )
 }
 
@@ -159,7 +204,7 @@ squashfs_from_tar()
     # Put body in a subshell to ensure traps perform clean-up.
     (
         local tmp="$(mktemp -d /tmp/squashfs-tar-XXXX)"
-        trap_add "rm -rf ${tmp} |& edebug"
+        trap_add "rm -rf ${tmp}"
         etar --extract --file "${src}" --directory "${tmp}"
         squashfs_create "${tmp}" "${dest}"
     )
@@ -178,11 +223,11 @@ squashfs_diff()
             mnts+=( "${mnt}" )
         done
 
-        diff --unified "${mnts[@]}"
+        diff --recursive --unified "${mnts[@]}"
     )
 }
 
-squashfs_save_rw_layer()
+squashfs_save_changes()
 {
     $(declare_args mnt dest)
 
