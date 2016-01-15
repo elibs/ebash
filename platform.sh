@@ -18,35 +18,129 @@
 #
 #
 __BU_GNU_TOOLS=(
+    # GNU Coreutils
+    \[
     base64
+    basename
     cat
+    chcon
+    chgrp
+    chmod
+    chown
+    chroot
+    cksum
+    comm
     cp
+    csplit
+    cut
+    date
     dd
-    find
-    grep
+    df
+    dir
+    dircolors
+    dirname
+    du
+    # NOTE: Don't override bash builtin with function.
+    #echo
+    env
+    expand
+    expr
+    factor
+    false
+    fmt
+    fold
+    groups
+    head
+    hostid
+    id
+    install
+    join
+    kill
+    link
+    ln
+    logname
+    ls
     md5sum
+    mkdir
+    mkfifo
+    mknod
     mktemp
+    mv
+    nice
+    nl
+    nohup
+    nproc
+    numfmt
+    od
+    paste
+    pathchk
+    pinky
+    pr
+    printenv
+    # NOTE: Don't override bash builtin with function
+    # printf
+    ptx
+    # NOTE: Don't override bash builtin with function
+    #pwd
     readlink
-    sed
+    realpath
+    rm
+    rmdir
+    runcon
+    seq
+    sha1sum
+    sha224sum
     sha256sum
+    sha384sum
+    sha512sum
+    shred
+    shuf
     sleep
     sort
+    split
     stat
-    tar
+    stdbuf
+    stty
+    sum
+    sync
+    tac
+    tail
     tee
+    test
     timeout
+    touch
     tr
+    true
+    truncate
+    tsort
+    tty
+    uname
+    unexpand
+    uniq
+    unlink
+    uptime
+    users
+    vdir
+    wc
+    who
+    whoami
+    yes
+
+    # And these are GNU tools that are not in coreutils but which we also
+    # depend heavily on.
+    find
+    grep
+    readlink
+    sed
+    tar
 )
 
-# Make a function to take the place of every GNU tool in __BU_GNU_TOOLS that
-# calls the g-prefixed version of the same gnu tool
+# Alias every GNU tool that we use to call the g-prefixed version.
 redirect_gnu_tools()
 {
     local tool
     for tool in "${__BU_GNU_TOOLS[@]}" ; do
-
-        eval "function ${tool} { g${tool} \"\${@}\" ; }"
-
+        alias "${tool}=g${tool}"
     done
 }
 

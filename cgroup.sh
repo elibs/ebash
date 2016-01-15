@@ -40,7 +40,7 @@ cgroup_supported()
 {
     if [[ ! -e /proc/cgroups ]] ; then
         edebug "No support for cgroups."
-        return 255
+        return 1
     fi
 
     local subsystem missing_count=0
