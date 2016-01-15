@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+teardown()
+{
+    # Ensure there are no stale squashfs mounts
+    etestmsg "Looking for stale squashfs mounts"
+    assert_empty "$(cat /proc/mounts | grep squashfs)"
+}
+
 ETEST_squashfs_create()
 {
     mkdir -p src
@@ -50,6 +57,7 @@ ETEST_squashfs_iso()
     etestmsg "Converting to ISO"
     squashfs_to_iso src.squashfs src.iso
     mount --read-only src.iso dst
+    trap_add "eunmount dst"
     assert_exists dst/file1 dst/file2
     diff --recursive src dst
 
@@ -138,7 +146,7 @@ ETEST_squashfs_modify()
 
     # Save off the RW layer as a squashfs image
     etestmsg "Saving RW layer as rw.squashfs then unmounting"
-    squashfs_save_rw_layer dst rw.squashfs
+    squashfs_save_changes dst rw.squashfs
     squashfs_unmount dst
 
     # Mount it again - ensure original files unmodified
@@ -162,4 +170,28 @@ ETEST_squashfs_modify()
     assert_eq "File#1" "$(cat dst/file1)"
     assert_eq "File#2" "$(cat dst/file2)"
     squashfs_unmount dst
+}
+
+ETEST_squashfs_layers()
+{
+    etestmsg "Creating multiple squashfs images"
+    mkdir -p src1 src2 src3
+    touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
+    squashfs_create src1 src1.squashfs
+    squashfs_create src2 src2.squashfs
+    squashfs_create src3 src3.squashfs
+
+    # Mount all three images and verify expected contents
+    etestmsg "Mounting all squashfs images into single dst directory"
+    mkdir -p dst
+    squashfs_mount src1.squashfs src2.squashfs src3.squashfs dst
+    assert_exists dst/{file1,file2,file3,file4,file5,file6}
+
+    # Unmount all images
+    etestmsg "Unmounting final image"
+    squashfs_unmount dst
+    assert_not_exists dst/{file1,file2,file3,file4,file5,file6}
+    assert_false grep "src1.squashfs" /proc/mounts
+    assert_false grep "src2.squashfs" /proc/mounts
+    assert_false grep "src3.squashfs" /proc/mounts
 }
