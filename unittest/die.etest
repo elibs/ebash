@@ -10,8 +10,8 @@ ETEST_die_subprocesses()
         bash -c 'sleep 1000' & echo "$!" >> pids
         bash -c 'sleep 4000' & echo "$!" >> pids
 
-        einfo "Processes are running..."
-        cat pids
+        etestmsg "Processes are running..."
+        ps $(cat pids)
 
         die "Killing try block"
     }
@@ -20,9 +20,9 @@ ETEST_die_subprocesses()
         true
     }
 
-    for pid in $(cat pids); do
-        eretry -t=2s process_not_running ${pid}
-    done
+    local pids=$(cat pids)
+    etestmsg "Ensuring processes died $(lval pids)"
+    eretry --timeout 2s process_not_running $(cat pids)
 }
 
 # Ensure if we call die() that any subshell registered traps are executed before exit.

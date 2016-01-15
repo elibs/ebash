@@ -34,9 +34,15 @@ ETEST_TOPDIR=${TEST_DIR}
 [[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
 edebug "$(lval TEST_DIR) $(opt_dump)"
 
-# Global cgroup name for all unit tests
-export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
+if ! cgroup_supported ; then
+    ewarn "Cgroups not supported on this system.  Process leaks will not be detected."
+    export ETEST_CGROUP_BASE=unsupported
+else
+    # Global cgroup name for all unit tests
+    export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
+fi
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
+
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
@@ -45,7 +51,7 @@ elogfile --rotate_count=1 --tail=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
 if [[ ${verbose} -eq 0 ]]; then
-    ETEST_OUT="/proc/self/fd/${ETEST_STDERR_FD}"
+    ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
     TEST_OUT="/dev/null"
 else
     ETEST_OUT="/dev/null"
@@ -130,9 +136,11 @@ global_setup()
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
     efreshdir ${TEST_DIR_OUTPUT}
 
-    # And a cgroup that will contain all output
-    cgroup_create ${ETEST_CGROUP}
-    cgroup_move ${ETEST_CGROUP_BASE} $$
+    if cgroup_supported ; then
+        # And a cgroup that will contain all output
+        cgroup_create ${ETEST_CGROUP}
+        cgroup_move ${ETEST_CGROUP_BASE} $$
+    fi
 
     edebug "Finished global_setup"
     return 0
@@ -143,7 +151,9 @@ global_teardown()
     [[ ${keep} -eq 1 ]] && edebug "Skipping global_teardown" && return 0
     edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
-    cgroup_destroy -r ${ETEST_CGROUP}
+    if cgroup_supported ; then
+        cgroup_destroy -r ${ETEST_CGROUP}
+    fi
 
     eunmount_recursive ${TEST_DIR_OUTPUT} |& edebug
     rm -rf ${TEST_DIR_OUTPUT}
@@ -184,8 +194,10 @@ run_single_test()
         # weren't running it inside a try/catch
         __EFUNCS_INSIDE_TRY=0
 
-        cgroup_create ${ETEST_CGROUP}
-        cgroup_move ${ETEST_CGROUP} ${BASHPID}
+        if cgroup_supported ; then
+            cgroup_create ${ETEST_CGROUP}
+            cgroup_move ${ETEST_CGROUP} ${BASHPID}
+        fi
 
         # Unit test provided setup
         if declare -f setup &>/dev/null ; then
@@ -270,7 +282,10 @@ run_all_tests_in_file()
             __EFUNCS_INSIDE_TRY=0
 
             ( run_single_test ${testfile} ${testfunc} )
-            assert_no_process_leaks
+
+            if cgroup_supported ; then
+                assert_no_process_leaks
+            fi
         }
         catch
         {
