@@ -135,11 +135,11 @@ squashfs_unmount()
 # to create the requested ISO image.
 squashfs_to_iso()
 {
+    $(declare_opts \
+        ":volume v  | Volume name to be written into the master block." \
+        "bootable b | Make this a bootable ISO.")
+ 
     $(declare_args src dest)
-
-    # Optional flags to pass through into mkisofs
-    local volume=$(opt_get v "")
-    local bootable=$(opt_get b 0)
 
     # Put body in a subshell to ensure traps perform clean-up.
     (
