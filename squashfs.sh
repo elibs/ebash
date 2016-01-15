@@ -1,5 +1,7 @@
 #!/bin/bash
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 # Copyright 2016, SolidFire, Inc. All rights reserved.
 
 #-------------------------------------------------------------------------------
