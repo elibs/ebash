@@ -16,6 +16,10 @@
 # it made sense to build a common set of utilities around their use.
 #-------------------------------------------------------------------------------
 
+# Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
+# use just 'overlay' so dynamically detected the correct type to use here.
+__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems)
+
 # Create a squashfs image from a given directory. This is simply a passthrough
 # operation into native mksquashfs from squashfs-tools. Please see that tool's
 # documentation for usage and flags.
@@ -102,7 +106,7 @@ squashfs_mount()
 
     # Mount layered mounts at requested destination, creating if it doesn't exist.
     mkdir -p "${dest}"
-    mount --types overlay overlay -o lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
+    mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} -o lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
 }
 
 # squashfs_unmount will unmount a squashfs image that was previously mounted
@@ -119,7 +123,7 @@ squashfs_unmount()
     for mnt in "$@"; do
   
         # Parse out the lower, upper and work directories to be unmounted
-        local output="$(grep "overlay $(readlink -m ${mnt})" /proc/mounts)"
+        local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
         local work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
@@ -239,7 +243,7 @@ squashfs_save_changes()
 
     # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
     # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "overlay $(readlink -m ${mnt})" /proc/mounts)"
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
     edebug "$(lval mnt dest output)"
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
     squashfs_create "${upper}" "${dest}"
