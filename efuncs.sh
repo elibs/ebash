@@ -14,8 +14,6 @@ shopt -s expand_aliases
 shopt -s checkwinsize
 shopt -s extglob
 
-# Locale setup to ensure sort and other GNU tools behave sanely
-: ${__BU_OS:=$(uname)}
 if [[ "${__BU_OS}" == Linux ]] ; then
     export LC_ALL="en_US.utf8"
     export LANG="en_US.utf8"
@@ -433,7 +431,7 @@ tryrc()
             [[ -n ${stderr} ]] && exec 2>${stderr_file}
 
             # Run command
-            "${cmd[@]}"
+            quote_eval "${cmd[@]}"
         fi
     }
     catch
@@ -1026,7 +1024,7 @@ ebanner()
 emsg()
 {
     # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX:-} | grep -E -o "(time|times|level|caller|all)" || true)
+    local emsg_prefix=$(echo ${EMSG_PREFIX:-} | egrep -o "(time|times|level|caller|all)" || true)
 
     [[ ${EFUNCS_TIME:=0} -eq 1 ]] && emsg_prefix+=time
 
@@ -2067,13 +2065,13 @@ etar()
     # Provided an explicit compression program wasn't provided via "-I/--use-compress-program"
     # then automatically determine the compression program to use based on file
     # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    local match=$(echo "$@" | grep -E '(-I|--use-compress-program)' || true)
+    local match=$(echo "$@" | egrep '(-I|--use-compress-program)' || true)
     if [[ -z ${match} ]]; then
 
         local prog=""
-        if [[ -n $(echo "$@" | grep -E "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
+        if [[ -n $(echo "$@" | egrep "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
             prog="pbzip2"
-        elif [[ -n $(echo "$@" | grep -E "\.gz|\.tgz|\.taz" || true) ]]; then
+        elif [[ -n $(echo "$@" | egrep "\.gz|\.tgz|\.taz" || true) ]]; then
             prog="pigz"
         fi
 
@@ -2152,7 +2150,7 @@ emetadata()
     # Now output MD5, SHA1, and SHA256
     local ctype
     for ctype in MD5 SHA1 SHA256; do
-        echo "${ctype}=$(${ctype,,}sum "${path}" | awk '{print $1}')"
+        echo "${ctype}=$(eval ${ctype,,}sum "${path}" | awk '{print $1}')"
     done
 
     # If PGP signature is NOT requested we can simply return
@@ -2233,7 +2231,7 @@ emetadata_check()
         if pack_contains metapack "${ctype}"; then
             (
                 expect=$(pack_get metapack ${ctype})
-                actual=$(${ctype,,}sum ${path} | awk '{print $1}')
+                actual=$(eval ${ctype,,}sum ${path} | awk '{print $1}')
                 [[ ${expect} == ${actual} ]] || fail "${ctype} mismatch: $(lval path expect actual)"
             ) &
 
@@ -3167,7 +3165,7 @@ etimeout()
     local rc=""
     (
         disable_die_parent
-        "${cmd[@]}"
+        quote_eval "${cmd[@]}"
         local rc=$?
     ) &
     local pid=$!
@@ -3425,6 +3423,56 @@ setvars()
     fi
 
     return 0
+}
+
+## Ever want to evaluate a bash command that is stored in an array?  It's
+## mostly a great way to do things.  Keeping the various arguments separate in
+## the array means you don't have to worry about quoting.  Bash keeps the
+## quoting you gave it in the first place.  So the typical way to run such a
+## command is like this:
+##
+##     > cmd=(echo "\$\$")
+##     > "${cmd[@]}"
+##     $$
+##
+##  As you can see, since the dollar signs were quoted as the command was put
+##  into the array, so the quoting was retained when the command was executed.
+##  If you had instead used eval, you wouldn't get that behavior:
+##
+##     > cmd=(echo "\$\$")
+##     > "${cmd[@]}"
+##     53355
+##
+##  Instead, the argument gets "evaluated" by bash, turning it into the current
+##  process id.  So if you're storing commands in an array, you can see that
+##  you typically don't want to use eval.
+##
+##  But there's a wrinkle, of course.  If the first item in your array is the
+##  name of an alias, bash won't expand that alias when using the first syntax.
+##  This is because alias expansion happens in a stage _before_ bash expands
+##  the contents of the variable.
+##
+##  So what can you do if you want alias expansion to happen but also want
+##  things in the array to be quoted properly?  Use `quote_array`.  It will
+##  ensure that all of the arguments don't get evaluated by bash, but that the
+##  name of the command _does_ go through alias expansion.
+##
+##      > cmd=(echo "\$\$")
+##      > quote_eval "${cmd[@]}"
+##      $$
+##
+##  There, wasn't that simple?
+##
+quote_eval()
+{
+    local cmd=("$1")
+    shift
+
+    for arg in "${@}" ; do
+        cmd+=( "$(printf %q "${arg}")" )
+    done
+
+    eval "${cmd[@]}"
 }
 
 
