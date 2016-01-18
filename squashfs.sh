@@ -101,7 +101,7 @@ squashfs_mount()
     local arg
     local layers=()
     for arg in "${args[@]}"; do
-        local tmp=$(mktemp -d /tmp/squashfs-ro-XXXX)
+        local tmp=$(mktemp -d /tmp/squashfs-lower-XXXX)
         mount --types squashfs --read-only "${arg}" "${tmp}"
         trap_add "eunmount_rm ${tmp} |& edebug"
         layers+=( "${tmp}" )
@@ -109,7 +109,7 @@ squashfs_mount()
 
     # Create temporary directory to hold read-only and read-write layers
     local lower=$(array_join layers ":")
-    local upper="$(mktemp -d /tmp/squashfs-rw-XXXX)"
+    local upper="$(mktemp -d /tmp/squashfs-upper-XXXX)"
     local work="$(mktemp -d /tmp/squashfs-work-XXXX)"
     trap_add "eunmount_rm ${upper} ${work} |& edebug"
 
@@ -204,6 +204,55 @@ squashfs_unmount()
         squashfs_unmount ${parts[0]:-}
     done
 }
+
+# squashfs_tree is used to display a graphical representation for a squashfs
+# mount. The graphical format is meant to show details about each layer in the
+# overlayfs mount hierarchy to make it clear what files reside in what layers
+# along with some basic metadata about each file (as provided by find -ls).
+squashfs_tree()
+{
+    if [[ -z "$@" ]]; then
+        return 0
+    fi
+
+    # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
+    # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
+
+    local mnt
+    for mnt in "$@"; do
+  
+        # Parse out the lower, upper and work directories to be unmounted
+        local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+        local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
+        local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+        
+        # Split 'lower' on ':' so we can unmount each of the lower layers then
+        # append upper to the list so we see that as well.
+        local parts
+        array_init parts "${lower}" ":"
+        parts+=( "${upper}" )
+        local idx
+        for idx in $(array_indexes parts); do
+            eval "local layer=\${parts[$idx]}"
+
+            # Figure out source of the mountpoint
+            local src=$(grep "${layer}" /proc/mounts | head -1)
+
+            if [[ ${src} =~ "/dev/loop" ]]; then
+                src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
+            elif [[ ${src} =~ "overlay" ]]; then
+                src=$(echo "${src}" | awk '{print $2}')
+
+            fi
+
+            # Pretty print the contents
+            local find_output=$(find ${layer} -ls | awk '{ $1=""; print}' | sed -e "s|${layer}|/|" -e 's|//|/|' | column -t | sort -k11)
+            echo "$(ecolor green)+--layer${idx} [${src}:${layer}]$(ecolor off)"
+            echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
+        done
+    done
+}
+
 
 # Mount the squashfs image read-only and then call mkisofs on that directory
 # to create the requested ISO image.
