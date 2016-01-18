@@ -16,7 +16,7 @@ ETEST_squashfs_create()
 
 ETEST_squashfs_list()
 {
-    mkdir -p src
+    efreshdir src
     touch src/file1 src/file2
     squashfs_create src dst.squashfs
     
@@ -143,6 +143,7 @@ ETEST_squashfs_modify()
     echo "File#2" > dst/file2
     assert_eq "File#1" "$(cat dst/file1)"
     assert_eq "File#2" "$(cat dst/file2)"
+    squashfs_tree dst
 
     # Save off the RW layer as a squashfs image
     etestmsg "Saving RW layer as rw.squashfs then unmounting"
@@ -185,6 +186,7 @@ ETEST_squashfs_layers()
     etestmsg "Mounting all squashfs images into single dst directory"
     mkdir -p dst
     squashfs_mount src1.squashfs src2.squashfs src3.squashfs dst
+    squashfs_tree dst
     assert_exists dst/{file1,file2,file3,file4,file5,file6}
 
     # Unmount all images

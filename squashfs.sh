@@ -16,6 +16,10 @@
 # it made sense to build a common set of utilities around their use.
 #-------------------------------------------------------------------------------
 
+# Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
+# use just 'overlay' so dynamically detected the correct type to use here.
+__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems)
+
 # Create a squashfs image from a given directory. This is simply a passthrough
 # operation into native mksquashfs from squashfs-tools. Please see that tool's
 # documentation for usage and flags.
@@ -32,24 +36,14 @@ squashfs_create()
 squashfs_extract()
 {
     $(declare_args src dest)
-
-    unsquashfs -dest "${dest}" "${src}"
+    unsquashfs -force -dest "${dest}" "${src}"
 }
 
-# Simple function to list the contents of a squashfs image. squashfs-tools
-# doesn't provide a way to do this natively, so this function has to mount
-# the requested image in order to view its contents.
+# Simple function to list the contents of a squashfs image.
 squashfs_list()
 {
     $(declare_args src)
-
-    (
-        local mnt="$(mktemp -d /tmp/squashfs-mnt-XXXX)"
-        mount --types squashfs --read-only "${src}" "${mnt}"
-        trap_add "eunmount_rm "${mnt}" |& edebug"
-
-        find "${mnt}" | sort | sed "s|${mnt}||"
-    )
+    unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|squashfs-root||' -e '/^\s*$/d'
 }
 
 # squashfs_mount mounts one or more squashfs images read-write. The two really
@@ -70,6 +64,20 @@ squashfs_list()
 #
 # NOTE: The last argument in the list of positional parameters is the final
 #       mount point to mount all the images at.
+#
+# NOTE: There are two different actual implementations of this function to 
+#       accomodate different underlying implementations within the kernel.
+#       Kernels < 3.19 had a much more limited version which did not provide
+#       Multi-Layer OverlayFS. As such, we check what version of the kernel
+#       we're running and only define the right implementation for the version
+#       of the kernel that we're running. This saves us from having to perform
+#       this check every time we call this function as it's only done once at
+#       source time.
+__BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
+__BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
+
+# NEWER KERNEL VERSIONS (>= 3.19)
+if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 19 ) ]]; then
 squashfs_mount()
 {
     if [[ $# -lt 2 ]]; then
@@ -77,18 +85,23 @@ squashfs_mount()
         return 1
     fi
 
+    edebug "Using Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
+    
     # Parse positional arguments into a bashutils array. Then grab final mount
     # point from args and create lowerdir parameter by joining all images with colon
     # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
     local args=( "$@" )
     local dest=${args[${#args[@]}-1]}
     unset args[${#args[@]}-1]
-   
+    
+    # Mount layered mounts at requested destination, creating if it doesn't exist.
+    mkdir -p "${dest}"
+     
     # Iterate through all the images and mount each one into a temporary directory
     local arg
     local layers=()
     for arg in "${args[@]}"; do
-        local tmp=$(mktemp -d /tmp/squashfs-ro-XXXX)
+        local tmp=$(mktemp -d /tmp/squashfs-lower-XXXX)
         mount --types squashfs --read-only "${arg}" "${tmp}"
         trap_add "eunmount_rm ${tmp} |& edebug"
         layers+=( "${tmp}" )
@@ -96,14 +109,70 @@ squashfs_mount()
 
     # Create temporary directory to hold read-only and read-write layers
     local lower=$(array_join layers ":")
-    local upper="$(mktemp -d /tmp/squashfs-rw-XXXX)"
+    local upper="$(mktemp -d /tmp/squashfs-upper-XXXX)"
     local work="$(mktemp -d /tmp/squashfs-work-XXXX)"
     trap_add "eunmount_rm ${upper} ${work} |& edebug"
 
+    # Mount overlayfs
+    mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
+}
+
+# OLDER KERNEL VERSIONS (<3.19)
+else
+
+# Ugh. Older OverlayFS is really annoying because you can only stack 2 overlayfs
+# mounts. To get around this, we'll mount the bottom most layer as the read-only 
+# base image. Then we'll unpack all other images into a middle layer. Then mount
+# an empty directory as the top-most directory.
+squashfs_mount()
+{
+    if [[ $# -lt 2 ]]; then
+        eerror "squashfs_mount requires 2 or more arguments"
+        return 1
+    fi
+    
+    edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
+
+    # Parse positional arguments into a bashutils array. Then grab final mount
+    # point from args and create lowerdir parameter by joining all images with colon
+    # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
+    local args=( "$@" )
+    local dest=${args[${#args[@]}-1]}
+    unset args[${#args[@]}-1]
+    
     # Mount layered mounts at requested destination, creating if it doesn't exist.
     mkdir -p "${dest}"
-    mount --types overlay overlay -o lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
+
+    # Grab bottom most layer
+    local lower=$(mktemp -d /tmp/squashfs-mnt-XXXX)
+    mount --types squashfs --read-only "${args[0]}" "${lower}"
+    unset args[0]
+
+    # Extract all remaining layers into empty "middle" directory
+    if array_not_empty args; then
+   
+        local middle=$(mktemp -d /tmp/squashfs-middle-XXXX)
+        trap_add "eunmount_rm ${middle} |& edebug"
+
+        for arg in "${args[@]}"; do
+            edebug "Extracting $(lval arg) to $(lval middle)"
+            squashfs_extract "${arg}" "${middle}"
+        done
+    
+        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
+        lower=${middle}
+    fi
+
+    local upper=$(mktemp -d /tmp/squashfs-upper-XXXX)
+    trap_add "eunmount_rm ${upper} |& edebug"
+
+    # Mount this unpacked directory into overlayfs layer with an empty read-write 
+    # layer on top. This way if caller saves the changes they get only the changes
+    # they made in the top-most layer.
+    mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}" "${dest}"
 }
+
+fi # END squashfs_mount
 
 # squashfs_unmount will unmount a squashfs image that was previously mounted
 # via squashfs_mount. It takes multiple arguments where each is the final
@@ -112,6 +181,10 @@ squashfs_mount()
 # be unmounted as well.
 squashfs_unmount()
 {
+    if [[ -z "$@" ]]; then
+        return 0
+    fi
+
     # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
     # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
 
@@ -119,7 +192,7 @@ squashfs_unmount()
     for mnt in "$@"; do
   
         # Parse out the lower, upper and work directories to be unmounted
-        local output="$(grep "overlay $(readlink -m ${mnt})" /proc/mounts)"
+        local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
         local work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
@@ -127,9 +200,62 @@ squashfs_unmount()
         # Split 'lower' on ':' so we can unmount each of the lower layers 
         local parts
         array_init parts "${lower}" ":"
-        eunmount ${parts[@]} "${upper}" "${work}" "${mnt}"
+        eunmount ${parts[@]:-} "${upper}" "${work}" "${mnt}"
+
+        # Just in case the squashfs images were nested we also have to unmount
+        # lower layers.... should this be an option (e.g. -r / --recursive?)
+        squashfs_unmount ${parts[0]:-}
     done
 }
+
+# squashfs_tree is used to display a graphical representation for a squashfs
+# mount. The graphical format is meant to show details about each layer in the
+# overlayfs mount hierarchy to make it clear what files reside in what layers
+# along with some basic metadata about each file (as provided by find -ls).
+squashfs_tree()
+{
+    if [[ -z "$@" ]]; then
+        return 0
+    fi
+
+    # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
+    # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
+
+    local mnt
+    for mnt in "$@"; do
+  
+        # Parse out the lower, upper and work directories to be unmounted
+        local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+        local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
+        local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+        
+        # Split 'lower' on ':' so we can unmount each of the lower layers then
+        # append upper to the list so we see that as well.
+        local parts
+        array_init parts "${lower}" ":"
+        parts+=( "${upper}" )
+        local idx
+        for idx in $(array_indexes parts); do
+            eval "local layer=\${parts[$idx]}"
+
+            # Figure out source of the mountpoint
+            local src=$(grep "${layer}" /proc/mounts | head -1)
+
+            if [[ ${src} =~ "/dev/loop" ]]; then
+                src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
+            elif [[ ${src} =~ "overlay" ]]; then
+                src=$(echo "${src}" | awk '{print $2}')
+
+            fi
+
+            # Pretty print the contents
+            local find_output=$(find ${layer} -ls | awk '{ $1=""; print}' | sed -e "s|${layer}|/|" -e 's|//|/|' | column -t | sort -k11)
+            echo "$(ecolor green)+--layer${idx} [${src}:${layer}]$(ecolor off)"
+            echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
+        done
+    done
+}
+
 
 # Mount the squashfs image read-only and then call mkisofs on that directory
 # to create the requested ISO image.
@@ -239,7 +365,7 @@ squashfs_save_changes()
 
     # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
     # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "overlay $(readlink -m ${mnt})" /proc/mounts)"
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
     edebug "$(lval mnt dest output)"
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
     squashfs_create "${upper}" "${dest}"
