@@ -166,7 +166,9 @@ squashfs_mount()
     # Mount this unpacked directory into overlayfs layer with an empty read-write 
     # layer on top. This way if caller saves the changes they get only the changes
     # they made in the top-most layer.
-    mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${dest}" "${dest}"
+    local upper=$(mktemp -d /tmp/squashfs-upper-XXXX)
+    trap_add "eunmount_rm ${upper} |& edebug"
+    mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}" "${dest}"
 }
 
 fi # END squashfs_mount
@@ -246,7 +248,7 @@ squashfs_tree()
             fi
 
             # Pretty print the contents
-            local find_output=$(find ${layer} -ls | awk '{ $1=""; print}' | sed -e "s|${layer}|/|" -e 's|//|/|' | column -t | sort -k11)
+            local find_output=$(find ${layer} -ls | awk '{ $1=""; print}' | sed -e "s|${layer}|/|" -e 's|//|/|' | column -t | sort -k10)
             echo "$(ecolor green)+--layer${idx} [${src}:${layer}]$(ecolor off)"
             echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
         done
