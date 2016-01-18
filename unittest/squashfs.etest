@@ -2,11 +2,21 @@
 
 [[ ${__BU_OS} == Linux ]] || return 0
 
-teardown()
+check_mounts()
 {
-    # Ensure there are no stale squashfs mounts
     etestmsg "Looking for stale squashfs mounts"
-    assert_empty "$(cat /proc/mounts | grep squashfs)"
+    local loop
+    for loop in $(awk /squashfs/ '{print $1}' /proc/mounts 2>/dev/null); do
+        
+        # Follow the squashfs loop mount back to source file
+        einfo "$(lval loop)"
+        local mnt=$(losetup "${loop}" | awk '{print $3}' | sed 's|^(||')
+
+        # if this mount is inside our test directory it's an error
+        if [[ ${mnt} =~ ${ETEST_DIR_OUTPUT} ]]; then
+            die "Failed to unmount $(lval mnt)"
+        fi
+    done
 }
 
 ETEST_squashfs_create()
@@ -14,11 +24,14 @@ ETEST_squashfs_create()
     mkdir -p src
     touch src/file1 src/file2
     squashfs_create src dst.squashfs
+
+    # Ensure everything unmounted
+    check_mounts
 }
 
 ETEST_squashfs_list()
 {
-    mkdir -p src
+    efreshdir src
     touch src/file1 src/file2
     squashfs_create src dst.squashfs
     
@@ -26,6 +39,9 @@ ETEST_squashfs_list()
     assert_eq 2 "${#contents[@]}"
     assert_eq "/file1" "${contents[0]}"
     assert_eq "/file2" "${contents[1]}"
+ 
+    # Ensure everything unmounted
+    check_mounts
 }
 
 ETEST_squashfs_mount()
@@ -46,6 +62,9 @@ ETEST_squashfs_mount()
     # Unmount it
     squashfs_unmount dst
     assert_not_exists dst/file1 dst/file2
+    
+    # Ensure everything unmounted
+    check_mounts
 }
 
 ETEST_squashfs_iso()
@@ -72,9 +91,13 @@ ETEST_squashfs_iso()
 
     # Validate contents
     local contents=( $(squashfs_list src2.squashfs) )
+    einfo "$(lval contents)"
     assert_eq 2 "${#contents[@]}"
     assert_eq "/file1" "${contents[0]}"
     assert_eq "/file2" "${contents[1]}"
+ 
+    # Ensure everything unmounted
+    check_mounts
 }
 
 ETEST_squashfs_tar()
@@ -111,6 +134,9 @@ ETEST_squashfs_tar()
     assert_eq 2 "${#contents[@]}"
     assert_eq "/file1" "${contents[0]}"
     assert_eq "/file2" "${contents[1]}"
+
+    # Ensure everything unmounted
+    check_mounts
 }
 
 ETEST_squashfs_diff()
@@ -129,6 +155,9 @@ ETEST_squashfs_diff()
     squashfs_create src4 src4.squashfs
     $(tryrc squashfs_diff src3.squashfs src4.squashfs)
     assert_ne 0 ${rc}
+
+    # Ensure everything unmounted
+    check_mounts
 }
 
 ETEST_squashfs_modify()
@@ -145,6 +174,7 @@ ETEST_squashfs_modify()
     echo "File#2" > dst/file2
     assert_eq "File#1" "$(cat dst/file1)"
     assert_eq "File#2" "$(cat dst/file2)"
+    squashfs_tree dst
 
     # Save off the RW layer as a squashfs image
     etestmsg "Saving RW layer as rw.squashfs then unmounting"
@@ -172,6 +202,9 @@ ETEST_squashfs_modify()
     assert_eq "File#1" "$(cat dst/file1)"
     assert_eq "File#2" "$(cat dst/file2)"
     squashfs_unmount dst
+
+    # Ensure everything unmounted
+    check_mounts
 }
 
 ETEST_squashfs_layers()
@@ -187,6 +220,7 @@ ETEST_squashfs_layers()
     etestmsg "Mounting all squashfs images into single dst directory"
     mkdir -p dst
     squashfs_mount src1.squashfs src2.squashfs src3.squashfs dst
+    squashfs_tree dst
     assert_exists dst/{file1,file2,file3,file4,file5,file6}
 
     # Unmount all images
@@ -196,4 +230,7 @@ ETEST_squashfs_layers()
     assert_false grep "src1.squashfs" /proc/mounts
     assert_false grep "src2.squashfs" /proc/mounts
     assert_false grep "src3.squashfs" /proc/mounts
+
+    # Ensure everything unmounted
+    check_mounts
 }
