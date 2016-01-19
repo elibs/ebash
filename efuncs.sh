@@ -946,7 +946,7 @@ eclear()
 
 etimestamp()
 {
-    echo -en "$(date '+%b %d %T')"
+    echo -en "$(date '+%b %d %T.%3N')"
 }
 
 # Display a very prominent banner with a provided message which may be multi-line
@@ -1509,6 +1509,7 @@ process_running()
     for pid in "${@}" ; do
         ps -p ${pid} &>/dev/null
     done
+    return 0
 }
 
 # Check if a given process is NOT running. Returns success (0) if all of the
@@ -1516,10 +1517,10 @@ process_running()
 process_not_running()
 {
     local pid
-    edebug "Checking $@"
     for pid in "${@}" ; do
-        ! ps -p ${pid} &>/dev/tty # &>/dev/null
+        ! ps -p ${pid} &>/dev/null
     done
+    return 0
 }
 
 # Generate a depth first recursive listing of entire process tree beneath a given PID.
@@ -1661,11 +1662,8 @@ ekill()
                 close_fds
                 disable_die_parent
 
-                ewarn "$(ecolor salmon)Waiting to kill $(lval processes kill_after)..."
                 sleep ${kill_after}
-                ewarn "$(ecolor salmon)Killing $(lval processes)."
                 kill -SIGKILL ${processes[@]} &>/dev/null || true
-                ewarn "$(ecolor salmon)Done. $(lval processes)"
             ) &
         ) &
     fi
@@ -3176,7 +3174,6 @@ etimeout()
     # Launch command in the background and store off its pid.
     local rc=""
     (
-        edebug "$(ecolor salmon)Running ${cmd[@]} $(lval timeout signal)"
         disable_die_parent
         quote_eval "${cmd[@]}"
         local rc=$?
@@ -3189,7 +3186,6 @@ etimeout()
         disable_die_parent
         close_fds
 
-        edebug "$(ecolor salmon)Watchdog sleeping $(lval timeout cmd)" 2>/dev/tty
         sleep ${timeout}
 
         # If process_tree is empty then it exited on its own and we don't have
@@ -3197,11 +3193,9 @@ etimeout()
         local pre_pids=( $(process_tree ${pid}) )
         array_empty pre_pids && exit 0
 
-        edebug "$(ecolor salmon)Killing tree $(lval timeout cmd)" 2>/dev/tty
         # Process did not exit on its own. Send it the intial requested
         # signal. If its process tree is empty then exit with 1.
         ekilltree -s=${signal} -k=2s ${pid}
-        edebug "$(ecolor salmon)Exiting 1 $(lval timeout cmd)" 2>/dev/tty
         exit 1
 
     ) &>/dev/null &
@@ -3211,7 +3205,6 @@ etimeout()
         local watcher=$!
         wait ${pid} && rc=0 || rc=$?
 
-        edebug "$(ecolor salmon)Finished command $(lval pid timeout rc cmd)"
         # Kill the children of the watcher (i.e. its sleep).  At that point, the
         # watcher WILL exit quickly, so we can wait for it.
         ekilltree -s=SIGKILL -x=${watcher} ${watcher}
@@ -3227,7 +3220,6 @@ etimeout()
         edebug "Timeout $(lval cmd rc seconds timeout signal pid)"
         return 124
     else
-        edebug "$(ecolor salmon)Finished $(lval rc cmd)"
         return ${rc}
     fi
 }
@@ -3284,7 +3276,7 @@ eretry()
     $(declare_opts \
         ":delay d=0              | Time to sleep between failed attempts before retrying." \
         ":fatal_exit_codes e=0   | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
-        ":retries r=5            | Command will be attempted once plus this number of retries if it continues to fail." \
+        ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
         ":signal sig s=TERM      | Signal to be send to the command if it takes longer than the timeout." \
         ":timeout t              | If one attempt takes longer than this duration, kill it and retry if appropriate." \
         ":max_timeout T=infinity | If all attempts take longer than this duration, kill what's running and stop retrying." \
@@ -3340,8 +3332,7 @@ eretry_internal()
     while true; do
         [[ ${retries} != "infinity" && ${attempt} -ge ${retries} ]] && break || (( attempt+=1 ))
         
-        edebug "Executing $(lval cmd rc timeout max_timeout) retries=(${attempt}/${retries})"
-
+        edebug "Executing $(lval cmd timeout max_timeout) retries=(${attempt}/${retries})"
 
         # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
         # on any errors. The reason for this is any caller who cares about the output of
@@ -3353,8 +3344,6 @@ eretry_internal()
         
         # Append list of exit codes we've seen
         exit_codes+=(${rc})
-
-        edebug "$(ecolor green)Finished executing $(lval cmd rc timeout max_timeout) retries=(${attempt}/${retries})"
 
         # Break if the process exited with white listed exit code.
         if echo "${fatal_exit_codes}" | grep -wq "${rc}"; then
