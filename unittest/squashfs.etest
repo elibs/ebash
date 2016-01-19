@@ -43,7 +43,7 @@ ETEST_squashfs_list()
     check_mounts
 }
 
-ETEST_squashfs_mount()
+ETEST_squashfs_overlayfs_mount()
 {
     etestmsg "Creating src, dst and src.squashfs"
     mkdir -p src dst
@@ -52,14 +52,13 @@ ETEST_squashfs_mount()
 
     # Mount it at dst and validate
     etestmsg "Mounting src.squashfs at dst"
-    squashfs_mount src.squashfs dst
-    find src
-    find dst
+    overlayfs_mount src.squashfs dst
+    overlayfs_tree dst
     assert_exists dst/file1 dst/file2
     diff --recursive src dst
 
     # Unmount it
-    squashfs_unmount dst
+    overlayfs_unmount dst
     assert_not_exists dst/file1 dst/file2
     
     # Ensure everything unmounted
@@ -159,7 +158,7 @@ ETEST_squashfs_diff()
     check_mounts
 }
 
-ETEST_squashfs_modify()
+ETEST_squashfs_overlayfs_modify()
 {
     etestmsg "Creating src, dst and src.squashfs"
     mkdir -p src dst
@@ -168,26 +167,27 @@ ETEST_squashfs_modify()
 
     # Mount it at dst. Modify the files.
     etestmsg "Modifying squashfs mounted files"
-    squashfs_mount src.squashfs dst
+    overlayfs_mount src.squashfs dst
+    overlayfs_tree dst
     echo "File#1" > dst/file1
     echo "File#2" > dst/file2
     assert_eq "File#1" "$(cat dst/file1)"
     assert_eq "File#2" "$(cat dst/file2)"
-    squashfs_tree dst
 
     # Save off the RW layer as a squashfs image
     etestmsg "Saving RW layer as rw.squashfs then unmounting"
     squashfs_save_changes dst rw.squashfs
-    squashfs_unmount dst
+    overlayfs_unmount dst
 
     # Mount it again - ensure original files unmodified
     etestmsg "Mounting again -- ensuring original files unmodified"
     efreshdir dst
-    squashfs_mount src.squashfs dst
+    overlayfs_mount src.squashfs dst
+    overlayfs_tree dst
     assert_empty "$(cat dst/file0)"
     assert_empty "$(cat dst/file1)"
     assert_empty "$(cat dst/file2)"
-    squashfs_unmount dst
+    overlayfs_unmount dst
 
     # RW layer should only have the MODIFIED files in it (we never modifvied file0)
     local contents=( $(squashfs_list rw.squashfs) )
@@ -197,16 +197,17 @@ ETEST_squashfs_modify()
 
     # Mount the RW layer and ensure contents are as expected
     efreshdir dst
-    squashfs_mount rw.squashfs dst
+    overlayfs_mount rw.squashfs dst
+    overlayfs_tree dst
     assert_eq "File#1" "$(cat dst/file1)"
     assert_eq "File#2" "$(cat dst/file2)"
-    squashfs_unmount dst
+    overlayfs_unmount dst
 
     # Ensure everything unmounted
     check_mounts
 }
 
-ETEST_squashfs_layers()
+ETEST_squashfs_overlayfs_multilayer()
 {
     etestmsg "Creating multiple squashfs images"
     mkdir -p src1 src2 src3
@@ -218,13 +219,13 @@ ETEST_squashfs_layers()
     # Mount all three images and verify expected contents
     etestmsg "Mounting all squashfs images into single dst directory"
     mkdir -p dst
-    squashfs_mount src1.squashfs src2.squashfs src3.squashfs dst
-    squashfs_tree dst
+    overlayfs_mount src1.squashfs src2.squashfs src3.squashfs dst
+    overlayfs_tree dst
     assert_exists dst/{file1,file2,file3,file4,file5,file6}
 
     # Unmount all images
     etestmsg "Unmounting final image"
-    squashfs_unmount dst
+    overlayfs_unmount dst
     assert_not_exists dst/{file1,file2,file3,file4,file5,file6}
     assert_false grep "src1.squashfs" /proc/mounts
     assert_false grep "src2.squashfs" /proc/mounts
