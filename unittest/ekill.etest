@@ -37,7 +37,7 @@ ETEST_ekill_elevate()
     ekilltree -s=TERM -k=1s ${pid}
 
     etestmsg "Waiting for processes to get killed."
-    eretry -T=4s -t=.5s process_not_running ${tree}
+    eretry -T=5s process_not_running ${tree}
 }
 
 ETEST_ekill_multiple()
