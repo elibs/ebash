@@ -65,6 +65,12 @@ squashfs_list()
 # NOTE: The last argument in the list of positional parameters is the final
 #       mount point to mount all the images at.
 #
+# NOTE: The first version of the kernel which officially supported overlayfs
+#       was 3.18. This original API requires specifying the workdir option
+#       for the scratch work performed by overlayfs. Overlayfs was available
+#       in older kernel versions but was not official and did not have this
+#       additional "workdir" option.
+#
 # NOTE: There are two different actual implementations of this function to 
 #       accomodate different underlying implementations within the kernel.
 #       Kernels < 3.19 had a much more limited version which did not provide
@@ -120,10 +126,12 @@ squashfs_mount()
 # OLDER KERNEL VERSIONS (<3.19)
 else
 
-# Ugh. Older OverlayFS is really annoying because you can only stack 2 overlayfs
+# NOTE: Older OverlayFS is really annoying because you can only stack 2 overlayfs
 # mounts. To get around this, we'll mount the bottom most layer as the read-only 
 # base image. Then we'll unpack all other images into a middle layer. Then mount
 # an empty directory as the top-most directory.
+#
+# NOTE: Versions >= 3.18 require the "workdir" option but older versions do not.
 squashfs_mount()
 {
     if [[ $# -lt 2 ]]; then
@@ -152,14 +160,19 @@ squashfs_mount()
     if array_not_empty args; then
    
         local middle=$(mktemp -d /tmp/squashfs-middle-XXXX)
-        trap_add "eunmount_rm ${middle} |& edebug"
+        local work=$(mktemp -d /tmp/squashfs-work-XXXX)
+        trap_add "eunmount_rm ${middle} ${work} |& edebug"
 
         for arg in "${args[@]}"; do
             edebug "Extracting $(lval arg) to $(lval middle)"
             squashfs_extract "${arg}" "${middle}"
         done
-    
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
+   
+        if [[ ${__BU_KERNEL_MINOR} -ge 18 ]]; then
+            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${work}" "${middle}"
+        else
+            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
+        fi
         lower=${middle}
     fi
 
@@ -167,8 +180,14 @@ squashfs_mount()
     # layer on top. This way if caller saves the changes they get only the changes
     # they made in the top-most layer.
     local upper=$(mktemp -d /tmp/squashfs-upper-XXXX)
-    trap_add "eunmount_rm ${upper} |& edebug"
-    mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}" "${dest}"
+    local work=$(mktemp -d /tmp/squashfs-work-XXXX)
+    trap_add "eunmount_rm ${upper} ${work} |& edebug"
+
+    if [[ ${__BU_KERNEL_MINOR} -ge 18 ]]; then
+        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
+    else
+        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}" "${dest}"
+    fi
 }
 
 fi # END squashfs_mount
