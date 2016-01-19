@@ -57,7 +57,8 @@ ETEST_daemon_start_stop()
     assert_not_exists pidfile
 }
 
-ETEST_daemon_netns()
+# This unit test is really flaky. Disabling it until Eric has time to investigate.
+DISABLED_ETEST_daemon_netns()
 {
 # This test is different.  12.04 doesn't have a way to ask the system what netns
 # a program is running in, and it's difficult to tell when you are in a namespace
