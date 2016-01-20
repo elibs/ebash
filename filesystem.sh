@@ -59,20 +59,20 @@ fs_create()
 {
     $(declare_args src dest)
     local src_type=$(fs_type "${src}")
-    local dst_type=$(fs_type "${dest}")
+    local dest_type=$(fs_type "${dest}")
 
-    edebug "Creating filesystem $(lval src dest src_type dst_type)"
+    edebug "Creating filesystem $(lval src dest src_type dest_type)"
 
     if [[ ! ${src_type} =~ file|directory ]]; then
         eerror "Unsupported $(lval src src_type) (src must be a file or directory)"
     fi
 
     # SQUASHFS
-    if [[ ${dst_type} == squashfs ]]; then
+    if [[ ${dest_type} == squashfs ]]; then
         mksquashfs "${src}" "${dest}" -noappend
 
     # ISO
-    elif [[ ${dst_type} == iso ]]; then
+    elif [[ ${dest_type} == iso ]]; then
 
         # Optional flags to pass through into mkisofs
         local volume=$(opt_get v "")
@@ -90,16 +90,16 @@ fs_create()
                              -boot-info-table"
             fi
 
-            local dst_abs="$(readlink -m "${dest}")"
+            local dest_abs="$(readlink -m "${dest}")"
             cd ${src}
-            mkisofs -r "${iso_flags}" -cache-inodes -J -l -o "${dst_abs}" . |& edebug
+            mkisofs -r "${iso_flags}" -cache-inodes -J -l -o "${dest_abs}" . |& edebug
         ) 
 
     # TAR
-    elif [[ ${dst_type} == tar ]]; then
-        local dst_real=$(readlink -m "${dest}")
+    elif [[ ${dest_type} == tar ]]; then
+        local dest_real=$(readlink -m "${dest}")
         pushd "${src}"
-        etar --create --file "${dst_real}" .
+        etar --create --file "${dest_real}" .
         popd
 
     fi
