@@ -109,7 +109,10 @@ no_process_leaks_remain()
 
 assert_no_process_leaks()
 {
-    (
+    # Error stacks generated here should produce output, even though etest has
+    # them wrapped in a try.
+    __BU_INSIDE_TRY=0
+
     edebug "Waiting..."
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
@@ -122,11 +125,11 @@ assert_no_process_leaks()
         local leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
         if [[ -n ${leaked_processes} ]]; then
             cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
+
             die "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
         fi
     fi
     edebug "Finished"
-    ) &>/dev/tty
 }
 
 global_setup()
@@ -194,7 +197,7 @@ run_single_test()
         # Pretend that the test _not_ executing inside a try/catch so that the
         # error stack will get printed if part of the test fails, as if etest
         # weren't running it inside a try/catch
-        __EFUNCS_INSIDE_TRY=0
+        __BU_INSIDE_TRY=0
 
         if cgroup_supported ; then
             cgroup_create ${ETEST_CGROUP}
@@ -217,8 +220,19 @@ run_single_test()
         rc=$?
     }
 
-    if [[ ${rc} -eq 0 ]]; then
+
+    local process_leak_rc=0
+    if cgroup_supported ; then
+        $(tryrc -r=process_leak_rc assert_no_process_leaks)
+    fi
+
+
+    if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 ]]; then
         einfo "$(ecolor green)${testfunc} PASSED."
+
+    elif [[ ${rc} -eq 0 && ${process_leak_rc} -ne 0 ]] ; then
+        eerror "${testfunc} FAILED due to process leak."
+        rc=1
     else
         eerror "${testfunc} FAILED."
     fi
@@ -244,10 +258,6 @@ run_all_tests_in_file()
 
     # Skip files whose name matches the exclude filter
     [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] && return 0
-
-    # Ensure proper shebang is in the unit test or else bashlint won't be able to validate it
-    # and it may not be a proper bash unit test
-    grep -q '^#!/.*bash' ${testfile} || { eerror "No bash shebang in ${testfile}"; throw 1; }
 
     # Get all function names that begin with ETEST_ (and optionally match $2)
     if [[ -z ${filter} || ${testfile} =~ ${filter} ]]; then
@@ -276,6 +286,7 @@ run_all_tests_in_file()
         # Unit test infrastructure setup
         efreshdir ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
        
+        local test_rc=0
         try
         {
             # Pretend that the test _not_ executing inside a try/catch so that
@@ -284,13 +295,10 @@ run_all_tests_in_file()
             __EFUNCS_INSIDE_TRY=0
 
             ( run_single_test ${testfile} ${testfunc} )
-
-            if cgroup_supported ; then
-                assert_no_process_leaks
-            fi
         }
         catch
         {
+            test_rc=$?
             [[ ${break} -eq 0 ]] || die "${testfunc} failed and break=1" &>${ETEST_OUT}
             FAILURES[${testfilename}]+="${testfunc} "
             [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_FAILED_COUNT += 1 ))
