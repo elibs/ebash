@@ -149,6 +149,10 @@ fs_list()
 
     # SQUASHFS
     if [[ ${src_type} == squashfs ]]; then
+
+        # Use unsquashfs to list the contents but modify the output so that it
+        # matches output from our other supported formats. Also strip out the
+        # "/" entry as that's not in ISO's output and generally not interesting.
         unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|squashfs-root||' -e '/^\s*$/d'
     
     # ISO
