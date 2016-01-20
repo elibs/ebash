@@ -109,6 +109,7 @@ no_process_leaks_remain()
 
 assert_no_process_leaks()
 {
+    (
     edebug "Waiting..."
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
@@ -125,6 +126,7 @@ assert_no_process_leaks()
         fi
     fi
     edebug "Finished"
+    ) &>/dev/tty
 }
 
 global_setup()
@@ -290,7 +292,7 @@ run_all_tests_in_file()
         catch
         {
             [[ ${break} -eq 0 ]] || die "${testfunc} failed and break=1" &>${ETEST_OUT}
-            FAILURES[${testfilename}]+="${testfunc//ETEST_} " || true
+            FAILURES[${testfilename}]+="${testfunc} "
             [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_FAILED_COUNT += 1 ))
         }
         [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_EXECUTED_COUNT += 1 ))
