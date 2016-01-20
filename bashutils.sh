@@ -11,4 +11,3 @@ source ${BASHUTILS}/dpkg.sh
 source ${BASHUTILS}/jenkins.sh
 source ${BASHUTILS}/netns.sh
 source ${BASHUTILS}/filesystem.sh
-source ${BASHUTILS}/overlayfs.sh
