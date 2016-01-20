@@ -21,7 +21,7 @@ check_mounts()
         
         etestmsg "Looking for stale ${ftype} mounts"
         
-        for entry in $(awk /${ftype}/ '{print $1}' /proc/mounts 2>/dev/null); do
+        for entry in $(awk /${ftype}/ '{print $1}' /proc/mounts 2>/dev/null || true); do
             
             # Follow mount back to source file
             einfo "$(lval entry)"
