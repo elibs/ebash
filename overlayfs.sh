@@ -80,8 +80,8 @@ overlayfs_mount()
         local layers=()
         for arg in "${args[@]}"; do
             local tmp=$(mktemp -d /tmp/overlayfs-lower-XXXX)
-            mount --read-only "${arg}" "${tmp}"
             trap_add "eunmount_rm ${tmp} |& edebug"
+            fs_mount_or_extract "${arg}" "${tmp}"
             layers+=( "${tmp}" )
         done
 
@@ -247,4 +247,21 @@ overlayfs_tree()
             echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
         done
     done
+}
+
+# Save the top-most read-write later from an existing overlayfs mount into the
+# requested destination file. This file can be a squashfs image, an ISO, or a
+# known tar file suffix (as supported by etar).
+overlayfs_save_changes()
+{
+    $(declare_args mnt dest)
+
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    edebug "$(lval mnt dest output)"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+
+    # Save to requested type.   
+    fs_create "${upper}" "${dest}"
 }
