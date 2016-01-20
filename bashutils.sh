@@ -10,5 +10,4 @@ source ${BASHUTILS}/daemon.sh
 source ${BASHUTILS}/dpkg.sh
 source ${BASHUTILS}/jenkins.sh
 source ${BASHUTILS}/netns.sh
-source ${BASHUTILS}/squashfs.sh
-source ${BASHUTILS}/overlayfs.sh
+source ${BASHUTILS}/filesystem.sh
