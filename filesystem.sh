@@ -44,11 +44,7 @@ fs_type()
     elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|tar.bz2|.tz2|.tbz2|.tbz ]]; then
         echo -n "tar"
     elif [[ -d "${src}" ]]; then
-        echo -n "directory"
-    elif [[ -f "${src}" ]]; then
-        echo -n "file"
-    else
-        ewarn "Unsupported fstype $(lval src)"
+        eerror "Unsupported fstype $(lval src)"
         return 1
     fi
 }
@@ -65,14 +61,9 @@ fs_create()
         "boot b    | Make the ISO bootable (ISO only).")
 
     $(declare_args src dest)
-    local src_type=$(fs_type "${src}")
     local dest_type=$(fs_type "${dest}")
 
-    edebug "Creating filesystem $(lval src dest src_type dest_type)"
-
-    if [[ ! ${src_type} =~ file|directory ]]; then
-        eerror "Unsupported $(lval src src_type) (src must be a file or directory)"
-    fi
+    edebug "Creating filesystem $(lval src dest dest_type)"
 
     # SQUASHFS
     if [[ ${dest_type} == squashfs ]]; then
