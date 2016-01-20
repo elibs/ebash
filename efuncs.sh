@@ -1402,7 +1402,7 @@ eprogress_kill()
         fi
 
         # Kill process and wait for it to complete
-        ekill ${pid}
+        ekill --kill-after 1s ${pid} &>/dev/null
         wait ${pid} &>/dev/null || true
         array_remove __BU_EPROGRESS_PIDS ${pid}
         
@@ -1507,7 +1507,9 @@ process_running()
 {
     local pid
     for pid in "${@}" ; do
-        ps -p ${pid} &>/dev/null
+        if ! ps -p ${pid} &>/dev/null ; then
+            return 1
+        fi
     done
     return 0
 }
@@ -1518,7 +1520,9 @@ process_not_running()
 {
     local pid
     for pid in "${@}" ; do
-        ! ps -p ${pid} &>/dev/null
+        if ps -p ${pid} &>/dev/null ; then
+            return 1
+        fi
     done
     return 0
 }
