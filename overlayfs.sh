@@ -24,12 +24,15 @@ __BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
 __BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
 
 # overlayfs_mount mounts multiple filesystems into a single unified writeable
-# directory with read-through semantics. The underlying filesystems do not
-# necessarily need to be read-write. The most common uses cases for using
-# overlayfs is to mount ISOs or squashfs images with a read-write layer on
-# top of them. To make this implementation as generic as possible, it deals
-# only with overlayfs mounting semantics. The specific mounting of ISO or
-# squashfs images are handled by separate dedicated modules.
+# directory with read-through semantics. All the underlying filesystem layers
+# are mounted read-only (if they are mountable) and the top-most layer is
+# mounted read-write. Only the top-level layer is mounted read-write.
+# 
+# The most common uses cases for using overlayfs is to mount ISOs or squashfs
+# images with a read-write layer on top of them. To make this implementation
+# as generic as possible, it deals only with overlayfs mounting semantics.
+# The specific mounting of ISO or squashfs images are handled by separate
+# dedicated modules.
 #
 # This function takes multiple arguments where each argument is a layer
 # to mount into the final unified overlayfs image. The final positional 
@@ -51,8 +54,6 @@ __BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
 #       this check every time we call this function as it's only done once at
 #       source time.
 #
-# NEWER KERNEL VERSIONS (>= 3.19)
-if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 19 ) ]]; then
 overlayfs_mount()
 {
     if [[ $# -lt 2 ]]; then
@@ -60,116 +61,101 @@ overlayfs_mount()
         return 1
     fi
 
-    edebug "Using Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
-  
     # Parse positional arguments into a bashutils array. Then grab final mount
-    # point from args and create lowerdir parameter by joining all images with colon
-    # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
+    # point from args.
     local args=( "$@" )
     local dest=${args[${#args[@]}-1]}
     unset args[${#args[@]}-1]
-    
-    # Mount layered mounts at requested destination, creating if it doesn't exist.
-    mkdir -p "${dest}"
-     
-    # Iterate through all the images and mount each one into a temporary directory
-    local arg
-    local layers=()
-    for arg in "${args[@]}"; do
-        local tmp=$(mktemp -d /tmp/overlayfs-lower-XXXX)
-        mount --read-only "${arg}" "${tmp}"
-        trap_add "eunmount_rm ${tmp} |& edebug"
-        layers+=( "${tmp}" )
-    done
 
-    # Create temporary directory to hold read-only and read-write layers
-    local lower=$(array_join layers ":")
-    local upper="$(mktemp -d /tmp/overlayfs-upper-XXXX)"
-    local work="$(mktemp -d /tmp/overlayfs-work-XXXX)"
-    trap_add "eunmount_rm ${upper} ${work} |& edebug"
-
-    # Mount overlayfs
-    mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
-}
-
-# OLDER KERNEL VERSIONS (<3.19)
-else
-
-# NOTE: Older OverlayFS is really annoying because you can only stack 2 overlayfs
-# mounts. To get around this, we'll mount the bottom most layer as the read-only 
-# base image. Then we'll unpack all other images into a middle layer. Then mount
-# an empty directory as the top-most directory.
-#
-# NOTE: Versions >= 3.18 require the "workdir" option but older versions do not.
-overlayfs_mount()
-{
-    if [[ $# -lt 2 ]]; then
-        eerror "overlayfs_mount requires 2 or more arguments"
-        return 1
-    fi
-    
-    edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
-
-    # Parse positional arguments into a bashutils array. Then grab final mount
-    # point from args and create lowerdir parameter by joining all images with colon
-    # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
-    local args=( "$@" )
-    local dest=${args[${#args[@]}-1]}
-    unset args[${#args[@]}-1]
-    
     # Mount layered mounts at requested destination, creating if it doesn't exist.
     mkdir -p "${dest}"
 
-    # Grab bottom most layer
-    local lower=$(mktemp -d /tmp/overlayfs-mnt-XXXX)
-    mount --read-only "${args[0]}" "${lower}"
-    unset args[0]
+    # NEWER KERNEL VERSIONS (>= 3.19)
+    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 19 ) ]]; then
 
-    # Extract all remaining layers into empty "middle" directory
-    if array_not_empty args; then
-   
-        local middle=$(mktemp -d /tmp/overlayfs-middle-XXXX)
-        local work=$(mktemp -d /tmp/overlayfs-work-XXXX)
-        trap_add "eunmount_rm ${middle} ${work} |& edebug"
-
-        for arg in "${args[@]}"; do
-            
-            edebug "Extracting $(lval arg) to $(lval middle)"
-
-            # Extract this layer into middle directory using
-            # image specific mechanism.
-            if [[ ${arg} =~ .squashfs ]]; then
-                squashfs_extract "${arg}" "${middle}"
-            elif [[ ${arg} =~ .iso ]]; then
-                iso_extract "${arg}" "${middle}"
-            fi
-
-        done
-   
-        if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
-            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${work}" "${middle}"
-        else
-            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
-        fi
+        edebug "Using Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
         
-        lower=${middle}
-    fi
+        # Iterate through all the images and mount each one into a temporary directory
+        local arg
+        local layers=()
+        for arg in "${args[@]}"; do
+            local tmp=$(mktemp -d /tmp/overlayfs-lower-XXXX)
+            mount --read-only "${arg}" "${tmp}"
+            trap_add "eunmount_rm ${tmp} |& edebug"
+            layers+=( "${tmp}" )
+        done
 
-    # Mount this unpacked directory into overlayfs layer with an empty read-write 
-    # layer on top. This way if caller saves the changes they get only the changes
-    # they made in the top-most layer.
-    local upper=$(mktemp -d /tmp/squashfs-upper-XXXX)
-    local work=$(mktemp -d /tmp/squashfs-work-XXXX)
-    trap_add "eunmount_rm ${upper} ${work} |& edebug"
+        # Create temporary directory to hold read-only and read-write layers.
+        # Create lowerdir parameter by joining all images with colon
+        # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
+        local lower=$(array_join layers ":")
+        local upper="$(mktemp -d /tmp/overlayfs-upper-XXXX)"
+        local work="$(mktemp -d /tmp/overlayfs-work-XXXX)"
+        trap_add "eunmount_rm ${upper} ${work} |& edebug"
 
-    if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
+        # Mount overlayfs
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
+ 
+    # OLDER KERNEL VERSIONS (<3.19)
+    # NOTE: Older OverlayFS is really annoying because you can only stack 2 overlayfs
+    # mounts. To get around this, we'll mount the bottom most layer as the read-only 
+    # base image. Then we'll unpack all other images into a middle layer. Then mount
+    # an empty directory as the top-most directory.
+    #
+    # NOTE: Versions >= 3.18 require the "workdir" option but older versions do not.
     else
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}" "${dest}"
+       
+        edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
+
+        # Grab bottom most layer
+        local lower=$(mktemp -d /tmp/overlayfs-mnt-XXXX)
+        mount --read-only "${args[0]}" "${lower}"
+        unset args[0]
+
+        # Extract all remaining layers into empty "middle" directory
+        if array_not_empty args; then
+       
+            local middle=$(mktemp -d /tmp/overlayfs-middle-XXXX)
+            local work=$(mktemp -d /tmp/overlayfs-work-XXXX)
+            trap_add "eunmount_rm ${middle} ${work} |& edebug"
+
+            for arg in "${args[@]}"; do
+                
+                edebug "Extracting $(lval arg) to $(lval middle)"
+
+                # Extract this layer into middle directory using
+                # image specific mechanism.
+                if [[ ${arg} =~ .squashfs ]]; then
+                    squashfs_extract "${arg}" "${middle}"
+                elif [[ ${arg} =~ .iso ]]; then
+                    iso_extract "${arg}" "${middle}"
+                fi
+
+            done
+       
+            if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
+                mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${work}" "${middle}"
+            else
+                mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
+            fi
+            
+            lower=${middle}
+        fi
+
+        # Mount this unpacked directory into overlayfs layer with an empty read-write 
+        # layer on top. This way if caller saves the changes they get only the changes
+        # they made in the top-most layer.
+        local upper=$(mktemp -d /tmp/squashfs-upper-XXXX)
+        local work=$(mktemp -d /tmp/squashfs-work-XXXX)
+        trap_add "eunmount_rm ${upper} ${work} |& edebug"
+
+        if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
+            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
+        else
+            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}" "${dest}"
+        fi
     fi
 }
-
-fi # END squashfs_mount
 
 # overlayfs_unmount will unmount an overlayfs directory previously mounted
 # via overlayfs_mount. It takes multiple arguments where each is the final
@@ -204,8 +190,8 @@ overlayfs_unmount()
     done
 }
 
-# overlayfs_tree is used to display a graphical representation for an overlayfs
-# mount. The graphical format is meant to show details about each layer in the
+# overlayfs_tree is used to display a layered textual representation for an
+# overlayfs mount. The format is meant to show details about each layer in the
 # overlayfs mount hierarchy to make it clear what files reside in what layers
 # along with some basic metadata about each file (as provided by find -ls).
 overlayfs_tree()
@@ -237,11 +223,22 @@ overlayfs_tree()
             # Figure out source of the mountpoint
             local src=$(grep "${layer}" /proc/mounts | head -1)
 
+            # ISOs and SquashFS images are mounted as loop devices.
             if [[ ${src} =~ "/dev/loop" ]]; then
-                src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
+                
+                # The heinous bit of code below take the entire output from mount
+                # command above (stored in 'src') and parses out the first column
+                # to get something like "/dev/loop0" or "overlayfs". Then it uses
+                # losetup to get the source of the loop device mount and gets the
+                # third column from that output. This is the source of the loop
+                # device mount and has parens around it. So we strip off those 
+                # parens with tr -d.
+                src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | tr -d '()')
+
+            # Overlayfs mounts will show up with 'overlay' or 'overlayfs' as 
+            # first column.
             elif [[ ${src} =~ "overlay" ]]; then
                 src=$(echo "${src}" | awk '{print $2}')
-
             fi
 
             # Pretty print the contents
