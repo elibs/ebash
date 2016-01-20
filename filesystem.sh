@@ -442,7 +442,12 @@ overlayfs_unmount()
 
     local mnt
     for mnt in "$@"; do
-  
+
+        # If not mounted, just skip this.
+        if ! emounted "${mnt}"; then
+            continue
+        fi
+
         # Parse out the lower, upper and work directories to be unmounted
         local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
@@ -475,7 +480,12 @@ overlayfs_tree()
 
     local mnt
     for mnt in "$@"; do
-  
+ 
+        # If not mounted, just skip this.
+        if ! emounted "${mnt}"; then
+            continue
+        fi
+ 
         # Parse out the lower, upper and work directories to be unmounted
         local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
