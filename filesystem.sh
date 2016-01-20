@@ -227,23 +227,11 @@ fs_convert()
     local mnt="$(mktemp -d /tmp/filesystem-mnt-XXXX)"
     trap_add "eunmount_rm ${mnt} |& edebug"
 
-    # SQUASHFS or ISO
-    if [[ ${src_type} =~ squashfs|iso ]]; then
-        mount --read-only "${src}" "${mnt}"
-        fs_create "${mnt}" "${dest}"
-    
-    # TAR
-    elif [[ ${src_type} == tar ]]; then
+    # Mount (if possible) or extract the filesystem if mounting is not supported.
+    fs_mount_or_extract "${src}" "${mnt}"
 
-        # Unpack the tar file into temporary mnt directory
-        local src_real=$(readlink -m "${src}")
-        pushd ${mnt}
-        etar --extract --file "${src_real}" .
-        popd
-
-        # Now we can convert unpacked tar file to requested destination type
-        fs_create "${mnt}" "${dest}"
-    fi
+    # Now we can do the new filesystem creation from 'mnt'
+    fs_create "${mnt}" "${dest}"
 }
 
 #-----------------------------------------------------------------------------
@@ -264,15 +252,8 @@ fs_diff()
             local src_type=$(fs_type "${src}")
             mnts+=( "${mnt}" )
 
-            # SQUASHFS or ISO
-            if [[ ${src_type} =~ squashfs|iso ]]; then
-                mount --read-only "${src}" "${mnt}"
-
-            # TAR has to be UNPACKED as it cannot be mounted directly
-            elif [[ ${src_type} == tar ]]; then
-                fs_extract "${src}" "${mnt}"
-            fi
-            
+            # Mount (if possible) or extract the filesystem if mounting is not supported.
+            fs_mount_or_extract "${src}" "${mnt}"
         done
 
         diff --recursive --unified "${mnts[@]}"
