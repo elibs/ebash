@@ -100,7 +100,7 @@ ETEST_eprogress_ticker_on()
     wait_for_eprogress
 
     # The ticker may actuall run for slightly longer than we requested due to
-    # how sleep works. Change instances of 00:00:0[1-9] to 00:00:01 in the output
+    # how sleep works. Change instances of 00:00:0[1-9] to 00:00:00 in the output
     # for easier validation.
     sed -i "s|:01\]|:00\]|g" ${OUTPUT}
     assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[22C[ ok ]\$" "$(cat -evt ${OUTPUT})"
@@ -112,9 +112,9 @@ ETEST_eprogress_inside_eretry()
 
     etestmsg "Starting eprogress"
     eprogress "Waiting for eretry"
-    $(tryrc eretry -T=5s false)
+    $(tryrc eretry false)
     eprogress_kill
-    assert [[ $(tail -1 ${OUTPUT} || true) -ge 5 ]]
+    assert [[ "$(tail -1 ${OUTPUT} || true)" -ge 5 ]]
 }
 
 ETEST_eprogress_kill_before_eprogress()

@@ -1397,12 +1397,12 @@ eprogress_kill()
         # Don't kill the pid if it's not running or it's not an eprogress pid.
         # This catches potentially disasterous errors where someone would do
         # "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
-        if process_not_running ${pid} || ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
+        if ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
             continue
         fi
 
         # Kill process and wait for it to complete
-        ekill --kill-after 1s ${pid} &>/dev/null
+        ekilltree ${pid} &>/dev/null
         wait ${pid} &>/dev/null || true
         array_remove __BU_EPROGRESS_PIDS ${pid}
         
@@ -3290,19 +3290,20 @@ eretry()
     : ${timeout:=${max_timeout:-infinity}}
 
     # If no total timeout or retry limit was specified then default to prior behavior with a max retry of 5.
-    if [[ -z ${max_timeout} && -z ${retries} ]]; then
+    if [[ ${max_timeout} == "infinity" && -z ${retries} ]]; then
         retries=5
     elif [[ -z ${retries} ]]; then
         retries="infinity"
     fi
 
     # If a total timeout was specified then wrap call to eretry_internal with etimeout
-    if [[ -n ${max_timeout} ]]; then
+    if [[ ${max_timeout} != "infinity" ]]; then
         etimeout -t=${max_timeout} -s=${signal} -- \
             eretry_internal --timeout="${timeout}" --delay="${delay}" --fatal_exit_codes=${fatal_exit_codes} --signal="${signal}" \
                 --warn-every="${warn_every}" --retries="${retries}" -- "${@}"
     else
-        eretry_internal "${@}"
+        eretry_internal --timeout="${timeout}" --delay="${delay}" --fatal_exit_codes=${fatal_exit_codes} --signal="${signal}" \
+            --warn-every="${warn_every}" --retries="${retries}" -- "${@}"
     fi
 }
 
