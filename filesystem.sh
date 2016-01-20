@@ -59,6 +59,11 @@ fs_type()
 # based on the suffix of the file.
 fs_create()
 {
+    # Optional flags needed to passthrough into mkisofs
+    $(declare_opts \
+        ":volume v | Optional volume name to use (ISO only)." \
+        "boot b    | Make the ISO bootable (ISO only).")
+
     $(declare_args src dest)
     local src_type=$(fs_type "${src}")
     local dest_type=$(fs_type "${dest}")
@@ -76,15 +81,11 @@ fs_create()
     # ISO
     elif [[ ${dest_type} == iso ]]; then
 
-        # Optional flags to pass through into mkisofs
-        local volume=$(opt_get v "")
-        local bootable=$(opt_get b 0)
-
         # Put body in a subshell to ensure traps perform clean-up.
         (
             # Generate ISO flags
             local iso_flags="-V "${volume}""
-            if opt_true bootable; then
+            if [[ ${boot} -eq 1 ]]; then
                 iso_flags+=" -b isolinux/isolinux.bin 
                              -c isolinux/boot.cat
                              -no-emul-boot
@@ -437,18 +438,16 @@ overlayfs_unmount()
         return 0
     fi
 
-    # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
-    # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
-
     local mnt
     for mnt in "$@"; do
 
-        # If not mounted, just skip this.
         if ! emounted "${mnt}"; then
             continue
         fi
 
         # Parse out the lower, upper and work directories to be unmounted
+        # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
+        # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
         local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
@@ -475,9 +474,6 @@ overlayfs_tree()
         return 0
     fi
 
-    # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
-    # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
-
     local mnt
     for mnt in "$@"; do
  
@@ -487,6 +483,8 @@ overlayfs_tree()
         fi
  
         # Parse out the lower, upper and work directories to be unmounted
+        # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
+        # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
         local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
