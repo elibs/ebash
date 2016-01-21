@@ -268,6 +268,14 @@ __BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
 # Try to enable overlayfs by modprobing the kernel module.
 overlayfs_enable()
 {
+    # If it's already supported then return - nothing to do
+    if overlayfs_supported; then
+        edebug "OverlayFS already enabled"
+        return 0
+    fi
+
+    ewarn "OverlayFS not enabled -- trying to load kernel module"
+
     if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
         edebug "Using newer kernel module name 'overlay'"
         modprobe overlay
@@ -275,6 +283,9 @@ overlayfs_enable()
         edebug "Using legacy kernel module name 'overlayfs'"
         modprobe overlayfs
     fi
+
+    # Verify it's now supported
+    overlayfs_supported
 }
 
 # overlayfs_mount mounts multiple filesystems into a single unified writeable
