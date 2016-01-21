@@ -735,6 +735,7 @@ _bashutils_on_exit_start()
 {
     # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
     __BU_EXIT_CODE=$?
+    edebug "Bash process ${BASHPID} exited rc=${__BU_EXIT_CODE}"
     disable_signals
 }
 
@@ -946,7 +947,7 @@ eclear()
 
 etimestamp()
 {
-    echo -en "$(date '+%b %d %T')"
+    echo -en "$(date '+%b %d %T.%3N')"
 }
 
 # Display a very prominent banner with a provided message which may be multi-line
@@ -1402,10 +1403,10 @@ eprogress_kill()
         fi
 
         # Kill process and wait for it to complete
-        ekill ${pid}
+        ekill ${pid} &>/dev/null
         wait ${pid} &>/dev/null || true
         array_remove __BU_EPROGRESS_PIDS ${pid}
-        
+
         # Output
         einteractive && echo "" >&2
         eend ${rc}
@@ -1507,8 +1508,11 @@ process_running()
 {
     local pid
     for pid in "${@}" ; do
-        ps -p ${pid} &>/dev/null
+        if ! ps -p ${pid} &>/dev/null ; then
+            return 1
+        fi
     done
+    return 0
 }
 
 # Check if a given process is NOT running. Returns success (0) if all of the
@@ -1517,8 +1521,11 @@ process_not_running()
 {
     local pid
     for pid in "${@}" ; do
-        ! ps -p ${pid} &>/dev/null
+        if ps -p ${pid} &>/dev/null ; then
+            return 1
+        fi
     done
+    return 0
 }
 
 # Generate a depth first recursive listing of entire process tree beneath a given PID.
@@ -2801,6 +2808,7 @@ declare_opts_internal()
     while (( $# )) ; do
         case "$1" in
             --)
+                (( shift_count += 1 ))
                 break
                 ;;
             --*)
@@ -3272,29 +3280,44 @@ etimeout()
 eretry()
 {
     $(declare_opts \
-        ":delay d=0            | Time to sleep between failed attempts before retrying." \
-        ":fatal_exit_codes e=0 | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
-        ":retries r=5          | Command will be attempted once plus this number of retries if it continues to fail." \
-        ":signal sig s=TERM    | Signal to be send to the command if it takes longer than the timeout." \
-        ":timeout t            | If one attempt takes longer than this duration, kill it and retry if appropriate." \
-        ":max_timeout T        | If all attempts take longer than this duration, kill what's running and stop retrying." \
-        ":warn_every w         | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
+        ":delay d=0              | Time to sleep between failed attempts before retrying." \
+        ":fatal_exit_codes e=0   | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
+        ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
+        ":signal sig s=TERM      | Signal to be send to the command if it takes longer than the timeout." \
+        ":timeout t              | If one attempt takes longer than this duration, kill it and retry if appropriate." \
+        ":max_timeout T=infinity | If all attempts take longer than this duration, kill what's running and stop retrying." \
+        ":warn_every w           | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
 
     # If unspecified, limit timeout to the same as max_timeout
     : ${timeout:=${max_timeout:-infinity}}
 
-    # If no total timeout or retry limit was specified then default to prior behavior with a max retry of 5.
-    if [[ -z ${max_timeout} && -z ${retries} ]]; then
-        retries=5
-    elif [[ -z ${retries} ]]; then
-        retries="infinity"
-    fi
 
     # If a total timeout was specified then wrap call to eretry_internal with etimeout
-    if [[ -n ${max_timeout} ]]; then
-        etimeout -t=${max_timeout} -s=${signal} eretry_internal "${@}"
+    if [[ ${max_timeout} != "infinity" ]]; then
+        : ${retries:=infinity}
+
+        etimeout -t=${max_timeout} -s=${signal} --          \
+            eretry_internal                                 \
+                --timeout="${timeout}"                      \
+                --delay="${delay}"                          \
+                --fatal_exit_codes="${fatal_exit_codes}"    \
+                --signal="${signal}"                        \
+                --warn-every="${warn_every}"                \
+                --retries="${retries}"                      \
+                -- "${@}"
     else
-        eretry_internal "${@}"
+        # If no total timeout or retry limit was specified then default to prior
+        # behavior with a max retry of 5.
+        : ${retries:=5}
+
+        eretry_internal                                 \
+            --timeout="${timeout}"                      \
+            --delay="${delay}"                          \
+            --fatal_exit_codes="${fatal_exit_codes}"    \
+            --signal="${signal}"                        \
+            --warn-every="${warn_every}"                \
+            --retries="${retries}"                      \
+            -- "${@}"
     fi
 }
 
@@ -3302,6 +3325,16 @@ eretry()
 # to etimeout in order to provide upper bound on entire invocation.
 eretry_internal()
 {
+    $(declare_opts \
+        ":delay d                | Time to sleep between failed attempts before retrying." \
+        ":fatal_exit_codes e     | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
+        ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
+        ":signal sig s           | Signal to be send to the command if it takes longer than the timeout." \
+        ":timeout t              | If one attempt takes longer than this duration, kill it and retry if appropriate." \
+        ":warn_every w           | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
+
+    argcheck delay fatal_exit_codes retries signal timeout
+
     # Command
     local cmd=("${@}")
     local attempt=0
@@ -3318,7 +3351,7 @@ eretry_internal()
     while true; do
         [[ ${retries} != "infinity" && ${attempt} -ge ${retries} ]] && break || (( attempt+=1 ))
         
-        edebug "Executing $(lval cmd rc stdout) retries=(${attempt}/${retries})"
+        edebug "Executing $(lval cmd timeout max_timeout) retries=(${attempt}/${retries})"
 
         # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
         # on any errors. The reason for this is any caller who cares about the output of
