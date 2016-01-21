@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 #------------------------------------------------------------------------------
 # FILESYSTEM
 #------------------------------------------------------------------------------
 
+# Banner to but around each type being tested
 BANNER_WIDTH=50
 
+# List of filesystem types to test
 FTYPES=(
     iso
     squashfs
@@ -196,6 +200,12 @@ ETEST_fs_diff()
 #------------------------------------------------------------------------------
 # OVERLAYFS
 #------------------------------------------------------------------------------
+
+setup()
+{
+    # Enable OverlayFS if it's not enabled
+    overlayfs_enable
+}
 
 ETEST_overlayfs_mount()
 {

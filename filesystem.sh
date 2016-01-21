@@ -2,6 +2,47 @@
 
 # Copyright 2016, SolidFire, Inc. All rights reserved.
 
+# Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
+# use just 'overlay' so dynamically detected the correct type to use here.
+# NOTE: Ignore errors here since this may be running on OSX.
+__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null || true)
+
+# Detect whether overlayfs is supported or not.
+overlayfs_supported()
+{
+    [[ -n "${__BU_OVERLAYFS}" ]]
+}
+
+# Try to enable overlayfs by modprobing the kernel module. If the OS is not
+# Linux this will die.
+overlayfs_enable()
+{
+    if [[ ${__BU_OS} != Linux ]]; then
+        die "OverlayFS is not supported on a non-Linux OS (${__BU_OS})"
+    fi
+
+    # If it's already supported then return - nothing to do
+    if overlayfs_supported; then
+        edebug "OverlayFS already enabled"
+        return 0
+    fi
+
+    ewarn "OverlayFS not enabled -- trying to load kernel module"
+
+    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
+        edebug "Using newer kernel module name 'overlay'"
+        modprobe overlay
+    else
+        edebug "Using legacy kernel module name 'overlayfs'"
+        modprobe overlayfs
+    fi
+
+    # Verify it's now supported
+    overlayfs_supported
+}
+
+[[ ${__BU_OS} == Linux ]] || return 0
+
 #-----------------------------------------------------------------------------
 # FILESYSTEM.SH
 #
@@ -163,47 +204,6 @@ fs_list()
 }
 
 #-----------------------------------------------------------------------------
-# TAR
-#-----------------------------------------------------------------------------
-
-# etar is a wrapper around the normal 'tar' command with a few enhancements:
-# - Suppress all the normal noisy warnings that are almost never of interest
-#   to us.
-# - Automatically detect fastest compression program by default. If this isn't
-#   desired then pass in --use-compress-program=<PROG>. Unlike normal tar, this
-#   will big the last one in the command line instead of giving back a fatal
-#   error due to multiple compression programs.
-etar()
-{
-    # Disable all tar warnings which are expected with unknown file types, sockets, etc.
-    local args=("--warning=none")
-
-    # Provided an explicit compression program wasn't provided via "-I/--use-compress-program"
-    # then automatically determine the compression program to use based on file
-    # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    local match=$(echo "$@" | egrep '(-I|--use-compress-program)' || true)
-    if [[ -z ${match} ]]; then
-
-        local prog=""
-        if [[ -n $(echo "$@" | egrep "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
-            prog="pbzip2"
-        elif [[ -n $(echo "$@" | egrep "\.gz|\.tgz|\.taz" || true) ]]; then
-            prog="pigz"
-        fi
-
-        # If the program we selected is available set that as the compression program
-        # otherwise fallback to auto-compress and let tar pick for us.
-        if [[ -n ${prog} && -n $(which ${prog} 2>/dev/null || true) ]]; then
-            args+=("--use-compress-program=${prog}")
-        else
-            args+=("--auto-compress")
-        fi
-    fi
-
-    tar "${args[@]}" "${@}"
-}
-
-#-----------------------------------------------------------------------------
 # CONVERSIONS
 #-----------------------------------------------------------------------------
 
@@ -287,12 +287,6 @@ fs_mount_or_extract()
 # available in older kernel versions but was not official and did not have this
 # additional "workdir" option.
 #-------------------------------------------------------------------------------
-
-# Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
-# use just 'overlay' so dynamically detected the correct type to use here.
-__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems)
-__BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
-__BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
 
 # overlayfs_mount mounts multiple filesystems into a single unified writeable
 # directory with read-through semantics. All the underlying filesystem layers
@@ -436,13 +430,18 @@ overlayfs_unmount()
             continue
         fi
 
-        # Parse out the lower, upper and work directories to be unmounted
+        # Parse out required lower and upper directories to be unmounted.
         # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
         # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
         local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-        local work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
+
+        # On newer kernels, also need to unmount work directory.
+        local work=""
+        if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
+            work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
+        fi
         
         # Split 'lower' on ':' so we can unmount each of the lower layers 
         local parts
