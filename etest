@@ -47,7 +47,7 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${TEST_DIR}/etest.log
-elogfile --rotate_count=1 --tail=${verbose} ${ETEST_LOG}
+elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
 if [[ ${verbose} -eq 0 ]]; then

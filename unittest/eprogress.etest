@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-OUTPUT=${TEST_DIR_OUTPUT}/ticks
+OUTPUT=ticks-$$
 
 # Fake EPROGRESS function body to use in some of the tests which
 # don't want the real do_eprogress
@@ -73,6 +73,7 @@ ETEST_eprogress_ticker_off()
         EDEBUG=0
         ETRACE=0
         EINTERACTIVE=0
+        EMSG_PREFIX=""
         eprogress "Waiting"
         eprogress_kill
 
@@ -84,20 +85,27 @@ ETEST_eprogress_ticker_off()
 
 ETEST_eprogress_ticker_on()
 {
+    type eprogress
+    etestmsg "Starting background process that writes to ${OUTPUT}"
     (
-        exec &> >(tee ${OUTPUT})
+        exec 2> >(tee ${OUTPUT})
 
         COLUMNS=28
         EFUNCS_COLOR=0
         EDEBUG=0
         ETRACE=0
         EINTERACTIVE=1
+        EMSG_PREFIX=""
         eprogress "Waiting"
         eprogress_kill
-
     )
 
+    etestmsg "Waiting for eprogress to run."
     wait_for_eprogress
+
+    etestmsg "${OUTPUT} contents"
+    cat ${OUTPUT}
+    etestmsg "End ${OUTPUT} contents"
 
     # The ticker may actuall run for slightly longer than we requested due to
     # how sleep works. Change instances of 00:00:0[1-9] to 00:00:00 in the output
