@@ -1,0 +1,333 @@
+#!/usr/bin/env bash
+
+#------------------------------------------------------------------------------
+# FILESYSTEM
+#------------------------------------------------------------------------------
+
+BANNER_WIDTH=50
+
+FTYPES=(
+    iso
+    squashfs
+    tgz
+    tbz2
+)
+
+# Look for any stale mounts
+check_mounts()
+{
+    local ftype mnt entry
+    for ftype in squashfs overlayfs; do
+        
+        etestmsg "Looking for stale ${ftype} mounts"
+        
+        for entry in $(awk /${ftype}/ '{print $1}' /proc/mounts 2>/dev/null || true); do
+            
+            # Follow mount back to source file
+            einfo "$(lval entry)"
+            local mnt=$(losetup "${entry}" | awk '{print $3}' | sed 's|^(||')
+
+            # if this mount is inside our test directory it's an error
+            if [[ ${mnt} =~ ${ETEST_DIR_OUTPUT} ]]; then
+                die "Failed to unmount $(lval mnt)"
+            fi
+        done
+    done
+}
+
+ETEST_fs_create()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        fs_create src dest.${ftype}
+ 
+    done
+
+    # Ensure everything unmounted
+    check_mounts
+}
+
+ETEST_fs_list()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        fs_create src src.${ftype}
+
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(fs_list src.${ftype}) )
+        array_sort contents
+        assert_eq 2 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+
+    done
+
+    # Ensure everything unmounted
+    check_mounts
+}
+
+ETEST_fs_extract()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        fs_create src src.${ftype}
+
+        etestmsg "${ftype}: Extracting src.${ftype} to dest"
+        fs_extract src.${ftype} dest
+
+        etestmsg "${ftype}: Validating src and dest"
+        find src
+        find dest
+        diff --unified --recursive src dest
+    done
+
+    # Ensure everything unmounted
+    check_mounts
+}
+
+ETEST_fs_convert()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        fs_create src src.${ftype}
+
+        local other
+        for other in ${FTYPES[@]}; do
+            
+            etestmsg "${ftype}: Converting src.${ftype} to cpy.${other}"
+            fs_convert src.${ftype} cpy.${other}
+
+            etestmsg "${ftype}: Validating contents of cpy.${other}"
+            local src_contents=( $(fs_list src.${ftype}) )
+            local cpy_contents=( $(fs_list cpy.${other}) )
+            etestmsg "$(lval src_contents cpy_contents)"
+            assert_eq $(array_size src_contents) $(array_size cpy_contents)
+
+            # Also compare and diff as arrays
+            array_sort src_contents
+            array_sort cpy_contents
+            local src_contents_join=$(array_join src_contents :)
+            local cpy_contents_join=$(array_join cpy_contents :)
+            assert_eq "${src_contents_join}" "${cpy_contents_join}"
+        done
+
+    done
+
+    # Ensure everything unmounted
+    check_mounts
+}
+
+ETEST_fs_diff()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        fs_create src src.${ftype}
+
+        # Iterate over all types and create copy -- diff should match
+        for other in ${FTYPES[@]}; do
+           
+            etestmsg "${ftype}: Creating cpy.${other}"
+            fs_create src cpy.${other}
+
+            etestmsg "${ftype}: Diffing against cpy.${other}"
+            fs_diff src.${ftype} cpy.${other}
+        done
+
+        # Iterate over all types and create a different copy with extra file
+        # diff should not match.
+        for other in ${FTYPES[@]}; do
+           
+            etestmsg "${ftype}: Creating diff.${other}"
+            efreshdir diff
+            cp src/* diff
+            touch diff/EXTRA_FILE
+            fs_create diff diff.${other}
+
+            etestmsg "${ftype}: Diffing against diff.${other} (should fail)"
+            $(tryrc fs_diff src.${ftype} diff.${other})
+            assert_ne 0 ${rc}
+        done
+    done
+
+    # Ensure everything unmounted
+    check_mounts
+}
+
+#------------------------------------------------------------------------------
+# OVERLAYFS
+#------------------------------------------------------------------------------
+
+ETEST_overlayfs_mount()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        fs_create src src.${ftype}
+
+        etestmsg "Mounting src.${ftype} at dest"
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        assert_exists dest/file1 dest/file2
+        diff --recursive src dest
+
+        # Unmount it
+        overlayfs_unmount dest
+        assert_not_exists dest/file1 dest/file2
+    done
+
+    # Ensure everything unmounted
+    check_mounts
+}
+
+ETEST_overlayfs_modify()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+        
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src dest
+        touch src/{file0,file1,file2}
+        fs_create src src.${ftype}
+
+        etestmsg "${ftype}: Modifying squashfs mounted files"
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        echo "File#1" > dest/file1
+        echo "File#2" > dest/file2
+        assert_eq "File#1" "$(cat dest/file1)"
+        assert_eq "File#2" "$(cat dest/file2)"
+
+        etestmsg "${ftype}: Saving RW layer as rw.${ftype} then unmounting"
+        overlayfs_save_changes dest rw.${ftype}
+        overlayfs_unmount dest
+
+        etestmsg "${ftype}: Mounting again -- ensuring original files unmodified"
+        efreshdir dest
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        assert_empty "$(cat dest/file0)"
+        assert_empty "$(cat dest/file1)"
+        assert_empty "$(cat dest/file2)"
+        overlayfs_unmount dest
+
+        # RW layer should only have the MODIFIED files in it (we never modifvied file0)
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(fs_list rw.${ftype}) )
+        array_sort contents
+        assert_eq 2 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+
+        # Mount the RW layer and ensure contents are as expected
+        etestmsg "${ftype}: Mounting RW layer to validate its contents"
+        efreshdir dest
+        overlayfs_mount rw.${ftype} dest
+        overlayfs_tree dest
+        assert_eq "File#1" "$(cat dest/file1)"
+        assert_eq "File#2" "$(cat dest/file2)"
+        overlayfs_unmount dest
+    done
+
+    # Ensure everything unmounted
+    check_mounts
+}
+
+ETEST_overlayfs_multilayer()
+{
+    etestmsg "Creating multiple squashfs images"
+    mkdir -p src1 src2 src3
+    touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
+    fs_create src1 src1.squashfs
+    fs_create src2 src2.squashfs
+    fs_create src3 src3.squashfs
+
+    # Mount all three images and verify expected contents
+    etestmsg "Mounting all squashfs images into single dest directory"
+    mkdir -p dest
+    overlayfs_mount src1.squashfs src2.squashfs src3.squashfs dest
+    overlayfs_tree dest
+    assert_exists dest/{file1,file2,file3,file4,file5,file6}
+
+    # Unmount all images
+    etestmsg "Unmounting final image"
+    overlayfs_unmount dest
+    assert_not_exists dest/{file1,file2,file3,file4,file5,file6}
+    assert_false grep "src1.squashfs" /proc/mounts
+    assert_false grep "src2.squashfs" /proc/mounts
+    assert_false grep "src3.squashfs" /proc/mounts
+
+    # Ensure everything unmounted
+    check_mounts
+}
+
+ETEST_overlayfs_multilayer_mixed_types()
+{
+    etestmsg "Creating squashfs, ISO and TAR files"
+    mkdir -p src1 src2 src3
+    touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
+    fs_create src1 src1.squashfs
+    fs_create src2 src2.iso
+    fs_create src3 src3.tgz
+
+    etestmsg "Mounting all files into single dest directory"
+    efreshdir dest
+    overlayfs_mount src1.squashfs src2.iso src3.tgz dest
+    overlayfs_tree dest
+    assert_exists dest/{file1,file2,file3,file4,file5,file6}
+
+    etestmsg "Unmounting final image"
+    overlayfs_unmount dest
+    assert_not_exists dest/{file1,file2,file3,file4,file5,file6}
+
+    # Ensure everything unmounted
+    check_mounts
+}
