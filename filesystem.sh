@@ -2,6 +2,19 @@
 
 # Copyright 2016, SolidFire, Inc. All rights reserved.
 
+# Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
+# use just 'overlay' so dynamically detected the correct type to use here.
+# NOTE: Ignore errors here since this may be running on OSX.
+__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null || true)
+
+# Detect whether overlayfs is supported or not.
+overlayfs_supported()
+{
+    [[ -n "${__BU_OVERLAYFS}" ]]
+}
+
+[[ ${__BU_OS} == Linux ]] || return 0
+
 #-----------------------------------------------------------------------------
 # FILESYSTEM.SH
 #
