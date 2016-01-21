@@ -116,6 +116,8 @@
 
     - Bashutils now explicitly chooses a locale (en_US.utf8)
 
+    - Fixed bug on calling exit without specifying an exit code.
+
 
 # Bashutils 1.0
 
