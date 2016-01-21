@@ -538,10 +538,11 @@ trap_get()
 #
 exit()
 {
+    local exit_code=$?
     # Mark that this was an internal exit so that in our die mechanism we
     # won't call die if it already went through our internal exit function.
     __BU_INTERNAL_EXIT=1
-    builtin exit $1
+    builtin exit ${1:-${exit_code}}
 }
 
 # die is our central error handling function for all bashutils code which is
