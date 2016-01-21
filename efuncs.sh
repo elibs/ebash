@@ -1398,11 +1398,7 @@ eprogress_kill()
         # Don't kill the pid if it's not running or it's not an eprogress pid.
         # This catches potentially disasterous errors where someone would do
         # "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
-        if process_not_running ${pid} ; then
-            continue
-        fi
-
-        if ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
+        if process_not_running ${pid} || ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
             continue
         fi
 
