@@ -260,17 +260,10 @@ fs_mount_or_extract()
 # additional "workdir" option.
 #-------------------------------------------------------------------------------
 
-# Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
-# use just 'overlay' so dynamically detected the correct type to use here.
-__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null || true)
+# Detect what version of the kernel is running so that we can use the correct
+# code paths since there are several different versions of overlayfs to support.
 __BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
 __BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
-
-# Detect whether overlayfs is supported or not.
-overlayfs_supported()
-{
-    [[ -n "${__BU_OVERLAYFS}" ]]
-}
 
 # Try to enable overlayfs by modprobing the kernel module.
 overlayfs_enable()
