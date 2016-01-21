@@ -735,6 +735,7 @@ _bashutils_on_exit_start()
 {
     # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
     __BU_EXIT_CODE=$?
+    edebug "Bash process ${BASHPID} exited rc=$?"
     disable_signals
 }
 
@@ -1397,7 +1398,11 @@ eprogress_kill()
         # Don't kill the pid if it's not running or it's not an eprogress pid.
         # This catches potentially disasterous errors where someone would do
         # "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
-        if process_not_running ${pid} || ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
+        if process_not_running ${pid} ; then
+            continue
+        fi
+
+        if ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
             continue
         fi
 
@@ -1405,7 +1410,7 @@ eprogress_kill()
         ekill ${pid} &>/dev/null
         wait ${pid} &>/dev/null || true
         array_remove __BU_EPROGRESS_PIDS ${pid}
-        
+
         # Output
         einteractive && echo "" >&2
         eend ${rc}
