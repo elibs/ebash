@@ -735,7 +735,7 @@ _bashutils_on_exit_start()
 {
     # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
     __BU_EXIT_CODE=$?
-    edebug "Bash process ${BASHPID} exited rc=$?"
+    edebug "Bash process ${BASHPID} exited rc=${__BU_EXIT_CODE}"
     disable_signals
 }
 
