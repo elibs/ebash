@@ -13,6 +13,34 @@ overlayfs_supported()
     [[ -n "${__BU_OVERLAYFS}" ]]
 }
 
+# Try to enable overlayfs by modprobing the kernel module. If the OS is not
+# Linux this will die.
+overlayfs_enable()
+{
+    if [[ ${__BU_OS} != Linux ]]; then
+        die "OverlayFS is not supported on a non-Linux OS (${__BU_OS})"
+    fi
+
+    # If it's already supported then return - nothing to do
+    if overlayfs_supported; then
+        edebug "OverlayFS already enabled"
+        return 0
+    fi
+
+    ewarn "OverlayFS not enabled -- trying to load kernel module"
+
+    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
+        edebug "Using newer kernel module name 'overlay'"
+        modprobe overlay
+    else
+        edebug "Using legacy kernel module name 'overlayfs'"
+        modprobe overlayfs
+    fi
+
+    # Verify it's now supported
+    overlayfs_supported
+}
+
 [[ ${__BU_OS} == Linux ]] || return 0
 
 #-----------------------------------------------------------------------------
@@ -259,34 +287,6 @@ fs_mount_or_extract()
 # available in older kernel versions but was not official and did not have this
 # additional "workdir" option.
 #-------------------------------------------------------------------------------
-
-# Detect what version of the kernel is running so that we can use the correct
-# code paths since there are several different versions of overlayfs to support.
-__BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
-__BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
-
-# Try to enable overlayfs by modprobing the kernel module.
-overlayfs_enable()
-{
-    # If it's already supported then return - nothing to do
-    if overlayfs_supported; then
-        edebug "OverlayFS already enabled"
-        return 0
-    fi
-
-    ewarn "OverlayFS not enabled -- trying to load kernel module"
-
-    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
-        edebug "Using newer kernel module name 'overlay'"
-        modprobe overlay
-    else
-        edebug "Using legacy kernel module name 'overlayfs'"
-        modprobe overlayfs
-    fi
-
-    # Verify it's now supported
-    overlayfs_supported
-}
 
 # overlayfs_mount mounts multiple filesystems into a single unified writeable
 # directory with read-through semantics. All the underlying filesystem layers
