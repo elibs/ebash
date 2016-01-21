@@ -3,9 +3,25 @@
 # Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
 
-# We presently assume that linux boxes will have a proper gnu toolchain in
-# the default path.  For them, nothing need be done.
-[[ ${__BU_OS} == "Linux" ]] && return 0
+#-----------------------------------------------------------------------------
+# LINUX
+#-----------------------------------------------------------------------------
+
+if [[ ${__BU_OS} == "Linux" ]]; then
+
+    # Detect what version of the kernel is running for code which requires it.
+    __BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
+    __BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
+    __BU_KERNEL_MICRO=$(uname -r | awk -F . '{print $3}' | sed 's|-\S*||')
+
+    # We presently assume that linux boxes will have a proper gnu toolchain in
+    # the default path.  For them, nothing need be done so just return.
+    return 0
+fi
+
+#-----------------------------------------------------------------------------
+# OTHER
+#-----------------------------------------------------------------------------
 
 
 # But for others OSes, it's typical to install the gnu toolchain as
