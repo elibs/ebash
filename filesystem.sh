@@ -67,7 +67,7 @@ fs_create()
 
     # SQUASHFS
     if [[ ${dest_type} == squashfs ]]; then
-        mksquashfs "${src}" "${dest}" -noappend
+        mksquashfs "${src}" "${dest}" -noappend |& edebug
 
     # ISO
     elif [[ ${dest_type} == iso ]]; then
@@ -109,7 +109,7 @@ fs_extract()
 
     # SQUASHFS
     if [[ ${src_type} == squashfs ]]; then
-        unsquashfs -force -dest "${dest}" "${src}"
+        unsquashfs -force -dest "${dest}" "${src}" |& edebug
     
     # ISO
     elif [[ ${src_type} == iso ]]; then
