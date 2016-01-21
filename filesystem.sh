@@ -430,13 +430,18 @@ overlayfs_unmount()
             continue
         fi
 
-        # Parse out the lower, upper and work directories to be unmounted
+        # Parse out required lower and upper directories to be unmounted.
         # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
         # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
         local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-        local work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
+
+        # On newer kernels, also need to unmount work directory.
+        local work=""
+        if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
+            work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
+        fi
         
         # Split 'lower' on ':' so we can unmount each of the lower layers 
         local parts
