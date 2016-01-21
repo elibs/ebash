@@ -427,11 +427,16 @@ overlayfs_unmount()
             continue
         fi
 
-        # Parse out the lower, upper and work directories to be unmounted
+        # Parse out required lower and upper directories to be unmounted.
         local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-        local work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
+
+        # On newer kernels, also need to unmount work directory.
+        local work=""
+        if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
+            work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
+        fi
         
         # Split 'lower' on ':' so we can unmount each of the lower layers 
         local parts
