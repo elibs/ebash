@@ -134,7 +134,7 @@ chroot_exit()
 {
     chroot_kill
     chroot_unmount
-    eunmount_recursive ${CHROOT}
+    eunmount -r ${CHROOT}
 }
 
 # Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE
@@ -305,7 +305,7 @@ chroot_apt_setup()
 
         chroot_cmd wget -q http://${HOST}/${keyname} -O /tmp/${keyname} &>/dev/null
         chroot_cmd apt-key add /tmp/${keyname}                          &>/dev/null
-        chroot_cmd rm -f /tmp/${keyname}                                &>/dev/null
+        chroot_cmd rm --force  /tmp/${keyname}                          &>/dev/null
     done
 
     # Add SolidFire entries after adding SolidFire APT public keys then

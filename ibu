@@ -4,7 +4,7 @@
 source ${BASHUTILS}/bashutils.sh || { echo "Failed to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
 HISTFILE=$(mktemp /tmp/ibashutils_$$_XXXXXX)
-trap_add "rm -f \"${HISTFILE}\""
+trap_add "rm --force \"${HISTFILE}\""
 
 : ${IBU_PROMPT:=$(ecolor green)IBU> $(ecolor none)}
 
