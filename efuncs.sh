@@ -358,7 +358,7 @@ tryrc()
 
     # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
-    trap_add "rm --recursive --force ${tmpdir}"
+    trap_add "rm --recursive --force --one-file-system ${tmpdir}"
 
     # Create temporary file for stdout and stderr
     local stdout_file="${tmpdir}/stdout" stderr_file="${tmpdir}/stderr"
@@ -429,7 +429,7 @@ tryrc()
     fi
 
     # Remote temporary directory
-    rm --recursive --force ${tmpdir}
+    rm --recursive --force --one-file-system ${tmpdir}
 }
 
 #-----------------------------------------------------------------------------
@@ -2432,11 +2432,12 @@ ebindmount()
     mount --make-rprivate "${dest}" &> /dev/null || true
 }
 
-# Mount a filesystem. This is simply a pass through operation into mount
-# so see the mount(8) manpage for usage.
+# Mount a filesystem.
 #
 # WARNING: Do not use declare_args in this function as then we don't 
-#          properly pass the options into mount itself.
+#          properly pass the options into mount itself. Since this is just a
+#          passthrough operation into mount you should see mount(8) manpage 
+#          for usage.
 emount()
 {
     if edebug_enabled || [[ ${@} =~ -v|--verbose ]]; then

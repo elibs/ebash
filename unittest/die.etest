@@ -52,11 +52,11 @@ ETEST_die_traps_parent()
 
     (
         touch "${fname1}"
-        trap_add "echo \"PARENT: Removing ${fname1}\"; rm -f ${fname1}"
+        trap_add "echo \"PARENT: Removing ${fname1}\"; rm --force ${fname1}"
 
         (
             touch "${fname2}"
-            trap_add "echo \"CHILD: Removing ${fname2}\"; rm -f ${fname2}"
+            trap_add "echo \"CHILD: Removing ${fname2}\"; rm --force ${fname2}"
             die "Aborting subshell"
 
         ) || true

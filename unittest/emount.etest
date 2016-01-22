@@ -141,8 +141,10 @@ ETEST_emount_bind_orphaned()
 
     # Remove the source of the bind mount and verify we still
     # recongize it's mounted (as we had a bug in emounted as well).
+    # NOTE: NO --one-file-system here as we purposefully want to cause
+    #       this problem!
     einfo "Remove src and verify still mounted"
-    rm -rf src
+    rm --recursive --force src
     emounted dst || die
     assert_eq 1 $(emount_count dst)
 
