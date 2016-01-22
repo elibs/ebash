@@ -134,7 +134,7 @@ chroot_exit()
 {
     chroot_kill
     chroot_unmount
-    eunmount_recursive ${CHROOT}
+    eunmount -r ${CHROOT}
 }
 
 # Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE

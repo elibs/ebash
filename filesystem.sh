@@ -121,7 +121,7 @@ fs_extract()
         (
             local mnt=$(mktemp -d /tmp/filesystem-mnt-XXXX)
             mount --read-only "${src}" "${mnt}"
-            trap_add "eunmount_rm ${mnt} |& edebug"
+            trap_add "eunmount -r -d ${mnt}"
             cp --archive --recursive "${mnt}/." "${dest}"
         )
         
@@ -218,7 +218,7 @@ fs_convert()
 
     # Temporary directory for mounting
     local mnt="$(mktemp -d /tmp/filesystem-mnt-XXXX)"
-    trap_add "eunmount_rm ${mnt} |& edebug"
+    trap_add "eunmount -r -d ${mnt}"
 
     # Mount (if possible) or extract the filesystem if mounting is not supported.
     fs_mount_or_extract "${src}" "${mnt}"
@@ -241,7 +241,7 @@ fs_diff()
         for src in "${@}"; do
             
             local mnt="$(mktemp -d /tmp/filesystem-mnt-XXXX)"
-            trap_add "eunmount_rm "${mnt}" |& edebug"
+            trap_add "eunmount -r -d ${mnt}"
             local src_type=$(fs_type "${src}")
             mnts+=( "${mnt}" )
 
@@ -350,7 +350,7 @@ overlayfs_mount()
         local layers=()
         for arg in "${args[@]}"; do
             local tmp=$(mktemp -d /tmp/overlayfs-lower-XXXX)
-            trap_add "eunmount_rm ${tmp} |& edebug"
+            trap_add "eunmount -r -d ${tmp}"
             fs_mount_or_extract "${arg}" "${tmp}"
             layers+=( "${tmp}" )
         done
@@ -361,7 +361,7 @@ overlayfs_mount()
         local lower=$(array_join layers ":")
         local upper="$(mktemp -d /tmp/overlayfs-upper-XXXX)"
         local work="$(mktemp -d /tmp/overlayfs-work-XXXX)"
-        trap_add "eunmount_rm ${upper} ${work} |& edebug"
+        trap_add "eunmount -r -d ${upper} ${work}"
 
         # Mount overlayfs
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
@@ -387,7 +387,7 @@ overlayfs_mount()
        
             local middle=$(mktemp -d /tmp/overlayfs-middle-XXXX)
             local work=$(mktemp -d /tmp/overlayfs-work-XXXX)
-            trap_add "eunmount_rm ${middle} ${work} |& edebug"
+            trap_add "eunmount -r -d ${middle} ${work}"
 
             # Extract this layer into middle directory using image specific mechanism.
             for arg in "${args[@]}"; do
@@ -408,7 +408,7 @@ overlayfs_mount()
         # they made in the top-most layer.
         local upper=$(mktemp -d /tmp/squashfs-upper-XXXX)
         local work=$(mktemp -d /tmp/squashfs-work-XXXX)
-        trap_add "eunmount_rm ${upper} ${work} |& edebug"
+        trap_add "eunmount -r -d ${upper} ${work}"
 
         if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
             mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
