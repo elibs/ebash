@@ -186,6 +186,27 @@ ETEST_overlayfs_mount()
     done
 }
 
+ETEST_overlayfs_eunmount()
+{
+
+    etestmsg "Populating source directory"
+    efreshdir src
+    touch src/{file1,file2}
+
+    etestmsg "Creating src.squashfs"
+    fs_create src src.squashfs
+
+    etestmsg "Mounting src.squashfs at dest"
+    overlayfs_mount src.squashfs dest
+    overlayfs_tree dest
+    assert_exists dest/file1 dest/file2
+    diff --recursive src dest
+
+    # Unmount it through eunmount
+    eunmount -a -r -d dest
+    assert_not_exists dest/file1 dest/file2 dest
+}
+
 ETEST_overlayfs_modify()
 {
     local idx=0

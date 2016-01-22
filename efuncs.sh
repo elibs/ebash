@@ -2400,6 +2400,14 @@ emount_count()
     echo -n ${num_mounts}
 }
 
+# Get the mount type of a given mount point.
+emount_type()
+{
+    $(declare_args path)
+    path=$(emount_realpath ${path})
+    grep --perl-regexp "$(emount_regex ${path})" /proc/mounts | awk '{print $1}' || true
+}
+
 emounted()
 {
     $(declare_args path)
@@ -2447,6 +2455,23 @@ emount()
     mount "${@}"
 }
 
+eunmount_internal()
+{
+    $(declare_args)
+    local verbose=$(opt_get v 0)
+
+    local mnt
+    for mnt in $@; do
+
+        # Skip if not mounted.
+        emounted "${mnt}" || continue
+
+        # Lazily unmount the directory - optionally logging what's going on.
+        [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt}"
+        umount --lazy "${mnt}"
+    done
+}
+
 # Recursively unmount a list of mount points. This function iterates over the 
 # provided argument list and will unmount each provided mount point if it is
 # mounted. It is not an error to try to unmount something which is already
@@ -2482,10 +2507,14 @@ eunmount()
         # If empty string just skip it
         [[ -z "${mnt}" ]] && continue
 
-        # Get "real" mount path
+        # Get "real" mount path and detect the mount type. The hideous awk command
+        # finds mount points matching the real mount device and grabs the first
+        # column which denotes the type. Since there may be many such mounts we 
+        # only take the first one.
         local rdev=$(emount_realpath ${mnt})
-        edebug "Unmounting $(lval mnt rdev recursive delete all)"
-
+        local mnt_type=$(emount_type ${rdev})
+        edebug "Unmounting $(lval mnt mnt_type rdev recursive delete all)"
+        
         # WHILE loop to **optionally** continue unmounting until no more matching
         # mounts are detected. The body of the while loop will break out when 
         # there are no more mounts to unmount. If -a=0 was passed in, then this
@@ -2494,13 +2523,16 @@ eunmount()
 
             # NOT RECURSIVE
             if [[ ${recursive} -eq 0 ]]; then
-     
-                # If it's not mounted break out of the loop.
+    
+                # If it's not mounted break out of the loop otherwise unmount it.
                 emounted "${mnt}" || break
-                
-                # Lazily unmount the directory - optionally logging what's going on.
-                [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt}"
-                umount --lazy "${rdev}"
+
+                # OVERLAYFS: Redirect unmount operation to overlayfs_unmount so all layers unmounted
+                if [[ ${mnt_type} =~ overlay ]]; then
+                    overlayfs_unmount -v=${verbose} "${rdev}"
+                else
+                    eunmount_internal -v=${verbose} "${rdev}"
+                fi
         
             # RECURSIVE 
             else
@@ -2517,8 +2549,7 @@ eunmount()
                 # Lazily unmount all mounts
                 local match
                 for match in ${matches[@]}; do
-                    [[ ${verbose} -eq 1 ]] && einfos "Unmounting ${match//${rdev}/${mnt}}"
-                    umount --lazy "${match}"
+                    eunmount_internal -v=${verbose} "${match}"
                 done
             fi
 
