@@ -676,20 +676,12 @@ reenable_signals()
 # $1: body of trap to be appended
 # $@: Optional list of signals to trap (or default to DIE_SIGNALS and EXIT).
 #
-# NOTE: Do not put single quotes inside the body of the trap or else we can't
-#       reliably extract the trap and eval it later.
 trap_add()
 {
     $(declare_args ?cmd)
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
     
-    # Fail if new cmd has single quotes in it.
-    if [[ ${cmd} =~ "'" ]]; then
-        eerror "trap commands cannot contain single quotes."
-        return 1
-    fi
-
     edebug "Adding trap $(lval cmd signals) in process ${BASHPID}"
 
     local sig
