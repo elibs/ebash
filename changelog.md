@@ -15,6 +15,21 @@
       for easier use of squashfs images, including: create, extract, list,
       mount, unmount, to_iso, from_iso, to_tar, from_tar, diff, save_changes.
 
+    - Generalized squashfs module into more general purpose abstract filesystem
+      module. This provides common functions for creating, extracting, listing
+      mounting, unmounting and converting ISOs, squashfs images, and all
+      supported tar file formats.
+
+    - Added OverlayFS support into filesystem module. This provides a very
+      clean interface for dealing with the many different overlayfs versions
+      that we interact with. Provides great tools for mounting, unmounting,
+      listing, saving and printing out tree representation.
+
+    - Consolidated eunmount_recursive, eunmount_rm and eunmount into a 
+      single function with flags to control its behavior. This single function
+      can now optionally unmount recursively and also optionally remove the
+      mount point (recursively) if desired. It also has the ability to continue
+      unmounting while something is mounted beneath the mount point.
 
 # Bashutils 1.1
 

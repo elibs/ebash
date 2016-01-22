@@ -358,7 +358,7 @@ tryrc()
 
     # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
-    trap_add "rm -rf ${tmpdir}"
+    trap_add "rm --recursive --force ${tmpdir}"
 
     # Create temporary file for stdout and stderr
     local stdout_file="${tmpdir}/stdout" stderr_file="${tmpdir}/stderr"
@@ -429,7 +429,7 @@ tryrc()
     fi
 
     # Remote temporary directory
-    rm -rf ${tmpdir}
+    rm --recursive --force ${tmpdir}
 }
 
 #-----------------------------------------------------------------------------
@@ -1919,14 +1919,19 @@ echmodown()
     chown ${owner} $@
 }
 
-# Unmount (if mounted) and remove directory (if it exists) then create it anew
+# Recursively unmount the named directories and remove them (if they exist) then create new ones.
+# NOTE: Unlike earlier implementations, this handles multiple arguments properly.
 efreshdir()
 {
-    $(declare_args mnt)
+    local mnt
+    for mnt in "${@}"; do
+        
+        [[ -z "${mnt}" ]] && continue
 
-    eunmount_recursive ${mnt}
-    rm -rf ${mnt}
-    mkdir -p ${mnt}
+        eunmount -r -d "${mnt}"
+        mkdir -p ${mnt}
+    
+    done
 }
 
 # Copies the given file to *.bak if it doesn't already exist
@@ -2008,7 +2013,7 @@ elogrotate()
     find "$(dirname "${name}")" -maxdepth 1                 \
                -type f -name "$(basename "${name}")"        \
             -o -type f -name "$(basename "${name}").[0-9]*" \
-        | sort --version-sort | awk "NR>${count}" | xargs rm -f
+        | sort --version-sort | awk "NR>${count}" | xargs rm --force
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
@@ -2082,7 +2087,7 @@ elogfile()
 
     # Temporary directory to hold our FIFOs
     local tmpdir=$(mktemp -d /tmp/elogfile-XXXXXXXX)
-    trap_add "rm -rf ${tmpdir}"
+    trap_add "rm --recursive --force ${tmpdir}"
     local pid_pipe="${tmpdir}/pids"
     mkfifo "${pid_pipe}"
  
@@ -2232,7 +2237,7 @@ emetadata()
     local keyring="" keyring_command=""
     keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
-    trap_add "rm -f ${keyring}"
+    trap_add "rm --force ${keyring}"
     gpg ${keyring_command} --import ${privatekey} |& edebug
 
     # Get optional keyphrase
@@ -2313,7 +2318,7 @@ emetadata_check()
     if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
         (
             local keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
-            trap_add "rm -f ${keyring}"
+            trap_add "rm --force ${keyring}"
             gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} |& edebug
             echo "${pgpsignature}" | gpg --verify - "${path}" |& edebug || fail "PGP verification failure: $(lval path)"
         ) &
@@ -2382,27 +2387,134 @@ ebindmount()
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
     # machine outside that chroot.
-    mount --make-rprivate "${src}"  |& edebug || true
+    #
+    # NOTE: Redirect all output from make-private to avoid spewing confusing messages
+    # [efuncs.sh:2390:ebindmount] mount: /dest is not mountpoint or bad option
+    mount --make-rprivate "${src}"  &> /dev/null || true
     emount --rbind "${@}" "${src}" "${dest}"
-    mount --make-rprivate "${dest}" |& edebug || true
+    mount --make-rprivate "${dest}" &> /dev/null || true
 }
 
+# Mount a filesystem. This is simply a pass through operation into mount
+# so see the mount(8) manpage for usage.
+#
+# WARNING: Do not use declare_args in this function as then we don't 
+#          properly pass the options into mount itself.
 emount()
 {
-    einfos "Mounting $@"
+    if edebug_enabled || [[ ${@} =~ -v|--verbose ]]; then
+        einfos "Mounting $@"
+    fi
+    
     mount "${@}"
 }
 
+# Recursively unmount a list of mount points. This function iterates over the 
+# provided argument list and will unmount each provided mount point if it is
+# mounted. It is not an error to try to unmount something which is already
+# unmounted as we're already in the desired state and this is more useful in
+# cleanup code. 
+#
+# NOTE: Unlike normal umount(8), eunmount is recursive by default. This is
+#       because generally you cannot sensibly unmount something if there are
+#       mounts beneath it. So we chose to make recursive the default. You can
+#       override this default with -r=0.
+#
+# NOTE: This uses 'umount -l' to do a lazy unmount. This is the most robust
+#       against failure scenarios where the unmount would otherwise fail.
+#
+# OPTIONS:
+# -r=0|1    Optionally recursively unmount everything beneath the mount point.
+#           (defaults to 0)
+#
+# -d=0|1    Optionally delete all empty directories beneath the mount points.
+#           (defaults to 0).
+#
+# -a=0|1    Unmount ALL copies of requested mount points instead of a single
+#           instance (defaults to 0).
+#
+# -v=0|1    Show verbose output (defaults to 0)
 eunmount()
 {
+    $(declare_args)
+    local recursive=$(opt_get r 0)
+    local delete=$(opt_get d 0)
+    local verbose=$(opt_get v 0)
+    local all=$(opt_get a 0)
+
+    if edebug_enabled; then
+        verbose=1
+    fi
+
     local mnt
     for mnt in $@; do
-        emounted ${mnt} || continue
-        local rdev=$(emount_realpath ${mnt})
-        argcheck rdev
+      
+        # If empty string just skip it
+        [[ -z "${mnt}" ]] && continue
 
-        einfos "Unmounting ${mnt}"
-        umount -l "${rdev}"
+        # Get "real" mount path
+        local rdev=$(emount_realpath ${mnt})
+        edebug "Unmounting $(lval mnt rdev recursive delete all)"
+
+        # WHILE loop to **optionally** continue unmounting until no more matching
+        # mounts are detected. The body of the while loop will break out when 
+        # there are no more mounts to unmount. If -a=0 was passed in, then this
+        # will always break after only a single iteration.
+        while true; do
+
+            # NOT RECURSIVE
+            if [[ ${recursive} -eq 0 ]]; then
+     
+                # If it's not mounted break out of the loop.
+                emounted "${mnt}" || break
+                
+                # Lazily unmount the directory - optionally logging what's going on.
+                [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt}"
+                umount --lazy "${rdev}"
+        
+            # RECURSIVE 
+            else
+
+                # If this path is directly mounted or anything BENEATH it is mounted then proceed
+                local matches=( $(efindmnt "${mnt}" | sort --unique --reverse) )
+                array_empty matches && break
+                
+                # Optionally log what is being unmounted
+                local nmatches=$(echo "${matches[@]}" | wc -l)
+                [[ ${verbose} -eq 1 ]] && einfo "Recursively unmounting ${mnt} (${nmatches})"
+                edebug "$(lval matches nmatches)"
+
+                # Lazily unmount all mounts
+                local match
+                for match in ${matches[@]}; do
+                    [[ ${verbose} -eq 1 ]] && einfos "Unmounting ${match//${rdev}/${mnt}}"
+                    umount --lazy "${match}"
+                done
+            fi
+
+            # If we're only unmounting a single instance BREAK out of the while loop.
+            [[ ${all} -eq 0 ]] && break
+
+        done
+
+        # Optionally delete the mount point
+        if [[ ${delete} -eq 1 && -e ${mnt} ]]; then
+
+            [[ ${verbose} -eq 1 ]] && einfo "Deleting $(lval mnt recursive)"
+
+            # Verify there are no mounts beneath this directory
+            local mounts=( $(efindmnt "${mnt}") )
+            if ! array_empty mounts; then
+                die "Cannot remove $(lval directory=mnt) with mounted filesystems:\n$(array_join_nl mounts)"
+            fi
+
+            local rm_opts="--one-file-system --force"
+            [[ ${recursive} -eq 1 ]] && rm_opts+=" --recursive"
+            edebug_enabled           && rm_opts+=" --verbose"
+
+            rm ${rm_opts} "${mnt}"
+        fi
+
     done
 }
 
@@ -2420,36 +2532,6 @@ efindmnt()
 
     # Now look for anything beneath that directory
     grep --perl-regexp "(^| )${path}[/ ]" /proc/mounts | awk '{print $2}' | sed '/^$/d' || true
-}
-
-eunmount_recursive()
-{
-    local mnt
-    for mnt in "${@}"; do
-        local rdev=$(emount_realpath "${mnt}")
-        argcheck rdev
-
-        while true; do
-
-            # If this path is directly mounted or anything BENEATH it is mounted then proceed
-            local matches="$(efindmnt ${mnt} | sort -ur)"
-            [[ -n ${matches} ]] || break
-
-            local nmatches=$(echo "${matches}" | wc -l)
-            einfo "Recursively unmounting ${mnt} (${nmatches})"
-            local match
-            for match in "${matches}"; do
-                eunmount "${match//${rdev}/${mnt}}"
-            done
-        done
-    done
-}
-
-# Recursively unmount and recursively remove a given list of paths.
-eunmount_rm()
-{
-    eunmount_recursive "${@}"
-    rm -rf "${@}"
 }
 
 #-----------------------------------------------------------------------------
