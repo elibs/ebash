@@ -2419,7 +2419,7 @@ emount()
 # -r=0|1    Optionally recursively unmount everything beneath the mount point.
 #           (defaults to 0)
 #
-# -d=0|1    Optionally delete all empty directories beneath the mount points.
+# -d=0|1    Optionally delete the mount points (with -r this is recursive)
 #           (defaults to 0).
 #
 # -a=0|1    Unmount ALL copies of requested mount points instead of a single
