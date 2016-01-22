@@ -162,47 +162,6 @@ fs_list()
 }
 
 #-----------------------------------------------------------------------------
-# TAR
-#-----------------------------------------------------------------------------
-
-# etar is a wrapper around the normal 'tar' command with a few enhancements:
-# - Suppress all the normal noisy warnings that are almost never of interest
-#   to us.
-# - Automatically detect fastest compression program by default. If this isn't
-#   desired then pass in --use-compress-program=<PROG>. Unlike normal tar, this
-#   will big the last one in the command line instead of giving back a fatal
-#   error due to multiple compression programs.
-etar()
-{
-    # Disable all tar warnings which are expected with unknown file types, sockets, etc.
-    local args=("--warning=none")
-
-    # Provided an explicit compression program wasn't provided via "-I/--use-compress-program"
-    # then automatically determine the compression program to use based on file
-    # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    local match=$(echo "$@" | egrep '(-I|--use-compress-program)' || true)
-    if [[ -z ${match} ]]; then
-
-        local prog=""
-        if [[ -n $(echo "$@" | egrep "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
-            prog="pbzip2"
-        elif [[ -n $(echo "$@" | egrep "\.gz|\.tgz|\.taz" || true) ]]; then
-            prog="pigz"
-        fi
-
-        # If the program we selected is available set that as the compression program
-        # otherwise fallback to auto-compress and let tar pick for us.
-        if [[ -n ${prog} && -n $(which ${prog} 2>/dev/null || true) ]]; then
-            args+=("--use-compress-program=${prog}")
-        else
-            args+=("--auto-compress")
-        fi
-    fi
-
-    tar "${args[@]}" "${@}"
-}
-
-#-----------------------------------------------------------------------------
 # CONVERSIONS
 #-----------------------------------------------------------------------------
 
