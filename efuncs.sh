@@ -2415,14 +2415,6 @@ emount()
 # unmounted as we're already in the desired state and this is more useful in
 # cleanup code. 
 #
-# NOTE: Unlike normal umount(8), eunmount is recursive by default. This is
-#       because generally you cannot sensibly unmount something if there are
-#       mounts beneath it. So we chose to make recursive the default. You can
-#       override this default with -r=0.
-#
-# NOTE: This uses 'umount -l' to do a lazy unmount. This is the most robust
-#       against failure scenarios where the unmount would otherwise fail.
-#
 # OPTIONS:
 # -r=0|1    Optionally recursively unmount everything beneath the mount point.
 #           (defaults to 0)
