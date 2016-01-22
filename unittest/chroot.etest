@@ -13,7 +13,7 @@ file_setup()
 
 file_teardown()
 {
-    chroot_unmount
+    chroot_kill
     eunmount -r -d ${CHROOT}
 }
 
