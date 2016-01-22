@@ -538,7 +538,7 @@ ETEST_tryrc_stderr_unbuffered()
 {
     local pids="${FUNCNAME}.pids"
     local pipe="${FUNCNAME}.pipe"
-    rm -f ${pipe}
+    rm --force ${pipe}
     mkfifo "${pipe}"
     
     # Background parent to start reading from the pipe

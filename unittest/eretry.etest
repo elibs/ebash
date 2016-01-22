@@ -215,7 +215,7 @@ ETEST_eretry_default_count()
 
 ETEST_eretry_subshell_die_should_retry()
 {
-    rm -f file
+    rm --force file
 
     foo()
     {
@@ -261,7 +261,7 @@ DISABLED_ETEST_eretry_dead_stdout_stderr_symlink()
     trap_add "ln -sf /proc/self/fd/2 /dev/stderr"
 
     # Forcibly remove /dev/stdout and /dev/stderr
-    rm -f /dev/stdout /dev/stderr
+    rm --force /dev/stdout /dev/stderr
     assert_not_exists /dev/stdout /dev/stderr
     
     # Make them dangling symlinks
