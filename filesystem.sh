@@ -387,7 +387,7 @@ overlayfs_unmount()
     local verbose=$(opt_get v 0)
     
     local mnt
-    for mnt in $@; do
+    for mnt in "$@"; do
 
         # If empty string or not mounted just skip it
         if [[ -z "${mnt}" ]] || ! emounted "${mnt}" ; then
