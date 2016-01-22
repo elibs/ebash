@@ -13,28 +13,6 @@ FTYPES=(
     tbz2
 )
 
-# Look for any stale mounts
-check_mounts()
-{
-    local ftype mnt entry
-    for ftype in squashfs overlayfs; do
-        
-        etestmsg "Looking for stale ${ftype} mounts"
-        
-        for entry in $(awk /${ftype}/ '{print $1}' /proc/mounts 2>/dev/null || true); do
-            
-            # Follow mount back to source file
-            einfo "$(lval entry)"
-            local mnt=$(losetup "${entry}" | awk '{print $3}' | sed 's|^(||')
-
-            # if this mount is inside our test directory it's an error
-            if [[ ${mnt} =~ ${ETEST_DIR_OUTPUT} ]]; then
-                die "Failed to unmount $(lval mnt)"
-            fi
-        done
-    done
-}
-
 ETEST_fs_create()
 {
     local idx=0
@@ -50,9 +28,6 @@ ETEST_fs_create()
         fs_create src dest.${ftype}
  
     done
-
-    # Ensure everything unmounted
-    check_mounts
 }
 
 ETEST_fs_list()
@@ -77,9 +52,6 @@ ETEST_fs_list()
         assert_eq "/file2" "${contents[1]}"
 
     done
-
-    # Ensure everything unmounted
-    check_mounts
 }
 
 ETEST_fs_extract()
@@ -104,9 +76,6 @@ ETEST_fs_extract()
         find dest
         diff --unified --recursive src dest
     done
-
-    # Ensure everything unmounted
-    check_mounts
 }
 
 ETEST_fs_convert()
@@ -144,9 +113,6 @@ ETEST_fs_convert()
         done
 
     done
-
-    # Ensure everything unmounted
-    check_mounts
 }
 
 ETEST_fs_diff()
@@ -188,9 +154,6 @@ ETEST_fs_diff()
             assert_ne 0 ${rc}
         done
     done
-
-    # Ensure everything unmounted
-    check_mounts
 }
 
 #------------------------------------------------------------------------------
@@ -221,9 +184,6 @@ ETEST_overlayfs_mount()
         overlayfs_unmount dest
         assert_not_exists dest/file1 dest/file2
     done
-
-    # Ensure everything unmounted
-    check_mounts
 }
 
 ETEST_overlayfs_modify()
@@ -276,9 +236,6 @@ ETEST_overlayfs_modify()
         assert_eq "File#2" "$(cat dest/file2)"
         overlayfs_unmount dest
     done
-
-    # Ensure everything unmounted
-    check_mounts
 }
 
 ETEST_overlayfs_multilayer()
@@ -304,9 +261,6 @@ ETEST_overlayfs_multilayer()
     assert_false grep "src1.squashfs" /proc/mounts
     assert_false grep "src2.squashfs" /proc/mounts
     assert_false grep "src3.squashfs" /proc/mounts
-
-    # Ensure everything unmounted
-    check_mounts
 }
 
 ETEST_overlayfs_multilayer_mixed_types()
@@ -327,7 +281,4 @@ ETEST_overlayfs_multilayer_mixed_types()
     etestmsg "Unmounting final image"
     overlayfs_unmount dest
     assert_not_exists dest/{file1,file2,file3,file4,file5,file6}
-
-    # Ensure everything unmounted
-    check_mounts
 }
