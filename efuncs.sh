@@ -3125,34 +3125,20 @@ netselect()
     echo -en "${best}"
 }
 
-# etimeout executes arbitrary shell commands for you, enforcing a timeout around the
-# command.  If the command eventually completes successfully etimeout will return 0.
-# Otherwise if it is prematurely terminated via the requested SIGNAL it will return
-# 124 to match behavior with the vanilla timeout(1) command. If the process fails to
-# exit after receiving requested signal it will send SIGKILL to the process. If this
-# happens the return code of etimeout will still be 124 since we rely on that return
-# code to indicate that a process timedout and was prematurely terminated.
-#
-# This function is similar in purpose to the vanilla timeout(1) command only this
-# one is more powerful since it can call any arbitrary shell command including
-# bash functions or eval'd strings.
-#
-# OPTIONS:
-# -s=<signal>
-#   Accepts both signal names and numbers. When ${TIMEOUT} seconds have passed
-#   since running the command, this will be the signal to send to the process
-#   to make it stop.  The default is TERM. [NOTE: KILL will _also_ be sent two
-#   seconds after the timeout if the first signal doesn't do its job]
-#
-# -t=<timeout>
-#   (REQUIRED). After this duration, command will be killed if it hasn't
-#   exited. If it's a simple number, the duration will be a number in seconds.
-#   You may also specify suffixes in the same format the timeout command
-#   accepts them. For instance, you might specify 5m or 1h or 2d for 5 minutes,
-#   1 hour, or 2 days, respectively.
-#
-# All direct parameters to etimeout are assumed to be the command to execute, and
-# etimeout is careful to retain your quoting.
+## etimeout
+## ========
+##
+## `etimeout` will execute an arbitrary bash command for you, but will only let
+## it use up the amount of time (i.e. the "timeout") you specify.
+##
+## If the command tries to take longer than that amount of time, it will be
+## killed and etimeout will return 124.  Otherwise, etimeout will return the
+## value that your called command returned.
+##
+## All arguments to `etimeout` (i.e. everything that isn't an option, or
+## everything after --) is assumed to be part of the command to execute.
+## `Etimeout` is careful to retain your quoting.
+##
 etimeout()
 {
     $(declare_opts \
@@ -3170,7 +3156,8 @@ etimeout()
         return 0
     fi
 
-    # Launch command in the background and store off its pid.
+    #-------------------------------------------------------------------------
+    # COMMAND TO EVAL
     local rc=""
     (
         disable_die_parent
@@ -3180,45 +3167,73 @@ etimeout()
     local pid=$!
     edebug "Executing $(lval cmd timeout signal pid)"
  
-    # Start watchdog process to kill process if it times out
+    #-------------------------------------------------------------------------
+    # WATCHER
+    #
+    # Launch a background "wathcher" process that is simply waiting for the
+    # timeout timer to expire.  If it does, it will kill the original command.
     (
         disable_die_parent
         close_fds
 
+        # Wait for the timeout to elapse
         sleep ${timeout}
 
-        # If process_tree is empty then it exited on its own and we don't have
-        # to kill it.
+        # Upon getting here, we know that either 1) the timeout elapsed or 2)
+        # our sleep process was killed.
+        #
+        # We can check to see if anything is still running, though, because we
+        # know the command's PID.  If it's gone, it must've finished and we can exit
+        #
         local pre_pids=( $(process_tree ${pid}) )
-        array_empty pre_pids && exit 0
+        if array_empty pre_pids ; then
+            exit 0
+        else
+            # Since it did not exit and we must've completed our timeout sleep,
+            # the command must've outlived its usefulness.  Do away with it.
+            ekilltree -s=${signal} -k=2s ${pid}
 
-        # Process did not exit on its own. Send it the intial requested
-        # signal. If its process tree is empty then exit with 1.
-        ekilltree -s=${signal} -k=2s ${pid}
-        exit 124
+            # Return sentinel 124 value to let the main process know that we
+            # encountered a timeout.
+            exit 124
+        fi
 
     ) &>/dev/null &
 
-    # Wait for pid which will either be KILLED by watcher or complete normally.
+    #-------------------------------------------------------------------------
+    # HANDLE RESULTS
     {
+        # Now we need to wait for the original process to finish.  We know that
+        # it will _either_ finish because it completes normally or because the
+        # watcher will kill it.
+        #
+        # Note that we do _not_ know which.  The return code we get from that
+        # process might be its normal rc, or it might be the rc that it got
+        # because it was killed by the watcher.
         local watcher=$!
         wait ${pid} && rc=0 || rc=$?
 
-        # Kill the children of the watcher (i.e. its sleep).  At that point, the
-        # watcher WILL exit quickly, so we can wait for it.
+        # Once the above has completed, we know that the watcher is no longer
+        # needed, so we can kill it, too.
         ekilltree -s=TERM ${watcher}
+
+        # We need the return code from the watcher process to determine what
+        # happened.  If it returned our sentinel value (124), then we know that
+        # it determined there was a timeout.  Otherwise, we know that the
+        # original command returned on its own.
         wait ${watcher} && watcher_rc=0 || watcher_rc=$?
 
-        # How long did all that take?
         local stop=${SECONDS}
         local seconds=$(( ${stop} - ${start} ))
+
     } &>/dev/null
     
-    # If the process timedout return 124 to match timeout behavior.
+    # Now if we got that sentinel 124 value, we can report the timeout
     if [[ ${watcher_rc} -eq 124 ]] ; then
         edebug "Timeout $(lval cmd rc seconds timeout signal pid)"
         return 124
     else
+        # Otherwise, we report the value reported by the original command
         return ${rc}
     fi
 }
