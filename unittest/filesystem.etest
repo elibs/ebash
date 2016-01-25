@@ -29,7 +29,7 @@ ETEST_fs_create()
     done
 }
 
-ETEST_fs_create_excludes()
+ETEST_fs_create_exclude()
 {
     local idx=0
     for idx in $(array_indexes FTYPES); do
@@ -52,6 +52,61 @@ ETEST_fs_create_excludes()
         assert_eq "/file2" "${contents[1]}"
     done
 }
+
+ETEST_fs_create_exclude_glob()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src src/tmp
+        touch src/{file1,file2}
+        touch src/tmp/{t1,t2,t3,t10,x1,x2,x3}
+
+        etestmsg "${ftype}: Creating dest.${ftype} (excluding tmp/*)"
+        fs_create -x="tmp/*" src src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(fs_list src.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 3 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_eq "/tmp"   "${contents[2]}"
+
+        etestmsg "${ftype}: Creating dest.${ftype} (excluding tmp/t?)"
+        fs_create -x="tmp/t?" src src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(fs_list src.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 7 "${#contents[@]}"
+        assert_eq "/file1"   "${contents[0]}"
+        assert_eq "/file2"   "${contents[1]}"
+        assert_eq "/tmp"     "${contents[2]}"
+        assert_eq "/tmp/t10" "${contents[3]}"
+        assert_eq "/tmp/x1"  "${contents[4]}"
+        assert_eq "/tmp/x2"  "${contents[5]}"
+        assert_eq "/tmp/x3"  "${contents[6]}"
+
+        etestmsg "${ftype}: Creating dest.${ftype} (excluding tmp/t* tmp/x*)"
+        fs_create -x="tmp/t* tmp/x*" src src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(fs_list src.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 3 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_eq "/tmp"   "${contents[2]}"
+    done
+}
+
 
 ETEST_fs_list()
 {

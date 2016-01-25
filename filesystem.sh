@@ -53,6 +53,12 @@ fs_type()
 # source directory and write it out to the requested destination directory. 
 # This function will intelligently figure out the type of file to create 
 # based on the suffix of the file.
+#
+# You can also optionally exclude certain paths from being included in
+# the resultant filesystem. Unfortunately, each of the filesystems we support
+# have different levels of support for excluding via filename, glob or regex.
+# So, to provide a common interface in fs_create, we pre-expand all exclude
+# paths using find(1).
 fs_create()
 {
     $(declare_args src dest)
@@ -72,8 +78,14 @@ fs_create()
         if [[ -n ${exclude} ]]; then
             local exclude_file=$(mktemp /tmp/filesystem-exclude-XXXX)
             trap_add "rm --force ${exclude_file}"
-            local excludes=( ${exclude} )
-            echo "$(array_join_nl excludes)" > "${exclude_file}"
+
+            # In order to provide a common API around excludes, use find to 
+            # pre-expand all exclude paths. ISO has a unique requirement in
+            # that each excluded path must be prefixed with the source path.
+            local find_prefix=""
+            [[ ${dest_type} == iso ]] && find_prefix="./"
+            find ${exclude} 2>/dev/null | sed "s|^|${find_prefix}|" > "${exclude_file}" || true
+            edebug "Exclude File:\n$(cat ${exclude_file})"
         fi
 
         # SQUASHFS
@@ -177,7 +189,7 @@ fs_list()
 
         # List contents of tar file but remove the "./" from the output so it
         # matches output of squashfs and iso.
-        etar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d'
+        etar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||'
     fi
 }
 
@@ -446,7 +458,7 @@ overlayfs_unmount()
         # Parse out required lower and upper directories to be unmounted.
         # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
         # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
-        local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+        local output="$(grep "${__BU_OVERLAYFS} $(emount_realpath ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
