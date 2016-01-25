@@ -3195,7 +3195,7 @@ etimeout()
         # Process did not exit on its own. Send it the intial requested
         # signal. If its process tree is empty then exit with 1.
         ekilltree -s=${signal} -k=2s ${pid}
-        exit 1
+        exit 50
 
     ) &>/dev/null &
 
@@ -3215,7 +3215,7 @@ etimeout()
     } &>/dev/null
     
     # If the process timedout return 124 to match timeout behavior.
-    if [[ ${watcher_rc} -eq 1 ]]; then
+    if [[ ${watcher_rc} -eq 50 ]]; then
         edebug "Timeout $(lval cmd rc seconds timeout signal pid)"
         return 124
     else
