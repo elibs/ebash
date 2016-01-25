@@ -3602,24 +3602,46 @@ array_contains()
     return 1
 }
 
-# array_join will join an array into one flat string with the provided delimeter
-# between each element in the resulting string.
+# array_join will join an array into one flat string with the provided multi
+# character delimeter between each element in the resulting string. Can also
+# optionally pass in options to also put the delimiter before or after (or both)
+# all elements.
 #
 # $1: name of the array to join
 # $2: (optional) delimiter
 array_join()
 {
-    $(declare_args __array ?__delim)
+    $(declare_args __array ?delim)
+    local before=$(opt_get b 0)
+    local after=$(opt_get a 0)
 
     # If the array is empty return empty string
     array_empty ${__array} && { echo -n ""; return 0; } || true
 
-    # Default bash IFS is space, tab, newline, so this will default to that
-    : ${__delim:=$' \t\n'}
+    # Default delimiter is an empty string.
+    : ${delim:=" "}
 
-    # Otherwise use IFS to join the array. This must be in a subshell so that
-    # the change to IFS doesn't persist after this function call.
-    ( IFS="${__delim}"; eval "echo -n \"\${${__array}[*]}\"" )
+    # If requested, emit the delimiter before hand.
+    if [[ ${before} -eq 1 ]]; then
+        echo -n "${delim}"
+    fi
+
+    # Iterate over each element of the array and echo that element with the
+    # delimiter following it. Special case the last element in the array because
+    # we only want to emit the trailing delimiter if requested.
+    local indexes=( $(array_indexes ${__array}) )
+    local idx_last=$(echo "${indexes[@]}" | awk '{print $NF}')
+
+    local idx
+    for idx in ${indexes[@]}; do
+        eval "echo -n \"\${${__array}[$idx]}\""
+
+        # If this is not the last element then always echo the delimiter. 
+        # If this is the last element only echo the delimiter if after==1.
+        if [[ ${idx} -lt ${idx_last} || ${after} -eq 1 ]]; then
+            echo -n "${delim}"
+        fi
+    done
 }
 
 # Identical to array_join only it hardcodes the dilimter to a newline.
