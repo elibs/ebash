@@ -131,13 +131,18 @@ assert_no_process_leaks()
 
 assert_no_mount_leaks()
 {
-    edebug "Checking for stale mounts"
+    $(declare_args path)
+    edebug "Checking for stale mounts under $(lval path)"
  
-    local mounts=( $(efindmnt "${TEST_DIR_OUTPUT}" ) )
+    local mounts=( $(efindmnt "${path}" ) )
     
     if ! array_empty mounts; then
-        eunmount -r -a -d=${DELETE} "${TEST_DIR_OUTPUT}"
-        die "Leaked mounts in $(lval TEST_DIR_OUTPUT)\n$(array_join_nl mounts)"
+        eunmount -a -r -d=${DELETE} "${path}"
+        die "Leaked mounts under $(lval path)\n$(array_join_nl mounts)"
+    fi
+
+    if [[ ${DELETE} -eq 1 ]]; then
+        rm --recursive --force --one-file-system --verbose "${path}" |& edebug
     fi
 
     edebug "Finished"
@@ -167,7 +172,7 @@ global_teardown()
 
     cgroup_destroy -r ${ETEST_CGROUP}
 
-    eunmount -r -a -d ${TEST_DIR_OUTPUT}
+    assert_no_mount_leaks ${TEST_DIR_OUTPUT}
 
     # Convert logfile to HTML if requested
     if [[ ${HTML} -eq 1 ]] && which ansi2html &>/dev/null; then
@@ -291,8 +296,8 @@ run_all_tests_in_file()
 
         # Unit test infrastructure teardown
         assert_no_process_leaks
-        assert_no_mount_leaks
-    
+        assert_no_mount_leaks "${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}"
+
     done
 }
 

@@ -1929,7 +1929,7 @@ efreshdir()
         
         [[ -z "${mnt}" ]] && continue
 
-        eunmount -r -d "${mnt}"
+        eunmount -a -r -d "${mnt}"
         mkdir -p ${mnt}
     
     done
@@ -2469,7 +2469,7 @@ eunmount_internal()
 
         # Lazily unmount the directory - optionally logging what's going on.
         [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt}"
-        umount --lazy "${mnt}"
+        umount --lazy "$(emount_realpath "${mnt}")"
     done
 }
 
@@ -2512,9 +2512,8 @@ eunmount()
         # finds mount points matching the real mount device and grabs the first
         # column which denotes the type. Since there may be many such mounts we 
         # only take the first one.
-        local rdev=$(emount_realpath ${mnt})
-        local mnt_type=$(emount_type ${rdev})
-        edebug "Unmounting $(lval mnt mnt_type rdev recursive delete all)"
+        local mnt_type=$(emount_type ${mnt})
+        edebug "Unmounting $(lval mnt mnt_type recursive delete all)"
         
         # WHILE loop to **optionally** continue unmounting until no more matching
         # mounts are detected. The body of the while loop will break out when 
@@ -2530,9 +2529,9 @@ eunmount()
 
                 # OVERLAYFS: Redirect unmount operation to overlayfs_unmount so all layers unmounted
                 if [[ ${mnt_type} =~ overlay ]]; then
-                    overlayfs_unmount -v=${verbose} "${rdev}"
+                    overlayfs_unmount -v=${verbose} "${mnt}"
                 else
-                    eunmount_internal -v=${verbose} "${rdev}"
+                    eunmount_internal -v=${verbose} "${mnt}"
                 fi
         
             # RECURSIVE 

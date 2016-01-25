@@ -81,7 +81,7 @@ ETEST_chroot_create_mount_unmount_recursive()
         check_mounts $((i+1))
     done
 
-    # One eunmount -a (all) should clean everything up resursively.
+    # One eunmount -a -r (all) should clean everything up resursively.
     eunmount -a -r ${CHROOT}
     check_mounts 0
 }
