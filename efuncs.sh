@@ -1929,7 +1929,7 @@ efreshdir()
         
         [[ -z "${mnt}" ]] && continue
 
-        eunmount -r -d "${mnt}"
+        eunmount -a -r -d "${mnt}"
         mkdir -p ${mnt}
     
     done

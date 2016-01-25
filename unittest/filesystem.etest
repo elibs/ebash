@@ -26,7 +26,30 @@ ETEST_fs_create()
 
         etestmsg "${ftype}: Creating dest.${ftype}"
         fs_create src dest.${ftype}
+    done
+}
+
+ETEST_fs_create_excludes()
+{
+    local idx=0
+    for idx in $(array_indexes FTYPES); do
+        local ftype="${FTYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#FTYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        fs_create -x="XXX YYY" src src.${ftype}
  
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(fs_list src.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 2 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
     done
 }
 
@@ -188,13 +211,14 @@ ETEST_overlayfs_mount()
 
 ETEST_overlayfs_eunmount()
 {
-
     etestmsg "Populating source directory"
     efreshdir src
     touch src/{file1,file2}
+    find src
 
     etestmsg "Creating src.squashfs"
     fs_create src src.squashfs
+    fs_list src.squashfs
 
     etestmsg "Mounting src.squashfs at dest"
     overlayfs_mount src.squashfs dest
@@ -218,10 +242,13 @@ ETEST_overlayfs_modify()
         efreshdir src dest
         touch src/{file0,file1,file2}
         fs_create src src.${ftype}
+        fs_list src.${ftype}
 
-        etestmsg "${ftype}: Modifying squashfs mounted files"
+        etestmsg "${ftype}: Mounting at dest"
         overlayfs_mount src.${ftype} dest
         overlayfs_tree dest
+
+        etestmsg "${ftype}: Modifying mounted files"
         echo "File#1" > dest/file1
         echo "File#2" > dest/file2
         assert_eq "File#1" "$(cat dest/file1)"
