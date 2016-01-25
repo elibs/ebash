@@ -305,6 +305,38 @@ ETEST_array_join_custom()
     assert_eq "${input}" "${output}"
 }
 
+ETEST_array_join_multi_character_delim()
+{
+    local input="a b c d" output=""
+    array_init arr "${input}"
+    declare -p arr
+
+    output=$(array_join arr "X Y Z")
+    assert_eq "aX Y ZbX Y ZcX Y Zd" "${output}"
+}
+
+ETEST_array_join_before_after()
+{
+    local input="a b c d" output=""
+    array_init arr "${input}"
+    declare -p arr
+
+    etestmsg "Before only"
+    output=$(array_join -b arr "+")
+    echo "${output}"
+    assert_eq "+a+b+c+d" "${output}"
+
+    etestmsg "After only"
+    output=$(array_join -a arr "+")
+    echo "${output}"
+    assert_eq "a+b+c+d+" "${output}"
+
+    etestmsg "Both before and after"
+    output=$(array_join -b -a arr "+")
+    echo "${output}"
+    assert_eq "+a+b+c+d+" "${output}"
+}
+
 ETEST_array_remove()
 {
     local input="a b c d"

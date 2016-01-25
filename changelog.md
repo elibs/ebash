@@ -25,6 +25,9 @@
       mount point (recursively) if desired. It also has the ability to continue
       unmounting while something is mounted beneath the mount point.
 
+    - Add multi-character support to array_join. Can now also optionally include
+      the delimiter before or after (or both) all joined elements.
+
 # Bashutils 1.1
 
     - Added tryrc function to aid in running code that you expect might fail,
