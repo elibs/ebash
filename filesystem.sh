@@ -56,46 +56,66 @@ fs_type()
 fs_create()
 {
     $(declare_args src dest)
+    local dest_real=$(readlink -m "${dest}")
     local dest_type=$(fs_type "${dest}")
+    local exclude=$(opt_get x)
+    local cmd=()
 
-    edebug "Creating filesystem $(lval src dest dest_type)"
+    edebug "Creating filesystem $(lval src dest dest_real dest_type exclude)"
 
-    # SQUASHFS
-    if [[ ${dest_type} == squashfs ]]; then
-        mksquashfs "${src}" "${dest}" -noappend |& edebug
+    # Put entire body of this function into a subshell to ensure clean up 
+    # traps execute properly.
+    (
+        cd "${src}"
 
-    # ISO
-    elif [[ ${dest_type} == iso ]]; then
+        # Create excludes file
+        if [[ -n ${exclude} ]]; then
+            local exclude_file=$(mktemp /tmp/filesystem-exclude-XXXX)
+            trap_add "rm --force ${exclude_file}"
+            local excludes=( ${exclude} )
+            echo "$(array_join_nl excludes)" > "${exclude_file}"
+        fi
 
-        # Optional flags to pass through into mkisofs
-        local volume=$(opt_get v "")
-        local bootable=$(opt_get b 0)
+        # SQUASHFS
+        if [[ ${dest_type} == squashfs ]]; then
+            
+            cmd=( mksquashfs . "${dest_real}" -noappend )
+            [[ -n ${exclude} ]] && cmd+=( -wildcards -ef ${exclude_file} )
 
-        # Put body in a subshell to ensure traps perform clean-up.
-        (
+        # ISO
+        elif [[ ${dest_type} == iso ]]; then
+
+            # Optional flags to pass through into mkisofs
+            local volume=$(opt_get v "")
+            local bootable=$(opt_get b 0)
+
+            cmd=( mkisofs -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" )
+
             # Generate ISO flags
-            local iso_flags="-V "${volume}""
+            [[ -n ${exclude} ]] && cmd+=( -exclude-list ${exclude_file} )
             if opt_true bootable; then
-                iso_flags+=" -b isolinux/isolinux.bin 
-                             -c isolinux/boot.cat
-                             -no-emul-boot
-                             -boot-load-size 4
-                             -boot-info-table"
+                cmd+=( -b isolinux/isolinux.bin
+                       -c isolinux/boot.cat
+                       -no-emul-boot
+                       -boot-load-size 4
+                       -boot-info-table)
             fi
 
-            local dest_abs="$(readlink -m "${dest}")"
-            cd ${src}
-            mkisofs -r "${iso_flags}" -cache-inodes -J -l -o "${dest_abs}" . |& edebug
-        ) 
+            cmd+=( . )
 
-    # TAR
-    elif [[ ${dest_type} == tar ]]; then
-        local dest_real=$(readlink -m "${dest}")
-        pushd "${src}"
-        etar --create --file "${dest_real}" .
-        popd
+        # TAR
+        elif [[ ${dest_type} == tar ]]; then
 
-    fi
+            cmd=( etar --create --file "${dest_real}" )
+            [[ -n ${exclude} ]] && cmd+=( --exclude-from ${exclude_file} )
+            cmd+=( . )
+
+        fi
+
+        # Execute command
+        edebug "$(lval cmd)"
+        ${cmd[@]} |& edebug
+    )
 }
 
 # Extract a previously constructed filesystem image. This works on all of our
