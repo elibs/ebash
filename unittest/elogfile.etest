@@ -64,6 +64,7 @@ ETEST_elogfile_nostderr()
 ETEST_elogfile_nostdout()
 {
     (
+        EDEBUG=0
         elogfile -o=0 ${FUNCNAME}.log
         
         echo "stdout" >&1
