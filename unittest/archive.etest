@@ -128,7 +128,7 @@ ETEST_archive_extract()
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
-        efreshdir src
+        efreshdir src dest
         touch src/{file1,file2}
 
         etestmsg "${ftype}: Creating src.${ftype}"
@@ -141,6 +141,64 @@ ETEST_archive_extract()
         find src
         find dest
         diff --unified --recursive src dest
+    done
+}
+
+ETEST_archive_extract_specific_files()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        etestmsg "${ftype}: Extracting src.${ftype}/{file1,file2} to dest"
+        archive_extract src.${ftype} dest file1 file2
+
+        etestmsg "${ftype}: Validating dest"
+        local contents=( $(find dest -printf '%P\n') )
+        echo "${contents[@]}"
+        array_sort contents
+        assert_eq 2 "${#contents[@]}"
+        assert_eq "file1" "${contents[0]}"
+        assert_eq "file2" "${contents[1]}"
+    done
+}
+
+ETEST_archive_extract_glob()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src src/tmp dest
+        touch src/{file1,file2,XXX,YYY,tmp/1,tmp/2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create src src.${ftype}
+        archive_list src.${ftype}
+
+        etestmsg "${ftype}: Extracting src.${ftype}/{file*,tmp/*} to dest"
+        archive_extract src.${ftype} dest "file*" "tmp/*"
+
+        etestmsg "${ftype}: Validating dest"
+        local contents=( $(find dest -printf '%P\n') )
+        echo "${contents[@]}"
+        array_sort contents
+        assert_eq 5 "${#contents[@]}"
+        assert_eq "file1" "${contents[0]}"
+        assert_eq "file2" "${contents[1]}"
+        assert_eq "tmp"   "${contents[2]}"
+        assert_eq "tmp/1" "${contents[3]}"
+        assert_eq "tmp/2" "${contents[4]}"
     done
 }
 
