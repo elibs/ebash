@@ -88,7 +88,7 @@ ETEST_eprogress_ticker_on()
     type eprogress
     etestmsg "Starting background process that writes to ${OUTPUT}"
     (
-        exec 2> >(tee ${OUTPUT})
+        exec &> >(tee ${OUTPUT})
 
         COLUMNS=28
         EFUNCS_COLOR=0
@@ -146,7 +146,7 @@ ETEST_eprogress_killall()
     # Kill all eprogress pids and verify they exit
     eprogress_kill -a
     for pid in "${pids[@]}"; do
-        eretry -T=5s process_not_running ${pid}
+        eretry -t=2s -T=10s process_not_running ${pid}
     done
 }
 
