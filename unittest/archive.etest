@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+
+BANNER_WIDTH=50
+
+ETEST_archive_create()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        archive_create src dest.${ftype}
+    done
+}
+
+ETEST_archive_create_exclude()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        archive_create -x="XXX YYY" src src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 2 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+    done
+}
+
+ETEST_archive_create_exclude_glob()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src src/tmp
+        touch src/{file1,file2}
+        touch src/tmp/{t1,t2,t3,t10,x1,x2,x3}
+
+        etestmsg "${ftype}: Creating dest.${ftype} (excluding tmp/*)"
+        archive_create -x="tmp/*" src src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 3 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_eq "/tmp"   "${contents[2]}"
+
+        etestmsg "${ftype}: Creating dest.${ftype} (excluding tmp/t?)"
+        archive_create -x="tmp/t?" src src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 7 "${#contents[@]}"
+        assert_eq "/file1"   "${contents[0]}"
+        assert_eq "/file2"   "${contents[1]}"
+        assert_eq "/tmp"     "${contents[2]}"
+        assert_eq "/tmp/t10" "${contents[3]}"
+        assert_eq "/tmp/x1"  "${contents[4]}"
+        assert_eq "/tmp/x2"  "${contents[5]}"
+        assert_eq "/tmp/x3"  "${contents[6]}"
+
+        etestmsg "${ftype}: Creating dest.${ftype} (excluding tmp/t* tmp/x*)"
+        archive_create -x="tmp/t* tmp/x*" src src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 3 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_eq "/tmp"   "${contents[2]}"
+    done
+}
+
+ETEST_archive_list()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src.${ftype}) )
+        array_sort contents
+        assert_eq 2 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+
+    done
+}
+
+ETEST_archive_extract()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        etestmsg "${ftype}: Extracting src.${ftype} to dest"
+        archive_extract src.${ftype} dest
+
+        etestmsg "${ftype}: Validating src and dest"
+        find src
+        find dest
+        diff --unified --recursive src dest
+    done
+}
+
+ETEST_archive_convert()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        local other
+        for other in ${__BU_ARCHIVE_TYPES[@]}; do
+            
+            etestmsg "${ftype}: Converting src.${ftype} to cpy.${other}"
+            archive_convert src.${ftype} cpy.${other}
+
+            etestmsg "${ftype}: Validating contents of cpy.${other}"
+            local src_contents=( $(archive_list src.${ftype}) )
+            local cpy_contents=( $(archive_list cpy.${other}) )
+            etestmsg "$(lval src_contents cpy_contents)"
+            assert_eq $(array_size src_contents) $(array_size cpy_contents)
+
+            # Also compare and diff as arrays
+            array_sort src_contents
+            array_sort cpy_contents
+            local src_contents_join=$(array_join src_contents :)
+            local cpy_contents_join=$(array_join cpy_contents :)
+            assert_eq "${src_contents_join}" "${cpy_contents_join}"
+        done
+
+    done
+}
+
+ETEST_archive_diff()
+{
+    local idx=0
+    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
+        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        # Iterate over all types and create copy -- diff should match
+        for other in ${__BU_ARCHIVE_TYPES[@]}; do
+           
+            etestmsg "${ftype}: Creating cpy.${other}"
+            archive_create src cpy.${other}
+
+            etestmsg "${ftype}: Diffing against cpy.${other}"
+            archive_diff src.${ftype} cpy.${other}
+        done
+
+        # Iterate over all types and create a different copy with extra file
+        # diff should not match.
+        for other in ${__BU_ARCHIVE_TYPES[@]}; do
+           
+            etestmsg "${ftype}: Creating diff.${other}"
+            efreshdir diff
+            cp src/* diff
+            touch diff/EXTRA_FILE
+            archive_create diff diff.${other}
+
+            etestmsg "${ftype}: Diffing against diff.${other} (should fail)"
+            $(tryrc archive_diff src.${ftype} diff.${other})
+            assert_ne 0 ${rc}
+        done
+    done
+}
