@@ -10,14 +10,14 @@
       have to use an equal sign to specify a value for an option (although you
       still may)
 
-    - Created new general purpose abstract filesystem module. This provides
+    - Created new general purpose abstract archive module. This provides
       common functions for creating, extracting, listing, mounting, unmounting
       and converting ISOs, squashfs images, and all supported tar file formats.
 
-    - Added OverlayFS support into filesystem module. This provides a very
-      clean interface for dealing with the many different overlayfs versions
-      that we interact with. Provides great tools for mounting, unmounting,
-      listing, saving and printing out tree representation.
+    - Created new OverlayFS module. This provides a very clean interface for
+      dealing with the many different overlayfs versions that we interact with.
+      Provides great tools for mounting, unmounting, listing, saving and
+      printing out tree representation.
 
     - Consolidated eunmount_recursive, eunmount_rm and eunmount into a 
       single function with flags to control its behavior. This single function
