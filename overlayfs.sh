@@ -20,8 +20,10 @@
 #-------------------------------------------------------------------------------
 
 # Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
-# use just 'overlay' so dynamically detected the correct type to use here.
-__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null || true)
+# use just 'overlay' so dynamically detected the correct type to use here. Some
+# kernels also support BOTH in which case we need to only take the first one we
+# find (hence the use of head -1).
+__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null | head -1 || true)
 __BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
 __BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
 
@@ -70,21 +72,17 @@ overlayfs_enable()
 # parameter is the final mount point to mount everything at. This final 
 # directory will be created if it doesn't exist.
 #
-# NOTE: The first version of the kernel which officially supported overlayfs
-#       was 3.18. This original API requires specifying the workdir option
-#       for the scratch work performed by overlayfs. Overlayfs was available
-#       in older kernel versions but was not official and did not have this
-#       additional "workdir" option.
-# 
-# NOTE: There are two different actual implementations of this function to 
-#       accomodate different underlying implementations within the kernel.
-#       Kernels < 3.19 had a much more limited version which did not provide
-#       Multi-Layer OverlayFS. As such, we check what version of the kernel
-#       we're running and only define the right implementation for the version
-#       of the kernel that we're running. This saves us from having to perform
-#       this check every time we call this function as it's only done once at
-#       source time.
-#
+# The versioning around OverlayFS is quite complex. The first version of the
+# kernel which officially supported overlayfs was 3.18 and the kernel module
+# name is just 'overlay'. Earlier, unofficial versions of the kernel module
+# used the module name 'overlayfs'. The newer module 'overlay' requires 
+# specifying an additional 'workdir' option for the scratch work performed
+# by overlayfs. 3.19 added support for layering up to two overlayfs mounts
+# on top of one another. 3.20 extended this support even more by allowing you
+# to chain as many as you'd like in the 'lowerdir' option separated by colons
+# and it would overlay them all seamlessly. The 3.19 version is not particularly
+# interesting to us due to it's limitation of only 2 layers so we don't use that
+# one at all.
 overlayfs_mount()
 {
     if [[ $# -lt 2 ]]; then
@@ -101,8 +99,8 @@ overlayfs_mount()
     # Mount layered mounts at requested destination, creating if it doesn't exist.
     mkdir -p "${dest}"
      
-    # NEWER KERNEL VERSIONS (>= 3.19)
-    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 19 ) ]]; then
+    # NEWER KERNEL VERSIONS (>= 3.20)
+    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 20 ) ]]; then
 
         edebug "Using Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
 
@@ -127,7 +125,7 @@ overlayfs_mount()
         # Mount overlayfs
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
  
-    # OLDER KERNEL VERSIONS (<3.19)
+    # OLDER KERNEL VERSIONS (<3.20)
     # NOTE: Older OverlayFS is really annoying because you can only stack 2 overlayfs
     # mounts. To get around this, we'll mount the bottom most layer as the read-only 
     # base image. Then we'll unpack all other images into a middle layer. Then mount
