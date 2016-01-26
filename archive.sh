@@ -144,37 +144,44 @@ archive_create()
 }
 
 # Extract a previously constructed archive image. This works on all of our
-# supported archive types.
+# supported archive types. Also takes an optional list of find(1) glob patterns
+# to limit what files are extracted from the archive. If no files are provided
+# it will extract all files from the archive.
 archive_extract()
 {
     $(declare_args src dest)
+    local files=( "${@}" )
     local src_type=$(archive_type "${src}")
     mkdir -p "${dest}"
 
-    # SQUASHFS
-    if [[ ${src_type} == squashfs ]]; then
-        unsquashfs -force -dest "${dest}" "${src}" |& edebug
-    
-    # ISO
-    elif [[ ${src_type} == iso ]]; then
+    edebug "Extracting $(lval src dest src_type files)"
 
-        # Neither cdrtools nor isoinfo provide a native way to extract the
-        # contents of an ISO. The closest is isoinfo -x but that only works
-        # on a single file at a time and is not recursive. So we have to mount
-        # it then copy the mounted directory to the destination directory.
+    # SQUASHFS + ISO
+    # Neither of the tools for these archive formats support extracting a list
+    # of globs patterns. So we mount them first and use find.
+    if [[ ${src_type} =~ squashfs|iso ]]; then
+
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
             local mnt=$(mktemp -d /tmp/archive-mnt-XXXX)
             mount --read-only "${src}" "${mnt}"
             trap_add "eunmount -r -d ${mnt}"
-            cp --archive --recursive "${mnt}/." "${dest}"
+
+            local dest_real=$(readlink -m "${dest}")
+            cd "${mnt}"
+
+            if array_empty files; then
+                cp --archive --recursive . "${dest_real}"
+            else
+                cp --archive --recursive --parents $(find ${files[@]}) "${dest_real}"
+            fi
         )
-        
+
     # TAR
     elif [[ ${src_type} == tar ]]; then
         local src_real=$(readlink  -m "${src}")
         pushd "${dest}"
-        etar --absolute-names --extract --file "${src_real}" .
+        etar --extract --file "${src_real}" --wildcards --no-anchored $(array_join files " ./")
         popd
     fi
 }
