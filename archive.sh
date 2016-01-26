@@ -3,13 +3,13 @@
 # Copyright 2016, SolidFire, Inc. All rights reserved.
 
 #-----------------------------------------------------------------------------
-# FILESYSTEM.SH
+# ARCHIVE.SH
 #
-# filesystem.sh is a generic module for dealing with various filesystem types
-# in a more generic and consistent manner. It also provides some really helpful
-# and missing functionality not provided by upstream tools. 
+# archive.sh is a generic module for dealing with various archive formats in a
+# generic and consistent manner. It also provides some really helpful and
+# missing functionality not provided by upstream tools. 
 #
-# At present the list of supported filesystem types are as follows:
+# At present the list of supported archive formats is as follows:
 #
 # SQUASHFS: Squashfs is a compressed read-only filesystem for Linux. Squashfs
 # intended for general read-only filesystem use, for archival use and in
@@ -32,8 +32,21 @@
 # compression format is handled seamlessly based on the file extension.
 #-------------------------------------------------------------------------------
 
-# Determine filesystem type based on the file suffix.
-fs_type()
+__BU_ARCHIVE_TYPES=(
+    squashfs
+    iso
+    tar
+    tar.gz
+    tgz
+    taz
+    tar.bz2
+    tz2
+    tbz2
+    tbz
+)
+
+# Determine archive format based on the file suffix.
+archive_type()
 {
     $(declare_args src)
     
@@ -44,30 +57,30 @@ fs_type()
     elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|tar.bz2|.tz2|.tbz2|.tbz ]]; then
         echo -n "tar"
     elif [[ -d "${src}" ]]; then
-        eerror "Unsupported fstype $(lval src)"
+        eerror "Unsupported fstype $(lval src supported=__BU_ARCHIVE_TYPES)"
         return 1
     fi
 }
 
-# Generic function for creating a filesystem of a given type from the given
+# Generic function for creating an archive file of a given type from the given
 # source directory and write it out to the requested destination directory. 
-# This function will intelligently figure out the type of file to create 
-# based on the suffix of the file.
+# This function will intelligently figure out the correct archive type based
+# on the suffix of the file.
 #
 # You can also optionally exclude certain paths from being included in
-# the resultant filesystem. Unfortunately, each of the filesystems we support
+# the resultant archive. Unfortunately, each of the supported archive formats
 # have different levels of support for excluding via filename, glob or regex.
-# So, to provide a common interface in fs_create, we pre-expand all exclude
+# So, to provide a common interface in archive_create, we pre-expand all exclude
 # paths using find(1).
-fs_create()
+archive_create()
 {
     $(declare_args src dest)
     local dest_real=$(readlink -m "${dest}")
-    local dest_type=$(fs_type "${dest}")
+    local dest_type=$(archive_type "${dest}")
     local exclude=$(opt_get x)
     local cmd=()
 
-    edebug "Creating filesystem $(lval src dest dest_real dest_type exclude)"
+    edebug "Creating archive $(lval src dest dest_real dest_type exclude)"
 
     # Put entire body of this function into a subshell to ensure clean up 
     # traps execute properly.
@@ -76,7 +89,7 @@ fs_create()
 
         # Create excludes file
         if [[ -n ${exclude} ]]; then
-            local exclude_file=$(mktemp /tmp/filesystem-exclude-XXXX)
+            local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
             trap_add "rm --force ${exclude_file}"
 
             # In order to provide a common API around excludes, use find to 
@@ -130,12 +143,12 @@ fs_create()
     )
 }
 
-# Extract a previously constructed filesystem image. This works on all of our
-# supported filesystem types.
-fs_extract()
+# Extract a previously constructed archive image. This works on all of our
+# supported archive types.
+archive_extract()
 {
     $(declare_args src dest)
-    local src_type=$(fs_type "${src}")
+    local src_type=$(archive_type "${src}")
     mkdir -p "${dest}"
 
     # SQUASHFS
@@ -151,7 +164,7 @@ fs_extract()
         # it then copy the mounted directory to the destination directory.
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
-            local mnt=$(mktemp -d /tmp/filesystem-mnt-XXXX)
+            local mnt=$(mktemp -d /tmp/archive-mnt-XXXX)
             mount --read-only "${src}" "${mnt}"
             trap_add "eunmount -r -d ${mnt}"
             cp --archive --recursive "${mnt}/." "${dest}"
@@ -166,11 +179,11 @@ fs_extract()
     fi
 }
 
-# Simple function to list the contents of a filesystem image.
-fs_list()
+# Simple function to list the contents of an archive image.
+archive_list()
 {
     $(declare_args src)
-    local src_type=$(fs_type "${src}")
+    local src_type=$(archive_type "${src}")
 
     # SQUASHFS
     if [[ ${src_type} == squashfs ]]; then
@@ -198,32 +211,32 @@ fs_list()
 #-----------------------------------------------------------------------------
 
 # Convert given source file into the requested destination type. This is done
-# by figuring out the source and destination types using fs_type. Then it 
-# mounts the source file into a temporary file, then calls fs_create on the
+# by figuring out the source and destination types using archive_type. Then it 
+# mounts the source file into a temporary file, then calls archive_create on the
 # temporary directory to write it out to the new destination type.
-fs_convert()
+archive_convert()
 {
     $(declare_args src dest)
-    local src_type=$(fs_type "${src}")
+    local src_type=$(archive_type "${src}")
     edebug "Converting $(lval src dest src_type)"
 
     # Temporary directory for mounting
-    local mnt="$(mktemp -d /tmp/filesystem-mnt-XXXX)"
+    local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
     trap_add "eunmount -r -d ${mnt}"
 
-    # Mount (if possible) or extract the filesystem if mounting is not supported.
-    fs_mount_or_extract "${src}" "${mnt}"
+    # Mount (if possible) or extract the archive image if mounting is not supported.
+    archive_mount_or_extract "${src}" "${mnt}"
 
-    # Now we can do the new filesystem creation from 'mnt'
-    fs_create "${mnt}" "${dest}"
+    # Now we can create a new archive from 'mnt'
+    archive_create "${mnt}" "${dest}"
 }
 
 #-----------------------------------------------------------------------------
 # MISC UTILITIES
 #-----------------------------------------------------------------------------
 
-# Diff two or more mountable filesystem images.
-fs_diff()
+# Diff two or more archive images.
+archive_diff()
 {
     # Put body in a subshell to ensure traps perform clean-up.
     (
@@ -231,25 +244,25 @@ fs_diff()
         local src
         for src in "${@}"; do
             
-            local mnt="$(mktemp -d /tmp/filesystem-mnt-XXXX)"
+            local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
             trap_add "eunmount -r -d ${mnt}"
-            local src_type=$(fs_type "${src}")
+            local src_type=$(archive_type "${src}")
             mnts+=( "${mnt}" )
 
-            # Mount (if possible) or extract the filesystem if mounting is not supported.
-            fs_mount_or_extract "${src}" "${mnt}"
+            # Mount (if possible) or extract the archive if mounting is not supported.
+            archive_mount_or_extract "${src}" "${mnt}"
         done
 
         diff --recursive --unified "${mnts[@]}"
     )
 }
 
-# Mount a given filesystem type to a temporary directory read-only if it's
-# a mountable filesystem and otherwise extract it to the directory.
-fs_mount_or_extract()
+# Mount a given archive type to a temporary directory read-only if mountable
+# and if not extract it to the destination directory.
+archive_mount_or_extract()
 {
     $(declare_args src dest)
-    local src_type=$(fs_type "${src}")
+    local src_type=$(archive_type "${src}")
 
     # SQUASHFS or ISO can be directly mounted
     if [[ ${src_type} =~ squashfs|iso ]]; then
@@ -257,7 +270,7 @@ fs_mount_or_extract()
     
     # TAR files need to be extracted manually :-[
     elif [[ ${src_type} == tar ]]; then
-        fs_extract "${src}" "${dest}"
+        archive_extract "${src}" "${dest}"
     fi
 }
 
