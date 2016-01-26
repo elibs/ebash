@@ -144,8 +144,8 @@ archive_create()
 }
 
 # Extract a previously constructed archive image. This works on all of our
-# supported archive types. Also takes an optional list of glob patterns to
-# limit what files are extracted from the archive. If no files are provided
+# supported archive types. Also takes an optional list of find(1) glob patterns
+# to limit what files are extracted from the archive. If no files are provided
 # it will extract all files from the archive.
 archive_extract()
 {
@@ -167,7 +167,7 @@ archive_extract()
             mount --read-only "${src}" "${mnt}"
             trap_add "eunmount -r -d ${mnt}"
 
-            local dest_real=$(realpath -m "${dest}")
+            local dest_real=$(readlink -m "${dest}")
             cd "${mnt}"
 
             if array_empty files; then
