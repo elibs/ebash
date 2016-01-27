@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 BANNER_WIDTH=50
 ARCHIVE_TYPES=(
     squashfs
