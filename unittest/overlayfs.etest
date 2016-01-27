@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
 BANNER_WIDTH=50
+ARCHIVE_TYPES=(
+    squashfs
+    iso
+    tar
+    tar.gz
+)
 
 ETEST_overlayfs_mount()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src
@@ -53,9 +59,9 @@ ETEST_overlayfs_eunmount()
 ETEST_overlayfs_modify()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
         
         etestmsg "${ftype}: Populating source directory"
         efreshdir src dest

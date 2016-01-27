@@ -2362,7 +2362,7 @@ eunmount_internal()
 
         # Lazily unmount the directory - optionally logging what's going on.
         [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt}"
-        umount --lazy "$(emount_realpath "${mnt}")"
+        umount -l "$(emount_realpath "${mnt}")"
     done
 }
 
