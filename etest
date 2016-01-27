@@ -142,7 +142,7 @@ assert_no_mount_leaks()
     fi
 
     if [[ ${DELETE} -eq 1 ]]; then
-        rm --recursive --force --one-file-system --verbose "${path}" |& edebug
+        rm --recursive --force --verbose "${path}" |& edebug
     fi
 
     edebug "Finished"
