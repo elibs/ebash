@@ -10,6 +10,84 @@ check_mounts()
     assert_eq ${count} $(emount_count ${path})
 }
 
+ETEST_emount_bind()
+{
+    mkdir src
+    touch src/file
+    echo "Love" > src/file
+
+    # Bind mount and verify mounted and verify content
+    mkdir dst
+    ebindmount src dst
+    trap_add "eunmount dst"
+    assert_true emounted dst
+    assert_true diff src/file dst/file
+}
+
+ETEST_emount_unmount()
+{
+    # Bind mount src to dst
+    mkdir src dst
+    ebindmount src dst
+    trap_add "eunmount dst"
+
+    # Verify mounted, unmount, then verify unmounted
+    assert_true  emounted dst
+    assert_false emounted src
+}
+
+ETEST_emount_unmount_recursive()
+{
+    etestmsg "Bind mounting src1 and src2"
+    mkdir -p src1 src2 dst/dst1 dst/dst2
+    ebindmount src1 dst/dst1
+    ebindmount src2 dst/dst2
+    trap_add "eunmount dst/dst1 dst/dst2"
+
+    etestmsg "Validating mounts"
+    assert_false emounted dst
+    assert_true  emounted dst/dst1
+    assert_true  emounted dst/dst2
+
+    etestmsg "Ensure eunmount does nothing without -r flag"
+    local mounts_before=( $(efindmnt "${TEST_DIR_OUTPUT}") )
+    einfo "Mounts before unmount"
+    echo "${mounts_before[@]}"
+    eunmount dst
+    einfo "Mounts after unmount"
+    local mounts_after=( $(efindmnt "${TEST_DIR_OUTPUT}") )
+    echo "${mounts_after[@]}"
+    assert_eq "$(array_join mounts_before :)" "$(array_join mounts_after :)"
+
+    etestmsg "Recursively unmounting dst"
+    einfo "Mounts before unmount"
+    grep "${TEST_DIR_OUTPUT}" /proc/mounts || true
+    eunmount -r dst
+    einfo "Mounts after unmount"
+    grep "${TEST_DIR_OUTPUT}" /proc/mounts || true
+    
+    etestmsg "Validating mounts"
+    assert_false emounted dst/dst1
+    assert_false emounted dst/dst2
+}
+
+ETEST_emount_partial_match()
+{
+    # Bind mount a couple of nested directories
+    mkdir -p src1 src2 dst/dst1 dst/dst2
+    ebindmount src1 dst/dst1
+    ebindmount src2 dst/dst2
+    trap_add "eunmount dst/dst1 dst/dst2"
+
+    # Verify state
+    assert_false emounted dst
+    assert_true  emounted dst/dst1
+    assert_true  emounted dst/dst2
+
+    # Use a partial match -- should NOT find any mounts
+    assert_false emounted dst/d
+}
+
 ETEST_emount_bind_count_separate()
 {
     mkdir src
