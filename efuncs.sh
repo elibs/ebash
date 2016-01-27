@@ -391,7 +391,7 @@ tryrc()
 
     # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
-    trap_add "rm --recursive --force --one-file-system ${tmpdir}"
+    trap_add "rm --recursive --force ${tmpdir}"
 
     # Create temporary file for stdout and stderr
     local stdout_file="${tmpdir}/stdout" stderr_file="${tmpdir}/stderr"
@@ -462,7 +462,7 @@ tryrc()
     fi
 
     # Remote temporary directory
-    rm --recursive --force --one-file-system ${tmpdir}
+    rm --recursive --force ${tmpdir}
 }
 
 #-----------------------------------------------------------------------------
@@ -2462,7 +2462,7 @@ eunmount()
                 die "Cannot remove $(lval directory=mnt) with mounted filesystems:\n$(array_join_nl mounts)"
             fi
 
-            local rm_opts="--one-file-system --force"
+            local rm_opts="--force"
             [[ ${recursive} -eq 1 ]] && rm_opts+=" --recursive"
             edebug_enabled           && rm_opts+=" --verbose"
 
