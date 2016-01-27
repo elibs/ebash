@@ -44,13 +44,21 @@ overlayfs_enable()
 
     ewarn "OverlayFS not enabled -- trying to load kernel module"
 
-    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
-        edebug "Using newer kernel module name 'overlay'"
-        modprobe overlay
-    else
-        edebug "Using legacy kernel module name 'overlayfs'"
-        modprobe overlayfs
-    fi
+    # Try 'overlay' before 'overlayfs' b/c overlay is preferred if both are
+    # supported because it supports Multi-Layering.
+    local module
+    for module in overlay overlayfs; do
+        edebug "Trying to load $(lval module)"
+
+        # Break as we only need one of the modules available.
+        if modprobe -q ${module}; then
+            ewarn "Successfully loaded $(lval module)"
+            __BU_OVERLAYFS=${module}
+            break
+        fi
+
+        edebug "Failed to load $(lval module)"
+    done
 
     # Verify it's now supported
     overlayfs_supported
@@ -85,6 +93,8 @@ overlayfs_enable()
 # one at all.
 overlayfs_mount()
 {
+    overlayfs_enable
+
     if [[ $# -lt 2 ]]; then
         eerror "overlayfs_mount requires 2 or more arguments"
         return 1
