@@ -32,19 +32,6 @@
 # compression format is handled seamlessly based on the file extension.
 #-------------------------------------------------------------------------------
 
-__BU_ARCHIVE_TYPES=(
-    squashfs
-    iso
-    tar
-    tar.gz
-    tgz
-    taz
-    tar.bz2
-    tz2
-    tbz2
-    tbz
-)
-
 # Determine archive format based on the file suffix.
 archive_type()
 {
@@ -57,7 +44,7 @@ archive_type()
     elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|tar.bz2|.tz2|.tbz2|.tbz ]]; then
         echo -n "tar"
     elif [[ -d "${src}" ]]; then
-        eerror "Unsupported fstype $(lval src supported=__BU_ARCHIVE_TYPES)"
+        eerror "Unsupported fstype $(lval src)"
         return 1
     fi
 }
