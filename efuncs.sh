@@ -1903,7 +1903,7 @@ elogrotate()
     find "$(dirname "${name}")" -maxdepth 1                 \
                -type f -name "$(basename "${name}")"        \
             -o -type f -name "$(basename "${name}").[0-9]*" \
-        | sort --version-sort | awk "NR>${count}" | xargs rm --force
+        | sort --version-sort | awk "NR>${count}" | xargs rm -f
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
