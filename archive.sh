@@ -44,13 +44,13 @@ overlayfs_enable()
 [[ ${__BU_OS} == Linux ]] || return 0
 
 #-----------------------------------------------------------------------------
-# FILESYSTEM.SH
+# ARCHIVE.SH
 #
-# filesystem.sh is a generic module for dealing with various filesystem types
-# in a more generic and consistent manner. It also provides some really helpful
-# and missing functionality not provided by upstream tools. 
+# archive.sh is a generic module for dealing with various archive formats in a
+# generic and consistent manner. It also provides some really helpful and
+# missing functionality not provided by upstream tools. 
 #
-# At present the list of supported filesystem types are as follows:
+# At present the list of supported archive formats is as follows:
 #
 # SQUASHFS: Squashfs is a compressed read-only filesystem for Linux. Squashfs
 # intended for general read-only filesystem use, for archival use and in
@@ -73,8 +73,21 @@ overlayfs_enable()
 # compression format is handled seamlessly based on the file extension.
 #-------------------------------------------------------------------------------
 
-# Determine filesystem type based on the file suffix.
-fs_type()
+__BU_ARCHIVE_TYPES=(
+    squashfs
+    iso
+    tar
+    tar.gz
+    tgz
+    taz
+    tar.bz2
+    tz2
+    tbz2
+    tbz
+)
+
+# Determine archive format based on the file suffix.
+archive_type()
 {
     $(declare_args src)
     
@@ -85,102 +98,141 @@ fs_type()
     elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|tar.bz2|.tz2|.tbz2|.tbz ]]; then
         echo -n "tar"
     elif [[ -d "${src}" ]]; then
-        eerror "Unsupported fstype $(lval src)"
+        eerror "Unsupported fstype $(lval src supported=__BU_ARCHIVE_TYPES)"
         return 1
     fi
 }
 
-# Generic function for creating a filesystem of a given type from the given
+# Generic function for creating an archive file of a given type from the given
 # source directory and write it out to the requested destination directory. 
-# This function will intelligently figure out the type of file to create 
-# based on the suffix of the file.
-fs_create()
+# This function will intelligently figure out the correct archive type based
+# on the suffix of the file.
+#
+# You can also optionally exclude certain paths from being included in
+# the resultant archive. Unfortunately, each of the supported archive formats
+# have different levels of support for excluding via filename, glob or regex.
+# So, to provide a common interface in archive_create, we pre-expand all exclude
+# paths using find(1).
+archive_create()
 {
     # Optional flags needed to passthrough into mkisofs
     $(declare_opts \
         ":volume v | Optional volume name to use (ISO only)." \
-        "boot b    | Make the ISO bootable (ISO only).")
+        "boot b    | Make the ISO bootable (ISO only)." \
+        "exclude x | List of paths to be excluded from archive.") 
 
     $(declare_args src dest)
-    local dest_type=$(fs_type "${dest}")
+    local dest_real=$(readlink -m "${dest}")
+    local dest_type=$(archive_type "${dest}")
+    local cmd=()
 
-    edebug "Creating filesystem $(lval src dest dest_type)"
+    edebug "Creating archive $(lval src dest dest_real dest_type exclude)"
 
-    # SQUASHFS
-    if [[ ${dest_type} == squashfs ]]; then
-        mksquashfs "${src}" "${dest}" -noappend |& edebug
+    # Put entire body of this function into a subshell to ensure clean up 
+    # traps execute properly.
+    (
+        cd "${src}"
 
-    # ISO
-    elif [[ ${dest_type} == iso ]]; then
+        # Create excludes file
+        if [[ -n ${exclude} ]]; then
+            local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
+            trap_add "rm --force ${exclude_file}"
 
-        # Put body in a subshell to ensure traps perform clean-up.
-        (
+            # In order to provide a common API around excludes, use find to 
+            # pre-expand all exclude paths. ISO has a unique requirement in
+            # that each excluded path must be prefixed with the source path.
+            local find_prefix=""
+            [[ ${dest_type} == iso ]] && find_prefix="./"
+            find ${exclude} 2>/dev/null | sed "s|^|${find_prefix}|" > "${exclude_file}" || true
+            edebug "Exclude File:\n$(cat ${exclude_file})"
+        fi
+
+        # SQUASHFS
+        if [[ ${dest_type} == squashfs ]]; then
+            
+            cmd=( mksquashfs . "${dest_real}" -noappend )
+            [[ -n ${exclude} ]] && cmd+=( -wildcards -ef ${exclude_file} )
+
+        # ISO
+        elif [[ ${dest_type} == iso ]]; then
+
+            cmd=( mkisofs -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" )
+
             # Generate ISO flags
-            local iso_flags="-V "${volume}""
+            [[ -n ${exclude} ]] && cmd+=( -exclude-list ${exclude_file} )
             if [[ ${boot} -eq 1 ]]; then
-                iso_flags+=" -b isolinux/isolinux.bin 
-                             -c isolinux/boot.cat
-                             -no-emul-boot
-                             -boot-load-size 4
-                             -boot-info-table"
+                cmd+=( -b isolinux/isolinux.bin
+                       -c isolinux/boot.cat
+                       -no-emul-boot
+                       -boot-load-size 4
+                       -boot-info-table)
             fi
 
-            local dest_abs="$(readlink -m "${dest}")"
-            cd ${src}
-            mkisofs -r "${iso_flags}" -cache-inodes -J -l -o "${dest_abs}" . |& edebug
-        ) 
+            cmd+=( . )
 
-    # TAR
-    elif [[ ${dest_type} == tar ]]; then
-        local dest_real=$(readlink -m "${dest}")
-        pushd "${src}"
-        etar --create --file "${dest_real}" .
-        popd
+        # TAR
+        elif [[ ${dest_type} == tar ]]; then
 
-    fi
+            cmd=( etar --create --file "${dest_real}" )
+            [[ -n ${exclude} ]] && cmd+=( --exclude-from ${exclude_file} )
+            cmd+=( . )
+
+        fi
+
+        # Execute command
+        edebug "$(lval cmd)"
+        ${cmd[@]} |& edebug
+    )
 }
 
-# Extract a previously constructed filesystem image. This works on all of our
-# supported filesystem types.
-fs_extract()
+# Extract a previously constructed archive image. This works on all of our
+# supported archive types. Also takes an optional list of find(1) glob patterns
+# to limit what files are extracted from the archive. If no files are provided
+# it will extract all files from the archive.
+archive_extract()
 {
     $(declare_args src dest)
-    local src_type=$(fs_type "${src}")
+    local files=( "${@}" )
+    local src_type=$(archive_type "${src}")
     mkdir -p "${dest}"
 
-    # SQUASHFS
-    if [[ ${src_type} == squashfs ]]; then
-        unsquashfs -force -dest "${dest}" "${src}" |& edebug
-    
-    # ISO
-    elif [[ ${src_type} == iso ]]; then
+    edebug "Extracting $(lval src dest src_type files)"
 
-        # Neither cdrtools nor isoinfo provide a native way to extract the
-        # contents of an ISO. The closest is isoinfo -x but that only works
-        # on a single file at a time and is not recursive. So we have to mount
-        # it then copy the mounted directory to the destination directory.
+    # SQUASHFS + ISO
+    # Neither of the tools for these archive formats support extracting a list
+    # of globs patterns. So we mount them first and use find.
+    if [[ ${src_type} =~ squashfs|iso ]]; then
+
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
-            local mnt=$(mktemp -d /tmp/filesystem-mnt-XXXX)
+            local mnt=$(mktemp -d /tmp/archive-mnt-XXXX)
             mount --read-only "${src}" "${mnt}"
-            trap_add "eunmount_rm ${mnt} |& edebug"
-            cp --archive --recursive "${mnt}/." "${dest}"
+            trap_add "eunmount -r -d ${mnt}"
+
+            local dest_real=$(readlink -m "${dest}")
+            cd "${mnt}"
+
+            if array_empty files; then
+                cp --archive --recursive . "${dest_real}"
+            else
+                cp --archive --recursive --parents $(find ${files[@]}) "${dest_real}"
+            fi
         )
-        
+
     # TAR
     elif [[ ${src_type} == tar ]]; then
         local src_real=$(readlink  -m "${src}")
         pushd "${dest}"
-        etar --absolute-names --extract --file "${src_real}" .
+        etar --extract --file "${src_real}" --wildcards --no-anchored $(array_join files " ./")
         popd
     fi
 }
 
-# Simple function to list the contents of a filesystem image.
-fs_list()
+# Simple function to list the contents of an archive image.
+archive_list()
 {
     $(declare_args src)
-    local src_type=$(fs_type "${src}")
+    local src_type=$(archive_type "${src}")
 
     # SQUASHFS
     if [[ ${src_type} == squashfs ]]; then
@@ -199,7 +251,7 @@ fs_list()
 
         # List contents of tar file but remove the "./" from the output so it
         # matches output of squashfs and iso.
-        etar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d'
+        etar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||'
     fi
 }
 
@@ -208,32 +260,32 @@ fs_list()
 #-----------------------------------------------------------------------------
 
 # Convert given source file into the requested destination type. This is done
-# by figuring out the source and destination types using fs_type. Then it 
-# mounts the source file into a temporary file, then calls fs_create on the
+# by figuring out the source and destination types using archive_type. Then it 
+# mounts the source file into a temporary file, then calls archive_create on the
 # temporary directory to write it out to the new destination type.
-fs_convert()
+archive_convert()
 {
     $(declare_args src dest)
-    local src_type=$(fs_type "${src}")
+    local src_type=$(archive_type "${src}")
     edebug "Converting $(lval src dest src_type)"
 
     # Temporary directory for mounting
-    local mnt="$(mktemp -d /tmp/filesystem-mnt-XXXX)"
-    trap_add "eunmount_rm ${mnt} |& edebug"
+    local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
+    trap_add "eunmount -r -d ${mnt}"
 
-    # Mount (if possible) or extract the filesystem if mounting is not supported.
-    fs_mount_or_extract "${src}" "${mnt}"
+    # Mount (if possible) or extract the archive image if mounting is not supported.
+    archive_mount_or_extract "${src}" "${mnt}"
 
-    # Now we can do the new filesystem creation from 'mnt'
-    fs_create "${mnt}" "${dest}"
+    # Now we can create a new archive from 'mnt'
+    archive_create "${mnt}" "${dest}"
 }
 
 #-----------------------------------------------------------------------------
 # MISC UTILITIES
 #-----------------------------------------------------------------------------
 
-# Diff two or more mountable filesystem images.
-fs_diff()
+# Diff two or more archive images.
+archive_diff()
 {
     # Put body in a subshell to ensure traps perform clean-up.
     (
@@ -241,25 +293,25 @@ fs_diff()
         local src
         for src in "${@}"; do
             
-            local mnt="$(mktemp -d /tmp/filesystem-mnt-XXXX)"
-            trap_add "eunmount_rm "${mnt}" |& edebug"
-            local src_type=$(fs_type "${src}")
+            local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
+            trap_add "eunmount -r -d ${mnt}"
+            local src_type=$(archive_type "${src}")
             mnts+=( "${mnt}" )
 
-            # Mount (if possible) or extract the filesystem if mounting is not supported.
-            fs_mount_or_extract "${src}" "${mnt}"
+            # Mount (if possible) or extract the archive if mounting is not supported.
+            archive_mount_or_extract "${src}" "${mnt}"
         done
 
         diff --recursive --unified "${mnts[@]}"
     )
 }
 
-# Mount a given filesystem type to a temporary directory read-only if it's
-# a mountable filesystem and otherwise extract it to the directory.
-fs_mount_or_extract()
+# Mount a given archive type to a temporary directory read-only if mountable
+# and if not extract it to the destination directory.
+archive_mount_or_extract()
 {
     $(declare_args src dest)
-    local src_type=$(fs_type "${src}")
+    local src_type=$(archive_type "${src}")
 
     # SQUASHFS or ISO can be directly mounted
     if [[ ${src_type} =~ squashfs|iso ]]; then
@@ -267,7 +319,7 @@ fs_mount_or_extract()
     
     # TAR files need to be extracted manually :-[
     elif [[ ${src_type} == tar ]]; then
-        fs_extract "${src}" "${dest}"
+        archive_extract "${src}" "${dest}"
     fi
 }
 
@@ -345,7 +397,7 @@ overlayfs_mount()
         local layers=()
         for arg in "${args[@]}"; do
             local tmp=$(mktemp -d /tmp/overlayfs-lower-XXXX)
-            trap_add "eunmount_rm ${tmp} |& edebug"
+            trap_add "eunmount -r -d ${tmp}"
             fs_mount_or_extract "${arg}" "${tmp}"
             layers+=( "${tmp}" )
         done
@@ -356,7 +408,7 @@ overlayfs_mount()
         local lower=$(array_join layers ":")
         local upper="$(mktemp -d /tmp/overlayfs-upper-XXXX)"
         local work="$(mktemp -d /tmp/overlayfs-work-XXXX)"
-        trap_add "eunmount_rm ${upper} ${work} |& edebug"
+        trap_add "eunmount -r -d ${upper} ${work}"
 
         # Mount overlayfs
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
@@ -382,7 +434,7 @@ overlayfs_mount()
        
             local middle=$(mktemp -d /tmp/overlayfs-middle-XXXX)
             local work=$(mktemp -d /tmp/overlayfs-work-XXXX)
-            trap_add "eunmount_rm ${middle} ${work} |& edebug"
+            trap_add "eunmount -r -d ${middle} ${work}"
 
             # Extract this layer into middle directory using image specific mechanism.
             for arg in "${args[@]}"; do
@@ -403,7 +455,7 @@ overlayfs_mount()
         # they made in the top-most layer.
         local upper=$(mktemp -d /tmp/squashfs-upper-XXXX)
         local work=$(mktemp -d /tmp/squashfs-work-XXXX)
-        trap_add "eunmount_rm ${upper} ${work} |& edebug"
+        trap_add "eunmount -r -d ${upper} ${work}"
 
         if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
             mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
@@ -419,21 +471,21 @@ overlayfs_mount()
 # into the final mount image, they will all be unmounted as well.
 overlayfs_unmount()
 {
-    if [[ -z "$@" ]]; then
-        return 0
-    fi
+    $(declare_opts \
+        "verbose v | Enable verbose output.")
 
     local mnt
     for mnt in "$@"; do
 
-        if ! emounted "${mnt}"; then
+        # If empty string or not mounted just skip it
+        if [[ -z "${mnt}" ]] || ! emounted "${mnt}" ; then
             continue
         fi
 
         # Parse out required lower and upper directories to be unmounted.
         # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
         # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
-        local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+        local output="$(grep "${__BU_OVERLAYFS} $(emount_realpath ${mnt})" /proc/mounts)"
         local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
         local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
@@ -443,10 +495,16 @@ overlayfs_unmount()
             work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
         fi
         
+        edebug "$(lval mnt lower upper work)"
+
         # Split 'lower' on ':' so we can unmount each of the lower layers 
         local parts
         array_init parts "${lower}" ":"
-        eunmount ${parts[@]:-} "${upper}" "${work}" "${mnt}"
+        
+        local layer
+        for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
+            eunmount_internal -v=${verbose} "${layer}"
+        done
 
         # In case the overlayfs mounts are layered manually have to also unmount
         # the lower layers.

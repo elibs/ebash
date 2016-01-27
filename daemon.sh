@@ -364,7 +364,7 @@ daemon_stop()
 
     # If it's not running just return
     daemon_running ${optpack} \
-        || { eend 0; edebug "Already stopped"; rm -rf ${pidfile}; return 0; }
+        || { eend 0; edebug "Already stopped"; rm --recursive --force --one-file-system ${pidfile}; return 0; }
 
     # Execute optional pre_stop hook. Ignore any errors.
     $(tryrc ${pre_stop})
@@ -373,7 +373,7 @@ daemon_stop()
     # NOTE: It's important we remove the pidfile BEFORE we kill the process so that
     # it won't try to respawn!
     local pid=$(cat ${pidfile} 2>/dev/null || true)
-    rm -f ${pidfile}
+    rm --force ${pidfile}
     if [[ -n ${pid} ]]; then
         # kill the process with requested signal
         ekilltree -s=${signal} ${pid}

@@ -9,7 +9,7 @@ FAKE_DO_EPROGRESS='
     trap "exit 0" ${DIE_SIGNALS[@]}
 
     local tick=0
-    rm -f ${OUTPUT}
+    rm --force ${OUTPUT}
 
     while true; do
         echo "${tick}" >> ${OUTPUT}
