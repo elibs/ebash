@@ -6,7 +6,7 @@ source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashut
 # Options:
 # -q Quiet mode
 $(declare_args -g)
-opt_true "q" && exec &>/dev/null
+opt_true "q" && exec &> >(edebug)
 
 # Paths to recursively parse
 PATHS=( ${@:-.} )
