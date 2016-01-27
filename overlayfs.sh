@@ -2,6 +2,8 @@
 
 # Copyright 2016, SolidFire, Inc. All rights reserved.
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 #-------------------------------------------------------------------------------
 # OVERLAYFS
 # 
