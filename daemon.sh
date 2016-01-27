@@ -364,7 +364,7 @@ daemon_stop()
 
     # If it's not running just return
     daemon_running ${optpack} \
-        || { eend 0; edebug "Already stopped"; rm --recursive --force --one-file-system ${pidfile}; return 0; }
+        || { eend 0; edebug "Already stopped"; rm --recursive --force ${pidfile}; return 0; }
 
     # Execute optional pre_stop hook. Ignore any errors.
     $(tryrc ${pre_stop})
