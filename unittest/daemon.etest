@@ -217,7 +217,7 @@ ETEST_daemon_pre_start_fail()
 
     # START
     daemon_start sleep_daemon
-    eretry -T=30s daemon_not_running sleep_daemon
+    eretry -T=90s daemon_not_running sleep_daemon
     assert_not_exists ${FUNCNAME}.post_start
 }
 
