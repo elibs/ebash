@@ -89,7 +89,7 @@ daemon_expect()
             [[ -z ${pending} ]] && break
 
             edebug "Still waiting for daemon to reach $(lval state SECONDS)"
-            assert [[ ${SECONDS} -lt 30 ]]
+            assert [[ ${SECONDS} -lt 300 ]]
             sleep .5
 
         done
