@@ -49,6 +49,31 @@ archive_type()
     fi
 }
 
+# Determine the best compress programm to use based on the archive suffix.
+archive_compress_program()
+{
+    $(declare_args fname)
+
+    if [[ ${fname} =~ .bz2|.tz2|.tbz2|.tbz ]]; then
+        progs=( lbzip2 pbzip2 bzip2 )
+    elif [[ ${fname} =~ .gz|.tgz|.taz ]]; then
+        progs=( pigz gzip )
+    elif [[ ${fname} =~ xz ]]; then
+        progs=( lzma xz )
+    else
+        eerror "No suitable compress program for $(lval fname)"
+        return 1
+    fi
+
+    # Look for matching installed program using which and head -1 to select
+    # the first matching program. If progs is empty, this will call 'which ""'
+    # which is an error. which returns the number of failed arguments so we have
+    # to look at the output and not rely on the return code.
+    local prog=$(which ${progs[@]:-} 2>/dev/null | head -1 || true)
+    echo -n "${prog}"
+    [[ -n ${prog} ]]
+} 
+
 # Generic function for creating an archive file of a given type from the given
 # source directory and write it out to the requested destination directory. 
 # This function will intelligently figure out the correct archive type based
@@ -65,9 +90,10 @@ archive_create()
     local dest_real=$(readlink -m "${dest}")
     local dest_type=$(archive_type "${dest}")
     local exclude=$(opt_get x)
-    local cmd=()
+    local cmd=""
 
     edebug "Creating archive $(lval src dest dest_real dest_type exclude)"
+    mkdir -p "$(dirname "${dest}")"
 
     # Put entire body of this function into a subshell to ensure clean up 
     # traps execute properly.
@@ -75,24 +101,27 @@ archive_create()
         cd "${src}"
 
         # Create excludes file
-        if [[ -n ${exclude} ]]; then
-            local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
-            trap_add "rm --force ${exclude_file}"
+        local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
+        trap_add "echo trap;  rm --force ${exclude_file}"
 
-            # In order to provide a common API around excludes, use find to 
-            # pre-expand all exclude paths. ISO has a unique requirement in
-            # that each excluded path must be prefixed with the source path.
+        # Always exclude the file we're creating in the event it's in the include path
+        echo "${dest#${src}/}" > "${exclude_file}"
+
+        # In order to provide a common API around excludes, use find to 
+        # pre-expand all exclude paths. ISO has a unique requirement in
+        # that each excluded path must be prefixed with the source path.
+        if [[ -n ${exclude} ]]; then
             local find_prefix=""
             [[ ${dest_type} == iso ]] && find_prefix="./"
-            find ${exclude} 2>/dev/null | sed "s|^|${find_prefix}|" > "${exclude_file}" || true
-            edebug "Exclude File:\n$(cat ${exclude_file})"
+            find ${exclude} 2>/dev/null | sed "s|^|${find_prefix}|" >> "${exclude_file}" || true
         fi
+        
+        edebug "Exclude File:\n$(cat ${exclude_file})"
 
         # SQUASHFS
         if [[ ${dest_type} == squashfs ]]; then
             
-            cmd=( mksquashfs . "${dest_real}" -noappend )
-            [[ -n ${exclude} ]] && cmd+=( -wildcards -ef ${exclude_file} )
+            cmd="mksquashfs . "${dest_real}" -noappend -wildcards -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -101,32 +130,29 @@ archive_create()
             local volume=$(opt_get v "")
             local bootable=$(opt_get b 0)
 
-            cmd=( mkisofs -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" )
+            cmd="mkisofs -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
 
             # Generate ISO flags
-            [[ -n ${exclude} ]] && cmd+=( -exclude-list ${exclude_file} )
             if opt_true bootable; then
-                cmd+=( -b isolinux/isolinux.bin
-                       -c isolinux/boot.cat
-                       -no-emul-boot
-                       -boot-load-size 4
-                       -boot-info-table)
+                cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
-            cmd+=( . )
+            cmd+=" . "
 
         # TAR
         elif [[ ${dest_type} == tar ]]; then
 
-            cmd=( etar --create --file "${dest_real}" )
-            [[ -n ${exclude} ]] && cmd+=( --exclude-from ${exclude_file} )
-            cmd+=( . )
-
+            local prog=$(archive_compress_program "${dest_real}" 2>/dev/null)
+            if [[ -z ${prog} ]]; then
+                cmd="tar --exclude-from ${exclude_file} --create --file ${dest_real} ."
+            else
+                cmd="tar --exclude-from ${exclude_file} --create --file - . | ${prog} > ${dest_real}"
+            fi
         fi
 
         # Execute command
-        edebug "$(lval cmd)"
-        ${cmd[@]} |& edebug
+        edebug "cd $(lval src) && $(lval cmd)"
+        eval "${cmd}" |& edebug
     )
 }
 
