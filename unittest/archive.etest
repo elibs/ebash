@@ -5,7 +5,7 @@ ARCHIVE_TYPES=(
     squashfs
     iso
     tar
-    tar.gz
+    tbz2
 )
 
 ETEST_archive_create()
@@ -99,6 +99,53 @@ ETEST_archive_create_exclude_glob()
         assert_eq "/file1" "${contents[0]}"
         assert_eq "/file2" "${contents[1]}"
         assert_eq "/tmp"   "${contents[2]}"
+    done
+}
+
+ETEST_archive_create_directory()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        assert_not_exists DIR
+        archive_create src DIR/dest.${ftype}
+        assert_exists DIR/dest.${ftype}
+        rm -rf DIR
+    done
+}
+
+ETEST_archive_create_exclude_self()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+        find src
+
+        etestmsg "${ftype}: Creating src/dest.${ftype}"
+        archive_create src src/dest.${ftype}
+
+        ewarn "COmpleted archive_create"
+
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src/dest.${ftype}) )
+        array_sort contents
+        einfo "$(lval contents)"
+        assert_eq 2 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_exists src/dest.${ftype}
     done
 }
 
