@@ -14,6 +14,12 @@ if [[ ${__BU_OS} == "Linux" ]]; then
     __BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
     __BU_KERNEL_MICRO=$(uname -r | awk -F . '{print $3}' | sed 's|-\S*||')
 
+    # Replace rm to ensure we always pass in --one-file-system flag.
+    rm()
+    {
+        command rm --one-file-system "${@}" 
+    }
+
     # We presently assume that linux boxes will have a proper gnu toolchain in
     # the default path.  For them, nothing need be done so just return.
     return 0
@@ -22,7 +28,6 @@ fi
 #-----------------------------------------------------------------------------
 # OTHER
 #-----------------------------------------------------------------------------
-
 
 # But for others OSes, it's typical to install the gnu toolchain as
 # binaries whose name is prefixed with a letter "g".  For instance, GNU
@@ -100,7 +105,8 @@ __BU_GNU_TOOLS=(
     #pwd
     readlink
     realpath
-    rm
+    # NOTE: Don't override rm as we do that one one-off below.
+    #rm
     rmdir
     runcon
     seq
@@ -161,3 +167,9 @@ redirect_gnu_tools()
 }
 
 redirect_gnu_tools
+
+# Replace rm to ensure we always pass in --one-file-system flag.
+rm()
+{
+    command grm --one-file-system "${@}" 
+}
