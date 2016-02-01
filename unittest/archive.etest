@@ -5,7 +5,7 @@ ARCHIVE_TYPES=(
     squashfs
     iso
     tar
-    tbz2
+    tar.gz
 )
 
 ETEST_archive_create()
