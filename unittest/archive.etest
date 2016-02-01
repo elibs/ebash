@@ -136,8 +136,6 @@ ETEST_archive_create_exclude_self()
         etestmsg "${ftype}: Creating src/dest.${ftype}"
         archive_create src src/dest.${ftype}
 
-        ewarn "COmpleted archive_create"
-
         etestmsg "${ftype}: Validating contents"
         local contents=( $(archive_list src/dest.${ftype}) )
         array_sort contents
