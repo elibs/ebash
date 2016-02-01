@@ -2299,7 +2299,7 @@ emount_type()
 {
     $(declare_args path)
     path=$(emount_realpath ${path})
-    grep --perl-regexp "$(emount_regex ${path})" /proc/mounts | awk '{print $1}' || true
+    list_mounts | grep --perl-regexp "$(emount_regex ${path})" | awk '{print $1}' || true
 }
 
 emounted()
