@@ -391,7 +391,7 @@ tryrc()
 
     # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
-    trap_add "rm --recursive --force --one-file-system ${tmpdir}"
+    trap_add "rm --recursive --force ${tmpdir}"
 
     # Create temporary file for stdout and stderr
     local stdout_file="${tmpdir}/stdout" stderr_file="${tmpdir}/stderr"
@@ -462,7 +462,7 @@ tryrc()
     fi
 
     # Remote temporary directory
-    rm --recursive --force --one-file-system ${tmpdir}
+    rm --recursive --force ${tmpdir}
 }
 
 #-----------------------------------------------------------------------------
@@ -1903,7 +1903,7 @@ elogrotate()
     find "$(dirname "${name}")" -maxdepth 1                 \
                -type f -name "$(basename "${name}")"        \
             -o -type f -name "$(basename "${name}").[0-9]*" \
-        | sort --version-sort | awk "NR>${count}" | xargs rm --force
+        | sort --version-sort | awk "NR>${count}" | xargs rm -f
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
@@ -2362,7 +2362,7 @@ eunmount_internal()
 
         # Lazily unmount the directory - optionally logging what's going on.
         [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt}"
-        umount --lazy "$(emount_realpath "${mnt}")"
+        umount -l "$(emount_realpath "${mnt}")"
     done
 }
 
@@ -2462,7 +2462,7 @@ eunmount()
                 die "Cannot remove $(lval directory=mnt) with mounted filesystems:\n$(array_join_nl mounts)"
             fi
 
-            local rm_opts="--one-file-system --force"
+            local rm_opts="--force"
             [[ ${recursive} -eq 1 ]] && rm_opts+=" --recursive"
             edebug_enabled           && rm_opts+=" --verbose"
 

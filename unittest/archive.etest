@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 BANNER_WIDTH=50
+ARCHIVE_TYPES=(
+    squashfs
+    iso
+    tar
+    tar.gz
+)
 
 ETEST_archive_create()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src
@@ -21,9 +29,9 @@ ETEST_archive_create()
 ETEST_archive_create_exclude()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src
@@ -45,9 +53,9 @@ ETEST_archive_create_exclude()
 ETEST_archive_create_exclude_glob()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src src/tmp
@@ -99,9 +107,9 @@ ETEST_archive_create_exclude_glob()
 ETEST_archive_list()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src
@@ -123,9 +131,9 @@ ETEST_archive_list()
 ETEST_archive_extract()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src dest
@@ -147,9 +155,9 @@ ETEST_archive_extract()
 ETEST_archive_extract_specific_files()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src dest
@@ -174,9 +182,9 @@ ETEST_archive_extract_specific_files()
 ETEST_archive_extract_glob()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src src/tmp dest
@@ -205,9 +213,9 @@ ETEST_archive_extract_glob()
 ETEST_archive_convert()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src
@@ -217,7 +225,7 @@ ETEST_archive_convert()
         archive_create src src.${ftype}
 
         local other
-        for other in ${__BU_ARCHIVE_TYPES[@]}; do
+        for other in ${ARCHIVE_TYPES[@]}; do
             
             etestmsg "${ftype}: Converting src.${ftype} to cpy.${other}"
             archive_convert src.${ftype} cpy.${other}
@@ -242,9 +250,9 @@ ETEST_archive_convert()
 ETEST_archive_diff()
 {
     local idx=0
-    for idx in $(array_indexes __BU_ARCHIVE_TYPES); do
-        local ftype="${__BU_ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#__BU_ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "${ftype}: Populating source directory"
         efreshdir src
@@ -254,7 +262,7 @@ ETEST_archive_diff()
         archive_create src src.${ftype}
 
         # Iterate over all types and create copy -- diff should match
-        for other in ${__BU_ARCHIVE_TYPES[@]}; do
+        for other in ${ARCHIVE_TYPES[@]}; do
            
             etestmsg "${ftype}: Creating cpy.${other}"
             archive_create src cpy.${other}
@@ -265,7 +273,7 @@ ETEST_archive_diff()
 
         # Iterate over all types and create a different copy with extra file
         # diff should not match.
-        for other in ${__BU_ARCHIVE_TYPES[@]}; do
+        for other in ${ARCHIVE_TYPES[@]}; do
            
             etestmsg "${ftype}: Creating diff.${other}"
             efreshdir diff
