@@ -240,18 +240,21 @@ run_single_test()
         rc=$?
     }
 
-
     local process_leak_rc=0
     if cgroup_supported ; then
         $(tryrc -r=process_leak_rc assert_no_process_leaks)
     fi
 
+    local mount_leak_rc=0
+    $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}")
 
-    if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 ]]; then
+    if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 && ${mount_leak_rc} -eq 0 ]]; then
         einfo "$(ecolor green)${testfunc} PASSED."
-
     elif [[ ${rc} -eq 0 && ${process_leak_rc} -ne 0 ]] ; then
         eerror "${testfunc} FAILED due to process leak."
+        rc=1
+    elif [[ ${rc} -eq 0 && ${mount_leak_rc} -ne 0 ]] ; then
+        eerror "${testfunc} FAILED due to mount leak."
         rc=1
     else
         eerror "${testfunc} FAILED."
@@ -324,9 +327,6 @@ run_all_tests_in_file()
             [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_FAILED_COUNT += 1 ))
         }
         [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_EXECUTED_COUNT += 1 ))
-
-        # Unit test infrastructure teardown
-        assert_no_mount_leaks "${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}"
 
     done
 
