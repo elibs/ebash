@@ -88,9 +88,8 @@ archive_compress_program()
 # This function also provides a uniform way of dealing with multiple source
 # paths. All of the various archive formats handle this differently so the
 # uniformity is important. Specifically, all of them will behave identically
-# to mksquashfs with regard to how multiple source paths are handled.
+# to mksquashfs with regard to how multiple source paths are handled:
 #
-# Specifically:
 # "If a single source directory is specified (i.e. mksquashfs source output_fs),
 #  the squashfs filesystem will consist of that directory, with the top-level
 #  root directory corresponding to the source directory. If multiple source
