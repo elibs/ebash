@@ -3568,7 +3568,7 @@ array_remove()
 
             unset ${__array}[$idx]
 
-            [[ ${remove_all} -eq 1 ]] || return 0
+            [[ ${remove_all} -eq 1 ]] || break
         done
     done
 }
