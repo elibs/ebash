@@ -84,44 +84,82 @@ archive_compress_program()
 # have different levels of support for excluding via filename, glob or regex.
 # So, to provide a common interface in archive_create, we pre-expand all exclude
 # paths using find(1).
+#
+# This function also provides a uniform way of dealing with multiple source
+# paths. All of the various archive formats handle this differently so the
+# uniformity is important. Specifically, all of them will behave identically
+# to mksquashfs with regard to how multiple source paths are handled.
+#
+# Specifically:
+# "If a single source directory is specified (i.e. mksquashfs source output_fs),
+#  the squashfs filesystem will consist of that directory, with the top-level
+#  root directory corresponding to the source directory. If multiple source
+#  directories or files are specified, mksquashfs will merge the specified
+#  sources into a single filesystem, with the root directory containing each
+#  of the source files/directories. The name of each directory entry will be
+#  the basename of the source path."
 archive_create()
 {
-    $(declare_args src dest)
+    $(declare_args)
+
+    # Parse positional arguments into a bashutils array. Then grab final argument
+    # which is the destination.
+    local srcs=( "$@" )
+    local dest=${srcs[${#srcs[@]}-1]}
+    unset srcs[${#srcs[@]}-1]
+
+    # Figure out absolute path to destination and parse excludes
     local dest_real=$(readlink -m "${dest}")
     local dest_type=$(archive_type "${dest}")
-    local exclude=$(opt_get x)
+    local excludes=( $(opt_get x) )
     local cmd=""
 
-    edebug "Creating archive $(lval src dest dest_real dest_type exclude)"
+    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes)"
     mkdir -p "$(dirname "${dest}")"
 
     # Put entire body of this function into a subshell to ensure clean up 
     # traps execute properly.
     (
-        cd "${src}"
-
         # Create excludes file
         local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
-        trap_add "echo trap;  rm --force ${exclude_file}"
+        trap_add "rm --force ${exclude_file}"
 
-        # Always exclude the file we're creating in the event it's in the include path
-        echo "${dest#${src}/}" > "${exclude_file}"
-
-        # In order to provide a common API around excludes, use find to 
-        # pre-expand all exclude paths. ISO has a unique requirement in
-        # that each excluded path must be prefixed with the source path.
-        if [[ -n ${exclude} ]]; then
-            local find_prefix=""
-            [[ ${dest_type} == iso ]] && find_prefix="./"
-            find ${exclude} 2>/dev/null | sed "s|^|${find_prefix}|" >> "${exclude_file}" || true
+        if [[ $(array_size srcs) -gt 1 ]]; then
+            echo "${dest}" > ${exclude_file}
+        else
+            echo "${dest#${srcs}/}" > ${exclude_file}
         fi
-        
+
+        # Provide a common API around excludes, use find to pre-expand all excludes.
+        if array_not_empty excludes; then
+ 
+            # In case including and excluding something excludes take precedence.
+            array_remove srcs ${excludes[@]}
+         
+            for src in "${srcs[@]}"; do
+                
+                # If src is a directory then change into it and look for matching
+                # files to exclude. ISO has a unique requirement that each excluded
+                # path must be prefixed with the source path.
+                (
+                    local find_prefix=""
+                    
+                    if [[ -d ${src} ]]; then
+                        cd "${src}"
+                        [[ ${dest_type} == iso ]] && find_prefix="${src}/"
+                    fi
+                    
+                    find ${excludes[@]} 2>/dev/null | sed "s|^|${find_prefix}|" || true
+                )
+            done | sort --unique >> "${exclude_file}"
+        fi
+
         edebug "Exclude File:\n$(cat ${exclude_file})"
 
         # SQUASHFS
         if [[ ${dest_type} == squashfs ]]; then
             
-            cmd="mksquashfs . "${dest_real}" -noappend -wildcards -ef ${exclude_file}"
+            cmd="mksquashfs ${srcs[@]} ${dest_real} -noappend -wildcards -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -137,21 +175,37 @@ archive_create()
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
-            cmd+=" . "
+            # mkisofs flattens all given arguments into a single directory in the output image.
+            # With --graft-points you can override that behavior to put them at the top of the output image.
+            if [[ $(array_size srcs) -gt 1 ]]; then
+                cmd+=" --graft-points"
+                local src
+                for src in ${srcs[@]}; do
+                    cmd+=" /${src}=${src}"
+                done
+            else
+                cmd+=" ${srcs}"
+            fi
 
         # TAR
         elif [[ ${dest_type} == tar ]]; then
 
+            if [[ $(array_size srcs) -eq 1 ]]; then
+                cmd="cd ${srcs}; "
+                srcs=( . )
+            fi
+
+            cmd+="tar --exclude-from ${exclude_file} --create"
             local prog=$(archive_compress_program "${dest_real}" 2>/dev/null)
             if [[ -z ${prog} ]]; then
-                cmd="tar --exclude-from ${exclude_file} --create --file ${dest_real} ."
+                cmd+=" --file ${dest_real} ${srcs[@]}"
             else
-                cmd="tar --exclude-from ${exclude_file} --create --file - . | ${prog} > ${dest_real}"
+                cmd+=" --file - ${srcs[@]} | ${prog} > ${dest_real}"
             fi
         fi
 
         # Execute command
-        edebug "cd $(lval src) && $(lval cmd)"
+        edebug "$(lval cmd)"
         eval "${cmd}" |& edebug
     )
 }
@@ -220,9 +274,11 @@ archive_list()
     # TAR
     elif [[ ${src_type} == tar ]]; then
 
-        # List contents of tar file but remove the "./" from the output so it
-        # matches output of squashfs and iso.
-        etar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||'
+        # List contents of tar file in a manner consistent with the other tools.
+        # They all output paths with '/' but tar's output is specific to if we
+        # had multiple src files or not. This unifies that output by removing
+        # leading './' (single path) and inserts '/' prefix to match the others.
+        etar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||' -e 's|^\([^/]\)|/\1|'
     fi
 }
 
