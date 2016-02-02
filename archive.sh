@@ -87,16 +87,27 @@ archive_compress_program()
 #
 # This function also provides a uniform way of dealing with multiple source
 # paths. All of the various archive formats handle this differently so the
-# uniformity is important. Specifically, all of them will behave identically
-# to mksquashfs with regard to how multiple source paths are handled:
+# uniformity is important. Essentially, if a single source path is specified then
+# its contents are included recursively at the top of the archive whereas if you
+# provide several sources then their directory structures are preserved in the
+# resulting archive.
 #
-# "If a single source directory is specified (i.e. mksquashfs source output_fs),
-#  the squashfs filesystem will consist of that directory, with the top-level
-#  root directory corresponding to the source directory. If multiple source
-#  directories or files are specified, mksquashfs will merge the specified
-#  sources into a single filesystem, with the root directory containing each
-#  of the source files/directories. The name of each directory entry will be
-#  the basename of the source path."
+# A few examples will help clarify the behavior:
+#
+# Example #1: Suppose you have a directory "dir1" with the files 1, 2 and 3 and
+# you call `archive_create a dest.squashfs`. archive_create will then recursively
+# include the contents of 'a' into the archive, yielding:
+# /1
+# /2
+# /3
+#
+# Example #2: Suppose you have these files spread out across three directories:
+# dir1/1 dir2/2 dir3/3 and you call `archive_create dir1 dir2 dir3 dest.squashfs`.
+# archive_create will then include three top-level entries for the three sources
+# provided, yielding:
+# /dir1/1
+# /dir2/2
+# /dir3/3
 archive_create()
 {
     $(declare_args)
