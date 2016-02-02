@@ -24,6 +24,81 @@ ETEST_archive_create()
     done
 }
 
+ETEST_archive_create_directory()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        assert_not_exists DIR
+        archive_create src DIR/dest.${ftype}
+        assert_exists DIR/dest.${ftype}
+        rm -rf DIR
+    done
+}
+
+ETEST_archive_create_files()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Creating files"
+        touch {file1,file2,file3,file4}
+        find .
+        
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        archive_create file1 file2 file3 file4 src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src.${ftype}) )
+        array_sort contents
+        einfo "$(lval contents)"
+        echo "${contents[@]}"
+        assert_eq 4 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_eq "/file3" "${contents[2]}"
+        assert_eq "/file4" "${contents[3]}"
+    done
+}
+
+ETEST_archive_create_multi_source()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src1 src2
+        touch file0 src1/{file1,file2} src2/{file3,file4}
+
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        archive_create file0 src1 src2 dest.${ftype}
+
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list dest.${ftype}) )
+        array_sort contents
+        echo "${contents[@]}"
+        assert_eq 7 "${#contents[@]}"
+        assert_eq "/file0"      "${contents[0]}"
+        assert_eq "/src1"       "${contents[1]}"
+        assert_eq "/src1/file1" "${contents[2]}"
+        assert_eq "/src1/file2" "${contents[3]}"
+        assert_eq "/src2"       "${contents[4]}"
+        assert_eq "/src2/file3" "${contents[5]}"
+        assert_eq "/src2/file4" "${contents[6]}"
+    done
+}
+
 ETEST_archive_create_exclude()
 {
     local idx=0
@@ -34,7 +109,8 @@ ETEST_archive_create_exclude()
         etestmsg "${ftype}: Populating source directory"
         efreshdir src
         touch src/{file1,file2,XXX,YYY}
-
+        find src
+        
         etestmsg "${ftype}: Creating dest.${ftype}"
         archive_create -x="XXX YYY" src src.${ftype}
  
@@ -102,22 +178,30 @@ ETEST_archive_create_exclude_glob()
     done
 }
 
-ETEST_archive_create_directory()
+ETEST_archive_create_files()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        etestmsg "${ftype}: Populating source directory"
-        efreshdir src
-        touch src/{file1,file2}
-
+        etestmsg "${ftype}: Creating files"
+        touch {file1,file2,file3,file4}
+        find .
+        
         etestmsg "${ftype}: Creating dest.${ftype}"
-        assert_not_exists DIR
-        archive_create src DIR/dest.${ftype}
-        assert_exists DIR/dest.${ftype}
-        rm -rf DIR
+        archive_create file1 file2 file3 file4 src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src.${ftype}) )
+        array_sort contents
+        einfo "$(lval contents)"
+        echo "${contents[@]}"
+        assert_eq 4 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_eq "/file3" "${contents[2]}"
+        assert_eq "/file4" "${contents[3]}"
     done
 }
 
@@ -147,6 +231,63 @@ ETEST_archive_create_exclude_self()
     done
 }
 
+ETEST_archive_create_exclude_self_multi()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src1 src2
+        touch src1/{file1,file2} src2/{file3,file4}
+        find src1 src2
+
+        etestmsg "${ftype}: Creating src1/dest.${ftype}"
+        archive_create src1 src2 src1/dest.${ftype}
+
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src1/dest.${ftype}) )
+        array_sort contents
+        einfo "$(lval contents)"
+        assert_eq 6 "${#contents[@]}"
+        assert_eq "/src1"       "${contents[0]}"
+        assert_eq "/src1/file1" "${contents[1]}"
+        assert_eq "/src1/file2" "${contents[2]}"
+        assert_eq "/src2"       "${contents[3]}"
+        assert_eq "/src2/file3" "${contents[4]}"
+        assert_eq "/src2/file4" "${contents[5]}"
+        assert_exists src1/dest.${ftype}
+    done
+}
+
+ETEST_archive_create_exclude_files()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Creating files"
+        touch {file1,file2,file3,file4,XXX,YYY}
+        find .
+        
+        etestmsg "${ftype}: Creating dest.${ftype}"
+        archive_create -x="XXX YYY" file1 file2 file3 file4 XXX YYY src.${ftype}
+ 
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list src.${ftype}) )
+        array_sort contents
+        einfo "$(lval contents)"
+        echo "${contents[@]}"
+        assert_eq 4 "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_eq "/file3" "${contents[2]}"
+        assert_eq "/file4" "${contents[3]}"
+    done
+}
+
 ETEST_archive_list()
 {
     local idx=0
@@ -164,6 +305,7 @@ ETEST_archive_list()
         etestmsg "${ftype}: Validating contents"
         local contents=( $(archive_list src.${ftype}) )
         array_sort contents
+        einfo "$(lval contents)"
         assert_eq 2 "${#contents[@]}"
         assert_eq "/file1" "${contents[0]}"
         assert_eq "/file2" "${contents[1]}"
