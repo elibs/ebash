@@ -94,20 +94,20 @@ archive_compress_program()
 #
 # A few examples will help clarify the behavior:
 #
-# Example #1: Suppose you have a directory "dir1" with the files 1, 2 and 3 and
-# you call `archive_create a dest.squashfs`. archive_create will then recursively
-# include the contents of 'a' into the archive, yielding:
+# Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call
+# `archive_create a dest.squashfs`. archive_create will then recursively include
+# the contents of 'a' into the archive, yielding:
 # /1
 # /2
 # /3
 #
 # Example #2: Suppose you have these files spread out across three directories:
-# dir1/1 dir2/2 dir3/3 and you call `archive_create dir1 dir2 dir3 dest.squashfs`.
-# archive_create will then include three top-level entries for the three sources
+# a/1 b/2 c/3 and you call `archive_create a b c dest.squashfs`. archive_create
+# will then include three top-level entries for the three sources
 # provided, yielding:
-# /dir1/1
-# /dir2/2
-# /dir3/3
+# /a/1
+# /b/2
+# /c/3
 archive_create()
 {
     $(declare_args)
