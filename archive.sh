@@ -28,8 +28,9 @@
 # TAR: A tar file is an archive file format that may or may not be compressed.
 # The archive data sets created by tar contain various file system parameters,
 # such as time stamps, ownership, file access permissions, and directory
-# organization. Our etar function generalizes the use of tar files so that 
-# compression format is handled seamlessly based on the file extension.
+# organization. Our archive_compress_program function is used to generalize our
+# use of tar so that compression format is handled seamlessly based on the file
+# extension in a way which picks the best compression program at runtime.
 #-------------------------------------------------------------------------------
 
 # Determine archive format based on the file suffix.
@@ -73,6 +74,20 @@ archive_compress_program()
     echo -n "${prog}"
     [[ -n ${prog} ]]
 } 
+
+# Get flag for use with tar to select the right compress program (or none if it's
+# not a compressed file).
+archive_tar_compress_arg()
+{
+    $(declare_args fname)
+    $(tryrc -o=prog -e=stderr archive_compress_program "${fname}")
+
+    if [[ ${rc} -eq 0 ]]; then
+        echo -n " --use-compress-program=${prog}"
+    fi
+
+    return 0
+}
 
 # Generic function for creating an archive file of a given type from the given
 # source directory and write it out to the requested destination directory. 
@@ -208,11 +223,11 @@ archive_create()
             fi
 
             cmd+="tar --exclude-from ${exclude_file} --create"
-            local prog=$(archive_compress_program "${dest_real}" 2>/dev/null)
-            if [[ -z ${prog} ]]; then
-                cmd+=" --file ${dest_real} ${srcs[@]}"
-            else
+            $(tryrc -o=prog -e=stderr archive_compress_program "${dest_real}")
+            if [[ ${rc} -eq 0 ]]; then
                 cmd+=" --file - ${srcs[@]} | ${prog} > ${dest_real}"
+            else
+                cmd+=" --file ${dest_real} ${srcs[@]}"
             fi
         fi
 
@@ -260,7 +275,9 @@ archive_extract()
     elif [[ ${src_type} == tar ]]; then
         local src_real=$(readlink  -m "${src}")
         pushd "${dest}"
-        etar --extract --file "${src_real}" --wildcards --no-anchored $(array_join files " ./")
+        tar --extract --file "${src_real}" \
+            $(archive_tar_compress_arg "${src_real}") \
+            --wildcards --no-anchored $(array_join files " ./")
         popd
     fi
 }
@@ -290,7 +307,7 @@ archive_list()
         # They all output paths with '/' but tar's output is specific to if we
         # had multiple src files or not. This unifies that output by removing
         # leading './' (single path) and inserts '/' prefix to match the others.
-        etar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||' -e 's|^\([^/]\)|/\1|'
+        tar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||' -e 's|^\([^/]\)|/\1|'
     fi
 }
 
@@ -637,21 +654,4 @@ overlayfs_tree()
             echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
         done
     done
-}
-
-# Save the top-most read-write later from an existing overlayfs mount into the
-# requested destination file. This file can be a squashfs image, an ISO, or a
-# known tar file suffix (as supported by etar).
-overlayfs_save_changes()
-{
-    $(declare_args mnt dest)
-
-    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
-    # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    edebug "$(lval mnt dest output)"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-
-    # Save to requested type.   
-    fs_create "${upper}" "${dest}"
 }
