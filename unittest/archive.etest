@@ -124,6 +124,34 @@ ETEST_archive_create_exclude()
     done
 }
 
+ETEST_archive_create_exclude_illegal_prefix()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        local src=$(mktemp -d /tmp/archive-XXXX)
+        touch ${src}/{file1,file2}
+        find ${src}
+
+        etestmsg "${ftype}: Creating src/dest.${ftype}"
+        local dest=$(mktemp /tmp/archive-XXXX.${ftype})
+        archive_create ${src} ${dest}
+
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list ${dest}) )
+        array_sort contents
+        einfo "$(lval contents)"
+        assert_eq 2        "${#contents[@]}"
+        assert_eq "/file1" "${contents[0]}"
+        assert_eq "/file2" "${contents[1]}"
+        assert_exists ${dest}
+    done
+}
+
+
 ETEST_archive_create_exclude_glob()
 {
     local idx=0

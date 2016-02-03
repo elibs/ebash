@@ -120,12 +120,11 @@ archive_create()
 
     # Figure out absolute path to destination and parse excludes
     local dest_real=$(readlink -m "${dest}")
-    local dest_canon=${dest_real#${PWD}/}
     local dest_type=$(archive_type "${dest}")
     local excludes=( $(opt_get x) )
     local cmd=""
 
-    edebug "Creating archive $(lval srcs dest dest_real dest_canon dest_type excludes)"
+    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes)"
     mkdir -p "$(dirname "${dest}")"
 
     # Put entire body of this function into a subshell to ensure clean up 
@@ -135,12 +134,14 @@ archive_create()
         local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
         trap_add "rm --force ${exclude_file}"
 
-        # Always exclude the source file
+        # Always exclude the source file. Need to canonicalize it and then remove
+        # any illegal prefix characters (/, ./, ../)
+        local dest_canon=${dest_real#${PWD}/}
         if [[ $(array_size srcs) -gt 1 ]]; then
-            echo "${dest_canon}" > ${exclude_file}
+            echo "${dest_canon}"
         else
-            echo "${dest_canon#${srcs}/}" > ${exclude_file}
-        fi
+            echo "${dest_canon#${srcs}/}"
+        fi | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
 
         # Provide a common API around excludes, use find to pre-expand all excludes.
         if array_not_empty excludes; then
