@@ -28,8 +28,9 @@
 # TAR: A tar file is an archive file format that may or may not be compressed.
 # The archive data sets created by tar contain various file system parameters,
 # such as time stamps, ownership, file access permissions, and directory
-# organization. Our etar function generalizes the use of tar files so that 
-# compression format is handled seamlessly based on the file extension.
+# organization. Our archive_compress_program function is used to generalize our
+# use of tar so that compression format is handled seamlessly based on the file
+# extension in a way which picks the best compression program at runtime.
 #-------------------------------------------------------------------------------
 
 # Determine archive format based on the file suffix.
@@ -53,11 +54,14 @@ archive_type()
 archive_compress_program()
 {
     $(declare_args fname)
+    local nice=$(opt_get n)
 
     if [[ ${fname} =~ .bz2|.tz2|.tbz2|.tbz ]]; then
         progs=( lbzip2 pbzip2 bzip2 )
+        [[ ${nice} -eq 1 ]] && progs=( bzip2 )
     elif [[ ${fname} =~ .gz|.tgz|.taz ]]; then
         progs=( pigz gzip )
+        [[ ${nice} -eq 1 ]] && progs=( gzip )
     elif [[ ${fname} =~ xz ]]; then
         progs=( lzma xz )
     else
@@ -73,6 +77,21 @@ archive_compress_program()
     echo -n "${prog}"
     [[ -n ${prog} ]]
 } 
+
+# Get flag for use with tar to select the right compress program (or none if it's
+# not a compressed file).
+archive_tar_compress_arg()
+{
+    $(declare_args fname)
+    local nice=$(opt_get n)
+    $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${fname}")
+
+    if [[ ${rc} -eq 0 ]]; then
+        echo -n " --use-compress-program=${prog}"
+    fi
+
+    return 0
+}
 
 # Generic function for creating an archive file of a given type from the given
 # source directory and write it out to the requested destination directory. 
@@ -118,14 +137,15 @@ archive_create()
     local dest=${srcs[${#srcs[@]}-1]}
     unset srcs[${#srcs[@]}-1]
 
-    # Figure out absolute path to destination and parse excludes
+    # Parse options
     local dest_real=$(readlink -m "${dest}")
     local dest_type=$(archive_type "${dest}")
     local excludes=( $(opt_get x) )
     local ignore_missing=$(opt_get i)
+    local nice=$(opt_get n)
     local cmd=""
 
-    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing)"
+    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing nice)"
     mkdir -p "$(dirname "${dest}")"
 
     # If ignore_missing flag was enabled we have to preprocess the list of source paths
@@ -192,8 +212,13 @@ archive_create()
 
         # SQUASHFS
         if [[ ${dest_type} == squashfs ]]; then
-            
-            cmd="mksquashfs ${srcs[@]} ${dest_real} -no-recovery -no-exports -no-progress -noappend -wildcards -ef ${exclude_file}"
+    
+            local mksquashfs_flags="-no-recovery -no-exports -no-progress -noappend -wildcards"
+            if [[ ${nice} -eq 1 ]]; then
+                mksquashfs_flags+=" -processors 1"
+            fi
+
+            cmd="mksquashfs ${srcs[@]} ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -230,11 +255,11 @@ archive_create()
             fi
 
             cmd+="tar --exclude-from ${exclude_file} --create"
-            local prog=$(archive_compress_program "${dest_real}" 2>/dev/null)
-            if [[ -z ${prog} ]]; then
-                cmd+=" --file ${dest_real} ${srcs[@]}"
-            else
+            $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
+            if [[ ${rc} -eq 0 ]]; then
                 cmd+=" --file - ${srcs[@]} | ${prog} > ${dest_real}"
+            else
+                cmd+=" --file ${dest_real} ${srcs[@]}"
             fi
         fi
 
@@ -253,6 +278,7 @@ archive_extract()
     $(declare_args src dest)
     local files=( "${@}" )
     local ignore_missing=$(opt_get i)
+    local nice=$(opt_get n)
     local src_type=$(archive_type "${src}")
     mkdir -p "${dest}"
 
@@ -303,7 +329,9 @@ archive_extract()
 
         local src_real=$(readlink  -m "${src}")
         pushd "${dest}"
-        etar --extract --file "${src_real}" --wildcards --no-anchored ${includes}
+        tar --extract --file "${src_real}" \
+            $(archive_tar_compress_arg -n=${nice} "${src_real}") \
+            --wildcards --no-anchored ${includes}
         popd
     fi
 }
@@ -333,7 +361,7 @@ archive_list()
         # They all output paths with '/' but tar's output is specific to if we
         # had multiple src files or not. This unifies that output by removing
         # leading './' (single path) and inserts '/' prefix to match the others.
-        etar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||' -e 's|^\([^/]\)|/\1|'
+        tar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||' -e 's|^\([^/]\)|/\1|'
     fi
 }
 
@@ -680,21 +708,4 @@ overlayfs_tree()
             echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
         done
     done
-}
-
-# Save the top-most read-write later from an existing overlayfs mount into the
-# requested destination file. This file can be a squashfs image, an ISO, or a
-# known tar file suffix (as supported by etar).
-overlayfs_save_changes()
-{
-    $(declare_args mnt dest)
-
-    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
-    # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    edebug "$(lval mnt dest output)"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-
-    # Save to requested type.   
-    fs_create "${upper}" "${dest}"
 }
