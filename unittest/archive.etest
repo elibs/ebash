@@ -581,6 +581,30 @@ ETEST_archive_extract_glob()
     done
 }
 
+ETEST_archive_nice()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create -n=1 src src.${ftype}
+
+        etestmsg "${ftype}: Extracting src.${ftype} to dest"
+        archive_extract -n=1 src.${ftype} dest
+
+        etestmsg "${ftype}: Validating src and dest"
+        find src
+        find dest
+        diff --unified --recursive src dest
+    done
+}
+
 ETEST_archive_convert()
 {
     local idx=0
