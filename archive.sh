@@ -288,10 +288,15 @@ archive_extract()
     # TAR
     elif [[ ${src_type} == tar ]]; then
 
+        # By default the files to extract from the archive is all the files requested.
+        # If files is an empty array this will evaluate to an empty string and all files
+        # will be extracted.
         local includes=$(array_join files " ./")
 
-        # If ignore_missing flag was enabled we have to preprocess the list of source paths
-        # and remove anything in srcs array which doesn't exist to avoid tar from failing.
+        # If ignore_missing flag was enabled filter out list of files in the archive to
+        # only those which the caller requested. This will ensure we are essentially 
+        # getting the intersection of actual files in the archive and the list of files 
+        # the caller asked for (which may or may not actually be in the archive).
         if array_not_empty files && [[ ${ignore_missing} -eq 1 ]]; then
             includes=$(tar --list --file "${src}" | grep -P "($(array_join files '|'))")
         fi
