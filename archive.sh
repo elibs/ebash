@@ -122,10 +122,31 @@ archive_create()
     local dest_real=$(readlink -m "${dest}")
     local dest_type=$(archive_type "${dest}")
     local excludes=( $(opt_get x) )
+    local optional=$(opt_get o)
     local cmd=""
 
-    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes)"
+    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes optional)"
     mkdir -p "$(dirname "${dest}")"
+
+    # If optional flag was enabled we have to preprocess the list of source paths
+    # and remove anything in srcs array which doesn't exist to avoid the tools from
+    # failing.
+    if [[ ${optional} -eq 1 ]]; then
+
+        [[ $(array_size srcs) -eq 1 ]] && pushd "${srcs}"
+
+        local idx
+        for idx in $(array_indexes srcs); do
+            eval "local src=\${srcs[$idx]}"
+            
+            if [[ ! -e "${src}" ]]; then
+                edebug "Excluding non-existant $(lval src)"
+                unset srcs[$idx]
+            fi
+        done
+
+        [[ $(array_size srcs) -eq 1 ]] && popd
+    fi
 
     # Put entire body of this function into a subshell to ensure clean up 
     # traps execute properly.
@@ -172,7 +193,7 @@ archive_create()
         # SQUASHFS
         if [[ ${dest_type} == squashfs ]]; then
             
-            cmd="mksquashfs ${srcs[@]} ${dest_real} -noappend -wildcards -ef ${exclude_file}"
+            cmd="mksquashfs ${srcs[@]} ${dest_real} -no-recovery -no-exports -no-progress -noappend -wildcards -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -231,10 +252,11 @@ archive_extract()
 {
     $(declare_args src dest)
     local files=( "${@}" )
+    local optional=$(opt_get o)
     local src_type=$(archive_type "${src}")
     mkdir -p "${dest}"
 
-    edebug "Extracting $(lval src dest src_type files)"
+    edebug "Extracting $(lval src dest src_type files optional)"
 
     # SQUASHFS + ISO
     # Neither of the tools for these archive formats support extracting a list
@@ -253,15 +275,30 @@ archive_extract()
             if array_empty files; then
                 cp --archive --recursive . "${dest_real}"
             else
-                cp --archive --recursive --parents $(find ${files[@]}) "${dest_real}"
+
+                local includes=( ${files[@]} )
+                if [[ ${optional} -eq 1 ]]; then
+                    includes=( $(find -wholename ./$(array_join files " -o -wholename ./")) )
+                fi
+
+                cp --archive --recursive --parents ${includes[@]} "${dest_real}"
             fi
         )
 
     # TAR
     elif [[ ${src_type} == tar ]]; then
+
+        local includes=$(array_join files " ./")
+
+        # If optional flag was enabled we have to preprocess the list of source paths
+        # and remove anything in srcs array which doesn't exist to avoid tar from failing.
+        if array_not_empty files && [[ ${optional} -eq 1 ]]; then
+            includes=$(tar --list --file "${src}" | grep -P "($(array_join files '|'))")
+        fi
+
         local src_real=$(readlink  -m "${src}")
         pushd "${dest}"
-        etar --extract --file "${src_real}" --wildcards --no-anchored $(array_join files " ./")
+        etar --extract --file "${src_real}" --wildcards --no-anchored ${includes}
         popd
     fi
 }
