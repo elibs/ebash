@@ -86,7 +86,7 @@ ETEST_archive_create_missing_required_files()
     done
 }
 
-ETEST_archive_create_missing_optional_files()
+ETEST_archive_create_ignore_missing()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -98,7 +98,7 @@ ETEST_archive_create_missing_optional_files()
         find .
         
         etestmsg "${ftype}: Creating dest.${ftype} (should fail)"
-        archive_create -o NOT1 file1 file2 file3 file4 NOT2 src.${ftype}
+        archive_create -i NOT1 file1 file2 file3 file4 NOT2 src.${ftype}
 
         etestmsg "${ftype}: Validating contents"
         local contents=( $(archive_list src.${ftype}) )
@@ -523,7 +523,7 @@ ETEST_archive_extract_missing_required_files()
     done
 }
 
-ETEST_archive_extract_missing_optional_files()
+ETEST_archive_extract_ignore_missing()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -538,7 +538,7 @@ ETEST_archive_extract_missing_optional_files()
         archive_create src src.${ftype}
 
         etestmsg "${ftype}: Extracting src.${ftype}/{file1,file2} to dest"
-        archive_extract -o src.${ftype} dest NOT1 file1 file2 NOT2
+        archive_extract -i src.${ftype} dest NOT1 file1 file2 NOT2
 
         etestmsg "${ftype}: Validating dest"
         local contents=( $(find dest -printf '%P\n') )

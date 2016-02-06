@@ -122,16 +122,16 @@ archive_create()
     local dest_real=$(readlink -m "${dest}")
     local dest_type=$(archive_type "${dest}")
     local excludes=( $(opt_get x) )
-    local optional=$(opt_get o)
+    local ignore_missing=$(opt_get i)
     local cmd=""
 
-    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes optional)"
+    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing)"
     mkdir -p "$(dirname "${dest}")"
 
-    # If optional flag was enabled we have to preprocess the list of source paths
+    # If ignore_missing flag was enabled we have to preprocess the list of source paths
     # and remove anything in srcs array which doesn't exist to avoid the tools from
     # failing.
-    if [[ ${optional} -eq 1 ]]; then
+    if [[ ${ignore_missing} -eq 1 ]]; then
 
         [[ $(array_size srcs) -eq 1 ]] && pushd "${srcs}"
 
@@ -252,11 +252,11 @@ archive_extract()
 {
     $(declare_args src dest)
     local files=( "${@}" )
-    local optional=$(opt_get o)
+    local ignore_missing=$(opt_get i)
     local src_type=$(archive_type "${src}")
     mkdir -p "${dest}"
 
-    edebug "Extracting $(lval src dest src_type files optional)"
+    edebug "Extracting $(lval src dest src_type files ignore_missing)"
 
     # SQUASHFS + ISO
     # Neither of the tools for these archive formats support extracting a list
@@ -277,7 +277,7 @@ archive_extract()
             else
 
                 local includes=( ${files[@]} )
-                if [[ ${optional} -eq 1 ]]; then
+                if [[ ${ignore_missing} -eq 1 ]]; then
                     includes=( $(find -wholename ./$(array_join files " -o -wholename ./")) )
                 fi
 
@@ -290,9 +290,9 @@ archive_extract()
 
         local includes=$(array_join files " ./")
 
-        # If optional flag was enabled we have to preprocess the list of source paths
+        # If ignore_missing flag was enabled we have to preprocess the list of source paths
         # and remove anything in srcs array which doesn't exist to avoid tar from failing.
-        if array_not_empty files && [[ ${optional} -eq 1 ]]; then
+        if array_not_empty files && [[ ${ignore_missing} -eq 1 ]]; then
             includes=$(tar --list --file "${src}" | grep -P "($(array_join files '|'))")
         fi
 
