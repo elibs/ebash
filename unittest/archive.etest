@@ -97,7 +97,7 @@ ETEST_archive_create_ignore_missing()
         touch {file1,file2,file3,file4}
         find .
         
-        etestmsg "${ftype}: Creating dest.${ftype} (should fail)"
+        etestmsg "${ftype}: Creating dest.${ftype}"
         archive_create -i NOT1 file1 file2 file3 file4 NOT2 src.${ftype}
 
         etestmsg "${ftype}: Validating contents"
@@ -110,6 +110,23 @@ ETEST_archive_create_ignore_missing()
         assert_eq "/file2" "${contents[1]}"
         assert_eq "/file3" "${contents[2]}"
         assert_eq "/file4" "${contents[3]}"
+    done
+}
+
+ETEST_archive_create_ignore_missing_nop()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Creating files"
+        touch {file1,file2,file3,file4}
+        find .
+        
+        etestmsg "${ftype}: Creating dest.${ftype} (should do nothing)"
+        archive_create -i NOT1 NOT2 src.${ftype}
+        assert_not_exists src.${ftype}
     done
 }
 
@@ -547,6 +564,29 @@ ETEST_archive_extract_ignore_missing()
         assert_eq 2 "${#contents[@]}"
         assert_eq "file1" "${contents[0]}"
         assert_eq "file2" "${contents[1]}"
+    done
+}
+
+ETEST_archive_extract_ignore_missing_nop()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        etestmsg "${ftype}: Extracting src.${ftype}/{file1,file2} to dest"
+        archive_extract -i src.${ftype} dest NOT1 NOT2
+
+        etestmsg "${ftype}: Validating dest"
+        local contents=( $(find dest -printf '%P\n') )
+        assert array_empty contents
     done
 }
 
