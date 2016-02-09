@@ -41,6 +41,7 @@ fi
 : ${COLOR_ERROR:=red}
 
 : ${COLOR_PROMPT:=white}
+: ${COLOR_PROGRESS:=white}
 : ${COLOR_BRACKET:=blue}
 
 
@@ -1267,7 +1268,7 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        echo -en "$(ecolor ${COLOR_PROMPT})" >&2
+        echo -en "$(ecolor ${COLOR_PROGRESS})" >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
         echo -en "$(ecolor none)"  >&2
 
