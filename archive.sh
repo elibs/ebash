@@ -153,7 +153,11 @@ archive_create()
     # failing.
     if [[ ${ignore_missing} -eq 1 ]]; then
 
-        [[ $(array_size srcs) -eq 1 ]] && pushd "${srcs}"
+        local pushed=0
+        if [[ $(array_size srcs) -eq 1 ]]; then
+            pushed=1
+            pushd "${srcs}"
+        fi
 
         local idx
         for idx in $(array_indexes srcs); do
@@ -165,7 +169,13 @@ archive_create()
             fi
         done
 
-        [[ $(array_size srcs) -eq 1 ]] && popd
+        [[ ${pushed} -eq 1 ]] && popd
+
+        # If there are no source files to include, there's nothing to do so just return
+        if array_empty srcs; then
+            edebug "No source files left to include -- returning 0"
+            return 0
+        fi
     fi
 
     # Put entire body of this function into a subshell to ensure clean up 
@@ -307,6 +317,22 @@ archive_extract()
                     includes=( $(find -wholename ./$(array_join files " -o -wholename ./")) )
                 fi
 
+                # If includes is EMPTY and we are ignoring missing files then there's nothing
+                # to do because none of the requested files exist in the archive. In this case
+                # we can just return success. Otherwise if includes is empty and we are not 
+                # ignoring missing files then that's an error.
+                if array_empty includes; then
+                
+                    if [[ ${ignore_missing} -eq 1 ]]; then
+                        edebug "Nothing to extract -- returning success"
+                        return 0
+                    else
+                        eerror "No matching files found to extract $(lval src dest files)"
+                        return 1
+                    fi
+                fi
+
+                # Do the actual extracting
                 cp --archive --recursive --parents ${includes[@]} "${dest_real}"
             fi
         )
@@ -324,9 +350,17 @@ archive_extract()
         # getting the intersection of actual files in the archive and the list of files 
         # the caller asked for (which may or may not actually be in the archive).
         if array_not_empty files && [[ ${ignore_missing} -eq 1 ]]; then
-            includes=$(tar --list --file "${src}" | grep -P "($(array_join files '|'))")
+            includes=$(tar --list --file "${src}" | grep -P "($(array_join files '|'))" || true)
+
+            # If includes is EMPTY there's nothing to do because none of the requested
+            # files exist in the archive and we're ignoring missing files.
+            if [[ -z ${includes} ]]; then
+                edebug "Nothing to extract -- returning success"
+                return 0
+            fi
         fi
 
+        # Do the actual extracting.
         local src_real=$(readlink  -m "${src}")
         pushd "${dest}"
         tar --extract --file "${src_real}" \
