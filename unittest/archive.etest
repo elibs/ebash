@@ -97,7 +97,7 @@ ETEST_archive_create_ignore_missing()
         touch {file1,file2,file3,file4}
         find .
         
-        etestmsg "${ftype}: Creating dest.${ftype} (should fail)"
+        etestmsg "${ftype}: Creating dest.${ftype}"
         archive_create -i NOT1 file1 file2 file3 file4 NOT2 src.${ftype}
 
         etestmsg "${ftype}: Validating contents"
@@ -110,6 +110,23 @@ ETEST_archive_create_ignore_missing()
         assert_eq "/file2" "${contents[1]}"
         assert_eq "/file3" "${contents[2]}"
         assert_eq "/file4" "${contents[3]}"
+    done
+}
+
+ETEST_archive_create_ignore_missing_nop()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Creating files"
+        touch {file1,file2,file3,file4}
+        find .
+        
+        etestmsg "${ftype}: Creating dest.${ftype} (should do nothing)"
+        archive_create -i NOT1 NOT2 src.${ftype}
+        assert_not_exists src.${ftype}
     done
 }
 
@@ -371,6 +388,98 @@ ETEST_archive_create_pivot_root()
     done
 }
 
+# Realistic test of archiving pivot rooted rootfs with multiple paths specified
+ETEST_archive_create_pivot_root_multi()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        local oldroot=$(mktemp -d /tmp/oldroot-XXXX)
+        etestmsg "${ftype}: Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+        find ${oldroot} -printf '%P\n'
+
+        KEEP_PATHS=( /boot /var )
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        (
+            cd ${oldroot}
+            archive_create ${KEEP_PATHS[@]##/} ${oldroot}/var/log/sfbackup.${ftype}
+        )
+
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(archive_list ${oldroot}/var/log/sfbackup.${ftype}) )
+        array_sort contents
+        einfo "$(lval contents)"
+        assert_eq 16                                       "${#contents[@]}"
+        assert_eq "/boot"                                  "${contents[0]}"
+        assert_eq "/boot/initramfs-x86_64-3.12.13-gentoo"  "${contents[1]}"
+        assert_eq "/boot/kernel-x86_64-3.12.13-gentoo"     "${contents[2]}"
+        assert_eq "/boot/System.map-x86_64-3.12.13-gentoo" "${contents[3]}"
+        assert_eq "/var"                                   "${contents[4]}"
+        assert_eq "/var/log"                               "${contents[5]}"
+        assert_eq "/var/log/sf-master-10.info"             "${contents[6]}"
+        assert_eq "/var/log/sf-master-1.info"              "${contents[7]}"
+        assert_eq "/var/log/sf-master-2.info"              "${contents[8]}"
+        assert_eq "/var/log/sf-master-3.info"              "${contents[9]}"
+        assert_eq "/var/log/sf-master-4.info"              "${contents[10]}"
+        assert_eq "/var/log/sf-master-5.info"              "${contents[11]}"
+        assert_eq "/var/log/sf-master-6.info"              "${contents[12]}"
+        assert_eq "/var/log/sf-master-7.info"              "${contents[13]}"
+        assert_eq "/var/log/sf-master-8.info"              "${contents[14]}"
+        assert_eq "/var/log/sf-master-9.info"              "${contents[15]}"
+    done
+}
+
+# Realistic test of extracting from pivot rooted rootfs with multiple paths specified
+ETEST_archive_extract_pivot_root_multi()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        local oldroot=$(mktemp -d /tmp/oldroot-XXXX)
+        etestmsg "${ftype}: Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+        find ${oldroot} -printf '%P\n'
+
+        KEEP_PATHS=( /boot /var )
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        (
+            cd ${oldroot}
+            archive_create ${KEEP_PATHS[@]##/} ${oldroot}/var/log/sfbackup.${ftype}
+        )
+
+        KEEP_PATHS=( /var )
+        etestmsg "${ftype}: Extracting"
+        archive_extract ${oldroot}/var/log/sfbackup.${ftype} restore ${KEEP_PATHS[@]##/}
+
+        etestmsg "${ftype}: Validating contents"
+        local contents=( $(find restore -printf '%P\n') )
+        array_sort contents
+        einfo "$(lval contents)"
+        assert_eq 12 "${#contents[@]}"
+        assert_eq "var"                                   "${contents[0]}"
+        assert_eq "var/log"                               "${contents[1]}"
+        assert_eq "var/log/sf-master-10.info"             "${contents[2]}"
+        assert_eq "var/log/sf-master-1.info"              "${contents[3]}"
+        assert_eq "var/log/sf-master-2.info"              "${contents[4]}"
+        assert_eq "var/log/sf-master-3.info"              "${contents[5]}"
+        assert_eq "var/log/sf-master-4.info"              "${contents[6]}"
+        assert_eq "var/log/sf-master-5.info"              "${contents[7]}"
+        assert_eq "var/log/sf-master-6.info"              "${contents[8]}"
+        assert_eq "var/log/sf-master-7.info"              "${contents[9]}"
+        assert_eq "var/log/sf-master-8.info"              "${contents[10]}"
+        assert_eq "var/log/sf-master-9.info"              "${contents[11]}"
+    done
+}
+
 ETEST_archive_create_exclude_self_multi()
 {
     local idx=0
@@ -547,6 +656,29 @@ ETEST_archive_extract_ignore_missing()
         assert_eq 2 "${#contents[@]}"
         assert_eq "file1" "${contents[0]}"
         assert_eq "file2" "${contents[1]}"
+    done
+}
+
+ETEST_archive_extract_ignore_missing_nop()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "${ftype}: Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "${ftype}: Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        etestmsg "${ftype}: Extracting src.${ftype}/{file1,file2} to dest"
+        archive_extract -i src.${ftype} dest NOT1 NOT2
+
+        etestmsg "${ftype}: Validating dest"
+        local contents=( $(find dest -printf '%P\n') )
+        assert array_empty contents
     done
 }
 
