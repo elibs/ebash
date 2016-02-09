@@ -16,7 +16,7 @@ RC=0
 FAILURES=()
 fail()
 {
-    emsg "red" "   -" "ERROR" "$@"
+    emsg "${EERROR_COLOR}" "   -" "ERROR" "$@"
     eend 1
     RC=1
 }
