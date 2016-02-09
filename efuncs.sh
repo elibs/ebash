@@ -27,24 +27,23 @@ fi
 # COLOR SETTINGS
 #------------------------------------------------------------------------------
 
-if [[ -e /etc/bashutilsrc ]]; then
-    . /etc/bashutilsrc
-fi
-if [[ -e ~/.bashutilsrc ]]; then
-    . ~/.bashutilsrc
+if [[ -e /etc/bashutils.conf ]]; then
+    source /etc/bashutils.conf
 fi
 
-export EDEBUG_COLOR="${DEBUG_COLOR:-blue}"
-export EINFO_COLOR="${EINFO_COLOR:-green}"
-export PASS_COLOR="${PASS_COLOR:-green}"
-export EWARN_COLOR="${EWARN_COLOR:-yellow}"
-export ABORT_COLOR="${ABORT_COLOR:-yellow}"
-export EERROR_COLOR="${EERROR_COLOR:-red}"
-export FAIL_COLOR="${FAIL_COLOR:-red}"
+if [[ -v XDG_CONFIG_HOME && -e ${XDG_CONFIG_HOME}/bashutils.conf ]]; then
+    source ${XDG_CONFIG_HOME}/bashutils.conf
+elif [[ -e ~/.config/bashutils.conf ]]; then
+    source ~/.config/bashutils.conf
+fi
 
-export UNKNOWN_COLOR="${UNKNOWN_COLOR:-yellow}"
-export EPROMPT_COLOR="${EPROMPT_COLOR:-white}"
-export BRACKET_COLOR="${BRACKET_COLOR:-blue}"
+: ${COLOR_INFO:=green}
+: ${COLOR_DEBUG:=blue}
+: ${COLOR_WARN:=yellow}
+: ${COLOR_ERROR:=red}
+
+: ${COLOR_PROMPT:=white}
+: ${COLOR_BRACKET:=blue}
 
 
 #-----------------------------------------------------------------------------
@@ -70,7 +69,7 @@ etrace()
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
     fi
 
-    echo "$(ecolor dim${EWARN_COLOR})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
+    echo "$(ecolor dim${COLOR_WARN})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
 }
 
 edebug_enabled()
@@ -118,7 +117,7 @@ edebug()
 
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
-    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dim${EDEBUG_COLOR}" "" "DEBUG" "${msg}"
+    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "${COLOR_DEBUG}" "" "DEBUG" "${msg}"
 }
 
 edebug_out()
@@ -558,7 +557,7 @@ die()
     __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
     : ${__EFUNCS_DIE_BY_SIGNAL:=$(opt_get s)}
 
-    local color=$(opt_get c "${EERROR_COLOR}")
+    local color=$(opt_get c "${COLOR_ERROR}")
     local frames=$(opt_get f 3)
 
     # Show error message immediately.
@@ -1047,22 +1046,22 @@ emsg()
 
 einfo()
 {
-    emsg "${EINFO_COLOR}" ">>" "INFO" "$@"
+    emsg "${COLOR_INFO}" ">>" "INFO" "$@"
 }
 
 einfos()
 {
-    emsg "${EINFO_COLOR}" "   -" "INFOS" "$@"
+    emsg "${COLOR_INFO}" "   -" "INFOS" "$@"
 }
 
 ewarn()
 {
-    emsg "${EWARN_COLOR}" ">>" "WARN" "$@"
+    emsg "${COLOR_WARN}" ">>" "WARN" "$@"
 }
 
 ewarns()
 {
-    emsg "${EWARN_COLOR}" "   -" "WARNS" "$@"
+    emsg "${COLOR_WARN}" "   -" "WARNS" "$@"
 }
 
 eerror_internal()
@@ -1074,7 +1073,7 @@ eerror_internal()
 
 eerror()
 {
-    emsg "${EERROR_COLOR}" ">>" "ERROR" "$@"
+    emsg "${COLOR_ERROR}" ">>" "ERROR" "$@"
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
@@ -1175,7 +1174,7 @@ etable()
 
 eprompt()
 {
-    echo -en "$(ecolor ${EPROMPT_COLOR}) * $@: $(ecolor none)" >&2
+    echo -en "$(ecolor ${COLOR_PROMPT}) * $@: $(ecolor none)" >&2
     local result=""
 
     read result < /dev/stdin
@@ -1237,9 +1236,9 @@ eend()
     fi
 
     if [[ ${rc} -eq 0 ]]; then
-        echo -e "$(ecolor ${BRACKET_COLOR})[$(ecolor ${EINFO_COLOR}) ok $(ecolor ${BRACKET_COLOR})]$(ecolor none)" >&2
+        echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_INFO}) ok $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     else
-        echo -e "$(ecolor ${BRACKET_COLOR})[$(ecolor ${EERROR_COLOR}) !! $(ecolor ${BRACKET_COLOR})]$(ecolor none)" >&2
+        echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_ERROR}) !! $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     fi
 }
 
@@ -1270,7 +1269,7 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        echo -en "$(ecolor ${EPROMPT_COLOR})" >&2
+        echo -en "$(ecolor ${COLOR_PROMPT})" >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
         echo -en "$(ecolor none)"  >&2
 
@@ -1293,7 +1292,7 @@ do_eprogress()
 
 eprogress()
 {
-    echo -en "$(emsg "${EINFO_COLOR}" ">>" "INFO" "$@" 2>&1)" >&2
+    echo -en "$(emsg "${COLOR_INFO}" ">>" "INFO" "$@" 2>&1)" >&2
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
@@ -2301,7 +2300,7 @@ emetadata_check()
 
     fail()
     {
-        emsg "${EERROR_COLOR}" "   -" "ERROR" "$@"
+        emsg "${COLOR_ERROR}" "   -" "ERROR" "$@"
         exit 1
     }
 
