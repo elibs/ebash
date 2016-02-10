@@ -37,6 +37,7 @@ fi
 
 : ${COLOR_INFO:=green}
 : ${COLOR_DEBUG:=blue}
+: ${COLOR_TRACE:=yellow}
 : ${COLOR_WARN:=yellow}
 : ${COLOR_ERROR:=red}
 
@@ -66,7 +67,7 @@ etrace()
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
     fi
 
-    echo "$(ecolor ${COLOR_WARN})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
+    echo "$(ecolor ${COLOR_TRACE})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
 }
 
 edebug_enabled()
