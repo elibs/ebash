@@ -36,8 +36,8 @@ if [[ ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
 fi
 
 : ${COLOR_INFO:=green}
-: ${COLOR_DEBUG:=blue}
-: ${COLOR_TRACE:=yellow}
+: ${COLOR_DEBUG:=dimblue}
+: ${COLOR_TRACE:=dimyellow}
 : ${COLOR_WARN:=yellow}
 : ${COLOR_ERROR:=red}
 
