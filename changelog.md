@@ -28,10 +28,13 @@
     - Add multi-character support to array_join. Can now also optionally include
       the delimiter before or after (or both) all joined elements.
 
-    - Add a config file, and configurable colors for the common functions. Color
-      variables include COLOR_PROMPT, COLOR_INFO, COLOR_DEBUG, COLOR_WARN, and
+    - Add a config file, and configurable colors for the common functions.
+      Common color variables include COLOR_INFO, COLOR_DEBUG, COLOR_WARN, and
       COLOR_ERROR, however there are also others available, and this list may be
       extended in the future.
+
+    - Prompts and progress tickers are now shown in bold using the default
+      terminal foreground color.
 
 # Bashutils 1.1
 
