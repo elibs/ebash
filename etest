@@ -225,7 +225,7 @@ run_single_test()
     }
 
     if [[ ${rc} -eq 0 ]]; then
-        einfo "$(ecolor green)${testfunc} PASSED."
+        einfo "$(ecolor "green")${testfunc} PASSED."
     else
         eerror "${testfunc} FAILED."
     fi
@@ -368,7 +368,7 @@ fi
         eerror "FAILED TESTS:"
         for index in ${!FAILURES[@]} ; do
             for failed_test in ${FAILURES[$index]} ; do
-                echo "$(ecolor red)      ${failed_test}"
+                echo "$(ecolor "red")      ${failed_test}"
             done
         done
     fi
