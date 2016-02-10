@@ -31,8 +31,8 @@ if [[ -e /etc/bashutils.conf ]]; then
     source /etc/bashutils.conf
 fi
 
-if [[ ${XDG_CONFIG_HOME:-~/.config}/bashutils.conf ]]; then
-    source ${XDG_CONFIG_HOME:-~/.config}/bashutils.conf
+if [[ ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
+    source ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf
 fi
 
 : ${COLOR_INFO:=green}
@@ -40,8 +40,6 @@ fi
 : ${COLOR_WARN:=yellow}
 : ${COLOR_ERROR:=red}
 
-: ${COLOR_PROMPT:=white}
-: ${COLOR_PROGRESS:=white}
 : ${COLOR_BRACKET:=blue}
 
 
@@ -68,7 +66,7 @@ etrace()
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
     fi
 
-    echo "$(ecolor dim${COLOR_WARN})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
+    echo "$(ecolor ${COLOR_WARN})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
 }
 
 edebug_enabled()
@@ -1173,7 +1171,7 @@ etable()
 
 eprompt()
 {
-    echo -en "$(ecolor ${COLOR_PROMPT}) * $@: $(ecolor none)" >&2
+    echo -en "$(tput bold) * $@: $(ecolor none)" >&2
     local result=""
 
     read result < /dev/stdin
@@ -1268,7 +1266,7 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        echo -en "$(ecolor ${COLOR_PROGRESS})" >&2
+        echo -en "$(tput bold)" >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
         echo -en "$(ecolor none)"  >&2
 
