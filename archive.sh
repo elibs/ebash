@@ -129,6 +129,11 @@ archive_tar_compress_arg()
 # In the above examples note that the contents are consistent regardless of 
 # whether you provide a single file, single directory or list of files or list
 # of directories.
+#
+# OPTIONS:
+# -i=(0|1) Ignore missing files instead of failing and returning non-zero.
+# -n=(0|1) Be Nice. If enabled, use non-parallel compressors and only a single core.
+# -x=LIST  List of glob patterns to be excluded from the archive.
 archive_create()
 {
     $(declare_args)
@@ -267,6 +272,10 @@ archive_create()
 # supported archive types. Also takes an optional list of find(1) glob patterns
 # to limit what files are extracted from the archive. If no files are provided
 # it will extract all files from the archive.
+#
+# OPTIONS:
+# -i=(0|1) Ignore missing files instead of failing and returning non-zero.
+# -n=(0|1) Be Nice. If enabled, use non-parallel compressors and only a single core.
 archive_extract()
 {
     $(declare_args src dest)
