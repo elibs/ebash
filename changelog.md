@@ -36,6 +36,11 @@
     - Prompts and progress tickers are now shown in bold using the default
       terminal foreground color.
 
+    - Refactored ecolor to allow for 0 or more arguments which can be modifiers
+      or foreground colors. Removed compatibility for "dimCOLOR" and instead now
+      have a "dim" modifier that can be used; updated colors being used
+      accordingly.
+
 # Bashutils 1.1
 
     - Added tryrc function to aid in running code that you expect might fail,
