@@ -2,9 +2,9 @@
 
 BANNER_WIDTH=50
 ARCHIVE_TYPES=(
-    squashfs
-    iso
+    #squashfs
     tar
+    iso
     tar.gz
 )
 
@@ -18,7 +18,6 @@ assert_archive_contents()
 
     assert_exists "${archive}"
     local actual=( $(archive_list ${archive}) )
-    array_sort actual
 
     einfo "$(lval expect)"
     einfo "$(lval actual)"
@@ -43,8 +42,7 @@ assert_directory_contents()
     array_sort expect
     
     assert_exists "${directory}"
-    local actual=( $(find "${directory}" -printf '%P\n') )
-    array_sort actual
+    local actual=( $(find "${directory}" -printf '%P\n' | sort) )
 
     einfo "$(lval expect)"
     einfo "$(lval actual)"
@@ -193,7 +191,7 @@ ETEST_archive_create_exclude()
     done
 }
 
-DISABLED_ETEST_archive_create_exclude_illegal_prefix()
+ETEST_archive_create_exclude_illegal_prefix()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -207,7 +205,7 @@ DISABLED_ETEST_archive_create_exclude_illegal_prefix()
         etestmsg "Creating src/dest.${ftype}"
         local dest=$(mktemp /tmp/archive-XXXX.${ftype})
         archive_create ${src} ${dest}
-        assert_archive_contents ${dest} ${src} ${src}/file1 ${src}/file2
+        assert_archive_contents ${dest} $(dirname ${src##/}) ${src##/} ${src##/}/file1 ${src##/}/file2
     done
 }
 
@@ -274,7 +272,7 @@ ETEST_archive_create_exclude_self_canonicalize()
 }
 
 # Realistic test of archiving pivot rooted rootfs
-DISABLED_ETEST_archive_create_pivot_root()
+ETEST_archive_create_pivot_root()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -290,6 +288,7 @@ DISABLED_ETEST_archive_create_pivot_root()
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
         archive_create ${oldroot} ${oldroot}//var/log/sfbackup.${ftype}
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
+            tmp                                                \
             ${oldroot#/}                                       \
             ${oldroot#/}/boot                                  \
             ${oldroot#/}/boot/initramfs-x86_64-3.12.13-gentoo  \
@@ -659,8 +658,6 @@ ETEST_archive_convert()
             assert_eq $(array_size src_contents) $(array_size cpy_contents)
 
             # Also compare and diff as arrays
-            array_sort src_contents
-            array_sort cpy_contents
             local src_contents_join=$(array_join src_contents :)
             local cpy_contents_join=$(array_join cpy_contents :)
             assert_eq "${src_contents_join}" "${cpy_contents_join}"
