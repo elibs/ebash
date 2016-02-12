@@ -238,7 +238,7 @@ archive_create()
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
-            if [[ ${root} != "." ]]; then #merged} -eq 0 && ${srcs} != "." ]]; then
+            if [[ ${root} != "." ]]; then
                 cmd+=" -root ${root}"
             fi
 
