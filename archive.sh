@@ -359,26 +359,12 @@ archive_list()
     $(declare_args src)
     local src_type=$(archive_type "${src}")
 
-    # SQUASHFS
     if [[ ${src_type} == squashfs ]]; then
-
-        # Use unsquashfs to list the contents but modify the output so that it
-        # matches output from our other supported formats. Also strip out the
-        # "/" entry as that's not in ISO's output and generally not interesting.
         unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d'
-    
-    # ISO
     elif [[ ${src_type} == iso ]]; then
         isoinfo -J -i "${src}" -f | sed -e 's|^/||'
-
-    # TAR
     elif [[ ${src_type} == tar ]]; then
-
-        # List contents of tar file in a manner consistent with the other tools.
-        # They all output paths with '/' but tar's output is specific to if we
-        # had multiple src files or not. This unifies that output by removing
-        # leading './' (single path) and inserts '/' prefix to match the others.
-        tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||' #-e 's|^\([^/]\)|/\1|'
+        tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||'
     fi
 }
 
