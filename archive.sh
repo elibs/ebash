@@ -94,7 +94,7 @@ archive_tar_compress_arg()
 }
 
 # Generic function for creating an archive file of a given type from the given
-# source directory and write it out to the requested destination directory. 
+# list of source paths and write it out to the requested destination directory.
 # This function will intelligently figure out the correct archive type based
 # on the suffix of the file.
 #
@@ -106,27 +106,29 @@ archive_tar_compress_arg()
 #
 # This function also provides a uniform way of dealing with multiple source
 # paths. All of the various archive formats handle this differently so the
-# uniformity is important. Essentially, if a single source path is specified then
-# its contents are included recursively at the top of the archive whereas if you
-# provide several sources then their directory structures are preserved in the
-# resulting archive.
-#
+# uniformity is important. Essentially, any path provided will be the name of 
+# a top-level entry in the archive with the entire directory structure intact.
+# This is essentially how tar works but different from how mksquashfs and mkiso
+# normally behave. 
+# 
 # A few examples will help clarify the behavior:
 #
 # Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call
-# `archive_create a dest.squashfs`. archive_create will then recursively include
-# the contents of 'a' into the archive, yielding:
-# /1
-# /2
-# /3
+# `archive_create a dest.squashfs`. archive_create will then yield the following:
+# a/1
+# a/2
+# a/3
 #
 # Example #2: Suppose you have these files spread out across three directories:
 # a/1 b/2 c/3 and you call `archive_create a b c dest.squashfs`. archive_create
-# will then include three top-level entries for the three sources
-# provided, yielding:
-# /a/1
-# /b/2
-# /c/3
+# will then yield the following:
+# a/1
+# b/2
+# c/3
+#
+# In the above examples note that the contents are consistent regardless of 
+# whether you provide a single file, single directory or list of files or list
+# of directories.
 archive_create()
 {
     $(declare_args)
@@ -148,8 +150,7 @@ archive_create()
     edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing nice)"
     mkdir -p "$(dirname "${dest}")"
 
-    # Put entire body of this function into a subshell to ensure clean up 
-    # traps execute properly.
+    # Put entire function into a subshell to ensure clean up traps execute properly.
     (
         die_on_error
         die_on_abort
@@ -160,92 +161,54 @@ archive_create()
 
         # Always exclude the source file. Need to canonicalize it and then remove
         # any illegal prefix characters (/, ./, ../)
-        local dest_canon=${dest_real#${PWD}/}
-        if [[ $(array_size srcs) -gt 1 ]]; then
-            echo "${dest_canon}"
-        else
-            echo "${dest_canon#${srcs}/}"
-        fi | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
+        echo "${dest_real#${PWD}/}" | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
 
         # Provide a common API around excludes, use find to pre-expand all excludes.
         if array_not_empty excludes; then
  
             # In case including and excluding something excludes take precedence.
             array_remove srcs ${excludes[@]}
-         
+        
+            # Look for matching excludes in each source directory
             for src in "${srcs[@]}"; do
-                
-                # If src is a directory then change into it and look for matching
-                # files to exclude. ISO has a unique requirement that each excluded
-                # path must be prefixed with the source path.
-                (
-                    local find_prefix=""
-                    
-                    #if [[ -d ${src} ]]; then
-                    #    cd "${src}"
-                    #fi
-                    
-                    [[ ${dest_type} == iso ]] && find_prefix="./"
-                    
-                    find ${excludes[@]} 2>/dev/null | sed "s|^|${find_prefix}|" || true
-                )
+                find ${excludes[@]} 2>/dev/null || true
             done | sort --unique >> "${exclude_file}"
         fi
 
         edebug "Exclude File:\n$(cat ${exclude_file})"
 
-        # Collapse all provided source files into a single flat symlinked directory.
-        if array_empty srcs ; then
-            die "WTF"
-        fi
-
+        # If only a single argument is provided then we can just directly archive it.
+        # If, however, there are multiple arguments we need to merge them into a single
+        # directory before archiving.
         local unified=$(mktemp -d /tmp/archive-create-XXXX)
         trap_add "rm --recursive --force ${unified}"
-        local oldpwd="${PWD}"
-        local relative=()
-        local absolute=()
-        local src
-        for src in ${srcs[@]}; do
-          
-            if [[ ! -e ${src} ]]; then
-                
-                if [[ ${ignore_missing} -eq 0 ]]; then
-                    eerror "${src} does not exist"
-                    return 1
+        local root=""
+
+        if [[ $(array_size srcs) -gt 1 ]]; then
+
+            merge_paths -i=${ignore_missing} ${srcs[@]} ${unified}
+            
+            # If nothing was merged and we're ignoring missing files that's still success.
+            if directory_empty ${unified} ; then
+                if [[ ${ignore_missing} -eq 1 ]]; then
+                    edebug "Nothing merged and ignoring missing files"
+                    rm --force "${dest}"
+                    return 0
                 else
-                    continue
+                    eerror "Nothing merged"
+                    rm --force "${dest}"
+                    return 1
                 fi
             fi
 
-            if [[ ${src:0:1} == / ]]; then
-                absolute+=( ${src} )
-            else
-                relative+=( ${oldpwd}/${src} )
-            fi
-        done
-
-        # If there's nothing to do just return
-        if array_empty absolute && array_empty relative; then
-            if [[ ${ignore_missing} -eq 1 ]]; then
-                edebug "No source files left to include -- returning 0"
-                return 0
-            else
-                eerror "No source files left to include"
-                return 1
-            fi
+            cd ${unified}${PWD}
+            root="."
+        elif [[ ${srcs} == "." ]]; then
+            root="${srcs}"
+        else
+            root="$(readlink -m ${srcs})"
+            root="${root#${PWD}/}"
         fi
-
-        # Copy all targets into unified directory
-        cp --archive --symbolic-link ${relative[@]:-} ${absolute[@]:-} ${unified}
-
-        #cd ${unified}
-        #array_not_empty relative && cp --recursive --parents --symbolic-link --copy-contents ${relative[@]} .
-        #mkdir -p ${unified}${oldpwd}
-        #cd ${unified}${oldpwd} || die
-        #array_not_empty absolute && cp --recursive --parents --symbolic-link --copy-contents ${absolute[@]} .
-        #find ${unified}
-
-        cd ${unified}
 
         # SQUASHFS
         if [[ ${dest_type} == squashfs ]]; then
@@ -253,9 +216,13 @@ archive_create()
             local mksquashfs_flags="-no-duplicates -no-recovery -no-exports -no-progress -noappend -wildcards"
             if [[ ${nice} -eq 1 ]]; then
                 mksquashfs_flags+=" -processors 1"
-            fi
+            fi          
 
-            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+            if [[ ${root} != "." ]]; then
+                mksquashfs_flags+=" -keep-as-directory"
+            fi
+            
+            cmd="mksquashfs ${root} ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -271,7 +238,11 @@ archive_create()
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
-            cmd+=" ."
+            if [[ ${root} != "." ]]; then #merged} -eq 0 && ${srcs} != "." ]]; then
+                cmd+=" -root ${root}"
+            fi
+
+            cmd+=" ${root}"
 
         # TAR
         elif [[ ${dest_type} == tar ]]; then
@@ -279,9 +250,9 @@ archive_create()
             cmd+="tar --exclude-from ${exclude_file} --create"
             $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
-                cmd+=" --file - . | ${prog} > ${dest_real}"
+                cmd+=" --file - ${root} | ${prog} > ${dest_real}"
             else
-                cmd+=" --file ${dest_real} ."
+                cmd+=" --file ${dest_real} ${root}"
             fi
         fi
 
@@ -289,9 +260,6 @@ archive_create()
         edebug "$(lval cmd)"
         eval "${cmd}" |& edebug
     )
-
-    ## DEBUG
-    ewarn $(archive_list ${dest_real})
 }
 
 # Extract a previously constructed archive image. This works on all of our
@@ -358,7 +326,7 @@ archive_extract()
         # By default the files to extract from the archive is all the files requested.
         # If files is an empty array this will evaluate to an empty string and all files
         # will be extracted.
-        local includes=$(array_join files " ./")
+        local includes=$(array_join files)
 
         # If ignore_missing flag was enabled filter out list of files in the archive to
         # only those which the caller requested. This will ensure we are essentially 
@@ -438,7 +406,7 @@ archive_convert()
         archive_mount_or_extract "${src}" "${mnt}"
 
         # Now we can create a new archive from 'mnt'
-        cd "${mnt}"
+        cd ${mnt}
         archive_create . "${dest_real}"
     )
 }

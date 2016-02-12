@@ -31,7 +31,7 @@ if [[ -e /etc/bashutils.conf ]]; then
     source /etc/bashutils.conf
 fi
 
-if [[ ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
+if [[ -e ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
     source ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf
 fi
 
@@ -40,9 +40,7 @@ fi
 : ${COLOR_TRACE:=dimyellow}
 : ${COLOR_WARN:=yellow}
 : ${COLOR_ERROR:=red}
-
 : ${COLOR_BRACKET:=blue}
-
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -2357,6 +2355,82 @@ emetadata_check()
     wait ${pids[@]} && rc=0 || rc=$?
     opt_true "q" || eprogress_kill -r=${rc}
     return ${rc}
+}
+
+# Merge paths will take one or more source paths and merge them into a given
+# destination path as efficiently as possible by creating a shadow directory
+# structure with symbolic links for all files. This is useful for various 
+# archival purposes or for mirroring two source code directories. This
+# purposefully does not use hard links since they cannot cross device boundaries.
+# It also doesn't just create a top level symlink because it provides a far
+# more interesting feature of effectively merging paths in different locations
+# into a single unified directory as if the source paths were all in one top
+# level containing directory. The last path provided in the argument list is
+# the destination directory (which will be created if it doesn't exist) to copy
+# the paths into.
+merge_paths()
+{
+    $(declare_args)
+    local ignore_missing=$(opt_get i)
+
+    # Parse positional arguments into a bashutils array. Then grab final argument
+    # which is the destination.
+    local srcs=( "$@" )
+    local dest=${srcs[${#srcs[@]}-1]}
+    unset srcs[${#srcs[@]}-1]
+
+    # Create destination directory if it doesn't exist
+    mkdir -p "${dest}"
+
+    # Collapse all provided source files into a single flat symlinked directory.
+    local targets=()
+    local src
+    for src in "${srcs[@]}"; do
+      
+        if [[ ! -e ${src} ]]; then
+            
+            if [[ ${ignore_missing} -eq 0 ]]; then
+                eerror "${src} does not exist"
+                return 1
+            else
+                continue
+            fi
+        fi
+
+        if [[ ${src:0:1} == / ]]; then
+            targets+=( "${src}" )
+        else
+            targets+=( $(readlink -m "${PWD}/${src}") )
+        fi
+    done
+
+    # If there's nothing to do but we're ignoring missing files just return success
+    # otherwise return 1.
+    if array_empty targets; then
+        if [[ ${ignore_missing} -eq 1 ]]; then
+            return 0
+        else
+            eerror "No source files left to include"
+            return 1
+        fi
+    fi
+
+    # Copy all targets into unified directory
+    cp --archive --parents --symbolic-link ${targets[@]} ${dest}
+}
+
+# Check if a directory is empty
+directory_empty()
+{
+    $(declare_args dir)
+    ! find ${dir} -mindepth 1 -print -quit | grep -q .
+}
+
+# Check if a directory is not empty
+directory_not_empty()
+{
+    $(declare_args dir)
+    find ${dir} -mindepth 1 -print -quit | grep -q .
 }
 
 #-----------------------------------------------------------------------------

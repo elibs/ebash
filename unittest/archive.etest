@@ -60,16 +60,6 @@ assert_directory_contents()
     done
 }
 
-assert_directory_empty()
-{
-    $(declare_args directory)
-    etestmsg "Validating $(lval directory)"
-
-    assert_exists "${directory}"
-    local actual=( $(find "${directory}" -printf '%P\n') )
-    assert array_empty actual
-}
-
 ETEST_archive_create()
 {
     local idx=0
@@ -83,7 +73,7 @@ ETEST_archive_create()
 
         etestmsg "Creating dest.${ftype}"
         archive_create src dest.${ftype}
-        assert_archive_contents dest.${ftype} /file1 /file2
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
     done
 }
 
@@ -100,7 +90,7 @@ ETEST_archive_create_directory_dot()
 
         etestmsg "Creating src.${ftype}"
         archive_create src/. src.${ftype}
-        assert_archive_contents src.${ftype} /file1 /file2
+        assert_archive_contents src.${ftype} src src/file1 src/file2
     done
 }
 
@@ -118,7 +108,7 @@ ETEST_archive_create_directory()
         etestmsg "Creating src.${ftype}"
         assert_not_exists DIR
         archive_create src DIR/src.${ftype}
-        assert_archive_contents DIR/src.${ftype} /file1 /file2
+        assert_archive_contents DIR/src.${ftype} src src/file1 src/file2
         rm -rf DIR
     done
 }
@@ -135,7 +125,9 @@ ETEST_archive_create_files()
         
         etestmsg "Creating src.${ftype}"
         archive_create file1 file2 file3 file4 src.${ftype}
-        assert_archive_contents src.${ftype} file1 file2 file3 file4  
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
+
+        rm --force src.${ftype}
     done
 }
 
@@ -159,7 +151,8 @@ ETEST_archive_create_missing_files()
 
         etestmsg "Creating src.${ftype} (ignoring missing files -- should pass)"
         archive_create -i NOT1 file1 file2 file3 file4 NOT2 src.${ftype}
-        assert_archive_contents src.${ftype} /file1 /file2 /file3 /file4
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
+        
         rm src.${ftype}
     done
 }
@@ -177,7 +170,9 @@ ETEST_archive_create_mixed_files_directories()
 
         etestmsg "Creating src.${ftype}"
         archive_create file0 src1 src2 src.${ftype}
-        assert_archive_contents src.${ftype} /file0 /src1 /src1/file1 /src1/file2 /src2 /src2/file3 /src2/file4
+        assert_archive_contents src.${ftype} file0 src1 src1/{file1,file2} src2 src2/{file3,file4}
+
+        rm src.${ftype}
     done
 }
 
@@ -193,12 +188,12 @@ ETEST_archive_create_exclude()
         touch src/{file1,file2,XXX,YYY}
         
         etestmsg "Creating src.${ftype}"
-        archive_create -x="XXX YYY" src src.${ftype}
-        assert_archive_contents src.${ftype} /file1 /file2
+        archive_create -x="src/XXX src/YYY" src src.${ftype}
+        assert_archive_contents src.${ftype} src src/file1 src/file2
     done
 }
 
-ETEST_archive_create_exclude_illegal_prefix()
+DISABLED_ETEST_archive_create_exclude_illegal_prefix()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -212,7 +207,7 @@ ETEST_archive_create_exclude_illegal_prefix()
         etestmsg "Creating src/dest.${ftype}"
         local dest=$(mktemp /tmp/archive-XXXX.${ftype})
         archive_create ${src} ${dest}
-        assert_archive_contents ${dest} /file1 /file2
+        assert_archive_contents ${dest} ${src} ${src}/file1 ${src}/file2
     done
 }
 
@@ -229,33 +224,17 @@ ETEST_archive_create_exclude_glob()
         touch src/tmp/{t1,t2,t3,t10,x1,x2,x3}
 
         etestmsg "Creating src.${ftype} (excluding tmp/*)"
-        archive_create -x="tmp/*" src src.${ftype}
-        assert_archive_contents src.${ftype} /file1 /file2 /tmp
+        archive_create -x="src/tmp/*" src src.${ftype}
+        assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp
         rm src.${ftype}
 
         etestmsg "Creating src.${ftype} (excluding tmp/t?)"
-        archive_create -x="tmp/t?" src src.${ftype}
-        assert_archive_contents src.${ftype} /file1 /file2 /tmp /tmp/t10 /tmp/x1 /tmp/x2 /tmp/x3
+        archive_create -x="src/tmp/t?" src src.${ftype}
+        assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp src/tmp/t10 src/tmp/x1 src/tmp/x2 src/tmp/x3
 
         etestmsg "Creating src.${ftype} (excluding tmp/t* tmp/x*)"
-        archive_create -x="tmp/t* tmp/x*" src src.${ftype}
-        assert_archive_contents src.${ftype} /file1 /file2 /tmp
-    done
-}
-
-ETEST_archive_create_files()
-{
-    local idx=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
-
-        etestmsg "Creating files"
-        touch {file1,file2,file3,file4}
-        
-        etestmsg "Creating src.${ftype}"
-        archive_create file1 file2 file3 file4 src.${ftype}
-        assert_archive_contents src.${ftype} /file1 /file2 /file3 /file4
+        archive_create -x="src/tmp/t* src/tmp/x*" src src.${ftype}
+        assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp
     done
 }
 
@@ -272,7 +251,7 @@ ETEST_archive_create_exclude_self()
 
         etestmsg "Creating src/dest.${ftype}"
         archive_create src src/dest.${ftype}
-        assert_archive_contents src/dest.${ftype} /file1 /file2
+        assert_archive_contents src/dest.${ftype} src src/file1 src/file2
     done
 }
 
@@ -290,12 +269,12 @@ ETEST_archive_create_exclude_self_canonicalize()
 
         etestmsg "Creating src/dest.${ftype}"
         archive_create src src///././///dest.${ftype}
-        assert_archive_contents src/dest.${ftype} /file1 /file2
+        assert_archive_contents src/dest.${ftype} src src/file1 src/file2
     done
 }
 
 # Realistic test of archiving pivot rooted rootfs
-ETEST_archive_create_pivot_root()
+DISABLED_ETEST_archive_create_pivot_root()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -311,22 +290,23 @@ ETEST_archive_create_pivot_root()
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
         archive_create ${oldroot} ${oldroot}//var/log/sfbackup.${ftype}
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
-            /boot                                  \
-            /boot/initramfs-x86_64-3.12.13-gentoo  \
-            /boot/kernel-x86_64-3.12.13-gentoo     \
-            /boot/System.map-x86_64-3.12.13-gentoo \
-            /var                                   \
-            /var/log                               \
-            /var/log/sf-master-10.info             \
-            /var/log/sf-master-1.info              \
-            /var/log/sf-master-2.info              \
-            /var/log/sf-master-3.info              \
-            /var/log/sf-master-4.info              \
-            /var/log/sf-master-5.info              \
-            /var/log/sf-master-6.info              \
-            /var/log/sf-master-7.info              \
-            /var/log/sf-master-8.info              \
-            /var/log/sf-master-9.info
+            ${oldroot#/}                                       \
+            ${oldroot#/}/boot                                  \
+            ${oldroot#/}/boot/initramfs-x86_64-3.12.13-gentoo  \
+            ${oldroot#/}/boot/kernel-x86_64-3.12.13-gentoo     \
+            ${oldroot#/}/boot/System.map-x86_64-3.12.13-gentoo \
+            ${oldroot#/}/var                                   \
+            ${oldroot#/}/var/log                               \
+            ${oldroot#/}/var/log/sf-master-10.info             \
+            ${oldroot#/}/var/log/sf-master-1.info              \
+            ${oldroot#/}/var/log/sf-master-2.info              \
+            ${oldroot#/}/var/log/sf-master-3.info              \
+            ${oldroot#/}/var/log/sf-master-4.info              \
+            ${oldroot#/}/var/log/sf-master-5.info              \
+            ${oldroot#/}/var/log/sf-master-6.info              \
+            ${oldroot#/}/var/log/sf-master-7.info              \
+            ${oldroot#/}/var/log/sf-master-8.info              \
+            ${oldroot#/}/var/log/sf-master-9.info
     done
 }
 
@@ -351,22 +331,22 @@ ETEST_archive_create_pivot_root_cd()
         )
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
-            /boot                                    \
-            /boot/initramfs-x86_64-3.12.13-gentoo    \
-            /boot/kernel-x86_64-3.12.13-gentoo       \
-            /boot/System.map-x86_64-3.12.13-gentoo   \
-            /var                                     \
-            /var/log                                 \
-            /var/log/sf-master-10.info               \
-            /var/log/sf-master-1.info                \
-            /var/log/sf-master-2.info                \
-            /var/log/sf-master-3.info                \
-            /var/log/sf-master-4.info                \
-            /var/log/sf-master-5.info                \
-            /var/log/sf-master-6.info                \
-            /var/log/sf-master-7.info                \
-            /var/log/sf-master-8.info                \
-            /var/log/sf-master-9.info
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info
     done
 }
 
@@ -392,27 +372,26 @@ ETEST_archive_create_pivot_root_multi()
         )
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
-            /boot                                    \
-            /boot/initramfs-x86_64-3.12.13-gentoo    \
-            /boot/kernel-x86_64-3.12.13-gentoo       \
-            /boot/System.map-x86_64-3.12.13-gentoo   \
-            /var                                     \
-            /var/log                                 \
-            /var/log/sf-master-10.info               \
-            /var/log/sf-master-1.info                \
-            /var/log/sf-master-2.info                \
-            /var/log/sf-master-3.info                \
-            /var/log/sf-master-4.info                \
-            /var/log/sf-master-5.info                \
-            /var/log/sf-master-6.info                \
-            /var/log/sf-master-7.info                \
-            /var/log/sf-master-8.info                \
-            /var/log/sf-master-9.info
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info
     done
 }
 
-# Many bugs in archive around this. Disabling until I fix in next patch.
-DISABLED_ETEST_archive_extract_pivot_root_multi_deep()
+ETEST_archive_extract_pivot_root_multi_deep()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -429,20 +408,23 @@ DISABLED_ETEST_archive_extract_pivot_root_multi_deep()
                      /var/log/sf-master-{1..10}.info
                     )
 
-        local expect=(                               \
-            /boot/initramfs-x86_64-3.12.13-gentoo    \
-            /boot/kernel-x86_64-3.12.13-gentoo       \
-            /boot/System.map-x86_64-3.12.13-gentoo   \
-            /var/log/sf-master-10.info               \
-            /var/log/sf-master-1.info                \
-            /var/log/sf-master-2.info                \
-            /var/log/sf-master-3.info                \
-            /var/log/sf-master-4.info                \
-            /var/log/sf-master-5.info                \
-            /var/log/sf-master-6.info                \
-            /var/log/sf-master-7.info                \
-            /var/log/sf-master-8.info                \
-            /var/log/sf-master-9.info                \
+        local expect=(                              \
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info                \
         )
 
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
@@ -472,7 +454,7 @@ ETEST_archive_create_exclude_self_multi()
 
         etestmsg "Creating src1/dest.${ftype}"
         archive_create src1 src2 src1/dest.${ftype}
-        assert_archive_contents src1/dest.${ftype} /src1 /src1/{file1,file2} /src2 /src2/{file3,file4}
+        assert_archive_contents src1/dest.${ftype} src1 src1/{file1,file2} src2 src2/{file3,file4}
     done
 }
 
@@ -488,7 +470,8 @@ ETEST_archive_create_exclude_files()
         
         etestmsg "Creating dest.${ftype}"
         archive_create -x="XXX YYY" file1 file2 file3 file4 XXX YYY src.${ftype}
-        assert_archive_contents src.${ftype} /file1 /file2 /file3 /file4 
+        assert_archive_contents src.${ftype} file1 file2 file3 file4 
+        rm src.${ftype}
    done
 }
 
@@ -510,7 +493,7 @@ ETEST_archive_extract()
         archive_extract src.${ftype} dest
 
         etestmsg "Validating src and dest"
-        diff --unified --recursive src dest
+        diff --unified --recursive src dest/src
     done
 }
 
@@ -529,8 +512,8 @@ ETEST_archive_extract_specific_files()
         archive_create src src.${ftype}
 
         etestmsg "Extracting src.${ftype}/{file1,file2} to dest"
-        archive_extract src.${ftype} dest file1 file2
-        assert_directory_contents dest file1 file2
+        archive_extract src.${ftype} dest src/{file1,file2}
+        assert_directory_contents dest src src/file1 src/file2
    done
 }
 
@@ -566,18 +549,18 @@ ETEST_archive_extract_ignore_missing()
         archive_create src src.${ftype}
 
         etestmsg "Extracting src.${ftype}/{file1,file2} to dest (should fail)"
-        assert_false archive_extract src.${ftype} dest NOT1 file1 file2 NOT2
-        #BUG: assert_directory_empty dest
+        assert_false archive_extract src.${ftype} dest src/NOT1 src/file1 src/file2 src/NOT2
+        #BUG: assert directory_empty dest
         rm -rf dest
 
         etestmsg "Extracting src.${ftype}/{file1,file2} to dest (should NOT fail -- ignoring missing files)"
-        archive_extract -i src.${ftype} dest NOT1 file1 file2 NOT2
-        assert_directory_contents dest file1 file2
+        archive_extract -i src.${ftype} dest src/NOT1 src/file1 src/file2 src/NOT2
+        assert_directory_contents dest src src/file1 src/file2
         rm -rf dest
 
         etestmsg "Extracting src.${ftype} with nothing to do"
         archive_extract -i src.${ftype} dest NOT1 NOT2
-        assert_directory_empty dest
+        assert directory_empty dest
         rm -rf dest
     done
 }
@@ -598,8 +581,32 @@ ETEST_archive_extract_glob()
         archive_list src.${ftype}
 
         etestmsg "Extracting src.${ftype}/{file*,tmp/*} to dest"
-        archive_extract src.${ftype} dest "file*" "tmp/*"
-        assert_directory_contents dest file1 file2 tmp tmp/1 tmp/2
+        archive_extract src.${ftype} dest "src/file*" "src/tmp/*"
+        assert_directory_contents dest src src/{file1,file2,tmp,tmp/1,tmp/2}
+    done
+}
+
+ETEST_archive_extract_content()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+        echo "data1" >src/file1
+        echo "data2" >src/file2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        diff --unified --recursive src dest/src
     done
 }
 
@@ -621,7 +628,7 @@ ETEST_archive_nice()
         archive_extract -n=1 src.${ftype} dest
 
         etestmsg "Validating src and dest"
-        diff --unified --recursive src dest
+        diff --unified --recursive src dest/src
     done
 }
 
