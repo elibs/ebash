@@ -36,8 +36,8 @@ if [[ ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
 fi
 
 : ${COLOR_INFO:=green}
-: ${COLOR_DEBUG:=dimblue}
-: ${COLOR_TRACE:=dimyellow}
+: ${COLOR_DEBUG:="dim blue"}
+: ${COLOR_TRACE:="dim yellow"}
 : ${COLOR_WARN:=yellow}
 : ${COLOR_ERROR:=red}
 
@@ -881,19 +881,18 @@ ecolor()
     [[ -z ${efuncs_color} ]] && einteractive && efuncs_color=1
     [[ ${efuncs_color} -eq 1 ]] || return 0
 
-    # Reset
-    local c=$1
-    local reset_re="\breset|none|off\b"
-    [[ ${c} =~ ${reset_re} ]] && { echo -en "\033[m"; return 0; }
+    local c=""
+    for c in $@; do
+        case ${c} in
+            dim)            tput dim                           ;;
+            invert)         tput rev                           ;;
+            bold)           tput bold                          ;;
+            underline)      tput smul                          ;;
+            reset|none|off) echo -en "\033[0m"                  ;;
+            *)              tput setaf $(ecolor_code ${c}) ;;
+        esac
+    done
 
-    local dimre="^dim"
-    if [[ ${c} =~ ${dimre} ]]; then
-        c=${c#dim}
-    else
-        tput bold
-    fi
-
-    tput setaf $(ecolor_code ${c})
 }
 
 eclear()
@@ -1172,7 +1171,7 @@ etable()
 
 eprompt()
 {
-    echo -en "$(tput bold) * $@: $(ecolor none)" >&2
+    echo -en "$(ecolor bold) * $@: $(ecolor none)" >&2
     local result=""
 
     read result < /dev/stdin
@@ -1267,7 +1266,7 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        echo -en "$(tput bold)" >&2
+        echo -en "$(ecolor bold)" >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
         echo -en "$(ecolor none)"  >&2
 
