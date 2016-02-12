@@ -148,39 +148,12 @@ archive_create()
     edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing nice)"
     mkdir -p "$(dirname "${dest}")"
 
-    # If ignore_missing flag was enabled we have to preprocess the list of source paths
-    # and remove anything in srcs array which doesn't exist to avoid the tools from
-    # failing.
-    if [[ ${ignore_missing} -eq 1 ]]; then
-
-        local pushed=0
-        if [[ $(array_size srcs) -eq 1 ]]; then
-            pushed=1
-            pushd "${srcs}"
-        fi
-
-        local idx
-        for idx in $(array_indexes srcs); do
-            eval "local src=\${srcs[$idx]}"
-            
-            if [[ ! -e "${src}" ]]; then
-                edebug "Excluding non-existant $(lval src)"
-                unset srcs[$idx]
-            fi
-        done
-
-        [[ ${pushed} -eq 1 ]] && popd
-
-        # If there are no source files to include, there's nothing to do so just return
-        if array_empty srcs; then
-            edebug "No source files left to include -- returning 0"
-            return 0
-        fi
-    fi
-
     # Put entire body of this function into a subshell to ensure clean up 
     # traps execute properly.
     (
+        die_on_error
+        die_on_abort
+
         # Create excludes file
         local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
         trap_add "rm --force ${exclude_file}"
@@ -208,10 +181,11 @@ archive_create()
                 (
                     local find_prefix=""
                     
-                    if [[ -d ${src} ]]; then
-                        cd "${src}"
-                        [[ ${dest_type} == iso ]] && find_prefix="${src}/"
-                    fi
+                    #if [[ -d ${src} ]]; then
+                    #    cd "${src}"
+                    #fi
+                    
+                    [[ ${dest_type} == iso ]] && find_prefix="./"
                     
                     find ${excludes[@]} 2>/dev/null | sed "s|^|${find_prefix}|" || true
                 )
@@ -220,15 +194,68 @@ archive_create()
 
         edebug "Exclude File:\n$(cat ${exclude_file})"
 
+        # Collapse all provided source files into a single flat symlinked directory.
+        if array_empty srcs ; then
+            die "WTF"
+        fi
+
+        local unified=$(mktemp -d /tmp/archive-create-XXXX)
+        trap_add "rm --recursive --force ${unified}"
+        local oldpwd="${PWD}"
+        local relative=()
+        local absolute=()
+        local src
+        for src in ${srcs[@]}; do
+          
+            if [[ ! -e ${src} ]]; then
+                
+                if [[ ${ignore_missing} -eq 0 ]]; then
+                    eerror "${src} does not exist"
+                    return 1
+                else
+                    continue
+                fi
+            fi
+
+            if [[ ${src:0:1} == / ]]; then
+                absolute+=( ${src} )
+            else
+                relative+=( ${oldpwd}/${src} )
+            fi
+        done
+
+        # If there's nothing to do just return
+        if array_empty absolute && array_empty relative; then
+            if [[ ${ignore_missing} -eq 1 ]]; then
+                edebug "No source files left to include -- returning 0"
+                return 0
+            else
+                eerror "No source files left to include"
+                return 1
+            fi
+        fi
+
+        # Copy all targets into unified directory
+        cp --archive --symbolic-link ${relative[@]:-} ${absolute[@]:-} ${unified}
+
+        #cd ${unified}
+        #array_not_empty relative && cp --recursive --parents --symbolic-link --copy-contents ${relative[@]} .
+        #mkdir -p ${unified}${oldpwd}
+        #cd ${unified}${oldpwd} || die
+        #array_not_empty absolute && cp --recursive --parents --symbolic-link --copy-contents ${absolute[@]} .
+        #find ${unified}
+
+        cd ${unified}
+
         # SQUASHFS
         if [[ ${dest_type} == squashfs ]]; then
     
-            local mksquashfs_flags="-no-recovery -no-exports -no-progress -noappend -wildcards"
+            local mksquashfs_flags="-no-duplicates -no-recovery -no-exports -no-progress -noappend -wildcards"
             if [[ ${nice} -eq 1 ]]; then
                 mksquashfs_flags+=" -processors 1"
             fi
 
-            cmd="mksquashfs ${srcs[@]} ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -244,32 +271,17 @@ archive_create()
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
-            # mkisofs flattens all given arguments into a single directory in the output image.
-            # With --graft-points you can override that behavior to put them at the top of the output image.
-            if [[ $(array_size srcs) -gt 1 ]]; then
-                cmd+=" --graft-points"
-                local src
-                for src in ${srcs[@]}; do
-                    cmd+=" /${src}=${src}"
-                done
-            else
-                cmd+=" ${srcs}"
-            fi
+            cmd+=" ."
 
         # TAR
         elif [[ ${dest_type} == tar ]]; then
 
-            if [[ $(array_size srcs) -eq 1 ]]; then
-                cmd="cd ${srcs}; "
-                srcs=( . )
-            fi
-
             cmd+="tar --exclude-from ${exclude_file} --create"
             $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
-                cmd+=" --file - ${srcs[@]} | ${prog} > ${dest_real}"
+                cmd+=" --file - . | ${prog} > ${dest_real}"
             else
-                cmd+=" --file ${dest_real} ${srcs[@]}"
+                cmd+=" --file ${dest_real} ."
             fi
         fi
 
@@ -277,6 +289,9 @@ archive_create()
         edebug "$(lval cmd)"
         eval "${cmd}" |& edebug
     )
+
+    ## DEBUG
+    ewarn $(archive_list ${dest_real})
 }
 
 # Extract a previously constructed archive image. This works on all of our
@@ -382,11 +397,11 @@ archive_list()
         # Use unsquashfs to list the contents but modify the output so that it
         # matches output from our other supported formats. Also strip out the
         # "/" entry as that's not in ISO's output and generally not interesting.
-        unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|squashfs-root||' -e '/^\s*$/d'
+        unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d'
     
     # ISO
     elif [[ ${src_type} == iso ]]; then
-        isoinfo -J -i "${src}" -f
+        isoinfo -J -i "${src}" -f | sed -e 's|^/||'
 
     # TAR
     elif [[ ${src_type} == tar ]]; then
@@ -395,7 +410,7 @@ archive_list()
         # They all output paths with '/' but tar's output is specific to if we
         # had multiple src files or not. This unifies that output by removing
         # leading './' (single path) and inserts '/' prefix to match the others.
-        tar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||' -e 's|^\([^/]\)|/\1|'
+        tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||' #-e 's|^\([^/]\)|/\1|'
     fi
 }
 
@@ -411,17 +426,21 @@ archive_convert()
 {
     $(declare_args src dest)
     local src_type=$(archive_type "${src}")
-    edebug "Converting $(lval src dest src_type)"
+    local dest_real=$(readlink -m "${dest}")
+    edebug "Converting $(lval src src_type dest dest_real)"
 
     # Temporary directory for mounting
-    local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
-    trap_add "eunmount -r -d ${mnt}"
+    (
+        local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
+        trap_add "eunmount -r -d ${mnt}"
 
-    # Mount (if possible) or extract the archive image if mounting is not supported.
-    archive_mount_or_extract "${src}" "${mnt}"
+        # Mount (if possible) or extract the archive image if mounting is not supported.
+        archive_mount_or_extract "${src}" "${mnt}"
 
-    # Now we can create a new archive from 'mnt'
-    archive_create "${mnt}" "${dest}"
+        # Now we can create a new archive from 'mnt'
+        cd "${mnt}"
+        archive_create . "${dest_real}"
+    )
 }
 
 #-----------------------------------------------------------------------------
