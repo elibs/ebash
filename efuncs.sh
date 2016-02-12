@@ -2368,6 +2368,21 @@ emetadata_check()
 # level containing directory. The last path provided in the argument list is
 # the destination directory (which will be created if it doesn't exist) to copy
 # the paths into.
+#
+# An example will help illustrate how this behaves. Suppose you call:
+# `merge_paths /tmp /home dest`. This will create directories 'tmp' and 'home'
+# inside 'dest' and then populate those directories with symlinks to their 
+# source files. Suppose you  have /tmp/file1 /tmp/file2 and /home/user/file3, this
+# will lead to:
+#
+# dest/tmp
+# dest/tmp/file1 -> /tmp/file1
+# dest/tmp/file2 -> /tmp/file2
+# dest/home
+# dest/home/file3 -> /home/file3
+#
+# OPTIONS:
+# -i=(0|1) Ignore missing files rather than return non-zero.
 merge_paths()
 {
     $(declare_args)
@@ -2423,14 +2438,14 @@ merge_paths()
 directory_empty()
 {
     $(declare_args dir)
-    ! find ${dir} -mindepth 1 -print -quit | grep -q .
+    ! find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
 
 # Check if a directory is not empty
 directory_not_empty()
 {
     $(declare_args dir)
-    find ${dir} -mindepth 1 -print -quit | grep -q .
+    find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
 
 #-----------------------------------------------------------------------------
