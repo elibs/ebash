@@ -23,6 +23,27 @@ elif [[ "${__BASHUTILS_OS}" == Darwin ]] ; then
     export LANG="en_US.UTF-8"
 fi
 
+#------------------------------------------------------------------------------
+# COLOR SETTINGS
+#------------------------------------------------------------------------------
+
+if [[ -e /etc/bashutils.conf ]]; then
+    source /etc/bashutils.conf
+fi
+
+if [[ ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
+    source ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf
+fi
+
+: ${COLOR_INFO:=green}
+: ${COLOR_DEBUG:=dimblue}
+: ${COLOR_TRACE:=dimyellow}
+: ${COLOR_WARN:=yellow}
+: ${COLOR_ERROR:=red}
+
+: ${COLOR_BRACKET:=blue}
+
+
 #-----------------------------------------------------------------------------
 # DEBUGGING
 #-----------------------------------------------------------------------------
@@ -46,7 +67,7 @@ etrace()
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
     fi
 
-    echo "$(ecolor dimyellow)[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
+    echo "$(ecolor ${COLOR_TRACE})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
 }
 
 edebug_enabled()
@@ -94,7 +115,7 @@ edebug()
 
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
-    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dimblue" "" "DEBUG" "${msg}"
+    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "${COLOR_DEBUG}" "" "DEBUG" "${msg}"
 }
 
 edebug_out()
@@ -534,7 +555,7 @@ die()
     __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
     : ${__EFUNCS_DIE_BY_SIGNAL:=$(opt_get s)}
 
-    local color=$(opt_get c "red")
+    local color=$(opt_get c "${COLOR_ERROR}")
     local frames=$(opt_get f 3)
 
     # Show error message immediately.
@@ -1023,22 +1044,22 @@ emsg()
 
 einfo()
 {
-    emsg "green" ">>" "INFO" "$@"
+    emsg "${COLOR_INFO}" ">>" "INFO" "$@"
 }
 
 einfos()
 {
-    emsg "green" "   -" "INFOS" "$@"
+    emsg "${COLOR_INFO}" "   -" "INFOS" "$@"
 }
 
 ewarn()
 {
-    emsg "yellow" ">>" "WARN" "$@"
+    emsg "${COLOR_WARN}" ">>" "WARN" "$@"
 }
 
 ewarns()
 {
-    emsg "yellow" "   -" "WARNS" "$@"
+    emsg "${COLOR_WARN}" "   -" "WARNS" "$@"
 }
 
 eerror_internal()
@@ -1050,7 +1071,7 @@ eerror_internal()
 
 eerror()
 {
-    emsg "red" ">>" "ERROR" "$@"
+    emsg "${COLOR_ERROR}" ">>" "ERROR" "$@"
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
@@ -1151,7 +1172,7 @@ etable()
 
 eprompt()
 {
-    echo -en "$(ecolor white) * $@: $(ecolor none)" >&2
+    echo -en "$(tput bold) * $@: $(ecolor none)" >&2
     local result=""
 
     read result < /dev/stdin
@@ -1213,9 +1234,9 @@ eend()
     fi
 
     if [[ ${rc} -eq 0 ]]; then
-        echo -e "$(ecolor blue)[$(ecolor green) ok $(ecolor blue)]$(ecolor none)" >&2
+        echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_INFO}) ok $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     else
-        echo -e "$(ecolor blue)[$(ecolor red) !! $(ecolor blue)]$(ecolor none)" >&2
+        echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_ERROR}) !! $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     fi
 }
 
@@ -1246,7 +1267,7 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        echo -en "$(ecolor white)" >&2
+        echo -en "$(tput bold)" >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
         echo -en "$(ecolor none)"  >&2
 
@@ -1269,7 +1290,7 @@ do_eprogress()
 
 eprogress()
 {
-    echo -en "$(emsg "green" ">>" "INFO" "$@" 2>&1)" >&2
+    echo -en "$(emsg "${COLOR_INFO}" ">>" "INFO" "$@" 2>&1)" >&2
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
@@ -2277,7 +2298,7 @@ emetadata_check()
 
     fail()
     {
-        emsg "red" "   -" "ERROR" "$@"
+        emsg "${COLOR_ERROR}" "   -" "ERROR" "$@"
         exit 1
     }
 
