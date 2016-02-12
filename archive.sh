@@ -152,6 +152,7 @@ archive_create()
 
     # Put entire function into a subshell to ensure clean up traps execute properly.
     (
+        # MERGE TODO: When this is merged through to 1.3 branch these can be removed.
         die_on_error
         die_on_abort
 
@@ -358,14 +359,27 @@ archive_list()
 {
     $(declare_args src)
     local src_type=$(archive_type "${src}")
+    local contents=()
 
     if [[ ${src_type} == squashfs ]]; then
-        unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d'
+        contents=( $(unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d') )
     elif [[ ${src_type} == iso ]]; then
-        isoinfo -J -i "${src}" -f | sed -e 's|^/||'
+        contents=( $(isoinfo -J -i "${src}" -f | sed -e 's|^/||') )
     elif [[ ${src_type} == tar ]]; then
-        tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||'
+        contents=( $(tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||') )
     fi
+
+    local entry
+    for entry in "${contents[@]}"; do
+        local parts=()
+        array_init parts "${entry}" "/"
+
+        local idx
+        for idx in $(array_indexes parts); do
+            eval "local entry=\${parts[@]:0:$idx+1}"
+            echo "${entry// //}"
+        done
+    done | sort --unique
 }
 
 #-----------------------------------------------------------------------------
