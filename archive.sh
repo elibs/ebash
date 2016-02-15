@@ -94,7 +94,7 @@ archive_tar_compress_arg()
 }
 
 # Generic function for creating an archive file of a given type from the given
-# source directory and write it out to the requested destination directory. 
+# list of source paths and write it out to the requested destination directory.
 # This function will intelligently figure out the correct archive type based
 # on the suffix of the file.
 #
@@ -106,27 +106,34 @@ archive_tar_compress_arg()
 #
 # This function also provides a uniform way of dealing with multiple source
 # paths. All of the various archive formats handle this differently so the
-# uniformity is important. Essentially, if a single source path is specified then
-# its contents are included recursively at the top of the archive whereas if you
-# provide several sources then their directory structures are preserved in the
-# resulting archive.
-#
+# uniformity is important. Essentially, any path provided will be the name of 
+# a top-level entry in the archive with the entire directory structure intact.
+# This is essentially how tar works but different from how mksquashfs and mkiso
+# normally behave. 
+# 
 # A few examples will help clarify the behavior:
 #
 # Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call
-# `archive_create a dest.squashfs`. archive_create will then recursively include
-# the contents of 'a' into the archive, yielding:
-# /1
-# /2
-# /3
+# `archive_create a dest.squashfs`. archive_create will then yield the following:
+# a/1
+# a/2
+# a/3
 #
 # Example #2: Suppose you have these files spread out across three directories:
 # a/1 b/2 c/3 and you call `archive_create a b c dest.squashfs`. archive_create
-# will then include three top-level entries for the three sources
-# provided, yielding:
-# /a/1
-# /b/2
-# /c/3
+# will then yield the following:
+# a/1
+# b/2
+# c/3
+#
+# In the above examples note that the contents are consistent regardless of 
+# whether you provide a single file, single directory or list of files or list
+# of directories.
+#
+# OPTIONS:
+# -i=(0|1) Ignore missing files instead of failing and returning non-zero.
+# -n=(0|1) Be Nice. If enabled, use non-parallel compressors and only a single core.
+# -x=LIST  List of glob patterns to be excluded from the archive.
 archive_create()
 {
     $(declare_args)
@@ -148,87 +155,107 @@ archive_create()
     edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing nice)"
     mkdir -p "$(dirname "${dest}")"
 
-    # If ignore_missing flag was enabled we have to preprocess the list of source paths
-    # and remove anything in srcs array which doesn't exist to avoid the tools from
-    # failing.
-    if [[ ${ignore_missing} -eq 1 ]]; then
-
-        local pushed=0
-        if [[ $(array_size srcs) -eq 1 ]]; then
-            pushed=1
-            pushd "${srcs}"
-        fi
-
-        local idx
-        for idx in $(array_indexes srcs); do
-            eval "local src=\${srcs[$idx]}"
-            
-            if [[ ! -e "${src}" ]]; then
-                edebug "Excluding non-existant $(lval src)"
-                unset srcs[$idx]
-            fi
-        done
-
-        [[ ${pushed} -eq 1 ]] && popd
-
-        # If there are no source files to include, there's nothing to do so just return
-        if array_empty srcs; then
-            edebug "No source files left to include -- returning 0"
-            return 0
-        fi
-    fi
-
-    # Put entire body of this function into a subshell to ensure clean up 
-    # traps execute properly.
+    # Put entire function into a subshell to ensure clean up traps execute properly.
     (
+        # MERGE TODO: When this is merged through to 1.3 branch these can be removed.
+        die_on_error
+        die_on_abort
+
         # Create excludes file
         local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
         trap_add "rm --force ${exclude_file}"
 
         # Always exclude the source file. Need to canonicalize it and then remove
         # any illegal prefix characters (/, ./, ../)
-        local dest_canon=${dest_real#${PWD}/}
-        if [[ $(array_size srcs) -gt 1 ]]; then
-            echo "${dest_canon}"
-        else
-            echo "${dest_canon#${srcs}/}"
-        fi | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
+        echo "${dest_real#${PWD}/}" | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
 
         # Provide a common API around excludes, use find to pre-expand all excludes.
         if array_not_empty excludes; then
  
             # In case including and excluding something excludes take precedence.
             array_remove srcs ${excludes[@]}
-         
+        
+            # Look for matching excludes in each source directory
             for src in "${srcs[@]}"; do
-                
-                # If src is a directory then change into it and look for matching
-                # files to exclude. ISO has a unique requirement that each excluded
-                # path must be prefixed with the source path.
-                (
-                    local find_prefix=""
-                    
-                    if [[ -d ${src} ]]; then
-                        cd "${src}"
-                        [[ ${dest_type} == iso ]] && find_prefix="${src}/"
-                    fi
-                    
-                    find ${excludes[@]} 2>/dev/null | sed "s|^|${find_prefix}|" || true
-                )
+                find ${excludes[@]} 2>/dev/null || true
             done | sort --unique >> "${exclude_file}"
         fi
 
         edebug "Exclude File:\n$(cat ${exclude_file})"
 
+        # If only a single argument is provided then we can just directly archive it.
+        # If, however, there are multiple arguments we need to merge them into a single
+        # directory before archiving.
+        local unified=$(mktemp -d /tmp/archive-create-XXXX)
+        trap_add "rm --recursive --force ${unified}"
+        local root=""
+
+        if [[ $(array_size srcs) -gt 1 ]]; then
+
+            merge_paths -i=${ignore_missing} ${srcs[@]} ${unified}
+            
+            # If nothing was merged and we're ignoring missing files that's still success.
+            if directory_empty ${unified} ; then
+                if [[ ${ignore_missing} -eq 1 ]]; then
+                    edebug "Nothing merged and ignoring missing files"
+                    rm --force "${dest}"
+                    return 0
+                else
+                    eerror "Nothing merged"
+                    rm --force "${dest}"
+                    return 1
+                fi
+            fi
+
+            cd ${unified}${PWD}
+            root="."
+        elif [[ ${srcs} == "." ]]; then
+            root="${srcs}"
+        else
+            root="$(readlink -m ${srcs})"
+            root="${root#${PWD}/}"
+          
+            # If the source path has multiple directories in the path then resulting
+            # archive contents are inconsistent across various archive formats. Consider
+            # an input of "dir/sub1/sub2/file1". mksquashfs will yield just "sub2/file1"
+            # whereas mkisofs would yield "dir/sub1/sub2/file1" and tar would yield
+            # "sub1/sub2/file1". To unify the behavior, if we detect the provided path
+            # has subpaths speciifed, then we create a temporary directory with the
+            # directory structure leading up to the final path. Then we bind mount the
+            # final path into that temporary directory. Then create the archives from
+            # the top of the temporary directory. This ensures all the tools will have
+            # the same consistent contents.
+            if echo "${root}" | grep -o "/" &>/dev/null; then
+
+                local tmp=$(mktemp -d "/tmp/archive-XXXX")
+                trap_add "eunmount -a -r -d ${tmp}"
+           
+                if [[ -d "${root}" ]]; then
+                    mkdir -p "${tmp}/${root}"
+                else
+                    mkdir -p "$(dirname "${tmp}/${root}")"
+                    touch "${tmp}/${root}"
+                fi
+
+                emount --no-mtab --options bind,ro "${root}" "${tmp}/${root}"
+                cd "${tmp}"
+                root='.'
+            fi
+        fi
+
         # SQUASHFS
         if [[ ${dest_type} == squashfs ]]; then
     
-            local mksquashfs_flags="-no-recovery -no-exports -no-progress -noappend -wildcards"
+            local mksquashfs_flags="-no-duplicates -no-recovery -no-exports -no-progress -noappend -wildcards"
             if [[ ${nice} -eq 1 ]]; then
                 mksquashfs_flags+=" -processors 1"
-            fi
+            fi          
 
-            cmd="mksquashfs ${srcs[@]} ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+            if [[ ${root} != "." ]]; then
+                mksquashfs_flags+=" -keep-as-directory"
+            fi
+            
+            cmd="mksquashfs ${root} ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -244,32 +271,21 @@ archive_create()
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
-            # mkisofs flattens all given arguments into a single directory in the output image.
-            # With --graft-points you can override that behavior to put them at the top of the output image.
-            if [[ $(array_size srcs) -gt 1 ]]; then
-                cmd+=" --graft-points"
-                local src
-                for src in ${srcs[@]}; do
-                    cmd+=" /${src}=${src}"
-                done
-            else
-                cmd+=" ${srcs}"
+            if [[ -d ${root} && ${root} != "." ]]; then
+                cmd+=" -root ${root}"
             fi
+
+            cmd+=" ${root}"
 
         # TAR
         elif [[ ${dest_type} == tar ]]; then
 
-            if [[ $(array_size srcs) -eq 1 ]]; then
-                cmd="cd ${srcs}; "
-                srcs=( . )
-            fi
-
             cmd+="tar --exclude-from ${exclude_file} --create"
             $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
-                cmd+=" --file - ${srcs[@]} | ${prog} > ${dest_real}"
+                cmd+=" --file - ${root} | ${prog} > ${dest_real}"
             else
-                cmd+=" --file ${dest_real} ${srcs[@]}"
+                cmd+=" --file ${dest_real} ${root}"
             fi
         fi
 
@@ -283,6 +299,10 @@ archive_create()
 # supported archive types. Also takes an optional list of find(1) glob patterns
 # to limit what files are extracted from the archive. If no files are provided
 # it will extract all files from the archive.
+#
+# OPTIONS:
+# -i=(0|1) Ignore missing files instead of failing and returning non-zero.
+# -n=(0|1) Be Nice. If enabled, use non-parallel compressors and only a single core.
 archive_extract()
 {
     $(declare_args src dest)
@@ -343,7 +363,7 @@ archive_extract()
         # By default the files to extract from the archive is all the files requested.
         # If files is an empty array this will evaluate to an empty string and all files
         # will be extracted.
-        local includes=$(array_join files " ./")
+        local includes=$(array_join files)
 
         # If ignore_missing flag was enabled filter out list of files in the archive to
         # only those which the caller requested. This will ensure we are essentially 
@@ -376,27 +396,17 @@ archive_list()
     $(declare_args src)
     local src_type=$(archive_type "${src}")
 
-    # SQUASHFS
+    # The code below calls out to the various archive format specific tools to dump
+    # their contents. There's a little sed on each command's output to normalize the
+    # tools output as much as possible to make them all have a consistent output.
+    # Then we sort the whole thing at the end to ensure consistent ordering.
     if [[ ${src_type} == squashfs ]]; then
-
-        # Use unsquashfs to list the contents but modify the output so that it
-        # matches output from our other supported formats. Also strip out the
-        # "/" entry as that's not in ISO's output and generally not interesting.
-        unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|squashfs-root||' -e '/^\s*$/d'
-    
-    # ISO
+        unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d'
     elif [[ ${src_type} == iso ]]; then
-        isoinfo -J -i "${src}" -f
-
-    # TAR
+        isoinfo -J -i "${src}" -f | sed -e 's|^/||'
     elif [[ ${src_type} == tar ]]; then
-
-        # List contents of tar file in a manner consistent with the other tools.
-        # They all output paths with '/' but tar's output is specific to if we
-        # had multiple src files or not. This unifies that output by removing
-        # leading './' (single path) and inserts '/' prefix to match the others.
-        tar --list --file "${src}" | sed -e "s|^./|/|" -e '/^\/$/d' -e 's|/$||' -e 's|^\([^/]\)|/\1|'
-    fi
+        tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||'
+    fi | sort --unique | sed '/^$/d'
 }
 
 #-----------------------------------------------------------------------------
@@ -411,17 +421,21 @@ archive_convert()
 {
     $(declare_args src dest)
     local src_type=$(archive_type "${src}")
-    edebug "Converting $(lval src dest src_type)"
+    local dest_real=$(readlink -m "${dest}")
+    edebug "Converting $(lval src src_type dest dest_real)"
 
     # Temporary directory for mounting
-    local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
-    trap_add "eunmount -r -d ${mnt}"
+    (
+        local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
+        trap_add "eunmount -r -d ${mnt}"
 
-    # Mount (if possible) or extract the archive image if mounting is not supported.
-    archive_mount_or_extract "${src}" "${mnt}"
+        # Mount (if possible) or extract the archive image if mounting is not supported.
+        archive_mount_or_extract "${src}" "${mnt}"
 
-    # Now we can create a new archive from 'mnt'
-    archive_create "${mnt}" "${dest}"
+        # Now we can create a new archive from 'mnt'
+        cd ${mnt}
+        archive_create . "${dest_real}"
+    )
 }
 
 #-----------------------------------------------------------------------------
