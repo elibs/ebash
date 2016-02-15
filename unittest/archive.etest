@@ -2,7 +2,7 @@
 
 BANNER_WIDTH=50
 ARCHIVE_TYPES=(
-    #squashfs
+    squashfs
     tar
     iso
     tar.gz
@@ -72,6 +72,42 @@ ETEST_archive_create()
         etestmsg "Creating dest.${ftype}"
         archive_create src dest.${ftype}
         assert_archive_contents dest.${ftype} src src/file1 src/file2
+    done
+}
+
+ETEST_archive_create_single_file()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src
+        cd src
+        touch file1
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create file1 dest.${ftype}
+        assert_archive_contents dest.${ftype} file1
+    done
+}
+
+ETEST_archive_create_single_filetree()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src
+        mkdir -p src/sub1/sub2
+        touch src/sub1/sub2/file1
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create src/sub1/sub2/file1 dest.${ftype}
+        assert_archive_contents dest.${ftype} src src/sub1 src/sub1/sub2 src/sub1/sub2/file1
     done
 }
 
@@ -631,7 +667,7 @@ ETEST_archive_nice()
     done
 }
 
-ETEST_archive_convert()
+ETEST_archive_xconvert()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -666,7 +702,7 @@ ETEST_archive_convert()
     done
 }
 
-ETEST_archive_diff()
+ETEST_archive_xdiff()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
