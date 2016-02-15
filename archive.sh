@@ -214,6 +214,33 @@ archive_create()
         else
             root="$(readlink -m ${srcs})"
             root="${root#${PWD}/}"
+          
+            # If the source path has multiple directories in the path then resulting
+            # archive contents are inconsistent across various archive formats. Consider
+            # an input of "dir/sub1/sub2/file1". mksquashfs will yield just "sub2/file1"
+            # whereas mkisofs would yield "dir/sub1/sub2/file1" and tar would yield
+            # "sub1/sub2/file1". To unify the behavior, if we detect the provided path
+            # has subpaths speciifed, then we create a temporary directory with the
+            # directory structure leading up to the final path. Then we bind mount the
+            # final path into that temporary directory. Then create the archives from
+            # the top of the temporary directory. This ensures all the tools will have
+            # the same consistent contents.
+            if echo "${root}" | grep -o "/" &>/dev/null; then
+
+                local tmp=$(mktemp -d "/tmp/squashfs-XXXX")
+                trap_add "eunmount -a -r -d ${tmp}"
+           
+                if [[ -d "${root}" ]]; then
+                    mkdir -p "${tmp}/${root}"
+                else
+                    mkdir -p "$(dirname "${tmp}/${root}")"
+                    touch "${tmp}/${root}"
+                fi
+
+                emount --no-mtab --options bind,ro "${root}" "${tmp}/${root}"
+                cd "${tmp}"
+                root='.'
+            fi
         fi
 
         # SQUASHFS
@@ -244,7 +271,7 @@ archive_create()
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
-            if [[ ${root} != "." ]]; then
+            if [[ -d ${root} && ${root} != "." ]]; then
                 cmd+=" -root ${root}"
             fi
 
@@ -368,27 +395,18 @@ archive_list()
 {
     $(declare_args src)
     local src_type=$(archive_type "${src}")
-    local contents=()
 
+    # The code below calls out to the various archive format specific tools to dump
+    # their contents. There's a little sed on each command's output to normalize the
+    # tools output as much as possible to make them all have a consistent output.
+    # Then we sort the whole thing at the end to ensure consistent ordering.
     if [[ ${src_type} == squashfs ]]; then
-        contents=( $(unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d') )
+        unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d'
     elif [[ ${src_type} == iso ]]; then
-        contents=( $(isoinfo -J -i "${src}" -f | sed -e 's|^/||') )
+        isoinfo -J -i "${src}" -f | sed -e 's|^/||'
     elif [[ ${src_type} == tar ]]; then
-        contents=( $(tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||') )
-    fi
-
-    local entry
-    for entry in "${contents[@]}"; do
-        local parts=()
-        array_init parts "${entry}" "/"
-
-        local idx
-        for idx in $(array_indexes parts); do
-            eval "local entry=\${parts[@]:0:$idx+1}"
-            echo "${entry// //}"
-        done
-    done | sort --unique
+        tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||'
+    fi | sort --unique | sed '/^$/d'
 }
 
 #-----------------------------------------------------------------------------
