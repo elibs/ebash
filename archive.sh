@@ -227,7 +227,7 @@ archive_create()
             # the same consistent contents.
             if echo "${root}" | grep -o "/" &>/dev/null; then
 
-                local tmp=$(mktemp -d "/tmp/squashfs-XXXX")
+                local tmp=$(mktemp -d "/tmp/archive-XXXX")
                 trap_add "eunmount -a -r -d ${tmp}"
            
                 if [[ -d "${root}" ]]; then
