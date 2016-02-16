@@ -348,7 +348,7 @@ ETEST_archive_create_pivot_root()
 }
 
 # Realistic test of archiving pivot rooted rootfs
-ETEST_archive_create_pivot_root_cd()
+ETEST_archive_create_pivot_root_cd_manual()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -366,6 +366,44 @@ ETEST_archive_create_pivot_root_cd()
             cd ${oldroot}
             archive_create . ${oldroot}/var/log/sfbackup.${ftype}
         )
+
+        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info
+    done
+}
+
+
+# Realistic test of archiving pivot rooted rootfs
+ETEST_archive_create_pivot_root_cd()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        local oldroot=$(mktemp -d /tmp/oldroot-XXXX)
+        etestmsg "Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        archive_create -d=${oldroot} . ${oldroot}/var/log/sfbackup.${ftype}
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
             boot                                    \
