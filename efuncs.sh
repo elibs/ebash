@@ -22,6 +22,25 @@ elif [[ "${__BU_OS}" == Darwin ]] ; then
     export LANG="en_US.UTF-8"
 fi
 
+#------------------------------------------------------------------------------
+# COLOR SETTINGS
+#------------------------------------------------------------------------------
+
+if [[ -e /etc/bashutils.conf ]]; then
+    source /etc/bashutils.conf
+fi
+
+if [[ -e ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
+    source ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf
+fi
+
+: ${COLOR_INFO:=green}
+: ${COLOR_DEBUG:=dimblue}
+: ${COLOR_TRACE:=dimyellow}
+: ${COLOR_WARN:=yellow}
+: ${COLOR_ERROR:=red}
+: ${COLOR_BRACKET:=blue}
+
 #-----------------------------------------------------------------------------
 # DEBUGGING
 #-----------------------------------------------------------------------------
@@ -53,7 +72,7 @@ etrace()
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
     fi
 
-    echo "$(ecolor dimyellow)[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
+    echo "$(ecolor ${COLOR_TRACE})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
 }
 
 edebug_enabled()
@@ -101,7 +120,7 @@ edebug()
 
     # Force caller to be in edebug output because it's helpful and if you
     # turned on edebug, you probably want to know anyway
-    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "dimblue" "" "DEBUG" "${msg}"
+    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "${COLOR_DEBUG}" "" "DEBUG" "${msg}"
 }
 
 edebug_out()
@@ -1082,22 +1101,22 @@ emsg()
 
 einfo()
 {
-    emsg "green" ">>" "INFO" "$@"
+    emsg "${COLOR_INFO}" ">>" "INFO" "$@"
 }
 
 einfos()
 {
-    emsg "green" "   -" "INFOS" "$@"
+    emsg "${COLOR_INFO}" "   -" "INFOS" "$@"
 }
 
 ewarn()
 {
-    emsg "yellow" ">>" "WARN" "$@"
+    emsg "${COLOR_WARN}" ">>" "WARN" "$@"
 }
 
 ewarns()
 {
-    emsg "yellow" "   -" "WARNS" "$@"
+    emsg "${COLOR_WARN}" "   -" "WARNS" "$@"
 }
 
 eerror_internal()
@@ -1108,7 +1127,7 @@ eerror_internal()
 
 eerror()
 {
-    emsg "red" ">>" "ERROR" "$@"
+    emsg "${COLOR_ERROR}" ">>" "ERROR" "$@"
 }
 
 # Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
@@ -1209,7 +1228,7 @@ etable()
 
 eprompt()
 {
-    echo -en "$(ecolor white) * $@: $(ecolor none)" >&2
+    echo -en "$(tput bold) * $@: $(ecolor none)" >&2
     local result=""
 
     read result < /dev/stdin
@@ -1281,9 +1300,9 @@ eend()
     fi
 
     if [[ ${rc} -eq 0 ]]; then
-        echo -e "$(ecolor blue)[$(ecolor green) ok $(ecolor blue)]$(ecolor none)" >&2
+        echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_INFO}) ok $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     else
-        echo -e "$(ecolor blue)[$(ecolor red) !! $(ecolor blue)]$(ecolor none)" >&2
+        echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_ERROR}) !! $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     fi
 }
 
@@ -1314,7 +1333,7 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        echo -en "$(ecolor white)" >&2
+        echo -en "$(tput bold)" >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
         echo -en "$(ecolor none)"  >&2
 
@@ -1337,7 +1356,7 @@ do_eprogress()
 
 eprogress()
 {
-    echo -en "$(emsg "green" ">>" "INFO" "$@" 2>&1)" >&2
+    echo -en "$(emsg "${COLOR_INFO}" ">>" "INFO" "$@" 2>&1)" >&2
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
@@ -2056,43 +2075,6 @@ elogfile()
     fi
 }
 
-# etar is a wrapper around the normal 'tar' command with a few enhancements:
-# - Suppress all the normal noisy warnings that are almost never of interest
-#   to us.
-# - Automatically detect fastest compression program by default. If this isn't
-#   desired then pass in --use-compress-program=<PROG>. Unlike normal tar, this
-#   will big the last one in the command line instead of giving back a fatal
-#   error due to multiple compression programs.
-etar()
-{
-    # Disable all tar warnings which are expected with unknown file types, sockets, etc.
-    local args=("--warning=none")
-
-    # Provided an explicit compression program wasn't provided via "-I/--use-compress-program"
-    # then automatically determine the compression program to use based on file
-    # suffix... but substitute in pbzip2 for bzip and pigz for gzip
-    local match=$(echo "$@" | egrep '(-I|--use-compress-program)' || true)
-    if [[ -z ${match} ]]; then
-
-        local prog=""
-        if [[ -n $(echo "$@" | egrep "\.bz2|\.tz2|\.tbz2|\.tbz" || true) ]]; then
-            prog="pbzip2"
-        elif [[ -n $(echo "$@" | egrep "\.gz|\.tgz|\.taz" || true) ]]; then
-            prog="pigz"
-        fi
-
-        # If the program we selected is available set that as the compression program
-        # otherwise fallback to auto-compress and let tar pick for us.
-        if [[ -n ${prog} && -n $(which ${prog} 2>/dev/null || true) ]]; then
-            args+=("--use-compress-program=${prog}")
-        else
-            args+=("--auto-compress")
-        fi
-    fi
-
-    tar "${args[@]}" "${@}"
-}
-
 # Wrapper around computing the md5sum of a file to output just the filename
 # instead of the full path to the filename. This is a departure from normal
 # md5sum for good reason. If you download an md5 file with a path embedded into
@@ -2203,7 +2185,7 @@ emetadata_check()
 
     fail()
     {
-        emsg "red" "   -" "ERROR" "$@"
+        emsg "${COLOR_ERROR}" "   -" "ERROR" "$@"
         exit 1
     }
 
@@ -2261,6 +2243,94 @@ emetadata_check()
     wait ${pids[@]} && rc=0 || rc=$?
     [[ ${quiet} -eq 1 ]] || eprogress_kill -r=${rc}
     return ${rc}
+}
+
+# Merge paths will take one or more source paths and merge them into a given
+# destination path as efficiently as possible by creating a shadow directory
+# structure with symbolic links for all files. This is useful for various 
+# archival purposes or for mirroring two source code directories. This
+# purposefully does not use hard links since they cannot cross device boundaries.
+# It also doesn't just create a top level symlink because it provides a far
+# more interesting feature of effectively merging paths in different locations
+# into a single unified directory as if the source paths were all in one top
+# level containing directory. The last path provided in the argument list is
+# the destination directory (which will be created if it doesn't exist) to copy
+# the paths into.
+#
+# An example will help illustrate how this behaves. Suppose you call:
+# `merge_paths /tmp /home dest`. This will create directories 'tmp' and 'home'
+# inside 'dest' and then populate those directories with symlinks to their 
+# source files. Suppose you  have /tmp/file1 /tmp/file2 and /home/user/file3, this
+# will lead to:
+#
+# dest/tmp
+# dest/tmp/file1 -> /tmp/file1
+# dest/tmp/file2 -> /tmp/file2
+# dest/home
+# dest/home/file3 -> /home/file3
+merge_paths()
+{
+    $(declare_opts \
+        "ignore_missing i | Ignore missing files instead of failing and returning non-zero.") 
+ 
+    # Parse positional arguments into a bashutils array. Then grab final argument
+    # which is the destination.
+    local srcs=( "$@" )
+    local dest=${srcs[${#srcs[@]}-1]}
+    unset srcs[${#srcs[@]}-1]
+
+    # Create destination directory if it doesn't exist
+    mkdir -p "${dest}"
+
+    # Collapse all provided source files into a single flat symlinked directory.
+    local targets=()
+    local src
+    for src in "${srcs[@]}"; do
+      
+        if [[ ! -e ${src} ]]; then
+            
+            if [[ ${ignore_missing} -eq 0 ]]; then
+                eerror "${src} does not exist"
+                return 1
+            else
+                continue
+            fi
+        fi
+
+        if [[ ${src:0:1} == / ]]; then
+            targets+=( "${src}" )
+        else
+            targets+=( $(readlink -m "${PWD}/${src}") )
+        fi
+    done
+
+    # If there's nothing to do but we're ignoring missing files just return success
+    # otherwise return 1.
+    if array_empty targets; then
+        if [[ ${ignore_missing} -eq 1 ]]; then
+            return 0
+        else
+            eerror "No source files left to include"
+            return 1
+        fi
+    fi
+
+    # Copy all targets into unified directory
+    cp --archive --parents --symbolic-link ${targets[@]} ${dest}
+}
+
+# Check if a directory is empty
+directory_empty()
+{
+    $(declare_args dir)
+    ! find "${dir}" -mindepth 1 -print -quit | grep -q .
+}
+
+# Check if a directory is not empty
+directory_not_empty()
+{
+    $(declare_args dir)
+    find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
 
 #-----------------------------------------------------------------------------

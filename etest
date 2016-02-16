@@ -400,7 +400,7 @@ fi
         eerror "FAILED TESTS:"
         for index in ${!FAILURES[@]} ; do
             for failed_test in ${FAILURES[$index]} ; do
-                echo "$(ecolor red)      ${failed_test}"
+                echo "$(ecolor "red")      ${failed_test}"
             done
         done
     fi

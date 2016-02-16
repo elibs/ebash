@@ -288,8 +288,8 @@ overlayfs_tree()
 }
 
 # Save the top-most read-write later from an existing overlayfs mount into the
-# requested destination file. This file can be a squashfs image, an ISO, or a
-# known tar file suffix (as supported by etar).
+# requested destination file. This file can be a squashfs image, an ISO, or any
+# supported archive format.
 overlayfs_save_changes()
 {
     $(declare_args mnt dest)
