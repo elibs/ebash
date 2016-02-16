@@ -283,7 +283,7 @@ archive_create()
             fi
 
             cmd+=" ${root}"
-dir 
+        
         # TAR
         elif [[ ${dest_type} == tar ]]; then
 
