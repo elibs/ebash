@@ -131,6 +131,7 @@ archive_tar_compress_arg()
 # of directories.
 #
 # OPTIONS:
+# -d=DIR   Change directory into DIR before creating. 
 # -i=(0|1) Ignore missing files instead of failing and returning non-zero.
 # -n=(0|1) Be Nice. If enabled, use non-parallel compressors and only a single core.
 # -x=LIST  List of glob patterns to be excluded from the archive.
@@ -151,8 +152,9 @@ archive_create()
     local ignore_missing=$(opt_get i)
     local nice=$(opt_get n)
     local cmd=""
+    local dir=$(opt_get d)
 
-    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing nice)"
+    edebug "Creating archive $(lval dir srcs dest dest_real dest_type excludes ignore_missing nice)"
     mkdir -p "$(dirname "${dest}")"
 
     # Put entire function into a subshell to ensure clean up traps execute properly.
@@ -161,6 +163,11 @@ archive_create()
         die_on_error
         die_on_abort
 
+        # If requested change directory first
+        if [[ -n ${dir} ]]; then
+            cd ${dir}
+        fi
+            
         # Create excludes file
         local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
         trap_add "rm --force ${exclude_file}"
@@ -276,7 +283,7 @@ archive_create()
             fi
 
             cmd+=" ${root}"
-
+        
         # TAR
         elif [[ ${dest_type} == tar ]]; then
 
