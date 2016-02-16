@@ -2,45 +2,6 @@
 
 # Copyright 2016, SolidFire, Inc. All rights reserved.
 
-# Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
-# use just 'overlay' so dynamically detected the correct type to use here.
-# NOTE: Ignore errors here since this may be running on OSX.
-__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null || true)
-
-# Detect whether overlayfs is supported or not.
-overlayfs_supported()
-{
-    [[ -n "${__BU_OVERLAYFS}" ]]
-}
-
-# Try to enable overlayfs by modprobing the kernel module. If the OS is not
-# Linux this will die.
-overlayfs_enable()
-{
-    if [[ ${__BU_OS} != Linux ]]; then
-        die "OverlayFS is not supported on a non-Linux OS (${__BU_OS})"
-    fi
-
-    # If it's already supported then return - nothing to do
-    if overlayfs_supported; then
-        edebug "OverlayFS already enabled"
-        return 0
-    fi
-
-    ewarn "OverlayFS not enabled -- trying to load kernel module"
-
-    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
-        edebug "Using newer kernel module name 'overlay'"
-        modprobe overlay
-    else
-        edebug "Using legacy kernel module name 'overlayfs'"
-        modprobe overlayfs
-    fi
-
-    # Verify it's now supported
-    overlayfs_supported
-}
-
 [[ ${__BU_OS} == Linux ]] || return 0
 
 #-----------------------------------------------------------------------------
