@@ -267,7 +267,7 @@ archive_create()
             cmd="mkisofs -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
 
             # Generate ISO flags
-            if opt_true bootable; then
+            if [[ ${bootable} -eq 1 ]]; then
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
