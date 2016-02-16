@@ -1,2 +1,7 @@
-etest.log
+.bash_history
+etest.log*
+etest.html
 results
+output
+results
+.forge/work
