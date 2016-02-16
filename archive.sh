@@ -165,7 +165,7 @@ archive_create()
 
         # If requested change directory first
         if [[ -n ${dir} ]]; then
-            cd ${dir}
+            cd "${dir}"
         fi
             
         # Create excludes file
