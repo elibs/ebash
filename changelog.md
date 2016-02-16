@@ -36,6 +36,8 @@
     - Prompts and progress tickers are now shown in bold using the default
       terminal foreground color.
 
+    - Added configuration to allow forge to package bashutils.
+
 # Bashutils 1.1
 
     - Added tryrc function to aid in running code that you expect might fail,
