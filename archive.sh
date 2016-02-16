@@ -176,6 +176,7 @@ archive_tar_compress_arg()
 archive_create()
 {
     $(declare_opts \
+        ":dir d           | Directory to cd into before archive creation." \
         ":volume v        | Optional volume name to use (ISO only)." \
         "bootable boot b  | Make the ISO bootable (ISO only)." \
         ":exclude x       | List of paths to be excluded from archive." \
@@ -193,11 +194,16 @@ archive_create()
     local dest_type=$(archive_type "${dest}")
     local excludes=( ${exclude} )
 
-    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing nice)"
+    edebug "Creating archive $(lval dir srcs dest dest_real dest_type excludes ignore_missing nice)"
     mkdir -p "$(dirname "${dest}")"
 
     # Put entire function into a subshell to ensure clean up traps execute properly.
     (
+        # If requested change directory first
+        if [[ -n ${dir} ]]; then
+            cd "${dir}"
+        fi
+            
         # Create excludes file
         local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
         trap_add "rm --force ${exclude_file}"
