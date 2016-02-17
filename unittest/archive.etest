@@ -10,56 +10,6 @@ ARCHIVE_TYPES=(
     tar.gz
 )
 
-assert_archive_contents()
-{
-    $(declare_args archive)
-    etestmsg "Validating $(lval archive)"
-    
-    local expect=( "${@}" )
-    array_sort expect
-
-    assert_exists "${archive}"
-    local actual=( $(archive_list ${archive}) )
-
-    einfo "$(lval expect)"
-    einfo "$(lval actual)"
-
-    assert_eq "${#expect[@]}" "${#actual[@]}" "Size mismatch"
-
-    local idx
-    for idx in $(array_indexes expect); do
-        eval "local e=\${expect[$idx]}"
-        eval "local a=\${actual[$idx]}"
-
-        assert_eq "${e}" "${a}" "Mismatch at index=${idx}"
-    done
-}
-
-assert_directory_contents()
-{
-    $(declare_args directory)
-    etestmsg "Validating $(lval directory)"
-
-    local expect=( "${@}" )
-    array_sort expect
-    
-    assert_exists "${directory}"
-    local actual=( $(find "${directory}" -printf '%P\n' | sort) )
-
-    einfo "$(lval expect)"
-    einfo "$(lval actual)"
-
-    assert_eq "${#expect[@]}" "${#actual[@]}" "Size mismatch"
-
-    local idx
-    for idx in $(array_indexes expect); do
-        eval "local e=\${expect[$idx]}"
-        eval "local a=\${actual[$idx]}"
-
-        assert_eq "${e}" "${a}" "Mismatch at index=${idx}"
-    done
-}
-
 ETEST_archive_create()
 {
     local idx=0
@@ -466,7 +416,7 @@ ETEST_archive_create_pivot_root_multi()
     done
 }
 
-ETEST_archive_files_same()
+ETEST_archive_extract_files_same()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do

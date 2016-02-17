@@ -17,17 +17,17 @@ ETEST_overlayfs_mount()
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        etestmsg "${ftype}: Populating source directory"
+        etestmsg "Populating source directory"
         efreshdir src
         touch src/{file1,file2}
 
-        etestmsg "${ftype}: Creating src.${ftype}"
-        archive_create src src.${ftype}
+        etestmsg "Creating src.${ftype}"
+        archive_create -d=src . src.${ftype}
 
         etestmsg "Mounting src.${ftype} at dest"
         overlayfs_mount src.${ftype} dest
         overlayfs_tree dest
-        assert_exists dest/file1 dest/file2
+        assert_directory_contents dest file1 file2
         diff --recursive src dest
 
         # Unmount it
@@ -44,13 +44,13 @@ ETEST_overlayfs_eunmount()
     find src
 
     etestmsg "Creating src.squashfs"
-    archive_create src src.squashfs
+    archive_create -d=src . src.squashfs
     archive_list src.squashfs
 
     etestmsg "Mounting src.squashfs at dest"
     overlayfs_mount src.squashfs dest
     overlayfs_tree dest
-    assert_exists dest/file1 dest/file2
+    assert_directory_contents dest file1 file2
     diff --recursive src dest
 
     # Unmount it through eunmount
@@ -65,27 +65,27 @@ ETEST_overlayfs_modify()
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
         
-        etestmsg "${ftype}: Populating source directory"
+        etestmsg "Populating source directory"
         efreshdir src dest
         touch src/{file0,file1,file2}
-        archive_create src src.${ftype}
+        archive_create -d=src . src.${ftype}
         archive_list src.${ftype}
 
-        etestmsg "${ftype}: Mounting at dest"
+        etestmsg "Mounting at dest"
         overlayfs_mount src.${ftype} dest
         overlayfs_tree dest
 
-        etestmsg "${ftype}: Modifying mounted files"
+        etestmsg "Modifying mounted files"
         echo "File#1" > dest/file1
         echo "File#2" > dest/file2
         assert_eq "File#1" "$(cat dest/file1)"
         assert_eq "File#2" "$(cat dest/file2)"
 
-        etestmsg "${ftype}: Saving RW layer as rw.${ftype} then unmounting"
+        etestmsg "Saving RW layer as rw.${ftype} then unmounting"
         overlayfs_save_changes dest rw.${ftype}
         overlayfs_unmount dest
 
-        etestmsg "${ftype}: Mounting again -- ensuring original files unmodified"
+        etestmsg "Mounting again -- ensuring original files unmodified"
         efreshdir dest
         overlayfs_mount src.${ftype} dest
         overlayfs_tree dest
@@ -95,15 +95,10 @@ ETEST_overlayfs_modify()
         overlayfs_unmount dest
 
         # RW layer should only have the MODIFIED files in it (we never modifvied file0)
-        etestmsg "${ftype}: Validating contents"
-        local contents=( $(archive_list rw.${ftype}) )
-        array_sort contents
-        assert_eq 2 "${#contents[@]}"
-        assert_eq "/file1" "${contents[0]}"
-        assert_eq "/file2" "${contents[1]}"
+        assert_archive_contents rw.${ftype} file1 file2 
 
         # Mount the RW layer and ensure contents are as expected
-        etestmsg "${ftype}: Mounting RW layer to validate its contents"
+        etestmsg "Mounting RW layer to validate its contents"
         efreshdir dest
         overlayfs_mount rw.${ftype} dest
         overlayfs_tree dest
@@ -118,16 +113,16 @@ ETEST_overlayfs_multilayer()
     etestmsg "Creating multiple squashfs images"
     mkdir -p src1 src2 src3
     touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
-    archive_create src1 src1.squashfs
-    archive_create src2 src2.squashfs
-    archive_create src3 src3.squashfs
+    archive_create -d=src1 . src1.squashfs
+    archive_create -d=src2 . src2.squashfs
+    archive_create -d=src3 . src3.squashfs
 
     # Mount all three images and verify expected contents
     etestmsg "Mounting all squashfs images into single dest directory"
     mkdir -p dest
     overlayfs_mount src1.squashfs src2.squashfs src3.squashfs dest
     overlayfs_tree dest
-    assert_exists dest/{file1,file2,file3,file4,file5,file6}
+    assert_directory_contents dest {file1,file2,file3,file4,file5,file6}
 
     # Unmount all images
     etestmsg "Unmounting final image"
@@ -143,15 +138,15 @@ ETEST_overlayfs_multilayer_mixed_types()
     etestmsg "Creating squashfs, ISO and TAR files"
     mkdir -p src1 src2 src3
     touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
-    archive_create src1 src1.squashfs
-    archive_create src2 src2.iso
-    archive_create src3 src3.tgz
+    archive_create -d=src1 . src1.squashfs
+    archive_create -d=src2 . src2.iso
+    archive_create -d=src3 . src3.tgz
 
     etestmsg "Mounting all files into single dest directory"
     efreshdir dest
     overlayfs_mount src1.squashfs src2.iso src3.tgz dest
     overlayfs_tree dest
-    assert_exists dest/{file1,file2,file3,file4,file5,file6}
+    assert_directory_contents dest {file1,file2,file3,file4,file5,file6}
 
     etestmsg "Unmounting final image"
     overlayfs_unmount dest

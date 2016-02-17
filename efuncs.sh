@@ -4513,6 +4513,60 @@ assert_not_exists()
     done
 }
 
+assert_archive_contents()
+{
+    $(declare_args archive)
+    edebug "Validating $(lval archive)"
+    
+    local expect=( "${@}" )
+    array_sort expect
+
+    assert_exists "${archive}"
+    local actual=( $(archive_list ${archive}) )
+
+    edebug "$(lval expect)"
+    edebug "$(lval actual)"
+
+    assert_eq "${#expect[@]}" "${#actual[@]}" "Size mismatch"
+
+    local idx
+    for idx in $(array_indexes expect); do
+        eval "local e=\${expect[$idx]}"
+        eval "local a=\${actual[$idx]}"
+
+        assert_eq "${e}" "${a}" "Mismatch at index=${idx}"
+    done
+}
+
+assert_directory_contents()
+{
+    $(declare_args directory)
+    edebug "Validating $(lval directory)"
+
+    local expect=( "${@}" )
+    array_sort expect
+    
+    assert_exists "${directory}"
+    local actual=( $(find "${directory}" -printf '%P\n' | sort) )
+
+    edebug "$(lval expect)"
+    edebug "$(lval actual)"
+
+    assert_eq "${#expect[@]}" "${#actual[@]}" "Size mismatch"
+
+    local idx
+    for idx in $(array_indexes expect); do
+        eval "local e=\${expect[$idx]}"
+        eval "local a=\${actual[$idx]}"
+
+        assert_eq "${e}" "${a}" "Mismatch at index=${idx}"
+    done
+}
+
+#-----------------------------------------------------------------------------
+# DEFAULT TRAPS
+#-----------------------------------------------------------------------------
+
 # Default traps
 die_on_abort
 die_on_error
