@@ -466,6 +466,28 @@ ETEST_archive_create_pivot_root_multi()
     done
 }
 
+ETEST_archive_files_same()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Creating files"
+        touch {file1,file2,file3,file4}
+        
+        etestmsg "Creating src.${ftype}"
+        archive_create file1 file2 file3 file4 src.${ftype}
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
+
+        etestmsg "Extracting src.${ftype} over original source files"
+        archive_extract src.${ftype} . file1 file2 file3 file4
+
+        rm --force src.${ftype}
+    done
+}
+
+
 ETEST_archive_extract_pivot_root_multi_deep()
 {
     local idx=0
