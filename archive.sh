@@ -227,7 +227,7 @@ archive_create()
                 touch "${unified}/${src}"
             fi
 
-            emount --no-mtab --options bind,ro "${src}" "${unified}/${src}"
+            ebindmount "${src}" "${unified}/${src}"
         done
 
         # If nothing was merged and we're ignoring missing files that's still success.
