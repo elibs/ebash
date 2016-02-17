@@ -181,72 +181,68 @@ archive_create()
         
             # Look for matching excludes in each source directory
             for src in "${srcs[@]}"; do
-                find ${excludes[@]} 2>/dev/null || true
+
+                local exclude_prefix=""
+                if [[ ${dest_type} == iso ]]; then
+                    exclude_prefix="./"
+                fi
+
+                find ${excludes[@]} | sed "s|^|${exclude_prefix}|" 2>/dev/null || true
             done | sort --unique >> "${exclude_file}"
         fi
 
         edebug "Exclude File:\n$(cat ${exclude_file})"
 
-        # If only a single argument is provided then we can just directly archive it.
-        # If, however, there are multiple arguments we need to merge them into a single
-        # directory before archiving.
+        # In order to provide a common interface around all the archive formats we
+        # must deal with inconsistencies in how multiple mount points are handled. 
+        # mksquashfs would use the basename of each provided path, whereas mkisofs 
+        # would merge them all into a flat directory while tar would preserve the
+        # entire directory structure for each provided path. In order to make them
+        # all work the same we bind mount each provided source into a single unified
+        # directory. This isn't strictly necessary if a single source path is given
+        # but it drastically simplifies the code to treat it the same and the overhead
+        # of a bind mount is so small that it is justified by the simpler code path.
         local unified=$(mktemp -d /tmp/archive-create-XXXX)
-        trap_add "rm --recursive --force ${unified}"
-        local root=""
+        trap_add "eunmount -a -r -d ${unified}"
+        for src in "${srcs[@]}"; do
 
-        if [[ $(array_size srcs) -gt 1 ]]; then
-
-            merge_paths -i=${ignore_missing} ${srcs[@]} ${unified}
-            
-            # If nothing was merged and we're ignoring missing files that's still success.
-            if directory_empty ${unified} ; then
+            if [[ ! -e "${src}" ]]; then
                 if [[ ${ignore_missing} -eq 1 ]]; then
-                    edebug "Nothing merged and ignoring missing files"
-                    rm --force "${dest}"
-                    return 0
+                    edebug "Skipping missing file $(lval src)"
+                    continue
                 else
-                    eerror "Nothing merged"
-                    rm --force "${dest}"
+                    eerror "Missing file $(lval src)"
                     return 1
                 fi
             fi
 
-            cd ${unified}${PWD}
-            root="."
-        elif [[ ${srcs} == "." ]]; then
-            root="${srcs}"
-        else
-            root="$(readlink -m ${srcs})"
-            root="${root#${PWD}/}"
-          
-            # If the source path has multiple directories in the path then resulting
-            # archive contents are inconsistent across various archive formats. Consider
-            # an input of "dir/sub1/sub2/file1". mksquashfs will yield just "sub2/file1"
-            # whereas mkisofs would yield "dir/sub1/sub2/file1" and tar would yield
-            # "sub1/sub2/file1". To unify the behavior, if we detect the provided path
-            # has subpaths speciifed, then we create a temporary directory with the
-            # directory structure leading up to the final path. Then we bind mount the
-            # final path into that temporary directory. Then create the archives from
-            # the top of the temporary directory. This ensures all the tools will have
-            # the same consistent contents.
-            if echo "${root}" | grep -o "/" &>/dev/null; then
+            # Create path inside unified directory then bind mount it read-only.
+            if [[ -d "${src}" ]]; then
+                mkdir -p "${unified}/${src}"
+            else
+                mkdir -p "$(dirname "${unified}/${src}")"
+                touch "${unified}/${src}"
+            fi
 
-                local tmp=$(mktemp -d "/tmp/archive-XXXX")
-                trap_add "eunmount -a -r -d ${tmp}"
-           
-                if [[ -d "${root}" ]]; then
-                    mkdir -p "${tmp}/${root}"
-                else
-                    mkdir -p "$(dirname "${tmp}/${root}")"
-                    touch "${tmp}/${root}"
-                fi
+            emount --no-mtab --options bind,ro "${src}" "${unified}/${src}"
+        done
 
-                emount --no-mtab --options bind,ro "${root}" "${tmp}/${root}"
-                cd "${tmp}"
-                root='.'
+        # If nothing was merged and we're ignoring missing files that's still success.
+        if directory_empty ${unified} ; then
+            if [[ ${ignore_missing} -eq 1 ]]; then
+                edebug "Nothing merged and ignoring missing files"
+                rm --force "${dest}"
+                return 0
+            else
+                eerror "Nothing merged"
+                rm --force "${dest}"
+                return 1
             fi
         fi
 
+        # Change directory into single unified directory so all tools produce same output
+        cd "${unified}"
+       
         # SQUASHFS
         if [[ ${dest_type} == squashfs ]]; then
     
@@ -255,11 +251,7 @@ archive_create()
                 mksquashfs_flags+=" -processors 1"
             fi          
 
-            if [[ ${root} != "." ]]; then
-                mksquashfs_flags+=" -keep-as-directory"
-            fi
-            
-            cmd="mksquashfs ${root} ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -270,11 +262,7 @@ archive_create()
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
             fi
 
-            if [[ -d ${root} && ${root} != "." ]]; then
-                cmd+=" -root ${root}"
-            fi
-
-            cmd+=" ${root}"
+            cmd+=" ."
 
         # TAR
         elif [[ ${dest_type} == tar ]]; then
@@ -282,9 +270,9 @@ archive_create()
             cmd+="tar --exclude-from ${exclude_file} --create"
             $(tryrc -o=prog -e=stderr archive_compress_program --nice ${nice} "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
-                cmd+=" --file - ${root} | ${prog} > ${dest_real}"
+                cmd+=" --file - . | ${prog} > ${dest_real}"
             else
-                cmd+=" --file ${dest_real} ${root}"
+                cmd+=" --file ${dest_real} ."
             fi
         fi
 
