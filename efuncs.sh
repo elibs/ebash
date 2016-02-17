@@ -2450,7 +2450,7 @@ ebindmount()
 #          for usage.
 emount()
 {
-    if edebug_enabled || [[ ${@} =~ -v|--verbose ]]; then
+    if edebug_enabled || [[ "${@}" =~ (^| )(-v|--verbose)( |$) ]]; then
         einfos "Mounting $@"
     fi
     
