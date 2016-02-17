@@ -301,5 +301,5 @@ overlayfs_save_changes()
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
     # Save to requested type.   
-    archive_create "${upper}" "${dest}"
+    archive_create -d="${upper}" . "${dest}"
 }
