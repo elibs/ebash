@@ -31,8 +31,8 @@ if [[ -e /etc/bashutils.conf ]]; then
     source /etc/bashutils.conf
 fi
 
-if [[ -e ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
-    source ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf
+if [[ -e ${XDG_CONFIG_HOME:-${HOME:-}/.config}/bashutils.conf ]]; then
+    source ${XDG_CONFIG_HOME:-${HOME:-}/.config}/bashutils.conf
 fi
 
 : ${COLOR_INFO:=green}
