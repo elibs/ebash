@@ -782,7 +782,7 @@ tput()
         return 0
     fi
 
-    TERM=screen-256color /usr/bin/tput $@
+    TERM=screen-256color command tput $@
 }
 
 ecolor_code()
