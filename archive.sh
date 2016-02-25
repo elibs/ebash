@@ -280,7 +280,7 @@ archive_create()
                 mksquashfs_flags+=" -processors 1"
             fi          
 
-            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -Xcompression-level ${level} -ef ${exclude_file}"
+            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
