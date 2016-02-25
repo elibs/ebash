@@ -8,6 +8,9 @@ ARCHIVE_TYPES=(
     tar
     iso
     tar.gz
+    cpio
+    cgz
+    cxz
 )
 
 ETEST_archive_create()
@@ -25,6 +28,23 @@ ETEST_archive_create()
         archive_create src dest.${ftype}
         assert_archive_contents dest.${ftype} src src/file1 src/file2
     done
+}
+
+ETEST_archive_create_type()
+{
+    etestmsg "Populating source directory"
+    efreshdir src
+    touch src/{file1,file2}
+
+    etestmsg "Creating dest.img (cpio)"
+    archive_create -t=cpio src dest.img
+    assert_match "$(file dest.img)" "ASCII cpio archive"
+    archive_list -t=cpio dest.img
+
+    etestmsg "Creating dest.img (cgz)"
+    archive_create -t=cgz src dest.img
+    assert_match "$(file dest.img)" "gzip compressed data"
+    archive_list -t=cgz dest.img
 }
 
 ETEST_archive_create_single_file()
@@ -416,6 +436,78 @@ ETEST_archive_create_pivot_root_multi()
     done
 }
 
+ETEST_archive_create_exclude_self_multi()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src1 src2
+        touch src1/{file1,file2} src2/{file3,file4}
+
+        etestmsg "Creating src1/dest.${ftype}"
+        archive_create src1 src2 src1/dest.${ftype}
+        assert_archive_contents src1/dest.${ftype} src1 src1/{file1,file2} src2 src2/{file3,file4}
+    done
+}
+
+ETEST_archive_create_exclude_files()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Creating files"
+        touch {file1,file2,file3,file4,XXX,YYY}
+        
+        etestmsg "Creating dest.${ftype}"
+        archive_create -x="XXX YYY" file1 file2 file3 file4 XXX YYY src.${ftype}
+        assert_archive_contents src.${ftype} file1 file2 file3 file4 
+        rm src.${ftype}
+   done
+}
+
+ETEST_archive_extract()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src src.${ftype}
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        diff --unified --recursive src dest/src
+    done
+}
+
+ETEST_archive_extract_type()
+{
+    etestmsg "Populating source directory"
+    efreshdir src dest
+    touch src/{file1,file2}
+
+    etestmsg "Creating src.img"
+    archive_create -t=clz src src.img
+
+    etestmsg "Extracting src.img to dest (clz)"
+    archive_extract -t=clz src.img dest
+
+    etestmsg "Validating src and dest"
+    diff --unified --recursive src dest/src
+}
+
 ETEST_archive_extract_files_same()
 {
     local idx=0
@@ -485,62 +577,6 @@ ETEST_archive_extract_pivot_root_multi_deep()
         etestmsg "Extracting"
         archive_extract ${oldroot}/var/log/sfbackup.${ftype} restore ${KEEP_PATHS[@]##/}
         assert_directory_contents restore ${expect[@]}
-    done
-}
-
-ETEST_archive_create_exclude_self_multi()
-{
-    local idx=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
-
-        etestmsg "Populating source directory"
-        efreshdir src1 src2
-        touch src1/{file1,file2} src2/{file3,file4}
-
-        etestmsg "Creating src1/dest.${ftype}"
-        archive_create src1 src2 src1/dest.${ftype}
-        assert_archive_contents src1/dest.${ftype} src1 src1/{file1,file2} src2 src2/{file3,file4}
-    done
-}
-
-ETEST_archive_create_exclude_files()
-{
-    local idx=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
-
-        etestmsg "Creating files"
-        touch {file1,file2,file3,file4,XXX,YYY}
-        
-        etestmsg "Creating dest.${ftype}"
-        archive_create -x="XXX YYY" file1 file2 file3 file4 XXX YYY src.${ftype}
-        assert_archive_contents src.${ftype} file1 file2 file3 file4 
-        rm src.${ftype}
-   done
-}
-
-ETEST_archive_extract()
-{
-    local idx=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
-
-        etestmsg "Populating source directory"
-        efreshdir src dest
-        touch src/{file1,file2}
-
-        etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
-
-        etestmsg "Extracting src.${ftype} to dest"
-        archive_extract src.${ftype} dest
-
-        etestmsg "Validating src and dest"
-        diff --unified --recursive src dest/src
     done
 }
 
