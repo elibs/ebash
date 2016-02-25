@@ -154,9 +154,11 @@ archive_compress_program()
 archive_create()
 {
     $(declare_opts \
+        "best             | Use the best compression (level=9)." \
         ":dir d           | Directory to cd into before archive creation." \
         "bootable boot b  | Make the ISO bootable (ISO only)." \
         ":exclude x       | List of paths to be excluded from archive." \
+        "fast             | Use the fastest compression (level=1)." \
         "ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
         ":level l=9       | Compression level (1=fast, 9=best)." \
         "nice n           | Be nice and use non-parallel compressors and only a single core." \
@@ -174,8 +176,15 @@ archive_create()
     local dest_type=$(archive_type --type "${type}" "${dest}")
     local excludes=( ${exclude} )
     local cmd=""
-    
-    edebug "Creating archive $(lval dir srcs dest dest_real dest_type excludes ignore_missing nice)"
+   
+    # Set the compression level
+    if [[ ${best} -eq 1 ]]; then
+        level=9
+    elif [[ ${fast} -eq 1 ]]; then
+        level=1
+    fi
+
+    edebug "Creating archive $(lval dir srcs dest dest_real dest_type excludes ignore_missing nice level)"
     mkdir -p "$(dirname "${dest}")"
 
     # Put entire function into a subshell to ensure clean up traps execute properly.
