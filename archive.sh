@@ -374,8 +374,13 @@ archive_extract()
         # only those which the caller requested. This will ensure we are essentially 
         # getting the intersection of actual files in the archive and the list of files 
         # the caller asked for (which may or may not actually be in the archive).
+        #
+        # NOTE: Replace newlines in output from archive_list to spaces so that they are 
+        #       all on a single line. This will prevent problems when we later eval
+        #       the command where newlines could cause the eval'd command to be 
+        #       interpreted incorrectly.
         if array_not_empty files && [[ ${ignore_missing} -eq 1 ]]; then
-            includes=$(archive_list "${src}" | grep -P "($(array_join files '|'))" || true)
+            includes=$(archive_list "${src}" | grep -P "($(array_join files '|'))" | tr '\n' ' ' || true)
 
             # If includes is EMPTY there's nothing to do because none of the requested
             # files exist in the archive and we're ignoring missing files.
@@ -392,9 +397,7 @@ archive_extract()
         local cmd=""
         $(tryrc -r=compress_rc -o=compress_prog -e=compress_stderr archive_compress_program -n=${nice} "${src_real}")
         if [[ ${compress_rc} -eq 0 ]]; then
-            local filename=$(basename ${src_real})
-            local suffix="${filename##*.}"
-            cmd="${compress_prog} --decompress --stdout --suffix .${suffix} ${src_real} | "
+            cmd="${compress_prog} --decompress --stdout < ${src_real} | "
         fi 
 
 
@@ -404,9 +407,8 @@ archive_extract()
             cmd+="cpio --quiet --extract --preserve-modification-time --make-directories --no-absolute-filenames --unconditional"
         fi
 
-        # Give list of files to extract. If there are newlines in the output need to replace them with spaces otherwise
-        # command will hang.
-        cmd+=" ${includes//$'\n'/ }"
+        # Give list of files to extract.
+        cmd+=" ${includes}"
 
         # Conditionally feed it the archive file to extract via stdin.
         if [[ ${compress_rc} -ne 0 ]]; then
@@ -449,12 +451,10 @@ archive_list()
     elif [[ ${src_type} == cpio ]]; then
 
         # Do decompression first
-        local filename=$(basename ${src})
-        local suffix="${filename##*.}"
         local cmd=""
         $(tryrc -o=prog -e=stderr archive_compress_program "${src}")
         if [[ ${rc} -eq 0 ]]; then
-            ${prog} --decompress --stdout --suffix .${suffix} ${src} | cpio --quiet -it
+            ${prog} --decompress --stdout < ${src} | cpio --quiet -it
         else
             cpio --quiet -it < "${src}"
         fi | sed -e "s|^.$||" 
