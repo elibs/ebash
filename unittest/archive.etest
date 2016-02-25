@@ -47,6 +47,36 @@ ETEST_archive_create_type()
     archive_list -t=cgz dest.img
 }
 
+ETEST_archive_create_level()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create --level 1 src dest.${ftype}
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+        rm dest.${ftype}
+
+        archive_create --level 9 src dest.${ftype}
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+        rm dest.${ftype}
+ 
+        archive_create --fast src dest.${ftype}
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+        rm dest.${ftype}
+ 
+        archive_create --best src dest.${ftype}
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+        rm dest.${ftype}
+    done
+}
+
 ETEST_archive_create_single_file()
 {
     local idx=0
