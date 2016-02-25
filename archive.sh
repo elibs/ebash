@@ -45,11 +45,24 @@
 # an important archiving tool" (https://en.wikipedia.org/wiki/Cpio).
 #-------------------------------------------------------------------------------
 
-# Determine archive format based on the file suffix.
+# Determine archive format based on the file suffix. You can override type 
+# detection by passing in explicit -t=type where type is one of the supported
+# file extension types (e.g. squashfs, iso, tar, tgz, cpio, cgz, etc).
+#
+# -t=TYPE Override automatic type detection based on suffix and use provided type.
 archive_type()
 {
     $(declare_args src)
     
+    # Allow overriding type detection based on suffix and instead use provided
+    # type providing it's a valid type we know about. To unify the code as
+    # much as possible this accepts any of our known suffixes.
+    local type=$(opt_get t)  
+    if [[ -n ${type} ]]; then
+        src=".${type}"
+    fi
+
+    # Detect type based on suffix
     if [[ ${src} =~ .squashfs ]]; then
         echo -n "squashfs"
     elif [[ ${src} =~ .iso ]]; then
@@ -58,7 +71,7 @@ archive_type()
         echo -n "tar"
     elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cxz|.clz ]]; then
         echo -n "cpio"
-    elif [[ -d "${src}" ]]; then
+    else
         eerror "Unsupported fstype $(lval src)"
         return 1
     fi
@@ -69,6 +82,14 @@ archive_compress_program()
 {
     $(declare_args fname)
     local nice=$(opt_get n)
+
+    # Allow overriding type detection based on suffix and instead use provided
+    # type providing it's a valid type we know about. To unify the code as
+    # much as possible this accepts any of our known suffixes.
+    local type=$(opt_get t)  
+    if [[ -n ${type} ]]; then
+        fname=".${type}"
+    fi
 
     if [[ ${fname} =~ .bz2|.tz2|.tbz2|.tbz ]]; then
         progs=( lbzip2 pbzip2 bzip2 )
@@ -146,8 +167,9 @@ archive_create()
     unset srcs[${#srcs[@]}-1]
 
     # Parse options
+    local type=$(opt_get t)
     local dest_real=$(readlink -m "${dest}")
-    local dest_type=$(archive_type "${dest}")
+    local dest_type=$(archive_type -t="${type}" "${dest}")
     local excludes=( $(opt_get x) )
     local ignore_missing=$(opt_get i)
     local nice=$(opt_get n)
@@ -277,7 +299,7 @@ archive_create()
         elif [[ ${dest_type} == tar ]]; then
 
             cmd="tar --exclude-from ${exclude_file} --create"
-            $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
+            $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} -t="${type}" "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
                 cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
             else
@@ -288,7 +310,7 @@ archive_create()
         elif [[ ${dest_type} == cpio ]]; then
             
             cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
-            $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
+            $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} -t="${type}" "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
                 cmd+=" | ${prog} -${level} > ${dest_real}"
             else
@@ -316,7 +338,8 @@ archive_extract()
     local files=( "${@}" )
     local ignore_missing=$(opt_get i)
     local nice=$(opt_get n)
-    local src_type=$(archive_type "${src}")
+    local type=$(opt_get t)
+    local src_type=$(archive_type -t="${type}" "${src}")
     mkdir -p "${dest}"
 
     edebug "Extracting $(lval src dest src_type files ignore_missing)"
@@ -392,7 +415,7 @@ archive_extract()
         pushd "${dest}"
         
         local cmd=""
-        $(tryrc -r=compress_rc -o=compress_prog -e=compress_stderr archive_compress_program -n=${nice} "${src_real}")
+        $(tryrc -r=compress_rc -o=compress_prog -e=compress_stderr archive_compress_program -n=${nice} -t="${type}" "${src_real}")
         if [[ ${compress_rc} -eq 0 ]]; then
             local filename=$(basename ${src_real})
             local suffix="${filename##*.}"
@@ -436,7 +459,8 @@ archive_extract()
 archive_list()
 {
     $(declare_args src)
-    local src_type=$(archive_type "${src}")
+    local type=$(opt_get t)
+    local src_type=$(archive_type -t="${type}" "${src}")
 
     # The code below calls out to the various archive format specific tools to dump
     # their contents. There's a little sed on each command's output to normalize the
@@ -454,7 +478,7 @@ archive_list()
         local filename=$(basename ${src})
         local suffix="${filename##*.}"
         local cmd=""
-        $(tryrc -o=prog -e=stderr archive_compress_program "${src}")
+        $(tryrc -o=prog -e=stderr archive_compress_program -t="${type}" "${src}")
         if [[ ${rc} -eq 0 ]]; then
             ${prog} --decompress --stdout --suffix .${suffix} ${src} | cpio --quiet -it
         else
