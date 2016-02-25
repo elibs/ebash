@@ -6,6 +6,9 @@ ARCHIVE_TYPES=(
     tar
     iso
     tar.gz
+    cpio
+    cgz
+    cxz
 )
 
 ETEST_archive_create()
