@@ -31,6 +31,18 @@
 # organization. Our archive_compress_program function is used to generalize our
 # use of tar so that compression format is handled seamlessly based on the file
 # extension in a way which picks the best compression program at runtime.
+#
+# CPIO: "cpio is a general file archiver utility and its associated file format.
+# It is primarily installed on Unix-like computer operating systems. The software
+# utility was originally intended as a tape archiving program as part of the
+# Programmer's Workbench (PWB/UNIX), and has been a component of virtually every
+# Unix operating system released thereafter. Its name is derived from the phrase
+# copy in and out, in close description of the program's use of standard input
+# and standard output in its operation. All variants of Unix also support other
+# backup and archiving programs, such as tar, which has become more widely
+# recognized.[1] The use of cpio by the RPM Package Manager, in the initramfs
+# program of Linux kernel 2.6, and in Apple Computer's Installer (pax) make cpio
+# an important archiving tool" (https://en.wikipedia.org/wiki/Cpio).
 #-------------------------------------------------------------------------------
 
 # Determine archive format based on the file suffix.
@@ -42,8 +54,10 @@ archive_type()
         echo -n "squashfs"
     elif [[ ${src} =~ .iso ]]; then
         echo -n "iso"
-    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|tar.bz2|.tz2|.tbz2|.tbz ]]; then
+    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz ]]; then
         echo -n "tar"
+    elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz ]]; then
+        echo -n "cpio"
     elif [[ -d "${src}" ]]; then
         eerror "Unsupported fstype $(lval src)"
         return 1
@@ -77,21 +91,6 @@ archive_compress_program()
     echo -n "${prog}"
     [[ -n ${prog} ]]
 } 
-
-# Get flag for use with tar to select the right compress program (or none if it's
-# not a compressed file).
-archive_tar_compress_arg()
-{
-    $(declare_args fname)
-    local nice=$(opt_get n)
-    $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${fname}")
-
-    if [[ ${rc} -eq 0 ]]; then
-        echo -n " --use-compress-program=${prog}"
-    fi
-
-    return 0
-}
 
 # Generic function for creating an archive file of a given type from the given
 # list of source paths and write it out to the requested destination directory.
@@ -275,12 +274,23 @@ archive_create()
         # TAR
         elif [[ ${dest_type} == tar ]]; then
 
-            cmd+="tar --exclude-from ${exclude_file} --create"
+            cmd="tar --exclude-from ${exclude_file} --create"
             $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
-                cmd+=" --file - . | ${prog} > ${dest_real}"
+                cmd+=" --file - . | ${prog} --best > ${dest_real}"
             else
                 cmd+=" --file ${dest_real} ."
+            fi
+
+        # CPIO
+        elif [[ ${dest_type} == cpio ]]; then
+            
+            cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
+            $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
+            if [[ ${rc} -eq 0 ]]; then
+                cmd+=" | ${prog} --best > ${dest_real}"
+            else
+                cmd+=" --file ${dest_real}"
             fi
         fi
 
@@ -352,8 +362,8 @@ archive_extract()
             fi
         )
 
-    # TAR
-    elif [[ ${src_type} == tar ]]; then
+    # TAR or CPIO
+    elif [[ ${src_type} =~ tar|cpio ]]; then
 
         # By default the files to extract from the archive is all the files requested.
         # If files is an empty array this will evaluate to an empty string and all files
@@ -365,7 +375,7 @@ archive_extract()
         # getting the intersection of actual files in the archive and the list of files 
         # the caller asked for (which may or may not actually be in the archive).
         if array_not_empty files && [[ ${ignore_missing} -eq 1 ]]; then
-            includes=$(tar --list --file "${src}" | grep -P "($(array_join files '|'))" || true)
+            includes=$(archive_list "${src}" | grep -P "($(array_join files '|'))" || true)
 
             # If includes is EMPTY there's nothing to do because none of the requested
             # files exist in the archive and we're ignoring missing files.
@@ -376,11 +386,46 @@ archive_extract()
         fi
 
         # Do the actual extracting.
-        local src_real=$(readlink  -m "${src}")
+        local src_real=$(readlink -m "${src}")
         pushd "${dest}"
-        tar --extract --file "${src_real}" \
-            $(archive_tar_compress_arg -n=${nice} "${src_real}") \
-            --wildcards --no-anchored ${includes}
+        
+        local cmd=""
+        $(tryrc -r=compress_rc -o=compress_prog -e=compress_stderr archive_compress_program -n=${nice} "${src_real}")
+        if [[ ${compress_rc} -eq 0 ]]; then
+            local filename=$(basename ${src_real})
+            local suffix="${filename##*.}"
+            cmd="${compress_prog} --decompress --stdout --suffix .${suffix} ${src_real} | "
+        fi 
+
+
+        if [[ ${src_type} == tar ]]; then
+            cmd+="tar --extract --wildcards --no-anchored"
+        else
+            cmd+="cpio --quiet --extract --preserve-modification-time --make-directories --no-absolute-filenames --unconditional"
+        fi
+
+        # Give list of files to extract. If there are newlines in the output need to replace them with spaces otherwise
+        # command will hang.
+        cmd+=" ${includes//$'\n'/ }"
+
+        # Conditionally feed it the archive file to extract via stdin.
+        if [[ ${compress_rc} -ne 0 ]]; then
+            cmd+=" < "${src_real}""
+        fi
+
+        edebug "$(lval cmd)"
+        eval "${cmd}" |& edebug
+
+        # cpio doesn't return an error if included files are missing. So do another check to see if
+        # all requested files were found. Redirect stdout to /dev/null, so any errors (due to missing files)
+        # will show up on STDERR. And that's the return code we'll propogate.
+        #
+        # NOTE: Purposefully NO quotes around ${includes} because if given -x="file1 file2" then 
+        #       find would look for a file named "file1 file2" and fail.
+        if [[ ${src_type} == cpio ]]; then
+            find . ${includes} >/dev/null
+        fi
+        
         popd
     fi
 }
@@ -401,6 +446,19 @@ archive_list()
         isoinfo -J -i "${src}" -f | sed -e 's|^/||'
     elif [[ ${src_type} == tar ]]; then
         tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||'
+    elif [[ ${src_type} == cpio ]]; then
+
+        # Do decompression first
+        local filename=$(basename ${src})
+        local suffix="${filename##*.}"
+        local cmd=""
+        $(tryrc -o=prog -e=stderr archive_compress_program "${src}")
+        if [[ ${rc} -eq 0 ]]; then
+            ${prog} --decompress --stdout --suffix .${suffix} ${src} | cpio --quiet -it
+        else
+            cpio --quiet -it < "${src}"
+        fi | sed -e "s|^.$||" 
+
     fi | sort --unique | sed '/^$/d'
 }
 
@@ -470,8 +528,8 @@ archive_mount_or_extract()
     if [[ ${src_type} =~ squashfs|iso ]]; then
         mount --read-only "${src}" "${dest}"
     
-    # TAR files need to be extracted manually :-[
-    elif [[ ${src_type} == tar ]]; then
+    # TAR+CPIO files need to be extracted manually :-[
+    elif [[ ${src_type} =~ tar|cpio ]]; then
         archive_extract "${src}" "${dest}"
     fi
 }
