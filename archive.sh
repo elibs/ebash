@@ -33,20 +33,46 @@
 # organization. Our archive_compress_program function is used to generalize our
 # use of tar so that compression format is handled seamlessly based on the file
 # extension in a way which picks the best compression program at runtime.
+#
+# CPIO: "cpio is a general file archiver utility and its associated file format.
+# It is primarily installed on Unix-like computer operating systems. The software
+# utility was originally intended as a tape archiving program as part of the
+# Programmer's Workbench (PWB/UNIX), and has been a component of virtually every
+# Unix operating system released thereafter. Its name is derived from the phrase
+# copy in and out, in close description of the program's use of standard input
+# and standard output in its operation. All variants of Unix also support other
+# backup and archiving programs, such as tar, which has become more widely
+# recognized.[1] The use of cpio by the RPM Package Manager, in the initramfs
+# program of Linux kernel 2.6, and in Apple Computer's Installer (pax) make cpio
+# an important archiving tool" (https://en.wikipedia.org/wiki/Cpio).
 #-------------------------------------------------------------------------------
 
-# Determine archive format based on the file suffix.
+# Determine archive format based on the file suffix. You can override type 
+# detection by passing in explicit -t=type where type is one of the supported
+# file extension types (e.g. squashfs, iso, tar, tgz, cpio, cgz, etc).
 archive_type()
 {
+    $(declare_opts \
+        ":type t | Override automatic type detection and use explicit archive type.")
     $(declare_args src)
     
+    # Allow overriding type detection based on suffix and instead use provided
+    # type providing it's a valid type we know about. To unify the code as
+    # much as possible this accepts any of our known suffixes.
+    if [[ -n ${type} ]]; then
+        src=".${type}"
+    fi
+
+    # Detect type based on suffix
     if [[ ${src} =~ .squashfs ]]; then
         echo -n "squashfs"
     elif [[ ${src} =~ .iso ]]; then
         echo -n "iso"
-    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|tar.bz2|.tz2|.tbz2|.tbz ]]; then
+    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.txz|.tlz ]]; then
         echo -n "tar"
-    elif [[ -d "${src}" ]]; then
+    elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cxz|.clz ]]; then
+        echo -n "cpio"
+    else
         eerror "Unsupported fstype $(lval src)"
         return 1
     fi
@@ -56,8 +82,16 @@ archive_type()
 archive_compress_program()
 {
     $(declare_opts \
-        "nice n | Be nice and use non-parallel compressors and only a single core.")
+        "nice n  | Be nice and use non-parallel compressors and only a single core." \
+        ":type t | Override automatic type detection and use explicit archive type.")
     $(declare_args fname)
+
+    # Allow overriding type detection based on suffix and instead use provided
+    # type providing it's a valid type we know about. To unify the code as
+    # much as possible this accepts any of our known suffixes.
+    if [[ -n ${type} ]]; then
+        fname=".${type}"
+    fi
 
     if [[ ${fname} =~ .bz2|.tz2|.tbz2|.tbz ]]; then
         progs=( lbzip2 pbzip2 bzip2 )
@@ -65,7 +99,7 @@ archive_compress_program()
     elif [[ ${fname} =~ .gz|.tgz|.taz ]]; then
         progs=( pigz gzip )
         [[ ${nice} -eq 1 ]] && progs=( gzip )
-    elif [[ ${fname} =~ xz ]]; then
+    elif [[ ${fname} =~ .xz|.txz|.tlz|.cxz|.clz ]]; then
         progs=( lzma xz )
     else
         eerror "No suitable compress program for $(lval fname)"
@@ -80,23 +114,6 @@ archive_compress_program()
     echo -n "${prog}"
     [[ -n ${prog} ]]
 } 
-
-# Get flag for use with tar to select the right compress program (or none if it's
-# not a compressed file).
-archive_tar_compress_arg()
-{
-    $(declare_opts \
-        "nice n | Be nice and use non-parallel compressors and only a single core.")
-    $(declare_args fname)
-    
-    $(tryrc -o=prog -e=stderr archive_compress_program --nice ${nice} "${fname}")
-
-    if [[ ${rc} -eq 0 ]]; then
-        echo -n " --use-compress-program=${prog}"
-    fi
-
-    return 0
-}
 
 # Generic function for creating an archive file of a given type from the given
 # list of source paths and write it out to the requested destination directory.
@@ -138,11 +155,13 @@ archive_create()
 {
     $(declare_opts \
         ":dir d           | Directory to cd into before archive creation." \
-        ":volume v        | Optional volume name to use (ISO only)." \
         "bootable boot b  | Make the ISO bootable (ISO only)." \
         ":exclude x       | List of paths to be excluded from archive." \
         "ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
-        "nice n           | Be nice and use non-parallel compressors and only a single core.")
+        ":level l=9       | Compression level (1=fast, 9=best)." \
+        "nice n           | Be nice and use non-parallel compressors and only a single core." \
+        ":type t          | Override automatic type detection and use explicit archive type." \
+        ":volume v        | Optional volume name to use (ISO only).")
 
     # Parse positional arguments into a bashutils array. Then grab final argument
     # which is the destination.
@@ -152,9 +171,10 @@ archive_create()
 
     # Parse options
     local dest_real=$(readlink -m "${dest}")
-    local dest_type=$(archive_type "${dest}")
+    local dest_type=$(archive_type --type "${type}" "${dest}")
     local excludes=( ${exclude} )
-
+    local cmd=""
+    
     edebug "Creating archive $(lval dir srcs dest dest_real dest_type excludes ignore_missing nice)"
     mkdir -p "$(dirname "${dest}")"
 
@@ -251,7 +271,7 @@ archive_create()
                 mksquashfs_flags+=" -processors 1"
             fi          
 
-            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -Xcompression-level ${level} -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -267,12 +287,23 @@ archive_create()
         # TAR
         elif [[ ${dest_type} == tar ]]; then
 
-            cmd+="tar --exclude-from ${exclude_file} --create"
-            $(tryrc -o=prog -e=stderr archive_compress_program --nice ${nice} "${dest_real}")
+            cmd="tar --exclude-from ${exclude_file} --create"
+            $(tryrc -o=prog -e=stderr archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
-                cmd+=" --file - . | ${prog} > ${dest_real}"
+                cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
             else
                 cmd+=" --file ${dest_real} ."
+            fi
+
+        # CPIO
+        elif [[ ${dest_type} == cpio ]]; then
+            
+            cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
+            $(tryrc -o=prog -e=stderr archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+            if [[ ${rc} -eq 0 ]]; then
+                cmd+=" | ${prog} -${level} > ${dest_real}"
+            else
+                cmd+=" --file ${dest_real}"
             fi
         fi
 
@@ -291,11 +322,13 @@ archive_extract()
     $(declare_opts \
         ":exclude x       | List of paths to be excluded from archive." \
         "ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
-        "nice n           | Be nice and use non-parallel compressors and only a single core.")
+        "nice n           | Be nice and use non-parallel compressors and only a single core." \
+        ":type t          | Override automatic type detection and use explicit archive type.")
     
     $(declare_args src dest)
     local files=( "${@}" )
-    local src_type=$(archive_type "${src}")
+    local src_type=$(archive_type --type "${type}" "${src}")
+
     mkdir -p "${dest}"
 
     edebug "Extracting $(lval src dest src_type files ignore_missing)"
@@ -343,8 +376,8 @@ archive_extract()
             fi
         )
 
-    # TAR
-    elif [[ ${src_type} == tar ]]; then
+    # TAR or CPIO
+    elif [[ ${src_type} =~ tar|cpio ]]; then
 
         # By default the files to extract from the archive is all the files requested.
         # If files is an empty array this will evaluate to an empty string and all files
@@ -355,8 +388,13 @@ archive_extract()
         # only those which the caller requested. This will ensure we are essentially 
         # getting the intersection of actual files in the archive and the list of files 
         # the caller asked for (which may or may not actually be in the archive).
+        #
+        # NOTE: Replace newlines in output from archive_list to spaces so that they are 
+        #       all on a single line. This will prevent problems when we later eval
+        #       the command where newlines could cause the eval'd command to be 
+        #       interpreted incorrectly.
         if array_not_empty files && [[ ${ignore_missing} -eq 1 ]]; then
-            includes=$(tar --list --file "${src}" | grep -P "($(array_join files '|'))" || true)
+            includes=$(archive_list "${src}" | grep -P "($(array_join files '|'))" | tr '\n' ' ' || true)
 
             # If includes is EMPTY there's nothing to do because none of the requested
             # files exist in the archive and we're ignoring missing files.
@@ -367,11 +405,43 @@ archive_extract()
         fi
 
         # Do the actual extracting.
-        local src_real=$(readlink  -m "${src}")
+        local src_real=$(readlink -m "${src}")
         pushd "${dest}"
-        tar --extract --file "${src_real}" \
-            $(archive_tar_compress_arg --nice ${nice} "${src_real}") \
-            --wildcards --no-anchored ${includes}
+        
+        local cmd=""
+        $(tryrc -r=compress_rc -o=compress_prog -e=compress_stderr archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
+        if [[ ${compress_rc} -eq 0 ]]; then
+            cmd="${compress_prog} --decompress --stdout < ${src_real} | "
+        fi 
+
+
+        if [[ ${src_type} == tar ]]; then
+            cmd+="tar --extract --wildcards --no-anchored"
+        else
+            cmd+="cpio --quiet --extract --preserve-modification-time --make-directories --no-absolute-filenames --unconditional"
+        fi
+
+        # Give list of files to extract.
+        cmd+=" ${includes}"
+
+        # Conditionally feed it the archive file to extract via stdin.
+        if [[ ${compress_rc} -ne 0 ]]; then
+            cmd+=" < "${src_real}""
+        fi
+
+        edebug "$(lval cmd)"
+        eval "${cmd}" |& edebug
+
+        # cpio doesn't return an error if included files are missing. So do another check to see if
+        # all requested files were found. Redirect stdout to /dev/null, so any errors (due to missing files)
+        # will show up on STDERR. And that's the return code we'll propogate.
+        #
+        # NOTE: Purposefully NO quotes around ${includes} because if given -x="file1 file2" then 
+        #       find would look for a file named "file1 file2" and fail.
+        if [[ ${src_type} == cpio ]]; then
+            find . ${includes} >/dev/null
+        fi
+        
         popd
     fi
 }
@@ -379,8 +449,10 @@ archive_extract()
 # Simple function to list the contents of an archive image.
 archive_list()
 {
+    $(declare_opts \
+        ":type t | Override automatic type detection and use explicit archive type.")
     $(declare_args src)
-    local src_type=$(archive_type "${src}")
+    local src_type=$(archive_type --type "${type}" "${src}")
 
     # The code below calls out to the various archive format specific tools to dump
     # their contents. There's a little sed on each command's output to normalize the
@@ -392,6 +464,17 @@ archive_list()
         isoinfo -J -i "${src}" -f | sed -e 's|^/||'
     elif [[ ${src_type} == tar ]]; then
         tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||'
+    elif [[ ${src_type} == cpio ]]; then
+
+        # Do decompression first
+        local cmd=""
+        $(tryrc -o=prog -e=stderr archive_compress_program --type "${type}" "${src}")
+        if [[ ${rc} -eq 0 ]]; then
+            ${prog} --decompress --stdout < ${src} | cpio --quiet -it
+        else
+            cpio --quiet -it < "${src}"
+        fi | sed -e "s|^.$||" 
+
     fi | sort --unique | sed '/^$/d'
 }
 
@@ -461,249 +544,8 @@ archive_mount_or_extract()
     if [[ ${src_type} =~ squashfs|iso ]]; then
         mount --read-only "${src}" "${dest}"
     
-    # TAR files need to be extracted manually :-[
-    elif [[ ${src_type} == tar ]]; then
+    # TAR+CPIO files need to be extracted manually :-[
+    elif [[ ${src_type} =~ tar|cpio ]]; then
         archive_extract "${src}" "${dest}"
     fi
-}
-
-#-------------------------------------------------------------------------------
-# OVERLAYFS
-# 
-# The overlayfs module is the bashutils interface around OverlayFS mounts. This
-# is a really useful filesystem that allows layering mounts into a single
-# unified mount point with read-through semantics. This is the first official
-# kernel filesystem providing this functionality which replaces prior similar
-# filesystems such as unionfs, aufs, etc.
-# 
-# The implementation of the underlying kernel driver changed somewhat with
-# different kernel versions. The first version of the kernel which officially
-# supported overlayfs was 3.18. This original API requires specifying the
-# workdir option for the scratch work performed by overlayfs. Overlayfs was
-# available in older kernel versions but was not official and did not have this
-# additional "workdir" option.
-#-------------------------------------------------------------------------------
-
-# overlayfs_mount mounts multiple filesystems into a single unified writeable
-# directory with read-through semantics. All the underlying filesystem layers
-# are mounted read-only (if they are mountable) and the top-most layer is
-# mounted read-write. Only the top-level layer is mounted read-write.
-# 
-# The most common uses cases for using overlayfs is to mount ISOs or squashfs
-# images with a read-write layer on top of them. To make this implementation
-# as generic as possible, it deals only with overlayfs mounting semantics.
-# The specific mounting of ISO or squashfs images are handled by separate
-# dedicated modules.
-#
-# This function takes multiple arguments where each argument is a layer
-# to mount into the final unified overlayfs image. The final positional 
-# parameter is the final mount point to mount everything at. This final 
-# directory will be created if it doesn't exist.
-#
-# NOTE: The first version of the kernel which officially supported overlayfs
-#       was 3.18. This original API requires specifying the workdir option
-#       for the scratch work performed by overlayfs. Overlayfs was available
-#       in older kernel versions but was not official and did not have this
-#       additional "workdir" option.
-# 
-# NOTE: There are two different actual implementations of this function to 
-#       accomodate different underlying implementations within the kernel.
-#       Kernels < 3.19 had a much more limited version which did not provide
-#       Multi-Layer OverlayFS. As such, we check what version of the kernel
-#       we're running and only define the right implementation for the version
-#       of the kernel that we're running. This saves us from having to perform
-#       this check every time we call this function as it's only done once at
-#       source time.
-#
-overlayfs_mount()
-{
-    if [[ $# -lt 2 ]]; then
-        eerror "overlayfs_mount requires 2 or more arguments"
-        return 1
-    fi
-
-    # Parse positional arguments into a bashutils array. Then grab final mount
-    # point from args.
-    local args=( "$@" )
-    local dest=${args[${#args[@]}-1]}
-    unset args[${#args[@]}-1]
-    
-    # Mount layered mounts at requested destination, creating if it doesn't exist.
-    mkdir -p "${dest}"
-     
-    # NEWER KERNEL VERSIONS (>= 3.19)
-    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 19 ) ]]; then
-
-        edebug "Using Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
-
-        # Iterate through all the images and mount each one into a temporary directory
-        local arg
-        local layers=()
-        for arg in "${args[@]}"; do
-            local tmp=$(mktemp -d /tmp/overlayfs-lower-XXXX)
-            trap_add "eunmount -r -d ${tmp}"
-            fs_mount_or_extract "${arg}" "${tmp}"
-            layers+=( "${tmp}" )
-        done
-
-        # Create temporary directory to hold read-only and read-write layers.
-        # Create lowerdir parameter by joining all images with colon
-        # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
-        local lower=$(array_join layers ":")
-        local upper="$(mktemp -d /tmp/overlayfs-upper-XXXX)"
-        local work="$(mktemp -d /tmp/overlayfs-work-XXXX)"
-        trap_add "eunmount -r -d ${upper} ${work}"
-
-        # Mount overlayfs
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
- 
-    # OLDER KERNEL VERSIONS (<3.19)
-    # NOTE: Older OverlayFS is really annoying because you can only stack 2 overlayfs
-    # mounts. To get around this, we'll mount the bottom most layer as the read-only 
-    # base image. Then we'll unpack all other images into a middle layer. Then mount
-    # an empty directory as the top-most directory.
-    #
-    # NOTE: Versions >= 3.18 require the "workdir" option but older versions do not.
-    else
-       
-        edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
-
-        # Grab bottom most layer
-        local lower=$(mktemp -d /tmp/overlayfs-lower-XXXX)
-        fs_mount_or_extract "${args[0]}" "${lower}"
-        unset args[0]
-
-        # Extract all remaining layers into empty "middle" directory
-        if array_not_empty args; then
-       
-            local middle=$(mktemp -d /tmp/overlayfs-middle-XXXX)
-            local work=$(mktemp -d /tmp/overlayfs-work-XXXX)
-            trap_add "eunmount -r -d ${middle} ${work}"
-
-            # Extract this layer into middle directory using image specific mechanism.
-            for arg in "${args[@]}"; do
-                fs_extract "${arg}" "${middle}"
-            done
-       
-            if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
-                mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${work}" "${middle}"
-            else
-                mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
-            fi
-            
-            lower=${middle}
-        fi
-
-        # Mount this unpacked directory into overlayfs layer with an empty read-write 
-        # layer on top. This way if caller saves the changes they get only the changes
-        # they made in the top-most layer.
-        local upper=$(mktemp -d /tmp/squashfs-upper-XXXX)
-        local work=$(mktemp -d /tmp/squashfs-work-XXXX)
-        trap_add "eunmount -r -d ${upper} ${work}"
-
-        if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
-            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
-        else
-            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}" "${dest}"
-        fi
-    fi
-}
-
-# overlayfs_unmount will unmount an overlayfs directory previously mounted
-# via overlayfs_mount. It takes multiple arguments where each is the final
-# overlayfs mount point. In the event there are multiple overlayfs layered
-# into the final mount image, they will all be unmounted as well.
-overlayfs_unmount()
-{
-    $(declare_opts \
-        "verbose v | Enable verbose output.")
-
-    local mnt
-    for mnt in "$@"; do
-
-        # If empty string or not mounted just skip it
-        if [[ -z "${mnt}" ]] || ! emounted "${mnt}" ; then
-            continue
-        fi
-
-        # Parse out required lower and upper directories to be unmounted.
-        # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
-        # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
-        local output="$(grep "${__BU_OVERLAYFS} $(emount_realpath ${mnt})" /proc/mounts)"
-        local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
-        local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-
-        # On newer kernels, also need to unmount work directory.
-        local work=""
-        if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
-            work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
-        fi
-        
-        edebug "$(lval mnt lower upper work)"
-
-        # Split 'lower' on ':' so we can unmount each of the lower layers 
-        local parts
-        array_init parts "${lower}" ":"
-        
-        local layer
-        for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
-            eunmount_internal -v=${verbose} "${layer}"
-        done
-
-        # In case the overlayfs mounts are layered manually have to also unmount
-        # the lower layers.
-        overlayfs_unmount ${parts[0]:-}
-    done
-}
-
-# overlayfs_tree is used to display a graphical representation for an overlayfs
-# mount. The graphical format is meant to show details about each layer in the
-# overlayfs mount hierarchy to make it clear what files reside in what layers
-# along with some basic metadata about each file (as provided by find -ls).
-overlayfs_tree()
-{
-    if [[ -z "$@" ]]; then
-        return 0
-    fi
-
-    local mnt
-    for mnt in "$@"; do
- 
-        # If not mounted, just skip this.
-        if ! emounted "${mnt}"; then
-            continue
-        fi
- 
-        # Parse out the lower, upper and work directories to be unmounted
-        # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
-        # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
-        local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-        local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
-        local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-        
-        # Split 'lower' on ':' so we can unmount each of the lower layers then
-        # append upper to the list so we see that as well.
-        local parts
-        array_init parts "${lower}" ":"
-        parts+=( "${upper}" )
-        local idx
-        for idx in $(array_indexes parts); do
-            eval "local layer=\${parts[$idx]}"
-
-            # Figure out source of the mountpoint
-            local src=$(grep "${layer}" /proc/mounts | head -1)
-
-            if [[ ${src} =~ "/dev/loop" ]]; then
-                src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
-            elif [[ ${src} =~ "overlay" ]]; then
-                src=$(echo "${src}" | awk '{print $2}')
-
-            fi
-
-            # Pretty print the contents
-            local find_output=$(find ${layer} -ls | awk '{ $1=""; print}' | sed -e "s|${layer}|/|" -e 's|//|/|' | column -t | sort -k10)
-            echo "$(ecolor green)+--layer${idx} [${src}:${layer}]$(ecolor off)"
-            echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
-        done
-    done
 }

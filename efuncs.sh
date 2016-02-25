@@ -2460,7 +2460,6 @@ eunmount()
 
             local rm_opts="--force"
             [[ ${recursive} -eq 1 ]] && rm_opts+=" --recursive"
-            edebug_enabled           && rm_opts+=" --verbose"
 
             rm ${rm_opts} "${mnt}"
         fi
