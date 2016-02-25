@@ -54,9 +54,9 @@ archive_type()
         echo -n "squashfs"
     elif [[ ${src} =~ .iso ]]; then
         echo -n "iso"
-    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz ]]; then
+    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.txz|.tlz ]]; then
         echo -n "tar"
-    elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz ]]; then
+    elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cxz|.clz ]]; then
         echo -n "cpio"
     elif [[ -d "${src}" ]]; then
         eerror "Unsupported fstype $(lval src)"
@@ -76,7 +76,7 @@ archive_compress_program()
     elif [[ ${fname} =~ .gz|.tgz|.taz ]]; then
         progs=( pigz gzip )
         [[ ${nice} -eq 1 ]] && progs=( gzip )
-    elif [[ ${fname} =~ xz ]]; then
+    elif [[ ${fname} =~ .xz|.txz|.tlz|.cxz|.clz ]]; then
         progs=( lzma xz )
     else
         eerror "No suitable compress program for $(lval fname)"
