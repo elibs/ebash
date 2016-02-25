@@ -54,9 +54,9 @@ archive_type()
         echo -n "squashfs"
     elif [[ ${src} =~ .iso ]]; then
         echo -n "iso"
-    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz ]]; then
+    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.txz|.tlz ]]; then
         echo -n "tar"
-    elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz ]]; then
+    elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cxz|.clz ]]; then
         echo -n "cpio"
     elif [[ -d "${src}" ]]; then
         eerror "Unsupported fstype $(lval src)"
@@ -76,7 +76,7 @@ archive_compress_program()
     elif [[ ${fname} =~ .gz|.tgz|.taz ]]; then
         progs=( pigz gzip )
         [[ ${nice} -eq 1 ]] && progs=( gzip )
-    elif [[ ${fname} =~ xz ]]; then
+    elif [[ ${fname} =~ .xz|.txz|.tlz|.cxz|.clz ]]; then
         progs=( lzma xz )
     else
         eerror "No suitable compress program for $(lval fname)"
@@ -132,6 +132,7 @@ archive_compress_program()
 # OPTIONS:
 # -d=DIR   Change directory into DIR before creating. 
 # -i=(0|1) Ignore missing files instead of failing and returning non-zero.
+# -l=[1-9] Compression level 1=fast, 9=best
 # -n=(0|1) Be Nice. If enabled, use non-parallel compressors and only a single core.
 # -x=LIST  List of glob patterns to be excluded from the archive.
 archive_create()
@@ -152,6 +153,7 @@ archive_create()
     local nice=$(opt_get n)
     local cmd=""
     local dir=$(opt_get d)
+    local level=$(opt_get l 9)
 
     edebug "Creating archive $(lval dir srcs dest dest_real dest_type excludes ignore_missing nice)"
     mkdir -p "$(dirname "${dest}")"
@@ -253,7 +255,7 @@ archive_create()
                 mksquashfs_flags+=" -processors 1"
             fi          
 
-            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -Xcompression-level ${level} -ef ${exclude_file}"
 
         # ISO
         elif [[ ${dest_type} == iso ]]; then
@@ -277,7 +279,7 @@ archive_create()
             cmd="tar --exclude-from ${exclude_file} --create"
             $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
-                cmd+=" --file - . | ${prog} --best > ${dest_real}"
+                cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
             else
                 cmd+=" --file ${dest_real} ."
             fi
@@ -288,7 +290,7 @@ archive_create()
             cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
             $(tryrc -o=prog -e=stderr archive_compress_program -n=${nice} "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
-                cmd+=" | ${prog} --best > ${dest_real}"
+                cmd+=" | ${prog} -${level} > ${dest_real}"
             else
                 cmd+=" --file ${dest_real}"
             fi
