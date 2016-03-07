@@ -3,8 +3,17 @@
 # Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
 
-# Locale setup to ensure sort and other GNU tools behave sanely
-: ${__BU_OS:=$(uname)}
+__BU_OS=$(uname)
+
+
+# Load configuration files
+if [[ -e /etc/bashutils.conf ]]; then
+    source /etc/bashutils.conf
+fi
+
+if [[ -e ${XDG_CONFIG_HOME:-${HOME:-}/.config}/bashutils.conf ]]; then
+    source ${XDG_CONFIG_HOME:-${HOME:-}/.config}/bashutils.conf
+fi
 
 # PLATFORM MUST BE FIRST.  It sets up aliases.  Those aliases won't be expanded
 # inside functions that are already declared, only inside those declared after
