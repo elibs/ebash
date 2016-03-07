@@ -83,7 +83,7 @@ cgroup_create()
 #
 cgroup_destroy()
 {
-    $(declare_opts "recursive r | Destroy cgroup's children recursively")
+    $(declare_opts "-recursive r | Destroy cgroup's children recursively")
 
     local msg
     msg="destroying cgroups ${@}"
@@ -224,8 +224,8 @@ cgroup_get()
 cgroup_pids()
 {
     $(declare_opts \
-        ":exclude x  | Space separated list of pids not to return.  By default returns all." \
-        "recursive r | Additionally return pids for processes of this cgroup's children.")
+        ":exclude x   | Space separated list of pids not to return.  By default returns all." \
+        "-recursive r | Additionally return pids for processes of this cgroup's children.")
 
     local cgroups cgroup ignorepids all_pids rc
     cgroups=( ${@} )
@@ -304,8 +304,8 @@ cgroup_pids()
 cgroup_ps()
 {
     $(declare_opts \
-        ":exclude x  | Space separated list of pids not to display." \
-        "recursive r | List processes for specified cgroup and all children.")
+        ":exclude x   | Space separated list of pids not to display." \
+        "-recursive r | List processes for specified cgroup and all children.")
     $(declare_args cgroup)
 
     local options=()

@@ -82,7 +82,7 @@ archive_type()
 archive_compress_program()
 {
     $(declare_opts \
-        "nice n  | Be nice and use non-parallel compressors and only a single core." \
+        "-nice n | Be nice and use non-parallel compressors and only a single core." \
         ":type t | Override automatic type detection and use explicit archive type.")
     $(declare_args fname)
 
@@ -154,14 +154,14 @@ archive_compress_program()
 archive_create()
 {
     $(declare_opts \
-        "best             | Use the best compression (level=9)." \
+        "-best            | Use the best compression (level=9)." \
         ":dir d           | Directory to cd into before archive creation." \
-        "bootable boot b  | Make the ISO bootable (ISO only)." \
+        "-bootable boot b | Make the ISO bootable (ISO only)." \
         ":exclude x       | List of paths to be excluded from archive." \
-        "fast             | Use the fastest compression (level=1)." \
-        "ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
+        "-fast            | Use the fastest compression (level=1)." \
+        "-ignore_missing i| Ignore missing files instead of failing and returning non-zero." \
         ":level l=9       | Compression level (1=fast, 9=best)." \
-        "nice n           | Be nice and use non-parallel compressors and only a single core." \
+        "-nice n          | Be nice and use non-parallel compressors and only a single core." \
         ":type t          | Override automatic type detection and use explicit archive type." \
         ":volume v        | Optional volume name to use (ISO only).")
 
@@ -329,10 +329,10 @@ archive_create()
 archive_extract()
 {
     $(declare_opts \
-        ":exclude x       | List of paths to be excluded from archive." \
-        "ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
-        "nice n           | Be nice and use non-parallel compressors and only a single core." \
-        ":type t          | Override automatic type detection and use explicit archive type.")
+        ":exclude x        | List of paths to be excluded from archive." \
+        "-ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
+        "-nice n           | Be nice and use non-parallel compressors and only a single core." \
+        ":type t           | Override automatic type detection and use explicit archive type.")
     
     $(declare_args src dest)
     local files=( "${@}" )

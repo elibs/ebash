@@ -393,7 +393,7 @@ tryrc()
         ":rc r=rc  | Variable to assign the return code to." \
         ":stdout o | Write stdout to the specified variable rather than letting it go to stdout." \
         ":stderr e | Write stderr to the specified variable rather than letting it go to stderr." \
-        "global g  | Make variables created global rather than local")
+        "-global g | Make variables created global rather than local")
 
     local cmd=("$@")
 
@@ -1145,9 +1145,9 @@ eerror()
 eerror_stacktrace()
 {
     $(declare_opts \
-        ":frame f=2   | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
-        "skip s       | Skip the initial error message.  Useful if the caller already displayed it." \
-        ":color c=${COLOR_ERROR} | Use the specified color for output messages.  Defaults to ${COLOR_ERROR}")
+        ":frame f=2              | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
+        "-skip s                 | Skip the initial error message.  Useful if the caller already displayed it." \
+        ":color c=${COLOR_ERROR} | Use the specified color for output messages.")
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
@@ -1372,7 +1372,7 @@ eprogress_kill()
 {
     $(declare_opts \
         ":rc return_code r=0  | Should this eprogress show a mark for success or failure?" \
-        "all a                | If set, kill ALL known eprogress processes, not just the current one")
+        "-all a               | If set, kill ALL known eprogress processes, not just the current one")
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
@@ -1453,7 +1453,7 @@ signum()
 signame()
 {
     $(declare_opts \
-        "include_sig s | Get the form of the signal name that includes SIG.")
+        "-include_sig s | Get the form of the signal name that includes SIG.")
 
     local prefix=""
     if [[ ${include_sig} -eq 1 ]] ; then
@@ -1952,12 +1952,12 @@ elogrotate()
 elogfile()
 {
     $(declare_opts \
-        "stderr e=1        | Whether to redirect stderr to the logfile." \
-        "stdout o=1        | Whether to redirect stdout to the logfile." \
+        "-stderr e=1       | Whether to redirect stderr to the logfile." \
+        "-stdout o=1       | Whether to redirect stdout to the logfile." \
         ":rotate_count r=0 | When rotating log files, keep this number of log files." \
         ":rotate_size s=0  | Rotate log files when they reach this size. Units as accepted by find." \
-        "tail t=1          | Whether to continue to display output on local stdout and stderr." \
-        "merge m           | Whether to merge stdout and stderr into a single stream on stdout.")
+        "-tail t=1         | Whether to continue to display output on local stdout and stderr." \
+        "-merge m          | Whether to merge stdout and stderr into a single stream on stdout.")
 
     edebug "$(lval stdout stderr tail rotate_count rotate_size merge)"
 
@@ -2168,7 +2168,7 @@ emetadata()
 emetadata_check()
 {
     $(declare_opts \
-        "quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
+        "-quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
         ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file.")
 
     $(declare_args path)
@@ -2341,7 +2341,7 @@ emount()
 eunmount_internal()
 {
     $(declare_opts \
-        "verbose v | Verbose output.")
+        "-verbose v | Verbose output.")
 
     local mnt
     for mnt in $@; do
@@ -2375,10 +2375,10 @@ eunmount_internal()
 eunmount()
 {
     $(declare_opts \
-        "verbose v   | Verbose output." \
-        "recursive r | Recursively unmount everything beneath mount points." \
-        "delete d    | Delete mount points after unmounting." \
-        "all a       | Unmount all copies of mount points instead of a single instance.")
+        "-verbose v   | Verbose output." \
+        "-recursive r | Recursively unmount everything beneath mount points." \
+        "-delete d    | Delete mount points after unmounting." \
+        "-all a       | Unmount all copies of mount points instead of a single instance.")
 
     if edebug_enabled; then
         verbose=1
@@ -2601,8 +2601,8 @@ argcheck()
 declare_args()
 {
     $(declare_opts \
-        "global g   | Make variables created by declare_opts to be global.  Default is local." \
-        "export e x | Make variables created by declare_opts to be exported.")
+        "-global g   | Make variables created by declare_opts to be global.  Default is local." \
+        "-export e x | Make variables created by declare_opts to be exported.")
 
     local optional=0
     local variable=""
@@ -2697,8 +2697,8 @@ declare_args()
 ##
 ##
 ##     $(declare_opts \
-##         "word_regex w | if specified, match only complete words" \
-##         "invert v     | if specified, match only lines that do NOT contain the regex.")
+##         "-word_regex w | if specified, match only complete words" \
+##         "-invert v     | if specified, match only lines that do NOT contain the regex.")
 ##
 ##     [[ ${word_regex} -eq 1 ]] && # do stuff for words
 ##     [[ ${invert}     -eq 1 ]] && # do stuff for inverting
@@ -2781,7 +2781,7 @@ declare_args()
 ## empty string, but you can specify a default in your definition.
 ##
 ##     $(declare_opts \
-##         "boolean b=1         | Boolean option that defaults to true" \
+##         "-boolean b=1        | Boolean option that defaults to true" \
 ##         ":string s=something | String option that defaults to "something")
 ##
 declare_opts()
@@ -2835,7 +2835,7 @@ declare_opts_internal_setup()
 
         # Determine if this option requires argument (def starts with a colon
         # character) or is a boolean
-        [[ ${opt_def} =~ (:)?([^=]+)(=.*)? ]]
+        [[ ${opt_def} =~ ([-:])?([^=]+)(=.*)? ]]
 
         local opt_type="unknown"
 
@@ -2844,7 +2844,7 @@ declare_opts_internal_setup()
             opt_type="string"
             expects=1
 
-        else
+        elif [[ ${BASH_REMATCH[1]} == "-" ]] ; then
             opt_type="boolean"
 
             # Boolean options default to 0 unless otherwise specified
@@ -2853,6 +2853,9 @@ declare_opts_internal_setup()
             if [[ ${default} != 0 && ${default} != 1 ]] ; then
                 die "${FUNCNAME[2]}: boolean option has invalid default of ${default}"
             fi
+        else
+            # TODO modell
+            die "${FUNCNAME[2]}: NOT YET SUPPORTED"
         fi
 
         # Same regular expression -- second match is the full list of
@@ -3121,9 +3124,9 @@ efetch_internal()
 efetch()
 {
     $(declare_opts \
-        "md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
-        "meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
-        "quiet q | Quiet mode.  (Disable eprogress and other info messages)")
+        "-md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
+        "-meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
+        "-quiet q | Quiet mode.  (Disable eprogress and other info messages)")
 
     $(declare_args url ?dst)
     : ${dst:=/tmp}
@@ -3731,7 +3734,7 @@ array_add_nl()
 # -a=(0|1) Remove all instances (defaults to only removing the first instance)
 array_remove()
 {
-    $(declare_opts "all a | Remove all instances of the item instead of just the first.")
+    $(declare_opts "-all a | Remove all instances of the item instead of just the first.")
     $(declare_args __array)
 
     # Return immediately if if array is not set or no values were given to be
@@ -3798,8 +3801,8 @@ array_contains()
 array_join()
 {
     $(declare_opts \
-        "before b | Insert delimiter before all joined elements." \
-        "after a  | Insert delimiter after all joined elements.")
+        "-before b | Insert delimiter before all joined elements." \
+        "-after a  | Insert delimiter after all joined elements.")
 
     $(declare_args __array ?delim)
 
@@ -3869,8 +3872,8 @@ array_regex()
 array_sort()
 {
     $(declare_opts \
-        "unique u  | Remove all but one copy of each item in the array." \
-        "version V | Perform a natural (version number) sort.")
+        "-unique u  | Remove all but one copy of each item in the array." \
+        "-version V | Perform a natural (version number) sort.")
 
     local __array
     for __array in "${@}" ; do
@@ -4039,9 +4042,9 @@ pack_iterate()
 pack_import()
 {
     $(declare_opts \
-        "local l=1 | Emit local variables via local builtin (default)." \
-        "global g  | Emit global variables instead of local (i.e. undeclared variables)." \
-        "export e  | Emit exported variables via export builtin.")
+        "-local l=1 | Emit local variables via local builtin (default)." \
+        "-global g  | Emit global variables instead of local (i.e. undeclared variables)." \
+        "-export e  | Emit exported variables via export builtin.")
 
     $(declare_args _pack_import_pack)
     local _pack_import_keys=("${@}")
@@ -4284,13 +4287,13 @@ json_escape()
 json_import()
 {
     $(declare_opts \
-        "global g           | Emit global variables instead of local ones." \
-        "export e           | Emit exported variables instead of local ones." \
-        ":file f=-          | Parse contents of provided file instead of stdin." \
-        "upper_snake_case u | Convert all keys into UPPER_SNAKE_CASE." \
-        ":prefix p          | Prefix all keys with the provided required prefix." \
-        ":query jq q        | Use JQ style query expression on given JSON before parsing." \
-        ":exclude x         | Whitespace separated list of keys to exclude while importing.")
+        "-global g           | Emit global variables instead of local ones." \
+        "-export e           | Emit exported variables instead of local ones." \
+        ":file f=-           | Parse contents of provided file instead of stdin." \
+        "-upper_snake_case u | Convert all keys into UPPER_SNAKE_CASE." \
+        ":prefix p           | Prefix all keys with the provided required prefix." \
+        ":query jq q         | Use JQ style query expression on given JSON before parsing." \
+        ":exclude x          | Whitespace separated list of keys to exclude while importing.")
 
     # Determine flags to pass into declare
     local dflags=""
