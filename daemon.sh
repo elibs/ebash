@@ -3,6 +3,8 @@
 # Copyright 2012-2013, SolidFire, Inc. All rights reserved.
 #
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 # daemon_init is used to initialize the options pack that all of the various
 # daemon_* functions will use. This makes it easy to specify global settings
 # for all of these daemon functions without having to worry about consistent
@@ -186,8 +188,11 @@ daemon_start()
     # Split this off into a separate sub-shell running in the background so we can
     # return to the caller.
     (
-        # Enable fatal error handling inside subshell
+        # Enable fatal error handling inside subshell but do not signal the
+        # parent of failures.
         die_on_error
+        disable_die_parent
+        enable_trace
 
         # Setup logfile
         elogfile -o=1 -e=1 -r=${logfile_count} -s=${logfile_size} "${logfile}"
@@ -234,6 +239,8 @@ daemon_start()
             # requested daemon. After the daemon completes automatically unmount chroot.
             (
                 die_on_abort
+                disable_die_parent
+                enable_trace
 
                 # Setup logfile
                 elogfile -o=1 -e=1 -t=0 "${logfile}"
@@ -340,15 +347,16 @@ daemon_start()
 daemon_stop()
 {
     # Pull in our argument pack then import all of its settings for use.
+    $(declare_opts \
+        ":signal s=TERM        | Signal to use when gracefully stopping the daemon." \
+        ":timeout t=5          | Number of seconds to wait after initial signal before sending SIGKILL." \
+        ":cgroup_timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear.  Requires cgroup support.")
+
     $(declare_args optpack)
     $(pack_import ${optpack})
 
     # Setup logfile
     elogfile -o=1 -e=1 "${logfile}"
-
-    # Options
-    local signal=$(opt_get s SIGTERM)
-    local timeout=$(opt_get t 5)
 
     # Info
     einfo "Stopping ${name}"
@@ -384,7 +392,6 @@ daemon_stop()
 
     if [[ -n ${cgroup} ]] ; then
         edebug "Waiting for all processes in $(lval cgroup) to die"
-        local cgroup_timeout=$(opt_get c 300)
         cgroup_kill_and_wait -x="$$ ${BASHPID}" -s=KILL -t=${cgroup_timeout} ${cgroup}
     fi
 
@@ -403,11 +410,12 @@ daemon_stop()
 daemon_status()
 {
     # Pull in our argument pack then import all of its settings for use.
+    $(declare_opts "quiet q | Make the status function produce no output.")
     $(declare_args optpack)
     $(pack_import ${optpack})
 
     local redirect
-    opt_true "q" && redirect="/dev/null" || redirect="/dev/stderr"
+    [[ ${quiet} -eq 1 ]] && redirect="/dev/null" || redirect="/dev/stderr"
 
     {
         einfo "${name}"

@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
+check_mounts()
+{
+    $(declare_args path count)
+
+    [[ ${count} -eq 0 ]] && assert_false emounted ${path} || assert_true emounted ${path}
+    assert_eq ${count} $(emount_count ${path})
+}
+
 ETEST_emount_bind()
 {
     mkdir src
@@ -76,14 +86,6 @@ ETEST_emount_partial_match()
 
     # Use a partial match -- should NOT find any mounts
     assert_false emounted dst/d
-}
-
-check_mounts()
-{
-    $(declare_args path count)
-
-    [[ ${count} -eq 0 ]] && assert_false emounted ${path} || assert_true emounted ${path}
-    assert_eq ${count} $(emount_count ${path})
 }
 
 ETEST_emount_bind_count_separate()
