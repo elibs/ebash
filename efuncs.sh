@@ -932,7 +932,7 @@ ecolor()
     local c=""
     for c in $@; do
         case ${c} in
-            dim)            tput dim                           ;;
+            dim)            echo -en "\033[2m"                 ;;
             invert)         tput rev                           ;;
             bold)           tput bold                          ;;
             underline)      tput smul                          ;;
