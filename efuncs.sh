@@ -888,8 +888,9 @@ ecolor()
             invert)         tput rev                           ;;
             bold)           tput bold                          ;;
             underline)      tput smul                          ;;
-            reset|none|off) echo -en "\033[0m"                  ;;
-            *)              tput setaf $(ecolor_code ${c}) ;;
+            reset|none|off) echo -en "\033[0m"                 ;;
+            b:*)            tput setab $(ecolor_code ${c#b:})  ;;
+            *)              tput setaf $(ecolor_code ${c})     ;;
         esac
     done
 
@@ -2600,6 +2601,11 @@ isubuntu()
 isgentoo()
 {
     [[ "Gentoo" == $(edistro) ]]
+}
+
+isfedora()
+{
+    [[ "Fedora" == $(edistro) ]]
 }
 
 #-----------------------------------------------------------------------------
