@@ -410,7 +410,7 @@ daemon_stop()
 daemon_status()
 {
     # Pull in our argument pack then import all of its settings for use.
-    $(declare_opts "quiet q | Make the status function produce no output.")
+    $(declare_opts "-quiet q | Make the status function produce no output.")
     $(declare_args optpack)
     $(pack_import ${optpack})
 
