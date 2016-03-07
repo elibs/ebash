@@ -12,13 +12,12 @@ set -o functrace
 set -o errtrace
 shopt -s expand_aliases
 shopt -s checkwinsize
+shopt -s extglob
 
-# Locale setup to ensure sort and other GNU tools behave sanely
-: ${__BASHUTILS_OS:=$(uname)}
-if [[ "${__BASHUTILS_OS}" == Linux ]] ; then
+if [[ "${__BU_OS}" == Linux ]] ; then
     export LC_ALL="en_US.utf8"
     export LANG="en_US.utf8"
-elif [[ "${__BASHUTILS_OS}" == Darwin ]] ; then
+elif [[ "${__BU_OS}" == Darwin ]] ; then
     export LC_ALL="en_US.UTF-8"
     export LANG="en_US.UTF-8"
 fi
@@ -27,26 +26,24 @@ fi
 # COLOR SETTINGS
 #------------------------------------------------------------------------------
 
-if [[ -e /etc/bashutils.conf ]]; then
-    source /etc/bashutils.conf
-fi
-
-if [[ ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf ]]; then
-    source ${XDG_CONFIG_HOME:-${HOME}/.config}/bashutils.conf
-fi
-
 : ${COLOR_INFO:=green}
 : ${COLOR_DEBUG:="dim blue"}
 : ${COLOR_TRACE:="dim yellow"}
 : ${COLOR_WARN:=yellow}
 : ${COLOR_ERROR:=red}
-
 : ${COLOR_BRACKET:=blue}
-
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
 #-----------------------------------------------------------------------------
+
+if [[ ${__BU_OS} == Linux ]] ; then
+    BU_WORD_BEGIN='\<'
+    BU_WORD_END='\>'
+elif [[ ${__BU_OS} == Darwin ]] ; then
+    BU_WORD_BEGIN='[[:<:]]'
+    BU_WORD_END='[[:>:]]'
+fi
 
 alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DEBUG || trap - DEBUG'
 
@@ -60,8 +57,8 @@ etrace()
         local _etrace_enabled=0
 
         for _etrace_enabled_tmp in ${ETRACE}; do
-            [[ ${BASH_SOURCE[1]:-} =~ ${_etrace_enabled_tmp}
-                || ${FUNCNAME[1]:-} =~ ${_etrace_enabled_tmp} ]] && { _etrace_enabled=1; break; }
+            [[ ${BASH_SOURCE[1]:-} = *"${_etrace_enabled_tmp}"*
+                || ${FUNCNAME[1]:-} = *"${_etrace_enabled_tmp}"* ]] && { _etrace_enabled=1; break; }
         done
 
         [[ ${_etrace_enabled} -eq 1 ]] || return 0
@@ -85,7 +82,7 @@ edebug_enabled()
 
     local _edebug_enabled_tmp
     for _edebug_enabled_tmp in ${EDEBUG} ${ETRACE} ; do
-        [[ "${_edebug_enabled_caller[@]:1}" =~ ${_edebug_enabled_tmp} ]] && return 0
+        [[ "${_edebug_enabled_caller[@]:1}" = *"${_edebug_enabled_tmp}"* ]] && return 0
     done
 
     return 1
@@ -128,8 +125,8 @@ edebug_out()
 #-----------------------------------------------------------------------------
 
 DIE_MSG_KILLED="\"[Killed]\""
-DIE_MSG_CAUGHT="\"[ExceptionCaught]\""
-DIE_MSG_UNHERR="\"[UnhandledError]\""
+DIE_MSG_CAUGHT="\"[ExceptionCaught pid=\${BASHPID} cmd=\${BASH_COMMAND}]\""
+DIE_MSG_UNHERR="\"[UnhandledError pid=\${BASHPID} cmd=\${BASH_COMMAND}]\""
 
 # The below aliases allow us to support rich error handling through the use
 # of the try/catch idom typically found in higher level languages. Essentially
@@ -144,16 +141,18 @@ DIE_MSG_UNHERR="\"[UnhandledError]\""
 # stack we are in so that the parent's ERR trap won't get triggered and cause
 # the process to exit. Because we WANT the try subshell to exit and allow the
 # failure to be handled inside the catch block.
-__EFUNCS_DIE_ON_ERROR_TRAP_STACK=()
+__BU_DIE_ON_ERROR_TRAP_STACK=()
 alias try="
-    __EFUNCS_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
-    : \${__EFUNCS_DIE_ON_ERROR_TRAP:=-}
-    __EFUNCS_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" )
+    __BU_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
+    : \${__BU_DIE_ON_ERROR_TRAP:=-}
+    __BU_DIE_ON_ERROR_TRAP_STACK+=( \"\${__BU_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
     (
+        __BU_INSIDE_TRY=1
+        declare __BU_DISABLE_DIE_PARENT_PID=\${BASHPID}
         enable_trace
         die_on_abort
-        trap 'die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &> >(edebug)' ERR
+        trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -183,17 +182,25 @@ alias try="
 #     catch block which sufficiently handles the error or the code won't be
 #     valid.
 alias catch=" );
-    __EFUNCS_TRY_CATCH_RC=\$?
-    __EFUNCS_DIE_ON_ERROR_TRAP=\"\${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
-    unset __EFUNCS_DIE_ON_ERROR_TRAP_STACK[\${#__EFUNCS_DIE_ON_ERROR_TRAP_STACK[@]}-1]
-    trap \"\${__EFUNCS_DIE_ON_ERROR_TRAP}\" ERR
-    ( exit \${__EFUNCS_TRY_CATCH_RC} ) || "
+    __BU_TRY_CATCH_RC=\$?
+    __BU_DIE_ON_ERROR_TRAP=\"\${__BU_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
+    unset __BU_DIE_ON_ERROR_TRAP_STACK[\${#__BU_DIE_ON_ERROR_TRAP_STACK[@]}-1]
+    trap \"\${__BU_DIE_ON_ERROR_TRAP}\" ERR
+    ( exit \${__BU_TRY_CATCH_RC} ) || "
 
 # Throw is just a simple wrapper around exit but it looks a little nicer inside
 # a 'try' block to see 'throw' instead of 'exit'.
 throw()
 {
     exit $1
+}
+
+# Returns true (0) if the current code is executing inside a try/catch block
+# and false otherwise.
+#
+inside_try()
+{
+    [[ ${__BU_INSIDE_TRY:-0} -eq 1 ]]
 }
 
 # die_on_error is a simple alias to register our trap handler for ERR. It is
@@ -204,10 +211,19 @@ throw()
 #
 # NOTE: This is extremely unobvious, but setting a trap on ERR implicitly
 # enables 'set -e'.
-alias die_on_error='export __EFUNCS_DIE_ON_ERROR_ENABLED=1; trap "die ${DIE_MSG_UNHERR}" ERR'
+alias die_on_error='export __BU_DIE_ON_ERROR_ENABLED=1; trap "die ${DIE_MSG_UNHERR}" ERR'
 
 # Disable calling die on ERROR.
-alias nodie_on_error="export __EFUNCS_DIE_ON_ERROR_ENABLED=0; trap - ERR"
+alias nodie_on_error="export __BU_DIE_ON_ERROR_ENABLED=0; trap - ERR"
+
+# Prevent an error or other die call in the _current_ shell from killing its
+# parent.  By default with bashutils, errors propagate to the parent by sending
+# the parent a sigterm.
+#
+# You might want to use this in shells that you put in the background if you
+# don't want an error in them to cause you to be notified via sigterm.
+#
+alias disable_die_parent="declare __BU_DISABLE_DIE_PARENT_PID=\${BASHPID}"
 
 # Check if die_on_error is enabled. Returns success (0) if enabled and failure
 # (1) otherwise.
@@ -257,17 +273,10 @@ get_stream_fd()
 #
 close_fds()
 {
-    $(declare_args)
-
-    if [[ ${__BASHUTILS_OS} != "Linux" ]] ; then
-        # Not supported away from linux at the moment.
-        return 0
-    fi
-
     # Note grab file descriptors for the current process, not the one inside
     # the command substitution ls here.
     local pid=$BASHPID
-    local fds=( $(ls /proc/${pid}/fd/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ') )
+    local fds=( $(ls $(fd_path)/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ') )
 
     array_empty fds && return 0
 
@@ -275,6 +284,19 @@ close_fds()
     for fd in "${fds[@]}"; do
         eval "exec $fd>&-"
     done
+}
+
+fd_path()
+{
+    if [[ ${__BU_OS} == Linux ]] ; then
+        echo /proc/self/fd
+
+    elif [[ ${__BU_OS} == Darwin ]] ; then
+        echo /dev/fd
+
+    else
+        die "Unsupported OS $(lval __BU_OS)"
+    fi
 }
 
 # Helper method to read from a pipe until we see EOF.
@@ -366,16 +388,17 @@ pipe_read_quote()
 # -g     Make variables global even if called in a local context.
 tryrc()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":rc r=rc  | Variable to assign the return code to." \
+        ":stdout o | Write stdout to the specified variable rather than letting it go to stdout." \
+        ":stderr e | Write stderr to the specified variable rather than letting it go to stderr." \
+        "global g  | Make variables created global rather than local")
+
     local cmd=("$@")
-    local rc_out=$(opt_get r "rc")
-    local stdout_out=$(opt_get o)
-    local stderr_out=$(opt_get e)
-    local global=$(opt_get g 0)
 
     # Determine flags to pass into declare
     local dflags=""
-    opt_false g || dflags="-g"
+    [[ ${global} -eq 1 ]] && dflags="-g"
 
     # Temporary directory to hold stdout and stderr
     local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
@@ -401,52 +424,52 @@ tryrc()
 
     # Need to first make sure we've emitted code to set our output variables in the
     # event we are interrupted
-    echo eval "declare ${dflags} ${rc_out}=1;"
-    [[ -n ${stdout_out} ]] && echo eval "declare ${dflags} ${stdout_out}="";"
-    [[ -n ${stderr_out} ]] && echo eval "declare ${dflags} ${stderr_out}="";"
+    echo eval "declare ${dflags} ${rc}=1;"
+    [[ -n ${stdout} ]] && echo eval "declare ${dflags} ${stdout}="";"
+    [[ -n ${stderr} ]] && echo eval "declare ${dflags} ${stderr}="";"
 
     # Execute actual command in try/catch so that any fatal errors in the command
     # properly terminate execution of the command then capture off the return code
     # in the catch block. Send all stdout and stderr to respective pipes which will
     # be read in by the above background processes.
-    local rc=0
+    local actual_rc=0
     try
     {
         if [[ -n "${cmd[@]:-}" ]]; then
 
             # Redirect subshell's STDOUT and STDERR to requested locations
             exec >${stdout_file}
-            [[ -n ${stderr_out} ]] && exec 2>${stderr_file}
+            [[ -n ${stderr} ]] && exec 2>${stderr_file}
 
             # Run command
-            "${cmd[@]}"
+            quote_eval "${cmd[@]}"
         fi
     }
     catch
     {
-        rc=$?
+        actual_rc=$?
     }
 
     # Emit commands to assign return code 
-    echo eval "declare ${dflags} ${rc_out}=${rc};"
+    echo eval "declare ${dflags} ${rc}=${actual_rc};"
 
     # Emit commands to assign stdout but ONLY if a stdout file was actually created.
     # This is because the file is only created on first write. And we don't want this
     # to fail if the command didn't write any stdout. This is also SAFE because we
-    # initialize stdout_out and stderr_out above to empty strings.
+    # initialize stdout and stderr above to empty strings.
     if [[ -s ${stdout_file} ]]; then
-        local stdout="$(pipe_read_quote ${stdout_file})"
-        if [[ -n ${stdout_out} ]]; then
-            echo eval "declare ${dflags} ${stdout_out}=${stdout};"
+        local actual_stdout="$(pipe_read_quote ${stdout_file})"
+        if [[ -n ${stdout} ]]; then
+            echo eval "declare ${dflags} ${stdout}=${actual_stdout};"
         else
-            echo eval "echo ${stdout} >&1;"
+            echo eval "echo ${actual_stdout} >&1;"
         fi
     fi
 
     # Emit commands to assign stderr
-    if [[ -n ${stderr_out} && -s ${stderr_file} ]]; then
-        local stderr="$(pipe_read_quote ${stderr_file})"
-        echo eval "declare ${dflags} ${stderr_out}=${stderr};"
+    if [[ -n ${stderr} && -s ${stderr_file} ]]; then
+        local actual_stderr="$(pipe_read_quote ${stderr_file})"
+        echo eval "declare ${dflags} ${stderr}=${actual_stderr};"
     fi
 
     # Remote temporary directory
@@ -466,8 +489,7 @@ tryrc()
 # -f=N Frame number to start at.
 stacktrace()
 {
-    $(declare_args)
-    local frame=$(opt_get f 0)
+    $(declare_opts ":frame f=0 | Frame number to start at if not the current one")
 
     while caller ${frame}; do
         (( frame+=1 ))
@@ -483,8 +505,9 @@ stacktrace()
 #      frame that this function calls.)
 stacktrace_array()
 {
+    $(declare_opts ":frame f=1 | Frame number to start at")
     $(declare_args array)
-    local frame=$(opt_get f 1)
+
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
 
@@ -543,30 +566,47 @@ exit()
 # take extra care to ensure that process and all its children exit with error.
 die()
 {
+    # Capture off our BASHPID into a local variable so we can use it in subsequent
+    # commands which cannot use BASHPID directly because they are in subshells and
+    # the value of BASHPID would be altered by their context. 
+    # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
+    #          parent of $$ not necessarily the parent of ${BASHPID}!
+    local pid=${BASHPID}
+    local parent=$(process_parent ${pid})
+
     # Disable traps for any signal during most of die.  We'll reset the traps
     # to existing state prior to exiting so that the exit trap will honor them.
     disable_signals
 
-    if [[ ${__EFUNCS_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
-        exit ${__EFUNCS_DIE_IN_PROGRESS}
+    if [[ ${__BU_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
+        exit ${__BU_DIE_IN_PROGRESS}
     fi
+    
+    $(declare_opts \
+        ":return_code rc r=1 | Return code that die will eventually exit with." \
+        ":signal s           | Signal that caused this die to occur." \
+        ":color c            | DEPRECATED OPTION -- no longer has any effect." \
+        ":frames f=3         | Number of stack frames to skip.")
 
-    $(declare_args)
-    __EFUNCS_DIE_IN_PROGRESS=$(opt_get r 1)
-    : ${__EFUNCS_DIE_BY_SIGNAL:=$(opt_get s)}
+    __BU_DIE_IN_PROGRESS=${return_code}
+    : ${__BU_DIE_BY_SIGNAL:=${signal}}
 
-    local color=$(opt_get c "${COLOR_ERROR}")
-    local frames=$(opt_get f 3)
+    # Generate a stack trace if that's appropriate for this die.
+    if inside_try && edebug_enabled ; then
+        echo "" >&2
+        eerror_internal   -c="grey19" "${@}"
+        eerror_stacktrace -c="grey19" -f=3 -s
 
-    # Show error message immediately.
-    echo "" >&2
-    eerror_internal -c="${color}" "${@}"
+    elif inside_try && edebug_disabled ; then
+        # Don't print a stack trace for errors that were caught (unless edebug
+        # was enabled)
+        :
 
-    # Call eerror_stacktrace but skip requested number of frames. By default this
-    # skips top three frames to skip over the frames for stacktrace_array,
-    # eerror_stacktrace and die itself. Also skip over the initial error message
-    # since we already displayed it.
-    eerror_stacktrace -c="${color}" -f=${frames} -s
+    else
+        echo "" >&2
+        eerror_internal   -c="red" "${@}"
+        eerror_stacktrace -c="red" -f=${frames} -s
+    fi
 
     reenable_signals
 
@@ -575,33 +615,48 @@ die()
     # process ultimately exits.
     if [[ $$ != ${BASHPID} ]]; then
         
-        # Capture off our BASHPID into a local variable so we can use it in subsequent
-        # commands which cannot use BASHPID directly because they are in subshells and
-        # the value of BASHPID would be altered by their context. 
-        # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
-        #          parent of $$ not necessarily the parent of ${BASHPID}!
-        local pid=${BASHPID}
-        ekill -s=SIGTERM $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}')
-        ekilltree -s=SIGTERM ${pid}
-
-        # When a process dies as the result of a signal, the proper thing to do
-        # is not to exit but to kill self with that same signal.  See
-        # http://www.cons.org/cracauer/sigint.html and
-        # http://mywiki.wooledge.org/SignalTrap
+        # Kill the parent shell.  This is how we detect failures inside command
+        # substituion shells.  Bash would typically ignore them, but this
+        # causes the shell calling the command substitution to fail and call die.
         #
-        if [[ -n "${__EFUNCS_DIE_BY_SIGNAL}" ]] ; then
-            trap - ${__EFUNCS_DIE_BY_SIGNAL}
-            kill -${__EFUNCS_DIE_BY_SIGNAL} ${BASHPID}
+        # Note: The shell that makes up the "try" body of a try/catch is
+        # special.  We don't want to kill the try, we want to let the catch
+        # handle things.
+        #
+        if [[ ${__BU_DISABLE_DIE_PARENT_PID:-0} != ${pid} ]] ; then
+            edebug "Sending kill to parent $(lval parent pid __BU_DISABLE_DIE_PARENT_PID)"
+            ekill -s=SIGTERM ${parent}
+        fi
+
+        # Then kill all children of the current process (but not the current process)
+        edebug "Killing children of ${pid}"
+        ekilltree -s=SIGTERM -k=2s -x=${pid} ${pid}
+
+        # Last, finish up the current process. 
+        if [[ -n "${__BU_DIE_BY_SIGNAL}" ]] ; then
+            # When a process dies as the result of a SIGINT or other tty
+            # signals, the proper thing to do is not to exit but to kill self
+            # with that same signal.
+            # 
+            # See http://www.cons.org/cracauer/sigint.html and
+            # http://mywiki.wooledge.org/SignalTrap
+            #
+            if array_contains TTY_SIGNALS "${__BU_DIE_BY_SIGNAL}" ; then
+                trap - ${__BU_DIE_BY_SIGNAL}
+                ekill -s=${__BU_DIE_BY_SIGNAL} ${BASHPID}
+            else
+                exit $(sigexitcode "${__BU_DIE_BY_SIGNAL}")
+            fi
         else
-            exit ${__EFUNCS_DIE_IN_PROGRESS}
+            exit ${__BU_DIE_IN_PROGRESS}
         fi
     else
         if declare -f die_handler &>/dev/null; then
-            die_handler -c="${color}" -r=${__EFUNCS_DIE_IN_PROGRESS} "${@}"
-            __EFUNCS_DIE_IN_PROGRESS=0
+            die_handler -r=${__BU_DIE_IN_PROGRESS} "${@}"
+            __BU_DIE_IN_PROGRESS=0
         else
-            ekilltree -s=SIGTERM $$
-            exit ${__EFUNCS_DIE_IN_PROGRESS}
+            ekilltree -s=SIGTERM -k=2s $$
+            exit ${__BU_DIE_IN_PROGRESS}
         fi
     fi
 }
@@ -632,21 +687,13 @@ reenable_signals()
 # $1: body of trap to be appended
 # $@: Optional list of signals to trap (or default to DIE_SIGNALS and EXIT).
 #
-# NOTE: Do not put single quotes inside the body of the trap or else we can't
-#       reliably extract the trap and eval it later.
 trap_add()
 {
     $(declare_args ?cmd)
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
     
-    # Fail if new cmd has single quotes in it.
-    if [[ ${cmd} =~ "'" ]]; then
-        eerror "trap commands cannot contain single quotes."
-        return 1
-    fi
-
-    edebug "Adding trap $(lval cmd signals)"
+    edebug "Adding trap $(lval cmd signals) in process ${BASHPID}"
 
     local sig
     for sig in "${signals[@]}"; do
@@ -657,7 +704,7 @@ trap_add()
         # levels, optionally use die() as base trap if DIE_ON_ERROR or
         # ABORT_ON_ERROR are enabled.
         local existing=""
-        if [[ ${__EFUNCS_TRAP_ADD_SHELL_LEVEL:-} == ${BASH_SUBSHELL} ]]; then
+        if [[ ${__BU_TRAP_ADD_SHELL_LEVEL:-} == ${BASH_SUBSHELL} ]]; then
             existing="$(trap_get ${sig})"
 
             # Strip off our bashutils internal cleanup from the trap, because
@@ -665,16 +712,16 @@ trap_add()
             existing=${existing%%; _bashutils_on_exit_end}
             existing=${existing##_bashutils_on_exit_start; }
         else
-            __EFUNCS_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
+            __BU_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
 
             # Clear any existing trap since we're in a subshell
             trap - "${sig}"
 
             # See if we need to turn on die or not
-            if [[ ${sig} == "ERR" && ${__EFUNCS_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
+            if [[ ${sig} == "ERR" && ${__BU_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
                 existing="die \"${DIE_MSG_UNHERR}\""
 
-            elif [[ ${sig} != "EXIT" && ${__EFUNCS_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
+            elif [[ ${sig} != "EXIT" && ${__BU_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
                 existing="die \"${DIE_MSG_KILLED}\""
             fi
         fi
@@ -692,6 +739,7 @@ _bashutils_on_exit_start()
 {
     # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
     __BU_EXIT_CODE=$?
+    edebug "Bash process ${BASHPID} exited rc=${__BU_EXIT_CODE}"
     disable_signals
 }
 
@@ -741,7 +789,7 @@ TTY_SIGNALS=( SIGINT SIGQUIT SIGTSTP )
 # Enable default traps for all DIE_SIGNALS to call die().
 die_on_abort()
 {
-    export __EFUNCS_DIE_ON_ABORT_ENABLED=1
+    export __BU_DIE_ON_ABORT_ENABLED=1
 
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
@@ -749,14 +797,14 @@ die_on_abort()
     local signal
     for signal in "${signals[@]}" ; do
         local signal_name=$(signame -s ${signal})
-        trap "die -s=${signal_name} \"[\${BASHPID} caught ${signal_name}]\"" ${signal}
+        trap "die -s=${signal_name} \"[Caught ${signal_name} pid=\${BASHPID} cmd=\${BASH_COMMAND}\"]" ${signal}
     done
 }
 
 # Disable default traps for all DIE_SIGNALS.
 nodie_on_abort()
 {
-    export __EFUNCS_DIE_ON_ABORT_ENABLED=0
+    export __BU_DIE_ON_ABORT_ENABLED=0
 
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
@@ -784,7 +832,7 @@ tput()
         return 0
     fi
 
-    TERM=screen-256color /usr/bin/tput $@
+    TERM=screen-256color command tput $@
 }
 
 ecolor_code()
@@ -903,7 +951,7 @@ eclear()
 
 etimestamp()
 {
-    echo -en "$(date '+%b %d %T')"
+    echo -en "$(date '+%b %d %T.%3N')"
 }
 
 # Display a very prominent banner with a provided message which may be multi-line
@@ -981,7 +1029,7 @@ ebanner()
 emsg()
 {
     # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX:=} | egrep -o "(time|times|level|caller|all)" || true)
+    local emsg_prefix=$(echo ${EMSG_PREFIX:-} | egrep -o "(time|times|level|caller|all)" || true)
 
     [[ ${EFUNCS_TIME:=0} -eq 1 ]] && emsg_prefix+=time
 
@@ -994,7 +1042,8 @@ emsg()
     # Local args to hold the color and regexs for each field
     for field in time level caller msg; do
         local ${field}_color=${nocolor}
-        eval "local ${field}_re='\ball|${field}\b'"
+        eval "local ${field}_re='${BU_WORD_BEGIN}(all|${field})${BU_WORD_END}'"
+
     done
 
     # Determine color values for each field used below.
@@ -1015,13 +1064,13 @@ emsg()
     if [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} == "time" ]]; then
         :
     else
-        local times_re="\ball|times\b"
+        local times_re="${BU_WORD_BEGIN}(all|times)${BU_WORD_END}"
         [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} =~ ${times_re} || ${emsg_prefix} =~ ${time_re} ]] && prefix+="${time_color}$(etimestamp)"
         [[ ${emsg_prefix} =~ ${level_re}  ]] && prefix+="${delim}${level_color}$(printf "%s"  ${level%%S})"
-        [[ ${emsg_prefix} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" $(basename 2>/dev/null $(caller 1 | awk '{print $3, $1, $2}' | tr ' ' ':')) || true)"
+        [[ ${emsg_prefix} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" "$(basename ${BASH_SOURCE[2]}):${BASH_LINENO[1]}:${FUNCNAME[2]:-}" || true)"
     fi
 
-    # Strip of extra leading delimiter if present
+    # Strip off extra leading delimiter if present
     prefix="${prefix#${delim}}"
 
     # If it's still empty put in the default
@@ -1064,8 +1113,7 @@ ewarns()
 
 eerror_internal()
 {
-    $(declare_args)
-    local color=$(opt_get c "red")
+    $(declare_opts ":color c=red | Color to print the message in.  Defaults to red.")
     emsg "${color}" ">>" "ERROR" "$@"
 }
 
@@ -1095,10 +1143,10 @@ eerror()
 #
 eerror_stacktrace()
 {
-    $(declare_args)
-    local frame=$(opt_get f 2)
-    local skip=$(opt_get s 0)
-    local color=$(opt_get c "red")
+    $(declare_opts \
+        ":frame f=2   | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
+        "skip s       | Skip the initial error message.  Useful if the caller already displayed it." \
+        ":color c=red | Use the specified color for output messages.  Defaults to red.")
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
@@ -1192,7 +1240,7 @@ eprompt_with_options()
 
     ## Keep reading input until a valid response is given
     while true; do
-        response=$(die_on_abort; eprompt "${msg}")
+        response=$(eprompt "${msg}")
         matches=( $(echo "${valid}" | grep -io "^${response}\S*" || true) )
         edebug "$(lval response opt secret matches valid)"
         [[ ${#matches[@]} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
@@ -1209,7 +1257,17 @@ epromptyn()
 
 trim()
 {
-    echo "$1" | sed -e 's/^[[:space:]]\+//' -e 's/[[:space:]]\+$//'
+    local text="$*"
+    if [[ ${text} =~ ^[[:space:]]*$ ]] ; then
+        # Don't print anything, they gave us only whitespace
+        echo
+    else
+        # Otherwise, use a regular expression to grab the stuff inside
+        # whitespace and print it
+        [[ ${text} =~ ^[[:space:]]*(.*[^[:space:]])[[:space:]]*$ ]]
+        echo "${BASH_REMATCH[1]}"
+    fi
+    return 0
 }
 
 compress_spaces()
@@ -1299,7 +1357,7 @@ eprogress()
     # Add a trap to ensure we kill this backgrounded process in the event we
     # die before calling eprogress_kill.
     ( close_fds ; do_eprogress ) &
-    __EPROGRESS_PIDS+=( $! )
+    __BU_EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
 
@@ -1311,8 +1369,9 @@ eprogress()
 # -a Kill all eprogress pids.
 eprogress_kill()
 {
-    $(declare_args)
-    local rc=$(opt_get r 0)
+    $(declare_opts \
+        ":rc return_code r=0  | Should this eprogress show a mark for success or failure?" \
+        "all a                | If set, kill ALL known eprogress processes, not just the current one")
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
@@ -1326,11 +1385,11 @@ eprogress_kill()
     local pids=()
     if [[ $# -gt 0 ]]; then
         pids=( ${@} )
-    elif array_not_empty __EPROGRESS_PIDS; then 
-        if opt_true a; then
-            pids=( "${__EPROGRESS_PIDS[@]}" )
+    elif array_not_empty __BU_EPROGRESS_PIDS; then 
+        if [[ ${all} -eq 1 ]] ; then
+            pids=( "${__BU_EPROGRESS_PIDS[@]}" )
         else
-            pids=( "${__EPROGRESS_PIDS[-1]}" )
+            pids=( "${__BU_EPROGRESS_PIDS[-1]}" )
         fi
     else
         return 0
@@ -1343,15 +1402,15 @@ eprogress_kill()
         # Don't kill the pid if it's not running or it's not an eprogress pid.
         # This catches potentially disasterous errors where someone would do
         # "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
-        if process_not_running ${pid} || ! array_contains __EPROGRESS_PIDS ${pid}; then
+        if process_not_running ${pid} || ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
             continue
         fi
 
         # Kill process and wait for it to complete
-        ekill ${pid}
+        ekill ${pid} &>/dev/null
         wait ${pid} &>/dev/null || true
-        array_remove __EPROGRESS_PIDS ${pid}
-        
+        array_remove __BU_EPROGRESS_PIDS ${pid}
+
         # Output
         einteractive && echo "" >&2
         eend ${rc}
@@ -1383,17 +1442,20 @@ signum()
 }
 
 # Given a signal name or number, echo the signal number associated with it.
-# 
-# Options:
-#   -s: Get the form that (usually) includes SIG.  For real signals this is
-#       something like SIGKILL, SIGINT.  But bash treats its pseudo-signals
-#       differently, so EXIT, ERR, and DEBUG all leave off the SIG.
 #
+# With the --include-sig option, SIG will be part of the name for signals where
+# that is appropriate.  For instance, SIGTERM or SIGABRT rather than TERM or
+# ABRT.  Note that bash pseudo signals never use SIG.  This function treats
+# those appropriately (i.e. even with --include sig will return EXIT rather
+# than SIGEXIT)
+# 
 signame()
 {
-    $(declare_args)
+    $(declare_opts \
+        "include_sig s | Get the form of the signal name that includes SIG.")
+
     local prefix=""
-    if opt_true s ; then
+    if [[ ${include_sig} -eq 1 ]] ; then
         prefix="SIG"
     fi
 
@@ -1430,35 +1492,135 @@ sigexitcode()
 # PROCESS FUNCTIONS
 #-----------------------------------------------------------------------------
 
-# Check if a given process is running. Returns success (0) if the process is
-# running and failure (1) otherwise.
+# This is a simple override of the linux pstree command.  The trouble with that
+# command is that it likes to segfault.  It's buggy.  So here, we simply ignore
+# the error codes that would come from it.
+#
+if [[ ${__BU_OS} == Linux ]] ; then
+    pstree()
+    {
+        (
+            ulimit -c 0
+            command pstree "${@}" || true
+        )
+    }
+fi
+
+# Check if a given process is running. Returns success (0) if all of the
+# specified processes are running and failure (1) otherwise.
 process_running()
 {
-    $(declare_args pid)
-    kill -0 ${pid} &>/dev/null
+    local pid
+    for pid in "${@}" ; do
+        if ! ps -p ${pid} &>/dev/null ; then
+            return 1
+        fi
+    done
+    return 0
 }
 
-# Check if a given process is NOT running. Returns success (0) if the process
-# is not running and failure (1) otherwise.
+# Check if a given process is NOT running. Returns success (0) if all of the
+# specified processes are not running and failure (1) otherwise.
 process_not_running()
 {
-    $(declare_args pid)
-    ! kill -0 ${pid} &>/dev/null
+    local pid
+    for pid in "${@}" ; do
+        if ps -p ${pid} &>/dev/null ; then
+            return 1
+        fi
+    done
+    return 0
 }
 
 # Generate a depth first recursive listing of entire process tree beneath a given PID.
 # If the pid does not exist this will produce an empty string.
+#
 process_tree()
 {
-    $(declare_args pid)
+    $(declare_opts \
+        ":ps_all | Pre-prepared output of \"ps -eo ppid,pid\" so I can avoid calling ps repeatedly")
+    : ${ps_all:=$(ps -eo ppid,pid)}
 
-    process_not_running "${pid}" && return 0
 
-    for child in $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}' || true); do
-        process_tree ${child}
+    # Assume current process if none is specified
+    if [[ ! $# -gt 0 ]] ; then
+        set -- ${BASHPID}
+    fi
+
+    local parent
+    for parent in ${@} ; do
+
+        echo ${parent}
+
+        local children=$(process_children --ps-all "${ps_all}" ${parent})
+        local child
+        for child in ${children} ; do
+            process_tree --ps-all "${ps_all}" "${child}"
+        done
+
+    done
+}
+
+# Print the pids of all children of the specified list of processes.  If no
+# processes were specified, default to ${BASHPID}.
+#
+# Note, this doesn't print grandchildren and other descendants.  Just children.
+# See process_tree for a recursive tree of descendants.
+#
+process_children()
+{
+    $(declare_opts \
+        ":ps_all | The contents of \"ps -eo ppid,pid\", produced ahead of time to avoid calling ps over and over")
+    : ${ps_all:=$(ps -eo ppid,pid)}
+
+    # If nothing was specified, assume the current process
+    if [[ ! $# -gt 0 ]] ; then
+        set -- ${BASHPID}
+    fi
+
+    local parent
+    local children=()
+    for parent in "${@}" ; do
+        children+=( $(echo "${ps_all}" | awk '$1 == '${parent}' {print $2}') )
     done
 
-    echo -n "${pid} "
+    echo "${children[@]:-}"
+}
+
+# Print the pid of the parent of the specified process, or of $BASHPID if none
+# is specified.
+#
+process_parent()
+{
+    $(declare_args ?child)
+    [[ $# -gt 0 ]] && die "process_parent only accepts one child to check."
+
+    [[ -z ${child} ]] && child=${BASHPID}
+
+    ps -eo ppid,pid | awk '$2 == '${child}' {print $1}'
+}
+
+# Print pids of all ancestores of the specified list of processes, up to and
+# including init (pid 1).  If no processes are specified as arguments, defaults
+# to ${BASHPID}
+#
+process_ancestors()
+{
+    $(declare_args ?child)
+    [[ $# -gt 0 ]] && die "process_ancestors only accepts one child to check."
+
+    [[ -z ${child} ]] && child=${BASHPID}
+
+    local ps_all=$(ps -eo ppid,pid)
+
+    local parent=${child}
+    local ancestors=()
+    while [[ ${parent} != 1 ]] ; do
+        parent=$(echo "${ps_all}" | awk '$2 == '${parent}' {print $1}')
+        ancestors+=( ${parent} )
+    done
+
+    echo "${ancestors[@]}"
 }
 
 # Kill all pids provided as arguments to this function using the specified signal.
@@ -1469,15 +1631,51 @@ process_tree()
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
+# -k=duration 
+#   Elevate to SIGKILL after waiting for the specified duration after sending
+#   the initial signal.  If unspecified, ekill does not elevate.
 ekill()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":signal sig s=SIGTERM | The signal to send to specified processes, either as a number or a signal name." \
+        ":kill_after k         | Elevate to SIGKILL after waiting for this duration after sending the initial signal.  Accepts any duration that sleep would accept.")
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s SIGTERM)
+    local processes=( $@ )
+
+    # Don't kill init, unless init has been replaced by our parent bash script
+    # in which case we really do want to kill it.
+    if [[ $$ != "1" ]] ; then
+        array_remove processes 1
+        array_empty processes && { edebug "nothing besides init to kill." ; return 0 ; }
+    fi
+
+
+    # When debugging, display the full list of processes to kill
+    if edebug_enabled ; then
+        edebug "killing $(lval signal processes kill_after) BASHPID=${BASHPID}"
+
+        # Print some process info for any processes that are still alive
+        ps -o "pid,user,start,command" -p $(array_join processes ',') | tail -n +2 >&2 || true
+    fi
 
     # Kill all requested PIDs using requested signal.
-    kill -${signal} ${@} &>/dev/null || true
+    kill -${signal} ${processes[@]} &>/dev/null || true
+
+    if [[ -n ${kill_after} && $(signame ${signal}) != "KILL" ]] ; then
+        # Note: double fork here in order to keep ekilltree from paying any
+        # attention to these processes.
+        (
+            :
+            (
+                close_fds
+                disable_die_parent
+
+                sleep ${kill_after}
+                kill -SIGKILL ${processes[@]} &>/dev/null || true
+            ) &
+        ) &
+    fi
 }
 
 # Kill entire process tree for each provided pid by doing a depth first search to find
@@ -1486,36 +1684,40 @@ ekill()
 # Like ekill(), this function is best effort only. If you want more robust guarantees
 # consider process_not_running or cgroups.
 #
+# Note that ekilltree will never kill the current process or ancestors of the
+# current process, as that would cause ekilltree to be unable to succeed.
+
 # Options:
 # -s=SIGNAL 
 #       The signal to send to the pids (defaults to SIGTERM).
 # -x="pids"
-#       Pids to exclude from killing.  $$ and $BASHPID are _ALWAYS_ excluded
-#       from killing.
+#       Pids to exclude from killing.  Ancestors of the current process are
+#       _ALWAYS_ excluded (because if not, it would likely prevent ekilltree
+#       from succeeding)
+# -k=duration 
+#       Elevate to SIGKILL after waiting for the specified duration after
+#       sending the initial signal.  If unspecified, ekilltree does not
+#       elevate.
 #
 ekilltree()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":signal sig s=SIGTERM | The signal to send to the process tree, either as a number or a name." \
+        ":exclude x            | Processes to exclude from being killed." \
+        ":kill_after k         | Elevate to SIGKILL after this duration if the processes haven't died.")
 
     # Determine what signal to send to the processes
-    local signal=$(opt_get s SIGTERM)
-    local excluded="$$ $BASHPID $(opt_get x)"
+    local excluded="$(process_ancestors ${BASHPID}) ${exclude}"
 
-    local pid
-    for pid in ${@}; do 
-        edebug "Killing process tree $(lval pid signal)"
-        
-        for child in $(ps -eo ppid,pid | awk '$1 == '${pid}' {print $2}' ); do
-            edebug "Killing $(lval child)"
-            ekilltree -x="${excluded}" -s=${signal} ${child}
-        done
+    local processes=( $(process_tree ${@}) )
+    array_remove -a processes ${excluded}
 
-        if echo "${excluded}" | grep -wq ${pid} ; then
-            edebug "Skipping $(lval excluded pid)"
-        else
-            ekill -s=${signal} ${pid}
-        fi
-    done
+    edebug "Killing $(lval processes signal kill_after excluded)"
+    if array_not_empty processes ; then
+        ekill -s=${signal} -k=${kill_after} "${processes[@]}"
+    fi
+
+    return 0
 }
 
 #-----------------------------------------------------------------------------
@@ -1568,7 +1770,7 @@ print_value()
 # Log a list of variable in tag="value" form similar to our C++ logging idiom.
 # This function is variadic (takes variable number of arguments) and will log
 # the tag="value" for each of them. If multiple arguments are given, they will
-# be separated by a space, as in: tag="value" tag2="value" tag3="value3"
+# be separated by a space, as in: tag="value" tag2="value2" tag3="value3"
 #
 # This is implemented via calling print_value on each entry in the argument
 # list. The one other really handy thing this does is understand our C++
@@ -1592,339 +1794,10 @@ lval()
     done
 }
 
-#-----------------------------------------------------------------------------
-# NETWORKING FUNCTIONS
-#-----------------------------------------------------------------------------
-valid_ip()
-{
-    $(declare_args ip)
-    local stat=1
-
-    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        array_init ip "${ip}" "."
-        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
-        stat=$?
-    fi
-    return $stat
-}
-
-hostname_to_ip()
-{
-    $(declare_args hostname)
-
-    local output hostrc ip
-    output="$(host ${hostname} | grep ' has address ' || true)"
-    hostrc=$?
-    edebug "hostname_to_ip $(lval hostname output)"
-    [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-
-    [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-
-    ip=$(echo ${output} | awk '{print $4}')
-
-    valid_ip ${ip} || { ewarn "Resolved ${hostname} into invalid ip address ${ip}." ; return 1 ; }
-
-    echo ${ip}
-    return 0
-}
-
-fully_qualify_hostname()
-{
-    local hostname=${1,,}
-    argcheck hostname
-
-    local output hostrc fqhostname
-    output=$(host ${hostname})
-    hostrc=$?
-    edebug "fully_qualify_hostname: hostname=${hostname} output=${output}"
-    [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-
-    [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-    fqhostname=$(echo ${output} | awk '{print $1}')
-    fqhostname=${fqhostname,,}
-
-    [[ ${fqhostname} =~ ${hostname} ]] || { ewarn "Invalid fully qualified name ${fqhostname} from ${hostname}." ; return 1 ; }
-
-    echo ${fqhostname}
-    return 0
-}
-
-# Get the IPAddress currently bound to the requested interface (if any). It is
-# not an error for an interface to be unbound so this function will not fail if
-# no IPAddress is set on the interface. Instead it will simply return an empty
-# string.
-getipaddress()
-{
-    $(declare_args iface)
-    ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
-}
-
-# Get the netmask (IPv4 dotted notation) currently set on the requested
-# interface (if any). It is not an error for an interface to be unbound so this
-# method will not fail if no Netmask has been set on an interface. Instead it
-# will simply return an empty string.
-getnetmask()
-{
-    $(declare_args iface)
-    local cidr=$(ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
-    [[ -z "${cidr}" ]] && return 0
-
-    cidr2netmask "${cidr}"
-}
-
-# Convert a netmask in IPv4 dotted notation into CIDR notation (e.g 255.255.255.0 => 24).
-# Below is the official chart of all possible valid Netmasks in quad-dotted decimal notation
-# with the associated CIDR value:
-#
-# { "255.255.255.255", 32 }, { "255.255.255.254", 31 }, { "255.255.255.252", 30 }, { "255.255.255.248", 29 },
-# { "255.255.255.240", 28 }, { "255.255.255.224", 27 }, { "255.255.255.192", 26 }, { "255.255.255.128", 25 },
-# { "255.255.255.0",   24 }, { "255.255.254.0",   23 }, { "255.255.252.0",   22 }, { "255.255.248.0",   21 },
-# { "255.255.240.0",   20 }, { "255.255.224.0",   19 }, { "255.255.192.0",   18 }, { "255.255.128.0",   17 },
-# { "255.255.0.0",     16 }, { "255.254.0.0",     15 }, { "255.252.0.0",     14 }, { "255.248.0.0",     13 },
-# { "255.240.0.0",     12 }, { "255.224.0.0",     11 }, { "255.192.0.0",     10 }, { "255.128.0.0",      9 },
-# { "255.0.0.0",        8 }, { "254.0.0.0",        7 }, { "252.0.0.0",        6 }, { "248.0.0.0",        5 },
-# { "240.0.0.0",        4 }, { "224.0.0.0",        3 }, { "192.0.0.0",        2 }, { "128.0.0.0",        1 },
-#
-# From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
-netmask2cidr ()
-{
-    # Assumes there's no "255." after a non-255 byte in the mask 
-    set -- 0^^^128^192^224^240^248^252^254^ ${#1} ${1##*255.} 
-    set -- $(( ($2 - ${#3})*2 )) ${1%%${3%%.*}*} 
-    echo $(( $1 + (${#2}/4) ))
-}
-
-# Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0).
-# This function takes input in the form of just a singular number (e.g. 24) and will echo to
-# standard output the associated IPv4 dotted notation form of that netmask (e.g. 255.255.255.0).
-#
-# See comments in netmask2cidr for a table of all possible netmask/cidr mappings.
-#
-# From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
-cidr2netmask ()
-{
-    # Number of args to shift, 255..255, first non-255 byte, zeroes
-    set -- $(( 5 - ($1 / 8) )) 255 255 255 255 $(( (255 << (8 - ($1 % 8))) & 255 )) 0 0 0
-    [ $1 -gt 1 ] && shift $1 || shift
-    echo ${1-0}.${2-0}.${3-0}.${4-0}
-}
-
-# Get the broadcast address for the requested interface, if any. It is not an
-# error for a network interface not to have a broadcast address associated with
-# it (e.g. loopback interfaces). If no broadcast address is set this will just
-# echo an empty string.
-getbroadcast()
-{
-    $(declare_args iface)
-    ip addr show "${iface}" | awk '/inet [0-9.\/]+ brd .*'${iface}'$/ { print $4 }' || true
-}
-
-# Gets the default gateway that is currently in use, if any. It is not an
-# error for there to be no gateway set. In that case this will simply echo an
-# empty string.
-getgateway()
-{
-    route -n | awk '/UG[ \t]/ { print $2 }' || true
-}
-
-# Compute the subnet given the current IPAddress (ip) and Netmask (nm). If either
-# the provided IPAddress or Netmask is empty then we cannot compute the subnet.
-# As it's not an error to have no IPAddress or Netmask assigned to an unbound
-# interface, getsubnet will not fail in this case. The output will be an empty
-# string and it will return 0.
-getsubnet()
-{
-    $(declare_args ?ip ?nm)
-    [[ -z "${ip}" || -z "${nm}" ]] && return 0
-
-    IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
-    IFS=. read -r m1 m2 m3 m4 <<< "${nm}"
-
-    printf "%d.%d.%d.%d" "$((i1 & m1))" "$(($i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
-}
-
-# Get the MTU that is currently set on a given interface.
-getmtu()
-{
-    $(declare_args iface)
-    ip addr show "${iface}" | grep -Po 'mtu \K[\d.]+'
-}
-
-# Get list of network interfaces
-get_network_interfaces()
-{
-    ls -1 /sys/class/net | egrep -v '(bonding_masters|Bond)' | tr '\n' ' ' || true
-}
-
-# Get list network interfaces with specified "Supported Ports" query.
-get_network_interfaces_with_port()
-{
-    local query="$1"
-    local ifname port
-    local results=()
-
-    for ifname in $(get_network_interfaces); do
-        port=$(ethtool ${ifname} | grep "Supported ports:" || true)
-        [[ ${port} =~ "${query}" ]] && results+=( ${ifname} )
-    done
-
-    echo -n "${results[@]}"
-}
-
-# Get list of 1G network interfaces
-get_network_interfaces_1g()
-{
-    get_network_interfaces_with_port "TP"
-}
-
-# Get list of 10G network interfaces
-get_network_interfaces_10g()
-{
-    get_network_interfaces_with_port "FIBRE"
-}
-
-# Get the permanent MAC address for given ifname.
-# NOTE: Do NOT use ethtool -P for this as that doesn't reliably
-#       work on all cards since the firmware has to support it properly.
-get_permanent_mac_address()
-{
-    $(declare_args ifname)
-
-    if [[ -e /sys/class/net/${ifname}/master ]]; then
-        sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
-            | grep "Permanent HW addr" \
-            | sed -e "s/Permanent HW addr: //"
-    else
-        cat /sys/class/net/${ifname}/address
-    fi
-}
-
-# Get the PCI device location for a given ifname
-# NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
-get_network_pci_device()
-{
-    $(declare_args ifname)
-
-    (cd /sys/class/net/${ifname}/device; basename $(pwd -P))
-}
-
-# Export ethernet device names in the form ETH_1G_0=eth0, etc.
-export_network_interface_names()
-{
-    local idx=0
-    local ifname
-
-    for ifname in $(get_network_interfaces_10g); do
-        eval "ETH_10G_${idx}=${ifname}"
-        (( idx+=1 ))
-    done
-
-    idx=0
-    for ifname in $(get_network_interfaces_1g); do
-        eval "ETH_1G_${idx}=${ifname}"
-        (( idx+=1 ))
-    done
-}
-
-# Get a list of the active network ports on this machine. The result is returned as an array of packs stored in the
-# variable passed to the function.
-#
-# Options:
-#  -l Only include listening ports
-#
-# For example:
-# declare -A ports
-# get_listening_ports ports
-# einfo $(lval +ports[5])
-# >> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
-# einfo $(lval +ports[42])
-# ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
-#
-get_network_ports()
-{
-    $(declare_args __ports_list)
-
-    local idx=0
-    local first=1
-    while read line; do
-
-        # Expected netstat format:
-        #  Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
-        #  tcp        0      0 10.30.65.166:4013       0.0.0.0:*               LISTEN      42004/sfapp
-        #  tcp        0      0 10.30.65.166:4014       0.0.0.0:*               LISTEN      42002/sfapp
-        #  tcp        0      0 10.30.65.166:8080       0.0.0.0:*               LISTEN      42013/sfapp
-        #  tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      19221/sshd
-        #  tcp        0      0 0.0.0.0:442             0.0.0.0:*               LISTEN      13159/sfconfig
-        #  tcp        0      0 172.30.65.166:2222      192.168.138.137:35198   ESTABLISHED 6112/sshd: root@not
-        # ...
-        #  udp        0      0 0.0.0.0:123             0.0.0.0:*                           45883/ntpd
-        #  udp        0      0 0.0.0.0:161             0.0.0.0:*                           39714/snmpd
-        #  udp        0      0 0.0.0.0:514             0.0.0.0:*                           39746/rsyslogd
-        #
-        # If netstat cannot determine the program that is listening on that port (not enough permissions) it will substitute a "-":
-        #  tcp        0      0 0.0.0.0:902             0.0.0.0:*               LISTEN      -
-        #  udp        0      0 0.0.0.0:43481           0.0.0.0:*                           -
-        #
-
-        # Compare first line to make sure fields are what we expect
-        if [[ ${first} -eq 1 ]]; then
-            local expected_fields="Proto Recv-Q Send-Q Local Address Foreign Address State PID/Program name"
-            assert_eq "${expected_fields}" "${line}"
-            first=0
-            continue
-        fi
-
-        # Convert the line into an array for easy access to the fields
-        # Replace * with 0 so that we don't get a glob pattern and end up with an array full of filenames from the local directory
-        local fields
-        array_init fields "$(echo ${line} | tr '*' '0')" " :/"
-
-        # Skip this line if this is not TCP or UDP
-        [[ ${fields[0]} =~ (tcp|udp) ]] || continue
-
-        # Skip this line if the -l flag was passed in and this is not a listening port
-        opt_true "l" && [[ ${fields[0]} == "tcp" && ! ${fields[7]} =~ "LISTEN" ]] && continue
-
-        # If there is a - in the line, then netstat could not determine the program listening on this port.
-        # Remove the - and add empty strings for the last two fields (PID and program name)
-        if [[ ${line} =~ "-" ]]; then
-            array_remove fields "-"
-            fields+=("")
-            fields+=("")
-        fi
-
-        # If this is a UDP port, insert an empty string into the "state" field
-        if [[ ${fields[0]} == "udp" ]]; then
-            fields[9]=${fields[8]}
-            fields[8]=${fields[7]}
-            fields[7]=""
-        fi
-
-        pack_set ${__ports_list}[${idx}] \
-            proto=${fields[0]} \
-            recvq=${fields[1]} \
-            sendq=${fields[2]} \
-            local_addr=${fields[3]} \
-            local_port=${fields[4]} \
-            remote_addr=${fields[5]} \
-            remote_port=${fields[6]} \
-            state=${fields[7]} \
-            pid=${fields[8]} \
-            prog=${fields[9]}
-
-        (( idx += 1 ))
-
-    done <<< "$(netstat --all --program --numeric --protocol=inet 2>/dev/null | sed '1d' | tr -s ' ')"
-}
 
 #-----------------------------------------------------------------------------
 # FILESYSTEM HELPERS
 #-----------------------------------------------------------------------------
-
-rm()
-{
-    command rm --one-file-system "${@}" 
-}
 
 pushd()
 {
@@ -2005,10 +1878,11 @@ erestore()
 #
 elogrotate()
 {
+    $(declare_opts \
+        ":count c=5 | Maximum number of logs to keep" \
+        ":size s=0  | If specified, rotate logs at this specified size rather than each call to elogrotate")
     $(declare_args name)
-    local count=$(opt_get c 5)
-    local size=$(opt_get s 0)
-    
+
     # Ensure we don't try to rotate non-files
     [[ -f $(readlink -f "${name}") ]] 
 
@@ -2040,7 +1914,7 @@ elogrotate()
     find "$(dirname "${name}")" -maxdepth 1                 \
                -type f -name "$(basename "${name}")"        \
             -o -type f -name "$(basename "${name}").[0-9]*" \
-        | sort --version-sort | awk "NR>${count}" | xargs rm --force
+        | sort --version-sort | awk "NR>${count}" | xargs rm -f
 }
 
 # elogfile provides the ability to duplicate the calling processes STDOUT
@@ -2076,15 +1950,15 @@ elogrotate()
 #
 elogfile()
 {
-    $(declare_args)
+    $(declare_opts \
+        "stderr e=1        | Whether to redirect stderr to the logfile." \
+        "stdout o=1        | Whether to redirect stdout to the logfile." \
+        ":rotate_count r=0 | When rotating log files, keep this number of log files." \
+        ":rotate_size s=0  | Rotate log files when they reach this size. Units as accepted by find." \
+        "tail t=1          | Whether to continue to display output on local stdout and stderr." \
+        "merge m           | Whether to merge stdout and stderr into a single stream on stdout.")
 
-    local stdout=$(opt_get o 1)
-    local stderr=$(opt_get e 1)
-    local dotail=$(opt_get t 1)
-    local rotate=$(opt_get r 0)
-    local rotate_size=$(opt_get s 0)
-    local merge=$(opt_get m 0)
-    edebug "$(lval stdout stderr dotail rotate_count rotate_size merge)"
+    edebug "$(lval stdout stderr tail rotate_count rotate_size merge)"
 
     # Return if nothing to do
     if [[ ${stdout} -eq 0 && ${stderr} -eq 0 ]] || [[ -z "$*" ]]; then
@@ -2092,11 +1966,11 @@ elogfile()
     fi
 
     # Rotate logs as necessary but only if they are regular files
-    if [[ ${rotate} -gt 0 ]]; then
+    if [[ ${rotate_count} -gt 0 ]]; then
         local name
         for name in "${@}"; do
             [[ -f $(readlink -f "${name}") ]] || continue
-            elogrotate -c=${rotate} -s=${rotate_size} "${name}"
+            elogrotate -c=${rotate_count} -s=${rotate_size} "${name}"
         done
     fi
 
@@ -2140,13 +2014,13 @@ elogfile()
         # writes block indefinitely. Since this is blocking in the kernel the process
         # essentially becomes unkillable once in this state.
         (
+            disable_die_parent
             close_fds
             ( 
-
                 # If we are in a cgroup, move the tee process out of that
                 # cgroup so that we do not kill the tee.  It will nicely
                 # terminate on its own once the process dies.
-                if [[ ${EUID} -eq 0 && -n "$(cgroup_current)" ]] ; then
+                if cgroup_supported && [[ ${EUID} -eq 0 && -n "$(cgroup_current)" ]] ; then
                     edebug "Moving tee process out of cgroup"
                     cgroup_move "/" ${BASHPID}
                 fi
@@ -2161,7 +2035,8 @@ elogfile()
                 trap "" ${TTY_SIGNALS[@]}
                 echo "${BASHPID}" >${pid_pipe}
 
-                if [[ ${dotail} -eq 1 ]]; then
+
+                if [[ ${tail} -eq 1 ]]; then
                     tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
                     tee -a "${@}" <${pipe} >/dev/null 2>&1
@@ -2243,6 +2118,9 @@ emd5sum_check()
 # -k=keyphrase: Optional keyphrase for the PGP Private Key
 emetadata()
 {
+    $(declare_opts \
+        ":private_key p | Also check the PGP signature based on this private key." \
+        ":keyphrase k   | The keyphrase to use for the specified private key.")
     $(declare_args path)
     [[ -e ${path} ]] || die "${path} does not exist"
 
@@ -2252,28 +2130,25 @@ emetadata()
     # Now output MD5, SHA1, and SHA256
     local ctype
     for ctype in MD5 SHA1 SHA256; do
-        echo "${ctype}=$(${ctype,,}sum "${path}" | awk '{print $1}')"
+        echo "${ctype}=$(eval ${ctype,,}sum "${path}" | awk '{print $1}')"
     done
 
     # If PGP signature is NOT requested we can simply return
-    local privatekey=""
-    privatekey=$(opt_get p)
-    [[ -n ${privatekey} ]] || return 0
+    [[ -n ${private_key} ]] || return 0
 
     # Import that into temporary secret keyring
     local keyring="" keyring_command=""
     keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
     trap_add "rm --force ${keyring}"
-    gpg ${keyring_command} --import ${privatekey} |& edebug
+    gpg ${keyring_command} --import ${private_key} |& edebug
 
     # Get optional keyphrase
-    local keyphrase="" keyphrase_command=""
-    keyphrase=$(opt_get k)
+    local keyphrase_command=""
     [[ -z ${keyphrase} ]] || keyphrase_command="--batch --passphrase ${keyphrase}"
 
     # Output PGPSignature encoded in base64
-    echo "PGPKey=$(basename ${privatekey})"
+    echo "PGPKey=$(basename ${private_key})"
     echo "PGPSignature=$(gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>/dev/null | base64 --wrap 0)"
 }
 
@@ -2291,6 +2166,10 @@ emetadata()
 #                     is present in .meta file).
 emetadata_check()
 {
+    $(declare_opts \
+        "quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
+        ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file.")
+
     $(declare_args path)
     local meta="${path}.meta"
     [[ -e ${path} ]] || die "${path} does not exist"
@@ -2304,16 +2183,15 @@ emetadata_check()
 
     local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0
     pack_set metapack $(cat "${meta}")
-    local publickey=$(opt_get p)
     local pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
 
     # Figure out what digests we're going to validate
     for ctype in Size MD5 SHA1 SHA256; do
         pack_contains metapack "${ctype}" && digests+=( "${ctype}" )
     done
-    [[ -n ${publickey} && -n ${pgpsignature} ]] && digests+=( "PGP" )
+    [[ -n ${public_key} && -n ${pgpsignature} ]] && digests+=( "PGP" )
 
-    opt_true "q" || eprogress "Verifying integrity of $(lval path metadata=digests)"
+    [[ ${quiet} -eq 1 ]] || eprogress "Verifying integrity of $(lval path metadata=digests)"
     pack_print metapack |& edebug
     local pids=()
 
@@ -2333,7 +2211,7 @@ emetadata_check()
         if pack_contains metapack "${ctype}"; then
             (
                 expect=$(pack_get metapack ${ctype})
-                actual=$(${ctype,,}sum ${path} | awk '{print $1}')
+                actual=$(eval ${ctype,,}sum ${path} | awk '{print $1}')
                 [[ ${expect} == ${actual} ]] || fail "${ctype} mismatch: $(lval path expect actual)"
             ) &
 
@@ -2342,11 +2220,11 @@ emetadata_check()
     done
 
     # If Public Key was provied and PGPSignature is present validate PGP signature
-    if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
+    if [[ -n ${public_key} && -n ${pgpsignature} ]]; then
         (
             local keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
             trap_add "rm --force ${keyring}"
-            gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} |& edebug
+            gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} |& edebug
             echo "${pgpsignature}" | gpg --verify - "${path}" |& edebug || fail "PGP verification failure: $(lval path)"
         ) &
 
@@ -2355,8 +2233,22 @@ emetadata_check()
 
     # Wait for all pids
     wait ${pids[@]} && rc=0 || rc=$?
-    opt_true "q" || eprogress_kill -r=${rc}
+    [[ ${quiet} -eq 1 ]] || eprogress_kill -r=${rc}
     return ${rc}
+}
+
+# Check if a directory is empty
+directory_empty()
+{
+    $(declare_args dir)
+    ! find "${dir}" -mindepth 1 -print -quit | grep -q .
+}
+
+# Check if a directory is not empty
+directory_not_empty()
+{
+    $(declare_args dir)
+    find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
 
 #-----------------------------------------------------------------------------
@@ -2386,7 +2278,7 @@ emount_count()
 {
     $(declare_args path)
     path=$(emount_realpath ${path})
-    local num_mounts=$(grep --count --perl-regexp "$(emount_regex ${path})" /proc/mounts || true)
+    local num_mounts=$(list_mounts | grep --count --perl-regexp "$(emount_regex ${path})" || true)
     echo -n ${num_mounts}
 }
 
@@ -2395,7 +2287,7 @@ emount_type()
 {
     $(declare_args path)
     path=$(emount_realpath ${path})
-    grep --perl-regexp "$(emount_regex ${path})" /proc/mounts | awk '{print $1}' || true
+    list_mounts | grep --perl-regexp "$(emount_regex ${path})" | awk '{print $1}' || true
 }
 
 emounted()
@@ -2438,7 +2330,7 @@ ebindmount()
 #          for usage.
 emount()
 {
-    if edebug_enabled || [[ ${@} =~ -v|--verbose ]]; then
+    if edebug_enabled || [[ "${@}" =~ (^| )(-v|--verbose)( |$) ]]; then
         einfos "Mounting $@"
     fi
     
@@ -2447,8 +2339,8 @@ emount()
 
 eunmount_internal()
 {
-    $(declare_args)
-    local verbose=$(opt_get v 0)
+    $(declare_opts \
+        "verbose v | Verbose output.")
 
     local mnt
     for mnt in $@; do
@@ -2481,11 +2373,11 @@ eunmount_internal()
 # -v=0|1    Show verbose output (defaults to 0)
 eunmount()
 {
-    $(declare_args)
-    local recursive=$(opt_get r 0)
-    local delete=$(opt_get d 0)
-    local verbose=$(opt_get v 0)
-    local all=$(opt_get a 0)
+    $(declare_opts \
+        "verbose v   | Verbose output." \
+        "recursive r | Recursively unmount everything beneath mount points." \
+        "delete d    | Delete mount points after unmounting." \
+        "all a       | Unmount all copies of mount points instead of a single instance.")
 
     if edebug_enabled; then
         verbose=1
@@ -2560,12 +2452,25 @@ eunmount()
 
             local rm_opts="--force"
             [[ ${recursive} -eq 1 ]] && rm_opts+=" --recursive"
-            edebug_enabled           && rm_opts+=" --verbose"
 
             rm ${rm_opts} "${mnt}"
         fi
 
     done
+}
+
+# Platform agnostic mechanism for listing mounts.
+list_mounts()
+{
+    if [[ ${__BU_OS} == Linux ]] ; then
+        cat /proc/mounts
+
+    elif [[ ${__BU_OS} == Darwin ]] ; then
+        mount
+
+    else
+        die "Cannot list mounts for unsupported OS $(lval __BU_OS)"
+    fi
 }
 
 # Recursively find all mount points beneath a given root.
@@ -2581,7 +2486,7 @@ efindmnt()
     emounted "${path}" && echo "${path}" || true
 
     # Now look for anything beneath that directory
-    grep --perl-regexp "(^| )${path}[/ ]" /proc/mounts | awk '{print $2}' | sed '/^$/d' || true
+    list_mounts | grep --perl-regexp "(^| )${path}[/ ]" | awk '{print $2}' | sed '/^$/d' || true
 }
 
 #-----------------------------------------------------------------------------
@@ -2669,21 +2574,7 @@ argcheck()
 }
 
 # declare_args takes a list of names and declares a variable for each name from
-# the positional arguments in the CALLER's context. It also implicitly looks for
-# any options which may have been passed into the called function in the initial
-# arguments and stores them into an internal pack for later inspection.
-#
-# Options Rules:
-# (0) Will repeatedily parse first argument and shift so long as first arg contains
-#     options.
-# (1) Only single character arguments are supported
-# (2) Options may be grouped if they do not take arguments (e.g. -abc == -a -b -c)
-# (3) Options may take arguments by using an equal sign (e.g. -a=foobar -b="x y z")
-#
-# All options will get exported into an internal pack named after the caller's
-# function. If the caller's function name is 'foo' then the internal pack is named
-# '_foo_options'. Instead of interacting with this pack direclty simply use the
-# helper methods: opt_true, opt_false, opt_get.
+# the positional arguments in the CALLER's context.
 #
 # We want all code generated by this function to be invoked in the caller's
 # environment instead of within this function. BUT, we don't want to have to use
@@ -2706,105 +2597,449 @@ argcheck()
 #    the argument is literally '_' it will be anonymous but if it is '_a' it is
 #    NOT an anonymous variable.
 #
-# OPTIONS:
-# -n: Do not parse options at all
-# -l: Emit local variables with 'local' scope qualifier (default)
-# -g: Emit global variables with no scope qualifier
-# -e: Emit exported variables with 'export' keyword
-#
-# WARNING: DO NOT CALL EDEBUG INSIDE THIS FUNCTION OR YOU WILL CAUSE INFINITE RECURSION!!
 declare_args()
 {
-    local _declare_args_parse_options=1
-    local _declare_args_qualifier="local"
-    local _declare_args_optional=0
-    local _declare_args_variable=""
-    local _declare_args_cmd=""
+    $(declare_opts \
+        "global g   | Make variables created by declare_opts to be global.  Default is local." \
+        "export e x | Make variables created by declare_opts to be exported.")
 
-    # Check the internal declare_args options. We cannot at present reuse the code
-    # below which parses options as that's baked into the internal implementation
-    # of delcare_args itself and cannot at present be extracted usefully.
-    # This is a MUCH more limited version of option parsing.
-    if [[ $# -gt 0 && ${1:0:1} == "-" ]]; then
-        [[ $1 =~ "n" ]] && _declare_args_parse_options=0
-        [[ $1 =~ "l" ]] && _declare_args_qualifier="local"
-        [[ $1 =~ "g" ]] && _declare_args_qualifier=""
-        [[ $1 =~ "e" ]] && _declare_args_qualifier="export"
-        shift
-    fi
+    local optional=0
+    local variable=""
+    local cmd=""
 
-    # Look at the first argument and see if it starts with a '-'. If so, then grab each
-    # character in the first argument and store them into an array so caller can check
-    # if particular flags were passed in or not.
-    # NOTE: We always declare the _options pack in the caller's environment so code
-    #       doesn't have to handle any error cases where it's not defined.
-    local _declare_args_caller _declare_args_options
-    _declare_args_caller=( $(caller 0) )
-    _declare_args_options="_${_declare_args_caller[1]}_options"
-    _declare_args_cmd+="declare ${_declare_args_options}='';"
-    if [[ ${_declare_args_parse_options} -eq 1 ]]; then
-        _declare_args_cmd+="
-        while [[ \$# -gt 0 && \${1:0:1} == '-' ]]; do
-            [[ \${1:1} =~ '=' ]]
-                && pack_set ${_declare_args_options} \"\${1:1}\"
-                || pack_set ${_declare_args_options} \$(echo \"\${1:1}\" | grep -o . | sed 's|$|=1|' | tr '\n' ' '; true);
-        shift;
-        done;"
-    fi
+    local dflags=""
+    [[ ${global} -eq 1 ]] && dflags="-g"
+    [[ ${export} -eq 1 ]] && dflags="-gx"
 
     while [[ $# -gt 0 ]]; do
+
+        if [[ ! $1 =~ ^([^[:space:]]+)[[:space:]]*(\|[[:space:]]*(.*))?$ ]] ; then
+            die "Invalid argument passed to declare_args: $1"
+        fi
+
+        local arg_full=${BASH_REMATCH[1]}
+        local docstring=${BASH_REMATCH[3]:-}
+
         # If the variable name is "_" then don't bother assigning it to anything
-        [[ $1 == "_" ]] && _declare_args_cmd+="shift; " && { shift; continue; }
+        [[ ${arg_full} == "_" ]] && cmd+="shift; " && { shift; continue; }
 
         # Check if the argument is optional or not as indicated by a leading '?'.
         # If the leading '?' is present then REMOVE It so that code after it can
         # correctly use the key name as the variable to assign it to.
-        [[ ${1:0:1} == "?" ]] && _declare_args_optional=1 || _declare_args_optional=0
-        _declare_args_variable="${1#\?}"
+        [[ ${arg_full:0:1} == "?" ]] && optional=1 || optional=0
+        variable="${arg_full#\?}"
 
         # Declare the variable and then call argcheck if required
-        _declare_args_cmd+="${_declare_args_qualifier} ${_declare_args_variable}=\${1:-}; shift &>/dev/null || true; "
-        [[ ${_declare_args_optional} -eq 0 ]] && _declare_args_cmd+="argcheck ${_declare_args_variable}; "
+        cmd+="declare ${dflags} ${variable}=\${1:-}; shift &>/dev/null || true; "
+        [[ ${optional} -eq 0 ]] && cmd+="argcheck ${variable}; "
 
         shift
     done
 
-    echo "eval ${_declare_args_cmd}"
+    echo "eval ${cmd}"
+
 }
 
-# Helper method to print the options after calling declare_args.
-opt_print()
+## declare_opts
+## ============
+## 
+## Terminology
+## -----------
+##
+## First a quick bit of background on the terminology used for bashutils
+## parameter parsing.  Different well-meaning folks use different terms for the
+## same things, but these are the definitions as they apply within bashutils
+## documentation.
+##
+## First, here's an example command line you might use to search for lines that
+## do not contain "alpha" within a file named "somefile".
+##
+##     grep --word-regexp -v alpha somefile
+## 
+## In this case --word-regexp and -v are _options_.  That is to say, they're
+## optional flags to the command whose names start with hyphens.  Options
+## follow the GNU style in that single character options have one hyphen before
+## their name, while long options have two hyphens before their name.
+##
+## Typically, a single functionality within a tool can be controlled by the
+## caller's choice of either a long option or a short option.  For instance,
+## grep considers -v and --invert to be equivalent options.
+##
+## _Arguments_ are the positional things that must occur on the command line
+## following all of the options.  If you're ever concerned that there could be
+## ambiguity, you can explicitly separate the two with a pair of hyphens on
+## their own.  The following is equivalent to the first example.
+##
+##     grep --word-regex -v -- alpha somefile
+##
+## 
+## To add to the confusing terminology, some options accept their own
+## arguments.  For example, grep can limit the number of matches with the
+## --max-count option.  This will print the first line in somefile that matches
+## alpha.
+##
+##     grep --max-count 1 alpha somefile.
+##
+## So we say that if --max-count is specified, it requires an _argument_.
+##
+##
+## Overview
+## --------
+##
+## Declare_opts allows you to handle options in your bash functions or scripts
+## in a concise way.  It does not assist with arguments.  Look at declare_args
+## for something similar that helps with arguments.
+##
+## To accept arguments in your code, you simply call declare_opts and tell it
+## which arguments are valid.  For instance, to accept a few of the grep
+## options you might use declare_opts like this.
+##
+##
+##     $(declare_opts \
+##         "word_regex w | if specified, match only complete words" \
+##         "invert v     | if specified, match only lines that do NOT contain the regex.")
+##
+##     [[ ${word_regex} -eq 1 ]] && # do stuff for words
+##     [[ ${invert}     -eq 1 ]] && # do stuff for inverting
+##
+##  
+## Each argument to declare_opts defines a single option.  All words prior to
+## the first pipe character are considered to be synonyms for the option.
+## Declare_opts creates a local variable for each option using the first name
+## given.
+##
+## Everything between the first pipe character and the end of the string is
+## considered to be a documentation string for this option.  It is not
+## currently used, but might be used in the future to provide automatic help or
+## for generation of man pages.
+##
+## This means that -w and --word-regex are equivalent, and so are --invert and
+## -v.  Note that there's a translation here in the name of the option.
+## By convention, words are separated with hyphens in option names, but hyphens
+## are not allowed to be characters in bash variables, so we use underscores
+## in the variable name and automatically translate that to a hyphen in the
+## option name.
+##
+##
+## Boolean Options
+## ---------------
+##
+## Word_regex and invert in the example above are both boolean options.  That
+## is, they're either on the command line (in which case declare_opts assigns 1
+## to the variable) or not on the command line (in which case declare_opts
+## assigns 0 to the variable).
+##
+## You can also be explicit about the value you'd like to choose for an option
+## by specifying =0 or =1 at the end of the option.  For instance, these are
+## equivalent and would enable the word_regex option and disable the invert
+## option.
+##
+##     cmd --invert=0 --word-regex=1
+##     cmd -i=0 -w=1
+## 
+## Note that these two options are considered to be boolean.  Either they were
+## specified on the command line or they were not.  When specified, the value
+## of the variable will be 1, when not specified it will be zero.
+##
+## The long option versions of boolean options also implicitly support a
+## negation by prepending the option name with no-.  For example, this is also
+## equivalent to the above examples.
+##
+##     cmd --no-invert --word-regex
+##
+##
+## String Options
+## --------------
+## 
+## Declare_opts also supports options whose value is a string.  When specified
+## on the command line, these _require_ an argument, even if it is an empty
+## string.  In order to get a string option, you prepend its name with a colon
+## character.
+##
+##     func()
+##     {
+##         $(declare_opts ":string s")
+##         echo "STRING: X${string}X"
+##     }
+##
+##     func --string "alpha"
+##     # output -- STRING: XalphaX
+##     func --string ""
+##     # output -- STRING: XX
+##
+##     func --string=alpha
+##     # output -- STRING: XalphaX
+##     func --string=
+##     # output -- STRING: XX
+##
+##
+## Default Values
+## --------------
+##
+## By default, the value of boolean options is false and string options are an
+## empty string, but you can specify a default in your definition.
+##
+##     $(declare_opts \
+##         "boolean b=1         | Boolean option that defaults to true" \
+##         ":string s=something | String option that defaults to "something")
+##
+declare_opts()
 {
-    local _caller=( $(caller 0) )
-    pack_print _${_caller[1]}_options
+    echo "eval "
+    declare_opts_internal_setup "${@}"
+
+    # __BU_FULL_ARGS is the list of arguments as initially passed to
+    # declare_opts. declare_args_internal will modifiy __BU_ARGS to be whatever
+    # was left to be processed after it is finished.
+    # Note: here $@ is quoted so it refers to the caller's arguments
+    echo 'declare __BU_FULL_ARGS=("$@") ; '
+    echo 'declare __BU_ARGS=("$@") ; '
+    echo "declare_opts_internal ; "
+    echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- ; '
+
+    echo 'declare opt ; '
+    echo 'for opt in "${!__BU_OPT[@]}" ; do'
+        echo 'declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+    echo 'done ; '
 }
 
-# Helper method to be used after declare_args to check if a given option is true (1).
-opt_true()
+declare_opts_internal_setup()
 {
-    local _caller=( $(caller 0) )
-    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 1 ]]
+    local opt_cmd="__BU_OPT=( "
+    local regex_cmd="__BU_OPT_REGEX=( "
+    local type_cmd="__BU_OPT_TYPE=( "
+
+    while (( $# )) ; do
+
+        local complete_arg=$1 ; shift
+
+        # Arguments to declare_opts may contain multiple chunks of data,
+        # separated by pipe characters.
+        if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
+            local opt_def=$(trim "${BASH_REMATCH[1]}")
+            local docstring=$(trim "${BASH_REMATCH[3]}")
+
+        else
+            die "Invalid option declaration: ${complete_arg}"
+        fi
+
+        [[ -n ${opt_def} ]] || die "${FUNCNAME[2]}: invalid declare_opts syntax.  Option definition is empty."
+
+        # The default is any text in the argument definition after the first
+        # equal sign.  Ignore whitespace at both ends.
+        local default=0
+        if [[ ${opt_def} =~ ^[^=]+(=(.*))*$ ]] ; then
+            default=${BASH_REMATCH[2]}
+        fi
+
+        # Determine if this option requires argument (def starts with a colon
+        # character) or is a boolean
+        [[ ${opt_def} =~ (:)?([^=]+)(=.*)? ]]
+
+        local opt_type="unknown"
+
+        # This option requires an argument
+        if [[ ${BASH_REMATCH[1]} == ":" ]] ; then
+            opt_type="string"
+            expects=1
+
+        else
+            opt_type="boolean"
+
+            # Boolean options default to 0 unless otherwise specified
+            [[ ${default} == "" ]] && default=0
+
+            if [[ ${default} != 0 && ${default} != 1 ]] ; then
+                die "${FUNCNAME[2]}: boolean option has invalid default of ${default}"
+            fi
+        fi
+
+        # Same regular expression -- second match is the full list of
+        # alternative strings that can represent this option.
+        local all_opts=${BASH_REMATCH[2]}
+        local regex=^\(no_\)?\(${all_opts//+( )/|}\)$
+
+        # The canonical option name is the first name for the option that is specified
+        [[ ${all_opts} =~ ([^\t ]+).* ]]
+        local canonical=${all_opts%%[ 	]*}
+
+        # And that name must be non-empty and must not contain hyphens (because
+        # hyphens are not allowed in bash variable names)
+        [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid declare_opts syntax.  Canonical name is empty."
+        [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: option name ${canonical} is not allowed to contain hyphens."
+
+        # Boolean options get an implicit no-option version, so make sure
+        # they're expecting that.
+        [[ ! ${canonical} = no_* ]] || die "${FUNCNAME[2]}: Option names specified to declare_opts may not begin with no_ because declare_opts implicitly creates no versions of the options."
+
+        # Now that they're all computed, add them to the command that will generate associative arrays
+        opt_cmd+="[${canonical}]='${default}' "
+        regex_cmd+="[${canonical}]='${regex}' "
+        type_cmd+="[${canonical}]='${opt_type}' "
+
+    done
+
+    opt_cmd+=")"
+    regex_cmd+=")"
+    type_cmd+=")"
+
+    printf "declare -A %s %s %s ; " "${opt_cmd}" "${regex_cmd}" "${type_cmd}"
 }
 
-# Helper method to be used after declare_args to check if a given option is false (0).
-opt_false()
+declare_opts_internal()
 {
-    local _caller=( $(caller 0) )
-    [[ "$(pack_get _${_caller[1]}_options ${1})" -eq 0 ]]
+    # No arguments?  Nothing to do.
+    if [[ ${#__BU_FULL_ARGS[@]:-} -eq 0 ]] ; then
+        return 0
+    fi
+
+    set -- "${__BU_FULL_ARGS[@]}"
+
+    local shift_count=0
+    while (( $# )) ; do
+        case "$1" in
+            --)
+                (( shift_count += 1 ))
+                break
+                ;;
+            --*)
+                # Drop the initial hyphens, grab the option name and capture
+                # "=value" from the end if there is one
+                [[ $1 =~ ^--([^=]+)(=(.*))?$ ]]
+                local long_opt=${BASH_REMATCH[1]}
+                local has_arg=${BASH_REMATCH[2]}
+                local opt_arg=${BASH_REMATCH[3]}
+
+                # Find the internal name of the long option (using its name
+                # with underscores, which is how we treat it throughout the
+                # declare_opts code rather than with hyphens which is how it
+                # should be specified on the command line)
+                local canonical=$(declare_opts_find_canonical ${long_opt//-/_})
+                [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
+
+                if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
+                    # If it wasn't specified after an equal sign, instead grab
+                    # the next argument off the command line
+                    if [[ -z ${has_arg} ]] ; then
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument but didn't receive one."
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                    fi
+
+                    __BU_OPT[$canonical]=${opt_arg}
+
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+
+                    # The value that will get assigned to this boolean option
+                    local value=1
+                    if [[ -n ${has_arg} ]] ; then
+                        value=${opt_arg}
+                    fi
+
+                    # Negate the value it was if the option starts with no
+                    if [[ ${long_opt} = no-* ]] ; then
+                        if [[ ${value} -eq 1 ]] ; then
+                            value=0
+                        else
+                            value=1
+                        fi
+                    fi
+
+                    __BU_OPT[$canonical]=${value}
+                else
+                    die "${FUNCNAME[1]}: option --${long_opt} has an invalid type ${__BU_OPT_TYPE[$canonical]}"
+                fi
+                ;;
+
+            -*)
+                # Drop the initial hyphen, grab the single-character options as
+                # a blob, and capture an "=value" if there is one.
+                [[ $1 =~ ^-([^=]+)(=(.*))?$ ]]
+                local short_opts=${BASH_REMATCH[1]}
+                local has_arg=${BASH_REMATCH[2]}
+                local opt_arg=${BASH_REMATCH[3]}
+
+                # Iterate over the single character options except the last,
+                # handling each in turn
+                local index
+                for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
+                    local char=${short_opts:$index:1}
+                    local canonical=$(declare_opts_find_canonical ${char})
+                    [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
+
+                    if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
+                        die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
+                    fi
+
+                    __BU_OPT[$canonical]=1
+                done
+
+                # Handle the last one separately, because it might have an argument.
+                local char=${short_opts:$index}
+                local canonical=$(declare_opts_find_canonical ${char})
+                [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
+
+                # If it expects an argument, make sure it has one and use it.
+                if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
+
+                    # If it wasn't specified after an equal sign, instead grab
+                    # the next argument off the command line
+                    if [[ -z ${has_arg} ]] ; then
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
+
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                    fi
+                    __BU_OPT[$canonical]=${opt_arg}
+
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+
+                    # Boolean options may optionally be specified a value via
+                    # -b=(0|1).  Take it if it's there.
+                    if [[ -n ${has_arg} ]] ; then
+                        __BU_OPT[$canonical]=${opt_arg}
+                    else
+                        __BU_OPT[$canonical]=1
+                    fi
+
+                else
+                    die "${FUNCNAME[1]}: option -${char} has an invalid type ${__BU_OPT_TYPE[$canonical]}"
+                fi
+                ;;
+            *)
+                break
+                ;;
+        esac
+
+        # Move on to the next item, recognizing that an option may have consumed the last one
+        shift && (( shift_count += 1 )) || break
+    done
+
+    # Assign to the __BU_ARGS array so that the declare_opts macro can make its
+    # contents the remaining set of arguments in the calling function.
+    if [[ ${#__BU_ARGS[@]:-} -gt 0 ]] ; then
+        __BU_ARGS=( "${__BU_ARGS[@]:$shift_count}" )
+    fi
 }
 
-# Helper method to be used after declare_args to extract the value of an option.
-# Unlike opt_get this one allows you to specify a default value to be used in
-# the event the requested option was not provided.
-opt_get()
+declare_opts_find_canonical()
 {
-    $(declare_args key ?default)
-    local _caller=( $(caller 0) )
-    local _value=$(pack_get _${_caller[1]}_options ${key})
-    : ${_value:=${default}}
-
-    echo -n "${_value}"
+    for option in "${!__BU_OPT[@]}" ; do
+        if [[ ${1} =~ ${__BU_OPT_REGEX[$option]} ]] ; then
+            echo "${option}"
+            return 0
+        fi
+    done
 }
+
+opt_dump()
+{
+    for option in "${!__BU_OPT[@]}" ; do
+        echo -n "${option}=\"${__BU_OPT[$option]}\" "
+    done
+    echo
+}
+
 
 #-----------------------------------------------------------------------------
 # MISC HELPERS
@@ -2884,32 +3119,37 @@ efetch_internal()
 # -q=(0|1) Quiet mode (disable eprogress and other info messages)
 efetch()
 {
+    $(declare_opts \
+        "md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
+        "meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
+        "quiet q | Quiet mode.  (Disable eprogress and other info messages)")
+
     $(declare_args url ?dst)
     : ${dst:=/tmp}
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     
     # Companion files we may fetch
-    local md5="${dst}.md5"
-    local meta="${dst}.meta"
+    local md5_file="${dst}.md5"
+    local meta_file="${dst}.meta"
 
     try
     {
         # Optionally suppress all output from this subshell
-        opt_true "q" && exec &>/dev/null
+        [[ ${quiet} -eq 1 ]] && exec &>/dev/null
 
         ## If requested, fetch MD5 file
-        if opt_true "m"; then
+        if [[ ${md5} -eq 1 ]] ; then
 
-            efetch_internal "${url}.md5" "${md5}"
+            efetch_internal "${url}.md5" "${md5_file}"
             efetch_internal "${url}"     "${dst}"
 
             # Verify MD5
-            einfos "Verifying MD5 $(lval dst md5)"
+            einfos "Verifying MD5 $(lval dst md5_file)"
 
             local dst_dname=$(dirname  "${dst}")
             local dst_fname=$(basename "${dst}")
-            local md5_dname=$(dirname  "${md5}")
-            local md5_fname=$(basename "${md5}")
+            local md5_dname=$(dirname  "${md5_file}")
+            local md5_fname=$(basename "${md5_file}")
 
             cd "${dst_dname}"
 
@@ -2922,9 +3162,9 @@ efetch()
             md5sum --check "${md5_fname}" >/dev/null
 
         ## If requested fetch *.meta file and validate using contained fields
-        elif opt_true "M"; then
+        elif [[ ${meta} -eq 1 ]]; then
 
-            efetch_internal "${url}.meta" "${meta}"
+            efetch_internal "${url}.meta" "${meta_file}"
             efetch_internal "${url}"      "${dst}"
             emetadata_check "${dst}"
         
@@ -2938,8 +3178,8 @@ efetch()
     catch
     {
         local rc=$?
-        edebug "Removing $(lval dst md5 meta rc)"
-        rm -rf "${dst}" "${md5}" "${meta}"
+        edebug "Removing $(lval dst md5_file meta_file rc)"
+        rm -rf "${dst}" "${md5_file}" "${meta_file}"
         return ${rc}
     }
 }
@@ -2952,7 +3192,7 @@ netselect()
     declare -a results sorted rows
 
     for h in ${hosts}; do
-        local entry=$(die_on_abort; ping -c10 -w5 -q $h 2>/dev/null | \
+        local entry=$(ping -c10 -w5 -q $h 2>/dev/null | \
             awk '/^PING / {host=$2}
                  /packet loss/ {loss=$6}
                  /min\/avg\/max/ {
@@ -2983,41 +3223,27 @@ netselect()
     echo -en "${best}"
 }
 
-# etimeout executes arbitrary shell commands for you, enforcing a timeout around the
-# command.  If the command eventually completes successfully etimeout will return 0.
-# Otherwise if it is prematurely terminated via the requested SIGNAL it will return
-# 124 to match behavior with the vanilla timeout(1) command. If the process fails to
-# exit after receiving requested signal it will send SIGKILL to the process. If this
-# happens the return code of etimeout will still be 124 since we rely on that return
-# code to indicate that a process timedout and was prematurely terminated.
-#
-# This function is similar in purpose to the vanilla timeout(1) command only this
-# one is more powerful since it can call any arbitrary shell command including
-# bash functions or eval'd strings.
-#
-# OPTIONS:
-# -s=<signal>
-#   Accepts both signal names and numbers. When ${TIMEOUT} seconds have passed
-#   since running the command, this will be the signal to send to the process
-#   to make it stop.  The default is TERM. [NOTE: KILL will _also_ be sent two
-#   seconds after the timeout if the first signal doesn't do its job]
-#
-# -t=<timeout>
-#   (REQUIRED). After this duration, command will be killed if it hasn't
-#   exited. If it's a simple number, the duration will be a number in seconds.
-#   You may also specify suffixes in the same format the timeout command
-#   accepts them. For instance, you might specify 5m or 1h or 2d for 5 minutes,
-#   1 hour, or 2 days, respectively.
-#
-# All direct parameters to etimeout are assumed to be the command to execute, and
-# etimeout is careful to retain your quoting.
+## etimeout
+## ========
+##
+## `etimeout` will execute an arbitrary bash command for you, but will only let
+## it use up the amount of time (i.e. the "timeout") you specify.
+##
+## If the command tries to take longer than that amount of time, it will be
+## killed and etimeout will return 124.  Otherwise, etimeout will return the
+## value that your called command returned.
+##
+## All arguments to `etimeout` (i.e. everything that isn't an option, or
+## everything after --) is assumed to be part of the command to execute.
+## `Etimeout` is careful to retain your quoting.
+##
 etimeout()
 {
-    # Parse options
-    $(declare_args)
-    local _etimeout_signal=$(opt_get s SIGTERM)
-    local _etimeout_timeout=$(opt_get t "")
-    argcheck _etimeout_timeout
+    $(declare_opts \
+        ":signal sig s=TERM | First signal to send if the process doesn't complete in time.  KILL will still be sent later if it's not dead." \
+        ":timeout t         | After this duration, command will be killed if it hasn't already completed.")
+
+    argcheck timeout
 
     # Background the command to be run
     local start=${SECONDS}
@@ -3028,51 +3254,84 @@ etimeout()
         return 0
     fi
 
-    # Launch command in the background and store off its pid.
+    #-------------------------------------------------------------------------
+    # COMMAND TO EVAL
     local rc=""
-    "${cmd[@]}" &
-    local pid=$!
-    edebug "Executing $(lval cmd timeout=_etimeout_timeout signal=_etimeout_signal pid)"
- 
-    # Start watchdog process to kill process if it times out
     (
-        die_on_abort
+        disable_die_parent
+        quote_eval "${cmd[@]}"
+        local rc=$?
+    ) &
+    local pid=$!
+    edebug "Executing $(lval cmd timeout signal pid)"
+ 
+    #-------------------------------------------------------------------------
+    # WATCHER
+    #
+    # Launch a background "wathcher" process that is simply waiting for the
+    # timeout timer to expire.  If it does, it will kill the original command.
+    (
+        disable_die_parent
         close_fds
 
-        # Sleep for the requested timeout. If process_tree is empty 
-        # then it exited on its own and we don't have to kill it.
-        sleep ${_etimeout_timeout}
+        # Wait for the timeout to elapse
+        sleep ${timeout}
+
+        # Upon getting here, we know that either 1) the timeout elapsed or 2)
+        # our sleep process was killed.
+        #
+        # We can check to see if anything is still running, though, because we
+        # know the command's PID.  If it's gone, it must've finished and we can exit
+        #
         local pre_pids=( $(process_tree ${pid}) )
-        array_empty pre_pids && exit 0
+        if array_empty pre_pids ; then
+            exit 0
+        else
+            # Since it did not exit and we must've completed our timeout sleep,
+            # the command must've outlived its usefulness.  Do away with it.
+            ekilltree -s=${signal} -k=2s ${pid}
 
-        # Process did not exit on it's own. Send it the intial requested
-        # signal. If its process tree is empty then exit with 1.
-        ekilltree -s=${_etimeout_signal} ${pid}
-        sleep 2
-
-        # If there are ANY processes in the original pid list still running OR
-        # new processes in the process tree then blast a SIGKILL to all the pids
-        # and exit with 1.
-        local post_pids=( $(process_tree ${pid}) )
-        array_empty post_pids && exit 1
-        ekill -s=SIGKILL ${pre_pids[@]} ${post_pids[@]}
-        exit 1
+            # Return sentinel 124 value to let the main process know that we
+            # encountered a timeout.
+            exit 124
+        fi
 
     ) &>/dev/null &
 
-    # Wait for pid which will either be KILLED by watcher or complete normally.
-    local watcher=$!
-    wait ${pid}                     &>/dev/null && rc=0 || rc=$?
-    ekilltree -s=SIGKILL ${watcher} &>/dev/null
-    wait ${watcher}                 &>/dev/null && watcher_rc=0 || watcher_rc=$?
-    local stop=${SECONDS}
-    local seconds=$(( ${stop} - ${start} ))
+    #-------------------------------------------------------------------------
+    # HANDLE RESULTS
+    {
+        # Now we need to wait for the original process to finish.  We know that
+        # it will _either_ finish because it completes normally or because the
+        # watcher will kill it.
+        #
+        # Note that we do _not_ know which.  The return code we get from that
+        # process might be its normal rc, or it might be the rc that it got
+        # because it was killed by the watcher.
+        local watcher=$!
+        wait ${pid} && rc=0 || rc=$?
+
+        # Once the above has completed, we know that the watcher is no longer
+        # needed, so we can kill it, too.
+        ekilltree -s=TERM ${watcher}
+
+        # We need the return code from the watcher process to determine what
+        # happened.  If it returned our sentinel value (124), then we know that
+        # it determined there was a timeout.  Otherwise, we know that the
+        # original command returned on its own.
+        wait ${watcher} && watcher_rc=0 || watcher_rc=$?
+
+        local stop=${SECONDS}
+        local seconds=$(( ${stop} - ${start} ))
+
+    } &>/dev/null
     
-    # If the process timedout return 124 to match timeout behavior.
-    if [[ ${watcher_rc} -eq 1 ]]; then
-        edebug "Timeout $(lval cmd rc seconds timeout=_etimeout_timeout signal=_etimeout_signal pid)"
+    # Now if we got that sentinel 124 value, we can report the timeout
+    if [[ ${watcher_rc} -eq 124 ]] ; then
+        edebug "Timeout $(lval cmd rc seconds timeout signal pid)"
         return 124
     else
+        # Otherwise, we report the value reported by the original command
         return ${rc}
     fi
 }
@@ -3126,28 +3385,45 @@ etimeout()
 # eretry is careful to retain your quoting.
 eretry()
 {
-    # Parse options
-    $(declare_args)
-    local _eretry_delay=$(opt_get d 0)
-    local _eretry_exit_codes=$(opt_get e 0)
-    local _eretry_retries=$(opt_get r "")
-    local _eretry_signal=$(opt_get s SIGTERM)
-    local _eretry_timeout_total=$(opt_get T "")
-    local _eretry_timeout=$(opt_get t ${_eretry_timeout_total:-infinity})
-    local _eretry_warn=$(opt_get w "")
+    $(declare_opts \
+        ":delay d=0              | Time to sleep between failed attempts before retrying." \
+        ":fatal_exit_codes e=0   | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
+        ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
+        ":signal sig s=TERM      | Signal to be send to the command if it takes longer than the timeout." \
+        ":timeout t              | If one attempt takes longer than this duration, kill it and retry if appropriate." \
+        ":max_timeout T=infinity | If all attempts take longer than this duration, kill what's running and stop retrying." \
+        ":warn_every w           | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
 
-    # If no total timeout or retry limit was specified then default to prior behavior with a max retry of 5.
-    if [[ -z ${_eretry_timeout_total} && -z ${_eretry_retries} ]]; then
-        _eretry_retries=5
-    elif [[ -z ${_eretry_retries} ]]; then
-        _eretry_retries="infinity"
-    fi
+    # If unspecified, limit timeout to the same as max_timeout
+    : ${timeout:=${max_timeout:-infinity}}
+
 
     # If a total timeout was specified then wrap call to eretry_internal with etimeout
-    if [[ -n ${_eretry_timeout_total} ]]; then
-        etimeout -t=${_eretry_timeout_total} -s=${_eretry_signal} eretry_internal "${@}"
+    if [[ ${max_timeout} != "infinity" ]]; then
+        : ${retries:=infinity}
+
+        etimeout -t=${max_timeout} -s=${signal} --          \
+            eretry_internal                                 \
+                --timeout="${timeout}"                      \
+                --delay="${delay}"                          \
+                --fatal_exit_codes="${fatal_exit_codes}"    \
+                --signal="${signal}"                        \
+                --warn-every="${warn_every}"                \
+                --retries="${retries}"                      \
+                -- "${@}"
     else
-        eretry_internal "${@}"
+        # If no total timeout or retry limit was specified then default to prior
+        # behavior with a max retry of 5.
+        : ${retries:=5}
+
+        eretry_internal                                 \
+            --timeout="${timeout}"                      \
+            --delay="${delay}"                          \
+            --fatal_exit_codes="${fatal_exit_codes}"    \
+            --signal="${signal}"                        \
+            --warn-every="${warn_every}"                \
+            --retries="${retries}"                      \
+            -- "${@}"
     fi
 }
 
@@ -3155,6 +3431,16 @@ eretry()
 # to etimeout in order to provide upper bound on entire invocation.
 eretry_internal()
 {
+    $(declare_opts \
+        ":delay d                | Time to sleep between failed attempts before retrying." \
+        ":fatal_exit_codes e     | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
+        ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
+        ":signal sig s           | Signal to be send to the command if it takes longer than the timeout." \
+        ":timeout t              | If one attempt takes longer than this duration, kill it and retry if appropriate." \
+        ":warn_every w           | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
+
+    argcheck delay fatal_exit_codes retries signal timeout
+
     # Command
     local cmd=("${@}")
     local attempt=0
@@ -3169,9 +3455,9 @@ eretry_internal()
     fi
 
     while true; do
-        [[ ${_eretry_retries} != "infinity" && ${attempt} -ge ${_eretry_retries} ]] && break || (( attempt+=1 ))
+        [[ ${retries} != "infinity" && ${attempt} -ge ${retries} ]] && break || (( attempt+=1 ))
         
-        edebug "Executing $(lval cmd rc stdout) retries=(${attempt}/${_eretry_retries})"
+        edebug "Executing $(lval cmd timeout max_timeout) retries=(${attempt}/${retries})"
 
         # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
         # on any errors. The reason for this is any caller who cares about the output of
@@ -3179,31 +3465,31 @@ eretry_internal()
         # emitting that output they'd be getting repeated output from failed attempts
         # which could be completely invalid output (e.g. truncated XML, Json, etc).
         stdout=""
-        $(tryrc -o=stdout etimeout -t=${_eretry_timeout} -s=${_eretry_signal} "${cmd[@]}")
+        $(tryrc -o=stdout etimeout -t=${timeout} -s=${signal} "${cmd[@]}")
         
         # Append list of exit codes we've seen
         exit_codes+=(${rc})
 
         # Break if the process exited with white listed exit code.
-        if echo "${_eretry_exit_codes}" | grep -wq "${rc}"; then
-            edebug "Command exited with success $(lval rc _eretry_exit_codes cmd) retries=(${attempt}/${_eretry_retries})"
+        if echo "${fatal_exit_codes}" | grep -wq "${rc}"; then
+            edebug "Command exited with success $(lval rc fatal_exit_codes cmd) retries=(${attempt}/${retries})"
             break
         fi
 
         # Show warning if requested
-        if [[ -n ${_eretry_warn} ]] && (( SECONDS - warn_seconds > _eretry_warn )); then
-            ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
+        if [[ -n ${warn_every} ]] && (( SECONDS - warn_seconds > warn_every )); then
+            ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})" 
             warn_seconds=${SECONDS}
         fi
 
         # Don't use "-ne" here since delay can have embedded units
-        if [[ ${_eretry_delay} != "0" ]] ; then
-            edebug "Sleeping $(lval _eretry_delay)" 
-            sleep ${_eretry_delay}
+        if [[ ${delay} != "0" ]] ; then
+            edebug "Sleeping $(lval delay)" 
+            sleep ${delay}
         fi
     done
 
-    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout=_eretry_timeout exit_codes) retries=(${attempt}/${_eretry_retries})" 
+    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})" 
 
     # Emit stdout
     echo -n "${stdout}"
@@ -3286,149 +3572,56 @@ setvars()
     return 0
 }
 
-#-----------------------------------------------------------------------------
-# LOCKFILES
-#-----------------------------------------------------------------------------
-
-declare -A __ELOCK_FDMAP
-
-# elock is a wrapper around flock(1) to create a file-system level lockfile
-# associated with a given filename. This is an advisory lock only and requires
-# all callers to use elock/eunlock in order to protect the file. This method
-# is easier to use than calling flock directly since it will automatically
-# open a file descriptor to associate with the lockfile and store that off in
-# an associative array for later use.
-#
-# These locks are exclusive. In the future we may support a -s option to pass
-# into flock to make them shared but at present we don't need that behavior.
-#
-# These locks are NOT recursive. Which means if you already own the lock and
-# you try to acquire the lock again it will return an error immediately to
-# avoid hanging.
-#
-# The file descriptor associated with the lockfile is what keeps the lock
-# alive. This means you need to either explicitly call eunlock to unlock the
-# file and close the file descriptor OR simply put it in a subshell and it
-# will automatically be closed and freed up when the subshell exits.
-#
-# Lockfiles are inherited by subshells. Specifically, a subshell will see the
-# file locked and has the ability to unlock that file. This may seem odd since
-# subshells normally cannot modify parent's state. But in this case it is
-# in-kernel state being modified for the process which the parent and subshell
-# share. The one catch here is that our internal state variable __ELOCK_FDMAP
-# will become out of sync when this happens because a call to unlock inside
-# a subshell will unlock it but cannot remove from our parent's FDMAP. All of
-# these functions deal with this possibility properly by not considering the
-# FDMAP authoritative. Instead, rely on flock for error handling where possible
-# and even if we have a value in our map check if it's locked or not before
-# failing any operations.
-#
-# To match flock behavior, if the file doesn't exist it is created.
-#
-elock()
+## Ever want to evaluate a bash command that is stored in an array?  It's
+## mostly a great way to do things.  Keeping the various arguments separate in
+## the array means you don't have to worry about quoting.  Bash keeps the
+## quoting you gave it in the first place.  So the typical way to run such a
+## command is like this:
+##
+##     > cmd=(echo "\$\$")
+##     > "${cmd[@]}"
+##     $$
+##
+##  As you can see, since the dollar signs were quoted as the command was put
+##  into the array, so the quoting was retained when the command was executed.
+##  If you had instead used eval, you wouldn't get that behavior:
+##
+##     > cmd=(echo "\$\$")
+##     > "${cmd[@]}"
+##     53355
+##
+##  Instead, the argument gets "evaluated" by bash, turning it into the current
+##  process id.  So if you're storing commands in an array, you can see that
+##  you typically don't want to use eval.
+##
+##  But there's a wrinkle, of course.  If the first item in your array is the
+##  name of an alias, bash won't expand that alias when using the first syntax.
+##  This is because alias expansion happens in a stage _before_ bash expands
+##  the contents of the variable.
+##
+##  So what can you do if you want alias expansion to happen but also want
+##  things in the array to be quoted properly?  Use `quote_array`.  It will
+##  ensure that all of the arguments don't get evaluated by bash, but that the
+##  name of the command _does_ go through alias expansion.
+##
+##      > cmd=(echo "\$\$")
+##      > quote_eval "${cmd[@]}"
+##      $$
+##
+##  There, wasn't that simple?
+##
+quote_eval()
 {
-    $(declare_args fname)
-    
-    # Create file if it doesn't exist
-    [[ -e ${fname} ]] || touch ${fname} 
- 
-    # Check if we already have a file descriptor for this lockfile. If we do
-    # don't fail immediately but check if that file is actually locked. If so
-    # return an error to avoid causing deadlock. If it's not locked, purge the
-    # stale entry with a warning.
-    local fd=$(elock_get_fd "${fname}" || true)
-    if [[ -n ${fd} ]]; then
+    local cmd=("$1")
+    shift
 
-        if elock_locked "${fname}"; then
-            eerror "$(lval fname) already locked"
-            return 1
-        fi
+    for arg in "${@}" ; do
+        cmd+=( "$(printf %q "${arg}")" )
+    done
 
-        ewarn "Purging stale lock entry $(lval fname fd)"
-        eunlock ${fname}
-    fi
-   
-    # Open an auto-assigned file descriptor with the associated file
-    edebug "Locking $(lval fname)"
-    local fd
-    exec {fd}<${fname}
-
-    if flock --exclusive ${fd}; then
-        edebug "Successfully locked $(lval fname fd)"
-        __ELOCK_FDMAP[$fname]=${fd}
-        return 0
-    else
-        edebug "Failed to lock $(lval fname fd)"
-        exec ${fd}<&-
-        return 1
-    fi
+    eval "${cmd[@]}"
 }
 
-# eunlock is the logical analogue to elock. It's still essentially a wrapper 
-# around "flock -u" to unlock a previously locked file. This will ensure the
-# lock file is in our associative array and if not return an error. Then it
-# will simply call into flock to unlock the file. If successful, it will 
-# close remove the file descriptor from our file descriptor associative array.
-eunlock()
-{
-    $(declare_args fname)
- 
-    local fd=$(elock_get_fd "${fname}" || true)
-    if [[ -z ${fd} ]]; then
-        eerror "$(lval fname) not locked"
-        return 1
-    fi
-    
-    edebug "Unlocking $(lval fname fd)"
-    flock --unlock ${fd}
-    eval "exec ${fd}>&-"
-    unset __ELOCK_FDMAP[$fname]
-}
-
-# Get the file descriptor (if any) that our process has associated with a given
-# on-disk lockfile. This is largely for convenience inside elock and eunlock
-# to avoid some code duplication but could also be used externally if needed.
-#
-elock_get_fd()
-{
-    $(declare_args fname)
-    local fd="${__ELOCK_FDMAP[$fname]:-}"
-    if [[ -z "${fd}" ]]; then
-        return 1
-    else
-        echo -n "${fd}"
-        return 0
-    fi
-}
-
-
-# Check if a file is locked via elock. This simply looks for the file inside
-# our associative array because flock doesn't provide a native way to check
-# if we have a file locked or not.
-elock_locked()
-{
-    $(declare_args fname)
-
-    # If the file doesn't exist then we can't check if it's locked
-    [[ -e ${fname} ]] || return 1
-
-    local fd
-    exec {fd}<${fname}
-    if flock --exclusive --nonblock ${fd}; then
-        flock --unlock ${fd}
-        return 1
-    else
-        return 0
-    fi
-}
-
-# Check if a file is not locked via elock. This simply loosk for the file inside
-# our associative array because flock doesn't provide a native way to check
-# if we have a file locked or not.
-elock_unlocked()
-{
-    ! elock_locked $@
-}
 
 #-----------------------------------------------------------------------------
 # ARRAYS
@@ -3537,6 +3730,7 @@ array_add_nl()
 # -a=(0|1) Remove all instances (defaults to only removing the first instance)
 array_remove()
 {
+    $(declare_opts "all a | Remove all instances of the item instead of just the first.")
     $(declare_args __array)
 
     # Return immediately if if array is not set or no values were given to be
@@ -3544,9 +3738,6 @@ array_remove()
     # bash doesn't save arrays with no members.  For instance A=() unsets array A...
     [[ -v ${__array} && $# -gt 0 ]] || return 0
     
-    # Remove all instances or only the first?
-    local remove_all=$(opt_get a 0)
-
     local value
     for value in "${@}"; do
 
@@ -3557,7 +3748,8 @@ array_remove()
 
             unset ${__array}[$idx]
 
-            [[ ${remove_all} -eq 1 ]] || break
+            # Remove all instances or only the first?
+            [[ ${all} -eq 1 ]] || break
         done
     done
 }
@@ -3604,9 +3796,11 @@ array_contains()
 # $2: (optional) delimiter
 array_join()
 {
+    $(declare_opts \
+        "before b | Insert delimiter before all joined elements." \
+        "after a  | Insert delimiter after all joined elements.")
+
     $(declare_args __array ?delim)
-    local before=$(opt_get b 0)
-    local after=$(opt_get a 0)
 
     # If the array is empty return empty string
     array_empty ${__array} && { echo -n ""; return 0; } || true
@@ -3644,25 +3838,53 @@ array_join_nl()
     array_join "$1" $'\n'
 }
 
-# Sort an array in-place.
+# Create a regular expression that will match any one of the items in this
+# array.  Suppose you had an array containing the first four letters of the
+# alphabet.  Calling array_regex on that array will produce:
 #
-# OPTIONS:
-# -u Make resulting array unique.
-# -V Perform a natural (version) sort.
-array_sort()
+#    (a|b|c|d)
+#
+# Perhaps this is an esoteric thing to do, but it's pretty handy when you want
+# it.
+#
+# NOTE: Be sure to quote the output of your array_regex call, because bash
+# finds parantheses and pipe characters to be very important.
+#
+# WARNING: This probably only works if your array contains items that do not
+# have whitespace or regex-y characters in them.  Pids are good.  Other stuff,
+# probably not so much.
+#
+array_regex()
 {
     $(declare_args __array)
-    local flags=()
 
-    opt_true "u" && flags+=("--unique")
-    opt_true "V" && flags+=("--version-sort")
-    
-    readarray -t ${__array} < <(
-        local idx
-        for idx in $(array_indexes ${__array}); do
-            eval "echo \${${__array}[$idx]}"
-        done | sort ${flags[@]:-}
-    )
+    echo -n "("
+    array_join ${__array}
+    echo -n ")"
+}
+
+# Sort an array in-place.
+#
+array_sort()
+{
+    $(declare_opts \
+        "unique u  | Remove all but one copy of each item in the array." \
+        "version V | Perform a natural (version number) sort.")
+
+    local __array
+    for __array in "${@}" ; do
+        local flags=()
+
+        [[ ${unique} -eq 1 ]]  && flags+=("--unique")
+        [[ ${version} -eq 1 ]] && flags+=("--version-sort")
+        
+        readarray -t ${__array} < <(
+            local idx
+            for idx in $(array_indexes ${__array}); do
+                eval "echo \${${__array}[$idx]}"
+            done | sort ${flags[@]:-}
+        )
+    done
 }
 
 #-----------------------------------------------------------------------------
@@ -3815,15 +4037,20 @@ pack_iterate()
 # -e: Emit exported variables with 'export' keyword
 pack_import()
 {
+    $(declare_opts \
+        "local l=1 | Emit local variables via local builtin (default)." \
+        "global g  | Emit global variables instead of local (i.e. undeclared variables)." \
+        "export e  | Emit exported variables via export builtin.")
+
     $(declare_args _pack_import_pack)
     local _pack_import_keys=("${@}")
     [[ $(array_size _pack_import_keys) -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 
     # Determine requested scope for the variables
     local _pack_import_scope="local"
-    opt_true "l" && _pack_import_scope="local"
-    opt_true "g" && _pack_import_scope=""
-    opt_true "e" && _pack_import_scope="export"
+    [[ ${local} -eq 1 ]]  && _pack_import_scope="local"
+    [[ ${global} -eq 1 ]] && _pack_import_scope=""
+    [[ ${export} -eq 1 ]] && _pack_import_scope="export"
 
     local _pack_import_cmd=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
@@ -4053,51 +4280,43 @@ json_escape()
 # $(json_import <<< ${json})
 # $(curl ... | $(json_import)
 #
-# OPTIONS:
-# -g: Make variables global even if called in a local context.
-# -e: Emit exported variables (via declare -x)
-# -f: Parse the contents of provided file instead of stdin (e.g. -f=MyFile)
-# -u: Convert all keys into upper snake case.
-# -p: Prefix all keys with provided required prefix (e.g. -p=FOO)
-# -q: Use JQ style query expression on given JSON before parsing.
-# -x: Whitespace sparated list of keys to exclude while importing. If using multiple
-#     keys use quotes around them: -x "foo bar"
 json_import()
 {
-    $(declare_args)
+    $(declare_opts \
+        "global g           | Emit global variables instead of local ones." \
+        "export e           | Emit exported variables instead of local ones." \
+        ":file f=-          | Parse contents of provided file instead of stdin." \
+        "upper_snake_case u | Convert all keys into UPPER_SNAKE_CASE." \
+        ":prefix p          | Prefix all keys with the provided required prefix." \
+        ":query jq q        | Use JQ style query expression on given JSON before parsing." \
+        ":exclude x         | Whitespace separated list of keys to exclude while importing.")
 
     # Determine flags to pass into declare
     local dflags=""
-    opt_true g && dflags="-g"
-    opt_true e && dflags="-gx"
+    [[ ${global} -eq 1 ]] && dflags="-g"
+    [[ ${export} -eq 1 ]] && dflags="-gx"
 
-    # Lookup optional prefix to use
-    local _json_import_prefix="$(opt_get p)"
-
-    # Lookup optional jq query to use
-    local _json_import_query="$(opt_get q)"
-    : ${_json_import_query:=.}
+    # optional jq query, or . which selects everything in jq
+    : ${query:=.}
 
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
     # In either case read into a local variable so we can parse it repeatedly in this function.
-    local _json_import_filename="$(opt_get f)"
-    : ${_json_import_filename:=-}
-    local _json_import_data=$(cat ${_json_import_filename} | jq -r "${_json_import_query}")
+    local _json_import_data=$(cat ${file} | jq -r "${query}")
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
     local _json_import_keys=("${@:-}")
     [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
 
     # Get list of optional keys to exclude
-    local _json_import_keys_excluded
-    array_init _json_import_keys_excluded "$(opt_get x)"
+    local excluded
+    array_init excluded "${exclude}"
 
     # Debugging
-    edebug $(lval _json_import_prefix _json_import_query _json_import_filename _json_import_data _json_import_keys _json_import_keys_excluded)
+    edebug $(lval prefix query file _json_import_data _json_import_keys excluded)
 
     local cmd key val
     for key in "${_json_import_keys[@]}"; do
-        array_contains _json_import_keys_excluded ${key} && continue
+        array_contains excluded ${key} && continue
 
         # If the key is marked as optional then add filter "//empty" so that 'null' literal is replaced with an empty string
         if [[ ${key} == \?* ]]; then
@@ -4112,9 +4331,9 @@ json_import()
         fi
 
         edebug $(lval key val)
-        opt_true "u" && key=$(to_upper_snake_case "${key}")
+        [[ ${upper_snake_case} -eq 1 ]] && key=$(to_upper_snake_case "${key}")
 
-        cmd+="declare ${dflags} ${_json_import_prefix}${key}=\"${val}\";"
+        cmd+="declare ${dflags} ${prefix}${key}=\"${val}\";"
     done
 
     echo -n "eval ${cmd}"
@@ -4190,8 +4409,14 @@ assert()
 {
     local cmd=( "${@}" )
     
-    $(tryrc -r=__assert_rc eval "${cmd[@]}")
-    [[ ${__assert_rc} -eq 0 ]] || die "assert failed (rc=${__assert_rc}) :: ${cmd[@]}"
+    try
+    {
+        eval "${cmd[@]}"
+    }
+    catch
+    {
+        [[ $? -eq 0 ]] || die "assert failed (rc=$?}) :: ${cmd[@]}"
+    }
 }
 
 assert_true()
@@ -4202,9 +4427,15 @@ assert_true()
 assert_false()
 {
     local cmd=( "${@}" )
-
-    $(tryrc -r=__assert_false_rc eval "${cmd[@]}")
-    [[ ${__assert_false_rc} -ne 0 ]] || die "assert_false failed :: ! $(lval cmd)"
+    
+    try
+    {
+        eval "${cmd[@]}"
+    }
+    catch
+    {
+        [[ $? -ne 0 ]] || die "assert failed (rc=$?) :: ${cmd[@]}"
+    }
 }
 
 assert_op()
@@ -4277,6 +4508,60 @@ assert_not_exists()
         [[ ! -e "${name}" ]] || die "'${name}' exists"
     done
 }
+
+assert_archive_contents()
+{
+    $(declare_args archive)
+    edebug "Validating $(lval archive)"
+    
+    local expect=( "${@}" )
+    array_sort expect
+
+    assert_exists "${archive}"
+    local actual=( $(archive_list ${archive}) )
+
+    edebug "$(lval expect)"
+    edebug "$(lval actual)"
+
+    assert_eq "${#expect[@]}" "${#actual[@]}" "Size mismatch"
+
+    local idx
+    for idx in $(array_indexes expect); do
+        eval "local e=\${expect[$idx]}"
+        eval "local a=\${actual[$idx]}"
+
+        assert_eq "${e}" "${a}" "Mismatch at index=${idx}"
+    done
+}
+
+assert_directory_contents()
+{
+    $(declare_args directory)
+    edebug "Validating $(lval directory)"
+
+    local expect=( "${@}" )
+    array_sort expect
+    
+    assert_exists "${directory}"
+    local actual=( $(find "${directory}" -printf '%P\n' | sort) )
+
+    edebug "$(lval expect)"
+    edebug "$(lval actual)"
+
+    assert_eq "${#expect[@]}" "${#actual[@]}" "Size mismatch"
+
+    local idx
+    for idx in $(array_indexes expect); do
+        eval "local e=\${expect[$idx]}"
+        eval "local a=\${actual[$idx]}"
+
+        assert_eq "${e}" "${a}" "Mismatch at index=${idx}"
+    done
+}
+
+#-----------------------------------------------------------------------------
+# DEFAULT TRAPS
+#-----------------------------------------------------------------------------
 
 # Default traps
 die_on_abort

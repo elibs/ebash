@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 ETEST_netns_create_list_delete()
 {
     NS_NAME=namespace_${FUNCNAME}

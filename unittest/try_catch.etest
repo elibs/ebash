@@ -152,17 +152,17 @@ ETEST_nodie_on_error_with_try_catch()
 
 # Verify we are building up the try/catch enabled stack correctly.
 ERR_TRAP_DIE="die ${DIE_MSG_UNHERR}"
-ERR_TRAP_CATCH="die -c=grey19 -r=\$? ${DIE_MSG_CAUGHT} &> >(edebug)"
+ERR_TRAP_CATCH="die -r=\$? ${DIE_MSG_CAUGHT}"
 ERR_TRAP_NONE="-"
 
 assert_stack_eq()
 {
-    assert_eq $# $(array_size __EFUNCS_DIE_ON_ERROR_TRAP_STACK)
+    assert_eq $# $(array_size __BU_DIE_ON_ERROR_TRAP_STACK)
 
     local frame=0
     for code in "${@}"; do
         eval "local expect="\${ERR_TRAP_${code}}""
-        local actual="${__EFUNCS_DIE_ON_ERROR_TRAP_STACK[$frame]}"
+        local actual="${__BU_DIE_ON_ERROR_TRAP_STACK[$frame]}"
 
         einfo "$(lval frame expect actual)"
         assert_eq "${expect}" "${actual}"
@@ -340,7 +340,7 @@ ETEST_disable_enable_die_on_error()
 
 ETEST_tryrc()
 {
-    $(tryrc -o=stdout -e=stderr echo "foo")
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr echo "foo")
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 0     "${rc}"
@@ -350,7 +350,7 @@ ETEST_tryrc()
 
 ETEST_tryrc_empty_command()
 {
-    $(tryrc -o=stdout -e=stderr "")
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr "")
 
     assert_eq 0  "${rc}"
     assert_eq "" "${stdout}"
@@ -359,7 +359,7 @@ ETEST_tryrc_empty_command()
 
 ETEST_tryrc_declare()
 {
-    $(tryrc -o=stdout -e=stderr echo "foo")
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr echo "foo")
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 'declare -- rc="0"'       "$(declare -p rc)"
@@ -375,7 +375,7 @@ ETEST_tryrc_declare_global()
 
     call_tryrc()
     {
-        $(tryrc -g -o=stdout -e=stderr eval 'echo "foo" >&1; echo "bar" >&2')
+        $(EDEBUG=0 tryrc -g -o=stdout -e=stderr eval 'echo "foo" >&1; echo "bar" >&2')
         einfo "$(lval rc stdout stderr)"
     }
 
@@ -394,7 +394,7 @@ ETEST_tryrc_declare_local()
 
     call_tryrc()
     {
-        $(tryrc -o=stdout -e=stderr eval 'echo "foo" >&1; echo "bar" >&2')
+        $(EDEBUG=0 tryrc -o=stdout -e=stderr eval 'echo "foo" >&1; echo "bar" >&2')
         einfo "$(lval rc stdout stderr)"
     }
 
@@ -422,7 +422,7 @@ ETEST_tryrc_command_with_no_output()
     $(tryrc false)
     assert_ne 0 "${rc}"
 
-    $(tryrc -o=so -e=se false)
+    $(EDEBUG=0 tryrc -o=so -e=se false)
     assert_ne 0 "${rc}"
     assert_eq "" "${so}"
     assert_eq "" "${se}"
@@ -469,7 +469,7 @@ ETEST_tryrc_stacktrace()
 
 ETEST_tryrc_multiple_commands()
 {
-    $(tryrc -o=stdout -e=stderr eval "mkdir -p foo; echo -n 'zap' > foo/file; echo 'done'")
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr eval "mkdir -p foo; echo -n 'zap' > foo/file; echo 'done'")
     einfo "$(lval rc stdout stderr)"
 
     assert_exists foo foo/file
@@ -511,7 +511,7 @@ ETEST_tryrc_multiline_output()
     printf "line 1\nline 2\nline 3\n" > input.txt
     cat input.txt
     
-    $(tryrc -o=stdout -e=stderr cat input.txt)
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 0 "${rc}"
@@ -526,7 +526,7 @@ ETEST_tryrc_multiline_output_spaces()
     echo "d    e     f" >> input.txt
     cat input.txt
 
-    $(tryrc -o=stdout -e=stderr cat input.txt)
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stdout stderr)"
 
     diff --unified <(cat input.txt) <(echo "${stdout}")
@@ -558,7 +558,7 @@ ETEST_tryrc_stderr_unbuffered()
     einfo "Creating background infinite process writing to stderr"
     (
         $(EDEBUG=0 tryrc eval 'echo "MESSAGE" >&2; sleep infinity') &
-        echo "$!" >> "${FUNCNAME}.pids"
+        process_tree "$!" >> "${FUNCNAME}.pids"
 
     ) 2>${pipe}
     echo "$!" >> "${FUNCNAME}.pids"
@@ -566,7 +566,7 @@ ETEST_tryrc_stderr_unbuffered()
     wait
 
     # Kill any background processes that have survived to this point.
-    $(tryrc ekilltree -s=SIGKILL $(cat ${FUNCNAME}.pids))
+    ekilltree -s=SIGKILL $(cat ${FUNCNAME}.pids)
 }
 
 ETEST_tryrc_no_eol()
@@ -575,7 +575,7 @@ ETEST_tryrc_no_eol()
     echo -n "a" > input.txt
     cat input.txt
 
-    $(tryrc -o=stdout -e=stderr cat input.txt)
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stdout stderr)"
     declare -p stdout
     declare -p stderr
@@ -591,7 +591,7 @@ ETEST_tryrc_multiline_monster_output()
     dmesg > input.txt
     einfo "Num lines=$(cat input.txt | wc -l)"
 
-    $(tryrc -o=stdout -e=stderr cat input.txt)
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stderr)"
 
     diff --unified <(cat input.txt) <(echo "${stdout}")

@@ -15,43 +15,43 @@ export BASHUTILS
 
 START_TIME=$SECONDS
 
+$(declare_opts \
+    ":filter  f=${FILTER:-}    | Tests whose name or file amtch this will be run." \
+    ":exclude x=${EXCLUDE:-}   | Tests whose name or file match this will not be run." \
+    ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
+    "verbose  v=${VERBOSE:-0}  | Verbose output." \
+    "break    b=${BREAK:-0}    | Stop immediately on first failure." \
+    "delete   d=1              | Delete all output files when tests complete." \
+    "clean    c=0              | Clean only and then exit." \
+    "html     h=0              | Produce an HTML logfile and strip color codes out of etest.log.")
+
 # If no test directory was provided use PWD.
-$(declare_args -g ?TEST_DIR)
+$(declare_args ?TEST_DIR)
 : ${TEST_DIR:=$(readlink -f .)}
 ETEST_TOPDIR=${TEST_DIR}
 
-# OPTIONS:
-# -f=FILTER: Optional filter of tests to run (defaults to FILTER which defaults to "").
-# -r=NUM:    Number of times to repeat matching tests (defaults to REPEAT which defaults to 0).
-# -v=(0|1)   Optional value for VERBOSE setting. If set to 0 you'll get terse output from etest showing
-#            only the test name and result. If set to 1 you'll get more verbose output from etest and each test.
-# -b=(0|1)   Break on failure (defaults to 0)
-# -d=(0|1)   Delete all output (defaults to 1)
-# -c=(0|1)   Clean only then exit.
-# -h=(0|1)   Produce HTML logfile and strip color codes from etest.log
-FILTER=$(opt_get f ${FILTER:=""})
-EXCLUDE=$(opt_get x ${EXCLUDE:=""})
-REPEAT=$(opt_get r ${REPEAT:=1})
-(( ${REPEAT} < 1 )) && REPEAT=1
-VERBOSE=$(opt_get v 0)
-[[ ${EDEBUG:-0} != "0" ]] && VERBOSE=1 || true
-BREAK=$(opt_get b ${BREAK:=0})
-DELETE=$(opt_get d 1)
-HTML=$(opt_get h 0)
-edebug "$(lval TEST_DIR FILTER REPEAT VERBOSE BREAK HTML)"
+(( ${repeat} < 1 )) && repeat=1
+[[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
+edebug "$(lval TEST_DIR) $(opt_dump)"
 
-# Global cgroup name for all unit tests
-export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
+if ! cgroup_supported ; then
+    ewarn "Cgroups not supported on this system.  Process leaks will not be detected."
+    export ETEST_CGROUP_BASE=unsupported
+else
+    # Global cgroup name for all unit tests
+    export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
+fi
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
+
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${TEST_DIR}/etest.log
-elogfile -r=1 -t=${VERBOSE} ${ETEST_LOG}
+elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
-if [[ ${VERBOSE} -eq 0 ]]; then
-    ETEST_OUT="/proc/self/fd/${ETEST_STDERR_FD}"
+if [[ ${verbose} -eq 0 ]]; then
+    ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
     TEST_OUT="/dev/null"
 else
     ETEST_OUT="/dev/null"
@@ -64,11 +64,11 @@ fi
 
 die_handler()
 {
-    $(declare_args)
-    local rc=$(opt_get r 1)
+    $(declare_opts \
+        ":rc return_code r=1 | Return code that die will exit with")
 
     # Append any error message to logfile
-    if [[ ${VERBOSE} -eq 0 ]]; then
+    if [[ ${verbose} -eq 0 ]]; then
         echo "" >&2
         eerror "${@}"
         
@@ -109,11 +109,15 @@ no_process_leaks_remain()
 
 assert_no_process_leaks()
 {
+    # Error stacks generated here should produce output, even though etest has
+    # them wrapped in a try.
+    __BU_INSIDE_TRY=0
+
     edebug "Waiting..."
     
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
-    $(tryrc eretry -T=10s -w=1 no_process_leaks_remain)
+    $(tryrc eretry -T=5s -w=1 no_process_leaks_remain)
 
     # The above command could have timed out but that doesn't necessarily mean
     # there are leaked processes. So KILL anything that's left, but only DIE
@@ -122,6 +126,7 @@ assert_no_process_leaks()
         local leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
         if [[ -n ${leaked_processes} ]]; then
             cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
+
             die "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
         fi
     fi
@@ -137,11 +142,11 @@ assert_no_mount_leaks()
     local mounts=( $(efindmnt "${path}" ) )
     
     if ! array_empty mounts; then
-        eunmount -a -r -d=${DELETE} "${path}"
+        eunmount -a -r -d=${delete} "${path}"
         die "Leaked mounts under $(lval path)\n$(array_join_nl mounts)"
     fi
 
-    if [[ ${DELETE} -eq 1 ]]; then
+    if [[ ${delete} -eq 1 ]]; then
         rm --recursive --force --verbose "${path}" |& edebug
     fi
 
@@ -157,9 +162,11 @@ global_setup()
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
     efreshdir ${TEST_DIR_OUTPUT}
 
-    # And a cgroup that will contain all output
-    cgroup_create ${ETEST_CGROUP_BASE}
-    cgroup_move ${ETEST_CGROUP_BASE} $$
+    if cgroup_supported ; then
+        # And a cgroup that will contain all output
+        cgroup_create ${ETEST_CGROUP}
+        cgroup_move ${ETEST_CGROUP_BASE} $$
+    fi
 
     edebug "Finished global_setup"
     return 0
@@ -167,15 +174,17 @@ global_setup()
 
 global_teardown()
 {
-    [[ ${DELETE} -eq 0 ]] && edebug "Skipping global_teardown" && return 0
+    [[ ${delete} -eq 0 ]] && edebug "Skipping global_teardown" && return 0
     edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
-    cgroup_destroy -r ${ETEST_CGROUP}
+    if cgroup_supported ; then
+        cgroup_destroy -r ${ETEST_CGROUP}
+    fi
 
     assert_no_mount_leaks ${TEST_DIR_OUTPUT}
 
     # Convert logfile to HTML if requested
-    if [[ ${HTML} -eq 1 ]] && which ansi2html &>/dev/null; then
+    if [[ ${html} -eq 1 ]] && which ansi2html &>/dev/null; then
         edebug "Converting ${ETEST_LOG} into HTML"
         cat ${ETEST_LOG} | ansi2html --scheme=xterm > ${ETEST_LOG/.log/.html}
         sed -i "s:\x1B\[[0-9;]*[mK]::g" ${ETEST_LOG}
@@ -205,8 +214,15 @@ run_single_test()
     # cgroup.  This subshell solves both issues.
     try
     {
-        cgroup_create ${ETEST_CGROUP}
-        cgroup_move ${ETEST_CGROUP} ${BASHPID}
+        # Pretend that the test _not_ executing inside a try/catch so that the
+        # error stack will get printed if part of the test fails, as if etest
+        # weren't running it inside a try/catch
+        __BU_INSIDE_TRY=0
+
+        if cgroup_supported ; then
+            cgroup_create ${ETEST_CGROUP}
+            cgroup_move ${ETEST_CGROUP} ${BASHPID}
+        fi
 
         # Unit test provided setup
         if declare -f setup &>/dev/null ; then
@@ -224,8 +240,22 @@ run_single_test()
         rc=$?
     }
 
-    if [[ ${rc} -eq 0 ]]; then
-        einfo "$(ecolor "green")${testfunc} PASSED."
+    local process_leak_rc=0
+    if cgroup_supported ; then
+        $(tryrc -r=process_leak_rc assert_no_process_leaks)
+    fi
+
+    local mount_leak_rc=0
+    $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}")
+
+    if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 && ${mount_leak_rc} -eq 0 ]]; then
+        einfo "$(ecolor green)${testfunc} PASSED."
+    elif [[ ${rc} -eq 0 && ${process_leak_rc} -ne 0 ]] ; then
+        eerror "${testfunc} FAILED due to process leak."
+        rc=1
+    elif [[ ${rc} -eq 0 && ${mount_leak_rc} -ne 0 ]] ; then
+        eerror "${testfunc} FAILED due to mount leak."
+        rc=1
     else
         eerror "${testfunc} FAILED."
     fi
@@ -250,55 +280,57 @@ run_all_tests_in_file()
     grep -q "^ETEST_" ${testfile} >/dev/null || return 0
 
     # Skip files whose name matches the exclude filter
-    [[ -n ${EXCLUDE} && ${testfile} =~ ${EXCLUDE} ]] && return 0
-
-    # Ensure proper shebang is in the unit test or else bashlint won't be able to validate it
-    # and it may not be a proper bash unit test
-    grep -q '^#!/.*bash' ${testfile} || { eerror "No bash shebang in ${testfile}"; throw 1; }
+    [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] && return 0
 
     # Get all function names that begin with ETEST_ (and optionally match $2)
-    if [[ ${testfile} =~ ${FILTER} ]]; then
+    if [[ -z ${filter} || ${testfile} =~ ${filter} ]]; then
         ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" {print $3}' ) )
     else
-        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${FILTER}'" {print $3}') )
+        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${filter}'" {print $3}') )
     fi
     edebug $(lval testfile ETEST_FUNCTIONS)
 
     [[ ${#ETEST_FUNCTIONS[@]} -gt 0 ]] || return 0
 
     # Exclude those functions that match the exclude filter
-    if [[ -n ${EXCLUDE} ]] ; then
+    if [[ -n ${exclude} ]] ; then
         for index in "${!ETEST_FUNCTIONS[@]}" ; do
-            if [[ ${ETEST_FUNCTIONS[$index]} =~ ${EXCLUDE} ]] ; then
+            if [[ ${ETEST_FUNCTIONS[$index]} =~ ${exclude} ]] ; then
                 unset ETEST_FUNCTIONS[$index]
             fi
         done
     fi
 
     einfo "Running tests in ${testfile} ${REPEAT_STRING}" &>${ETEST_OUT}
+    local file_start=${SECONDS}
 
     for testfunc in file_setup ${ETEST_FUNCTIONS[@]} file_teardown; do
      
         # Unit test infrastructure setup
         efreshdir ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
        
+        local test_rc=0
         try
         {
-            run_single_test ${testfile} ${testfunc}
+            # Pretend that the test _not_ executing inside a try/catch so that
+            # the error stack will get printed if part of the test fails, as if
+            # etest weren't running it inside a try/catch
+            __EFUNCS_INSIDE_TRY=0
+
+            ( run_single_test ${testfile} ${testfunc} )
         }
         catch
         {
-            [[ ${BREAK} -eq 0 ]] || die "${testfunc} failed and BREAK=1" &>${ETEST_OUT}
-            FAILURES[${testfilename}]+="${testfunc//ETEST_} " || true
+            test_rc=$?
+            [[ ${break} -eq 0 ]] || die "${testfunc} failed and break=1" &>${ETEST_OUT}
+            FAILURES[${testfilename}]+="${testfunc} "
             [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_FAILED_COUNT += 1 ))
         }
         [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_EXECUTED_COUNT += 1 ))
 
-        # Unit test infrastructure teardown
-        assert_no_process_leaks
-        assert_no_mount_leaks "${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}"
-
     done
+
+    einfos "Finished $(basename ${testfile}) in $(( SECONDS - file_start )) seconds.  ${REPEAT_STRING}" &>${ETEST_OUT}
 }
 
 #-------------------------------------------------------------------------------------------------------------------------
@@ -310,7 +342,7 @@ global_setup
 trap_add global_teardown
 
 # If clean only is requested exit immediately. The "clean" is done via global_setup and global_teardown.
-opt_true c && exit 0
+[[ ${clean} -eq 1 ]] && exit 0
 
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
@@ -319,8 +351,8 @@ opt_true c && exit 0
 TEST_EXECUTED_COUNT=0
 TEST_FAILED_COUNT=0
 
-for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
-    [[ ${REPEAT} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${REPEAT})" || REPEAT_STRING=""
+for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
+    [[ ${repeat} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${repeat})" || REPEAT_STRING=""
 
     # Run all standalone *.etest scripts directly outside of etest framework
     einfo "Running standalone tests ${REPEAT_STRING}" &>${ETEST_OUT}
@@ -328,7 +360,7 @@ for (( ITERATION=1; ITERATION<=${REPEAT}; ITERATION++ )); do
 
         base=$(basename "${filename}" .etest)
 
-        if [[ ( -z ${FILTER} || ${FILTER} =~ ${base} ) && ! ${EXCLUDE} =~ ${base} ]] ; then
+        if [[ ( -z ${filter} || ${filter} =~ ${base} ) && ! ${exclude} =~ ${base} ]] ; then
             MSG="Running standalone $(lval script=filename)"
             einfos "ETEST_${base%%.etest}" &>${ETEST_OUT}
             ebanner "${MSG}"

@@ -2,6 +2,8 @@
 
 # Copyright 2016, SolidFire, Inc. All rights reserved.
 
+[[ ${__BU_OS} == Linux ]] || return 0
+
 #-------------------------------------------------------------------------------
 # OVERLAYFS
 # 
@@ -24,8 +26,6 @@
 # kernels also support BOTH in which case we need to only take the first one we
 # find (hence the use of head -1).
 __BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null | head -1 || true)
-__BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
-__BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
 
 # Detect whether overlayfs is supported or not.
 overlayfs_supported()
@@ -193,8 +193,8 @@ overlayfs_mount()
 # into the final mount image, they will all be unmounted as well.
 overlayfs_unmount()
 {
-    $(declare_args)
-    local verbose=$(opt_get v 0)
+    $(declare_opts \
+        "verbose v | Enable verbose output.")
     
     local mnt
     for mnt in "$@"; do
@@ -301,5 +301,5 @@ overlayfs_save_changes()
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
     # Save to requested type.   
-    archive_create "${upper}" "${dest}"
+    archive_create -d="${upper}" . "${dest}"
 }

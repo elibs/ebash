@@ -38,6 +38,11 @@ CGROUP_SUBSYSTEMS=(cpu memory freezer)
 #
 cgroup_supported()
 {
+    if [[ ! -e /proc/cgroups ]] ; then
+        edebug "No support for cgroups."
+        return 1
+    fi
+
     local subsystem missing_count=0
     for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
         if ! grep -qw "^${subsystem}" /proc/cgroups ; then
@@ -49,6 +54,7 @@ cgroup_supported()
     return ${missing_count}
 }
 
+[[ ${__BU_OS} == Linux ]] || return 0
 
 #-------------------------------------------------------------------------------
 # Prior to using a cgroup, you must create it.  It is safe to attempt to
@@ -75,16 +81,13 @@ cgroup_create()
 # or any child cgroups.  You can use cgroup_kill_and_wait to ensure that they
 # are if you like.
 #
-# Options:
-#   -r: Destroy cgroup as well as all of its children.
-#
 cgroup_destroy()
 {
-    $(declare_args)
+    $(declare_opts "recursive r | Destroy cgroup's children recursively")
 
     local msg
     msg="destroying cgroups ${@}"
-    opt_false r || msg+=" recursively"
+    [[ ${recursive} -eq 1 ]] && msg+=" recursively"
     edebug "${msg}"
 
     for cgroup in "${@}" ; do
@@ -94,7 +97,7 @@ cgroup_destroy()
             local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
             [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys_path} that is already gone." ; continue ; }
 
-            if opt_true "r" ; then
+            if [[ ${recursive} -eq 1 ]] ; then
                 find ${subsys_path} -depth -type d -exec rmdir {} \;
             else
                 rmdir ${subsys_path}
@@ -218,19 +221,17 @@ cgroup_get()
 # cgroups that _do_ exist).  On failure, it returns the number of specified
 # cgroups that did not exist.
 #
-# Options:
-#       -x=space separated list of pids not to return -- default is to return
-#          all
-#
 cgroup_pids()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":exclude x  | Space separated list of pids not to return.  By default returns all." \
+        "recursive r | Additionally return pids for processes of this cgroup's children.")
 
     local cgroups cgroup ignorepids all_pids rc
     cgroups=( ${@} )
     rc=0
 
-    array_init ignorepids "$(opt_get x)"
+    array_init ignorepids "${exclude}"
 
     for cgroup in "${cgroups[@]}" ; do
         local subsystem_paths=()
@@ -239,7 +240,7 @@ cgroup_pids()
         done
 
         local files file
-        if opt_true r ; then
+        if [[ ${recursive} -eq 1 ]] ; then
             array_init files "$(find "${subsystem_paths[@]}" -depth -name tasks 2>/dev/null)"
         else
             for file in "${subsystem_paths[@]}" ; do
@@ -300,18 +301,18 @@ cgroup_pids()
 #-------------------------------------------------------------------------------
 # Run ps on all of the processes in a cgroup.
 #
-# Options:
-#       -x=space separated list of pids not to list.  By default all are listed.
-#
 cgroup_ps()
 {
+    $(declare_opts \
+        ":exclude x  | Space separated list of pids not to display." \
+        "recursive r | List processes for specified cgroup and all children.")
     $(declare_args cgroup)
 
     local options=()
-    opt_true r && options+=("-r")
+    [[ ${recursive} -eq 1 ]] && options+=("-r")
 
     local pid cgroup_pids
-    cgroup_pids=($(cgroup_pids ${options[@]:-} -x="${BASHPID} $(opt_get x)" ${cgroup}))
+    cgroup_pids=($(cgroup_pids ${options[@]:-} -x="${BASHPID} ${exclude}" ${cgroup}))
 
     array_empty cgroup_pids && return 0
 
@@ -349,7 +350,6 @@ cgroup_ps()
 #
 cgroup_tree()
 {
-    $(declare_args)
     local cgroups=("${@}")
 
     # If none were specified, we'll start at cgroup root
@@ -392,8 +392,6 @@ cgroup_tree()
 #
 cgroup_pstree()
 {
-    $(declare_args)
-
     local cgroup
     for cgroup in $(cgroup_tree "${@}") ; do
 
@@ -430,23 +428,22 @@ cgroup_current()
 # all of the specified cgroups (and their children!).  Accepts any number of
 # cgroups.
 #
-# Options:
-#       -s=<signal>
-#       -x=space separated list of pids not to kill.  NOTE: $$ and $BASHPID are
-#          always added to this list so as to not kill the calling process
+# NOTE: $$ and $BASHPID are always added to this list so as to not kill the
+# calling process
 #
 cgroup_kill()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":signal s=TERM | The signal to send to processs in the specified cgroup" \
+        ":exclude x     | Space separated list of processes not to kill.  Note: current process and ancestors are always excluded.")
+
     local cgroups=( ${@} )
-    local signal=$(opt_get s SIGTERM)
 
     [[ $(array_size cgroups) -gt 0 ]] || return 0
 
     local ignorepids pids
 
-    ignorepids="$(opt_get x)"
-    ignorepids+=" $$ ${BASHPID}"
+    ignorepids+="${exclude} $$ ${BASHPID}"
 
     # NOTE: BASHPID must be added here in addition to above because it's
     # different inside this command substituion (subshell) than it is outside.
@@ -488,15 +485,16 @@ cgroup_kill()
 #   
 cgroup_kill_and_wait()
 {
-    $(declare_args)
+    $(declare_opts \
+        ":signal s=TERM   | Signal to send to processes in the cgroup" \
+        ":exclude x       | Space-separated list of processes not to kill.  Current process and ancestors are always excluded." \
+        ":timeout max t=0 | Maximum number of seconds to wait for all processes to die.  If some still exist at that point, an error code will be returned.")
     local cgroups=( ${@} )
     local startTime=${SECONDS}
-    local timeout=$(opt_get t 0)
-    local signal=$(opt_get s SIGTERM)
 
     [[ $# -gt 0 ]] || return 0
 
-    local ignorepids="$$ $BASHPID $(opt_get x)"
+    local ignorepids="$$ $BASHPID ${exclude}"
 
     edebug "Ensuring that there are no processes in $(lval cgroups ignorepids signal)."
 

@@ -114,9 +114,9 @@ BENCH_einfo_msg_prefix_all()
     EMSG_PREFIX="all" einfo "####################################################################################################"
 }
 
-BENCH_simple_declare_args()
+BENCH_simple_declare_opts()
 {
-    $(declare_args)
+    $(declare_opts)
 }
 
 PREBENCH_debug_trap()
@@ -131,7 +131,6 @@ PREBENCH_debug_trap()
 
 debug_trap_shared()
 {
-    $(declare_args)
     true
     (
         if [[ A == B ]] ; then
@@ -190,13 +189,12 @@ BENCH_edebug_pipe_disabled_massive_output()
 # MAIN
 #-----------------------------------------------------------------------------
 
-$(declare_args)
+$(declare_opts \
+    ":filter f     | Only benchmarks matching this filter will be run.  By default all are run." \
+    ":exclude x    | Benchmarks whose name match this filter will not be run.  By default, all are run." \
+    ":count c=1000 | Basline number of times to run each test.")
 
 BENCH_FUNCS=( $(declare -F | awk '$3 ~ "^BENCH_" {print $3}') )
-
-: ${count:=$(opt_get c 1000)}
-: ${filter:=$(opt_get f)}
-: ${exclude:=$(opt_get x)}
 
 RESULTS_FILE=$(readlink -f results)
 : >${RESULTS_FILE}

@@ -208,6 +208,7 @@ ETEST_eretry_default_count()
         false
     }
 
+    etestmsg "$(lval retries)"
     $(tryrc eretry callback)
 
     assert_eq "5" "$(cat calls.txt)"

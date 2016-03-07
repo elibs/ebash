@@ -10,8 +10,8 @@ ETEST_die_subprocesses()
         bash -c 'sleep 1000' & echo "$!" >> pids
         bash -c 'sleep 4000' & echo "$!" >> pids
 
-        einfo "Processes are running..."
-        cat pids
+        etestmsg "Processes are running..."
+        ps $(cat pids)
 
         die "Killing try block"
     }
@@ -20,9 +20,9 @@ ETEST_die_subprocesses()
         true
     }
 
-    for pid in $(cat pids); do
-        eretry -t=2s process_not_running ${pid}
-    done
+    local pids=$(cat pids)
+    etestmsg "Ensuring processes died $(lval pids)"
+    eretry --timeout 2s process_not_running $(cat pids)
 }
 
 # Ensure if we call die() that any subshell registered traps are executed before exit.
@@ -51,12 +51,16 @@ ETEST_die_traps_parent()
     local fname2="die_traps_child.txt"
 
     (
+        disable_die_parent
         touch "${fname1}"
         trap_add "echo \"PARENT: Removing ${fname1}\"; rm --force ${fname1}"
 
+        einfo "PARENT: Traps:"$'\n'"$(trap -p)"
         (
+            disable_die_parent
             touch "${fname2}"
             trap_add "echo \"CHILD: Removing ${fname2}\"; rm --force ${fname2}"
+            einfo "CHILD: Traps:"$'\n'"$(trap -p)"
             die "Aborting subshell"
 
         ) || true
@@ -100,16 +104,35 @@ ETEST_die_trap_add()
     assert_eq "echo t1; " "$(trap_get SIGUSR2)"
 }
 
-# Don't allow traps to contain single quotes
-ETEST_trap_add_single_quotes()
+ETEST_die_from_command_subst()
 {
+    foo()
+    {
+        die_on_abort
+        einfo "foo BASHPID=${BASHPID}"
+        assert die_on_error_enabled
+        echo eval
+        $(bar)
+        echo " ; echo hi_from_foo=$BASHPID ;"
+    }
+
+    bar()
+    {
+        die_on_abort
+        einfo "bar BASHPID=${BASHPID}"
+        assert die_on_error_enabled
+        echo "echo echo hi_from_bar=$BASHPID"
+        die "Called die from bar"
+    }
+
     try
     {
-        trap_add "echo 'foo'"
-        die "trap_add should have failed."
+        $(foo)
+
+        die -r=243 "Should have never reached this point."
     }
     catch
     {
-        return 0
+        assert_ne 243 $?
     }
 }

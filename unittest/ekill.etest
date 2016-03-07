@@ -5,11 +5,39 @@ ETEST_ekill()
     # Start a simple process and ensure we can kill it
     yes >/dev/null &
     local pid=$!
-    process_running ${pid}   || die "${pid} should be running"
+    eretry --max-timeout 5s process_running ${pid}
 
     ekill ${pid}
     wait ${pid} || true
-    ! process_running ${pid} || die "${pid} should have been killed!"
+    eretry --max-timeout 5s process_not_running ${pid}
+}
+
+ETEST_ekill_elevate()
+{
+    ignore_term()
+    {
+        disable_die_parent
+        die_on_abort
+        trap '' SIGTERM
+        etestmsg "signals ignored in ${BASHPID}, starting endless loop."
+        while true ; do
+            :
+        done
+        ewarn "endless loop finished"
+    }
+
+    ignore_term &
+    local pid=$!
+
+    assert process_running ${pid}
+    local tree=$(process_tree ${pid})
+    etestmsg "Background processes running $(lval tree pid)."
+
+    etestmsg "Sending SIGTERM which will be ignored, but ekill will elevate to SIGKILL a second later."
+    ekilltree -s=TERM -k=1s ${pid}
+
+    etestmsg "Waiting for processes to get killed."
+    eretry -t=2s -T=10s process_not_running ${tree}
 }
 
 ETEST_ekill_multiple()
@@ -24,14 +52,11 @@ ETEST_ekill_multiple()
     done
 
     local pids=( $(cat pids) )
-    einfo "Killing all $(lval pids)"
+    etestmsg "Killing all $(lval pids)"
     ekill ${pids[@]}
 
-    for pid in ${pids[@]}; do
-        einfo "Waiting for $(lval pid pids SECONDS)"
-        wait $pid || true
-        ! process_running ${pid} || die "${pid} failed to exit"
-    done
+    etestmsg "Waiting for $(lval pid pids SECONDS)"
+    eretry --max-timeout 5s process_not_running ${pids[@]}
 }
 
 ETEST_ekilltree()
@@ -56,11 +81,7 @@ ETEST_ekilltree()
     einfo "Killing $(lval main_pid) -- Expecting death from $(lval pids)"
     ekilltree ${main_pid}
 
-    for pid in ${pids[@]}; do
-        einfo "Waiting for $(lval pid pids SECONDS)"
-        wait $pid || true
-        assert_false process_running ${pid}
-    done
+    eretry --timeout 5s process_not_running ${pids[@]}
 }
 
 ETEST_ekilltree_excludes_self()
@@ -91,7 +112,7 @@ ETEST_ekilltree_exclude_abritrary()
     try
     {
         sleep infinity&
-        echo $! >> safe_pid
+        process_tree $! >> safe_pid
 
         sleep infinity&
         echo $! >> kill_pid
@@ -103,8 +124,12 @@ ETEST_ekilltree_exclude_abritrary()
         assert [[ $? -eq 0 ]]
     }
 
+    etestmsg "Ensuring safe process is still running $(cat safe_pid)"
     assert process_running $(cat safe_pid)
-    eretry -T=2s process_not_running $(cat kill_pid)
+    etestmsg "And that other process is not $(cat kill_pid)"
+    ewarn $(ps -ef | grep $(cat kill_pid) || true)
+    eretry --timeout 5s process_not_running $(cat kill_pid)
+    ewarn $(ps -ef | grep $(cat kill_pid) || true)
 
     ekill -s=KILL $(cat safe_pid)
 }

@@ -3,6 +3,8 @@
 # Copyright 2012-2013, SolidFire, Inc. All rights reserved.
 #
 
+[[ ${__BU_OS} != Linux ]] && return 0
+
 #-----------------------------------------------------------------------------
 # CORE CHROOT FUNCTIONS
 #-----------------------------------------------------------------------------
@@ -99,13 +101,14 @@ chroot_cmd()
 #        If no pattern is specified, ALL proceses in the chroot will be
 #        signalled.
 #
-# Options:
-# -s=SIGNAL The signal to send to the pids (defaults to SIGKILL)
 chroot_kill()
 {
+    $(declare_opts \
+        ":signal s=TERM   | The signal to send to killed pids." \
+        ":kill_after k    | Also send SIGKILL to processes that are still alive after this duration.  (Does not block)")
+
     argcheck CHROOT
     $(declare_args ?regex)
-    local signal=$(opt_get s SIGKILL)
 
     local pids=""
     local errors=0
@@ -120,7 +123,7 @@ chroot_kill()
 
         # Kill this process
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        ekilltree -s=${signal} ${pid} || (( errors+=1 ))
+        ekilltree -s=${signal} --kill-after=${kill_after} ${pid} || (( errors+=1 ))
     done
 
     [[ ${errors} -eq 0 ]]
@@ -213,7 +216,7 @@ chroot_install()
         fi
 
         # Actually installed
-        local actual=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
+        local actual=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
         local apn="${actual%|*}"
         local apv="${actual#*|}"
 
@@ -256,7 +259,7 @@ chroot_apt()
 chroot_listpkgs()
 {
     argcheck CHROOT
-    local output=$(die_on_abort; chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W")
+    local output=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W")
     echo -en "${output}"
 }
 
@@ -264,7 +267,7 @@ chroot_uninstall_filter()
 {
     argcheck CHROOT
     local filter=$@
-    local pkgs=$(die_on_abort; chroot_listpkgs)
+    local pkgs=$(chroot_listpkgs)
     chroot_uninstall $(eval "echo \"${pkgs}\" | ${filter} | awk '{print \$1}'")
 }
 
@@ -389,9 +392,7 @@ mkchroot()
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
     einfo "Creating $(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
 
-    local LSB_RELEASE=$(cat /etc/lsb-release | grep "CODENAME" | awk -F= '{print $2}')
     local GPG_FLAG="--no-check-gpg"
-    [[ ${LSB_RELEASE} == "lucid" ]] && GPG_FLAG=""
 
     # Try to download to /var/distbox/downloads if it exists. If not fallback to /tmp
     local dst="/tmp"
