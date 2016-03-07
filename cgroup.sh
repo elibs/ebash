@@ -83,7 +83,7 @@ cgroup_create()
 #
 cgroup_destroy()
 {
-    $(declare_opts "-recursive r | Destroy cgroup's children recursively")
+    $(opt_parse "-recursive r | Destroy cgroup's children recursively")
 
     local msg
     msg="destroying cgroups ${@}"
@@ -223,7 +223,7 @@ cgroup_get()
 #
 cgroup_pids()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":exclude x   | Space separated list of pids not to return.  By default returns all." \
         "-recursive r | Additionally return pids for processes of this cgroup's children.")
 
@@ -303,7 +303,7 @@ cgroup_pids()
 #
 cgroup_ps()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":exclude x   | Space separated list of pids not to display." \
         "-recursive r | List processes for specified cgroup and all children.")
     $(declare_args cgroup)
@@ -433,7 +433,7 @@ cgroup_current()
 #
 cgroup_kill()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":signal s=TERM | The signal to send to processs in the specified cgroup" \
         ":exclude x     | Space separated list of processes not to kill.  Note: current process and ancestors are always excluded.")
 
@@ -485,7 +485,7 @@ cgroup_kill()
 #   
 cgroup_kill_and_wait()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":signal s=TERM   | Signal to send to processes in the cgroup" \
         ":exclude x       | Space-separated list of processes not to kill.  Current process and ancestors are always excluded." \
         ":timeout max t=0 | Maximum number of seconds to wait for all processes to die.  If some still exist at that point, an error code will be returned.")
