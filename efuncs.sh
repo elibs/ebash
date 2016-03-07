@@ -389,7 +389,7 @@ pipe_read_quote()
 # -g     Make variables global even if called in a local context.
 tryrc()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":rc r=rc  | Variable to assign the return code to." \
         ":stdout o | Write stdout to the specified variable rather than letting it go to stdout." \
         ":stderr e | Write stderr to the specified variable rather than letting it go to stderr." \
@@ -490,7 +490,7 @@ tryrc()
 # -f=N Frame number to start at.
 stacktrace()
 {
-    $(declare_opts ":frame f=0 | Frame number to start at if not the current one")
+    $(opt_parse ":frame f=0 | Frame number to start at if not the current one")
 
     while caller ${frame}; do
         (( frame+=1 ))
@@ -506,7 +506,7 @@ stacktrace()
 #      frame that this function calls.)
 stacktrace_array()
 {
-    $(declare_opts ":frame f=1 | Frame number to start at")
+    $(opt_parse ":frame f=1 | Frame number to start at")
     $(declare_args array)
 
     array_init_nl ${array} "$(stacktrace -f=${frame})"
@@ -583,7 +583,7 @@ die()
         exit ${__BU_DIE_IN_PROGRESS}
     fi
     
-    $(declare_opts \
+    $(opt_parse \
         ":return_code rc r=1 | Return code that die will eventually exit with." \
         ":signal s           | Signal that caused this die to occur." \
         ":color c            | DEPRECATED OPTION -- no longer has any effect." \
@@ -1114,7 +1114,7 @@ ewarns()
 
 eerror_internal()
 {
-    $(declare_opts ":color c=${COLOR_ERROR} | Color to print the message in.  Defaults to ${COLOR_ERROR}")
+    $(opt_parse ":color c=${COLOR_ERROR} | Color to print the message in.")
     emsg "${color}" ">>" "ERROR" "$@"
 }
 
@@ -1144,7 +1144,7 @@ eerror()
 #
 eerror_stacktrace()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":frame f=2              | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
         "-skip s                 | Skip the initial error message.  Useful if the caller already displayed it." \
         ":color c=${COLOR_ERROR} | Use the specified color for output messages.")
@@ -1370,7 +1370,7 @@ eprogress()
 # -a Kill all eprogress pids.
 eprogress_kill()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":rc return_code r=0  | Should this eprogress show a mark for success or failure?" \
         "-all a               | If set, kill ALL known eprogress processes, not just the current one")
 
@@ -1452,7 +1452,7 @@ signum()
 # 
 signame()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-include_sig s | Get the form of the signal name that includes SIG.")
 
     local prefix=""
@@ -1538,7 +1538,7 @@ process_not_running()
 #
 process_tree()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":ps_all | Pre-prepared output of \"ps -eo ppid,pid\" so I can avoid calling ps repeatedly")
     : ${ps_all:=$(ps -eo ppid,pid)}
 
@@ -1570,7 +1570,7 @@ process_tree()
 #
 process_children()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":ps_all | The contents of \"ps -eo ppid,pid\", produced ahead of time to avoid calling ps over and over")
     : ${ps_all:=$(ps -eo ppid,pid)}
 
@@ -1637,7 +1637,7 @@ process_ancestors()
 #   the initial signal.  If unspecified, ekill does not elevate.
 ekill()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":signal sig s=SIGTERM | The signal to send to specified processes, either as a number or a signal name." \
         ":kill_after k         | Elevate to SIGKILL after waiting for this duration after sending the initial signal.  Accepts any duration that sleep would accept.")
 
@@ -1702,7 +1702,7 @@ ekill()
 #
 ekilltree()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":signal sig s=SIGTERM | The signal to send to the process tree, either as a number or a name." \
         ":exclude x            | Processes to exclude from being killed." \
         ":kill_after k         | Elevate to SIGKILL after this duration if the processes haven't died.")
@@ -1879,7 +1879,7 @@ erestore()
 #
 elogrotate()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":count c=5 | Maximum number of logs to keep" \
         ":size s=0  | If specified, rotate logs at this specified size rather than each call to elogrotate")
     $(declare_args name)
@@ -1951,7 +1951,7 @@ elogrotate()
 #
 elogfile()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-stderr e=1       | Whether to redirect stderr to the logfile." \
         "-stdout o=1       | Whether to redirect stdout to the logfile." \
         ":rotate_count r=0 | When rotating log files, keep this number of log files." \
@@ -2119,7 +2119,7 @@ emd5sum_check()
 # -k=keyphrase: Optional keyphrase for the PGP Private Key
 emetadata()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":private_key p | Also check the PGP signature based on this private key." \
         ":keyphrase k   | The keyphrase to use for the specified private key.")
     $(declare_args path)
@@ -2167,7 +2167,7 @@ emetadata()
 #                     is present in .meta file).
 emetadata_check()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
         ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file.")
 
@@ -2340,7 +2340,7 @@ emount()
 
 eunmount_internal()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-verbose v | Verbose output.")
 
     local mnt
@@ -2374,7 +2374,7 @@ eunmount_internal()
 # -v=0|1    Show verbose output (defaults to 0)
 eunmount()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-verbose v   | Verbose output." \
         "-recursive r | Recursively unmount everything beneath mount points." \
         "-delete d    | Delete mount points after unmounting." \
@@ -2600,9 +2600,9 @@ argcheck()
 #
 declare_args()
 {
-    $(declare_opts \
-        "-global g   | Make variables created by declare_opts to be global.  Default is local." \
-        "-export e x | Make variables created by declare_opts to be exported.")
+    $(opt_parse \
+        "-global g   | Make variables created by opt_parse to be global.  Default is local." \
+        "-export e x | Make variables created by opt_parse to be exported.")
 
     local optional=0
     local variable=""
@@ -2641,7 +2641,7 @@ declare_args()
 
 }
 
-## declare_opts
+## opt_parse
 ## ============
 ## 
 ## Terminology
@@ -2687,16 +2687,16 @@ declare_args()
 ## Overview
 ## --------
 ##
-## Declare_opts allows you to handle options in your bash functions or scripts
+## opt_parse allows you to handle options in your bash functions or scripts
 ## in a concise way.  It does not assist with arguments.  Look at declare_args
 ## for something similar that helps with arguments.
 ##
-## To accept arguments in your code, you simply call declare_opts and tell it
+## To accept arguments in your code, you simply call opt_parse and tell it
 ## which arguments are valid.  For instance, to accept a few of the grep
-## options you might use declare_opts like this.
+## options you might use opt_parse like this.
 ##
 ##
-##     $(declare_opts \
+##     $(opt_parse \
 ##         "-word_regex w | if specified, match only complete words" \
 ##         "-invert v     | if specified, match only lines that do NOT contain the regex.")
 ##
@@ -2704,9 +2704,9 @@ declare_args()
 ##     [[ ${invert}     -eq 1 ]] && # do stuff for inverting
 ##
 ##  
-## Each argument to declare_opts defines a single option.  All words prior to
+## Each argument to opt_parse defines a single option.  All words prior to
 ## the first pipe character are considered to be synonyms for the option.
-## Declare_opts creates a local variable for each option using the first name
+## opt_parse creates a local variable for each option using the first name
 ## given.
 ##
 ## Everything between the first pipe character and the end of the string is
@@ -2726,8 +2726,8 @@ declare_args()
 ## ---------------
 ##
 ## Word_regex and invert in the example above are both boolean options.  That
-## is, they're either on the command line (in which case declare_opts assigns 1
-## to the variable) or not on the command line (in which case declare_opts
+## is, they're either on the command line (in which case opt_parse assigns 1
+## to the variable) or not on the command line (in which case opt_parse
 ## assigns 0 to the variable).
 ##
 ## You can also be explicit about the value you'd like to choose for an option
@@ -2752,14 +2752,14 @@ declare_args()
 ## String Options
 ## --------------
 ## 
-## Declare_opts also supports options whose value is a string.  When specified
+## Opt_parse also supports options whose value is a string.  When specified
 ## on the command line, these _require_ an argument, even if it is an empty
 ## string.  In order to get a string option, you prepend its name with a colon
 ## character.
 ##
 ##     func()
 ##     {
-##         $(declare_opts ":string s")
+##         $(opt_parse ":string s")
 ##         echo "STRING: X${string}X"
 ##     }
 ##
@@ -2780,22 +2780,22 @@ declare_args()
 ## By default, the value of boolean options is false and string options are an
 ## empty string, but you can specify a default in your definition.
 ##
-##     $(declare_opts \
+##     $(opt_parse \
 ##         "-boolean b=1        | Boolean option that defaults to true" \
 ##         ":string s=something | String option that defaults to "something")
 ##
-declare_opts()
+opt_parse()
 {
     echo "eval "
-    declare_opts_internal_setup "${@}"
+    opt_parse_internal_setup "${@}"
 
     # __BU_FULL_ARGS is the list of arguments as initially passed to
-    # declare_opts. declare_args_internal will modifiy __BU_ARGS to be whatever
+    # opt_parse. declare_args_internal will modifiy __BU_ARGS to be whatever
     # was left to be processed after it is finished.
     # Note: here $@ is quoted so it refers to the caller's arguments
     echo 'declare __BU_FULL_ARGS=("$@") ; '
     echo 'declare __BU_ARGS=("$@") ; '
-    echo "declare_opts_internal ; "
+    echo "opt_parse_internal ; "
     echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- ; '
 
     echo 'declare opt ; '
@@ -2804,7 +2804,7 @@ declare_opts()
     echo 'done ; '
 }
 
-declare_opts_internal_setup()
+opt_parse_internal_setup()
 {
     local opt_cmd="__BU_OPT=( "
     local regex_cmd="__BU_OPT_REGEX=( "
@@ -2814,7 +2814,7 @@ declare_opts_internal_setup()
 
         local complete_arg=$1 ; shift
 
-        # Arguments to declare_opts may contain multiple chunks of data,
+        # Arguments to opt_parse may contain multiple chunks of data,
         # separated by pipe characters.
         if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
             local opt_def=$(trim "${BASH_REMATCH[1]}")
@@ -2824,7 +2824,7 @@ declare_opts_internal_setup()
             die "Invalid option declaration: ${complete_arg}"
         fi
 
-        [[ -n ${opt_def} ]] || die "${FUNCNAME[2]}: invalid declare_opts syntax.  Option definition is empty."
+        [[ -n ${opt_def} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
         # The default is any text in the argument definition after the first
         # equal sign.  Ignore whitespace at both ends.
@@ -2869,12 +2869,12 @@ declare_opts_internal_setup()
 
         # And that name must be non-empty and must not contain hyphens (because
         # hyphens are not allowed in bash variable names)
-        [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid declare_opts syntax.  Canonical name is empty."
+        [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Canonical name is empty."
         [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: option name ${canonical} is not allowed to contain hyphens."
 
         # Boolean options get an implicit no-option version, so make sure
         # they're expecting that.
-        [[ ! ${canonical} = no_* ]] || die "${FUNCNAME[2]}: Option names specified to declare_opts may not begin with no_ because declare_opts implicitly creates no versions of the options."
+        [[ ! ${canonical} = no_* ]] || die "${FUNCNAME[2]}: Option names specified to opt_parse may not begin with no_ because opt_parse implicitly creates no versions of the options."
 
         # Now that they're all computed, add them to the command that will generate associative arrays
         opt_cmd+="[${canonical}]='${default}' "
@@ -2890,7 +2890,7 @@ declare_opts_internal_setup()
     printf "declare -A %s %s %s ; " "${opt_cmd}" "${regex_cmd}" "${type_cmd}"
 }
 
-declare_opts_internal()
+opt_parse_internal()
 {
     # No arguments?  Nothing to do.
     if [[ ${#__BU_FULL_ARGS[@]:-} -eq 0 ]] ; then
@@ -2916,9 +2916,9 @@ declare_opts_internal()
 
                 # Find the internal name of the long option (using its name
                 # with underscores, which is how we treat it throughout the
-                # declare_opts code rather than with hyphens which is how it
+                # opt_parse code rather than with hyphens which is how it
                 # should be specified on the command line)
-                local canonical=$(declare_opts_find_canonical ${long_opt//-/_})
+                local canonical=$(opt_parse_find_canonical ${long_opt//-/_})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
                 if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
@@ -2968,7 +2968,7 @@ declare_opts_internal()
                 local index
                 for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
                     local char=${short_opts:$index:1}
-                    local canonical=$(declare_opts_find_canonical ${char})
+                    local canonical=$(opt_parse_find_canonical ${char})
                     [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
                     if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
@@ -2980,7 +2980,7 @@ declare_opts_internal()
 
                 # Handle the last one separately, because it might have an argument.
                 local char=${short_opts:$index}
-                local canonical=$(declare_opts_find_canonical ${char})
+                local canonical=$(opt_parse_find_canonical ${char})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.
@@ -3019,14 +3019,14 @@ declare_opts_internal()
         shift && (( shift_count += 1 )) || break
     done
 
-    # Assign to the __BU_ARGS array so that the declare_opts macro can make its
+    # Assign to the __BU_ARGS array so that the opt_parse macro can make its
     # contents the remaining set of arguments in the calling function.
     if [[ ${#__BU_ARGS[@]:-} -gt 0 ]] ; then
         __BU_ARGS=( "${__BU_ARGS[@]:$shift_count}" )
     fi
 }
 
-declare_opts_find_canonical()
+opt_parse_find_canonical()
 {
     for option in "${!__BU_OPT[@]}" ; do
         if [[ ${1} =~ ${__BU_OPT_REGEX[$option]} ]] ; then
@@ -3123,7 +3123,7 @@ efetch_internal()
 # -q=(0|1) Quiet mode (disable eprogress and other info messages)
 efetch()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
         "-meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
         "-quiet q | Quiet mode.  (Disable eprogress and other info messages)")
@@ -3243,7 +3243,7 @@ netselect()
 ##
 etimeout()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":signal sig s=TERM | First signal to send if the process doesn't complete in time.  KILL will still be sent later if it's not dead." \
         ":timeout t         | After this duration, command will be killed if it hasn't already completed.")
 
@@ -3389,7 +3389,7 @@ etimeout()
 # eretry is careful to retain your quoting.
 eretry()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":delay d=0              | Time to sleep between failed attempts before retrying." \
         ":fatal_exit_codes e=0   | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
         ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
@@ -3435,7 +3435,7 @@ eretry()
 # to etimeout in order to provide upper bound on entire invocation.
 eretry_internal()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":delay d                | Time to sleep between failed attempts before retrying." \
         ":fatal_exit_codes e     | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
         ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
@@ -3734,7 +3734,7 @@ array_add_nl()
 # -a=(0|1) Remove all instances (defaults to only removing the first instance)
 array_remove()
 {
-    $(declare_opts "-all a | Remove all instances of the item instead of just the first.")
+    $(opt_parse "-all a | Remove all instances of the item instead of just the first.")
     $(declare_args __array)
 
     # Return immediately if if array is not set or no values were given to be
@@ -3800,7 +3800,7 @@ array_contains()
 # $2: (optional) delimiter
 array_join()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-before b | Insert delimiter before all joined elements." \
         "-after a  | Insert delimiter after all joined elements.")
 
@@ -3871,7 +3871,7 @@ array_regex()
 #
 array_sort()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-unique u  | Remove all but one copy of each item in the array." \
         "-version V | Perform a natural (version number) sort.")
 
@@ -4041,7 +4041,7 @@ pack_iterate()
 # -e: Emit exported variables with 'export' keyword
 pack_import()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-local l=1 | Emit local variables via local builtin (default)." \
         "-global g  | Emit global variables instead of local (i.e. undeclared variables)." \
         "-export e  | Emit exported variables via export builtin.")
@@ -4286,7 +4286,7 @@ json_escape()
 #
 json_import()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-global g           | Emit global variables instead of local ones." \
         "-export e           | Emit exported variables instead of local ones." \
         ":file f=-           | Parse contents of provided file instead of stdin." \

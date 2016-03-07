@@ -15,7 +15,7 @@ export BASHUTILS
 
 START_TIME=$SECONDS
 
-$(declare_opts \
+$(opt_parse \
     ":filter  f=${FILTER:-}    | Tests whose name or file amtch this will be run." \
     ":exclude x=${EXCLUDE:-}   | Tests whose name or file match this will not be run." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
@@ -64,7 +64,7 @@ fi
 
 die_handler()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":rc return_code r=1 | Return code that die will exit with")
 
     # Append any error message to logfile

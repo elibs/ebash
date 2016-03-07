@@ -52,7 +52,7 @@
 # file extension types (e.g. squashfs, iso, tar, tgz, cpio, cgz, etc).
 archive_type()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":type t | Override automatic type detection and use explicit archive type.")
     $(declare_args src)
     
@@ -81,7 +81,7 @@ archive_type()
 # Determine the best compress programm to use based on the archive suffix.
 archive_compress_program()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-nice n | Be nice and use non-parallel compressors and only a single core." \
         ":type t | Override automatic type detection and use explicit archive type.")
     $(declare_args fname)
@@ -153,7 +153,7 @@ archive_compress_program()
 # of directories.
 archive_create()
 {
-    $(declare_opts \
+    $(opt_parse \
         "-best            | Use the best compression (level=9)." \
         ":dir d           | Directory to cd into before archive creation." \
         "-bootable boot b | Make the ISO bootable (ISO only)." \
@@ -328,7 +328,7 @@ archive_create()
 # it will extract all files from the archive.
 archive_extract()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":exclude x        | List of paths to be excluded from archive." \
         "-ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
         "-nice n           | Be nice and use non-parallel compressors and only a single core." \
@@ -458,7 +458,7 @@ archive_extract()
 # Simple function to list the contents of an archive image.
 archive_list()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":type t | Override automatic type detection and use explicit archive type.")
     $(declare_args src)
     local src_type=$(archive_type --type "${type}" "${src}")
