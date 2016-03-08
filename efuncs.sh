@@ -1151,7 +1151,7 @@ eerror_stacktrace()
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
-        eerror_internal -c=${color} "$@"
+        eerror_internal -c="${color}" "$@"
     fi
 
     local frames=() frame
