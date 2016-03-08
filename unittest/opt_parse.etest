@@ -21,8 +21,7 @@ ETEST_opt_parse()
 ETEST_opt_parse_boolean()
 {
     set -- -a -b -c d e f
-    #$(opt_parse "-a" "-b" "-c" "-d" "-e" "-f" )
-    $(opt_parse "-a" "-b" "-c" "-e")
+    $(opt_parse "-a" "-b" "-c" "-d" "-e" "-f" )
     etestmsg "$(opt_dump)"
 
     assert_eq 1 "${a}"
