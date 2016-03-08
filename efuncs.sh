@@ -3007,6 +3007,12 @@ opt_parse_internal()
                 ;;
         esac
 
+        # Make sure that the value chosen for boolean options is either 0 or 1
+        if [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" \
+            && ${__BU_OPT[$canonical]} != 1 && ${__BU_OPT[$canonical]} != 0 ]] ; then
+                die "${FUNCNAME[1]}: option $canonical can only be 0 or 1."
+        fi
+
         # Move on to the next item, recognizing that an option may have consumed the last one
         shift && (( shift_count += 1 )) || break
     done
