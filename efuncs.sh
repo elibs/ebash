@@ -1258,17 +1258,10 @@ epromptyn()
 
 trim()
 {
-    local text="$*"
-    if [[ ${text} =~ ^[[:space:]]*$ ]] ; then
-        # Don't print anything, they gave us only whitespace
-        echo
-    else
-        # Otherwise, use a regular expression to grab the stuff inside
-        # whitespace and print it
-        [[ ${text} =~ ^[[:space:]]*(.*[^[:space:]])[[:space:]]*$ ]]
-        echo "${BASH_REMATCH[1]}"
-    fi
-    return 0
+    local text=$*
+    text=${text%%+([[:space:]])}
+    text=${text##+([[:space:]])}
+    printf -- "${text}"
 }
 
 compress_spaces()
@@ -2811,6 +2804,7 @@ opt_parse_internal_setup()
     local type_cmd="__BU_OPT_TYPE=( "
 
     while (( $# )) ; do
+        [[ ${FUNCNAME[2]} == ETEST_opt_parse_boolean ]] && ewarn "ARG: \"$1\""
 
         local complete_arg=$1 ; shift
 
@@ -2823,6 +2817,8 @@ opt_parse_internal_setup()
         else
             die "Invalid option declaration: ${complete_arg}"
         fi
+
+        [[ ${FUNCNAME[2]} == ETEST_opt_parse_boolean ]] && ewarn "$(lval opt_cmd regex_cmd type_cmd complete_arg opt_def docstring) $(declare -p BASH_REMATCH)"
 
         [[ -n ${opt_def} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
@@ -4449,25 +4445,25 @@ assert_op()
 
 assert_eq()
 {
-    $(declare_args ?lh ?rh ?msg)
+    $(declare_args "?lh" "?rh" "?msg")
     [[ "${lh}" == "${rh}" ]] || die "assert_eq failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_ne()
 {
-    $(declare_args ?lh ?rh ?msg)
+    $(declare_args "?lh" "?rh" "?msg")
     [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_match()
 {
-    $(declare_args ?lh ?rh ?msg)
+    $(declare_args "?lh" "?rh" "?msg")
     [[ "${lh}" =~ "${rh}" ]] || die "assert_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_not_match()
 {
-    $(declare_args ?lh ?rh ?msg)
+    $(declare_args "?lh" "?rh" "?msg")
     [[ ! "${lh}" =~ "${rh}" ]] || die "assert_not_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
