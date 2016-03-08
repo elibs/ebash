@@ -21,16 +21,17 @@ ETEST_opt_parse()
 ETEST_opt_parse_boolean()
 {
     set -- -a -b -c d e f
-    $(opt_parse "-a" "-b" "-c" "-d" "-e" "-f" )
+    #$(opt_parse "-a" "-b" "-c" "-d" "-e" "-f" )
+    $(opt_parse "-a" "-b" "-c" "-e")
     etestmsg "$(opt_dump)"
 
     assert_eq 1 "${a}"
     assert_eq 1 "${b}"
     assert_eq 1 "${c}"
 
-    assert_eq 0 "${d}"
-    assert_eq 0 "${e}"
-    assert_eq 0 "${f}"
+    assert_ne 1 "${d:-0}"
+    assert_ne 1 "${e:-0}"
+    assert_ne 1 "${f:-0}"
 }
 
 ETEST_opt_parse_boolean_multi()
