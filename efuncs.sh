@@ -26,12 +26,13 @@ fi
 # COLOR SETTINGS
 #------------------------------------------------------------------------------
 
-: ${COLOR_INFO:=green}
-: ${COLOR_DEBUG:=dimblue}
-: ${COLOR_TRACE:=dimyellow}
-: ${COLOR_WARN:=yellow}
-: ${COLOR_ERROR:=red}
-: ${COLOR_BRACKET:=blue}
+: ${COLOR_INFO:="bold green"}
+: ${COLOR_DEBUG:="blue"}
+: ${COLOR_TRACE:="yellow"}
+: ${COLOR_WARN:="bold yellow"}
+: ${COLOR_ERROR:="bold red"}
+: ${COLOR_BRACKET:="bold blue"}
+: ${COLOR_BANNER:="bold magenta"}
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -604,8 +605,8 @@ die()
 
     else
         echo "" >&2
-        eerror_internal   -c="red" "${@}"
-        eerror_stacktrace -c="red" -f=${frames} -s
+        eerror_internal   -c="${COLOR_ERROR}" "${@}"
+        eerror_stacktrace -c="${COLOR_ERROR}" -f=${frames} -s
     fi
 
     reenable_signals
@@ -929,19 +930,19 @@ ecolor()
     [[ -z ${efuncs_color} ]] && einteractive && efuncs_color=1
     [[ ${efuncs_color} -eq 1 ]] || return 0
 
-    # Reset
-    local c=$1
-    local reset_re="\breset|none|off\b"
-    [[ ${c} =~ ${reset_re} ]] && { echo -en "\033[m"; return 0; }
+    local c=""
+    for c in $@; do
+        case ${c} in
+            dim)            echo -en "\033[2m"                 ;;
+            invert)         tput rev                           ;;
+            bold)           tput bold                          ;;
+            underline)      tput smul                          ;;
+            reset|none|off) echo -en "\033[0m"                 ;;
+            b:*)            tput setab $(ecolor_code ${c#b:})  ;;
+            *)              tput setaf $(ecolor_code ${c})     ;;
+        esac
+    done
 
-    local dimre="^dim"
-    if [[ ${c} =~ ${dimre} ]]; then
-        c=${c#dim}
-    else
-        tput bold
-    fi
-
-    tput setaf $(ecolor_code ${c})
 }
 
 eclear()
@@ -967,7 +968,7 @@ ebanner()
     cols=$(tput cols)
     cols=$((cols-2))
     eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
-    echo -e "$(ecolor magenta)+${str}+" >&2
+    echo -e "$(ecolor ${COLOR_BANNER})+${str}+" >&2
     echo -e "|" >&2
 
     # Print the first message honoring any newlines
@@ -1113,7 +1114,7 @@ ewarns()
 
 eerror_internal()
 {
-    $(declare_opts ":color c=red | Color to print the message in.  Defaults to red.")
+    $(declare_opts ":color c=${COLOR_ERROR} | Color to print the message in.  Defaults to ${COLOR_ERROR}")
     emsg "${color}" ">>" "ERROR" "$@"
 }
 
@@ -1146,7 +1147,7 @@ eerror_stacktrace()
     $(declare_opts \
         ":frame f=2   | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
         "skip s       | Skip the initial error message.  Useful if the caller already displayed it." \
-        ":color c=red | Use the specified color for output messages.  Defaults to red.")
+        ":color c=${COLOR_ERROR} | Use the specified color for output messages.  Defaults to ${COLOR_ERROR}")
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
@@ -1220,7 +1221,7 @@ etable()
 
 eprompt()
 {
-    echo -en "$(tput bold) * $@: $(ecolor none)" >&2
+    echo -en "$(ecolor bold) * $@: $(ecolor none)" >&2
     local result=""
 
     read result < /dev/stdin
@@ -1325,9 +1326,9 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        echo -en "$(tput bold)" >&2
+        ecolor bold >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
-        echo -en "$(ecolor none)"  >&2
+        ecolor none >&2
 
         spinout "/"
         spinout "-"
@@ -2506,6 +2507,11 @@ isubuntu()
 isgentoo()
 {
     [[ "Gentoo" == $(edistro) ]]
+}
+
+isfedora()
+{
+    [[ "Fedora" == $(edistro) ]]
 }
 
 #-----------------------------------------------------------------------------
