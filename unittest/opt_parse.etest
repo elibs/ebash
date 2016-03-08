@@ -332,3 +332,17 @@ ETEST_opt_parse_boolean_specify()
     assert_eq "0" "${d}"
 }
 
+ETEST_opt_parse_boolean_validate()
+{
+    set -- -a=10
+    try
+    {
+        $(opt_parse "-a")
+        die -r=243 "Should have already failed."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
