@@ -15,15 +15,15 @@ export BASHUTILS
 
 START_TIME=$SECONDS
 
-$(declare_opts \
+$(opt_parse \
     ":filter  f=${FILTER:-}    | Tests whose name or file amtch this will be run." \
     ":exclude x=${EXCLUDE:-}   | Tests whose name or file match this will not be run." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
-    "verbose  v=${VERBOSE:-0}  | Verbose output." \
-    "break    b=${BREAK:-0}    | Stop immediately on first failure." \
-    "delete   d=1              | Delete all output files when tests complete." \
-    "clean    c=0              | Clean only and then exit." \
-    "html     h=0              | Produce an HTML logfile and strip color codes out of etest.log.")
+    "-verbose  v=${VERBOSE:-0} | Verbose output." \
+    "-break    b=${BREAK:-0}   | Stop immediately on first failure." \
+    "-delete   d=1             | Delete all output files when tests complete." \
+    "-clean    c=0             | Clean only and then exit." \
+    "-html     h=0             | Produce an HTML logfile and strip color codes out of etest.log.")
 
 # If no test directory was provided use PWD.
 $(declare_args ?TEST_DIR)
@@ -64,7 +64,7 @@ fi
 
 die_handler()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":rc return_code r=1 | Return code that die will exit with")
 
     # Append any error message to logfile

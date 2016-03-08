@@ -193,8 +193,8 @@ overlayfs_mount()
 # into the final mount image, they will all be unmounted as well.
 overlayfs_unmount()
 {
-    $(declare_opts \
-        "verbose v | Enable verbose output.")
+    $(opt_parse \
+        "-verbose v | Enable verbose output.")
     
     local mnt
     for mnt in "$@"; do

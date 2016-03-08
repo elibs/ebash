@@ -21,7 +21,7 @@ source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bash
 
 die_handler()
 {
-    \$(declare_opts \
+    \$(opt_parse \
         ":return_code rc r=1 | Return code that die will eventually exit with." \
         ":signal s           | Signal that caused this die to occur." \
         ":color c            | DEPRECATED OPTION -- no longer has any effect." \
