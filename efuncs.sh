@@ -32,6 +32,7 @@ fi
 : ${COLOR_WARN:="bold yellow"}
 : ${COLOR_ERROR:="bold red"}
 : ${COLOR_BRACKET:="bold blue"}
+: ${COLOR_BANNER:="bold magenta"}
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -604,8 +605,8 @@ die()
 
     else
         echo "" >&2
-        eerror_internal   -c="red" "${@}"
-        eerror_stacktrace -c="red" -f=${frames} -s
+        eerror_internal   -c="${COLOR_ERROR}" "${@}"
+        eerror_stacktrace -c="${COLOR_ERROR}" -f=${frames} -s
     fi
 
     reenable_signals
@@ -967,7 +968,7 @@ ebanner()
     cols=$(tput cols)
     cols=$((cols-2))
     eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
-    echo -e "$(ecolor bold magenta)+${str}+" >&2
+    echo -e "$(ecolor ${COLOR_BANNER})+${str}+" >&2
     echo -e "|" >&2
 
     # Print the first message honoring any newlines
@@ -1113,7 +1114,7 @@ ewarns()
 
 eerror_internal()
 {
-    $(declare_opts ":color c=red | Color to print the message in.  Defaults to red.")
+    $(declare_opts ":color c=${COLOR_ERROR} | Color to print the message in.  Defaults to ${COLOR_ERROR}")
     emsg "${color}" ">>" "ERROR" "$@"
 }
 
@@ -1146,7 +1147,7 @@ eerror_stacktrace()
     $(declare_opts \
         ":frame f=2   | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
         "skip s       | Skip the initial error message.  Useful if the caller already displayed it." \
-        ":color c=red | Use the specified color for output messages.  Defaults to red.")
+        ":color c=${COLOR_ERROR} | Use the specified color for output messages.  Defaults to ${COLOR_ERROR}")
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
