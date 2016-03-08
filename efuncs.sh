@@ -2804,8 +2804,6 @@ opt_parse_internal_setup()
     local type_cmd="__BU_OPT_TYPE=( "
 
     while (( $# )) ; do
-        [[ ${FUNCNAME[2]} == ETEST_opt_parse_boolean ]] && ewarn "ARG: \"$1\""
-
         local complete_arg=$1 ; shift
 
         # Arguments to opt_parse may contain multiple chunks of data,
@@ -2817,8 +2815,6 @@ opt_parse_internal_setup()
         else
             die "Invalid option declaration: ${complete_arg}"
         fi
-
-        [[ ${FUNCNAME[2]} == ETEST_opt_parse_boolean ]] && ewarn "$(lval opt_cmd regex_cmd type_cmd complete_arg opt_def docstring) $(declare -p BASH_REMATCH)"
 
         [[ -n ${opt_def} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
