@@ -1114,7 +1114,7 @@ ewarns()
 
 eerror_internal()
 {
-    $(declare_opts ":color c=${COLOR_ERROR} | Color to print the message in.  Defaults to ${COLOR_ERROR}")
+    $(declare_opts ":color c=${COLOR_ERROR} | Color to print the message in.")
     emsg "${color}" ">>" "ERROR" "$@"
 }
 
@@ -1145,13 +1145,13 @@ eerror()
 eerror_stacktrace()
 {
     $(declare_opts \
-        ":frame f=2   | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
-        "skip s       | Skip the initial error message.  Useful if the caller already displayed it." \
-        ":color c=${COLOR_ERROR} | Use the specified color for output messages.  Defaults to ${COLOR_ERROR}")
+        ":frame f=2              | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
+        "skip s                  | Skip the initial error message.  Useful if the caller already displayed it." \
+        ":color c=${COLOR_ERROR} | Use the specified color for output messages.")
 
     if [[ ${skip} -eq 0 ]]; then 
         echo "" >&2
-        eerror_internal -c=${color} "$@"
+        eerror_internal -c="${color}" "$@"
     fi
 
     local frames=() frame
