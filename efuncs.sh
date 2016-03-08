@@ -26,12 +26,12 @@ fi
 # COLOR SETTINGS
 #------------------------------------------------------------------------------
 
-: ${COLOR_INFO:=green}
-: ${COLOR_DEBUG:="dim blue"}
-: ${COLOR_TRACE:="dim yellow"}
-: ${COLOR_WARN:=yellow}
-: ${COLOR_ERROR:=red}
-: ${COLOR_BRACKET:=blue}
+: ${COLOR_INFO:="bold green"}
+: ${COLOR_DEBUG:="blue"}
+: ${COLOR_TRACE:="yellow"}
+: ${COLOR_WARN:="bold yellow"}
+: ${COLOR_ERROR:="bold red"}
+: ${COLOR_BRACKET:="bold blue"}
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -967,7 +967,7 @@ ebanner()
     cols=$(tput cols)
     cols=$((cols-2))
     eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
-    echo -e "$(ecolor magenta)+${str}+" >&2
+    echo -e "$(ecolor bold magenta)+${str}+" >&2
     echo -e "|" >&2
 
     # Print the first message honoring any newlines
@@ -1325,9 +1325,9 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        echo -en "$(ecolor bold)" >&2
+        ecolor bold >&2
         printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
-        echo -en "$(ecolor none)"  >&2
+        ecolor none >&2
 
         spinout "/"
         spinout "-"
