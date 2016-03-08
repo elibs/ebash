@@ -103,7 +103,7 @@ chroot_cmd()
 #
 chroot_kill()
 {
-    $(declare_opts \
+    $(opt_parse \
         ":signal s=TERM   | The signal to send to killed pids." \
         ":kill_after k    | Also send SIGKILL to processes that are still alive after this duration.  (Does not block)")
 

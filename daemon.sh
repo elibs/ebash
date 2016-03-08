@@ -347,7 +347,7 @@ daemon_start()
 daemon_stop()
 {
     # Pull in our argument pack then import all of its settings for use.
-    $(declare_opts \
+    $(opt_parse \
         ":signal s=TERM        | Signal to use when gracefully stopping the daemon." \
         ":timeout t=5          | Number of seconds to wait after initial signal before sending SIGKILL." \
         ":cgroup_timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear.  Requires cgroup support.")
@@ -410,7 +410,7 @@ daemon_stop()
 daemon_status()
 {
     # Pull in our argument pack then import all of its settings for use.
-    $(declare_opts "quiet q | Make the status function produce no output.")
+    $(opt_parse "-quiet q | Make the status function produce no output.")
     $(declare_args optpack)
     $(pack_import ${optpack})
 

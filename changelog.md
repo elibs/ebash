@@ -1,12 +1,12 @@
 # Bashutils 1.3
 
     - Pulled option parsing functionality out of declare_args and created a new
-      declare_opts function.  Its implementation supports both short and long
+      opt_parse function.  Its implementation supports both short and long
       options (and "golfing" short options).  It detects errors on the command
       line that would've previously been ignored such as passing an unsupported
       option to a command.  This is not backward compatible, though.  Calling
-      code must change to use declare_opts if it wants to read options (e.g. -g
-      or -f),  but declare_args still handles positional arguments as it always
+      code must change to use opt_parse if it wants to read options (e.g. -g or
+      -f), but declare_args still handles positional arguments as it always
       did.
 
     - Fixed a bug that caused die not to signal its parent when aborting.  It
@@ -55,9 +55,9 @@
     - Removed the option parsing functionality from declare_args and let its
       single purpose be handling positional arguments.
 
-    - Added declare_opts to do option parsing.  To use it, you'll typically
-      call declare_opts prior to declare_args in any function that you want to
-      handle options.  Declare_opts supports both short and long options and is
+    - Added opt_parse to do option parsing.  To use it, you'll typically call
+      opt_parse prior to declare_args in any function that you want to handle
+      options.  Opt_parse supports both short and long options and is
       friendlier to callers of functions that use it.  For instance, you don't
       have to use an equal sign to specify a value for an option (although you
       still may)
