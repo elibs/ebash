@@ -192,7 +192,7 @@ archive_create()
         fi
             
         # Create excludes file
-        local exclude_file=$(mktemp /tmp/archive-exclude-XXXX)
+        local exclude_file=$(mktemp /tmp/archive-exclude-XXXXXX)
         trap_add "rm --force ${exclude_file}"
 
         # Always exclude the source file. Need to canonicalize it and then remove
@@ -228,7 +228,7 @@ archive_create()
         # directory. This isn't strictly necessary if a single source path is given
         # but it drastically simplifies the code to treat it the same and the overhead
         # of a bind mount is so small that it is justified by the simpler code path.
-        local unified=$(mktemp -d /tmp/archive-create-XXXX)
+        local unified=$(mktemp -d /tmp/archive-create-XXXXXX)
         trap_add "eunmount -a -r -d ${unified}"
         for src in "${srcs[@]}"; do
 
@@ -351,7 +351,7 @@ archive_extract()
 
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
-            local mnt=$(mktemp -d /tmp/archive-mnt-XXXX)
+            local mnt=$(mktemp -d /tmp/archive-mnt-XXXXXX)
             mount --read-only "${src}" "${mnt}"
             trap_add "eunmount -r -d ${mnt}"
 
@@ -505,7 +505,7 @@ archive_convert()
 
     # Temporary directory for mounting
     (
-        local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
+        local mnt="$(mktemp -d /tmp/archive-mnt-XXXXXX)"
         trap_add "eunmount -r -d ${mnt}"
 
         # Mount (if possible) or extract the archive image if mounting is not supported.
@@ -530,7 +530,7 @@ archive_diff()
         local src
         for src in "${@}"; do
             
-            local mnt="$(mktemp -d /tmp/archive-mnt-XXXX)"
+            local mnt="$(mktemp -d /tmp/archive-mnt-XXXXXX)"
             trap_add "eunmount -r -d ${mnt}"
             local src_type=$(archive_type "${src}")
             mnts+=( "${mnt}" )
