@@ -61,7 +61,7 @@ jenkins_prep_jar()
 {
     if [[ -z ${JENKINS_CLI_JAR:=} || ! -r ${JENKINS_CLI_JAR} ]] ; then
         local tempDir
-        tempDir=$(mktemp -d /tmp/jenkins.sh.tmp-XXXXXXXX)
+        tempDir=$(mktemp -d /tmp/jenkins.sh.tmp-XXXXXX)
         efetch "$(jenkins_url)/jnlpJars/jenkins-cli.jar" "${tempDir}" |& edebug
         export JENKINS_CLI_JAR="${tempDir}/jenkins-cli.jar"
         trap_add "edebug \"Deleting ${JENKINS_CLI_JAR}.\" ; rm --recursive --force \"${tempDir}\""
@@ -102,10 +102,10 @@ jenkins_update()
     scriptTemplate="scripts/jenkins_templates/${itemType}/${template}.sh"
 
     [[ -r "${scriptTemplate}" ]] || scriptTemplate=""
-    [[ -z ${scriptTemplate} ]] || scriptFile=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_script_XXXX")
+    [[ -z ${scriptTemplate} ]] || scriptFile=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_script_XXXXXX")
     local newConfig oldConfig
-    newConfig=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_XXXX")
-    oldConfig=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_old_XXXX")
+    newConfig=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_XXXXXX")
+    oldConfig=$(mktemp "/tmp/jenkins_update_${itemType}_${template}_old_XXXXXX")
 
     trap_add "rm --recursive --force ${scriptFile} ${newConfig} ${oldConfig}"
 
@@ -440,7 +440,7 @@ jenkins_list_slaves()
 {
     # Create a temporary file to hold the groovy script.
     local groovy_script
-    groovy_script=$(mktemp /tmp/jenkins_list_slaves-XXXXXXXX.groovy)
+    groovy_script=$(mktemp /tmp/jenkins_list_slaves-groovy-XXXXXX)
     trap_add "edebug \"Deleting ${groovy_script}.\" ; rm --recursive --force \"${groovy_script}\""
    
     cat > ${groovy_script} <<-ENDGROOVY

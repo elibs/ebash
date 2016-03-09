@@ -376,7 +376,7 @@ tryrc()
     opt_false g || dflags="-g"
 
     # Temporary directory to hold stdout and stderr
-    local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXXXX)
+    local tmpdir=$(mktemp -d /tmp/tryrc-XXXXXX)
     trap_add "rm --recursive --force ${tmpdir}"
 
     # Create temporary file for stdout and stderr
@@ -2111,7 +2111,7 @@ elogfile()
     fi
 
     # Temporary directory to hold our FIFOs
-    local tmpdir=$(mktemp -d /tmp/elogfile-XXXXXXXX)
+    local tmpdir=$(mktemp -d /tmp/elogfile-XXXXXX)
     trap_add "rm --recursive --force ${tmpdir}"
     local pid_pipe="${tmpdir}/pids"
     mkfifo "${pid_pipe}"
@@ -2260,7 +2260,7 @@ emetadata()
 
     # Import that into temporary secret keyring
     local keyring="" keyring_command=""
-    keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
+    keyring=$(mktemp /tmp/emetadata-keyring-XXXXXX)
     keyring_command="--no-default-keyring --secret-keyring ${keyring}"
     trap_add "rm --force ${keyring}"
     gpg ${keyring_command} --import ${privatekey} |& edebug
@@ -2342,7 +2342,7 @@ emetadata_check()
     # If Public Key was provied and PGPSignature is present validate PGP signature
     if [[ -n ${publickey} && -n ${pgpsignature} ]]; then
         (
-            local keyring=$(mktemp /tmp/emetadata-keyring-XXXX)
+            local keyring=$(mktemp /tmp/emetadata-keyring-XXXXXX)
             trap_add "rm --force ${keyring}"
             gpg --no-default-keyring --secret-keyring ${keyring} --import ${publickey} |& edebug
             echo "${pgpsignature}" | gpg --verify - "${path}" |& edebug || fail "PGP verification failure: $(lval path)"
