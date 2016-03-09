@@ -198,8 +198,8 @@ ETEST_chroot_daemon_bindmount()
     trap_add "chroot_exit"
 
     etestmsg "Creating temporary directories"
-    local tmpdir1=$(mktemp -d /tmp/${FUNCNAME}1-XXXXXXXX)
-    local tmpdir2=$(mktemp -d /tmp/${FUNCNAME}2-XXXXXXXX)
+    local tmpdir1=$(mktemp -d /tmp/${FUNCNAME}1-XXXXXX)
+    local tmpdir2=$(mktemp -d /tmp/${FUNCNAME}2-XXXXXX)
     trap_add "eunmount -r -d ${tmpdir1} ${tmpdir2}"
     touch ${tmpdir1}/{1,2,3,4,5} ${tmpdir2}/{1,2,3,4,5}
 
@@ -251,8 +251,8 @@ ETEST_chroot_daemon_bindmount_file()
     trap_add "chroot_exit"
 
     etestmsg "Creating temporary directories"
-    local tmpdir1=$(mktemp -d /tmp/${FUNCNAME}1-XXXXXXXX)
-    local tmpdir2=$(mktemp -d /tmp/${FUNCNAME}2-XXXXXXXX)
+    local tmpdir1=$(mktemp -d /tmp/${FUNCNAME}1-XXXXXX)
+    local tmpdir2=$(mktemp -d /tmp/${FUNCNAME}2-XXXXXX)
     trap_add "eunmount -r -d ${tmpdir1} ${tmpdir2}"
     touch ${tmpdir1}/{1,2,3,4,5} ${tmpdir2}/{1,2,3,4,5}
     local bindmounts=( $(find ${tmpdir1} ${tmpdir2} -type f) )
