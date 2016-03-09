@@ -346,3 +346,29 @@ ETEST_opt_parse_boolean_validate()
     }
 }
 
+ETEST_opt_parse_args()
+{
+    set -- -o option one two more
+    $(opt_parse \
+        ":option o" \
+        "arg1" \
+        "arg2")
+
+    assert_eq "option" "${option}"
+    assert_eq "one" "${arg1}"
+    assert_eq "two" "${arg2}"
+    assert_eq 1 $#
+    assert_eq more $1
+}
+
+ETEST_opt_parse_arg_default()
+{
+    set -- 
+    $(opt_parse "arg1=alpha")
+    assert_eq "alpha" "${arg1}"
+
+    set -- b
+    $(opt_parse "arg1=alpha")
+    assert_eq "b" "${arg1}"
+}
+
