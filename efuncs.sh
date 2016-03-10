@@ -2779,8 +2779,18 @@ declare_args()
 ##
 opt_parse()
 {
+    # An interesting but non-obvious trick is being played here.
+    # Opt_parse_setup is called during the opt_parse call, and it sets up some
+    # variables (such as __BU_OPT and __BU_ARG).  Since they're already
+    # created, when we eval the calls to opt_parse_options and
+    # opt_parse_arguments, we can modify those variables and pass them amongst
+    # the internals of opt_parse.  This makes it easier to write the more
+    # complicated stuff in literal functions.  Then we can limit the size of
+    # the blocks of code that have to be "echo"-ed out for the caller to
+    # execute.  Much simpler to get them to call a function (but of course that
+    # function can't create local variables for them).
     echo "eval "
-    opt_parse_internal_setup "${@}"
+    opt_parse_setup "${@}"
 
     # __BU_FULL_ARGS is the list of arguments as initially passed to
     # opt_parse. declare_args_internal will modifiy __BU_ARGS to be whatever
@@ -2788,103 +2798,133 @@ opt_parse()
     # Note: here $@ is quoted so it refers to the caller's arguments
     echo 'declare __BU_FULL_ARGS=("$@") ; '
     echo 'declare __BU_ARGS=("$@") ; '
-    echo "opt_parse_internal ; "
-    echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- ; '
+    echo "opt_parse_options ; "
 
+    # Process options
     echo 'declare opt ; '
-    echo 'for opt in "${!__BU_OPT[@]}" ; do'
-        echo 'declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
-    echo 'done ; '
+    echo 'if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then '
+        echo 'for opt in "${!__BU_OPT[@]}" ; do'
+            echo 'declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+        echo 'done ; '
+    echo 'fi ; '
+
+    # Process arguments
+    echo 'opt_parse_arguments ; '
+    echo 'if [[ ${#__BU_ARG[@]} -gt 0 ]] ; then '
+        echo 'for index in "${!__BU_ARG[@]}" ; do '
+            echo '[[ -n ${index} ]] || continue ; '
+            echo '[[ ${__BU_ARG_NAMES[$index]} != _ ]] && declare "${__BU_ARG_NAMES[$index]}=${__BU_ARG[$index]}" ; '
+        echo 'done ; '
+    echo 'fi ; '
+    echo 'argcheck "${__BU_ARG_REQUIRED[@]:-}" ; '
+    echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- ; '
 }
 
-opt_parse_internal_setup()
+opt_parse_setup()
 {
     local opt_cmd="__BU_OPT=( "
-    local regex_cmd="__BU_OPT_REGEX=( "
-    local type_cmd="__BU_OPT_TYPE=( "
+    local opt_regex_cmd="__BU_OPT_REGEX=( "
+    local opt_type_cmd="__BU_OPT_TYPE=( "
+    local arg_cmd="__BU_ARG=( "
+    local arg_names_cmd="__BU_ARG_NAMES=( "
+    local arg_required_cmd="__BU_ARG_REQUIRED=( "
 
     while (( $# )) ; do
         local complete_arg=$1 ; shift
 
-        # Arguments to opt_parse may contain multiple chunks of data,
-        # separated by pipe characters.
+        # Arguments to opt_parse may contain multiple chunks of data, separated
+        # by pipe characters.
         if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
-            local opt_def=$(trim "${BASH_REMATCH[1]}")
+            local opt_definition=$(trim "${BASH_REMATCH[1]}")
             local docstring=$(trim "${BASH_REMATCH[3]}")
 
         else
             die "Invalid option declaration: ${complete_arg}"
         fi
 
-        [[ -n ${opt_def} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
+        [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
-        # The default is any text in the argument definition after the first
-        # equal sign.  Ignore whitespace at both ends.
-        local default=0
-        if [[ ${opt_def} =~ ^[^=]+(=(.*))*$ ]] ; then
-            default=${BASH_REMATCH[2]}
-        fi
+        # Make sure this option looks right
+        [[ ${opt_definition} =~ ([-:])?([^=]+)(=.*)? ]]
 
-        # Determine if this option requires argument (def starts with a colon
-        # character) or is a boolean
-        [[ ${opt_def} =~ ([-:])?([^=]+)(=.*)? ]]
+        # TYPE is the first character of the definition
+        local opt_type_char=${BASH_REMATCH[1]}
 
-        local opt_type="unknown"
+        # NAMEs come next, whitespace separated up until the equal sign, if any
+        local all_names=${BASH_REMATCH[2]}
+        all_names=${all_names%%+([[:space:]])}
 
-        # This option requires an argument
-        if [[ ${BASH_REMATCH[1]} == ":" ]] ; then
-            opt_type="string"
-            expects=1
+        # DEFAULT VALUE is everything after the equal sign, excluding trailing
+        # whitespace
+        local default=${BASH_REMATCH[3]#=}
+        default=${default%%+([[:space:]])}
 
-        elif [[ ${BASH_REMATCH[1]} == "-" ]] ; then
-            opt_type="boolean"
+        # CANONICAL NAME is the first name specified
+        local canonical=${all_names%%[ 	]*}
 
-            # Boolean options default to 0 unless otherwise specified
-            [[ ${default} == "" ]] && default=0
+        # It must be non-empty and must not contain hyphens (because hyphens
+        # are not allowed in bash variable names)
+        [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Name is empty."
+        [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: name ${canonical} is not allowed to contain hyphens."
 
-            if [[ ${default} != 0 && ${default} != 1 ]] ; then
-                die "${FUNCNAME[2]}: boolean option has invalid default of ${default}"
+
+        # OPTIONS
+        if [[ ${opt_type_char} == ":" || ${opt_type_char} == "-" ]] ; then
+
+            local name_regex=^\(${all_names//+( )/|}\)$
+
+            if [[ ${opt_type_char} == ":" ]] ; then
+                opt_type="string"
+
+            elif [[ ${opt_type_char} == "-" ]] ; then
+                opt_type="boolean"
+
+                # Boolean options implicitly get a version whose name starts with
+                # no- that is a negation of the option.  Adjust the name regex.
+                name_regex=${name_regex/^/^\(no_\)?}
+
+                # And forbid double-negative options
+                [[ ! ${canonical} = no_* ]] || die "${FUNCNAME[2]}: names of boolean options may not begin with no_ because no_<option> is implicitly created."
+
+                : ${default:=0}
+
+                if [[ ${default} != 0 && ${default} != 1 ]] ; then
+                    die "${FUNCNAME[2]}: boolean option has invalid default of ${default}"
+                fi
+
             fi
+
+            # Now that they're all computed, add them to the command that will generate associative arrays
+            opt_cmd+="[${canonical}]='${default}' "
+            opt_regex_cmd+="[${canonical}]='${name_regex}' "
+            opt_type_cmd+="[${canonical}]='${opt_type}' "
+
+
+        # ARGUMENTS
         else
-            # TODO modell
-            die "${FUNCNAME[2]}: NOT YET SUPPORTED"
+            [[ ${all_names} != *[[:space:]]* ]] || die "${FUNCNAME[2]}: arguments can only have a single name, but ${all_names} was specified."
+
+            arg_cmd+="'${default}' "
+            arg_names_cmd+="'${canonical}' "
+            [[ ${opt_type_char} != "?" ]] && arg_required_cmd+="'${canonical}' "
         fi
-
-        # Same regular expression -- second match is the full list of
-        # alternative strings that can represent this option.
-        local all_opts=${BASH_REMATCH[2]}
-        local regex=^\(no_\)?\(${all_opts//+( )/|}\)$
-
-        # The canonical option name is the first name for the option that is specified
-        [[ ${all_opts} =~ ([^\t ]+).* ]]
-        local canonical=${all_opts%%[ 	]*}
-
-        # And that name must be non-empty and must not contain hyphens (because
-        # hyphens are not allowed in bash variable names)
-        [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Canonical name is empty."
-        [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: option name ${canonical} is not allowed to contain hyphens."
-
-        # Boolean options get an implicit no-option version, so make sure
-        # they're expecting that.
-        [[ ! ${canonical} = no_* ]] || die "${FUNCNAME[2]}: Option names specified to opt_parse may not begin with no_ because opt_parse implicitly creates no versions of the options."
-
-        # Now that they're all computed, add them to the command that will generate associative arrays
-        opt_cmd+="[${canonical}]='${default}' "
-        regex_cmd+="[${canonical}]='${regex}' "
-        type_cmd+="[${canonical}]='${opt_type}' "
 
     done
 
     opt_cmd+=")"
-    regex_cmd+=")"
-    type_cmd+=")"
+    opt_regex_cmd+=")"
+    opt_type_cmd+=")"
+    arg_cmd+=")"
+    arg_names_cmd+=")"
+    arg_required_cmd+=")"
 
-    printf "declare -A %s %s %s ; " "${opt_cmd}" "${regex_cmd}" "${type_cmd}"
+    printf "declare -A %s %s %s ; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_type_cmd}" 
+    printf "declare %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}"
 }
 
-opt_parse_internal()
+opt_parse_options()
 {
-    # No arguments?  Nothing to do.
+    # No options?  Nothing to do.
     if [[ ${#__BU_FULL_ARGS[@]:-} -eq 0 ]] ; then
         return 0
     fi
@@ -3032,6 +3072,31 @@ opt_parse_find_canonical()
             return 0
         fi
     done
+}
+
+opt_parse_arguments()
+{
+    if [[ ${#__BU_ARGS[@]} -gt 0 ]] ; then
+
+        # Take the arguments that already have options stripped out of them and
+        # treat them as parameters to this function.
+        set -- "${__BU_ARGS[@]}"
+
+        # Iterate over the (indexes of the) positional arguments
+        local index arg_name shift_count=0
+        for index in "${!__BU_ARG_NAMES[@]}" ; do
+
+            # If there are no more arguments to process, stop
+            [[ $# -gt 0 ]] || break
+
+            #  Put the next argument from the command line into the next argument
+            #  value slot
+            __BU_ARG[$index]=$1
+            shift && (( shift_count += 1 ))
+        done
+
+        __BU_ARGS=( "${__BU_ARGS[@]:$shift_count}" )
+    fi
 }
 
 opt_dump()
