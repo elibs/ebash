@@ -105,7 +105,7 @@ DISABLED_ETEST_daemon_netns()
         cgroup="${ETEST_CGROUP}/daemon"             \
         pidfile="${pidfile}"
 
-    echo $(lval +sleep_daemon)
+    echo $(lval %sleep_daemon)
 
     $(pack_import sleep_daemon)
 
@@ -286,7 +286,7 @@ ETEST_daemon_respawn()
         respawn_interval="300"
 
     $(pack_import sleep_daemon)
-    etestmsg "Starting daemon $(lval +sleep_daemon)"
+    etestmsg "Starting daemon $(lval %sleep_daemon)"
     daemon_start sleep_daemon
 
     # Wait for pre_start and "start" states then daemon must be running
@@ -348,7 +348,7 @@ ETEST_daemon_respawn_reset()
         respawn_interval="0"
 
     $(pack_import sleep_daemon)
-    etestmsg "Starting daemon $(lval +sleep_daemon)"
+    etestmsg "Starting daemon $(lval %sleep_daemon)"
     daemon_start sleep_daemon
 
     # Wait for pre_start and "start" states then daemon must be running

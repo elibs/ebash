@@ -169,7 +169,7 @@ daemon_start()
     if daemon_running ${optpack}; then
         local pid=$(cat ${pidfile} 2>/dev/null || true)
         einfo "${name} is already running"
-        edebug "${name} is already running $(lval pid +${optpack})"
+        edebug "${name} is already running $(lval pid %${optpack})"
         eend 0
         return 0
     fi
@@ -313,11 +313,11 @@ daemon_start()
             # Log specific message
             if [[ ${runs} -ge ${respawns} ]]; then
                 eerror "${name} crashed too many times (${runs}/${respawns}). Giving up."
-                edebug "$(lval name SECONDS +${optpack})"
+                edebug "$(lval name SECONDS %${optpack})"
                 $(tryrc ${post_abort})
             else
                 ewarn "${name} crashed (${current_runs}/${respawns}). Will respawn in ${delay} seconds."
-                edebug "$(lval name SECONDS +${optpack})"
+                edebug "$(lval name SECONDS %${optpack})"
             fi
 
             # give daemon_stop a chance to get everything sorted out
@@ -360,7 +360,7 @@ daemon_stop()
 
     # Info
     einfo "Stopping ${name}"
-    edebug "Stopping $(lval name signal timeout +${optpack})"
+    edebug "Stopping $(lval name signal timeout %${optpack})"
 
     # If it's not running just return
     daemon_running ${optpack} \
@@ -419,7 +419,7 @@ daemon_status()
 
     {
         einfo "${name}"
-        edebug "Checking $(lval name +${optpack})"
+        edebug "Checking $(lval name %${optpack})"
 
         # Check pidfile
         [[ -e ${pidfile} ]] || { eend 1; edebug "Not Running (no pidfile)"; return 1; }
@@ -430,7 +430,7 @@ daemon_status()
         process_running ${pid} || { eend 1; edebug "Not Running"; return 1; }
 
         # OK -- It's running
-        edebug "Running $(lval name pid +${optpack})"
+        edebug "Running $(lval name pid %${optpack})"
         eend 0
 
     } &>${redirect}

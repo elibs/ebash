@@ -44,11 +44,14 @@
       with names prefixed with "g" (which seems to be the default for both
       homebrew and macports).
 
-    - Refactored ecolor to allow for 0 or more arguments which can be modifiers
-      or foreground colors. Removed compatibility for "dimCOLOR" and instead now
-      have a "dim" modifier that can be used; updated colors being used
-      accordingly. Ecolor now also supports setting background color by
-      prefixing the color name with "b:"
+    - Ecolor now allows for 0 or more arguments which can be modifiers or
+      foreground colors. No longer support "dimCOLOR".  Instead use "dim
+      color". Ecolor now also supports setting background color by prefixing
+      the color name with "b:"
+
+    - lval: Changed leading character to indicate that a variable is a pack
+      from + to % to be more similar to perl's hashes and to avoid using the
+      plus sign differently in lval and opt_parse.
 
 # Bashutils 1.2
 
