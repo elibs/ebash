@@ -2813,9 +2813,10 @@ opt_parse()
     echo 'if [[ ${#__BU_ARG[@]} -gt 0 ]] ; then '
         echo 'for index in "${!__BU_ARG[@]}" ; do '
             echo '[[ -n ${index} ]] || continue ; '
-            echo 'declare "${__BU_ARG_NAMES[$index]}=${__BU_ARG[$index]}" ; '
+            echo '[[ ${__BU_ARG_NAMES[$index]} != _ ]] && declare "${__BU_ARG_NAMES[$index]}=${__BU_ARG[$index]}" ; '
         echo 'done ; '
     echo 'fi ; '
+    echo 'argcheck "${__BU_ARG_REQUIRED[@]:-}" ; '
     echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- ; '
 }
 
@@ -2905,7 +2906,7 @@ opt_parse_setup()
 
             arg_cmd+="'${default}' "
             arg_names_cmd+="'${canonical}' "
-            [[ ${opt_type_char} == "?" ]] && arg_required_cmd+="${canonical}' "
+            [[ ${opt_type_char} != "?" ]] && arg_required_cmd+="'${canonical}' "
         fi
 
     done
@@ -3087,10 +3088,6 @@ opt_parse_arguments()
 
             # If there are no more arguments to process, stop
             [[ $# -gt 0 ]] || break
-
-            # Skip arguments named _ (because that's our convention -- if you don't
-            # care about a positional argument, name it _ in opt_parse)
-            [[ ${__BU_ARG_NAMES[$index]} == "_" ]] && continue ; 
 
             #  Put the next argument from the command line into the next argument
             #  value slot
