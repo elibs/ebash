@@ -1742,7 +1742,7 @@ print_value()
 
     # Special handling for packs, as long as their name is specified with a
     # plus character in front of it
-    if [[ "${__input:0:1}" == '+' ]] ; then
+    if [[ "${__input:0:1}" == '%' ]] ; then
         pack_print "${__input:1}"
         return 0
     fi
@@ -1780,7 +1780,7 @@ lval()
         # Tag provided?
         local __arg_tag=${__arg%%=*}; [[ -z ${__arg_tag} ]] && __arg_tag=${__arg}
         local __arg_val=${__arg#*=}
-        __arg_tag=${__arg_tag#+}
+        __arg_tag=${__arg_tag#%}
         __arg_val=$(print_value "${__arg_val}")
 
         echo -n "${__lval_pre}${__arg_tag}=${__arg_val}"
