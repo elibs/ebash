@@ -252,9 +252,9 @@ export_network_interface_names()
 # For example:
 # declare -A ports
 # get_listening_ports ports
-# einfo $(lval +ports[5])
+# einfo $(lval %ports[5])
 # >> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
-# einfo $(lval +ports[42])
+# einfo $(lval %ports[42])
 # ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
 #
 get_network_ports()
