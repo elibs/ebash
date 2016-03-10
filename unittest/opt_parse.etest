@@ -372,3 +372,39 @@ ETEST_opt_parse_arg_default()
     assert_eq "b" "${arg1}"
 }
 
+ETEST_opt_parse_arg_required()
+{
+    set --
+    try
+    {
+        $(opt_parse "a")
+        die -r=243 "Should have already died."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_arg_eats_underscores()
+{
+    set -- one two three more
+    $(opt_parse "alpha" "_" "beta")
+    declare -p __BU_ARG{,_NAMES,_REQUIRED}
+    assert_eq "one" "${alpha}"
+    assert_eq "three" "${beta}"
+    assert_eq "more" "$*"
+    assert_eq 1 $#
+}
+
+ETEST_opt_parse_arg_whitespace()
+{
+    ONE="a b c"
+    TWO="  D  E  F  "
+    set -- "${ONE}" "${TWO}"
+    $(opt_parse "one | docstring" "two | docstring")
+    declare -p ONE one TWO two
+    assert_eq "${ONE}" "${one}"
+    assert_eq "${TWO}" "${two}"
+}
+
