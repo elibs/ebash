@@ -328,7 +328,6 @@ overlayfs_list_changes()
     # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
     # as is our convention. If it's not mounted this will fail.
     local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    edebug "$(lval mnt dest output)"
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
     # Pretty print the list of changes
@@ -336,5 +335,41 @@ overlayfs_list_changes()
         find "${upper}" -ls | awk '{ $1=""; print}' | sed -e "s|${upper}|/|" -e 's|//|/|' | column -t | sort -k10
     else
         find "${upper}" | sed -e "s|${upper}|/|" -e 's|//|/|'
+    fi
+}
+
+# Dedupe files in overlayfs such that all files in the upper directory which are
+# identical IN CONTENT to the original ones in the lower layer are removed from
+# the upper layer. This uses 'cmp' in order to compare each file byte by byte.
+# Thus even if the upper file has a newer timestamp it will be removed if its
+# content is otherwise identical.
+overlayfs_dedupe()
+{
+    $(declare_args mnt)
+ 
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+    
+    # Check each file in parallel and remove any identical files.
+    local pids=() path="" fname=""
+    for path in $(find ${upper} -type f); do
+
+        (
+            if cmp --quiet "${path}" "${lower}/${path#${upper}}"; then
+                edebug "Found duplicate $(lval path)"
+                rm --force "${path}"
+            fi
+        ) &
+
+        pids+=( $! )
+        
+    done
+
+    if array_not_empty pids; then
+        edebug "Waiting for $(lval pids)"
+        wait ${pids[@]}
     fi
 }
