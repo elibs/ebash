@@ -338,6 +338,20 @@ overlayfs_list_changes()
     fi
 }
 
+# Show a unified diff between the lower and upper layers 
+overlayfs_diff()
+{
+    $(declare_args mnt)
+
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+
+    diff --recursive --unified "${lower}" "${upper}"
+}
+
 # Dedupe files in overlayfs such that all files in the upper directory which are
 # identical IN CONTENT to the original ones in the lower layer are removed from
 # the upper layer. This uses 'cmp' in order to compare each file byte by byte.
