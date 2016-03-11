@@ -11,7 +11,7 @@ With bashutils, we have decided to make scripts detect errors implicitly.  If an
 
 This is in opposition to all bash defaults.  And, frankly, it’s a bit difficult to force bash into really blowing up on all failures.  But we do our best with a multi-layered approach.  As long as you use the typical bashutils idioms and follow a small set of styles we prescribe, we believe that any time an error occurs in your bashutils code, you’ll hear about it.
 
-First, we use bash’s error trap functionality.  This behaves just like “set -e”, except that we get to choose what runs when an error occurs.  Basically, we call the die function on any error.  This causes a stack trace to be generated which will have `[UnhandledError]` in its message.  Second, we ensure that the error trap is inherited by all subshells, because sometimes you need them, and often it’s difficult to know where there will actually be a subshell.
+First, we use bash’s error trap functionality.  This behaves just like `set -e`, except that we get to choose what runs when an error occurs.  Basically, we call the die function on any error.  This causes a stack trace to be generated which will have `[UnhandledError]` in its message.  Second, we ensure that the error trap is inherited by all subshells, because sometimes you need them, and often it’s difficult to know where there will actually be a subshell.
 
 But sometimes bash really wants to ignore a return code.  For instance, if command substitution isn’t part of the first command on a line, as in both of the following lines of code, bash will ignore any return code of `cmd`.
 
@@ -686,4 +686,3 @@ Like most other bash code, bashutils is written under the assumption that `IFS` 
 - Another good bash FAQ: http://mywiki.wooledge.org/BashFAQ
 - Advanced BASH-Scripting Guide (html): http://www.tldp.org/LDP/abs/html/
 - Advanced BASH-Scripting Guide (pdf): http://www.tldp.org/LDP/abs/abs-guide.pdf
-
