@@ -372,4 +372,10 @@ overlayfs_dedupe()
         edebug "Waiting for $(lval pids)"
         wait ${pids[@]}
     fi
+
+    # Now remove any empty orphaned directories in upper layer. Need to touch
+    # a temporary file in upper to avoid find from also deleting that as well.
+    local tmp=$(mktemp --tmpdir=${upper} .overlayfs_dedupe-XXXXXX)
+    find "${upper}" -type d -empty -delete
+    rm --force "${tmp}"
 }
