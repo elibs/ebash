@@ -323,6 +323,11 @@ overlayfs_changed()
 overlayfs_list_changes()
 {
     $(declare_args mnt)
+    local long=$(opt_get l 0)
+    local find_args=""
+    if [[ ${long} -eq 1 ]]; then
+        find_args+="-ls"
+    fi
 
     # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
     # as is our convention. If it's not mounted this will fail.
@@ -331,5 +336,5 @@ overlayfs_list_changes()
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
     # Pretty print the list of changes
-    find "${upper}" -ls | awk '{ $1=""; print}' | sed -e "s|${upper}|/|" -e 's|//|/|' | column -t | sort -k10
+    find "${upper}" ${find_args} | awk '{ $1=""; print}' | sed -e "s|${upper}|/|" -e 's|//|/|' | column -t | sort -k10
 }
