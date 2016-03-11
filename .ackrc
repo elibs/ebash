@@ -1,2 +1,3 @@
 --ignore-file=match:etest.log(\.\d+)?
 --ignore-dir=.forge/work
+--ignore-dir=output
