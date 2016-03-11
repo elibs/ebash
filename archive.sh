@@ -539,7 +539,7 @@ archive_diff()
             archive_mount_or_extract "${src}" "${mnt}"
         done
 
-        diff --recursive --unified "${mnts[@]}"
+        diff --recursive --unified --new-file "${mnts[@]}"
     )
 }
 

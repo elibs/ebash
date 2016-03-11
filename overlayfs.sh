@@ -349,7 +349,7 @@ overlayfs_diff()
     local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
-    diff --recursive --unified "${lower}" "${upper}"
+    diff --recursive --unified --new-file "${lower}" "${upper}"
 }
 
 # Dedupe files in overlayfs such that all files in the upper directory which are
