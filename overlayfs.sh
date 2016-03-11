@@ -334,7 +334,7 @@ overlayfs_list_changes()
     if [[ ${long} -eq 1 ]]; then
         find "${upper}" -ls | awk '{ $1=""; print}' | sed -e "s|${upper}|/|" -e 's|//|/|' | column -t | sort -k10
     else
-        find "${upper}" | sed -e "s|${upper}|/|" -e 's|//|/|'
+        find "${upper}" | sed -e "s|${upper}|/|" -e 's|//|/|' | sort
     fi
 }
 
