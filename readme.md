@@ -168,7 +168,7 @@ I’m not going to try to reproduce color in this guide, but by default the outp
     >> ewarn
     >> eerror
 
-But the output can be modified in a few ways.  One way to customize it is to set `EFUNCS_COLOR=0,` which turns of color for this and all bashutils tools.  Another is that you can request timestamps.
+But the output can be modified in a few ways.  One way to customize it is to set `EFUNCS_COLOR=0`, which turns of color for this and all bashutils tools.  Another is that you can request timestamps.
 
     > EMSG_PREFIX=time ~/bashutils_guide
     [Nov 12 13:31:16] einfo
