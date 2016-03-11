@@ -292,7 +292,7 @@ overlayfs_tree()
 # supported archive format.
 overlayfs_save_changes()
 {
-    $(declare_args mnt dest)
+    $(opt_parse mnt dest)
 
     # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
     # as is our convention. If it's not mounted this will fail.
