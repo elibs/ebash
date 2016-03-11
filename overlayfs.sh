@@ -303,3 +303,33 @@ overlayfs_save_changes()
     # Save to requested type.   
     archive_create -d="${upper}" . "${dest}"
 }
+
+# Check if there are any changes in an overlayfs or not.
+overlayfs_changed()
+{
+    $(declare_args mnt)
+
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    edebug "$(lval mnt dest output)"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+
+    # If the directory isn't empty then there are changes made to the RW layer.
+    directory_not_empty "${upper}"
+}
+
+# List the changes in an overlayfs
+overlayfs_list_changes()
+{
+    $(declare_args mnt)
+
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    edebug "$(lval mnt dest output)"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+
+    # Pretty print the list of changes
+    find "${upper}" -ls | awk '{ $1=""; print}' | sed -e "s|${upper}|/|" -e 's|//|/|' | column -t | sort -k10
+}

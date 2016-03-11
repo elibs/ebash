@@ -72,6 +72,7 @@ ETEST_overlayfs_modify()
         etestmsg "Mounting at dest"
         overlayfs_mount src.${ftype} dest
         overlayfs_tree dest
+        assert_false overlayfs_changed dest
 
         etestmsg "Modifying mounted files"
         echo "File#1" > dest/file1
@@ -80,6 +81,10 @@ ETEST_overlayfs_modify()
         assert_eq "File#2" "$(cat dest/file2)"
 
         etestmsg "Saving RW layer as rw.${ftype} then unmounting"
+        assert_true overlayfs_changed dest
+        etestmsg "Listing changes"
+        overlayfs_list_changes dest
+        etestmsg "Saving changes"
         overlayfs_save_changes dest rw.${ftype}
         overlayfs_unmount dest
 
@@ -87,6 +92,7 @@ ETEST_overlayfs_modify()
         efreshdir dest
         overlayfs_mount src.${ftype} dest
         overlayfs_tree dest
+        assert_false overlayfs_changed dest
         assert_empty "$(cat dest/file0)"
         assert_empty "$(cat dest/file1)"
         assert_empty "$(cat dest/file2)"
