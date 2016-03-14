@@ -303,3 +303,97 @@ overlayfs_save_changes()
     # Save to requested type.   
     archive_create -d="${upper}" . "${dest}"
 }
+
+# Check if there are any changes in an overlayfs or not.
+overlayfs_changed()
+{
+    $(declare_args mnt)
+
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+
+    # If the directory isn't empty then there are changes made to the RW layer.
+    directory_not_empty "${upper}"
+}
+
+# List the changes in an overlayfs
+overlayfs_list_changes()
+{
+    $(declare_args mnt)
+    local long=$(opt_get l 0)
+
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+
+    # Pretty print the list of changes
+    if [[ ${long} -eq 1 ]]; then
+        find "${upper}" -ls | awk '{ $1=""; print}' | sed -e "s|${upper}|/|" -e 's|//|/|' | column -t | sort -k10
+    else
+        find "${upper}" | sed -e "s|${upper}|/|" -e 's|//|/|' | sort
+    fi
+}
+
+# Show a unified diff between the lower and upper layers 
+overlayfs_diff()
+{
+    $(declare_args mnt)
+
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+
+    diff --recursive --unified "${lower}" "${upper}"
+}
+
+# Dedupe files in overlayfs such that all files in the upper directory which are
+# identical IN CONTENT to the original ones in the lower layer are removed from
+# the upper layer. This uses 'cmp' in order to compare each file byte by byte.
+# Thus even if the upper file has a newer timestamp it will be removed if its
+# content is otherwise identical.
+overlayfs_dedupe()
+{
+    $(declare_args mnt)
+ 
+    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
+    # as is our convention. If it's not mounted this will fail.
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+    
+    # Check each file in parallel and remove any identical files.
+    local pids=() path="" fname=""
+    for path in $(find ${upper} -type f); do
+
+        (
+            if cmp --quiet "${path}" "${lower}/${path#${upper}}"; then
+                edebug "Found duplicate $(lval path)"
+                rm --force "${path}"
+            fi
+        ) &
+
+        pids+=( $! )
+        
+    done
+
+    if array_not_empty pids; then
+        edebug "Waiting for $(lval pids)"
+        wait ${pids[@]}
+    fi
+
+    # Now remove any empty orphaned directories in upper layer. Need to touch
+    # a temporary file in upper to avoid find from also deleting that as well.
+    local tmp=$(mktemp --tmpdir=${upper} .overlayfs_dedupe-XXXXXX)
+    find "${upper}" -type d -empty -delete
+    rm --force "${tmp}"
+
+    # Since we have removed files from overlayfs upper directory we need to
+    # remount the overlayfs mount so that the changes will be observed in
+    # the final mount point properly.
+    emount -o remount "${mnt}"
+}
