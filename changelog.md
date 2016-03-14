@@ -1,13 +1,16 @@
 # Bashutils 1.3
 
-    - Pulled option parsing functionality out of declare_args and created a new
-      opt_parse function.  Its implementation supports both short and long
-      options (and "golfing" short options).  It detects errors on the command
-      line that would've previously been ignored such as passing an unsupported
-      option to a command.  This is not backward compatible, though.  Calling
-      code must change to use opt_parse if it wants to read options (e.g. -g or
-      -f), but declare_args still handles positional arguments as it always
-      did.
+    - Created a new opt_parse function that contains all of the argument
+      handling functionality that `declare_args` used to while also being
+      explicit instead of implicit about option handling.  Supports both short
+      and long options.  Supports "golfing" of short options (i.e. -e -x and
+      -ex are equivalent).  Detects errors on the command line of calling code
+      that would've previously been ignored such as passing an unsupported
+      option to a command.
+
+    - Removed declare_args in favor of opt_parse.  It is syntax-compatible as
+      long as you didn't use options.  When using options, they must now be
+      specified but we prefer this as it is more explicit.
 
     - Fixed a bug that caused die not to signal its parent when aborting.  It
       is through this mechanism that we intend to catch errors that happen in
@@ -55,19 +58,9 @@
 
 # Bashutils 1.2
 
-    - Removed the option parsing functionality from declare_args and let its
-      single purpose be handling positional arguments.
-
-    - Added opt_parse to do option parsing.  To use it, you'll typically call
-      opt_parse prior to declare_args in any function that you want to handle
-      options.  Opt_parse supports both short and long options and is
-      friendlier to callers of functions that use it.  For instance, you don't
-      have to use an equal sign to specify a value for an option (although you
-      still may)
-
-    - Created new general purpose abstract archive module. This provides
-      common functions for creating, extracting, listing, mounting, unmounting
-      and converting ISOs, squashfs images, and all supported tar file formats.
+    - Created new general purpose abstract archive module. This provides common
+      functions for creating, extracting, listing, mounting, unmounting and
+      converting ISOs, squashfs images, and all supported tar file formats.
 
     - Created new OverlayFS module. This provides a very clean interface for
       dealing with the many different overlayfs versions that we interact with.
