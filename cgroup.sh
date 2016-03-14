@@ -164,7 +164,7 @@ cgroup_exists()
 #
 cgroup_move()
 {
-    $(declare_args cgroup)
+    $(opt_parse cgroup)
 
     local pids=( "${@}" )
 
@@ -192,7 +192,7 @@ cgroup_move()
 #
 cgroup_set()
 {
-    $(declare_args cgroup setting value)
+    $(opt_parse cgroup setting value)
 
     echo "${value}" > $(cgroup_find_setting_file ${cgroup} ${setting})
 }
@@ -206,7 +206,7 @@ cgroup_set()
 #
 cgroup_get()
 {
-    $(declare_args cgroup setting)
+    $(opt_parse cgroup setting)
     cat $(cgroup_find_setting_file ${cgroup} ${setting})
 }
 
@@ -305,8 +305,8 @@ cgroup_ps()
 {
     $(opt_parse \
         ":exclude x   | Space separated list of pids not to display." \
-        "-recursive r | List processes for specified cgroup and all children.")
-    $(declare_args cgroup)
+        "-recursive r | List processes for specified cgroup and all children." \
+        "cgroup       | Name of cgroup to examine.")
 
     local options=()
     [[ ${recursive} -eq 1 ]] && options+=("-r")
@@ -415,7 +415,7 @@ cgroup_pstree()
 #
 cgroup_current()
 {
-    $(declare_args ?pid)
+    $(opt_parse "?pid")
     : ${pid:=${BASHPID}}
 
     local line=$(grep -w "${CGROUP_SUBSYSTEMS[0]}" /proc/${pid}/cgroup)
@@ -533,7 +533,7 @@ cgroup_kill_and_wait()
 
 cgroup_find_setting_file()
 {
-    $(declare_args cgroup setting)
+    $(opt_parse cgroup setting)
     ls /sys/fs/cgroup/*/${cgroup}/${setting}
 }
 

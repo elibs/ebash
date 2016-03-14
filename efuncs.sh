@@ -73,7 +73,7 @@ edebug_enabled()
     [[ ${EDEBUG:=}  == "1" || ${ETRACE:=}  == "1" ]] && return 0
     [[ ${EDEBUG:-0} == "0" && ${ETRACE:-0} == "0" ]] && return 1
 
-    $(declare_args ?_edebug_enabled_caller)
+    $(opt_parse "?_edebug_enabled_caller")
 
     if [[ -z ${_edebug_enabled_caller} ]]; then
         _edebug_enabled_caller=( $(caller 0) )
@@ -303,7 +303,7 @@ fd_path()
 # Helper method to read from a pipe until we see EOF.
 pipe_read()
 {
-    $(declare_args pipe)
+    $(opt_parse "pipe")
     local line
     
     # Read returns an error when it reaches EOF. But we still want to emit that
@@ -328,7 +328,7 @@ pipe_read()
 #       in it ("''").
 pipe_read_quote()
 {
-    $(declare_args pipe)
+    $(opt_parse "pipe")
     local output=$(pipe_read ${pipe})
     if [[ -n ${output} ]]; then
         printf %q "$(printf "%q" "${output}")"
@@ -506,8 +506,9 @@ stacktrace()
 #      frame that this function calls.)
 stacktrace_array()
 {
-    $(opt_parse ":frame f=1 | Frame number to start at")
-    $(declare_args array)
+    $(opt_parse \
+        ":frame f=1 | Frame number to start at" \
+        "array")
 
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
@@ -517,7 +518,7 @@ stacktrace_array()
 # trap for use in other functions such as call_die_traps and trap_add.
 trap_get()
 {
-    $(declare_args sig)
+    $(opt_parse "sig | Signal name to print traps for.")
 
     # Normalize the signal description (which might be a name or a number) into
     # the form trap produces
@@ -690,7 +691,7 @@ reenable_signals()
 #
 trap_add()
 {
-    $(declare_args ?cmd)
+    $(opt_parse "?cmd")
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
     
@@ -1172,7 +1173,7 @@ eerror_stacktrace()
 # etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
 etable()
 {
-    $(declare_args columns)
+    $(opt_parse "columns")
     local lengths=()
     local parts=()
     local idx=0
@@ -1235,7 +1236,7 @@ eprompt()
 # user but will be accepted as a valid response.
 eprompt_with_options()
 {
-    $(declare_args msg opt ?secret)
+    $(opt_parse "msg" "opt" "?secret")
     local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"
 
@@ -1252,7 +1253,7 @@ eprompt_with_options()
 
 epromptyn()
 {
-    $(declare_args msg)
+    $(opt_parse "msg")
     eprompt_with_options "${msg}" "Yes,No"
 }
 
@@ -1586,10 +1587,10 @@ process_children()
 #
 process_parent()
 {
-    $(declare_args ?child)
+    $(opt_parse "?child | pid of child process")
     [[ $# -gt 0 ]] && die "process_parent only accepts one child to check."
 
-    [[ -z ${child} ]] && child=${BASHPID}
+    : ${child:=${BASHPID}}
 
     ps -eo ppid,pid | awk '$2 == '${child}' {print $1}'
 }
@@ -1600,7 +1601,7 @@ process_parent()
 #
 process_ancestors()
 {
-    $(declare_args ?child)
+    $(opt_parse "?child | pid of process whose ancestors will be printed.")
     [[ $# -gt 0 ]] && die "process_ancestors only accepts one child to check."
 
     [[ -z ${child} ]] && child=${BASHPID}
@@ -1807,7 +1808,7 @@ popd()
 echmodown()
 {
     [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
-    $(declare_args mode owner)
+    $(opt_parse mode owner)
 
     chmod ${mode} $@
     chown ${owner} $@
@@ -1831,14 +1832,14 @@ efreshdir()
 # Copies the given file to *.bak if it doesn't already exist
 ebackup()
 {
-    $(declare_args src)
+    $(opt_parse src)
 
     [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak" || true
 }
 
 erestore()
 {
-    $(declare_args src)
+    $(opt_parse src)
 
     [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
 }
@@ -1874,8 +1875,8 @@ elogrotate()
 {
     $(opt_parse \
         ":count c=5 | Maximum number of logs to keep" \
-        ":size s=0  | If specified, rotate logs at this specified size rather than each call to elogrotate")
-    $(declare_args name)
+        ":size s=0  | If specified, rotate logs at this specified size rather than each call to elogrotate" \
+        "name       | Base name to use for the logfile.")
 
     # Ensure we don't try to rotate non-files
     [[ -f $(readlink -f "${name}") ]] 
@@ -1990,7 +1991,7 @@ elogfile()
     # and redirection for stdout and stderr.
     elogfile_redirect()
     {
-        $(declare_args name)
+        $(opt_parse name)
 
         # If we're not redirecting the requested stream then just return success
         [[ ${!name} -eq 1 ]] || return 0
@@ -2068,7 +2069,7 @@ elogfile()
 # This function will die on failure.
 emd5sum()
 {
-    $(declare_args path)
+    $(opt_parse path)
 
     local dname=$(dirname  "${path}")
     local fname=$(basename "${path}")
@@ -2084,7 +2085,7 @@ emd5sum()
 # 'md5'. This method will die on failure.
 emd5sum_check()
 {
-    $(declare_args path)
+    $(opt_parse path)
 
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
@@ -2114,8 +2115,8 @@ emetadata()
 {
     $(opt_parse \
         ":private_key p | Also check the PGP signature based on this private key." \
-        ":keyphrase k   | The keyphrase to use for the specified private key.")
-    $(declare_args path)
+        ":keyphrase k   | The keyphrase to use for the specified private key." \
+        "path")
     [[ -e ${path} ]] || die "${path} does not exist"
 
     echo "Filename=$(basename ${path})"
@@ -2162,9 +2163,9 @@ emetadata_check()
 {
     $(opt_parse \
         "-quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
-        ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file.")
+        ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file."     \
+        "path")
 
-    $(declare_args path)
     local meta="${path}.meta"
     [[ -e ${path} ]] || die "${path} does not exist"
     [[ -e ${meta} ]] || die "${meta} does not exist"
@@ -2234,14 +2235,14 @@ emetadata_check()
 # Check if a directory is empty
 directory_empty()
 {
-    $(declare_args dir)
+    $(opt_parse dir)
     ! find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
 
 # Check if a directory is not empty
 directory_not_empty()
 {
-    $(declare_args dir)
+    $(opt_parse dir)
     find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
 
@@ -2255,7 +2256,7 @@ directory_not_empty()
 # while the destination path is still mounted.
 emount_realpath()
 {
-    $(declare_args path)
+    $(opt_parse path)
     path="${path//\\040\(deleted\)/}"
     echo -n "$(readlink -m ${path} 2>/dev/null || true)"
 }
@@ -2263,14 +2264,14 @@ emount_realpath()
 # Echo the emount regex for a given path
 emount_regex()
 {
-    $(declare_args path)
+    $(opt_parse path)
     echo -n "(^| )${path}(\\\\040\\(deleted\\))* "
 }
 
 # Echo the number of times a given directory is mounted.
 emount_count()
 {
-    $(declare_args path)
+    $(opt_parse path)
     path=$(emount_realpath ${path})
     local num_mounts=$(list_mounts | grep --count --perl-regexp "$(emount_regex ${path})" || true)
     echo -n ${num_mounts}
@@ -2279,14 +2280,14 @@ emount_count()
 # Get the mount type of a given mount point.
 emount_type()
 {
-    $(declare_args path)
+    $(opt_parse path)
     path=$(emount_realpath ${path})
     list_mounts | grep --perl-regexp "$(emount_regex ${path})" | awk '{print $1}' || true
 }
 
 emounted()
 {
-    $(declare_args path)
+    $(opt_parse path)
     path=$(emount_realpath ${path})
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
 
@@ -2303,7 +2304,7 @@ emounted()
 #
 ebindmount()
 {
-    $(declare_args src dest)
+    $(opt_parse src dest)
 
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
@@ -2318,10 +2319,9 @@ ebindmount()
 
 # Mount a filesystem.
 #
-# WARNING: Do not use declare_args in this function as then we don't 
-#          properly pass the options into mount itself. Since this is just a
-#          passthrough operation into mount you should see mount(8) manpage 
-#          for usage.
+# WARNING: Do not use opt_parse in this function as then we don't properly pass
+#          the options into mount itself. Since this is just a passthrough
+#          operation into mount you should see mount(8) manpage for usage.
 emount()
 {
     if edebug_enabled || [[ "${@}" =~ (^| )(-v|--verbose)( |$) ]]; then
@@ -2473,7 +2473,7 @@ list_mounts()
 # (2) findmnt doesn't find mount points beneath a non-root directory
 efindmnt()
 {
-    $(declare_args path)
+    $(opt_parse path)
     path=$(emount_realpath ${path})
 
     # First check if the requested path itself is mounted
@@ -2516,7 +2516,7 @@ isfedora()
 # strings and even worse being completely incapable of comparing floats.
 compare()
 {
-    $(declare_args ?lh op ?rh)
+    $(opt_parse "?lh" "op" "?rh")
 
     ## =~
     if [[ ${op} == "=~" ]]; then
@@ -2565,73 +2565,6 @@ argcheck()
     for _argcheck_arg in $@; do
         [[ -z "${!_argcheck_arg:-}" ]] && die "Missing argument '${_argcheck_arg}'" || true
     done
-}
-
-# declare_args takes a list of names and declares a variable for each name from
-# the positional arguments in the CALLER's context.
-#
-# We want all code generated by this function to be invoked in the caller's
-# environment instead of within this function. BUT, we don't want to have to use
-# clumsy eval $(declare_args...). So instead we use "eval command invocation string"
-# which the caller executes via:
-#
-# $(declare_args a b)
-#
-# This gets turned into:
-#
-# "declare a=$1; shift; argcheck a1; declare b=$2; shift; argcheck b; "
-#
-# There are various special meta characters that can precede the variable name
-# that act as instructions to declare_args. Specifically:
-#
-# ?  The named argument is OPTIONAL. If it's empty do NOT call argcheck.
-#
-# _  The argument is anonymous and we should not not assign the value to anything.
-#    NOTE: The argument must be exactly '_' not just prefixed with '_'. Thus if
-#    the argument is literally '_' it will be anonymous but if it is '_a' it is
-#    NOT an anonymous variable.
-#
-declare_args()
-{
-    $(opt_parse \
-        "-global g   | Make variables created by opt_parse to be global.  Default is local." \
-        "-export e x | Make variables created by opt_parse to be exported.")
-
-    local optional=0
-    local variable=""
-    local cmd=""
-
-    local dflags=""
-    [[ ${global} -eq 1 ]] && dflags="-g"
-    [[ ${export} -eq 1 ]] && dflags="-gx"
-
-    while [[ $# -gt 0 ]]; do
-
-        if [[ ! $1 =~ ^([^[:space:]]+)[[:space:]]*(\|[[:space:]]*(.*))?$ ]] ; then
-            die "Invalid argument passed to declare_args: $1"
-        fi
-
-        local arg_full=${BASH_REMATCH[1]}
-        local docstring=${BASH_REMATCH[3]:-}
-
-        # If the variable name is "_" then don't bother assigning it to anything
-        [[ ${arg_full} == "_" ]] && cmd+="shift; " && { shift; continue; }
-
-        # Check if the argument is optional or not as indicated by a leading '?'.
-        # If the leading '?' is present then REMOVE It so that code after it can
-        # correctly use the key name as the variable to assign it to.
-        [[ ${arg_full:0:1} == "?" ]] && optional=1 || optional=0
-        variable="${arg_full#\?}"
-
-        # Declare the variable and then call argcheck if required
-        cmd+="declare ${dflags} ${variable}=\${1:-}; shift &>/dev/null || true; "
-        [[ ${optional} -eq 0 ]] && cmd+="argcheck ${variable}; "
-
-        shift
-    done
-
-    echo "eval ${cmd}"
-
 }
 
 ## opt_parse
@@ -2793,9 +2726,9 @@ opt_parse()
     opt_parse_setup "${@}"
 
     # __BU_FULL_ARGS is the list of arguments as initially passed to
-    # opt_parse. declare_args_internal will modifiy __BU_ARGS to be whatever
-    # was left to be processed after it is finished.
-    # Note: here $@ is quoted so it refers to the caller's arguments
+    # opt_parse. Opt_parse_options will modifiy __BU_ARGS to be whatever was
+    # left to be processed after it is finished. Note: here $@ is quoted so it
+    # refers to the caller's arguments
     echo 'declare __BU_FULL_ARGS=("$@") ; '
     echo 'declare __BU_ARGS=("$@") ; '
     echo "opt_parse_options ; "
@@ -2845,7 +2778,7 @@ opt_parse_setup()
         [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
         # Make sure this option looks right
-        [[ ${opt_definition} =~ ([-:])?([^=]+)(=.*)? ]]
+        [[ ${opt_definition} =~ ([-:?])?([^=]+)(=.*)? ]]
 
         # TYPE is the first character of the definition
         local opt_type_char=${BASH_REMATCH[1]}
@@ -3132,7 +3065,7 @@ save_function()
 # times.
 override_function()
 {
-    $(declare_args func body)
+    $(opt_parse func body)
 
     # Don't save the function off it already exists to avoid infinite recursion
     declare -f "${func}_real" >/dev/null || save_function ${func}
@@ -3163,7 +3096,7 @@ numcores()
 # caller for handling.
 efetch_internal()
 {
-    $(declare_args url dst)
+    $(opt_parse url dst)
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
@@ -3189,10 +3122,10 @@ efetch()
     $(opt_parse \
         "-md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
         "-meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
-        "-quiet q | Quiet mode.  (Disable eprogress and other info messages)")
+        "-quiet q | Quiet mode.  (Disable eprogress and other info messages)" \
+        "url      | URL from which efetch should pull data." \
+        "dst=/tmp | Destination directory.")
 
-    $(declare_args url ?dst)
-    : ${dst:=/tmp}
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     
     # Companion files we may fetch
@@ -3597,7 +3530,7 @@ eretry_internal()
 #   will then be used by setvars as the replacement value.
 setvars()
 {
-    $(declare_args filename ?callback)
+    $(opt_parse "filename" "?callback")
     edebug "Setting variables $(lval filename callback)"
     [[ -f ${filename} ]] || die "$(lval filename) does not exist"
 
@@ -3702,7 +3635,7 @@ quote_eval()
 #  $3: (optional) character(s) to be used as delimiters.
 array_init()
 {
-    $(declare_args __array ?__string ?__delim)
+    $(opt_parse "__array" "?__string" "?__delim")
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
@@ -3734,7 +3667,7 @@ array_init_json()
 # But this functions makes for symmertry with pack (i.e. pack_size).
 array_size()
 {
-    $(declare_args __array)
+    $(opt_parse __array)
 
     # Treat unset variables as being an empty array, because when you tell
     # bash to create an empty array it doesn't really allow you to
@@ -3753,14 +3686,14 @@ array_size()
 # Return true (0) if an array is empty and false (1) otherwise
 array_empty()
 {
-    $(declare_args __array)
+    $(opt_parse __array)
     [[ $(array_size ${__array}) -eq 0 ]]
 }
 
 # Returns true (0) if an array is not empty and false (1) otherwise
 array_not_empty()
 {
-    $(declare_args __array)
+    $(opt_parse __array)
     [[ $(array_size ${__array}) -ne 0 ]]
 }
 
@@ -3772,7 +3705,7 @@ array_not_empty()
 # $3: (optional) character(s) to be used as delimiters.
 array_add()
 {
-    $(declare_args __array ?__string ?__delim)
+    $(opt_parse "__array" "?__string" "?__delim")
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && return 0
@@ -3797,8 +3730,9 @@ array_add_nl()
 # -a=(0|1) Remove all instances (defaults to only removing the first instance)
 array_remove()
 {
-    $(opt_parse "-all a | Remove all instances of the item instead of just the first.")
-    $(declare_args __array)
+    $(opt_parse \
+        "-all a  | Remove all instances of the item instead of just the first." \
+        "__array | Name of array to operate on.")
 
     # Return immediately if if array is not set or no values were given to be
     # removed. The reason we don't error out on an unset array is because
@@ -3831,7 +3765,7 @@ array_remove()
 #
 array_indexes()
 {
-    $(declare_args __array_indexes_array)
+    $(opt_parse __array_indexes_array)
     eval "echo \${!${__array_indexes_array}[@]}"
 }
 
@@ -3843,7 +3777,7 @@ array_indexes()
 # $2: value to check for existance in the array
 array_contains()
 {
-    $(declare_args __array __value)
+    $(opt_parse __array __value)
 
     local idx=0
     for idx in $(array_indexes ${__array}); do
@@ -3865,9 +3799,9 @@ array_join()
 {
     $(opt_parse \
         "-before b | Insert delimiter before all joined elements." \
-        "-after a  | Insert delimiter after all joined elements.")
-
-    $(declare_args __array ?delim)
+        "-after a  | Insert delimiter after all joined elements."  \
+        "__array   | Name of array to operate on."                 \
+        "?delim    | Delimiter to place between array items.  Default is a space.")
 
     # If the array is empty return empty string
     array_empty ${__array} && { echo -n ""; return 0; } || true
@@ -3923,7 +3857,7 @@ array_join_nl()
 #
 array_regex()
 {
-    $(declare_args __array)
+    $(opt_parse __array)
 
     echo -n "("
     array_join ${__array}
@@ -4105,11 +4039,11 @@ pack_iterate()
 pack_import()
 {
     $(opt_parse \
-        "-local l=1 | Emit local variables via local builtin (default)." \
-        "-global g  | Emit global variables instead of local (i.e. undeclared variables)." \
-        "-export e  | Emit exported variables via export builtin.")
+        "-local l=1        | Emit local variables via local builtin (default)." \
+        "-global g         | Emit global variables instead of local (i.e. undeclared variables)." \
+        "-export e         | Emit exported variables via export builtin." \
+        "_pack_import_pack | Pack to operate on.")
 
-    $(declare_args _pack_import_pack)
     local _pack_import_keys=("${@}")
     [[ $(array_size _pack_import_keys) -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 
@@ -4219,7 +4153,7 @@ _pack()
 # KB, MB, GB, TB
 to_upper_snake_case()
 {
-    $(declare_args input)
+    $(opt_parse input)
 
     echo "${input}"         \
         | sed -e 's|KB|Kb|' \
@@ -4269,7 +4203,7 @@ to_json()
 array_to_json()
 {
     # This will store a copy of the specified array's contents into __array
-    $(declare_args __array)
+    $(opt_parse __array)
     eval "local __array=(\"\${${__array}[@]}\")"
 
     echo -n "["
@@ -4512,25 +4446,25 @@ assert_op()
 
 assert_eq()
 {
-    $(declare_args "?lh" "?rh" "?msg")
+    $(opt_parse "?lh" "?rh" "?msg")
     [[ "${lh}" == "${rh}" ]] || die "assert_eq failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_ne()
 {
-    $(declare_args "?lh" "?rh" "?msg")
+    $(opt_parse "?lh" "?rh" "?msg")
     [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_match()
 {
-    $(declare_args "?lh" "?rh" "?msg")
+    $(opt_parse "?lh" "?rh" "?msg")
     [[ "${lh}" =~ "${rh}" ]] || die "assert_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_not_match()
 {
-    $(declare_args "?lh" "?rh" "?msg")
+    $(opt_parse "?lh" "?rh" "?msg")
     [[ ! "${lh}" =~ "${rh}" ]] || die "assert_not_match failed [${msg:-}] :: $(lval lh rh)"
 }
 
@@ -4578,7 +4512,7 @@ assert_not_exists()
 
 assert_archive_contents()
 {
-    $(declare_args archive)
+    $(opt_parse archive)
     edebug "Validating $(lval archive)"
     
     local expect=( "${@}" )
@@ -4603,7 +4537,7 @@ assert_archive_contents()
 
 assert_directory_contents()
 {
-    $(declare_args directory)
+    $(opt_parse directory)
     edebug "Validating $(lval directory)"
 
     local expect=( "${@}" )

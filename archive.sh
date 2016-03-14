@@ -53,8 +53,8 @@
 archive_type()
 {
     $(opt_parse \
-        ":type t | Override automatic type detection and use explicit archive type.")
-    $(declare_args src)
+        ":type t | Override automatic type detection and use explicit archive type." \
+        "src     | Archive file name.")
     
     # Allow overriding type detection based on suffix and instead use provided
     # type providing it's a valid type we know about. To unify the code as
@@ -83,8 +83,8 @@ archive_compress_program()
 {
     $(opt_parse \
         "-nice n | Be nice and use non-parallel compressors and only a single core." \
-        ":type t | Override automatic type detection and use explicit archive type.")
-    $(declare_args fname)
+        ":type t | Override automatic type detection and use explicit archive type." \
+        "fname   | Archive file name.")
 
     # Allow overriding type detection based on suffix and instead use provided
     # type providing it's a valid type we know about. To unify the code as
@@ -332,9 +332,10 @@ archive_extract()
         ":exclude x        | List of paths to be excluded from archive." \
         "-ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
         "-nice n           | Be nice and use non-parallel compressors and only a single core." \
-        ":type t           | Override automatic type detection and use explicit archive type.")
+        ":type t           | Override automatic type detection and use explicit archive type." \
+        "src               | Source archive to extract." \
+        "dest              | Location to place the files extracted from that archive.")
     
-    $(declare_args src dest)
     local files=( "${@}" )
     local src_type=$(archive_type --type "${type}" "${src}")
 
@@ -459,8 +460,8 @@ archive_extract()
 archive_list()
 {
     $(opt_parse \
-        ":type t | Override automatic type detection and use explicit archive type.")
-    $(declare_args src)
+        ":type t | Override automatic type detection and use explicit archive type." \
+        "src     | Archive whose contents should be listed.")
     local src_type=$(archive_type --type "${type}" "${src}")
 
     # The code below calls out to the various archive format specific tools to dump
@@ -497,7 +498,7 @@ archive_list()
 # temporary directory to write it out to the new destination type.
 archive_convert()
 {
-    $(declare_args src dest)
+    $(opt_parse src dest)
     local src_type=$(archive_type "${src}")
     local dest_real=$(readlink -m "${dest}")
     edebug "Converting $(lval src src_type dest dest_real)"
@@ -546,7 +547,7 @@ archive_diff()
 # and if not extract it to the destination directory.
 archive_mount_or_extract()
 {
-    $(declare_args src dest)
+    $(opt_parse src dest)
     local src_type=$(archive_type "${src}")
 
     # SQUASHFS or ISO can be directly mounted

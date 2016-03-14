@@ -8,7 +8,7 @@
 #-----------------------------------------------------------------------------
 valid_ip()
 {
-    $(declare_args ip)
+    $(opt_parse ip)
     local stat=1
 
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -21,7 +21,7 @@ valid_ip()
 
 hostname_to_ip()
 {
-    $(declare_args hostname)
+    $(opt_parse hostname)
 
     local output hostrc ip
     output="$(host ${hostname} | grep ' has address ' || true)"
@@ -72,7 +72,7 @@ fully_qualify_hostname()
 # string.
 getipaddress()
 {
-    $(declare_args iface)
+    $(opt_parse iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
@@ -82,7 +82,7 @@ getipaddress()
 # will simply return an empty string.
 getnetmask()
 {
-    $(declare_args iface)
+    $(opt_parse iface)
     local cidr=$(ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
@@ -132,7 +132,7 @@ cidr2netmask ()
 # echo an empty string.
 getbroadcast()
 {
-    $(declare_args iface)
+    $(opt_parse iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ brd .*'${iface}'$/ { print $4 }' || true
 }
 
@@ -151,7 +151,7 @@ getgateway()
 # string and it will return 0.
 getsubnet()
 {
-    $(declare_args ?ip ?nm)
+    $(opt_parse "?ip" "?nm")
     [[ -z "${ip}" || -z "${nm}" ]] && return 0
 
     IFS=. read -r i1 i2 i3 i4 <<< "${ip}"
@@ -163,7 +163,7 @@ getsubnet()
 # Get the MTU that is currently set on a given interface.
 getmtu()
 {
-    $(declare_args iface)
+    $(opt_parse iface)
     ip addr show "${iface}" | grep -Po 'mtu \K[\d.]+'
 }
 
@@ -205,7 +205,7 @@ get_network_interfaces_10g()
 #       work on all cards since the firmware has to support it properly.
 get_permanent_mac_address()
 {
-    $(declare_args ifname)
+    $(opt_parse ifname)
 
     if [[ -e /sys/class/net/${ifname}/master ]]; then
         sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
@@ -220,7 +220,7 @@ get_permanent_mac_address()
 # NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
 get_network_pci_device()
 {
-    $(declare_args ifname)
+    $(opt_parse ifname)
 
     (cd /sys/class/net/${ifname}/device; basename $(pwd -P))
 }
@@ -259,8 +259,8 @@ export_network_interface_names()
 #
 get_network_ports()
 {
-    $(opt_parse "-listening l | Only include listening ports")
-    $(declare_args __ports_list)
+    $(opt_parse "-listening l | Only include listening ports" \
+        "__ports_list")
 
     local idx=0
     local first=1
