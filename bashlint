@@ -60,13 +60,9 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | egrep '\s*\$\(esource ' \
         && fail "Using removed esource function"
     
-    # Ensure not using removed declare_globals or delcare_exports
-    echo "${CONTENTS}" | egrep '(declare_globals|declare_exports)' \
+    # Ensure not using removed argument parsing functions
+    echo "${CONTENTS}" | egrep '(declare_globals|declare_exports|declare_args|declare_opts)' \
         && fail "Using removed declare_globals|declare_exports functions"
-
-    # Ensure not using deprecated 'eval $(declare_args'....
-    echo "${CONTENTS}" | egrep 'eval "?\$\(declare_args' \
-        && fail "Using deprecated declare_args syntax"
 
     # Ensure tryrc is inside $( ), because if it's not, it doesn't do what you
     # think it's doing
