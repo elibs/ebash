@@ -393,7 +393,7 @@ overlayfs_dedupe()
     rm --force "${tmp}"
 
     # Since we have removed files from overlayfs upper directory we need to
-    # remount the overalyfs mount so that the changes will be observed in
+    # remount the overlayfs mount so that the changes will be observed in
     # the final mount point properly.
     emount -o remount "${mnt}"
 }
