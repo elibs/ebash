@@ -19,11 +19,11 @@ $(opt_parse \
     ":filter  f=${FILTER:-}    | Tests whose name or file amtch this will be run." \
     ":exclude x=${EXCLUDE:-}   | Tests whose name or file match this will not be run." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
-    "-verbose  v=${VERBOSE:-0} | Verbose output." \
-    "-break    b=${BREAK:-0}   | Stop immediately on first failure." \
-    "-delete   d=1             | Delete all output files when tests complete." \
-    "-clean    c=0             | Clean only and then exit." \
-    "-html     h=0             | Produce an HTML logfile and strip color codes out of etest.log." \
+    "+verbose  v=${VERBOSE:-0} | Verbose output." \
+    "+break    b=${BREAK:-0}   | Stop immediately on first failure." \
+    "+delete   d=1             | Delete all output files when tests complete." \
+    "+clean    c=0             | Clean only and then exit." \
+    "+html     h=0             | Produce an HTML logfile and strip color codes out of etest.log." \
     "TEST_DIR=$(readlink -f .) | Look for tests inside this directory.")
 
 ETEST_TOPDIR=${TEST_DIR}
