@@ -312,7 +312,6 @@ overlayfs_changed()
     # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
     # as is our convention. If it's not mounted this will fail.
     local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    edebug "$(lval mnt dest output)"
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
     # If the directory isn't empty then there are changes made to the RW layer.
@@ -349,7 +348,7 @@ overlayfs_diff()
     local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
     local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
-    diff --recursive --unified --new-file "${lower}" "${upper}"
+    diff --recursive --unified "${lower}" "${upper}"
 }
 
 # Dedupe files in overlayfs such that all files in the upper directory which are
@@ -392,4 +391,6 @@ overlayfs_dedupe()
     local tmp=$(mktemp --tmpdir=${upper} .overlayfs_dedupe-XXXXXX)
     find "${upper}" -type d -empty -delete
     rm --force "${tmp}"
+
+    emount -o remount "${mnt}"
 }
