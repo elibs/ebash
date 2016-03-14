@@ -408,3 +408,12 @@ ETEST_opt_parse_arg_whitespace()
     assert_eq "${TWO}" "${two}"
 }
 
+
+ETEST_opt_parse_arg_optional()
+{
+    set -- "" ""
+    $(opt_parse "?a=alpha" "?b")
+
+    assert_eq "" "${a}"
+    assert_eq "" "${b}"
+}
