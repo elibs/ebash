@@ -4,7 +4,8 @@ ETEST_json_escape()
 {
     local string=$'escape " these \n chars'
     local actual=$(json_escape "${string}")
-    local expect=$'"escape \" these \n chars"'
+    local expect='"escape \" these \n chars"'
+    assert_eq "${expect}" "${actual}"
 }
 
 ETEST_array_to_json()
