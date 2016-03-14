@@ -5,7 +5,7 @@ source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashut
 
 # Options:
 # -q Quiet mode
-$(opt_parse "-quiet q | Make bashlint produce no output.")
+$(opt_parse "+quiet q | Make bashlint produce no output.")
 [[ ${quiet} -eq 1 ]] && exec &> >(edebug)
 
 # Paths to recursively parse

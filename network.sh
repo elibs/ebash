@@ -259,7 +259,8 @@ export_network_interface_names()
 #
 get_network_ports()
 {
-    $(opt_parse "-listening l | Only include listening ports" \
+    $(opt_parse \
+        "+listening l | Only include listening ports" \
         "__ports_list")
 
     local idx=0

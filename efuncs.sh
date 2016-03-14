@@ -393,7 +393,7 @@ tryrc()
         ":rc r=rc  | Variable to assign the return code to." \
         ":stdout o | Write stdout to the specified variable rather than letting it go to stdout." \
         ":stderr e | Write stderr to the specified variable rather than letting it go to stderr." \
-        "-global g | Make variables created global rather than local")
+        "+global g | Make variables created global rather than local")
 
     local cmd=("$@")
 
@@ -1147,7 +1147,7 @@ eerror_stacktrace()
 {
     $(opt_parse \
         ":frame f=2              | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
-        "-skip s                 | Skip the initial error message.  Useful if the caller already displayed it." \
+        "+skip s                 | Skip the initial error message.  Useful if the caller already displayed it." \
         ":color c=${COLOR_ERROR} | Use the specified color for output messages.")
 
     if [[ ${skip} -eq 0 ]]; then 
@@ -1366,7 +1366,7 @@ eprogress_kill()
 {
     $(opt_parse \
         ":rc return_code r=0  | Should this eprogress show a mark for success or failure?" \
-        "-all a               | If set, kill ALL known eprogress processes, not just the current one")
+        "+all a               | If set, kill ALL known eprogress processes, not just the current one")
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
@@ -1447,7 +1447,7 @@ signum()
 signame()
 {
     $(opt_parse \
-        "-include_sig s | Get the form of the signal name that includes SIG.")
+        "+include_sig s | Get the form of the signal name that includes SIG.")
 
     local prefix=""
     if [[ ${include_sig} -eq 1 ]] ; then
@@ -1946,12 +1946,12 @@ elogrotate()
 elogfile()
 {
     $(opt_parse \
-        "-stderr e=1       | Whether to redirect stderr to the logfile." \
-        "-stdout o=1       | Whether to redirect stdout to the logfile." \
+        "+stderr e=1       | Whether to redirect stderr to the logfile." \
+        "+stdout o=1       | Whether to redirect stdout to the logfile." \
         ":rotate_count r=0 | When rotating log files, keep this number of log files." \
         ":rotate_size s=0  | Rotate log files when they reach this size. Units as accepted by find." \
-        "-tail t=1         | Whether to continue to display output on local stdout and stderr." \
-        "-merge m          | Whether to merge stdout and stderr into a single stream on stdout.")
+        "+tail t=1         | Whether to continue to display output on local stdout and stderr." \
+        "+merge m          | Whether to merge stdout and stderr into a single stream on stdout.")
 
     edebug "$(lval stdout stderr tail rotate_count rotate_size merge)"
 
@@ -2162,7 +2162,7 @@ emetadata()
 emetadata_check()
 {
     $(opt_parse \
-        "-quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
+        "+quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
         ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file."     \
         "path")
 
@@ -2334,7 +2334,7 @@ emount()
 eunmount_internal()
 {
     $(opt_parse \
-        "-verbose v | Verbose output.")
+        "+verbose v | Verbose output.")
 
     local mnt
     for mnt in $@; do
@@ -2368,10 +2368,10 @@ eunmount_internal()
 eunmount()
 {
     $(opt_parse \
-        "-verbose v   | Verbose output." \
-        "-recursive r | Recursively unmount everything beneath mount points." \
-        "-delete d    | Delete mount points after unmounting." \
-        "-all a       | Unmount all copies of mount points instead of a single instance.")
+        "+verbose v   | Verbose output." \
+        "+recursive r | Recursively unmount everything beneath mount points." \
+        "+delete d    | Delete mount points after unmounting." \
+        "+all a       | Unmount all copies of mount points instead of a single instance.")
 
     if edebug_enabled; then
         verbose=1
@@ -2567,149 +2567,195 @@ argcheck()
     done
 }
 
-## opt_parse
-## ============
-## 
-## Terminology
-## -----------
-##
-## First a quick bit of background on the terminology used for bashutils
-## parameter parsing.  Different well-meaning folks use different terms for the
-## same things, but these are the definitions as they apply within bashutils
-## documentation.
-##
-## First, here's an example command line you might use to search for lines that
-## do not contain "alpha" within a file named "somefile".
-##
-##     grep --word-regexp -v alpha somefile
-## 
-## In this case --word-regexp and -v are _options_.  That is to say, they're
-## optional flags to the command whose names start with hyphens.  Options
-## follow the GNU style in that single character options have one hyphen before
-## their name, while long options have two hyphens before their name.
-##
-## Typically, a single functionality within a tool can be controlled by the
-## caller's choice of either a long option or a short option.  For instance,
-## grep considers -v and --invert to be equivalent options.
-##
-## _Arguments_ are the positional things that must occur on the command line
-## following all of the options.  If you're ever concerned that there could be
-## ambiguity, you can explicitly separate the two with a pair of hyphens on
-## their own.  The following is equivalent to the first example.
-##
-##     grep --word-regex -v -- alpha somefile
-##
-## 
-## To add to the confusing terminology, some options accept their own
-## arguments.  For example, grep can limit the number of matches with the
-## --max-count option.  This will print the first line in somefile that matches
-## alpha.
-##
-##     grep --max-count 1 alpha somefile.
-##
-## So we say that if --max-count is specified, it requires an _argument_.
-##
-##
-## Overview
-## --------
-##
-## opt_parse allows you to handle options in your bash functions or scripts
-## in a concise way.  It does not assist with arguments.  Look at declare_args
-## for something similar that helps with arguments.
-##
-## To accept arguments in your code, you simply call opt_parse and tell it
-## which arguments are valid.  For instance, to accept a few of the grep
-## options you might use opt_parse like this.
-##
-##
-##     $(opt_parse \
-##         "-word_regex w | if specified, match only complete words" \
-##         "-invert v     | if specified, match only lines that do NOT contain the regex.")
-##
-##     [[ ${word_regex} -eq 1 ]] && # do stuff for words
-##     [[ ${invert}     -eq 1 ]] && # do stuff for inverting
-##
-##  
-## Each argument to opt_parse defines a single option.  All words prior to
-## the first pipe character are considered to be synonyms for the option.
-## opt_parse creates a local variable for each option using the first name
-## given.
-##
-## Everything between the first pipe character and the end of the string is
-## considered to be a documentation string for this option.  It is not
-## currently used, but might be used in the future to provide automatic help or
-## for generation of man pages.
-##
-## This means that -w and --word-regex are equivalent, and so are --invert and
-## -v.  Note that there's a translation here in the name of the option.
-## By convention, words are separated with hyphens in option names, but hyphens
-## are not allowed to be characters in bash variables, so we use underscores
-## in the variable name and automatically translate that to a hyphen in the
-## option name.
-##
-##
-## Boolean Options
-## ---------------
-##
-## Word_regex and invert in the example above are both boolean options.  That
-## is, they're either on the command line (in which case opt_parse assigns 1
-## to the variable) or not on the command line (in which case opt_parse
-## assigns 0 to the variable).
-##
-## You can also be explicit about the value you'd like to choose for an option
-## by specifying =0 or =1 at the end of the option.  For instance, these are
-## equivalent and would enable the word_regex option and disable the invert
-## option.
-##
-##     cmd --invert=0 --word-regex=1
-##     cmd -i=0 -w=1
-## 
-## Note that these two options are considered to be boolean.  Either they were
-## specified on the command line or they were not.  When specified, the value
-## of the variable will be 1, when not specified it will be zero.
-##
-## The long option versions of boolean options also implicitly support a
-## negation by prepending the option name with no-.  For example, this is also
-## equivalent to the above examples.
-##
-##     cmd --no-invert --word-regex
-##
-##
-## String Options
-## --------------
-## 
-## Opt_parse also supports options whose value is a string.  When specified
-## on the command line, these _require_ an argument, even if it is an empty
-## string.  In order to get a string option, you prepend its name with a colon
-## character.
-##
-##     func()
-##     {
-##         $(opt_parse ":string s")
-##         echo "STRING: X${string}X"
-##     }
-##
-##     func --string "alpha"
-##     # output -- STRING: XalphaX
-##     func --string ""
-##     # output -- STRING: XX
-##
-##     func --string=alpha
-##     # output -- STRING: XalphaX
-##     func --string=
-##     # output -- STRING: XX
-##
-##
-## Default Values
-## --------------
-##
-## By default, the value of boolean options is false and string options are an
-## empty string, but you can specify a default in your definition.
-##
-##     $(opt_parse \
-##         "-boolean b=1        | Boolean option that defaults to true" \
-##         ":string s=something | String option that defaults to "something")
-##
+: <<'END'
+opt_parse
+============
+
+Terminology
+-----------
+
+First a quick bit of background on the terminology used for bashutils parameter
+parsing.  Different well-meaning folks use different terms for the same things,
+but these are the definitions as they apply within bashutils documentation.
+
+First, here's an example command line you might use to search for lines that do
+not contain "alpha" within a file named "somefile".
+
+    grep --word-regexp -v alpha somefile
+
+In this case --word-regexp and -v are _options_.  That is to say, they're
+optional flags to the command whose names start with hyphens.  Options follow
+the GNU style in that single character options have one hyphen before their
+name, while long options have two hyphens before their name.
+
+Typically, a single functionality within a tool can be controlled by the
+caller's choice of either a long option or a short option.  For instance, grep
+considers -v and --invert to be equivalent options.
+
+_Arguments_ are the positional things that must occur on the command line
+following all of the options.  If you're ever concerned that there could be
+ambiguity, you can explicitly separate the two with a pair of hyphens on their
+own.  The following is equivalent to the first example.
+
+    grep --word-regex -v -- alpha somefile
+
+
+To add to the confusing terminology, some options accept their own arguments.
+For example, grep can limit the number of matches with the --max-count option.
+This will print the first line in somefile that matches alpha.
+
+    grep --max-count 1 alpha somefile.
+
+So we say that if --max-count is specified, it requires an _argument_.
+
+
+Arguments
+---------
+
+The simplest functions frequently just take an argument or two.  We discovered
+early in the life of bashutils a frequent pattern:
+
+    foo()
+    {
+        local arg1=$1
+        local arg2=$2
+        shift 2
+        argcheck arg1 arg2
+    
+        # Do some stuff here with ${arg1} and ${arg2}
+    }
+
+But we wanted to make it more concise. Enter opt_parse.  This is equivalent
+to those four lines of argument handling code in `foo()`.  That is, it creates
+two local variables (`arg1` and `arg2`) and then verifies that both of them are
+non-empty by calling `argcheck` on them.
+
+    $(opt_parse arg1 arg2)
+
+As a best practice, we suggest documenting said arguments within the opt_parse
+declaration.  Note that each quoted string passed to opt_parse creates a single
+argument or option.  Pipe characters separate sections, and whitespace near the
+pipe characters is discarded. This, too, is equivalent.
+
+    $(opt_parse \
+        "arg1 | This is what arg1 means." \
+        "arg2 | This is what arg2 means.")
+
+Note that `argcheck` in the original example ensures that your function will blow
+up if either `arg1` or `arg2` is empty.  This is pretty handy for bash functions,
+but not always what you want.  You can specify that a given argument _may_ be
+empty by putting a question mark before its name.
+
+    $(opt_parse \
+        "arg1  | This argument must contain at least a character." \
+        "?arg2 | This argument may be empty.")
+
+You may also specify a default value for an argument.
+
+    $(opt_parse \
+        "file=filename.json | This argument defaults to filename.json")
+
+Note that having a default value is a separate concern from the check that
+verifies that the value is non-empty.
+
+    $(opt_parse \
+        "a    | Default is empty, blows up if it is called with no value" \
+        "?b   | Default is empty, doesn't mind being called with no value" \
+        "c=1  | Default is 1, if called with '', will blow up" \
+        "?d=1 | Default is 1, will still be happy if '' is specified")
+
+
+Options
+--------
+
+Options are specified in a similar form to arguments.  The biggest difference
+is that options may have multiple names.  Both short and long options are
+supported.
+
+    $(opt_parse \
+        "+word_regex w | if specified, match only complete words" \
+        "+invert v     | if specified, match only lines that do NOT contain the regex.")
+
+    [[ ${word_regex} -eq 1 ]] && # do stuff for words
+    [[ ${invert}     -eq 1 ]] && # do stuff for inverting
+
+ 
+As with arguments, `opt_parse` creates a local variable for each option.  The
+name of that variable is always the _first_ name given.
+
+This means that -w and --word-regex are equivalent, and so are --invert and -v.
+Note that there's a translation here in the name of the option. By convention,
+words are separated with hyphens in option names, but hyphens are not allowed
+to be characters in bash variables, so we use underscores in the variable name
+and automatically translate that to a hyphen in the option name.
+
+At present, bashutils supports two different types of options: boolean and
+string.
+
+
+Boolean Options
+---------------
+
+Word_regex and invert in the example above are both boolean options.  That is,
+they're either on the command line (in which case opt_parse assigns 1 to the
+variable) or not on the command line (in which case opt_parse assigns 0 to the
+variable).
+
+You can also be explicit about the value you'd like to choose for an option by
+specifying =0 or =1 at the end of the option.  For instance, these are
+equivalent and would enable the word_regex option and disable the invert
+option.
+
+    cmd --invert=0 --word-regex=1
+    cmd -i=0 -w=1
+
+Note that these two options are considered to be boolean.  Either they were
+specified on the command line or they were not.  When specified, the value of
+the variable will be 1, when not specified it will be zero.
+
+The long option versions of boolean options also implicitly support a negation
+by prepending the option name with no-.  For example, this is also equivalent
+to the above examples.
+
+    cmd --no-invert --word-regex
+
+
+String Options
+--------------
+
+Opt_parse also supports options whose value is a string.  When specified on the
+command line, these _require_ an argument, even if it is an empty string.  In
+order to get a string option, you prepend its name with a colon character.
+
+    func()
+    {
+        $(opt_parse ":string s")
+        echo "STRING: X${string}X"
+    }
+
+    func --string "alpha"
+    # output -- STRING: XalphaX
+    func --string ""
+    # output -- STRING: XX
+
+    func --string=alpha
+    # output -- STRING: XalphaX
+    func --string=
+    # output -- STRING: XX
+
+
+Default Values
+--------------
+
+By default, the value of boolean options is false and string options are an
+empty string, but you can specify a default in your definition just as you
+would with arguments.
+
+    $(opt_parse \
+        "-boolean b=1        | Boolean option that defaults to true" \
+        ":string s=something | String option that defaults to "something")
+
+END
 opt_parse()
 {
     # An interesting but non-obvious trick is being played here.
@@ -2778,7 +2824,7 @@ opt_parse_setup()
         [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
         # Make sure this option looks right
-        [[ ${opt_definition} =~ ([-:?])?([^=]+)(=.*)? ]]
+        [[ ${opt_definition} =~ ([+:?])?([^=]+)(=.*)? ]]
 
         # TYPE is the first character of the definition
         local opt_type_char=${BASH_REMATCH[1]}
@@ -2802,14 +2848,14 @@ opt_parse_setup()
 
 
         # OPTIONS
-        if [[ ${opt_type_char} == ":" || ${opt_type_char} == "-" ]] ; then
+        if [[ ${opt_type_char} == ":" || ${opt_type_char} == "+" ]] ; then
 
             local name_regex=^\(${all_names//+( )/|}\)$
 
             if [[ ${opt_type_char} == ":" ]] ; then
                 opt_type="string"
 
-            elif [[ ${opt_type_char} == "-" ]] ; then
+            elif [[ ${opt_type_char} == "+" ]] ; then
                 opt_type="boolean"
 
                 # Boolean options implicitly get a version whose name starts with
@@ -3120,9 +3166,9 @@ efetch_internal()
 efetch()
 {
     $(opt_parse \
-        "-md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
-        "-meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
-        "-quiet q | Quiet mode.  (Disable eprogress and other info messages)" \
+        "+md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
+        "+meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
+        "+quiet q | Quiet mode.  (Disable eprogress and other info messages)" \
         "url      | URL from which efetch should pull data." \
         "dst=/tmp | Destination directory.")
 
@@ -3731,7 +3777,7 @@ array_add_nl()
 array_remove()
 {
     $(opt_parse \
-        "-all a  | Remove all instances of the item instead of just the first." \
+        "+all a  | Remove all instances of the item instead of just the first." \
         "__array | Name of array to operate on.")
 
     # Return immediately if if array is not set or no values were given to be
@@ -3798,8 +3844,8 @@ array_contains()
 array_join()
 {
     $(opt_parse \
-        "-before b | Insert delimiter before all joined elements." \
-        "-after a  | Insert delimiter after all joined elements."  \
+        "+before b | Insert delimiter before all joined elements." \
+        "+after a  | Insert delimiter after all joined elements."  \
         "__array   | Name of array to operate on."                 \
         "?delim    | Delimiter to place between array items.  Default is a space.")
 
@@ -3869,8 +3915,8 @@ array_regex()
 array_sort()
 {
     $(opt_parse \
-        "-unique u  | Remove all but one copy of each item in the array." \
-        "-version V | Perform a natural (version number) sort.")
+        "+unique u  | Remove all but one copy of each item in the array." \
+        "+version V | Perform a natural (version number) sort.")
 
     local __array
     for __array in "${@}" ; do
@@ -4039,9 +4085,9 @@ pack_iterate()
 pack_import()
 {
     $(opt_parse \
-        "-local l=1        | Emit local variables via local builtin (default)." \
-        "-global g         | Emit global variables instead of local (i.e. undeclared variables)." \
-        "-export e         | Emit exported variables via export builtin." \
+        "+local l=1        | Emit local variables via local builtin (default)." \
+        "+global g         | Emit global variables instead of local (i.e. undeclared variables)." \
+        "+export e         | Emit exported variables via export builtin." \
         "_pack_import_pack | Pack to operate on.")
 
     local _pack_import_keys=("${@}")
@@ -4285,10 +4331,10 @@ json_escape()
 json_import()
 {
     $(opt_parse \
-        "-global g           | Emit global variables instead of local ones." \
-        "-export e           | Emit exported variables instead of local ones." \
+        "+global g           | Emit global variables instead of local ones." \
+        "+export e           | Emit exported variables instead of local ones." \
         ":file f=-           | Parse contents of provided file instead of stdin." \
-        "-upper_snake_case u | Convert all keys into UPPER_SNAKE_CASE." \
+        "+upper_snake_case u | Convert all keys into UPPER_SNAKE_CASE." \
         ":prefix p           | Prefix all keys with the provided required prefix." \
         ":query jq q         | Use JQ style query expression on given JSON before parsing." \
         ":exclude x          | Whitespace separated list of keys to exclude while importing.")

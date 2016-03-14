@@ -411,7 +411,7 @@ daemon_status()
 {
     # Pull in our argument pack then import all of its settings for use.
     $(opt_parse \
-        "-quiet q | Make the status function produce no output." \
+        "+quiet q | Make the status function produce no output." \
         "optpack  | Name of options pack that was returned by daemon_init.")
     $(pack_import ${optpack})
 
