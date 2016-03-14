@@ -13,7 +13,7 @@ ETEST_etimeout_empty_command()
 FAIL_TIMES=0
 fail_then_pass()
 {
-    $(declare_args failCount tmpfile)
+    $(opt_parse failCount tmpfile)
 
     # Initialize counter to 0
     [[ -f ${tmpfile} ]] || echo "0" > ${tmpfile}
