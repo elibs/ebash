@@ -74,6 +74,7 @@ ETEST_overlayfs_modify()
         etestmsg "Mounting at dest"
         overlayfs_mount src.${ftype} dest
         overlayfs_tree dest
+        assert_false overlayfs_changed dest
 
         etestmsg "Modifying mounted files"
         echo "File#1" > dest/file1
@@ -82,6 +83,10 @@ ETEST_overlayfs_modify()
         assert_eq "File#2" "$(cat dest/file2)"
 
         etestmsg "Saving RW layer as rw.${ftype} then unmounting"
+        assert_true overlayfs_changed dest
+        etestmsg "Listing changes"
+        overlayfs_list_changes -l dest
+        etestmsg "Saving changes"
         overlayfs_save_changes dest rw.${ftype}
         overlayfs_unmount dest
 
@@ -89,6 +94,7 @@ ETEST_overlayfs_modify()
         efreshdir dest
         overlayfs_mount src.${ftype} dest
         overlayfs_tree dest
+        assert_false overlayfs_changed dest
         assert_empty "$(cat dest/file0)"
         assert_empty "$(cat dest/file1)"
         assert_empty "$(cat dest/file2)"
@@ -151,4 +157,49 @@ ETEST_overlayfs_multilayer_mixed_types()
     etestmsg "Unmounting final image"
     overlayfs_unmount dest
     assert_not_exists dest/{file1,file2,file3,file4,file5,file6}
+}
+
+ETEST_overlayfs_dedupe()
+{
+    etestmsg "Populating source directory"
+    efreshdir src dest
+    echo "File#0" > src/file0
+    echo "File#1" > src/file1
+    archive_create -d=src . src.squashfs
+    archive_list src.squashfs
+
+    etestmsg "Mounting at dest"
+    overlayfs_mount src.squashfs dest
+    overlayfs_tree dest
+    assert_false overlayfs_changed dest
+
+    etestmsg "Modifying existing files"
+    > dest/file0
+    > dest/file1
+    assert_empty "$(cat dest/file0)"
+    assert_empty "$(cat dest/file1)"
+
+    etestmsg "Verifying files modified"
+    assert_true overlayfs_changed dest
+    overlayfs_list_changes -l dest
+
+    etestmsg "Reverting file contents"
+    echo "File#0" > dest/file0
+    echo "File#1" > dest/file1
+
+    etestmsg "Verifying files still modified (even though contents are now the same)"
+    assert_true overlayfs_changed dest
+    overlayfs_list_changes -l dest
+
+    etestmsg "Dedup'ing"
+    overlayfs_dedupe dest
+
+    etestmsg "Verifying nothing changed now"
+    assert_false overlayfs_changed dest
+    assert_eq "File#0" "$(cat dest/file0)"
+    assert_eq "File#1" "$(cat dest/file1)"
+
+    # Unmount everything
+    etestmsg "Unmounting image"
+    overlayfs_unmount dest
 }

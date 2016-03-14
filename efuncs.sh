@@ -4254,12 +4254,13 @@ pack_to_json()
 }
 
 # Escape an arbitrary string (specified as $1) so that it is quoted and safe to
-# put inside json.
+# put inside json. This is done via a call to jq with --raw-input which will 
+# cause it to emit a properly quoted and escaped string that is safe to use
+# inside json.
 #
 json_escape()
 {
-    echo -n "$1" \
-        | python -c 'import json,sys; sys.stdout.write(json.dumps(sys.stdin.read()))'
+    echo -n "$1" | jq --raw-input --slurp .
 }
 
 # Import all of the key:value pairs from a non-nested Json object directly into
