@@ -322,7 +322,7 @@ overlayfs_changed()
 overlayfs_list_changes()
 {
     $(opt_parse \
-        "-long l=0 | Display long listing format." \
+        "+long l=0 | Display long listing format." \
         "mnt       | The mountpoint to list changes for.")
         
     # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
