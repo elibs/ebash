@@ -6,7 +6,7 @@ ETEST_opt_parse()
     $(opt_parse                                                             \
         ":file f                     |   Which file should be processed."   \
         ":color c=yellow             |   Color to be used."                 \
-        "-long l longer s h k t m n  |   option with lots of variants"      \
+        "+long l longer s h k t m n  |   option with lots of variants"      \
         ":whitespace w               |   option expecting to receive something containing whitespace")
     etestmsg "$(opt_dump)"
 
@@ -21,7 +21,7 @@ ETEST_opt_parse()
 ETEST_opt_parse_boolean()
 {
     set -- -a -b -c d e f
-    $(opt_parse "-a" "-b" "-c" "-d" "-e" "-f" )
+    $(opt_parse "+a" "+b" "+c" "+d" "+e" "+f" )
     etestmsg "$(opt_dump)"
 
     assert_eq 1 "${a}"
@@ -37,10 +37,10 @@ ETEST_opt_parse_boolean_multi()
 {
     set -- --another -va --verbose -vv -s --else
     $(opt_parse          \
-        "-verbose v"     \
-        "-another a"     \
-        "-something s"   \
-        "-else e") 
+        "+verbose v"     \
+        "+another a"     \
+        "+something s"   \
+        "+else e") 
     etestmsg "$(opt_dump)"
 
     assert_eq 1 "${verbose}"
@@ -54,7 +54,7 @@ ETEST_opt_parse_short()
     set -- -bf a_file -c salmon -d=door
     $(opt_parse                      \
         ":file f    | the file"      \
-        "-booealn b | boolean opt"   \
+        "+booealn b | boolean opt"   \
         ":color c   | the color"     \
         ":door d    | another argument")
     etestmsg "$(opt_dump)"
@@ -98,7 +98,7 @@ ETEST_opt_parse_required_arg()
 ETEST_opt_parse_shorts_crammed_together_with_arg()
 {
     set -- -abc optarg arg
-    $(opt_parse "-a" "-b" ":c") 
+    $(opt_parse "+a" "+b" ":c") 
     etestmsg "$(opt_dump)"
 
     assert_eq 1 "${a}"
@@ -113,7 +113,7 @@ ETEST_opt_parse_shorts_crammed_together_required_arg()
     set -- -abc
     try
     {
-        $(opt_parse "-a" "-b" ":c") 
+        $(opt_parse "+a" "+b" ":c") 
         etestmsg "$(opt_dump)"
 
         die -r=243 "Should have failed when parsing options but did not."
@@ -157,7 +157,7 @@ ETEST_opt_parse_unexpected_short()
     set -- -a
     try
     {
-        $(opt_parse "-b")
+        $(opt_parse "+b")
         etestmsg "$(opt_dump)"
 
         die -r=243 "Failed to blow up on unexpected option"
@@ -173,7 +173,7 @@ ETEST_opt_parse_unexpected_long()
     set -- --foo
     try
     {
-        $(opt_parse "-bar")
+        $(opt_parse "+bar")
         etestmsg "$(opt_dump)"
 
         die -r=243 "Failed to blow up on unexpected option"
@@ -196,7 +196,7 @@ ETEST_opt_parse_default()
 {
     set --
     $(opt_parse                     \
-        "-alpha a=1"                \
+        "+alpha a=1"                \
         ":beta b=3"                 \
         ":white w=with whitespace")
     etestmsg "$(opt_dump)"
@@ -209,7 +209,7 @@ ETEST_opt_parse_default()
 ETEST_opt_parse_boolean_defaults()
 {
     set -- -a -b
-    $(opt_parse "-a=0" "-b=1" "-c=0" "-d=1")
+    $(opt_parse "+a=0" "+b=1" "+c=0" "+d=1")
     etestmsg "$(opt_dump)"
 
     assert_eq 1  "${a}"
@@ -274,7 +274,7 @@ ETEST_opt_parse_without_options()
 {
     etestmsg "Trying to run opt_parse in a function that received no arguments or options"
     set --
-    $(opt_parse "-a" ":b" "-c=0")
+    $(opt_parse "+a" ":b" "+c=0")
     etestmsg "$(opt_dump)"
     etestmsg "Succcess."
 }
@@ -284,7 +284,7 @@ ETEST_opt_parse_no_hyphen_in_name()
     try
     {
         set --
-        $(opt_parse "-a-b")
+        $(opt_parse "+a-b")
 
         die -r=243 "Should have failed before this."
     }
@@ -299,7 +299,7 @@ ETEST_opt_parse_refuses_option_starting_with_no()
 {
     try
     {
-        $(opt_parse "-no_option")
+        $(opt_parse "+no_option")
 
         die -r=243 "Should have failed before reaching this point."
     }
@@ -312,7 +312,7 @@ ETEST_opt_parse_refuses_option_starting_with_no()
 ETEST_opt_parse_implicit_no()
 {
     set -- --no-a --no-b --c --d
-    $(opt_parse "-a=1" "-b=0" "-c=1" "-d=0")
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0")
 
     assert_eq "0" "${a}"
     assert_eq "0" "${b}"
@@ -324,7 +324,7 @@ ETEST_opt_parse_boolean_specify()
 {
     set -- -a=0 -b=1 --no-c=0 --no-d=1
 
-    $(opt_parse "-a" "-b" "-c" "-d")
+    $(opt_parse "+a" "+b" "+c" "+d")
 
     assert_eq "0" "${a}"
     assert_eq "1" "${b}"
@@ -337,7 +337,7 @@ ETEST_opt_parse_boolean_validate()
     set -- -a=10
     try
     {
-        $(opt_parse "-a")
+        $(opt_parse "+a")
         die -r=243 "Should have already failed."
     }
     catch
