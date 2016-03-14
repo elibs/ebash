@@ -194,7 +194,7 @@ overlayfs_mount()
 overlayfs_unmount()
 {
     $(opt_parse \
-        "-verbose v | Enable verbose output.")
+        "+verbose v | Enable verbose output.")
     
     local mnt
     for mnt in "$@"; do
