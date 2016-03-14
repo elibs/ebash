@@ -23,18 +23,13 @@ hostname_to_ip()
 {
     $(opt_parse hostname)
 
-    local output hostrc ip
-    output="$(host ${hostname} | grep ' has address ' || true)"
-    hostrc=$?
-    edebug "hostname_to_ip $(lval hostname output)"
-    [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
+    local output="$(host ${hostname} | grep ' has address ' || true)"
 
     [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
 
     ip=$(echo ${output} | awk '{print $4}')
 
-    valid_ip ${ip} || { ewarn "Resolved ${hostname} into invalid ip address ${ip}." ; return 1 ; }
-
+    valid_ip ${ip}
     echo ${ip}
     return 0
 }
@@ -44,19 +39,20 @@ fully_qualify_hostname()
     local hostname=${1,,}
     argcheck hostname
 
-    local output hostrc fqhostname
-    output=$(host ${hostname})
-    hostrc=$?
-    edebug "fully_qualify_hostname: hostname=${hostname} output=${output}"
-    [[ ${hostrc} -eq 0 ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
+    try
+    {
+        local output=$(host ${hostname})
 
-    [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
-    fqhostname=$(echo ${output} | awk '{print $1}')
-    fqhostname=${fqhostname,,}
+        [[ ${output} =~ " has address " ]]
+        local fqhostname=$(echo ${output} | awk '{print $1}')
+        echo "${fqhostname,,}"
+    }
+    catch
+    {
+        ewarn "Unable to resolve ${hostname}"
+        return 1
+    }
 
-    [[ ${fqhostname} =~ ${hostname} ]] || { ewarn "Invalid fully qualified name ${fqhostname} from ${hostname}." ; return 1 ; }
-
-    echo ${fqhostname}
     return 0
 }
 
