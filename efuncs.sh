@@ -4038,7 +4038,7 @@ pack_to_json()
 #
 json_escape()
 {
-    echo -n "$1" | jq --raw-input .
+    echo -n "$1" | jq --raw-input --slurp .
 }
 
 # Import all of the key:value pairs from a non-nested Json object directly into
