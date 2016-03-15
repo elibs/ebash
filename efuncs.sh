@@ -1730,7 +1730,7 @@ ekilltree()
 #
 # - Strings: delimited by double quotes.
 # - Arrays and associative arrays: Delimited by ( ).
-# - Packs: You must preceed the pack name with a plus sign (i.e. +pack)
+# - Packs: You must preceed the pack name with a percent sign (i.e. %pack)
 #
 # Examples:
 # String: "value1"
@@ -4411,12 +4411,12 @@ is_associative_array()
 
 is_pack()
 {
-    [[ "${1:0:1}" == '+' ]]
+    [[ "${1:0:1}" == '%' ]]
 }
 
 discard_qualifiers()
 {
-    echo "${1##+}"
+    echo "${1##%}"
 }
 
 #-----------------------------------------------------------------------------
