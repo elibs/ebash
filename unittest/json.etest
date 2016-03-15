@@ -68,7 +68,7 @@ ETEST_all_to_json()
 
     # Verify entire json string encoding
     local actual=$(to_json AA A ARRAY +P)
-    local expect=$'{"AA":{"alpha":"10 20 30","beta":"100 200 300"},"A":"1"\n,"ARRAY":["a","b c","d"],"P":{"A":"1","B":"2 3 4","C":"alpha beta"}}'
+    local expect=$'{"AA":{"alpha":"10 20 30","beta":"100 200 300"},"A":"1","ARRAY":["a","b c","d"],"P":{"A":"1","B":"2 3 4","C":"alpha beta"}}'
     assert_eq "${expect}" "${actual}"
 }
 
