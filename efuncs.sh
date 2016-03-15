@@ -3125,6 +3125,13 @@ Or, if you needed to pass additional things to `foo_internal`, like this:
 
     opt_forward foo_internal a b c -- additional things
 
+You may find that the option has a different name in the function you'd like to
+forward to.  You can specify this by adding a colon followed by the name of
+the option in the function you're asking `opt_forward` to call.  For instance,
+if the function you wanted to _call_ has options named X, Y, and Z.
+
+    opt_forward foo_internal a:X b:Y c:Z
+
 Note that `opt_forward` is forgiving about the fact that we use underscores in
 variable names but options support hyphens.  You can pass option names in
 either form to `opt_forward`.
@@ -3137,31 +3144,29 @@ opt_forward()
     local args=( )
 
     while [[ $# -gt 0 ]] ; do
-        local option=$1 ; shift
+        local __option=$1 ; shift
 
         # Keep processing things until --.  If we encounter that it means the
         # caller wants to present more arguments or options that are not
         # forwarded
-        [[ ${option} == "--" ]] && break
+        [[ ${__option} == "--" ]] && break
 
 
-        # Forward the specified option
-        local name=${option%%:*}
-        local var=${option##*:}
-        : ${var:=name}
+        # If there's no colon in the option name to be forwarded, then assume
+        # the option names match in this function and the other.  If there IS
+        # one, then use the first portion to be the name of the local variable,
+        # and the part after the colon to be the name of the option in the
+        # called function.
+        local __local_name=${__option%%:*}
+        local __called_name=${__option##*:}
+        : ${__called_name:=__local_name}
 
         # Use only underscores in variable names and only hyphens in option
         # names
-        var=${var//-/_}
-        name=${name//_/-}
+        __called_name=${__called_name//_/-}
+        __local_name=${__local_name//-/_}
 
-        args+=("--${name//-/_}=${!var}")
-
-        ewarn "$(lval option name var)"
-
-        #printf -- "--${name}=\"\$${var}\" "
-        #printf -- "--${name}=%s " "${!var}"
-        #printf -- "--${name}=\"%s\" " "${!var}"
+        args+=("--${__called_name//-/_}=${!__local_name}")
     done
 
     while [[ $# -gt 0 ]] ; do

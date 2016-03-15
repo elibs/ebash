@@ -483,5 +483,21 @@ ETEST_opt_forward()
 
     etestmsg "calling subfunc_extra"
     opt_forward subfunc_extra string bool -- "${EXTRA1}" "${EXTRA2}"
+}
 
+ETEST_opt_forward_different_name()
+{
+    OPTION=" a b  c "
+    set -- --option "${OPTION}"
+    $(opt_parse ":option")
+
+    subfunc()
+    {
+        einfo "ARGS=${@}"
+        $(opt_parse ":altname")
+
+        assert_eq "${altname}" "${OPTION}"
+    }
+
+    opt_forward subfunc option:altname
 }
