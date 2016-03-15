@@ -417,3 +417,71 @@ ETEST_opt_parse_arg_optional()
     assert_eq "" "${a}"
     assert_eq "" "${b}"
 }
+
+ETEST_opt_forward()
+{
+    A_STRING="string with whitespace"
+    EXTRA1="EXTRA_1"
+    EXTRA2="EXTRA  WITH  WHITESPACE"
+
+    subfunc()
+    {
+        etestmsg "In subfunc"
+        local raw_args=( "$@" )
+        einfo "$(ecolor cyan)$(lval raw_args)"
+        $(opt_parse \
+            ":string"   \
+            "+bool"     \
+            "+other_bool")
+        einfo "$(ecolor cyan)$(declare -p __BU_OPT)"
+        assert_eq "${A_STRING}" "${string}"
+        assert_eq 1 "${bool}"
+        assert_eq 0 "${other_bool}"
+    }
+
+    subfunc_extra()
+    {
+        etestmsg "In subfunc"
+        local raw_args=( "$@" )
+        einfo "$(ecolor orchid)$(lval raw_args)"
+        $(opt_parse \
+            ":string"   \
+            "+bool"     \
+            "+other_bool")
+        einfo "$(ecolor orchid)$(declare -p __BU_OPT)"
+        assert_eq "${A_STRING}" "${string}"
+        assert_eq 1 "${bool}"
+        assert_eq 0 "${other_bool}"
+
+        assert_eq "$1" "${EXTRA1}"
+        assert_eq "$2" "${EXTRA2}"
+    }
+
+
+
+    set -- --string "string with whitespace" --bool argument --no-other-bool
+    local raw_args=( "$@" )
+    einfo "$(ecolor green)$(lval raw_args)"
+    $(opt_parse \
+        ":string"   \
+        "+bool"     \
+        "+other_bool")
+
+    einfo "$(ecolor green)$(declare -p __BU_OPT)"
+    assert_eq "${A_STRING}" "${string}"
+    assert_eq 1 "${bool}"
+    assert_eq 0 "${other_bool}"
+
+    etestmsg "calling subfunc"
+    opt_forward subfunc string bool other_bool
+
+    etestmsg "Calling subfunc with hyphens"
+    opt_forward subfunc string bool other-bool
+
+    etestmsg "calling subfunc with only -- after it"
+    opt_forward subfunc string bool --
+
+    etestmsg "calling subfunc_extra"
+    opt_forward subfunc_extra string bool -- "${EXTRA1}" "${EXTRA2}"
+
+}
