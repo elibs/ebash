@@ -50,7 +50,7 @@ ETEST_all_to_json()
     AA[alpha]="10 20 30"
     AA[beta]="100 200 300"
 
-    json=$(to_json AA A ARRAY +P)
+    json=$(to_json AA A ARRAY %P)
 
     # Dump the json and make sure it validates
     echo ${json} | jq .
@@ -67,7 +67,7 @@ ETEST_all_to_json()
     assert_eq "${AA[beta]}"  "$(echo ${json} | jq .AA.beta --raw-output)"
 
     # Verify entire json string encoding
-    local actual=$(to_json AA A ARRAY +P)
+    local actual=$(to_json AA A ARRAY %P)
     local expect=$'{"AA":{"alpha":"10 20 30","beta":"100 200 300"},"A":"1","ARRAY":["a","b c","d"],"P":{"A":"1","B":"2 3 4","C":"alpha beta"}}'
     assert_eq "${expect}" "${actual}"
 }
