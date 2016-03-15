@@ -3029,7 +3029,7 @@ opt_parse_options()
         # Make sure that the value chosen for boolean options is either 0 or 1
         if [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" \
             && ${__BU_OPT[$canonical]} != 1 && ${__BU_OPT[$canonical]} != 0 ]] ; then
-                die "${FUNCNAME[1]}: option $canonical can only be 0 or 1."
+                die "${FUNCNAME[1]}: option $canonical can only be 0 or 1 but was ${__BU_OPT[$canonical]}."
         fi
 
         # Move on to the next item, recognizing that an option may have consumed the last one
@@ -3084,6 +3084,97 @@ opt_dump()
         echo -n "${option}=\"${__BU_OPT[$option]}\" "
     done
     echo
+}
+
+: <<'END'
+opt_forward
+===========
+
+When you have a bunch of options that were passed into a function that wants to
+simply forward them into an internal function, it can be a little tedious to
+make the call to that internal function because you have to repeat all of the
+options and then read the value that the option of the same name was stored
+into.  For instance look at the foo_internal call here, assuming it takes an
+identical set of options as foo.
+
+    foo()
+    {
+        $(opt_parse "+a" "+b" "+c")
+
+        # Do some stuff then call internal function to handle more details
+        foo_internal -a="${a}" -b="${b}" -c="${c}"
+
+    }
+
+Of course, that only gets worse as you have more or as the names of your
+options get longer.  And if you quote it incorrectly, it will continue to work
+until one of your options contains something weird like whitespace in which
+case it will probably fail subtly.
+
+`Opt_forward` exists simply to make this easier.  It knows how to forward
+options that were parsed by `opt_parse` to another function, quoting correctly.
+You can use it like this
+
+    opt_forward <command> <names of options to forward>+ [-- [other args]]
+
+To cover the example case, you'd call it like this:
+
+    opt_forward foo_internal a b c
+
+Or, if you needed to pass additional things to `foo_internal`, like this:
+
+    opt_forward foo_internal a b c -- additional things
+
+You may find that the option has a different name in the function you'd like to
+forward to.  You can specify this by adding a colon followed by the name of
+the option in the function you're asking `opt_forward` to call.  For instance,
+if the function you wanted to _call_ has options named X, Y, and Z.
+
+    opt_forward foo_internal a:X b:Y c:Z
+
+Note that `opt_forward` is forgiving about the fact that we use underscores in
+variable names but options support hyphens.  You can pass option names in
+either form to `opt_forward`.
+END
+opt_forward()
+{
+    [[ $# -gt 0 ]] || die "Must specify at least a command to run and an option to forward."
+    local cmd=$1 ; shift
+
+    local args=( )
+
+    while [[ $# -gt 0 ]] ; do
+        local __option=$1 ; shift
+
+        # Keep processing things until --.  If we encounter that it means the
+        # caller wants to present more arguments or options that are not
+        # forwarded
+        [[ ${__option} == "--" ]] && break
+
+
+        # If there's no colon in the option name to be forwarded, then assume
+        # the option names match in this function and the other.  If there IS
+        # one, then use the first portion to be the name of the local variable,
+        # and the part after the colon to be the name of the option in the
+        # called function.
+        local __local_name=${__option%%:*}
+        local __called_name=${__option##*:}
+        : ${__called_name:=__local_name}
+
+        # Use only underscores in variable names and only hyphens in option
+        # names
+        __called_name=${__called_name//_/-}
+        __local_name=${__local_name//-/_}
+
+        args+=("--${__called_name//-/_}=${!__local_name}")
+    done
+
+    while [[ $# -gt 0 ]] ; do
+        args+=("$1")
+        shift
+    done
+
+    quote_eval ${cmd} "${args[@]}"
 }
 
 
@@ -3449,27 +3540,13 @@ eretry()
         : ${retries:=infinity}
 
         etimeout -t=${max_timeout} -s=${signal} --          \
-            eretry_internal                                 \
-                --timeout="${timeout}"                      \
-                --delay="${delay}"                          \
-                --fatal_exit_codes="${fatal_exit_codes}"    \
-                --signal="${signal}"                        \
-                --warn-every="${warn_every}"                \
-                --retries="${retries}"                      \
-                -- "${@}"
+            opt_forward eretry_internal timeout delay fatal_exit_codes signal warn_every retries -- "${@}"
     else
         # If no total timeout or retry limit was specified then default to prior
         # behavior with a max retry of 5.
         : ${retries:=5}
 
-        eretry_internal                                 \
-            --timeout="${timeout}"                      \
-            --delay="${delay}"                          \
-            --fatal_exit_codes="${fatal_exit_codes}"    \
-            --signal="${signal}"                        \
-            --warn-every="${warn_every}"                \
-            --retries="${retries}"                      \
-            -- "${@}"
+        opt_forward eretry_internal timeout delay fatal_exit_codes signal warn_every retries -- "${@}"
     fi
 }
 
