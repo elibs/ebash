@@ -2952,7 +2952,7 @@ opt_parse_options()
                     fi
 
                     # Negate the value it was if the option starts with no
-                    if [[ ${long_opt} = no-* ]] ; then
+                    if [[ ${long_opt} = no[-_]* ]] ; then
                         if [[ ${value} -eq 1 ]] ; then
                             value=0
                         else
