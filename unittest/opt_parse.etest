@@ -152,6 +152,28 @@ ETEST_opt_parse_arg_hyphen()
     assert_eq "arg1" "$1"
 }
 
+ETEST_opt_parse_in_option_names_hyphen_and_underscore_are_equivalent()
+{
+    a=1
+    b="a b c"
+    c="  d  e  f  "
+    subfunc()
+    {
+        $(opt_parse ":x_a" ":x_b" ":x_c_1")
+
+        declare -p __BU_OPT_REGEX __BU_OPT
+
+        assert_eq "${x_a}" "${a}"
+        assert_eq "${x_b}" "${b}"
+        assert_eq "${x_c_1}" "${c}"
+    }
+
+    subfunc --x-a="${a}" --x-b="${b}" --x-c-1="${c}"
+    subfunc --x_a="${a}" --x_b="${b}" --x_c_1="${c}"
+
+
+}
+
 ETEST_opt_parse_unexpected_short()
 {
     set -- -a
@@ -322,7 +344,7 @@ ETEST_opt_parse_implicit_no()
 
 ETEST_opt_parse_boolean_specify()
 {
-    set -- -a=0 -b=1 --no-c=0 --no-d=1
+    set -- -a=0 -b=1 --no_c=0 --no_d=1
 
     $(opt_parse "+a" "+b" "+c" "+d")
 
