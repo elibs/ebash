@@ -4038,7 +4038,10 @@ pack_to_json()
 #
 json_escape()
 {
-    echo -n "$1" | jq --raw-input --slurp .
+    # Newer jq has a -j flag to join newlines into a single flat string.
+    # To workaround the lack of this flag in older versions, we wrap the call
+    # to jq in a subshell which is not quoted to strip off the final newline.
+    echo -n $(echo -n "$1" | jq --raw-input --slurp .)
 }
 
 # Import all of the key:value pairs from a non-nested Json object directly into
