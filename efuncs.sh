@@ -2390,7 +2390,7 @@ eunmount()
             # NOT RECURSIVE
             if [[ ${recursive} -eq 0 ]]; then
 
-                eunmount_internal -v=${verbose} "${mnt}"
+                opt_forward eunmount_internal verbose -- "${mnt}"
         
             # RECURSIVE 
             else
@@ -2407,7 +2407,7 @@ eunmount()
                 # Lazily unmount all mounts
                 local match
                 for match in ${matches[@]}; do
-                    eunmount_internal -v=${verbose} "${match}"
+                    opt_forward eunmount_internal verbose -- "${match}"
                 done
             fi
 
