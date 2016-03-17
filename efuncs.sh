@@ -827,16 +827,6 @@ einteractive()
     [[ -t 2 ]]
 }
 
-tput()
-{
-    if [[ "$@" == "cols" && -n ${COLUMNS:-} ]]; then
-        echo -n "${COLUMNS}"
-        return 0
-    fi
-
-    TERM=screen-256color command tput $@
-}
-
 ecolor_code()
 {
    case $1 in
@@ -4305,7 +4295,13 @@ to_json()
             associative_array_to_json ${_arg}
 
         else
-            json_escape "$(eval echo -n \${${_arg}})"
+            # You don't strictly need the test here to determine if ${_arg}
+            # contains the name of a variable, but if we skip the check then
+            # bash generates an error message that just says "!_arg: unbound
+            # variable" which really isn't all that helpful.  This way we can
+            # spit out the name of the bad variable.
+            [[ -v ${_arg} ]] || die "Cannot create json from unbound variable ${_arg}."
+            json_escape "${!_arg}"
         fi
 
         _notfirst=true
