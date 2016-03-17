@@ -42,7 +42,7 @@ overlayfs_enable()
         return 0
     fi
 
-    ewarn "OverlayFS not enabled -- trying to load kernel module"
+    edebug "OverlayFS not enabled -- trying to load kernel module"
 
     # Try 'overlay' before 'overlayfs' b/c overlay is preferred if both are
     # supported because it supports Multi-Layering.
@@ -52,7 +52,7 @@ overlayfs_enable()
 
         # Break as we only need one of the modules available.
         if modprobe -q ${module}; then
-            ewarn "Successfully loaded $(lval module)"
+            edebug "Successfully loaded $(lval module)"
             __BU_OVERLAYFS=${module}
             break
         fi
