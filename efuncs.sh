@@ -2342,9 +2342,15 @@ eunmount_internal()
         # Skip if not mounted.
         emounted "${mnt}" || continue
 
-        # Lazily unmount the directory - optionally logging what's going on.
-        [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt}"
-        umount -l "$(emount_realpath "${mnt}")"
+        local mnt_type=$(emount_type ${mnt})
+        [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt} (${mnt_type})"
+        
+        # OVERLAYFS: Redirect unmount operation to overlayfs_unmount so all layers unmounted
+        if [[ ${mnt_type} =~ overlay ]]; then
+            overlayfs_unmount "${mnt}"
+        else
+            umount -l "$(emount_realpath "${mnt}")"
+        fi
     done
 }
 
@@ -2383,12 +2389,7 @@ eunmount()
         # If empty string just skip it
         [[ -z "${mnt}" ]] && continue
 
-        # Get "real" mount path and detect the mount type. The hideous awk command
-        # finds mount points matching the real mount device and grabs the first
-        # column which denotes the type. Since there may be many such mounts we 
-        # only take the first one.
-        local mnt_type=$(emount_type ${mnt})
-        edebug "Unmounting $(lval mnt mnt_type recursive delete all)"
+        edebug "Unmounting $(lval mnt recursive delete all)"
         
         # WHILE loop to **optionally** continue unmounting until no more matching
         # mounts are detected. The body of the while loop will break out when 
@@ -2398,16 +2399,8 @@ eunmount()
 
             # NOT RECURSIVE
             if [[ ${recursive} -eq 0 ]]; then
-    
-                # If it's not mounted break out of the loop otherwise unmount it.
-                emounted "${mnt}" || break
 
-                # OVERLAYFS: Redirect unmount operation to overlayfs_unmount so all layers unmounted
-                if [[ ${mnt_type} =~ overlay ]]; then
-                    overlayfs_unmount -v=${verbose} "${mnt}"
-                else
-                    eunmount_internal -v=${verbose} "${mnt}"
-                fi
+                eunmount_internal -v=${verbose} "${mnt}"
         
             # RECURSIVE 
             else
