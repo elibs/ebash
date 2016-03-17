@@ -29,7 +29,7 @@ chroot_unmount()
     local mounts=()
     array_init_nl mounts "$(echo ${CHROOT_MOUNTS[@]} | sed 's| |\n|g' | sort -r)"
     for m in ${mounts[@]}; do
-        eunmount ${CHROOT}${m}
+        eunmount -r ${CHROOT}${m}
     done
 }
 
