@@ -8,6 +8,11 @@
       that would've previously been ignored such as passing an unsupported
       option to a command.
 
+    - New opt_forward function that helps forward options passed into one other
+      functions that accept the same options. Useful when you have an
+      "internal" function that handles most of the work that is done by a slim
+      calling function.
+
     - Removed declare_args in favor of opt_parse.  It is syntax-compatible as
       long as you didn't use options.  When using options, they must now be
       specified but we prefer this as it is more explicit.
