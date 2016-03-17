@@ -222,13 +222,14 @@ overlayfs_unmount()
         
         local layer
         for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
-            
-            if emounted "${layer}"; then
-                edebug "Unmounting $(lval layer)"
-                umount -l "${layer}"
-            else
+
+            if [[ -z ${layer} ]] || ! emounted "${layer}"; then
                 edebug "Skipping non-mounted $(lval layer)"
+                continue
             fi
+            
+            edebug "Unmounting $(lval layer)"
+            umount -l "${layer}"
 
         done
 
