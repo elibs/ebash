@@ -2272,7 +2272,7 @@ emount_type()
 {
     $(opt_parse path)
     path=$(emount_realpath ${path})
-    list_mounts | grep --perl-regexp "$(emount_regex ${path})" | awk '{print $1}' || true
+    list_mounts | grep --perl-regexp "$(emount_regex ${path})" | awk '{print $1}' | uniq || true
 }
 
 emounted()
