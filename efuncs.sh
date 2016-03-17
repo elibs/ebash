@@ -827,16 +827,6 @@ einteractive()
     [[ -t 2 ]]
 }
 
-tput()
-{
-    if [[ "$@" == "cols" && -n ${COLUMNS:-} ]]; then
-        echo -n "${COLUMNS}"
-        return 0
-    fi
-
-    TERM=screen-256color command tput $@
-}
-
 ecolor_code()
 {
    case $1 in
