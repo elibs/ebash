@@ -74,9 +74,9 @@ ETEST_detect_var_types()
 
     pack_set P A=1
 
-    is_array A && die
-    is_associative_array A && die
-    is_pack A && die
+    is_array               A && die
+    is_associative_array   A && die
+    is_pack                A && die
 
     is_array               ARRAY || die
     is_associative_array   ARRAY && die
@@ -86,9 +86,9 @@ ETEST_detect_var_types()
     is_associative_array   AA || die
     is_pack                AA && die
 
-    is_array               +P && die
-    is_associative_array   +P && die
-    is_pack                +P || die
+    is_array               %P && die
+    is_associative_array   %P && die
+    is_pack                %P || die
 }
 
 # Ensure local variable assignments don't mask errors. Specifically things of this form:
