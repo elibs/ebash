@@ -2390,6 +2390,9 @@ eunmount()
             # NOT RECURSIVE
             if [[ ${recursive} -eq 0 ]]; then
 
+                # If it's not mounted break out of the loop otherwise unmount it.
+                emounted "${mnt}" || break
+
                 opt_forward eunmount_internal verbose -- "${mnt}"
         
             # RECURSIVE 
