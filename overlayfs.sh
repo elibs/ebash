@@ -193,9 +193,6 @@ overlayfs_mount()
 # into the final mount image, they will all be unmounted as well.
 overlayfs_unmount()
 {
-    $(opt_parse \
-        "+verbose v | Enable verbose output.")
-    
     local mnt
     for mnt in "$@"; do
 
@@ -225,7 +222,14 @@ overlayfs_unmount()
         
         local layer
         for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
-            eunmount_internal -v=${verbose} "${layer}"
+            
+            if emounted "${layer}"; then
+                edebug "Unmounting $(lval layer)"
+                umount -l "${layer}"
+            else
+                edebug "Skipping non-mounted $(lval layer)"
+            fi
+
         done
 
         # In case the overlayfs mounts are layered manually have to also unmount
