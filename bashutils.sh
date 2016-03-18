@@ -15,7 +15,12 @@ if [[ -e ${XDG_CONFIG_HOME:-${HOME:-}/.config}/bashutils.conf ]]; then
     source ${XDG_CONFIG_HOME:-${HOME:-}/.config}/bashutils.conf
 fi
 
-: ${TERM:=xterm-256color}
+# If TERM is unset, bash C code actually sets it to "dumb" so that it has a
+# value.  But dumb terminals don't like tput, so we'll default to something
+# better.
+if [[ -z ${TERM:-} || ${TERM} == "dumb" ]] ; then
+    export TERM=xterm-256color
+fi
 
 # PLATFORM MUST BE FIRST.  It sets up aliases.  Those aliases won't be expanded
 # inside functions that are already declared, only inside those declared after
