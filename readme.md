@@ -846,10 +846,10 @@ abbreviations as we don’t want them to cause the names to increase to
 ridiculous lengths.
 
 For instance, you’ll find functions with these names in bashutils:
-- `cgroup_create`
-- `cgroup_destroy`
-- `array_size`
-- `netns_exec`
+ - `cgroup_create`
+ - `cgroup_destroy`
+ - `array_size`
+ - `netns_exec`
 
 ## When reading the value of a variable, use curly braces
 
