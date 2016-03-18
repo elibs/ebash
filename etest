@@ -5,6 +5,8 @@ if [[ $(id -u) != "0" ]]; then
     exec sudo -E "$0" "$@"
 fi
 
+: ${EMSG_PREFIX:=time}
+
 : ${BASHUTILS:=$(dirname $0)}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
 export BASHUTILS
@@ -40,7 +42,6 @@ else
     export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
 fi
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
-
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
