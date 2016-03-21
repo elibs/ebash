@@ -8,10 +8,15 @@ ETEST_edebug_one_and_zero()
 
 ETEST_edebug_enabled_matcher()
 {
+    etestmsg FUNCNAME
     EDEBUG="${FUNCNAME}"                edebug_enabled
+    etestmsg "edebug"
     EDEBUG="edebug"                     edebug_enabled
+    etestmsg "something else entirely"
     EDEBUG="something else entirely"    edebug_disabled
+    etestmsg "else and edebug"
     EDEBUG="else and edebug"            edebug_enabled
+    etestmsg "blank string"
     EDEBUG=""                           edebug_disabled
 }
 
@@ -70,4 +75,9 @@ ETEST_edebug_pipe_return_code()
     }
 
     die "Test should have thrown or returned"
+}
+
+ETEST_edebug_filename()
+{
+    EDEBUG=${BASH_SOURCE[0]} edebug_enabled
 }
