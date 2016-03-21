@@ -70,22 +70,31 @@ etrace()
 
 edebug_enabled()
 {
+    [[ -n ${1:-} ]] && die "edebug_enabled does not support arguments."
+
     [[ ${EDEBUG:=}  == "1" || ${ETRACE:=}  == "1" ]] && return 0
     [[ ${EDEBUG:-0} == "0" && ${ETRACE:-0} == "0" ]] && return 1
 
-    $(opt_parse "?_edebug_enabled_caller")
-
-    if [[ -z ${_edebug_enabled_caller} ]]; then
-        _edebug_enabled_caller=( $(caller 0) )
-        [[ ${_edebug_enabled_caller[1]} == "edebug" || ${_edebug_enabled_caller[1]} == "edebug_out" || ${_edebug_enabled_caller[1]} == "tryrc" ]] \
-            && _edebug_enabled_caller=( $(caller 1) )
+    # Walk up the stack and pick the first function that isn't in our list of
+    # function names skipped
+    local index=1
+    local caller=${FUNCNAME[$index]}
+    local filename=${BASH_SOURCE[$index]}
+    if [[ ${caller} == @(edebug|edebug_out|tryrc) ]] ; then
+        (( index += 1 ))
+        caller=${FUNCNAME[$index]}
+        filename=${BASH_SOURCE[$index]}
     fi
 
-    local _edebug_enabled_tmp
-    for _edebug_enabled_tmp in ${EDEBUG} ${ETRACE} ; do
-        [[ "${_edebug_enabled_caller[@]:1}" = *"${_edebug_enabled_tmp}"* ]] && return 0
+    # If the edebug or etrace strings contain a word that matches the name of
+    # the function or filename, then edebug is on.
+    local word
+    for word in ${EDEBUG:-} ${ETRACE:-} ; do
+        [[ "${caller}"   == *"${word}"* ]] && return 0
+        [[ "${filename}" == *"${word}"* ]] && return 0
     done
 
+    # Otherwise, it's not.
     return 1
 }
 
