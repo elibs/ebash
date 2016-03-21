@@ -37,7 +37,7 @@ But sometimes bash really wants to ignore a return code.  For instance, if
 command substitution isn’t part of the first command on a line, as in both of
 the following lines of code, bash will ignore any return code of `cmd`.
 
-    echo “$(cmd)”
+    echo "$(cmd)"
     local var=$(cmd)
 
 But bashutils enhances bash’s error detection to catch this case.  The error
@@ -75,7 +75,7 @@ immediately and will not execute `command2`.  In bashutils, this is what we
 want and expect.  But, given the same `func`, the following command works
 differently:
 
-    func && echo “success” || echo “failure”
+    func && echo "success" || echo "failure"
 
 Because `func` is part of a command list containing either `&&` or `||`, bash
 turns off its error detection behavior for all code that is called, not just
@@ -128,7 +128,7 @@ construct.
     }
     catch
     {
-       echo “Caught return code $?”
+       echo "Caught return code $?"
     }
 
 It also behaves a lot like you’d expect from familiarity with other languages.
@@ -193,8 +193,8 @@ can’t be solved by something like the following, it’s best to use `try` /
 `catch` instead of `tryrc`.
 
     $(tryrc -o=out -e=err cmd)
-    echo “${out}”
-    echo “${err}” >&2
+    echo "${out}"
+    echo "${err}" >&2
 
 Note that if `cmd` produces interleaved output on stdout and stderr, this will
 change the ordering of the output.
@@ -308,7 +308,7 @@ Another built-in output tool is `ebanner`.  It helps you separate high-level
 sections of the output of a process.  The bars above and below your text will
 span the entire width of the terminal.
 
-    > ebanner “Here’s a banner”
+    > ebanner "Here’s a banner"
     +--------------------------------------+
     |
     | Here's a banner
@@ -322,11 +322,11 @@ starting printing things out to figure out what on earth is happening.  For
 user-level logging, bashutils includes `einfo`, `ewarn`, and `eerror` commands
 that present messages of varying importance in a consistent manner.
 
-But back to debugging, we also have an `edebug` (which we pronounce “ee-debug”)
-command that is a little different.  By default, the `edebug` logging “level”
+But back to debugging, we also have an `edebug` (which we pronounce "ee-debug")
+command that is a little different.  By default, the `edebug` logging "level"
 is hidden.  So by default, this statement won’t produce any output:
 
-    edebug “foo just borked rc=${rc}”
+    edebug "foo just borked rc=${rc}"
 
 But you can activate the output from these `edebug` statements either wholesale
 or selectively by setting an environment variable.  Setting `EDEBUG=1` will
@@ -359,10 +359,10 @@ string.
     declare -A aa
     aa[foo]=1
     aa[bar]=2
-    local var=”hello world”
+    local var="hello world"
     array[0]=alpha
     array[1]=beta
-    echo “$(lval aa var array)”
+    echo "$(lval aa var array)"
     # Produces: 
     # aa=([bar]="2" [foo]="1" ) var="hello world" array=("alpha" "beta")
 
@@ -420,10 +420,10 @@ For example, since you don’t want to change `IFS`, you might be interested in 
 function that can initialize an array by splitting on a particular separator.
 For example:
 
-    > array_init array “one|two|three” “|”
+    > array_init array "one|two|three" "|"
     > declare -p array
     declare -a array='([0]="one" [1]="two" [2]="three")'
-    > array_init array “aJbJcJd” “J”
+    > array_init array "aJbJcJd" "J"
     > declare -p array
     declare -a array='([0]="a" [1]="b" [2]="c" [3]="d")'
 
@@ -570,7 +570,7 @@ We use it all over the place.  Our most typical idiom is to put the cleanup
 code right next to whatever created the temporary resource.
 
     local temp_file=$(mktemp /tmp/somefile-XXXX)
-    trap_add “rm -f \”${temp_file}\””
+    trap_add "rm -f \"${temp_file}\""
 
 When the shell exits, whether through error or normal termination, the trap
 will be executed and `temp_file` will get cleaned up.
@@ -631,7 +631,7 @@ test file.  We expect the filenames to end in `.etest`.
 
 Both of the functions here will be executed as individual unit tests because
 their names start with `ETEST_`.   Note that although this file isn’t executed
-directly, it needs a shebang line at the top that includes the word “bash”
+directly, it needs a shebang line at the top that includes the word "bash"
 because that’s one of the ways etest determines whether it can execute a file.
 
     > ./etest -f=mytest.sh
@@ -664,11 +664,11 @@ complicated.  I’ll replace `ETEST_will_pass` with this:
 
     ETEST_will_pass()
     {
-        etestmsg “Step 1”
-        echo “hi from step 1”
-        etestmsg “Step 2”
-        echo “hi from step 2”
-        etestmsg “Step 3”
+        etestmsg "Step 1"
+        echo "hi from step 1"
+        etestmsg "Step 2"
+        echo "hi from step 2"
+        etestmsg "Step 3"
     }
 
 Non-verbose mode would look the same, so we’ll run it in verbose mode:
@@ -769,17 +769,17 @@ Notice how the items in the array don’t get moved or re-indexed.  Hence, just
 doing math to guess which items exist in a bash array is a bad idea.
 
     # DO NOT DO THIS!  It will blow up on an array with holes in it for (( i =
-    0; i < ${#ARRAY[@]} ; i++ )) ; do echo “${ARRAY[$i]}” done
+    0; i < ${#ARRAY[@]} ; i++ )) ; do echo "${ARRAY[$i]}" done
 
 Instead, ask bash for the available indexes to the array and iterate over them.
 You can do this the same way you would with an associative array, with
-“${!array[@}”.
+"${!array[@}".
 
-    for index in “${!ARRAY[@]}” ; do echo “${ARRAY[$index]}” done
+    for index in "${!ARRAY[@]}" ; do echo "${ARRAY[$index]}" done
 
 Or, there is a bashutils function that does the same thing to help you:
 
-    for index in “$(array_indexes ARRAY)” ; do echo “${ARRAY[$index]}” done
+    for index in "$(array_indexes ARRAY)" ; do echo "${ARRAY[$index]}" done
 
 ## When in doubt, quote it
 
@@ -873,7 +873,7 @@ instance:
 
 and
 
-    for i in “${array[@]}” ; do
+    for i in "${array[@]}" ; do
         something
     done
 
@@ -906,13 +906,13 @@ One place that it’s really easy to accidentally not use a local variable is
 with a bash for loop. 
 
     # Note: index here is NOT LOCAL
-    for index in “${array[@]}” ; do
+    for index in "${array[@]}" ; do
         something
     done
 
 You must specifically declare for loop index variables as local.
 
-    local index for index in “${array[@]}” ; do something done
+    local index for index in "${array[@]}" ; do something done
 
 ## Do not change `IFS`
 
