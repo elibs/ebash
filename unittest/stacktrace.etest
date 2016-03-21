@@ -42,7 +42,7 @@ ETEST_stacktrace_array()
 ETEST_stacktrace_error()
 {
     local stack=()
-    array_init_nl stack "$(EFUNCS_COLOR=0 eerror_stacktrace 'Boo' 2>&1)"
+    array_init_nl stack "$(EMSG_PREFIX="" EFUNCS_COLOR=0 eerror_stacktrace 'Boo' 2>&1)"
     einfo "$(lval stack)"
 
     assert_eq 5 $(array_size stack)
