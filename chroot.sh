@@ -157,7 +157,7 @@ chroot_readlink()
 
 ## APT SETTINGS ##
 CHROOT_APT="aptitude -f -y"
-CHROOT_ENV="/usr/bin/env USER=root SUDO_USER=root HOME=/root DEBIAN_FRONTEND=noninteractive /bin/bash"
+CHROOT_ENV="/usr/bin/env USER=root SUDO_USER=root HOME=/root DEBIAN_FRONTEND=noninteractive TMPDIR=/tmp /bin/bash"
 
 chroot_apt_update()
 {
@@ -330,8 +330,8 @@ chroot_setup()
     $(opt_parse CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
     einfo "Setting up $(lval CHROOT)"
 
-    try
-    {
+    # Put this into a subshell to ensure error handling is done correctly on shell teardown
+    (
         # Make /etc/mtab a symlink to /proc/mounts so that it is never out of sync with
         # our mount points. This matches how more modern Linux distributions work.
         chroot_cmd "ln -sf /proc/mounts /etc/mtab"
@@ -346,6 +346,7 @@ chroot_setup()
         done
 
         ## MOUNT
+        trap_add chroot_unmount
         chroot_mount
 
         ## LOCALES/TIMEZONE
@@ -364,16 +365,7 @@ chroot_setup()
 
         ## CLEANUP
         chroot_apt_clean
-        chroot_unmount
-    }
-    catch
-    {
-        chroot_unmount
-        edebug "chroot_setup failed"
-        return 1
-    }
-
-    return 0
+    )
 }
 
 # Create an UBUNTU based CHROOT using debootstrap. It will first try to fetch
