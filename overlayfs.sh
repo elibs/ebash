@@ -119,7 +119,7 @@ overlayfs_mount()
         local layers=()
         for arg in "${args[@]}"; do
             local tmp=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
-            trap_add "eunmount -r -d ${tmp}"
+
             archive_mount_or_extract "${arg}" "${tmp}"
             layers+=( "${tmp}" )
         done
@@ -130,7 +130,6 @@ overlayfs_mount()
         local lower=$(array_join layers ":")
         local upper="$(mktemp --tmpdir --directory overlayfs-upper-XXXXXX)"
         local work="$(mktemp --tmpdir --directory overlayfs-work-XXXXXX)"
-        trap_add "eunmount -r -d ${upper} ${work}"
 
         # Mount overlayfs
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
@@ -156,7 +155,6 @@ overlayfs_mount()
        
             local middle=$(mktemp --tmpdir --directory overlayfs-middle-XXXXXX)
             local work=$(mktemp --tmpdir --directory overlayfs-work-XXXXXX)
-            trap_add "eunmount -r -d ${middle} ${work}"
 
             # Extract this layer into middle directory using image specific mechanism.
             for arg in "${args[@]}"; do
@@ -177,7 +175,6 @@ overlayfs_mount()
         # they made in the top-most layer.
         local upper=$(mktemp --tmpdir --directory squashfs-upper-XXXXXX)
         local work=$(mktemp --tmpdir --directory squashfs-work-XXXXXX)
-        trap_add "eunmount -r -d ${upper} ${work}"
 
         if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
             mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
@@ -220,6 +217,15 @@ overlayfs_unmount()
         local parts
         array_init parts "${lower}" ":"
         
+        # In the event we have stacked multiple overlayfs mounts on top of one another
+        # we need to unmount the current set of mount points and then at the very end
+        # of this function unmount the lowest layer. So we pull that out of our array
+        # and handle it specially at the end.
+        if array_not_empty parts; then
+            lower=${parts[0]}
+            unset parts[0]
+        fi
+ 
         local layer
         for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
 
@@ -234,8 +240,9 @@ overlayfs_unmount()
         done
 
         # In case the overlayfs mounts are layered manually have to also unmount
-        # the lower layers.
-        overlayfs_unmount ${parts[0]:-}
+        # the lower layers. NOTE: It's important we call eunmount not overlayfs_unmount
+        # because the bottom most layer may not be overlayfs.
+        eunmount ${lower}
     done
 }
 

@@ -324,6 +324,7 @@ ETEST_archive_create_pivot_root()
         # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
         # path to be used (which is an illegal prefix to the archive formats).
         local oldroot=$(mktemp --tmpdir=/tmp --directory oldroot-XXXXXX)
+        
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
