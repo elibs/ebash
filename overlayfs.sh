@@ -119,7 +119,6 @@ overlayfs_mount()
         local layers=()
         for arg in "${args[@]}"; do
             local tmp=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
-            trap_add "eunmount -r -d ${tmp}"
             archive_mount_or_extract "${arg}" "${tmp}"
             layers+=( "${tmp}" )
         done
@@ -130,7 +129,6 @@ overlayfs_mount()
         local lower=$(array_join layers ":")
         local upper="$(mktemp --tmpdir --directory overlayfs-upper-XXXXXX)"
         local work="$(mktemp --tmpdir --directory overlayfs-work-XXXXXX)"
-        trap_add "eunmount -r -d ${upper} ${work}"
 
         # Mount overlayfs
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
@@ -156,7 +154,6 @@ overlayfs_mount()
        
             local middle=$(mktemp --tmpdir --directory overlayfs-middle-XXXXXX)
             local work=$(mktemp --tmpdir --directory overlayfs-work-XXXXXX)
-            trap_add "eunmount -r -d ${middle} ${work}"
 
             # Extract this layer into middle directory using image specific mechanism.
             for arg in "${args[@]}"; do
@@ -177,7 +174,6 @@ overlayfs_mount()
         # they made in the top-most layer.
         local upper=$(mktemp --tmpdir --directory squashfs-upper-XXXXXX)
         local work=$(mktemp --tmpdir --directory squashfs-work-XXXXXX)
-        trap_add "eunmount -r -d ${upper} ${work}"
 
         if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
             mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
