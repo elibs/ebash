@@ -237,11 +237,11 @@ ETEST_archive_create_exclude_illegal_prefix()
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
-        local src=$(mktemp -d /tmp/archive-XXXXXX)
+        local src=$(mktemp --tmpdir --directory archive-XXXXXX)
         touch ${src}/{file1,file2}
 
         etestmsg "Creating src/dest.${ftype}"
-        local dest=$(mktemp /tmp/archive-XXXXXX.${ftype})
+        local dest=$(mktemp --tmpdir archive-XXXXXX.${ftype})
         archive_create ${src} ${dest}
         assert_archive_contents ${dest} $(dirname ${src##/}) ${src##/} ${src##/}/file1 ${src##/}/file2
     done
@@ -317,7 +317,7 @@ ETEST_archive_create_pivot_root()
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp -d /tmp/oldroot-XXXXXX)
+        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -355,7 +355,7 @@ ETEST_archive_create_pivot_root_cd_manual()
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp -d /tmp/oldroot-XXXXXX)
+        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -396,7 +396,7 @@ ETEST_archive_create_pivot_root_cd()
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp -d /tmp/oldroot-XXXXXX)
+        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -433,7 +433,7 @@ ETEST_archive_create_pivot_root_multi()
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp -d /tmp/oldroot-XXXXXX)
+        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -567,7 +567,7 @@ ETEST_archive_extract_pivot_root_multi_deep()
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp -d /tmp/oldroot-XXXXXX)
+        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}

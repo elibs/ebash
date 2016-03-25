@@ -118,7 +118,7 @@ overlayfs_mount()
         local arg
         local layers=()
         for arg in "${args[@]}"; do
-            local tmp=$(mktemp -d /tmp/overlayfs-lower-XXXXXX)
+            local tmp=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
             trap_add "eunmount -r -d ${tmp}"
             archive_mount_or_extract "${arg}" "${tmp}"
             layers+=( "${tmp}" )
@@ -128,8 +128,8 @@ overlayfs_mount()
         # Create lowerdir parameter by joining all images with colon
         # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
         local lower=$(array_join layers ":")
-        local upper="$(mktemp -d /tmp/overlayfs-upper-XXXXXX)"
-        local work="$(mktemp -d /tmp/overlayfs-work-XXXXXX)"
+        local upper="$(mktemp --tmpdir --directory overlayfs-upper-XXXXXX)"
+        local work="$(mktemp --tmpdir --directory overlayfs-work-XXXXXX)"
         trap_add "eunmount -r -d ${upper} ${work}"
 
         # Mount overlayfs
@@ -147,15 +147,15 @@ overlayfs_mount()
         edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
 
         # Grab bottom most layer
-        local lower=$(mktemp -d /tmp/overlayfs-lower-XXXXXX)
+        local lower=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
         archive_mount_or_extract "${args[0]}" "${lower}"
         unset args[0]
 
         # Extract all remaining layers into empty "middle" directory
         if array_not_empty args; then
        
-            local middle=$(mktemp -d /tmp/overlayfs-middle-XXXXXX)
-            local work=$(mktemp -d /tmp/overlayfs-work-XXXXXX)
+            local middle=$(mktemp --tmpdir --directory overlayfs-middle-XXXXXX)
+            local work=$(mktemp --tmpdir --directory overlayfs-work-XXXXXX)
             trap_add "eunmount -r -d ${middle} ${work}"
 
             # Extract this layer into middle directory using image specific mechanism.
@@ -175,8 +175,8 @@ overlayfs_mount()
         # Mount this unpacked directory into overlayfs layer with an empty read-write 
         # layer on top. This way if caller saves the changes they get only the changes
         # they made in the top-most layer.
-        local upper=$(mktemp -d /tmp/squashfs-upper-XXXXXX)
-        local work=$(mktemp -d /tmp/squashfs-work-XXXXXX)
+        local upper=$(mktemp --tmpdir --directory squashfs-upper-XXXXXX)
+        local work=$(mktemp --tmpdir --directory squashfs-work-XXXXXX)
         trap_add "eunmount -r -d ${upper} ${work}"
 
         if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then

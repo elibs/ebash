@@ -569,7 +569,7 @@ have a `trap_add` command for this purpose.
 We use it all over the place.  Our most typical idiom is to put the cleanup
 code right next to whatever created the temporary resource.
 
-    local temp_file=$(mktemp /tmp/somefile-XXXX)
+    local temp_file=$(mktemp --tmpdir /tmp/somefile-XXXX)
     trap_add "rm -f \"${temp_file}\""
 
 When the shell exits, whether through error or normal termination, the trap

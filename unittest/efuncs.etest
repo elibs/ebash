@@ -173,11 +173,11 @@ ETEST_close_fds()
 
 ETEST_process_hierarchy()
 {
-    local my_processes_file=$(mktemp pids_XXXXX)
-    local ancestors_file=$(mktemp ancestors_XXXXX)
-    local ancestors_noarg_file=$(mktemp ancestors_noarg_XXXXX)
-    local children_file=$(mktemp children_XXXXX)
-    local tree_file=$(mktemp tree_XXXXX)
+    local my_processes_file=$(mktemp --tmpdir pids_XXXXX)
+    local ancestors_file=$(mktemp --tmpdir ancestors_XXXXX)
+    local ancestors_noarg_file=$(mktemp --tmpdir ancestors_noarg_XXXXX)
+    local children_file=$(mktemp --tmpdir children_XXXXX)
+    local tree_file=$(mktemp --tmpdir tree_XXXXX)
 
     local first=$BASHPID
     echo $BASHPID >> ${my_processes_file}

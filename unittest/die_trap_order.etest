@@ -14,8 +14,8 @@ source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bash
 #-------------------------------------------------------------------------------------------------------------------------
 
 # Create a script to run
-OUTPUT=$(mktemp /tmp/etest-output-txt-XXXXXX)
-SCRIPT=$(mktemp /tmp/etest-script-sh-XXXXXX)
+OUTPUT=$(mktemp --tmpdir etest-output-txt-XXXXXX)
+SCRIPT=$(mktemp --tmpdir etest-script-sh-XXXXXX)
 trap_add "rm --force ${OUTPUT} ${SCRIPT}"
 
 cat <<EOF >${SCRIPT}

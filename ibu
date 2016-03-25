@@ -7,7 +7,7 @@ reload()
 }
 reload
 
-HISTFILE=$(mktemp /tmp/ibashutils_$$_XXXXXX)
+HISTFILE=$(mktemp --tmpdir ibashutils_$$_XXXXXX)
 trap_add "rm --force \"${HISTFILE}\""
 
 : ${IBU_PROMPT:=$(ecolor green)IBU> $(ecolor none)}
