@@ -217,6 +217,15 @@ overlayfs_unmount()
         local parts
         array_init parts "${lower}" ":"
         
+        # In the event we have stacked multiple overlayfs mounts on top of one another
+        # we need to unmount the current set of mount points and then at the very end
+        # of this function unmount the lowest layer. So we pull that out of our array
+        # and handle it specially at the end.
+        if array_not_empty parts; then
+            lower=${parts[0]}
+            unset parts[0]
+        fi
+ 
         local layer
         for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
 
@@ -231,8 +240,9 @@ overlayfs_unmount()
         done
 
         # In case the overlayfs mounts are layered manually have to also unmount
-        # the lower layers.
-        overlayfs_unmount ${parts[0]:-}
+        # the lower layers. NOTE: It's important we call eunmount not overlayfs_unmount
+        # because the bottom most layer may not be overlayfs.
+        eunmount ${lower}
     done
 }
 
