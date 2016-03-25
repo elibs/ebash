@@ -240,14 +240,12 @@ ETEST_archive_create_exclude_illegal_prefix()
         # path to be used (which is an illegal prefix to the archive formats).
         etestmsg "Populating source directory"
         local src=$(mktemp --tmpdir=/tmp --directory archive-XXXXXX)
-        
         touch ${src}/{file1,file2}
 
         # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
         # path to be used (which is an illegal prefix to the archive formats).
         etestmsg "Creating src/dest.${ftype}"
         local dest=$(mktemp --tmpdir=/tmp archive-XXXXXX.${ftype})
-        
         archive_create ${src} ${dest}
         assert_archive_contents ${dest} $(dirname ${src##/}) ${src##/} ${src##/}/file1 ${src##/}/file2
     done

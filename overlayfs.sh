@@ -119,6 +119,7 @@ overlayfs_mount()
         local layers=()
         for arg in "${args[@]}"; do
             local tmp=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
+
             archive_mount_or_extract "${arg}" "${tmp}"
             layers+=( "${tmp}" )
         done
