@@ -161,6 +161,10 @@ global_setup()
     TEST_DIR_OUTPUT="${TEST_DIR}/output"
     efreshdir ${TEST_DIR_OUTPUT}
 
+    # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
+    export TMPDIR=${TEST_DIR_OUTPUT}/tmp
+    mkdir ${TMPDIR}
+ 
     if cgroup_supported ; then
         # And a cgroup that will contain all output
         cgroup_create ${ETEST_CGROUP}
@@ -218,6 +222,10 @@ run_single_test()
         # weren't running it inside a try/catch
         __BU_INSIDE_TRY=0
 
+        # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
+        export TMPDIR=${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}/tmp
+        efreshdir ${TMPDIR}
+ 
         if cgroup_supported ; then
             cgroup_create ${ETEST_CGROUP}
             cgroup_move ${ETEST_CGROUP} ${BASHPID}
@@ -308,10 +316,6 @@ run_all_tests_in_file()
         # Unit test infrastructure setup
         efreshdir ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
      
-        # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
-        export TMPDIR=${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}/tmp
-        efreshdir ${TMPDIR}
-  
         local test_rc=0
         try
         {
