@@ -928,6 +928,11 @@ ecolor_code()
 
 ecolor()
 {
+    ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
+    local efuncs_color=${EFUNCS_COLOR:=}
+    [[ -z ${efuncs_color} ]] && einteractive && efuncs_color=1
+    [[ ${efuncs_color} -eq 1 ]] || return 0
+
     declare -Ag __BU_COLOR_CACHE
     local index=$*
     if [[ ! -v "__BU_COLOR_CACHE[$index]" ]] ; then
@@ -939,11 +944,6 @@ ecolor()
 
 ecolor_internal()
 {
-    ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
-    local efuncs_color=${EFUNCS_COLOR:=}
-    [[ -z ${efuncs_color} ]] && einteractive && efuncs_color=1
-    [[ ${efuncs_color} -eq 1 ]] || return 0
-
     local c=""
     for c in $@; do
         case ${c} in
