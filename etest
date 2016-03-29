@@ -83,7 +83,7 @@ die_handler()
 
 etestmsg()
 {
-    EMSG_COLOR="all" emsg "magenta" "##" "INFO" "$@"
+    EMSG_COLOR="all" emsg "magenta" "##" "WARN" "$@"
 }
 
 # Returns success if there are no stale processes remaining in the cgroup for
