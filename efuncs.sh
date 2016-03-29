@@ -23,8 +23,11 @@ elif [[ "${__BU_OS}" == Darwin ]] ; then
 fi
 
 #------------------------------------------------------------------------------
-# COLOR SETTINGS
+# LOGGING SETTINGS
 #------------------------------------------------------------------------------
+
+: ${EMSG_PREFIX:=}
+: ${EMSG_COLOR:=all}
 
 : ${COLOR_INFO:="bold green"}
 : ${COLOR_DEBUG:="blue"}
@@ -105,7 +108,7 @@ edebug_disabled()
 
 edebug()
 {
-    # Take intput either from arguments or if no arguments were provided take input from
+    # Take input either from arguments or if no arguments were provided take input from
     # standard input.
     local msg=""
     if [[ $# -gt 0 ]]; then
@@ -925,6 +928,17 @@ ecolor_code()
 
 ecolor()
 {
+    declare -Ag __BU_COLOR_CACHE
+    local index=$*
+    if [[ ! -v "__BU_COLOR_CACHE[$index]" ]] ; then
+        __BU_COLOR_CACHE[$index]=$(ecolor_internal "${index}")
+    fi
+
+    echo -n "${__BU_COLOR_CACHE[$index]}"
+}
+
+ecolor_internal()
+{
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
     local efuncs_color=${EFUNCS_COLOR:=}
     [[ -z ${efuncs_color} ]] && einteractive && efuncs_color=1
@@ -942,7 +956,6 @@ ecolor()
             *)              tput setaf $(ecolor_code ${c})     ;;
         esac
     done
-
 }
 
 eclear()
@@ -962,134 +975,155 @@ etimestamp()
 # we log and present information.
 ebanner()
 {
-    local cols lines entries
+    {
+        local cols lines entries
 
-    echo "" >&2
-    cols=$(tput cols)
-    cols=$((cols-2))
-    eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
-    echo -e "$(ecolor ${COLOR_BANNER})+${str}+" >&2
-    echo -e "|" >&2
+        echo "" &>2
+        cols=${COLUMNS}
+        cols=$((cols-2))
+        eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
+        ecolor ${COLOR_BANNER}
+        echo -e "+${str}+"
+        echo -e "|"
 
-    # Print the first message honoring any newlines
-    array_init_nl lines "${1}"; shift
-    for line in "${lines[@]}"; do
-        echo -e "| ${line}" >&2
-    done
-
-    # Timestamp
-    [[ ${EFUNCS_TIME:=0} -eq 1 ]] && local stamp="[$(etimestamp)]" || local stamp=""
-    [[ -n ${stamp} ]] && { echo -e "|\n| Time=${stamp}" >&2; }
-
-    # Iterate over all other arguments and stick them into an associative array
-    # If a custom key was requested via "key=value" format then use the provided
-    # key and lookup value via print_value.
-    declare -A __details
-
-    local entries=("${@}")
-    for k in "${entries[@]:-}"; do
-        [[ -z ${k} ]] && continue
-
-        local _ktag="${k%%=*}";
-        : ${_ktag:=${k}}
-        local _kval="${k#*=}";
-        _ktag=${_ktag#+}
-        __details[${_ktag}]=$(print_value ${_kval})
-
-    done
-
-    # Now output all the details (if any)
-    if [[ -n ${__details[@]:-} ]]; then
-        echo -e "|" >&2
-
-        # Sort the keys and store into an array
-        local keys
-        keys=( $(for key in ${!__details[@]}; do echo "${key}"; done | sort) )
-
-        # Figure out the longest key
-        local longest=0
-        for key in ${keys[@]}; do
-            local len=${#key}
-            (( len > longest )) && longest=$len
+        # Print the first message honoring any newlines
+        array_init_nl lines "${1}"; shift
+        for line in "${lines[@]}"; do
+            echo -e "| ${line}"
         done
 
-        # Iterate over the keys of the associative array and print out the values
-        for key in ${keys[@]}; do
-            local pad=$((longest-${#key}+1))
-            printf "| • %s%${pad}s :: %s\n" ${key} " " "${__details[$key]}" >&2
-        done
-    fi
+        # Timestamp
+        [[ ${EFUNCS_TIME:=0} -eq 1 ]] && local stamp="[$(etimestamp)]" || local stamp=""
+        [[ -n ${stamp} ]] && echo -e "|\n| Time=${stamp}"
 
-    # Close the banner
-    echo -e "|" >&2
-    echo -e "+${str}+$(ecolor none)" >&2
+        # Iterate over all other arguments and stick them into an associative array
+        # If a custom key was requested via "key=value" format then use the provided
+        # key and lookup value via print_value.
+        declare -A __details
+
+        local entries=("${@}")
+        for k in "${entries[@]:-}"; do
+            [[ -z ${k} ]] && continue
+
+            local _ktag="${k%%=*}";
+            : ${_ktag:=${k}}
+            local _kval="${k#*=}";
+            _ktag=${_ktag#+}
+            __details[${_ktag}]=$(print_value ${_kval})
+
+        done
+
+        # Now output all the details (if any)
+        if [[ -n ${__details[@]:-} ]]; then
+            echo -e "|"
+
+            # Sort the keys and store into an array
+            local keys
+            keys=( $(for key in ${!__details[@]}; do echo "${key}"; done | sort) )
+
+            # Figure out the longest key
+            local longest=0
+            for key in ${keys[@]}; do
+                local len=${#key}
+                (( len > longest )) && longest=$len
+            done
+
+            # Iterate over the keys of the associative array and print out the values
+            for key in ${keys[@]}; do
+                local pad=$((longest-${#key}+1))
+                printf "| • %s%${pad}s :: %s\n" ${key} " " "${__details[$key]}"
+            done
+        fi
+
+        # Close the banner
+        echo -e "|"
+        echo -e "+${str}+"
+        ecolor none
+
+    } >&2
 
     return 0
 }
 
 emsg()
 {
-    # Only take known prefix settings
-    local emsg_prefix=$(echo ${EMSG_PREFIX:-} | egrep -o "(time|times|level|caller|all)" || true)
+    {
+        local color=$1 ; shift
+        local header=$1 ; shift
+        local level=$1 ; shift
+        local msg="$*"
 
-    [[ ${EFUNCS_TIME:=0} -eq 1 ]] && emsg_prefix+=time
+        local informative_header=0
+        if [[ ${EMSG_PREFIX} =~ ${BU_WORD_BEGIN}(time|times|level|caller|pid|all)${BU_WORD_END} ]] ; then
+            informative_header=1
+        fi
 
-    local color=$(ecolor $1)
-    local nocolor=$(ecolor none)
-    local symbol=${2:-}
-    local level=$3
-    shift 3
+        # Print the "informative header" containing things like timestamp, calling
+        # function, etc.  We choose which ones to print based on the contents of
+        # EMSG_PREFIX and which ones to color based on the value of EMSG_COLOR
+        if [[ ${informative_header} == 1 && ${level} != @(INFOS|WARNS) ]] ; then
+            ecolor $color
+            echo -n "["
+            ecolor reset
 
-    # Local args to hold the color and regexs for each field
-    for field in time level caller msg; do
-        local ${field}_color=${nocolor}
-        eval "local ${field}_re='${BU_WORD_BEGIN}(all|${field})${BU_WORD_END}'"
+            local field first_printed=0
+            for field in time level caller pid ; do
 
-    done
+                # If the field is one selected by EMSG_PREFIX...
+                if [[ ${EMSG_PREFIX} =~ ${BU_WORD_BEGIN}(all|${field})${BU_WORD_END} ]] ; then
 
-    # Determine color values for each field used below.
-    : ${EMSG_COLOR:="time level caller"}
-    [[ ${EMSG_COLOR} =~ ${time_re}   ]] && time_color=${color}
-    [[ ${EMSG_COLOR} =~ ${level_re}  ]] && level_color=${color}
-    [[ ${EMSG_COLOR} =~ ${caller_re} ]] && caller_color=${color}
+                    # Separator if this isn't the first field to print
+                    [[ ${first_printed} -eq 1 ]] && { ecolor reset ; echo -n "|" ; }
 
-    # Build up the prefix for the log message. Each of these may optionally be in color or not. This is
-    # controlled via EMSG_COLOR which is a list of fields to color. By default this is set to all fields.
-    # The following fields are supported:
-    # (1) time    : Timetamp
-    # (2) level   : Log Level
-    # (3) caller  : file:line:method
-    local delim="${nocolor}|"
-    local prefix=""
+                    # Start color if appropriate
+                    [[ ${EMSG_COLOR} =~ ${BU_WORD_BEGIN}(all|${field})${BU_WORD_END} ]] && ecolor $color
 
-    if [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} == "time" ]]; then
-        :
-    else
-        local times_re="${BU_WORD_BEGIN}(all|times)${BU_WORD_END}"
-        [[ ${level} =~ INFOS|WARNS && ${emsg_prefix} =~ ${times_re} || ${emsg_prefix} =~ ${time_re} ]] && prefix+="${time_color}$(etimestamp)"
-        [[ ${emsg_prefix} =~ ${level_re}  ]] && prefix+="${delim}${level_color}$(printf "%s"  ${level%%S})"
-        [[ ${emsg_prefix} =~ ${caller_re} ]] && prefix+="${delim}${caller_color}$(printf "%-10s" "$(basename ${BASH_SOURCE[2]}):${BASH_LINENO[1]}:${FUNCNAME[2]:-}" || true)"
-    fi
+                    # Print the individual field
+                    case ${field} in
+                        time|times)
+                            etimestamp
+                            ;;
+                        level)
+                            echo -n "${level}"
+                            ;;
+                        caller)
+                            echo -n "$(basename ${BASH_SOURCE[2]}):${BASH_LINENO[1]}:${FUNCNAME[2]:-}"
+                            ;;
+                        pid)
+                            echo -n "${BASHPID}"
+                            ;;
+                        *)
+                            die "Internal error."
+                            ;;
+                    esac
 
-    # Strip off extra leading delimiter if present
-    prefix="${prefix#${delim}}"
+                    first_printed=1
+                    ecolor reset
+                fi
+        
+            done
 
-    # If it's still empty put in the default
-    if [[ -z ${prefix} ]] ; then
-        prefix="${symbol}"
-    else
-        prefix="${color}[${prefix}${color}]"
-        [[ ${level} =~ DEBUG|INFOS|WARNS ]] && prefix+=${symbol:2}
-    fi
+            ecolor $color
+            echo -n "] "
 
-    # Color Policy
-    if [[ ${EMSG_COLOR} =~ ${msg_re} || ${level} =~ DEBUG|WARN|ERROR ]] ; then
-        echo -e "${color}${prefix} $@${nocolor}" >&2
-    else
-        echo -e "${color}${prefix}${nocolor} $@" >&2
-    fi
+        else
+            # If not the informative header, just use the message-type-specific
+            # header passed as an argument to emsg
+            ecolor $color
+            echo -n "${header} "
+        fi
 
-    return 0
+        # If EMSG_COLOR doesn't say to color the message turn off color before
+        # we start printing it
+        [[ ! ${EMSG_COLOR} =~ ${BU_WORD_BEGIN}(all|msg)${BU_WORD_END} ]] && ecolor reset
+
+        # Also, only print colored messages for certain levels
+        [[ ${level} != @(DEBUG|WARN|WARNS|ERROR) ]] && ecolor reset
+
+        echo -n "${msg}"
+        ecolor reset
+        echo ""
+    } >&2
 }
 
 einfo()

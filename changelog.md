@@ -57,6 +57,10 @@
       color". Ecolor now also supports setting background color by prefixing
       the color name with "b:"
 
+    - Ecolor caches its output so that it doesn't have to spawn tput processes
+      repeatedly to get codes.  This approximately halves the time each einfo
+      takes vs bashutils 1.2.
+
     - lval: Changed leading character to indicate that a variable is a pack
       from + to % to be more similar to perl's hashes and to avoid using the
       plus sign differently in lval and opt_parse.

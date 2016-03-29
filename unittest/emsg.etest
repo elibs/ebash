@@ -83,7 +83,14 @@ ETEST_emsg_rainbow_of_pain()
     EMSG_COLOR="caller" EMSG_PREFIX="time level caller" emsg_aux
     EMSG_COLOR="time level" EMSG_PREFIX="time level caller" emsg_aux
     EMSG_COLOR="time level caller" EMSG_PREFIX="time level caller" emsg_aux
-    EMSG_COLOR=" " EMSG_PREFIX="time level caller" emsg_aux
+    EMSG_COLOR="time level caller pid" EMSG_PREFIX="time level caller pid" emsg_aux
+    etestmsg "All colors and levels specified individually"
+    EMSG_COLOR="time level caller pid msg" EMSG_PREFIX="time level caller pid" emsg_aux
+    etestmsg "All colors and levels specified as 'all'"
+    EMSG_COLOR="all" EMSG_PREFIX="all" emsg_aux
+
+    etestmsg "No colors with all levels"
+    EMSG_COLOR=" " EMSG_PREFIX="time level caller pid" emsg_aux
 }
 
 # Not really a unit test but simply display all possible colors
