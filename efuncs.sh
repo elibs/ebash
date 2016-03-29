@@ -751,10 +751,16 @@ trap_add()
 
 _bashutils_on_exit_start()
 {
-    # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
-    __BU_EXIT_CODE=$?
-    edebug "Bash process ${BASHPID} exited rc=${__BU_EXIT_CODE}"
-    disable_signals
+    # Save off the exit code the fist time the exit trap is called -- it can be
+    # reinvoked multiple times in the process of the shell going down.
+    #
+    local exit_code=$?
+    if [[ ! -v __BU_EXIT_CODE ]] ; then
+        # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
+        __BU_EXIT_CODE=${exit_code}
+        edebug "Bash process ${BASHPID} exited rc=${__BU_EXIT_CODE}"
+        disable_signals
+    fi
 }
 
 _bashutils_on_exit_end()
