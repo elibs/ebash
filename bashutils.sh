@@ -18,7 +18,7 @@ fi
 # If TERM is unset, bash C code actually sets it to "dumb" so that it has a
 # value.  But dumb terminals don't like tput, so we'll default to something
 # better.
-if [[ -z ${TERM:-} || ${TERM} == "dumb" ]] ; then
+if [[ -z ${TERM:-} || ${TERM} == "dumb" || ${TERM} == "vt102" ]] ; then
     export TERM=xterm-256color
 fi
 
