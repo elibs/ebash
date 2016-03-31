@@ -608,8 +608,8 @@ die()
     # Generate a stack trace if that's appropriate for this die.
     if inside_try && edebug_enabled ; then
         echo "" >&2
-        eerror_internal   -c="grey19" "${@}"
-        eerror_stacktrace -c="grey19" -f=3 -s
+        eerror_internal   -c="grey50" "${@}"
+        eerror_stacktrace -c="grey50" -f=3 -s
 
     elif inside_try && edebug_disabled ; then
         # Don't print a stack trace for errors that were caught (unless edebug
