@@ -225,7 +225,7 @@ chroot_install()
         ## No explicit version check -- continue
         [[ -z "${op}" || -z "${pv}" ]] && continue
 
-        dpkg_compare_versions "${apv}" "${op}" "${pv}" || { eerror "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"; return 1; }
+        dpkg_compare_versions --chroot ${CHROOT} "${apv}" "${op}" "${pv}" || { eerror "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"; return 1; }
     done
 }
 
