@@ -985,7 +985,7 @@ ebanner()
         local cols lines entries
 
         echo ""
-        cols=${COLUMNS}
+        cols=${COLUMNS:-80}
         cols=$((cols-2))
         eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
         ecolor ${COLOR_BANNER}
