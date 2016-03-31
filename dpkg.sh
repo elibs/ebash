@@ -11,16 +11,16 @@ dpkg_compare_versions()
         "op        | Comparison operator" \
         "v2        | Second version to check" )
 
-	[[ ${op} == "<<" ]] && op="lt"
-	[[ ${op} == "<=" ]] && op="le"
-	[[ ${op} == "==" ]] && op="eq"
-	[[ ${op} == "="  ]] && op="eq"
-	[[ ${op} == ">=" ]] && op="ge"
-	[[ ${op} == ">>" ]] && op="gt"
+    [[ ${op} == "<<" ]] && op="lt"
+    [[ ${op} == "<=" ]] && op="le"
+    [[ ${op} == "==" ]] && op="eq"
+    [[ ${op} == "="  ]] && op="eq"
+    [[ ${op} == ">=" ]] && op="ge"
+    [[ ${op} == ">>" ]] && op="gt"
 
-	## Verify valid comparator ##
-	[[ ${op} == "lt" || ${op} == "le" || ${op} == "eq" || ${op} == "ge" || ${op} == "gt" ]] \
-		|| die "Invalid comparator [${op}]"
+    ## Verify valid comparator ##
+    [[ ${op} == "lt" || ${op} == "le" || ${op} == "eq" || ${op} == "ge" || ${op} == "gt" ]] \
+        || die "Invalid comparator [${op}]"
 
     local dpkg_options=(--compare-versions "${v1}" "${op}" "${v2}" )
     if [[ -n ${chroot} ]] ; then
@@ -52,36 +52,36 @@ dpkg_depends()
 
     for p in $(dpkg_parsedeps ${dir}/${deb} ${tag}); do
 
-		# Sensible defaults
-		local pn="${p}"
-		local op=">="
-		local pv=0
+        # Sensible defaults
+        local pn="${p}"
+        local op=">="
+        local pv=0
 
-		# Versioned?
-		if [[ ${p} =~ ([^>=<>]*)(>=|<=|<<|>>|=)(.*) ]]; then
-			pn=${BASH_REMATCH[1]}
-			op=${BASH_REMATCH[2]}
-			pv=${BASH_REMATCH[3]}
-		fi
+        # Versioned?
+        if [[ ${p} =~ ([^>=<>]*)(>=|<=|<<|>>|=)(.*) ]]; then
+            pn=${BASH_REMATCH[1]}
+            op=${BASH_REMATCH[2]}
+            pv=${BASH_REMATCH[3]}
+        fi
 
-		local fname="${dir}/${pn}.deb"
-	
-		if [[ -e ${fname} ]]; then
-		
-			# Correct version?
-			local apn=$(dpkg -I "${fname}" | grep "^ Package:"); apn=${apn#*: }
-			local apv=$(dpkg -I "${fname}" | grep "^ Version:"); apv=${apv#*: }
-			
-			[[ ${pn} == ${apn} ]] || die "Mismatched package name wanted=[${pn}] actual=[${apn}]"
-			dpkg_compare_versions "${apv}" "==" "${pv}" || die "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"
-	
-			echo ${fname}
-			for d in $(dpkg_depends ${dir}/${pn}.deb ${tag}); do
-				echo $d
-			done
-		else
-			echo ${p}
-		fi
+        local fname="${dir}/${pn}.deb"
+
+        if [[ -e ${fname} ]]; then
+
+            # Correct version?
+            local apn=$(dpkg -I "${fname}" | grep "^ Package:"); apn=${apn#*: }
+            local apv=$(dpkg -I "${fname}" | grep "^ Version:"); apv=${apv#*: }
+
+            [[ ${pn} == ${apn} ]] || die "Mismatched package name wanted=[${pn}] actual=[${apn}]"
+            dpkg_compare_versions "${apv}" "==" "${pv}" || die "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"
+
+            echo ${fname}
+            for d in $(dpkg_depends ${dir}/${pn}.deb ${tag}); do
+                echo $d
+            done
+        else
+            echo ${p}
+        fi
     done
 }
 
