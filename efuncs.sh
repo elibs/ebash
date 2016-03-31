@@ -998,10 +998,6 @@ ebanner()
             echo -e "| ${line}"
         done
 
-        # Timestamp
-        [[ ${EFUNCS_TIME:=0} -eq 1 ]] && local stamp="[$(etimestamp)]" || local stamp=""
-        [[ -n ${stamp} ]] && echo -e "|\n| Time=${stamp}"
-
         # Iterate over all other arguments and stick them into an associative array
         # If a custom key was requested via "key=value" format then use the provided
         # key and lookup value via print_value.
