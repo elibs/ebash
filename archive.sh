@@ -223,7 +223,7 @@ archive_create()
             done | sort --unique >> "${exclude_file}"
         fi
 
-        edebug "Exclude File:"$'\n'"$(cat ${exclude_file})"
+        edebug $'Exclude File:\n'"$(cat ${exclude_file})"
 
         # In order to provide a common interface around all the archive formats we
         # must deal with inconsistencies in how multiple mount points are handled. 
