@@ -212,6 +212,28 @@ ETEST_archive_create_mixed_files_directories()
     done
 }
 
+ETEST_archive_create_absolute_paths()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
+        # path to be used (which is an illegal prefix to the archive formats).
+        etestmsg "Populating absolute path source directory"
+        local src=$(mktemp --tmpdir=/tmp --directory archive-XXXXXX)
+        trap_add "eunmount --recursive --delete ${src}"
+        touch ${src}/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create ${src} src.${ftype}
+        assert_archive_contents src.${ftype} tmp ${src#/} ${src#/}/file1 ${src#/}/file2
+
+        rm src.${ftype}
+    done
+}
+
 ETEST_archive_create_exclude()
 {
     local idx=0
@@ -229,7 +251,7 @@ ETEST_archive_create_exclude()
     done
 }
 
-ETEST_archive_create_exclude_illegal_prefix()
+ETEST_archive_create_exclude_absolute_paths()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
@@ -238,16 +260,16 @@ ETEST_archive_create_exclude_illegal_prefix()
 
         # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
         # path to be used (which is an illegal prefix to the archive formats).
-        etestmsg "Populating source directory"
+        etestmsg "Populating absolute path source directory"
         local src=$(mktemp --tmpdir=/tmp --directory archive-XXXXXX)
+        trap_add "eunmount --recursive --delete ${src}"
         touch ${src}/{file1,file2}
 
-        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
-        # path to be used (which is an illegal prefix to the archive formats).
-        etestmsg "Creating src/dest.${ftype}"
-        local dest=$(mktemp --tmpdir=/tmp archive-XXXXXX.${ftype})
-        archive_create ${src} ${dest}
-        assert_archive_contents ${dest} $(dirname ${src##/}) ${src##/} ${src##/}/file1 ${src##/}/file2
+        etestmsg "Creating src.${ftype}"
+        archive_create --exclude ${src}/file2 ${src} src.${ftype}
+        assert_archive_contents src.${ftype} tmp ${src#/} ${src#/}/file1
+
+        rm src.${ftype}
     done
 }
 
@@ -324,6 +346,7 @@ ETEST_archive_create_pivot_root()
         # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
         # path to be used (which is an illegal prefix to the archive formats).
         local oldroot=$(mktemp --tmpdir=/tmp --directory oldroot-XXXXXX)
+        trap_add "eunmount --recursive --delete ${oldroot}"
         
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
@@ -363,6 +386,7 @@ ETEST_archive_create_pivot_root_cd_manual()
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        trap_add "eunmount --recursive --delete ${oldroot}"
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -404,6 +428,7 @@ ETEST_archive_create_pivot_root_cd()
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        trap_add "eunmount --recursive --delete ${oldroot}"
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -441,6 +466,7 @@ ETEST_archive_create_pivot_root_multi()
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        trap_add "eunmount --recursive --delete ${oldroot}"
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -566,6 +592,32 @@ ETEST_archive_extract_files_same()
     done
 }
 
+ETEST_archive_extract_absolute_paths()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
+        # path to be used (which is an illegal prefix to the archive formats).
+        etestmsg "Populating absolute path source directory"
+        local src=$(mktemp --tmpdir=/tmp --directory archive-XXXXXX)
+        trap_add "eunmount --recursive --delete ${src}"
+        touch ${src}/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create ${src} src.${ftype}
+        assert_archive_contents src.${ftype} tmp ${src#/} ${src#/}/file1 ${src#/}/file2
+
+        etestmsg "Extracting src.${ftype} files by absolute path"
+        archive_extract src.${ftype} dest ${src}/file1
+
+        assert_directory_contents dest tmp ${src#/} ${src#/}/file1
+
+        rm --recursive --force src.${ftype} dest
+    done
+}
 
 ETEST_archive_extract_pivot_root_multi_deep()
 {
@@ -575,6 +627,7 @@ ETEST_archive_extract_pivot_root_multi_deep()
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        trap_add "eunmount --recursive --delete ${oldroot}"
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
