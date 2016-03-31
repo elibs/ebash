@@ -984,7 +984,7 @@ ebanner()
     {
         local cols lines entries
 
-        echo "" &>2
+        echo ""
         cols=${COLUMNS}
         cols=$((cols-2))
         eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
