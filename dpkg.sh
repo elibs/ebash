@@ -5,7 +5,11 @@
 
 dpkg_compare_versions()
 {
-    $(opt_parse v1 op v2)
+    $(opt_parse \
+        ":chroot c | Perform the dpkg check inside the specified chroot." \
+        "v1        | First version to check" \
+        "op        | Comparison operator" \
+        "v2        | Second version to check" )
 
 	[[ ${op} == "<<" ]] && op="lt"
 	[[ ${op} == "<=" ]] && op="le"
@@ -18,7 +22,12 @@ dpkg_compare_versions()
 	[[ ${op} == "lt" || ${op} == "le" || ${op} == "eq" || ${op} == "ge" || ${op} == "gt" ]] \
 		|| die "Invalid comparator [${op}]"
 
-	dpkg --compare-versions ${v1} ${op} ${v2} 
+    local dpkg_options=(--compare-versions "${v1}" "${op}" "${v2}" )
+    if [[ -n ${chroot} ]] ; then
+        CHROOT=${chroot} chroot_dpkg "${dpkg_options[@]}"
+    else
+        dpkg "${dpkg_options[@]}"
+    fi
 }
 
 dpkg_parsedeps()
