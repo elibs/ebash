@@ -449,11 +449,8 @@ archive_extract()
         # cpio doesn't return an error if included files are missing. So do another check to see if
         # all requested files were found. Redirect stdout to /dev/null, so any errors (due to missing files)
         # will show up on STDERR. And that's the return code we'll propogate.
-        #
-        # NOTE: Purposefully NO quotes around ${includes[@]} because if given -x="file1 file2" then 
-        #       find would look for a file named "file1 file2" and fail.
         if [[ ${src_type} == cpio ]] && array_not_empty includes; then
-            find . ${includes[@]} >/dev/null
+            find . "${includes[@]}" >/dev/null
         fi
         
         popd
