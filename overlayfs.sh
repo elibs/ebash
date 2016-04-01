@@ -120,7 +120,7 @@ overlayfs_mount()
         for arg in "${args[@]}"; do
             local tmp=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
 
-            archive_mount_or_extract "${arg}" "${tmp}"
+            archive_mount "${arg}" "${tmp}"
             layers+=( "${tmp}" )
         done
 
@@ -147,7 +147,7 @@ overlayfs_mount()
 
         # Grab bottom most layer
         local lower=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
-        archive_mount_or_extract "${args[0]}" "${lower}"
+        archive_mount "${args[0]}" "${lower}"
         unset args[0]
 
         # Extract all remaining layers into empty "middle" directory
