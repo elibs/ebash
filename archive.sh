@@ -113,7 +113,7 @@ archive_compress_program()
     local prog=$(which ${progs[@]:-} 2>/dev/null | head -1 || true)
     echo -n "${prog}"
     [[ -n ${prog} ]]
-}
+} 
 
 # Generic function for creating an archive file of a given type from the given
 # list of source paths and write it out to the requested destination directory.
@@ -219,10 +219,7 @@ archive_create()
                     exclude_prefix="./"
                 fi
 
-                # Adjust excluded files to strip off any invalid prefixes and add
-                # required ./ path for ISO.
-                find ${excludes[@]} | sed -e "s%^\(/\|./\|../\)%%" -e "s|^|${exclude_prefix}|" 2>/dev/null || true
-
+                find ${excludes[@]} | sed "s|^|${exclude_prefix}|" 2>/dev/null || true
             done | sort --unique >> "${exclude_file}"
         fi
 
@@ -390,8 +387,8 @@ archive_extract()
                     fi
                 fi
 
-                # Do the actual extracting stripping off any leading slashes in includes
-                cp --archive --recursive --parents ${includes[@]#/} "${dest_real}"
+                # Do the actual extracting
+                cp --archive --recursive --parents ${includes[@]} "${dest_real}"
             fi
         )
 
@@ -401,7 +398,7 @@ archive_extract()
         # By default the files to extract from the archive is all the files requested.
         # If files is an empty array this will evaluate to an empty string and all files
         # will be extracted.
-        local includes=( ${files[@]:-} )
+        local includes=$(array_join files)
 
         # If ignore_missing flag was enabled filter out list of files in the archive to
         # only those which the caller requested. This will ensure we are essentially 
@@ -413,11 +410,11 @@ archive_extract()
         #       the command where newlines could cause the eval'd command to be 
         #       interpreted incorrectly.
         if array_not_empty files && [[ ${ignore_missing} -eq 1 ]]; then
-            includes=( $(archive_list "${src}" | grep -P "($(array_join files '|'))" | tr '\n' ' ' || true) )
+            includes=$(archive_list "${src}" | grep -P "($(array_join files '|'))" | tr '\n' ' ' || true)
 
             # If includes is EMPTY there's nothing to do because none of the requested
             # files exist in the archive and we're ignoring missing files.
-            if array_empty includes; then
+            if [[ -z ${includes} ]]; then
                 edebug "Nothing to extract -- returning success"
                 return 0
             fi
@@ -433,16 +430,15 @@ archive_extract()
             cmd="${compress_prog} --decompress --stdout < ${src_real} | "
         fi 
 
+
         if [[ ${src_type} == tar ]]; then
             cmd+="tar --extract --wildcards --no-anchored"
         else
             cmd+="cpio --quiet --extract --preserve-modification-time --make-directories --no-absolute-filenames --unconditional"
         fi
 
-        # If given a list of files to extract, then add that to the command after stripping off any leading slashes.
-        if array_not_empty includes; then
-            cmd+=" ${includes[@]#/}"
-        fi
+        # Give list of files to extract.
+        cmd+=" ${includes}"
 
         # Conditionally feed it the archive file to extract via stdin.
         if [[ ${compress_rc} -ne 0 ]]; then
@@ -455,8 +451,11 @@ archive_extract()
         # cpio doesn't return an error if included files are missing. So do another check to see if
         # all requested files were found. Redirect stdout to /dev/null, so any errors (due to missing files)
         # will show up on STDERR. And that's the return code we'll propogate.
-        if [[ ${src_type} == cpio ]] && array_not_empty includes; then
-            find . "${includes[@]}" >/dev/null
+        #
+        # NOTE: Purposefully NO quotes around ${includes} because if given -x="file1 file2" then 
+        #       find would look for a file named "file1 file2" and fail.
+        if [[ ${src_type} == cpio ]]; then
+            find . ${includes} >/dev/null
         fi
         
         popd
