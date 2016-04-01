@@ -507,6 +507,34 @@ ETEST_archive_create_exclude_files()
    done
 }
 
+ETEST_archive_create_mount()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Creating files"
+        touch {file1,file2,file3,file4,XXX,YYY}
+        
+        etestmsg "Creating dest.${ftype}"
+        archive_create -x="XXX YYY" file1 file2 file3 file4 XXX YYY src.${ftype}
+        
+        # Mount it and verify mount type
+        archive_mount src.${ftype} dest
+        local atype=$(archive_type .${ftype})
+        if [[ ${atype} =~ tar|cpio ]]; then
+            assert_false emount_type dest
+        elif [[ ${atype} == iso ]]; then
+            assert_eq "iso9660" "$(emount_type dest)"
+        else
+            assert_eq "${atype}" "$(emount_type dest)"
+        fi
+
+        eunmount --all --recursive --delete dest src.${ftype}
+   done
+}
+
 ETEST_archive_extract()
 {
     local idx=0
@@ -730,7 +758,7 @@ ETEST_archive_extract_content()
     done
 }
 
-ETEST_archive_nice()
+ETEST_archive_xnice()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do

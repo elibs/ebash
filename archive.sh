@@ -515,7 +515,7 @@ archive_convert()
         trap_add "eunmount -r -d ${mnt}"
 
         # Mount (if possible) or extract the archive image if mounting is not supported.
-        archive_mount_or_extract "${src}" "${mnt}"
+        archive_mount "${src}" "${mnt}"
 
         # Now we can create a new archive from 'mnt'
         cd ${mnt}
@@ -545,7 +545,7 @@ archive_diff()
             mnts+=( "${mnt}" )
 
             # Mount (if possible) or extract the archive if mounting is not supported.
-            archive_mount_or_extract "${src}" "${mnt}"
+            archive_mount "${src}" "${mnt}"
         done
 
         diff --recursive --unified "${mnts[@]}"
@@ -554,10 +554,13 @@ archive_diff()
 
 # Mount a given archive type to a temporary directory read-only if mountable
 # and if not extract it to the destination directory.
-archive_mount_or_extract()
+archive_mount()
 {
     $(opt_parse src dest)
     local src_type=$(archive_type "${src}")
+
+    # Create destination directory in case it doesn't exist
+    mkdir -p "${dest}"
 
     # SQUASHFS or ISO can be directly mounted
     if [[ ${src_type} =~ squashfs|iso ]]; then
