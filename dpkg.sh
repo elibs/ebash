@@ -24,7 +24,7 @@ dpkg_compare_versions()
 
     local dpkg_options=(--compare-versions "${v1}" "${op}" "${v2}" )
     if [[ -n ${chroot} ]] ; then
-        CHROOT=${chroot} chroot_dpkg "${dpkg_options[@]}"
+        CHROOT=${chroot} chroot_dpkg "${dpkg_options[@]}" &>/dev/null
     else
         dpkg "${dpkg_options[@]}"
     fi
