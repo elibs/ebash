@@ -90,7 +90,7 @@ chroot_cmd()
 {
     argcheck CHROOT
 
-    einfos $@
+    edebug "${@}"
     chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
 }
 
@@ -148,7 +148,7 @@ chroot_readlink()
     argcheck CHROOT
     $(opt_parse path)
 
-    echo -n "${CHROOT}$(chroot_cmd readlink -f "${path}" 2>/dev/null)"
+    echo -n "${CHROOT}$(chroot_cmd readlink -f "${path}")"
 }
 
 #-----------------------------------------------------------------------------
@@ -161,13 +161,13 @@ CHROOT_ENV="/usr/bin/env USER=root SUDO_USER=root HOME=/root DEBIAN_FRONTEND=non
 
 chroot_apt_update()
 {
-    chroot_cmd apt-get update >/dev/null
+    chroot_cmd apt-get update
 }
 
 chroot_apt_clean()
 {
-    chroot_cmd apt-get clean >/dev/null
-    chroot_cmd apt-get autoclean >/dev/null
+    chroot_cmd apt-get clean
+    chroot_cmd apt-get autoclean
 }
 
 chroot_install_with_apt_get()
@@ -306,9 +306,9 @@ chroot_apt_setup()
     for keyname in solidfire_signing_key.pub dell_openmanage_key.pub gcc_ppa_repo.pub; do
         einfos ${keyname}
 
-        chroot_cmd wget -q http://${HOST}/${keyname} -O /tmp/${keyname} &>/dev/null
-        chroot_cmd apt-key add /tmp/${keyname}                          &>/dev/null
-        chroot_cmd rm --force  /tmp/${keyname}                          &>/dev/null
+        chroot_cmd wget -q http://${HOST}/${keyname} -O /tmp/${keyname}
+        chroot_cmd apt-key add /tmp/${keyname}
+        chroot_cmd rm --force  /tmp/${keyname}
     done
 
     # Add SolidFire entries after adding SolidFire APT public keys then
