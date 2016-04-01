@@ -26,6 +26,7 @@ ETEST_overlayfs_mount()
 
         etestmsg "Mounting src.${ftype} at dest"
         overlayfs_mount src.${ftype} dest
+        assert_eq "${__BU_OVERLAYFS}" "$(emount_type dest)"
         overlayfs_tree dest
         assert_directory_contents dest file1 file2
         diff --recursive src dest
