@@ -154,16 +154,16 @@ archive_compress_program()
 archive_create()
 {
     $(opt_parse \
-        "+best            | Use the best compression (level=9)." \
-        ":dir d           | Directory to cd into before archive creation." \
-        "+bootable boot b | Make the ISO bootable (ISO only)." \
-        ":exclude x       | List of paths to be excluded from archive." \
-        "+fast            | Use the fastest compression (level=1)." \
-        "+ignore_missing i| Ignore missing files instead of failing and returning non-zero." \
-        ":level l=9       | Compression level (1=fast, 9=best)." \
-        "+nice n          | Be nice and use non-parallel compressors and only a single core." \
-        ":type t          | Override automatic type detection and use explicit archive type." \
-        ":volume v        | Optional volume name to use (ISO only).")
+        "+best             | Use the best compression (level=9)." \
+        ":directory dir  d | Directory to cd into before archive creation." \
+        "+bootable boot b  | Make the ISO bootable (ISO only)." \
+        ":exclude x        | List of paths to be excluded from archive." \
+        "+fast             | Use the fastest compression (level=1)." \
+        "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
+        ":level l=9        | Compression level (1=fast, 9=best)." \
+        "+nice n           | Be nice and use non-parallel compressors and only a single core." \
+        ":type t           | Override automatic type detection and use explicit archive type." \
+        ":volume v         | Optional volume name to use (ISO only).")
 
     # Parse positional arguments into a bashutils array. Then grab final argument
     # which is the destination.
@@ -193,8 +193,8 @@ archive_create()
         enable_trace
 
         # If requested change directory first
-        if [[ -n ${dir} ]]; then
-            cd "${dir}"
+        if [[ -n ${directory} ]]; then
+            cd "${directory}"
         fi
             
         # Create excludes file
