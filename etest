@@ -164,7 +164,7 @@ global_setup()
     efreshdir ${TEST_DIR_OUTPUT}
 
     # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
-    export TMPDIR=${TEST_DIR_OUTPUT}/tmp
+    export TMPDIR=$(readlink -m ${TEST_DIR_OUTPUT}/tmp)
     mkdir ${TMPDIR}
  
     if cgroup_supported ; then
@@ -225,7 +225,7 @@ run_single_test()
         __BU_INSIDE_TRY=0
 
         # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
-        export TMPDIR=${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}/tmp
+        export TMPDIR=$(readlink -m ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}/tmp)
         efreshdir ${TMPDIR}
  
         if cgroup_supported ; then
