@@ -37,6 +37,20 @@ fi
 : ${COLOR_BRACKET:="bold blue"}
 : ${COLOR_BANNER:="bold magenta"}
 
+# Any functions whose names are "==" to this are exempt from ETRACE.  In other
+# words, even if ETRACE=1, these functions actions will not be displayed in the
+# output.
+#
+# By default, these are excluded:
+#   - Any parts of opt_parse (plus trim because opt_parse uses it)
+#   - Emsg and other message producing internals (but not the message
+#     functions like edebug, einfo)
+#   - Internals of die and stack generation (but leaving some parts of die
+#     so it's more clear what is happening.)
+#   - Signame, which does translations amongst signal names in various styles
+#     and signal numbers.
+: ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|trim|print_value|lval|disable_signals|reenable_signals|eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
+
 #-----------------------------------------------------------------------------
 # DEBUGGING
 #-----------------------------------------------------------------------------
@@ -81,12 +95,7 @@ etrace()
 
     # Whether we got here because ETRACE=1 or because a function was
     # specifically chosen, we still leave out blacklisted functions
-    #    - Any parts of opt_parse (plus trim because opt_parse uses it)
-    #    - Emsg and other message producing internals (but not the message
-    #      functions like edebug, einfo)
-    #    - Internals of die and stack generation (but leaving some parts of die
-    #      so it's more clear what is happening.)
-    if [[ ${FUNCNAME[1]} == @(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|trim|print_value|lval|disable_signals|reenable_signals|eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array) ]] ; then
+    if [[ ${FUNCNAME[1]} == ${ETRACE_BLACKLIST} ]] ; then
         return 0
     fi
 
