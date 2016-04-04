@@ -37,6 +37,20 @@ fi
 : ${COLOR_BRACKET:="bold blue"}
 : ${COLOR_BANNER:="bold magenta"}
 
+# Any functions whose names are "==" to this are exempt from ETRACE.  In other
+# words, even if ETRACE=1, these functions actions will not be displayed in the
+# output.
+#
+# By default, these are excluded:
+#   - Any parts of opt_parse (plus trim because opt_parse uses it)
+#   - Emsg and other message producing internals (but not the message
+#     functions like edebug, einfo)
+#   - Internals of die and stack generation (but leaving some parts of die
+#     so it's more clear what is happening.)
+#   - Signame, which does translations amongst signal names in various styles
+#     and signal numbers.
+: ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|trim|print_value|lval|disable_signals|reenable_signals|eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
+
 #-----------------------------------------------------------------------------
 # DEBUGGING
 #-----------------------------------------------------------------------------
@@ -53,22 +67,44 @@ alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DE
 
 etrace()
 {
+    # This function returns as soon as it can decide that tracing should not
+    # happen.  If it makes its way to the end, then it finally does the tracing
+    # it must do.
+
+    # Is tracing globally off?
     [[ ${ETRACE} == "" || ${ETRACE} == "0" ]] && return 0 || true
 
-    # If ETRACE=1 then it's enabled globally
-    if [[ ${ETRACE} != "1" ]]; then
-        local _etrace_enabled_tmp=""
-        local _etrace_enabled=0
 
-        for _etrace_enabled_tmp in ${ETRACE}; do
-            [[ ${BASH_SOURCE[1]:-} = *"${_etrace_enabled_tmp}"*
-                || ${FUNCNAME[1]:-} = *"${_etrace_enabled_tmp}"* ]] && { _etrace_enabled=1; break; }
+    # Is tracing enabled, but not globally (i.e. now we check function and
+    # filenames)
+    if [[ ${ETRACE} != "1" ]]; then
+
+        local caller=${FUNCNAME[$index]}
+        local filename=${BASH_SOURCE[$index]}
+        local should_be_enabled=0
+
+        local word
+        for word in ${ETRACE}; do
+            [[ ${BASH_SOURCE[1]:-} = *"${word}"*
+                || ${FUNCNAME[1]:-} = *"${word}"* ]] && { should_be_enabled=1; break; }
         done
 
-        [[ ${_etrace_enabled} -eq 1 ]] || return 0
+        [[ ${should_be_enabled} -eq 1 ]] || return 0
     fi
 
-    echo "$(ecolor ${COLOR_TRACE})[$(basename ${BASH_SOURCE[1]:-} 2>/dev/null || true):${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]$(ecolor none) ${BASH_COMMAND}" >&2
+
+    # Whether we got here because ETRACE=1 or because a function was
+    # specifically chosen, we still leave out blacklisted functions
+    if [[ ${FUNCNAME[1]} == ${ETRACE_BLACKLIST} ]] ; then
+        return 0
+    fi
+
+    {
+        ecolor ${COLOR_TRACE}
+        echo -n "[${BASH_SOURCE[1]##*/}:${BASH_LINENO[0]:-}:${FUNCNAME[1]:-}:${BASHPID}]"
+        ecolor none
+        echo "${BASH_COMMAND}"
+    } >&2
 }
 
 edebug_enabled()
@@ -1089,7 +1125,8 @@ emsg()
                             echo -n "${level}"
                             ;;
                         caller)
-                            echo -n "$(basename ${BASH_SOURCE[2]}):${BASH_LINENO[1]}:${FUNCNAME[2]:-}"
+                            # First field is filename with path info stripped off
+                            echo -n "${BASH_SOURCE[2]##*/}:${BASH_LINENO[1]}:${FUNCNAME[2]:-}"
                             ;;
                         pid)
                             echo -n "${BASHPID}"
