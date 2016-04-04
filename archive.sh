@@ -332,7 +332,6 @@ archive_create()
 archive_extract()
 {
     $(opt_parse \
-        ":exclude x        | List of paths to be excluded from archive." \
         "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
         "+nice n           | Be nice and use non-parallel compressors and only a single core." \
         ":type t           | Override automatic type detection and use explicit archive type." \
