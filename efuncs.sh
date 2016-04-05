@@ -79,14 +79,12 @@ etrace()
     # filenames)
     if [[ ${ETRACE} != "1" ]]; then
 
-        local caller=${FUNCNAME[$index]}
-        local filename=${BASH_SOURCE[$index]}
         local should_be_enabled=0
 
         local word
         for word in ${ETRACE}; do
-            [[ ${BASH_SOURCE[1]:-} = *"${word}"*
-                || ${FUNCNAME[1]:-} = *"${word}"* ]] && { should_be_enabled=1; break; }
+            [[ ${BASH_SOURCE[1]:-} == *"${word}"*
+                || ${FUNCNAME[1]:-} == *"${word}"* ]] && { should_be_enabled=1; break; }
         done
 
         [[ ${should_be_enabled} -eq 1 ]] || return 0
@@ -803,10 +801,14 @@ _bashutils_on_exit_end()
 {
     reenable_signals
 
-    # If we are at the top of the process stack and we are exiting with a non-zero return code 
-    # then we have to guarnatee die() gets called. 
-    if [[ $$ -eq ${BASHPID} && ${__BU_INTERNAL_EXIT:=0} -ne 1 && ${__BU_EXIT_CODE} -ne 0 ]]; then
-        eval "die -f=4 ${DIE_MSG_UNHERR}"
+    # If we're exiting with non-zero exit code, make sure that it occurred
+    # through our custom exit function.  The only reason we currently believe
+    # that it will _not_ go through that path is if bash dies due to an unset
+    # variable.
+    #
+    # Then we execute die to try to make it more clear where things went crazy.
+    if [[ ${__BU_INTERNAL_EXIT:-0} != "1" && ${__BU_EXIT_CODE:-} != "0" ]]; then
+        eval "die ${DIE_MSG_UNHERR}"
     fi
 }
 
@@ -847,13 +849,9 @@ die_on_abort()
 {
     export __BU_DIE_ON_ABORT_ENABLED=1
 
-    local signals=( "${@}" )
-    [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
-
     local signal
-    for signal in "${signals[@]}" ; do
-        local signal_name=$(signame -s ${signal})
-        trap "die -s=${signal_name} \"[Caught ${signal_name} pid=\${BASHPID} cmd=\${BASH_COMMAND}\"]" ${signal}
+    for signal in "${DIE_SIGNALS[@]}" ; do
+        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\${BASH_COMMAND}\"]" ${signal}
     done
 }
 
