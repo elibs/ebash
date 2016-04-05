@@ -24,7 +24,7 @@ source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bash
 
 die_handler()
 {
-    edebug "DIE_HANDLER called"
+    einfo "$0: DIE_HANDLER called"
     echo "DIE" >> "${OUTPUT}"
 }
 
@@ -35,16 +35,16 @@ exit 0
 EOF
 chmod +x ${SCRIPT}
 
-# Run the script we created above
+einfo "Running generated script ${SCRIPT}"
 ${SCRIPT}
 
-# Assert proper order of events happened
-einfo "Output file:"
+einfo "It produced output file:"
 cat ${OUTPUT}
 assert_eq 2 $(wc -l ${OUTPUT})
 first=$(head -1 ${OUTPUT})
 last=$(tail -1 ${OUTPUT})
 
+einfo "Asserting proper ordering in that file."
 assert_eq "DIE" "${first}" "die() not called first"
 assert_eq "TRAP" "${last}" "trap not called second"
 
