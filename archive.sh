@@ -219,7 +219,7 @@ archive_create()
                     exclude_prefix="./"
                 fi
 
-                find ${excludes[@]} | sed "s|^|${exclude_prefix}|" 2>/dev/null || true
+                find ${excludes[@]} -maxdepth 0 2>/dev/null | sed "s|^|${exclude_prefix}|" || true
             done | sort --unique >> "${exclude_file}"
         fi
 
