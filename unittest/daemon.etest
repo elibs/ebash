@@ -39,7 +39,7 @@ ETEST_daemon_start_stop()
 
     # Wait for process to be running
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
     assert_true daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
@@ -114,7 +114,7 @@ DISABLED_ETEST_daemon_netns()
     etestmsg "Waiting for infinity daemon"
     # Wait for process to be running
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
     assert_true daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
     assert process_running $(cat ${pidfile})
@@ -155,7 +155,7 @@ ETEST_daemon_cgroup()
     etestmsg "Running daemon"
     daemon_start sleep_daemon
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
     assert_true daemon_running sleep_daemon
     assert [[ -s ${pidfile} ]]
 
@@ -187,7 +187,7 @@ ETEST_daemon_hooks()
     # START
     daemon_start sleep_daemon
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
     assert_true daemon_running sleep_daemon
 
     # STOP
@@ -210,7 +210,7 @@ ETEST_daemon_pre_start_fail()
         pidfile="${pidfile}"                      \
         pre_start="false"                         \
         pre_stop="touch ${FUNCNAME}.pre_stop"     \
-        post_start="touch ${FUNCNAME}.post_start" \
+        post_mount="touch ${FUNCNAME}.post_mount" \
         post_stop="touch ${FUNCNAME}.post_stop"   \
         respawns="3"                              \
         respawn_interval="1"                      \
@@ -218,7 +218,7 @@ ETEST_daemon_pre_start_fail()
     # START
     daemon_start sleep_daemon
     eretry -T=30s daemon_not_running sleep_daemon
-    assert_not_exists ${FUNCNAME}.post_start
+    assert_not_exists ${FUNCNAME}.post_mount
 }
 
 # Ensure logfile works inside daemon
@@ -250,7 +250,7 @@ ETEST_daemon_logfile()
         etestmsg "Starting daemon"
         daemon_start mdaemon
         daemon_expect pre_start
-        daemon_expect post_start
+        daemon_expect post_mount
         assert_true daemon_running mdaemon
 
         # Give the daemon time to write and flush
@@ -294,7 +294,7 @@ ETEST_daemon_respawn()
 
     # Wait for pre_start and "start" states then daemon must be running
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
     assert process_running $(cat ${pidfile})
@@ -319,7 +319,7 @@ ETEST_daemon_respawn()
         # Now wait for process to respawn
         etestmsg "Waiting for daemon to respawn"
         daemon_expect pre_start
-        daemon_expect post_start
+        daemon_expect post_mount
         assert daemon_running sleep_daemon
         assert daemon_status  sleep_daemon
         assert process_running $(cat ${pidfile})
@@ -356,7 +356,7 @@ ETEST_daemon_respawn_reset()
 
     # Wait for pre_start and "start" states then daemon must be running
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
     assert process_running $(cat ${pidfile})
@@ -377,7 +377,7 @@ ETEST_daemon_respawn_reset()
         # Now wait for process to respawn
         etestmsg "Waiting for daemon to respawn"
         daemon_expect pre_start
-        daemon_expect post_start
+        daemon_expect post_mount
         assert daemon_running sleep_daemon
         assert daemon_status  sleep_daemon
         assert process_running $(cat ${pidfile})
