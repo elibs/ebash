@@ -39,6 +39,12 @@
       signal is one of the TTY signals.  Doing that on other signals such as
       sigterm can cause bash not to execute exit traps.
 
+    - The daemon utilities no longer support a post_start hook but do support a
+      post_mount hook.  That ability exists mostly to aid in testing the daemon
+      utilities, but perhaps it is also useful elsewhere.  Better logging
+      should be produced by the daemon bashutils functions into the daemon's
+      log file if you request one.
+
     - Chroot_kill now defaults to sigterm rather than sigkill.
 
     - Exceptions, unhandled errors, and caught signals now report the pid of
