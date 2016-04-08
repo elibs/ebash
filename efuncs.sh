@@ -200,6 +200,7 @@ alias try="
         enable_trace
         die_on_abort
         trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
+        __BU_DIE_ON_ERROR_ENABLED=1
     "
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -780,6 +781,12 @@ trap_add()
         [[ -n "${existing}" ]] && complete_trap+="${existing}; "
         [[ ${sig} == "EXIT" ]] && complete_trap+="_bashutils_on_exit_end"
         trap -- "${complete_trap}" "${sig}"
+
+        # The call to trap above will reset our error trap so we need to check 
+        # if it's supposed to be on and if so re-enable it.
+        if [[ ${__BU_DIE_ON_ERROR_ENABLED} -eq 1 ]]; then
+            die_on_error
+        fi
     done
 }
 
@@ -851,7 +858,7 @@ die_on_abort()
 
     local signal
     for signal in "${DIE_SIGNALS[@]}" ; do
-        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\${BASH_COMMAND}\"]" ${signal}
+        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\${BASH_COMMAND%%$'\n'*}\"]" ${signal}
     done
 }
 

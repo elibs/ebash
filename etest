@@ -293,9 +293,9 @@ run_all_tests_in_file()
 
     # Get all function names that begin with ETEST_ (and optionally match $2)
     if [[ -z ${filter} || ${testfile} =~ ${filter} ]]; then
-        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" {print $3}' ) )
+        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" {print $3}' || true) )
     else
-        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${filter}'" {print $3}') )
+        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${filter}'" {print $3}' || true) )
     fi
     edebug $(lval testfile ETEST_FUNCTIONS)
 

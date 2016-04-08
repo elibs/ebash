@@ -384,9 +384,6 @@ overlayfs_dedupe()
     for path in $(find ${upper} -type f); do
 
         (
-            die_on_error
-            enable_trace
-
             if cmp --quiet "${path}" "${lower}/${path#${upper}}"; then
                 edebug "Found duplicate $(lval path)"
                 rm --force "${path}"

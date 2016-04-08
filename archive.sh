@@ -189,9 +189,6 @@ archive_create()
 
     # Put entire function into a subshell to ensure clean up traps execute properly.
     (
-        die_on_error
-        enable_trace
-
         # If requested change directory first
         if [[ -n ${directory} ]]; then
             cd "${directory}"
@@ -352,9 +349,6 @@ archive_extract()
 
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
-            die_on_error
-            enable_trace
-
             local mnt=$(mktemp --tmpdir --directory archive-mnt-XXXXXX)
             mount --read-only "${src}" "${mnt}"
             trap_add "eunmount -r -d ${mnt}"
@@ -531,9 +525,6 @@ archive_diff()
 {
     # Put body in a subshell to ensure traps perform clean-up.
     (
-        die_on_error
-        enable_trace
-
         local mnts=()
         local src
         for src in "${@}"; do
