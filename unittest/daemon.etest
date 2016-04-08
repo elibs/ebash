@@ -253,6 +253,9 @@ ETEST_daemon_logfile()
         daemon_expect post_start
         assert_true daemon_running mdaemon
 
+        # Give the daemon time to write and flush
+        sleep 1
+
         etestmsg "Stopping daemon"
         daemon_stop mdaemon &
         daemon_expect pre_stop
