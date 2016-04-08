@@ -118,7 +118,7 @@ assert_no_process_leaks()
     
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
-    $(tryrc eretry -T=5s -w=1 no_process_leaks_remain)
+    $(tryrc eretry -T=5s no_process_leaks_remain)
 
     # The above command could have timed out but that doesn't necessarily mean
     # there are leaked processes. So KILL anything that's left, but only DIE
