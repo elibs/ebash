@@ -242,8 +242,11 @@ daemon_start()
                 disable_die_parent
                 enable_trace
 
-                # Setup logfile
-                elogfile -o=1 -e=1 -t=0 "${logfile}"
+                # Normal shutdown for the daemon will cause SIGTERM to this
+                # process.  That's great, we'll let it shut us down, but
+                # without printing a stack trace because this is a normal
+                # situation.
+                trap - SIGTERM
 
                 if [[ -n ${chroot} ]]; then
                     export CHROOT=${chroot}
@@ -277,7 +280,7 @@ daemon_start()
                     $netns_cmd_prefix ${cmdline} || true
                 fi
 
-            ) &>/dev/null &
+            ) &
 
             # Get the PID of the process we just created and store into requested pid file.
             local pid=$!
@@ -293,9 +296,6 @@ daemon_start()
             # it).
             SECONDS=0
             wait ${pid} &>/dev/null || true
-
-            # Setup logfile
-            elogfile -o=1 -e=1 -t=0 "${logfile}"
 
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }

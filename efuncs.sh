@@ -1073,8 +1073,9 @@ ebanner()
 
         # Close the banner
         echo -e "|"
-        echo -e "+${str}+"
+        echo -en "+${str}+"
         ecolor none
+        echo ""
 
     } >&2
 
