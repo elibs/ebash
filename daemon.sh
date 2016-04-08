@@ -79,10 +79,11 @@
 #   command to be executed. If more complexity is required use a function.
 #   Any errors from this hook are ignored.
 #
-# post_start
-#   Optional hook to be executed after starting the daemon. Must be a single
-#   command to be executed. If more complexity is required use a function.
-#   Any errors from this hook are ignored.
+# post_mount
+#   Optional hook to be executed after bind mounts have been created but before
+#   starting the daemon. Must be a single command to be executed. If more
+#   complexity is required use a function. This hook is invoked regardless of
+#   whether this daemon has bind mounts. Any errors from this hook are ignored
 #
 # post_stop
 #   Optional hook to be exected after stopping the daemon. Must be a single
@@ -129,7 +130,7 @@ daemon_init()
         logfile_size=0      \
         pre_start=          \
         pre_stop=           \
-        post_start=         \
+        post_mount=         \
         post_stop=          \
         post_crash=         \
         post_abort=         \
@@ -275,10 +276,17 @@ daemon_start()
                         done
                     fi
 
+                    # Execute optional post_mount hook. Ignore any errors.
+                    $(tryrc ${post_mount})
+
                     $netns_cmd_prefix chroot_cmd ${cmdline} || true
                 else
+
+                    # Execute optional post_mount hook. Ignore any errors.
+                    $(tryrc ${post_mount})
                     $netns_cmd_prefix ${cmdline} || true
                 fi
+
 
             ) &
 
@@ -286,9 +294,6 @@ daemon_start()
             local pid=$!
             echo "${pid}" > "${pidfile}"
             eend 0
-
-            # Execute optional post_start hook. Ignore any errors.
-            $(tryrc ${post_start})
 
             # SECONDS is a magic bash variable keeping track of the number of
             # seconds since the shell started, we can modify it without messing

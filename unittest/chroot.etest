@@ -178,7 +178,7 @@ ETEST_chroot_daemon_start_stop()
     etestmsg "Starting chroot daemon"
     daemon_start sleep_daemon
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
     etestmsg "Started successfully"
     
     # Now stop it and verify proper shutdown
@@ -218,7 +218,7 @@ ETEST_chroot_daemon_bindmount()
     etestmsg "Starting chroot daemon"
     daemon_start sleep_daemon
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
 
     # Verify mounts are mounted
     etestmsg "Verifying mounts were mounted"
@@ -256,6 +256,7 @@ ETEST_chroot_daemon_bindmount_file()
     trap_add "eunmount -r -d ${tmpdir1} ${tmpdir2}"
     touch ${tmpdir1}/{1,2,3,4,5} ${tmpdir2}/{1,2,3,4,5}
     local bindmounts=( $(find ${tmpdir1} ${tmpdir2} -type f) )
+    local logfile=logfile.log
     touch ${tmpdir1}/XXX
 
     etestmsg "Initializating daemon $(lval bindmounts)"
@@ -267,13 +268,13 @@ ETEST_chroot_daemon_bindmount_file()
         chroot="${CHROOT}"                   \
         name="Infinity"                      \
         cmdline="sleep infinity"             \
-        logfile="logfile.log"                \
+        logfile="${logfile} "                \
         pidfile="${pidfile}"
 
     etestmsg "Starting chroot daemon"
     daemon_start sleep_daemon
     daemon_expect pre_start
-    daemon_expect post_start
+    daemon_expect post_mount
 
     # Verify mounts are mounted
     etestmsg "Verifying mounts were mounted"
@@ -287,7 +288,7 @@ ETEST_chroot_daemon_bindmount_file()
     daemon_expect pre_stop
     daemon_expect post_stop
     wait
- 
+
     # Verify mounts are NOT mounted
     etestmsg "Verifying mounts were unmounted"
     for mnt in "${bindmounts[@]} ${tmpdir1}/YYY"; do
