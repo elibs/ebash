@@ -3395,7 +3395,7 @@ efetch()
     }
 }
 
-# Netselect choses the host that responds most quickly and reliably among a
+# Netselect chooses the host that responds most quickly and reliably among a
 # list of specified IP addresses or hostnames.  It does this by pinging each
 # and looking for response times as well as packet drops.
 netselect()
