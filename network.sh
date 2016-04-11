@@ -166,7 +166,11 @@ getmtu()
 # Get list of network interfaces
 get_network_interfaces()
 {
-    ls -1 /sys/class/net | egrep -v '(bonding_masters|Bond)' | tr '\n' ' ' || true
+    for iface in $(ls -1 /sys/class/net); do
+        # Skip virtual devices, we only want physical
+        [[ ! -e /sys/class/net/${iface}/device ]] && continue
+        echo "${iface}"
+    done | tr '\n' ' ' || true
 }
 
 # Get list network interfaces with specified "Supported Ports" query.
