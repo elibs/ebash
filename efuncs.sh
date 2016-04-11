@@ -793,6 +793,45 @@ trap_add()
     done
 }
 
+
+# Bashutils asks bash to let the ERR and DEBUG traps be inherited from shell to
+# subshell by setting appropriate shell options.  Unfortunately, its method of
+# enforcing that inheritance is somewhat limited.  It only lasts until someone
+# sets any other trap.  At that point, the inhertied trap is erased.
+#
+# To workaround this behavior, bashutils overrides "trap" such that it will do
+# the normal work that you expect trap to do, but it will also make sure that
+# the ERR and DEBUG traps are truly inherited from shell to shell and persist
+# regardless of whether other traps are created.
+#
+trap()
+{
+    # If trap received any options, don't do anything special.  Only -l and -p
+    # are supported by bash's trap and they don't affect the current set of
+    # traps.
+    if [[ $1 != -* ]] ; then
+
+        local trapsToSave=""
+
+        # __BU_TRAP_LEVEL is the ${BASH_SUBSHELL} value that was used the last time
+        # trap was called.  BASH_SUBSHELL is incremented for each nested subshell.
+        # At the top level, that is 0
+        if [[ ${__BU_TRAP_LEVEL:=0} -le ${BASH_SUBSHELL} ]] ; then
+
+            trapsToSave="$(trap -p ERR DEBUG)"
+            trapsToSave=${trapsToSave//^trap/builtin trap}
+
+            eval "${trapsToSave}"
+
+            __BU_TRAP_LEVEL=${BASH_SUBSHELL}
+        fi
+
+    fi
+
+    builtin trap "${@}"
+}
+
+
 _bashutils_on_exit_start()
 {
     # Save off the exit code the fist time the exit trap is called -- it can be
