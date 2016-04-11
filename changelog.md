@@ -71,6 +71,10 @@
       from + to % to be more similar to perl's hashes and to avoid using the
       plus sign differently in lval and opt_parse.
 
+    - netselect now supports options to make it quiet and to specify how many
+      times to test each host.  When only given a single host, netselect works
+      much faster. Now supports options to make 
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common
