@@ -285,7 +285,7 @@ archive_create()
         # ISO
         elif [[ ${dest_type} == iso ]]; then
 
-            cmd="mkisofs -iso-level 4 -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
+            cmd="mkisofs -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
             
             if [[ ${bootable} -eq 1 ]]; then
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
