@@ -2826,7 +2826,7 @@ empty string, but you can specify a default in your definition just as you
 would with arguments.
 
     $(opt_parse \
-        "-boolean b=1        | Boolean option that defaults to true" \
+        "+boolean b=1        | Boolean option that defaults to true" \
         ":string s=something | String option that defaults to "something")
 
 END
@@ -3395,21 +3395,30 @@ efetch()
     }
 }
 
+# Netselect chooses the host that responds most quickly and reliably among a
+# list of specified IP addresses or hostnames.  It does this by pinging each
+# and looking for response times as well as packet drops.
 netselect()
 {
+    $(opt_parse \
+        "+quiet q=0 | Don't display progress information, just print the chosen host on stdout." \
+        ":count c   | Number of times to ping.  Defaults to 10 for multiple hosts or 1 for a single host.")
+
     local hosts=$@; argcheck hosts
-    eprogress "Finding host with lowest latency from [${hosts}]"
+    [[ ${quiet} -eq 1 ]] || eprogress "Finding host with lowest latency $(lval hosts)"
+
+    [[ $# -eq 1 ]] && : ${count:=1} || : ${count:=10}
 
     declare -a results sorted rows
 
     for h in ${hosts}; do
-        local entry=$(ping -c10 -w5 -q $h 2>/dev/null | \
+        local entry=$(ping -c${count} -w5 -q $h 2>/dev/null | \
             awk '/^PING / {host=$2}
                  /packet loss/ {loss=$6}
                  /min\/avg\/max/ {
                     split($4,stats,"/")
                     printf("%s|%f|%f|%s|%f", host, stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
-                }')
+                }' || true)
 
         results+=("${entry}")
     done
@@ -3422,14 +3431,17 @@ netselect()
         array_add_nl rows "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${parts[4]}"
     done
 
-    eprogress_kill
-
-    ## SHOW ALL RESULTS ##
-    einfos "All results:"
-    etable ${rows[@]} >&2
-
     local best=$(echo "${sorted[0]}" | cut -d\| -f1)
-    einfos "Best host=[${best}]"
+
+    if [[ ${quiet} -ne 1 ]] ; then
+        eprogress_kill
+
+        ## SHOW ALL RESULTS ##
+        einfos "All results:"
+        etable ${rows[@]} >&2
+
+        einfos "Best host=[${best}]"
+    fi
 
     echo -en "${best}"
 }
@@ -4665,8 +4677,8 @@ assert_ne()
 
 assert_match()
 {
-    $(opt_parse "?lh" "?rh" "?msg")
-    [[ "${lh}" =~ "${rh}" ]] || die "assert_match failed [${msg:-}] :: $(lval lh rh)"
+    $(opt_parse "?text" "?regex" "?msg")
+    [[ "${text}" =~ ${regex} ]] || die "assert_match failed [${msg:-}] :: $(lval text regex)"
 }
 
 assert_not_match()
