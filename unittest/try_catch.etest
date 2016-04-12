@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+
+# Check if there is an error trap enabled. Returns success (0) if enabled and failure
+# (1) otherwise.
+err_trap_exists()
+{
+    trap -p | grep -q ERR
+}
+
 ETEST_ensure_trap_enabled_by_default()
 {
     # Simple sanity test to ensure the default setup in efuncs enables
@@ -7,7 +15,7 @@ ETEST_ensure_trap_enabled_by_default()
     # invalid.
     einfo "Verifying ERR trap is set"
     trap -p
-    die_on_error_enabled || die "ERR trap should be enabled"
+    err_trap_exists || die "ERR trap should be enabled"
 }
 
 ETEST_try_catch()
@@ -106,13 +114,13 @@ ETEST_nodie_on_error()
     # First ensure we have our trap set for ERR so that the test actually
     # validates we can disable the trap
     einfo "Verifying ERR trap is set"
-    die_on_error_enabled || die "ERR trap should be enabled"
+    err_trap_exists || die "ERR trap should be enabled"
 
     einfo "Disabling ERR trap"
     nodie_on_error
 
     einfo "Verifying ERR trap is unset"
-    ! die_on_error_enabled || die "ERR trap should be disabled"
+    ! err_trap_exists || die "ERR trap should be disabled"
    
     einfo "Intentionally causing an error..."
     false
@@ -126,14 +134,14 @@ ETEST_nodie_on_error_with_try_catch()
     # First ensure we have our trap set for ERR so that the test actually
     # validates we can disable the trap
     einfo "Verifying ERR trap is set"
-    die_on_error_enabled || die "ERR trap should be enabled"
+    err_trap_exists || die "ERR trap should be enabled"
 
     einfo "Disabling ERR trap"
     nodie_on_error
 
     # Verify die on error is not enabled
     einfo "Verifying ERR trap is unset"
-    ! die_on_error_enabled || die "ERR trap should be disabled"
+    ! err_trap_exists || die "ERR trap should be disabled"
     
     try
     {
@@ -147,7 +155,7 @@ ETEST_nodie_on_error_with_try_catch()
    
     # die_on_error should still be disabled
     einfo "Verifying ERR trap is unset after try/catch"
-    ! die_on_error_enabled || die "ERR trap should be disabled"
+    ! err_trap_exists || die "ERR trap should be disabled"
 }
 
 # Verify we are building up the try/catch enabled stack correctly.
@@ -175,31 +183,31 @@ ETEST_try_catch_stack()
     assert_stack_eq DIE CATCH
 
     # Add some more try-catches with various enable/disable
-    die_on_error_enabled || die "ERR trap should be enabled"
+    err_trap_exists || die "ERR trap should be enabled"
     nodie_on_error
-    ! die_on_error_enabled || die "ERR trap should be disabled"
+    ! err_trap_exists || die "ERR trap should be disabled"
 
     try
     {
-        die_on_error_enabled || die "ERR trap should be enabled"
+        err_trap_exists || die "ERR trap should be enabled"
         assert_stack_eq DIE CATCH NONE
 
         try
         {
-            die_on_error_enabled || die "ERR trap should be enabled"
+            err_trap_exists || die "ERR trap should be enabled"
             assert_stack_eq DIE CATCH NONE CATCH
            
             try
             {
-                die_on_error_enabled || die "ERR trap should be enabled"
+                err_trap_exists || die "ERR trap should be enabled"
                 assert_stack_eq DIE CATCH NONE CATCH CATCH
            
                 # Disable
                 nodie_on_error
-                ! die_on_error_enabled || die "ERR trap should be disabled"
+                ! err_trap_exists || die "ERR trap should be disabled"
                 try
                 {
-                    die_on_error_enabled || die "ERR trap should be enabled"
+                    err_trap_exists || die "ERR trap should be enabled"
                     assert_stack_eq DIE CATCH NONE CATCH CATCH NONE
            
                     false
@@ -207,11 +215,11 @@ ETEST_try_catch_stack()
                 }
                 catch
                 {
-                    ! die_on_error_enabled || die "ERR trap should be disabled"
+                    ! err_trap_exists || die "ERR trap should be disabled"
                     assert_stack_eq DIE CATCH NONE CATCH CATCH
                 }
                 
-                ! die_on_error_enabled || die "ERR trap should be disabled"
+                ! err_trap_exists || die "ERR trap should be disabled"
                 assert_stack_eq DIE CATCH NONE CATCH CATCH
                 
                 false
@@ -222,7 +230,7 @@ ETEST_try_catch_stack()
                 die "try block should not have thrown"
             }
      
-            die_on_error_enabled || die "ERR trap should be enabled"
+            err_trap_exists || die "ERR trap should be enabled"
             assert_stack_eq DIE CATCH NONE CATCH
             false
             die "try block should have thrown"
@@ -232,7 +240,7 @@ ETEST_try_catch_stack()
             assert_stack_eq DIE CATCH NONE
         }
         
-        die_on_error_enabled || die "ERR trap should be enabled"
+        err_trap_exists || die "ERR trap should be enabled"
         assert_stack_eq DIE CATCH NONE
         false
         die "try block should have thrown"
@@ -242,7 +250,7 @@ ETEST_try_catch_stack()
         assert_stack_eq DIE CATCH
     }
             
-    ! die_on_error_enabled || die "ERR trap should be disabled"
+    ! err_trap_exists || die "ERR trap should be disabled"
     assert_stack_eq DIE CATCH
 }
 

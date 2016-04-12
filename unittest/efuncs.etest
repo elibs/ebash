@@ -256,3 +256,126 @@ ETEST_process_hierarchy()
         assert array_contains tree ${process}
     done
 }
+
+ETEST_err_and_debug_traps_are_inherited()
+{
+    on_error()
+    {
+        echo "ERROR $BASHPID"
+    }
+
+    on_debug()
+    {
+        true
+    }
+
+    trap on_error ERR
+    trap on_debug DEBUG
+    local expected=$(trap -p ERR DEBUG)
+
+    etestmsg "Error trap is $(lval expected)"
+
+    (
+        etestmsg "Inside subshell you can see it."
+        assert_eq "${expected}" "$(trap -p ERR DEBUG)"
+
+        # Without bashutils shenanigans, bash will reset your inherited error
+        # trap after you set any other trap including SIGUSR1.  But bashutils
+        # overrides this and restores the ERR trap.
+        etestmsg "Verifying that it remains after a call to trap."
+        trap on_usr1 SIGUSR1
+        assert_eq "${expected}" "$(trap -p ERR DEBUG)"
+
+        (
+            etestmsg "Inside a second subshell."
+            assert_eq "${expected}" "$(trap -p ERR DEBUG)"
+
+            etestmsg "Verifying it still remains after a call to trap_add."
+            trap_add "true"
+            assert_eq "${expected}" "$(trap -p ERR DEBUG)"
+        )
+    )
+    etestmsg "End test."
+}
+
+ETEST_trap_add_two_per_shell()
+{
+    assert_not_exists {a,b,c,d,e,f}
+
+    (
+        trap_add "touch a"
+        trap_add "touch b"
+        (
+            trap_add "touch c"
+            trap_add "touch d"
+            (
+                trap_add "touch e"
+                trap_add "touch f"
+            )
+            assert_exists e f
+        )
+        assert_exists c d
+    )
+    assert_exists a b
+
+    rm -f {a,b,c,d,e,f}
+}
+
+ETEST_etrace()
+{
+    func_to_trace()
+    {
+        echo A
+        echo B
+        echo C
+    }
+
+    ETRACE=func_to_trace
+    etestmsg "Running func_to_trace with $(lval ETRACE)"
+    $(tryrc -o=stdout -e=stderr func_to_trace)
+
+    etestmsg "Ran func_to_trace which produced this output (note: stdout and stderr are no longer interleaved)"
+    echo "${stdout}"
+    echo "${stderr}"
+
+    # Output from the echos
+    assert_eq "3" "$(echo "${stdout}" | wc -l)"
+
+    # Each of the echo lines, plus the original function call
+    assert_eq "4" "$(echo "${stderr}" | wc -l)"
+
+    assert_match "${stderr}" "echo A"
+    assert_match "${stderr}" "echo B"
+    assert_match "${stderr}" "echo B"
+
+    assert_match "${stderr}" "func_to_trace"
+    assert_match "${stderr}" "${BASH_SOURCE##*/}"
+
+    ETRACE=""
+    etestmsg "Running func_to_trace with $(lval ETRACE)"
+    $(tryrc -o=stdout -e=stderr func_to_trace)
+
+    assert_eq "3" "$(echo "${stdout}" | wc -l)"
+    assert_empty "${stderr}"
+}
+
+ETEST_truncate()
+{
+    string=1234567890
+
+    assert_eq "123"        "$(truncate 3  "${string}")"
+    assert_eq "1234567890" "$(truncate 10 "${string}")"
+    assert_eq "1234567890" "$(truncate 99 "${string}")"
+
+    assert_eq "1234..."    "$(truncate -e 7  "${string}")"
+    assert_eq "123456..."  "$(truncate -e 9  "${string}")"
+    assert_eq "1234567890" "$(truncate -e 10 "${string}")"
+    assert_eq "1234567890" "$(truncate -e 99 "${string}")"
+
+    string=" something   with   whitespace "
+    assert_eq "${string}"         "$(truncate -e 100 "${string}")"
+    assert_eq "${string}"         "$(truncate -e 100 "${string}")"
+    assert_eq "${string}"         "$(truncate -e  31 "${string}")"
+    assert_eq "${string:0:15}"    "$(truncate     15 "${string}")"
+    assert_eq "${string:0:12}..." "$(truncate -e  15 "${string}")"
+}

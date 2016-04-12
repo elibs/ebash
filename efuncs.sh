@@ -171,9 +171,10 @@ edebug_out()
 # TRY / CATCH
 #-----------------------------------------------------------------------------
 
-DIE_MSG_KILLED="\"[Killed]\""
-DIE_MSG_CAUGHT="\"[ExceptionCaught pid=\${BASHPID} cmd=\${BASH_COMMAND}]\""
-DIE_MSG_UNHERR="\"[UnhandledError pid=\${BASHPID} cmd=\${BASH_COMMAND}]\""
+DIE_MSG_KILLED='[Killed]'
+DIE_MSG_CAUGHT='[ExceptionCaught pid=$BASHPID cmd=$(truncate -e 60 ${BASH_COMMAND})]'
+DIE_MSG_UNHERR='[UnhandledError pid=$BASHPID cmd=$(truncate -e 60 ${BASH_COMMAND})]'
+
 
 # The below aliases allow us to support rich error handling through the use
 # of the try/catch idom typically found in higher level languages. Essentially
@@ -201,9 +202,6 @@ alias try="
         die_on_abort
         trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
     "
-    # NOTE: __BU_DIE_ON_ERROR_ENABLED should not be manually set inside the try
-    # here.  This isn't the typical ERR trap, but a special one only used for
-    # try/catch
 
 
 # Catch block attached to a preceeding try block. This is a rather complex
@@ -254,18 +252,26 @@ inside_try()
     [[ ${__BU_INSIDE_TRY:-0} -eq 1 ]]
 }
 
-# die_on_error is a simple alias to register our trap handler for ERR. It is
-# extremely important that we use this mechanism instead of the expected
-# 'set -e' so that we have control over how the process exit is handled by
-# calling our own internal 'die' handler. This allows us to either exit or
-# kill the entire process tree as needed.
+# die_on_error registers a trap handler for ERR. It is extremely important that
+# we use this mechanism instead of the expected 'set -e' so that we have
+# control over how the process exit is handled by calling our own internal
+# 'die' handler. This allows us to either exit or kill the entire process tree
+# as needed.
 #
 # NOTE: This is extremely unobvious, but setting a trap on ERR implicitly
 # enables 'set -e'.
-alias die_on_error='export __BU_DIE_ON_ERROR_ENABLED=1; trap "die ${DIE_MSG_UNHERR}" ERR'
+die_on_error()
+{
+    trap "die ${DIE_MSG_UNHERR}" ERR
+}
 
-# Disable calling die on ERROR.
-alias nodie_on_error="export __BU_DIE_ON_ERROR_ENABLED=0; trap - ERR"
+# disable the bashutils ERR trap handler.  Calling this is akin to calling 'set
+# +e'.  Bashutils will no longer detect errors for you in this shell.
+#
+nodie_on_error()
+{
+    trap - ERR
+}
 
 # Prevent an error or other die call in the _current_ shell from killing its
 # parent.  By default with bashutils, errors propagate to the parent by sending
@@ -275,13 +281,6 @@ alias nodie_on_error="export __BU_DIE_ON_ERROR_ENABLED=0; trap - ERR"
 # don't want an error in them to cause you to be notified via sigterm.
 #
 alias disable_die_parent="declare __BU_DISABLE_DIE_PARENT_PID=\${BASHPID}"
-
-# Check if die_on_error is enabled. Returns success (0) if enabled and failure
-# (1) otherwise.
-die_on_error_enabled()
-{
-    trap -p | grep -q ERR
-}
 
 # Convert stream names (e.g. 'stdout') to cannonical file descriptor numbers:
 #
@@ -751,31 +750,21 @@ trap_add()
     for sig in "${signals[@]}"; do
         sig=$(signame -s ${sig})
 
-        # If we're at the same shell level as a previous trap_add invocation,
-        # then append to the existing trap. Otherwise if we're changing shell
-        # levels, optionally use die() as base trap if DIE_ON_ERROR or
-        # ABORT_ON_ERROR are enabled.
+        # If we're at the same shell level where we have set any trap, then
+        # it's safe to append to the existing trap.  If we haven't set any trap
+        # in this shell level, bash will show us the parent shell's traps
+        # instead and we don't want to copy those into this shell.
         local existing=""
-        if [[ ${__BU_TRAP_ADD_SHELL_LEVEL:-} == ${BASH_SUBSHELL} ]]; then
+        if [[ ${__BU_TRAP_LEVEL:-0} -eq ${BASH_SUBSHELL} ]]; then
             existing="$(trap_get ${sig})"
 
             # Strip off our bashutils internal cleanup from the trap, because
             # we'll add it back in later.
             existing=${existing%%; _bashutils_on_exit_end}
             existing=${existing##_bashutils_on_exit_start; }
-        else
-            __BU_TRAP_ADD_SHELL_LEVEL=${BASH_SUBSHELL}
 
-            # Clear any existing trap since we're in a subshell
-            trap - "${sig}"
-
-            # See if we need to turn on die or not
-            if [[ ${sig} == "ERR" && ${__BU_DIE_ON_ERROR_ENABLED:-} -eq 1 ]]; then
-                existing="die \"${DIE_MSG_UNHERR}\""
-
-            elif [[ ${sig} != "EXIT" && ${__BU_DIE_ON_ABORT_ENABLED:-} -eq 1 ]]; then
-                existing="die \"${DIE_MSG_KILLED}\""
-            fi
+            # __BU_TRAP_LEVEL is owned and updated by our trap() function.
+            # It'll update it soon.
         fi
 
         local complete_trap
@@ -785,11 +774,6 @@ trap_add()
         [[ ${sig} == "EXIT" ]] && complete_trap+="_bashutils_on_exit_end"
         trap -- "${complete_trap}" "${sig}"
 
-        # The call to trap above will reset our error trap so we need to check 
-        # if it's supposed to be on and if so re-enable it.
-        if [[ ${__BU_DIE_ON_ERROR_ENABLED} -eq 1 ]]; then
-            die_on_error
-        fi
     done
 }
 
@@ -809,18 +793,22 @@ trap()
     # If trap received any options, don't do anything special.  Only -l and -p
     # are supported by bash's trap and they don't affect the current set of
     # traps.
-    if [[ $1 != -* ]] ; then
-
-        local trapsToSave=""
+    if [[ "$1" == "--" || "$1" != -* ]] ; then
 
         # __BU_TRAP_LEVEL is the ${BASH_SUBSHELL} value that was used the last time
         # trap was called.  BASH_SUBSHELL is incremented for each nested subshell.
         # At the top level, that is 0
-        if [[ ${__BU_TRAP_LEVEL:=0} -le ${BASH_SUBSHELL} ]] ; then
+        if [[ ${__BU_TRAP_LEVEL:=0} -lt ${BASH_SUBSHELL} ]] ; then
 
-            trapsToSave="$(trap -p ERR DEBUG)"
-            trapsToSave=${trapsToSave//^trap/builtin trap}
+            local trapsToSave="$(builtin trap -p ERR DEBUG)"
 
+            # Call "builtin trap" rather than "trap" because we don't want to
+            # recurse infinitely.  Note, the backslashes before the hyphens in
+            # this pattern are superfluous to bash, but they make vim's syntax
+            # highlighting much happier.
+            trapsToSave="${trapsToSave//trap --/builtin trap \-\-}"
+
+            # Call the trap builtin to set those ERR and DEBUG traps first
             eval "${trapsToSave}"
 
             __BU_TRAP_LEVEL=${BASH_SUBSHELL}
@@ -900,7 +888,7 @@ die_on_abort()
 
     local signal
     for signal in "${DIE_SIGNALS[@]}" ; do
-        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\${BASH_COMMAND%%$'\n'*}]\"" ${signal}
+        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\$(truncate -e 60 \${BASH_COMMAND})\"]" ${signal}
     done
 }
 
@@ -1383,6 +1371,28 @@ trim()
     text=${text%%+([[:space:]])}
     text=${text##+([[:space:]])}
     printf -- "${text}"
+}
+
+# Truncate a specified string to fit within the specified number of characters.
+# If the ellipsis option is specified, truncation will result in an ellipses
+# where the removed characters were (and the total string will still fit within
+# length characters)
+#
+# Any arguments after the length will be considered part of the text to truncate.
+#
+truncate()
+{
+    $(opt_parse \
+        "+ellipsis e | If set, an elilipsis (...) will replace any removed text." \
+        "length      | Desired maximum length for text." )
+
+    local text=$*
+
+    if [[ ${#text} -gt ${length} && ${ellipsis} -eq 1 ]] ; then
+        printf -- "${text:0:$((length-3))}..."
+    else
+        printf -- "${text:0:${length}}"
+    fi
 }
 
 compress_spaces()
