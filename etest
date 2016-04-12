@@ -7,7 +7,7 @@ fi
 
 : ${EMSG_PREFIX:=time}
 
-: ${BASHUTILS:=$(dirname $0)}
+: ${BASHUTILS:=$(readlink -f $(dirname $0))}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
 export BASHUTILS
 
