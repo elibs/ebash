@@ -3409,14 +3409,13 @@ netselect()
 
     for h in ${hosts}; do
         local entry=$(ping -c${count} -w5 -q $h 2>/dev/null | \
-            awk '/^PING / {host=$2}
-                 /packet loss/ {loss=$6}
+            awk '/packet loss/ {loss=$6}
                  /min\/avg\/max/ {
                     split($4,stats,"/")
-                    printf("%s|%f|%f|%s|%f", host, stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
+                    printf("%f|%f|%s|%f", stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
                 }' || true)
 
-        results+=("${entry}")
+        results+=("${h}|${entry}")
     done
 
     array_init_nl sorted "$(printf '%s\n' "${results[@]}" | sort -t\| -k5 -n)"
