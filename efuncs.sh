@@ -643,16 +643,9 @@ die()
     __BU_DIE_IN_PROGRESS=${return_code}
     : ${__BU_DIE_BY_SIGNAL:=${signal}}
 
-    # Generate a stack trace if that's appropriate for this die.
-    if inside_try && edebug_enabled ; then
-        echo "" >&2
-        eerror_internal   -c="grey50" "${@}"
-        eerror_stacktrace -c="grey50" -f=3 -s
-
-    elif inside_try && edebug_disabled ; then
-        # Don't print a stack trace for errors that were caught (unless edebug
-        # was enabled)
-        :
+    if inside_try ; then
+        # Don't print a stack trace for errors that were caught
+        true
 
     else
         echo "" >&2
