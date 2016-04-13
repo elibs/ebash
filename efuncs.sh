@@ -200,8 +200,11 @@ alias try="
         enable_trace
         die_on_abort
         trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
-        __BU_DIE_ON_ERROR_ENABLED=1
     "
+    # NOTE: __BU_DIE_ON_ERROR_ENABLED should not be manually set inside the try
+    # here.  This isn't the typical ERR trap, but a special one only used for
+    # try/catch
+
 
 # Catch block attached to a preceeding try block. This is a rather complex
 # alias and it's probably not readily obvious why it jumps through the hoops
@@ -640,16 +643,9 @@ die()
     __BU_DIE_IN_PROGRESS=${return_code}
     : ${__BU_DIE_BY_SIGNAL:=${signal}}
 
-    # Generate a stack trace if that's appropriate for this die.
-    if inside_try && edebug_enabled ; then
-        echo "" >&2
-        eerror_internal   -c="grey50" "${@}"
-        eerror_stacktrace -c="grey50" -f=3 -s
-
-    elif inside_try && edebug_disabled ; then
-        # Don't print a stack trace for errors that were caught (unless edebug
-        # was enabled)
-        :
+    if inside_try ; then
+        # Don't print a stack trace for errors that were caught
+        true
 
     else
         echo "" >&2
@@ -858,7 +854,7 @@ die_on_abort()
 
     local signal
     for signal in "${DIE_SIGNALS[@]}" ; do
-        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\${BASH_COMMAND%%$'\n'*}\"]" ${signal}
+        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\${BASH_COMMAND%%$'\n'*}]\"" ${signal}
     done
 }
 
@@ -3413,14 +3409,13 @@ netselect()
 
     for h in ${hosts}; do
         local entry=$(ping -c${count} -w5 -q $h 2>/dev/null | \
-            awk '/^PING / {host=$2}
-                 /packet loss/ {loss=$6}
+            awk '/packet loss/ {loss=$6}
                  /min\/avg\/max/ {
                     split($4,stats,"/")
-                    printf("%s|%f|%f|%s|%f", host, stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
+                    printf("%f|%f|%s|%f", stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
                 }' || true)
 
-        results+=("${entry}")
+        results+=("${h}|${entry}")
     done
 
     array_init_nl sorted "$(printf '%s\n' "${results[@]}" | sort -t\| -k5 -n)"
@@ -3681,7 +3676,7 @@ eretry_internal()
 
         # Break if the process exited with white listed exit code.
         if echo "${fatal_exit_codes}" | grep -wq "${rc}"; then
-            edebug "Command exited with success $(lval rc fatal_exit_codes cmd) retries=(${attempt}/${retries})"
+            edebug "Command reached terminal exit code.  Ending retries. $(lval rc fatal_exit_codes cmd)"
             break
         fi
 
