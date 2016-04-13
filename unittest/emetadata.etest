@@ -20,6 +20,8 @@ ETEST_emetadata_basic()
 
 ETEST_emetadata_pgp()
 {
+    [[ ${__BU_OS} == "Darwin" ]] && { ewarn "Test is disabled on Darwin per DT-188." ; return 0 ; }
+
     # Grab public and private keys as well as passphrase
     efetch http://bdr-jenkins:/keys/solidfire_packaging_public.asc  public.asc
     efetch http://bdr-jenkins:/keys/solidfire_packaging_private.asc private.asc

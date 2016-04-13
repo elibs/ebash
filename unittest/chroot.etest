@@ -133,13 +133,13 @@ ETEST_chroot_kill()
 
     etestmsg "Killing cat"
     chroot_kill "cat"
-    eretry -t=1s -T=5s process_not_running ${pids[0]}
+    eretry -t=2s -T=30s process_not_running ${pids[0]}
     process_running ${pids[1]}
 
     etestmsg "Killing everything..."
     chroot_kill
-    eretry -t=1s -T=5s process_not_running ${pids[0]}
-    eretry -t=1s -T=5s process_not_running ${pids[1]}
+    eretry -t=2s -T=30s process_not_running ${pids[0]}
+    eretry -t=2s -T=30s process_not_running ${pids[1]}
 }
 
 ETEST_chroot_install()
