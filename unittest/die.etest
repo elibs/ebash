@@ -137,54 +137,33 @@ ETEST_die_from_command_subst()
     }
 }
 
-ETEST_err_trap_output()
-{
-    foo()
-    {
-        echo "A"
-        false
-        echo "B"
-    }
-
-    # die message output is typically supressed by tryrc, but if we turn on
-    # edebug for die, it will still come out, albeit not in red
-    $(EDEBUG=die tryrc --stderr stderr --stdout stdout foo)
-
-    etestmsg "Foo had stdout:"
-    echo "${stdout}"
-    etestmsg "and stderr:"
-    echo "${stderr}"
-
-    assert_match "${stdout}" "A"
-    assert_not_match "${stdout}" "B"
-
-
-    assert_match "${stderr}" 'ExceptionCaught'
-    assert_match "${stderr}" 'false'
-    assert_match "${stderr}" 'foo'
-    assert_match "${stderr}" "${BASH_SOURCE##*/}"
-}
-
 ETEST_err_trap_output_shorten_multiline_cmd()
 {
-    foo()
-    {
-        (
-            false
-            echo "Here is a really really really long message"
-            baz
-        )
-    }
+    local script=./multiline_cmd_error
+cat<<EOF >${script}
+BASHUTILS=${BASHUTILS}
+source "${BASHUTILS}/bashutils.sh" || exit 1
+(
+    false
+    echo "Here is a really really really long message"
+    baz
+)
+EOF
+    chmod +x "${script}"
 
-    $(EDEBUG=die tryrc --stderr stderr --stdout stdout foo)
+    local rc=0
+    ${script} 1>stdout 2>stderr || rc=$?
 
-    etestmsg 'Foo had stdout:'
+    local stdout=$(cat stdout)
+    local stderr=$(cat stderr)
+
+    etestmsg 'Foo ended with $(lval rc) and had stdout:'
     echo "${stdout}"
     etestmsg 'and stderr:'
     echo "${stderr}"
 
     # Error stacks will mention failure in foo
-    assert_match     "${stderr}" "foo"
+    assert_match     "${stderr}" "$(basename ${script})"
 
     # The false command is the one that blew up
     assert_match     "${stderr}" "false"
@@ -192,8 +171,8 @@ ETEST_err_trap_output_shorten_multiline_cmd()
     # The later of the two stacks will be a SIGTERM because the shell failed
     # and is informing it's parent via SIGTERM.  That message will be 1)
     # truncated and 2) contain an ellipsis to indicate that it was truncated.
-    assert_match     "${stderr}" "\[Caught SIGTERM.*cmd=\(.*\.\.\.\]"
-    assert_not_match "${stderr}" "SIGTERM.*baz"
+    assert_match     "${stderr}" "\[UnhandledError.*cmd=\(.*\.\.\.\]"
+    assert_not_match "${stderr}" "UnhandledError.*baz"
 }
 
 ETEST_err_trap_output_unhandled()
