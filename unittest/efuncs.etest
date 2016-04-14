@@ -112,6 +112,8 @@ if [[ ${__BU_OS} == Linux ]] ; then
 
 ETEST_get_listening_network_ports()
 {
+    [[ "$(edistro)" == "Arch" ]] && { ewarn "Test disabled on arch per DT-190." ; return 0 ; }
+
     local ports
     get_network_ports -l ports
 
