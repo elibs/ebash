@@ -737,8 +737,6 @@ trap_add()
     $(opt_parse "?cmd")
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
-    
-    edebug "Adding trap $(lval cmd signals) in process ${BASHPID}"
 
     local sig
     for sig in "${signals[@]}"; do
@@ -795,7 +793,6 @@ _bashutils_on_exit_start()
     if [[ ! -v __BU_EXIT_CODE ]] ; then
         # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
         __BU_EXIT_CODE=${exit_code}
-        edebug "Bash process ${BASHPID} exited rc=${__BU_EXIT_CODE}"
         disable_signals
     fi
 }
