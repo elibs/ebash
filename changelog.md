@@ -73,7 +73,11 @@
 
     - netselect now supports options to make it quiet and to specify how many
       times to test each host.  When only given a single host, netselect works
-      much faster. Now supports options to make 
+      much faster.
+
+    - Fix a netselect bug that caused it to return a different name than one of
+      those hosts specified when ping output looks different (for instance,
+      when it has an aliased name in DNS).
 
 # Bashutils 1.2
 

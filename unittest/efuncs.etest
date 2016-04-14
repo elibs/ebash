@@ -126,8 +126,6 @@ ETEST_get_listening_network_ports()
 
 ETEST_netselect()
 {
-    [[ $(edistro) == "Arch" ]] && { ewarn "Test is disabled on arch per DT-186." ;  return 0 ; }
-
     local output=$(netselect --quiet localhost)
 
     assert_eq "localhost" "${output}"
