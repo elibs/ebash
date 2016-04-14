@@ -71,6 +71,10 @@
       from + to % to be more similar to perl's hashes and to avoid using the
       plus sign differently in lval and opt_parse.
 
+    - trap: A new trap function designed to shadow bash's trap builtin works
+      around the way bash discards inherited ERR and DEBUG traps when you
+      create a new trap.
+
     - netselect now supports options to make it quiet and to specify how many
       times to test each host.  When only given a single host, netselect works
       much faster.
