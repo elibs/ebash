@@ -642,16 +642,9 @@ die()
     __BU_DIE_IN_PROGRESS=${return_code}
     : ${__BU_DIE_BY_SIGNAL:=${signal}}
 
-    # Generate a stack trace if that's appropriate for this die.
-    if inside_try && edebug_enabled ; then
-        echo "" >&2
-        eerror_internal   -c="grey50" "${@}"
-        eerror_stacktrace -c="grey50" -f=3 -s
-
-    elif inside_try && edebug_disabled ; then
-        # Don't print a stack trace for errors that were caught (unless edebug
-        # was enabled)
-        :
+    if inside_try ; then
+        # Don't print a stack trace for errors that were caught
+        true
 
     else
         echo "" >&2
@@ -743,8 +736,6 @@ trap_add()
     $(opt_parse "?cmd")
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
-    
-    edebug "Adding trap $(lval cmd signals) in process ${BASHPID}"
 
     local sig
     for sig in "${signals[@]}"; do
@@ -829,7 +820,6 @@ _bashutils_on_exit_start()
     if [[ ! -v __BU_EXIT_CODE ]] ; then
         # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
         __BU_EXIT_CODE=${exit_code}
-        edebug "Bash process ${BASHPID} exited rc=${__BU_EXIT_CODE}"
         disable_signals
     fi
 }
@@ -3465,14 +3455,13 @@ netselect()
 
     for h in ${hosts}; do
         local entry=$(ping -c${count} -w5 -q $h 2>/dev/null | \
-            awk '/^PING / {host=$2}
-                 /packet loss/ {loss=$6}
+            awk '/packet loss/ {loss=$6}
                  /min\/avg\/max/ {
                     split($4,stats,"/")
-                    printf("%s|%f|%f|%s|%f", host, stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
+                    printf("%f|%f|%s|%f", stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
                 }' || true)
 
-        results+=("${entry}")
+        results+=("${h}|${entry}")
     done
 
     array_init_nl sorted "$(printf '%s\n' "${results[@]}" | sort -t\| -k5 -n)"
