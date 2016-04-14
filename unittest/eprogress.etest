@@ -96,6 +96,9 @@ ETEST_eprogress_ticker_on()
         ETRACE=0
         EINTERACTIVE=1
         EMSG_PREFIX=""
+        # Output stored in this test expects what it would look like if term
+        # were screen-256color
+        TERM=screen-256color
         eprogress "Waiting"
         eprogress_kill
     )

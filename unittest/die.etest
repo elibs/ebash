@@ -136,3 +136,82 @@ ETEST_die_from_command_subst()
         assert_ne 243 $?
     }
 }
+
+ETEST_err_trap_output_shorten_multiline_cmd()
+{
+    local script=./multiline_cmd_error
+cat<<EOF >${script}
+BASHUTILS=${BASHUTILS}
+source "${BASHUTILS}/bashutils.sh" || exit 1
+(
+    false
+    echo "Here is a really really really long message"
+    baz
+)
+EOF
+    chmod +x "${script}"
+
+    local rc=0
+    ${script} 1>stdout 2>stderr || rc=$?
+
+    local stdout=$(cat stdout)
+    local stderr=$(cat stderr)
+
+    etestmsg 'Foo ended with $(lval rc) and had stdout:'
+    echo "${stdout}"
+    etestmsg 'and stderr:'
+    echo "${stderr}"
+
+    # Error stacks will mention failure in foo
+    assert_match     "${stderr}" "$(basename ${script})"
+
+    # The false command is the one that blew up
+    assert_match     "${stderr}" "false"
+
+    # The later of the two stacks will be a SIGTERM because the shell failed
+    # and is informing it's parent via SIGTERM.  That message will be 1)
+    # truncated and 2) contain an ellipsis to indicate that it was truncated.
+    assert_match     "${stderr}" "\[UnhandledError.*cmd=\(.*\.\.\.\]"
+    assert_not_match "${stderr}" "UnhandledError.*baz"
+}
+
+ETEST_err_trap_output_unhandled()
+{
+
+    local script=./unhandled_error
+cat<<EOF >${script}
+BASHUTILS=${BASHUTILS}
+source "${BASHUTILS}/bashutils.sh" || exit 1
+
+echo "A"
+false
+echo "B"
+
+EOF
+    chmod +x "${script}"
+
+    local rc=0
+    ${script} 1>stdout 2>stderr || rc=$?
+
+    local stdout=$(cat stdout)
+    local stderr=$(cat stderr)
+
+    etestmsg "${script} ended with $(lval rc) and had stdout:"
+    echo "${stdout}"
+    etestmsg "and stderr:"
+    echo "${stderr}"
+
+    assert_ne 0 "${rc}"
+
+    assert_match "${stdout}" "A"
+    assert_not_match "${stdout}" "B"
+
+
+    assert_match "${stderr}" "false"
+    assert_match "${stderr}" "${script##*/}"
+    assert_match "${stderr}" "UnhandledError"
+
+
+    rm ${script} stdout stderr
+
+}
