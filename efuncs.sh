@@ -2150,6 +2150,11 @@ elogfile()
                 trap "" ${TTY_SIGNALS[@]}
                 echo "${BASHPID}" >${pid_pipe}
 
+                # Past this point, we hand control to the tee processes which
+                # we expect to die in their own time.  We no longer want to be
+                # notified if something goes wrong (such as the tee being
+                # killed)
+                nodie_on_error
 
                 if [[ ${tail} -eq 1 ]]; then
                     tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
