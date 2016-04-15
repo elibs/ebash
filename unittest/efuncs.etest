@@ -361,23 +361,23 @@ ETEST_etrace()
     assert_empty "${stderr}"
 }
 
-ETEST_truncate()
+ETEST_string_truncate()
 {
     string=1234567890
 
-    assert_eq "123"        "$(truncate 3  "${string}")"
-    assert_eq "1234567890" "$(truncate 10 "${string}")"
-    assert_eq "1234567890" "$(truncate 99 "${string}")"
+    assert_eq "123"        "$(string_truncate 3  "${string}")"
+    assert_eq "1234567890" "$(string_truncate 10 "${string}")"
+    assert_eq "1234567890" "$(string_truncate 99 "${string}")"
 
-    assert_eq "1234..."    "$(truncate -e 7  "${string}")"
-    assert_eq "123456..."  "$(truncate -e 9  "${string}")"
-    assert_eq "1234567890" "$(truncate -e 10 "${string}")"
-    assert_eq "1234567890" "$(truncate -e 99 "${string}")"
+    assert_eq "1234..."    "$(string_truncate -e 7  "${string}")"
+    assert_eq "123456..."  "$(string_truncate -e 9  "${string}")"
+    assert_eq "1234567890" "$(string_truncate -e 10 "${string}")"
+    assert_eq "1234567890" "$(string_truncate -e 99 "${string}")"
 
     string=" something   with   whitespace "
-    assert_eq "${string}"         "$(truncate -e 100 "${string}")"
-    assert_eq "${string}"         "$(truncate -e 100 "${string}")"
-    assert_eq "${string}"         "$(truncate -e  31 "${string}")"
-    assert_eq "${string:0:15}"    "$(truncate     15 "${string}")"
-    assert_eq "${string:0:12}..." "$(truncate -e  15 "${string}")"
+    assert_eq "${string}"         "$(string_truncate -e 100 "${string}")"
+    assert_eq "${string}"         "$(string_truncate -e 100 "${string}")"
+    assert_eq "${string}"         "$(string_truncate -e  31 "${string}")"
+    assert_eq "${string:0:15}"    "$(string_truncate     15 "${string}")"
+    assert_eq "${string:0:12}..." "$(string_truncate -e  15 "${string}")"
 }
