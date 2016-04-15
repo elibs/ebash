@@ -50,13 +50,11 @@ if [[ "${ACTUAL_NAME}" != "${CALLED_NAME}" ]] ; then
     # If there's a function in the group with the specified command name call
     # it
     if declare -fp "${CALLED_NAME}_${cmd}" &>/dev/null ; then
-        echo 1
         cmd="${CALLED_NAME}_${cmd}"
 
     # Otherwise assume the called name is also the name of a bashutils function
     # and pass everything as arguments to it.
     else
-        echo 2
         cmd=${CALLED_NAME}
         args=( "${@}" )
     fi
