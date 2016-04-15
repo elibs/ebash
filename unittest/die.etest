@@ -168,6 +168,15 @@ EOF
     # The false command is the one that blew up
     assert_match     "${stderr}" "false"
 
+
+    ########### DISABLED ON BASH 4.2 ##################################
+    if [[ ${BASH_VERSINFO[0]} == 4 && ${BASH_VERSINFO[1]} == 2 ]] ; then
+        ewarn "The last portion of this tests is disabled on bash 4.2 because a bug"
+        ewarn "in bash prevents BASH_COMMAND from being set properly on subshells"
+        ewarn "like the one used above."
+        return 0
+    fi
+
     # The later of the two stacks will be a SIGTERM because the shell failed
     # and is informing it's parent via SIGTERM.  That message will be 1)
     # truncated and 2) contain an ellipsis to indicate that it was truncated.
