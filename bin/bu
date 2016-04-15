@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+: ${BASHUTILS_HOME:=$(dirname $0)/..}
+: ${BASHUTILS:=${BASHUTILS_HOME}/share}
+source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
+
+#
+# This tool is designed to run individual commands in a bashutils environment.
+# It can effectively turns bashutils functions into commands that can easily be
+# run from a shell prompt.
+#
+# The first simple use case happens when the binary is called "bu".  In this
+# mode, everything after bu on the command line is evaluated inside a
+# "bashutils context" (that is, a bash interpreter that has sourced bashutils).
+#
+# But bu can be symlinked to other names.  Bu pays attention to the name that
+# it is called by.  When it's not called as bu, it tries to run bashutils
+# functions intead.  First, it looks to see if the symlink name is the name of
+# a "namespace" of bashutils commands.  For instance, the string commands can
+# be used in this way.  Assuming a "string" symlink, then
+#    
+#     string trim " a string to trim "
+#
+# will call the string_trim function, passing it that string as an argument.
+# If there is no function that's a combination of the symlink name and the
+# first argument, then bu will look for a function of the same name as the
+# symlink and call it passing all arguments to the function.  For instance,
+# given a symlink called eunmount, then you could call
+#
+#     eunmount /path/to/unmount /another/path
+#
+# And both "/path/to/unmount" and "/another/path" will be passed as arguments
+# to eunmount.
+#
+
+CALLED_NAME="${0##*/}"
+ACTUAL_NAME="$(readlink -m $0)"
+ACTUAL_NAME="${ACTUAL_NAME##*/}"
+
+[[ -n ${1} ]] || die "Need to specify a bashutils command to call."
+cmd="${1}"
+
+# Grab all arguments, then pull off the first
+args=( "${@}" )
+args=( "${args[@]:1}" )
+
+# If not called as bashutils...
+if [[ "${ACTUAL_NAME}" != "${CALLED_NAME}" ]] ; then
+
+    # If there's a function in the group with the specified command name call
+    # it
+    if declare -fp "${CALLED_NAME}_${cmd}" &>/dev/null ; then
+        echo 1
+        cmd="${CALLED_NAME}_${cmd}"
+
+    # Otherwise assume the called name is also the name of a bashutils function
+    # and pass everything as arguments to it.
+    else
+        echo 2
+        cmd=${CALLED_NAME}
+        args=( "${@}" )
+    fi
+fi
+
+if [[ ${#args[@]} -eq 0 ]] ; then
+    quote_eval "${cmd}"
+else
+    quote_eval "${cmd}" "${args[@]}"
+fi
+

@@ -2,7 +2,8 @@
 
 reload()
 {
-    : ${BASHUTILS:=$(dirname $0)}
+    : ${BASHUTILS_HOME:=$(dirname $0)/..}
+    : ${BASHUTILS:=${BASHUTILS_HOME}/share}
     source ${BASHUTILS}/bashutils.sh || { echo "Failed to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 }
 reload
