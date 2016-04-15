@@ -83,6 +83,10 @@
       those hosts specified when ping output looks different (for instance,
       when it has an aliased name in DNS).
 
+    - New "bu" binary that can run bashutils functions as an external command
+      as well as many other binaries designed for calling bashutils functions
+      (e.g. daemon, cgroup, chroot, eunmount, ewarn)
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common
