@@ -7,9 +7,13 @@ fi
 
 : ${EMSG_PREFIX:=time}
 
-: ${BASHUTILS:=$(readlink -f $(dirname $0))}
+: ${BASHUTILS:=$(dirname $0)}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
 export BASHUTILS
+
+# Note: don't call readlink before loading bashutils because bashutils ensures
+# that we get GNU readlink rater than BSD readlink.
+[[ ${BASHUTILS} == "." ]] && BASHUTILS=$(readlink -f .)
 
 #-------------------------------------------------------------------------------------------------------------------------
 # GLOBAL SETUP
