@@ -42,14 +42,14 @@ fi
 # output.
 #
 # By default, these are excluded:
-#   - Any parts of opt_parse (plus trim because opt_parse uses it)
+#   - Any parts of opt_parse (plus string_trim because opt_parse uses it)
 #   - Emsg and other message producing internals (but not the message
 #     functions like edebug, einfo)
 #   - Internals of die and stack generation (but leaving some parts of die
 #     so it's more clear what is happening.)
 #   - Signame, which does translations amongst signal names in various styles
 #     and signal numbers.
-: ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|trim|print_value|lval|disable_signals|reenable_signals|eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
+: ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|string_trim|print_value|lval|disable_signals|reenable_signals|eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
 
 #-----------------------------------------------------------------------------
 # DEBUGGING
@@ -172,8 +172,8 @@ edebug_out()
 #-----------------------------------------------------------------------------
 
 DIE_MSG_KILLED='[Killed]'
-DIE_MSG_CAUGHT='[ExceptionCaught pid=$BASHPID cmd=$(truncate -e 60 ${BASH_COMMAND})]'
-DIE_MSG_UNHERR='[UnhandledError pid=$BASHPID cmd=$(truncate -e 60 ${BASH_COMMAND})]'
+DIE_MSG_CAUGHT='[ExceptionCaught pid=$BASHPID cmd=$(string_truncate -e 60 ${BASH_COMMAND})]'
+DIE_MSG_UNHERR='[UnhandledError pid=$BASHPID cmd=$(string_truncate -e 60 ${BASH_COMMAND})]'
 
 
 # The below aliases allow us to support rich error handling through the use
@@ -878,7 +878,7 @@ die_on_abort()
 
     local signal
     for signal in "${DIE_SIGNALS[@]}" ; do
-        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\$(truncate -e 60 \${BASH_COMMAND})\"]" ${signal}
+        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\$(string_truncate -e 60 \${BASH_COMMAND})\"]" ${signal}
     done
 }
 
@@ -1355,7 +1355,7 @@ epromptyn()
     eprompt_with_options "${msg}" "Yes,No"
 }
 
-trim()
+string_trim()
 {
     local text=$*
     text=${text%%+([[:space:]])}
@@ -1368,9 +1368,10 @@ trim()
 # where the removed characters were (and the total string will still fit within
 # length characters)
 #
-# Any arguments after the length will be considered part of the text to truncate.
+# Any arguments after the length will be considered part of the text to
+# string_truncate
 #
-truncate()
+string_truncate()
 {
     $(opt_parse \
         "+ellipsis e | If set, an elilipsis (...) will replace any removed text." \
@@ -1385,7 +1386,8 @@ truncate()
     fi
 }
 
-compress_spaces()
+# Collapse grouped whitespace in the specified string to single spaces.
+string_collapse()
 {
     local output=$(echo -en "$@" | tr -s "[:space:]" " ")
     echo -en "${output}"
@@ -2930,8 +2932,8 @@ opt_parse_setup()
         # Arguments to opt_parse may contain multiple chunks of data, separated
         # by pipe characters.
         if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
-            local opt_definition=$(trim "${BASH_REMATCH[1]}")
-            local docstring=$(trim "${BASH_REMATCH[3]}")
+            local opt_definition=$(string_trim "${BASH_REMATCH[1]}")
+            local docstring=$(string_trim "${BASH_REMATCH[3]}")
 
         else
             die "Invalid option declaration: ${complete_arg}"
