@@ -35,33 +35,44 @@ source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashut
 
 CALLED_NAME="${0##*/}"
 
-# If no parameters, go with ibu
-[[ -n ${1:-} ]] || exec ${BASHUTILS_HOME}/bin/ibu
-cmd="${1}"
-
-# Grab all arguments, then pull off the first
 args=( "${@}" )
-args=( "${args[@]:1}" )
 
 # If not called as bashutils...
 if [[ "${CALLED_NAME}" != "bashutils" ]] ; then
 
     # If there's a function in the group with the specified command name call
     # it
-    if declare -fp "${CALLED_NAME}_${cmd}" &>/dev/null ; then
-        cmd="${CALLED_NAME}_${cmd}"
+    if declare -fp "${CALLED_NAME}_${1}" &>/dev/null ; then
+
+        # Run the command, but pretend to be inside a try so that die doesn't
+        # print an ugly stack trace.
+        __BU_INSIDE_TRY=1
+        quote_eval "${CALLED_NAME}_${1}" "${args[@]:1}"
 
     # Otherwise assume the called name is also the name of a bashutils function
     # and pass everything as arguments to it.
     else
-        cmd=${CALLED_NAME}
-        args=( "${@}" )
+        # Run the command, but pretend to be inside a try so that die doesn't
+        # print an ugly stack trace.
+        __BU_INSIDE_TRY=1
+        quote_eval "${CALLED_NAME}" "${args[@]}"
     fi
+
+# However, if called as bashutils...
+else
+
+    # Use all arguments to bashutils as a command to execute
+    if [[ ${#args[@]} -gt 0 ]] ; then
+        # Run the command, but pretend to be inside a try so that die doesn't
+        # print an ugly stack trace.
+        __BU_INSIDE_TRY=1
+        quote_eval "${args[@]}"
+
+    # Or run ibu if nothing was specified
+    else
+        exec ${BASHUTILS_HOME}/bin/ibu
+    fi
+
 fi
 
-if [[ ${#args[@]} -eq 0 ]] ; then
-    quote_eval "${cmd}"
-else
-    quote_eval "${cmd}" "${args[@]}"
-fi
 
