@@ -83,6 +83,18 @@
       those hosts specified when ping output looks different (for instance,
       when it has an aliased name in DNS).
 
+    - New "bashutils" binary that can run bashutils functions as an external
+      command as well as many other binaries designed for calling bashutils
+      functions (e.g. daemon, cgroup, chroot, eunmount, ewarn)
+
+    - Move .sh files into a share directory and binaries into a bin directory.
+      Typical expectations are that BASHUTILS points to the share directory so
+      that you can source ${BASHUTILS}/share as you always did.  BASHUTILS_HOME
+      should point to the parent directory that holds all of the bashutils
+      stuff.
+
+    - Readme and unit tests are now included in the package.
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common

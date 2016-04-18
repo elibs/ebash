@@ -2,26 +2,31 @@
 
 TOPDIR=$(readlink -m $(dirname $0)/..)
 
-BASHUTILS=${TOPDIR}
+BASHUTILS_HOME=${TOPDIR}
+BASHUTILS=${TOPDIR}/share
 
-source "${TOPDIR}/bashutils.sh" || { echo "Unable to source ${TOPDIR}/bashutils.sh" ; exit 1 ; }
+source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
+: ${PV:=9999}
 : ${DESTDIR:=${TOPDIR}/.forge/work/image}
 efreshdir "${DESTDIR}"
 
-cp -rp *.sh bashlint ebench etest ibu "${DESTDIR}"
+cp -rp share bin unittest *.md "${DESTDIR}"
 
 FILES_TO_FIX=(
-    ${DESTDIR}/*.sh
-    ${DESTDIR}/{bashlint,ebench,etest,ibu}
+    ${DESTDIR}/share/*.sh
+    ${DESTDIR}/bin/{bashlint,ebench,etest,ibu,bu}
+    ${DESTDIR}/unittest/*
 )
 
 export BASHUTILS_VERSION=${PV}
 export BASHUTILS=/sf/packages/bashutils-solidfire-${PV}
 
 sed -i "${FILES_TO_FIX[@]}" -e 's|${BASHUTILS}|'${BASHUTILS}'|g'
+sed -i "${FILES_TO_FIX[@]}" -e 's|${BASHUTILS_HOME}|'${BASHUTILS_HOME}'|g'
 
 # These lines are only development aids.  Once packaged, the BASHUTILS variable
 # is locked in, so making it look like you can set the variable seems
 # misleading.
-sed -i "${FILES_TO_FIX[@]}" -e 's|: ${BASHUTILS:=$(dirname $0)}||g'
+sed -i "${FILES_TO_FIX[@]}" -e 's|: ${BASHUTILS:=.*}$||g'
+sed -i "${FILES_TO_FIX[@]}" -e 's|: ${BASHUTILS_HOME:=.*}$||g'

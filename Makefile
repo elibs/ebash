@@ -5,3 +5,4 @@ ctags: *.sh unittest/*.sh unittest/*.etest bashlint ebench etest ibu
 
 clean:
 	git clean -fX
+	rm -fr --one-file-system .forge/work
