@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-: ${BASHUTILS:=$(dirname $0)}
+: ${BASHUTILS_HOME:=$(dirname $0)/..}
+: ${BASHUTILS:=${BASHUTILS_HOME}/share}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
 # Options:
@@ -34,7 +35,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
 
     # Never do any further parsing on our own file since they would all 
     # be false positives
-    [[ ${fname} == "$0" ]] && continue
+    [[ "$(readlink -f ${fname})" == "$(readlink -f $0)" ]] && continue
 
     # Display what file we are processing
     einfo "${fname}"
