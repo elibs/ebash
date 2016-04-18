@@ -15,7 +15,7 @@ cp -rp share bin unittest *.md "${DESTDIR}"
 
 FILES_TO_FIX=(
     ${DESTDIR}/share/*.sh
-    ${DESTDIR}/bin/{bashlint,ebench,etest,ibu,bu}
+    ${DESTDIR}/bin/{bashlint,ebench,etest,ibu,bashutils}
     ${DESTDIR}/unittest/*
 )
 
