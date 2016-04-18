@@ -33,9 +33,16 @@ source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashut
 # to eunmount.
 #
 
+$(opt_parse \
+    ":source s | Bashutils should source the specified file before attempting to run the specified command.")
+
 CALLED_NAME="${0##*/}"
 
 args=( "${@}" )
+
+if [[ -n ${source} ]] ; then
+    source "${source}"
+fi
 
 # If not called as bashutils...
 if [[ "${CALLED_NAME}" != "bashutils" ]] ; then
@@ -70,7 +77,7 @@ else
 
     # Or run ibu if nothing was specified
     else
-        exec ${BASHUTILS_HOME}/bin/ibu
+        exec ${BASHUTILS_HOME}/bin/ibu --source "${source}"
     fi
 
 fi

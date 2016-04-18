@@ -43,3 +43,18 @@ ETEST_bashutils_bin_called_command_failure()
     assert_not_match "${stderr}" "UnhandledError"
     assert_not_match "${stderr}" "quote_eval"
 }
+
+ETEST_bashutils_bin_source()
+{
+cat<<'EOF' >testfile.sh
+an_unusual_func()
+{
+    echo "in ${FUNCNAME}"
+}
+EOF
+
+    output=$(${BASHUTILS_HOME}/bin/bashutils --source testfile.sh an_unusual_func)
+
+    assert_match "${output}" "in an_unusual_func"
+
+}
