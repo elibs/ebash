@@ -42,7 +42,7 @@ if [[ "${CALLED_NAME}" != "bashutils" ]] ; then
 
     # If there's a function in the group with the specified command name call
     # it
-    if declare -fp "${CALLED_NAME}_${1}" &>/dev/null ; then
+    if declare -f "${CALLED_NAME}_${1}" &>/dev/null ; then
 
         # Run the command, but pretend to be inside a try so that die doesn't
         # print an ugly stack trace.
