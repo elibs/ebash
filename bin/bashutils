@@ -43,11 +43,18 @@ if [[ "${CALLED_NAME}" != "bashutils" ]] ; then
     # If there's a function in the group with the specified command name call
     # it
     if declare -fp "${CALLED_NAME}_${1}" &>/dev/null ; then
+
+        # Run the command, but pretend to be inside a try so that die doesn't
+        # print an ugly stack trace.
+        __BU_INSIDE_TRY=1
         quote_eval "${CALLED_NAME}_${1}" "${args[@]:1}"
 
     # Otherwise assume the called name is also the name of a bashutils function
     # and pass everything as arguments to it.
     else
+        # Run the command, but pretend to be inside a try so that die doesn't
+        # print an ugly stack trace.
+        __BU_INSIDE_TRY=1
         quote_eval "${CALLED_NAME}" "${args[@]}"
     fi
 
@@ -56,6 +63,9 @@ else
 
     # Use all arguments to bashutils as a command to execute
     if [[ ${#args[@]} -gt 0 ]] ; then
+        # Run the command, but pretend to be inside a try so that die doesn't
+        # print an ugly stack trace.
+        __BU_INSIDE_TRY=1
         quote_eval "${args[@]}"
 
     # Or run ibu if nothing was specified
