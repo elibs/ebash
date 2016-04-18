@@ -83,9 +83,9 @@
       those hosts specified when ping output looks different (for instance,
       when it has an aliased name in DNS).
 
-    - New "bu" binary that can run bashutils functions as an external command
-      as well as many other binaries designed for calling bashutils functions
-      (e.g. daemon, cgroup, chroot, eunmount, ewarn)
+    - New "bashutils" binary that can run bashutils functions as an external
+      command as well as many other binaries designed for calling bashutils
+      functions (e.g. daemon, cgroup, chroot, eunmount, ewarn)
 
     - Move .sh files into a share directory and binaries into a bin directory.
       Typical expectations are that BASHUTILS points to the share directory so

@@ -12,9 +12,11 @@ fi
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
 export BASHUTILS
 
-# Note: don't call readlink before loading bashutils because bashutils ensures
-# that we get GNU readlink rater than BSD readlink.
-[[ ${BASHUTILS} == "." ]] && BASHUTILS=$(readlink -f .)
+# Normalize BASHUTILS path in case any tests depend on it looking... normal.
+# Note: wait until after sourcing so that we can let bashutils make sure we get
+# GNU readlink rater than BSD readlink.
+BASHUTILS_HOME=$(readlink -f "${BASHUTILS_HOME}")
+BASHUTILS=$(readlink -f "${BASHUTILS}")
 
 #-------------------------------------------------------------------------------------------------------------------------
 # GLOBAL SETUP
