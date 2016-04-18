@@ -69,6 +69,13 @@ die_handler()
     return 0
 }
 
+$(opt_parse \
+    ":source s | Source the specified file prior to running the interactive interpreter.")
+
+if [[ -n "${source}" ]] ; then
+    source "${source}"
+fi
+
 einfo "Bashutils $(lval BASHUTILS)"
 
 repl
