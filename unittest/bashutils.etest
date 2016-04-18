@@ -1,0 +1,45 @@
+# Tests specifically for the bashutils binary
+
+ETEST_bashutils_bin_args()
+{
+    string=" alpha   omega "
+    $(tryrc --stderr stderr ${BASHUTILS_HOME}/bin/bashutils einfo "${string}")
+
+    assert_match "${stderr}" "${string}"
+}
+
+ETEST_bashutils_bin_symlink()
+{
+    string=" beta  gamma  "
+    $(tryrc --stderr stderr ${BASHUTILS_HOME}/bin/ewarn "${string}")
+
+    assert_match "${stderr}" "${string}"
+}
+
+ETEST_bashutils_bin_symlink_name_plus_func()
+{
+    string="  omega  alpha  "
+    $(tryrc --stdout stdout ${BASHUTILS_HOME}/bin/string trim "${string}")
+
+    assert_eq "omega  alpha" "${stdout}"
+}
+
+ETEST_bashutils_bin_calls_ibu()
+{
+    $(tryrc --stderr stderr ${BASHUTILS_HOME}/bin/bashutils</dev/null)
+
+    assert_match "${stderr}" ">>.*Bashutils BASHUTILS="
+}
+
+ETEST_bashutils_bin_called_command_failure()
+{
+    $(tryrc --stderr stderr --rc rc ${BASHUTILS_HOME}/bin/bashutils false)
+
+    # Make sure the return code comes back
+    assert_eq 1 "${rc}" "Return code from bashutils binary"
+
+    # And also that bashutils didn't print a die stack.  We don't want to see
+    # it because we want to let the caller decide if it's really a bad thing.
+    assert_not_match "${stderr}" "UnhandledError"
+    assert_not_match "${stderr}" "quote_eval"
+}
