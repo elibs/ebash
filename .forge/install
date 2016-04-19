@@ -20,7 +20,8 @@ FILES_TO_FIX=(
 )
 
 export BASHUTILS_VERSION=${PV}
-export BASHUTILS=/sf/packages/bashutils-solidfire-${PV}/share
+export BASHUTILS_HOME=/sf/packages/bashutils-solidfire-${PV}
+export BASHUTILS=${BASHUTILS_HOME}/share
 
 sed -i "${FILES_TO_FIX[@]}" -e 's|${BASHUTILS}|'${BASHUTILS}'|g'
 sed -i "${FILES_TO_FIX[@]}" -e 's|${BASHUTILS_HOME}|'${BASHUTILS_HOME}'|g'
