@@ -1,6 +1,6 @@
 .PHONY: ctags clean
 
-ctags: *.sh unittest/*.sh unittest/*.etest bashlint ebench etest ibu
+ctags: unittest/*.sh unittest/*.etest share/*.sh bin/*
 	ctags -f .tags . $^
 
 clean:
