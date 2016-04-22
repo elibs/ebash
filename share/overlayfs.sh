@@ -197,88 +197,113 @@ overlayfs_unmount()
         return 0
     fi
 
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers_load "${mnt}" layers
+
+    # Manually unmount final mount point. Cannot call eunmount since it would see
+    # this as an overlayfs mount and try to call overlayfs_unmount again and we'd
+    # recurse infinitely.
+    umount -l $(pack_get layers mnt)
+
+    # Now we can eunmount all the other layers to ensure everything is cleaned up.
+    # This is necessary on older kernels which would leak the lower layer mounts.
+    eunmount $(pack_get layers upperdir) $(pack_get layers workdir) $(pack_get layers lowerdirs)
+}
+
+# Parse an overlayfs mount point and populate a pack with entries for the 
+# sources, lowerdirs, lowest, upperdir, workdir, and mnt.
+#
+# NOTE: Because 'lowerdir' may actually be stacked its value may contain
+#       multiple whitespace separated entries we use the key 'lowerdirs'
+#       instead of 'lowerdir' to more accurately reflect that it's multiple
+#       entries instead of a single entry. There is an additional 'lowest'
+#       key we put in the pack that is the bottom-most 'lowerdir' when we
+#       need to directly access it.
+#
+# NOTE: Depending on kernel version, 'workdir' may be empty as it may not be used.
+overlayfs_layers_load()
+{
+    $(opt_parse \
+        "mnt        | Overlayfs mount point to list the layers for." \
+        "layers_var | Pack to store the details into.")
+
+    # Always add the mount point into the pack
+    pack_set ${layers_var} "mnt=${mnt}"
+    
     # Parse out required lower and upper directories to be unmounted.
     # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
     # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
     local output="$(grep "${__BU_OVERLAYFS} $(emount_realpath ${mnt})" /proc/mounts)"
-    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+    pack_set ${layers_var} "lowerdirs=$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*" | sed 's|:| |g')"
+    pack_set ${layers_var} "upperdir=$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
 
-    # On newer kernels, also need to unmount work directory.
-    local work=""
+    # Store off the bottom-most lowerdir for easier access
+    local lowerdirs=( $(pack_get ${layers_var} lowerdirs) )
+    pack_set ${layers_var} "lowest=${lowerdirs[0]}"
+
+    # Set workdir if appropriate based on kernel version
     if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
-        work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
-    fi
-    
-    edebug "$(lval mnt lower upper work)"
-
-    # Split 'lower' on ':' so we can unmount each of the lower layers 
-    local parts
-    array_init parts "${lower}" ":"
-    
-    # In the event we have stacked multiple overlayfs mounts on top of one another
-    # we need to unmount the current set of mount points and then at the very end
-    # of this function unmount the lowest layer. So we pull that out of our array
-    # and handle it specially at the end.
-    if array_not_empty parts; then
-        lower=${parts[0]}
-        unset parts[0]
+        pack_set ${layers_var} "workdir=$(echo "${output}" | grep -Po "workdir=\K[^, ]*")"
+    else
+        pack_set ${layers_var} "workdir="
     fi
 
-    local layer
-    for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
-
-        if [[ -z ${layer} ]] || ! emounted "${layer}"; then
-            edebug "Skipping non-mounted $(lval layer)"
-            continue
-        fi
+    # NOW, go through each layer and figure out the source of that original src
+    # of that layer mount point and add that to the pack as well.
+    local sources=()
+    local entry
+    for entry in ${lowerdirs[@]}; do
         
-        edebug "Unmounting $(lval layer)"
-        umount -l "${layer}"
+        local src=$(grep "${entry}" /proc/mounts | head -1)
+        
+        if [[ ${src} =~ "/dev/loop" ]]; then
+            src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
+        elif [[ ${src} =~ "overlay" ]]; then
+            src=$(echo "${src}" | awk '{print $2}')
+        else
+            die "Unexpected mount: $(lval %layers entry src)"
+        fi
 
+        sources+=( "${src}" )
     done
 
-    # In case the overlayfs mounts are layered manually have to also unmount
-    # the lower layers. NOTE: It's important we call eunmount not overlayfs_unmount
-    # because the bottom most layer may not be overlayfs.
-    eunmount ${lower}
+    pack_set ${layers_var} "sources=${sources[*]}"
 }
 
 # overlayfs_tree is used to display a graphical representation for an overlayfs
 # mount. The graphical format is meant to show details about each layer in the
 # overlayfs mount hierarchy to make it clear what files reside in what layers
-# along with some basic metadata about each file (as provided by find -ls).
+# along with some basic metadata about each file (as provided by find -ls). The
+# order of the output is top-down to clearly represent that overlayfs is a
+# read-through layer cake filesystem such that things "above" mask things "below"
+# in the layer cake.
 overlayfs_tree()
 {
     $(opt_parse mnt)
 
-    # Parse out the lower, upper and work directories to be unmounted
-    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-    
-    # Split 'lower' on ':' so we can unmount each of the lower layers then
-    # append upper to the list so we see that as well.
-    local parts
-    array_init parts "${lower}" ":"
-    parts+=( "${upper}" )
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers_load "${mnt}" layers
+
+    # Parse all the lowerdirs and upperdir into an array of mount points to get contents of.
+    # For display purposes want to display the sources of the mount points instead. So construct a
+    # second array for that. This relies on the fact that the entries are in the same order inside
+    # the layer map.
+    local lowerdirs=( $(pack_get layers lowerdirs) $(pack_get layers upperdir) )
+    local sources=( $(pack_get layers sources)  $(pack_get layers upperdir) )
+
     local idx
-    for idx in $(array_indexes parts); do
-        eval "local layer=\${parts[$idx]}"
-
-        # Figure out source of the mountpoint
-        local src=$(grep "${layer}" /proc/mounts | head -1)
-
-        if [[ ${src} =~ "/dev/loop" ]]; then
-            src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
-        elif [[ ${src} =~ "overlay" ]]; then
-            src=$(echo "${src}" | awk '{print $2}')
-
-        fi
+    for idx in $(array_rindexes lowerdirs); do
+        eval "local layer=\${lowerdirs[$idx]}"
+        eval "local src=\${sources[$idx]}"
 
         # Pretty print the contents
-        local find_output=$(find ${layer} -ls | awk '{ $1=""; print}' | sed -e "s|${layer}|/|" -e 's|//|/|' | column -t | sort -k10)
-        echo "$(ecolor green)+--layer${idx} [${src}:${layer}]$(ecolor off)"
+        local find_output=$(find ${layer} -ls           \
+            | awk '{ $1=""; print}'                     \
+            | sed -e "\|${layer}$|d" -e "s|${layer}/||" \
+            | column -t | sort -k10)
+        echo "$(ecolor green)+--layer${idx} [${src}]$(ecolor off)"
         echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
     done
 }
@@ -290,14 +315,12 @@ overlayfs_save_changes()
 {
     $(opt_parse mnt dest)
 
-    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
-    # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    edebug "$(lval mnt dest output)"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers_load "${mnt}" layers
 
-    # Save to requested type.   
-    archive_create -d="${upper}" . "${dest}"
+    # Save the upper RW layer to requested type.   
+    archive_create -d="$(pack_get layers upperdir)" . "${dest}"
 }
 
 # Check if there are any changes in an overlayfs or not.
@@ -305,13 +328,12 @@ overlayfs_changed()
 {
     $(opt_parse mnt)
 
-    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
-    # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers_load "${mnt}" layers
 
     # If the directory isn't empty then there are changes made to the RW layer.
-    directory_not_empty "${upper}"
+    directory_not_empty "$(pack_get layers upperdir)"
 }
 
 # List the changes in an overlayfs
@@ -320,32 +342,36 @@ overlayfs_list_changes()
     $(opt_parse \
         "+long l=0 | Display long listing format." \
         "mnt       | The mountpoint to list changes for.")
-        
-    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
-    # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+ 
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers_load "${mnt}" layers
+    local upperdir="$(pack_get layers upperdir)"
 
     # Pretty print the list of changes
     if [[ ${long} -eq 1 ]]; then
-        find "${upper}" -ls | awk '{ $1=""; print}' | sed -e "s|${upper}|/|" -e 's|//|/|' | column -t | sort -k10
+        find "${upperdir}" -ls                                \
+            | awk '{ $1=""; print}'                           \
+            | sed -e "\|${upperdir}$|d" -e "s|${upperdir}/||" \
+            | column -t | sort -k10
     else
-        find "${upper}" | sed -e "s|${upper}|/|" -e 's|//|/|' | sort
+        find "${upperdir}"                                    \
+            | sed -e "\|${upperdir}$|d" -e "s|${upperdir}/||" \
+            | column -t | sort -k10
     fi
 }
 
-# Show a unified diff between the lower and upper layers 
+# Show a unified diff between the lowest and upper layers
 overlayfs_diff()
 {
     $(opt_parse mnt)
 
-    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
-    # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers_load "${mnt}" layers
 
-    diff --recursive --unified "${lower}" "${upper}"
+    # Diff layers
+    diff --recursive --unified "$(pack_get layers lowest)" "$(pack_get layers upperdir)"
 }
 
 # Dedupe files in overlayfs such that all files in the upper directory which are
@@ -357,12 +383,14 @@ overlayfs_dedupe()
 {
     $(opt_parse mnt)
  
-    # Get RW layer from mounted src. This assumes the "upperdir" is the RW layer
-    # as is our convention. If it's not mounted this will fail.
-    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
-    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-    
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers_load "${mnt}" layers
+
+    # Get the upperdir and bottom-most lowerdir
+    local lower=$(pack_get layers lowest)
+    local upper=$(pack_get layers upperdir)
+
     # Check each file in parallel and remove any identical files.
     local pids=() path="" fname=""
     for path in $(find ${upper} -type f); do
