@@ -452,3 +452,15 @@ if [[ ${__BU_OS} == Linux ]] ; then
 
 fi
 
+ETEST_array_indexes()
+{
+    A=(1 2 3 4)
+    unset A[0]
+    unset A[2]
+
+    local indexes=$(array_indexes A)
+    assert_eq "1 3" "${indexes}"
+
+    local rindexes=$(array_rindexes A)
+    assert_eq "3 1" "${rindexes}"
+}
