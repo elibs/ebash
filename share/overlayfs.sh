@@ -119,7 +119,6 @@ overlayfs_mount()
         local layers=()
         for arg in "${args[@]}"; do
             local tmp=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
-
             archive_mount "${arg}" "${tmp}"
             layers+=( "${tmp}" )
         done
@@ -199,7 +198,7 @@ overlayfs_unmount()
 
     # Load the layer map for this overlayfs mount
     local layers=""
-    overlayfs_layers_load "${mnt}" layers
+    overlayfs_layers "${mnt}" layers
 
     # Manually unmount final mount point. Cannot call eunmount since it would see
     # this as an overlayfs mount and try to call overlayfs_unmount again and we'd
@@ -212,7 +211,7 @@ overlayfs_unmount()
 }
 
 # Parse an overlayfs mount point and populate a pack with entries for the 
-# sources, lowerdirs, lowest, upperdir, workdir, and mnt.
+# sources, lowerdirs, lowest, upperdir, workdir, and src and mnt.
 #
 # NOTE: Because 'lowerdir' may actually be stacked its value may contain
 #       multiple whitespace separated entries we use the key 'lowerdirs'
@@ -222,7 +221,7 @@ overlayfs_unmount()
 #       need to directly access it.
 #
 # NOTE: Depending on kernel version, 'workdir' may be empty as it may not be used.
-overlayfs_layers_load()
+overlayfs_layers()
 {
     $(opt_parse \
         "mnt        | Overlayfs mount point to list the layers for." \
@@ -259,16 +258,22 @@ overlayfs_layers_load()
         
         if [[ ${src} =~ "/dev/loop" ]]; then
             src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
-        elif [[ ${src} =~ "overlay" ]]; then
+        elif [[ ${src} =~ "^overlay" ]]; then
             src=$(echo "${src}" | awk '{print $2}')
         else
-            die "Unexpected mount: $(lval %layers entry src)"
+            src=$(findmnt --noheadings --output SOURCE "${entry}" || continue)
+            [[ -z ${src} ]] && continue
+
+            local metadir=$(dirname $(echo "${src}" | sed -e 's|.*\[||' -e 's|\]$||'))
+            src=$(readlink -f "${metadir}/src")
         fi
 
         sources+=( "${src}" )
     done
 
-    pack_set ${layers_var} "sources=${sources[*]}"
+    # Add all sources and src for original bottom most source
+    pack_set ${layers_var} "sources=${sources[*]:-}"
+    pack_set ${layers_var} "src=${sources[0]:-}"
 }
 
 # overlayfs_tree is used to display a graphical representation for an overlayfs
@@ -284,7 +289,7 @@ overlayfs_tree()
 
     # Load the layer map for this overlayfs mount
     local layers=""
-    overlayfs_layers_load "${mnt}" layers
+    overlayfs_layers "${mnt}" layers
 
     # Parse all the lowerdirs and upperdir into an array of mount points to get contents of.
     # For display purposes want to display the sources of the mount points instead. So construct a
@@ -308,6 +313,63 @@ overlayfs_tree()
     done
 }
 
+# Commit all pending changes in the overlayfs write later back down into the lowest read-only
+# layer and then unmount the overlayfs mount. The intention of this function is that you should
+# call it when you're completely done with an overlayfs and you want its changes to persist
+# back to the original archive. To avoid doing any unecessary work, this function will first
+# call overlayfs_dedupe and only if something has changed will it actually write out a new
+# archive.
+#
+# NOTE: You can't just save the overlayfs mounted directory back to the original archive while
+#       it's mounted or you'll corrupt the currently mounted overlayfs. To work around this, we
+#       archive the overlayfs mount point to a temporary archive, then we unmount the current
+#       mount point so that we can safely copy the new archive over the original archive.
+overlayfs_commit()
+{
+   $(opt_parse \
+        "+color c=1 | Show a color diff if possible."      \
+        "+diff  d=0 | Show a unified diff of the changes." \
+        "+list  l=1 | List the changes to stdout."         \
+        "mnt        | The overlayfs mount point.")
+
+    # First de-dupe the overlayfs. If nothing changed, then simply unmount and return success.
+    overlayfs_dedupe "${mnt}"
+    $(tryrc overlayfs_changed "${mnt}")
+    if [[ ${rc} -ne 0 ]]; then
+        edebug "Nothing changed -- unmounting and returning success"
+        overlayfs_unmount "${mnt}"
+        return 0
+    fi
+
+    # Optionally list the changes
+    if [[ ${list} -eq 1 ]]; then
+        einfo "${mnt} changes"
+        overlayfs_list_changes "${mnt}"
+    fi
+
+    # Optionally diff of the changes but don't let overlayfs_diff cause a failure since
+    # we expect them to be different.
+    if [[ ${diff} -eq 1 ]]; then
+        einfo "${mnt} diff"
+        opt_forward overlayfs_diff color -- "${mnt}" || true
+    fi
+
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers "${mnt}" layers
+
+    # Save the changes to a temporary archive of the same type.
+    local src=$(pack_get layers src)
+    local src_name=$(basename "${src}")
+    local tmp=$(mktemp --tmpdir ${src_name}.XXXXXX)
+    trap_add "rm --force ${tmp}"
+    archive_create -d="${mnt}" . "${tmp}"
+
+    # Now unmount the original and move the new archive over the original
+    overlayfs_unmount "${mnt}"
+    mv --force "${tmp}" "${src}"
+}
+
 # Save the top-most read-write later from an existing overlayfs mount into the
 # requested destination file. This file can be a squashfs image, an ISO, or any
 # supported archive format.
@@ -317,7 +379,7 @@ overlayfs_save_changes()
 
     # Load the layer map for this overlayfs mount
     local layers=""
-    overlayfs_layers_load "${mnt}" layers
+    overlayfs_layers "${mnt}" layers
 
     # Save the upper RW layer to requested type.   
     archive_create -d="$(pack_get layers upperdir)" . "${dest}"
@@ -330,7 +392,7 @@ overlayfs_changed()
 
     # Load the layer map for this overlayfs mount
     local layers=""
-    overlayfs_layers_load "${mnt}" layers
+    overlayfs_layers "${mnt}" layers
 
     # If the directory isn't empty then there are changes made to the RW layer.
     directory_not_empty "$(pack_get layers upperdir)"
@@ -345,7 +407,7 @@ overlayfs_list_changes()
  
     # Load the layer map for this overlayfs mount
     local layers=""
-    overlayfs_layers_load "${mnt}" layers
+    overlayfs_layers "${mnt}" layers
     local upperdir="$(pack_get layers upperdir)"
 
     # Pretty print the list of changes
@@ -364,14 +426,21 @@ overlayfs_list_changes()
 # Show a unified diff between the lowest and upper layers
 overlayfs_diff()
 {
-    $(opt_parse mnt)
+    $(opt_parse \
+        "+color c=1 | Display diff in color." \
+        "mnt        | Overlayfs mount.")
 
     # Load the layer map for this overlayfs mount
     local layers=""
-    overlayfs_layers_load "${mnt}" layers
+    overlayfs_layers "${mnt}" layers
 
-    # Diff layers
-    diff --recursive --unified "$(pack_get layers lowest)" "$(pack_get layers upperdir)"
+    # Diff layers optionally using colordiff instead of normal diff.
+    local bin="diff"
+    if [[ ${EFUNCS_COLOR:-} -eq 1 && ${color} -eq 1 ]] && which colordiff &>/dev/null; then
+        bin="colordiff"
+    fi
+
+    ${bin} --recursive --unified "$(pack_get layers lowest)" "$(pack_get layers upperdir)"
 }
 
 # Dedupe files in overlayfs such that all files in the upper directory which are
@@ -385,7 +454,7 @@ overlayfs_dedupe()
  
     # Load the layer map for this overlayfs mount
     local layers=""
-    overlayfs_layers_load "${mnt}" layers
+    overlayfs_layers "${mnt}" layers
 
     # Get the upperdir and bottom-most lowerdir
     local lower=$(pack_get layers lowest)
