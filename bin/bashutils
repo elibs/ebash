@@ -34,9 +34,8 @@ source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashut
 #
 
 $(opt_parse \
-    ":source s | Bashutils should source the specified file before attempting to run the specified command.")
-
-CALLED_NAME="${0##*/}"
+    ":source s        | Bashutils should source the specified file before attempting to run the specified command." \
+    ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend bashutils is running with the specified name.")
 
 args=( "${@}" )
 
@@ -45,16 +44,16 @@ if [[ -n ${source} ]] ; then
 fi
 
 # If not called as bashutils...
-if [[ "${CALLED_NAME}" != "bashutils" ]] ; then
+if [[ "${name}" != "bashutils" ]] ; then
 
     # If there's a function in the group with the specified command name call
     # it
-    if declare -f "${CALLED_NAME}_${1}" &>/dev/null ; then
+    if declare -f "${name}_${1}" &>/dev/null ; then
 
         # Run the command, but pretend to be inside a try so that die doesn't
         # print an ugly stack trace.
         __BU_INSIDE_TRY=1
-        quote_eval "${CALLED_NAME}_${1}" "${args[@]:1}"
+        quote_eval "${name}_${1}" "${args[@]:1}"
 
     # Otherwise assume the called name is also the name of a bashutils function
     # and pass everything as arguments to it.
@@ -62,7 +61,7 @@ if [[ "${CALLED_NAME}" != "bashutils" ]] ; then
         # Run the command, but pretend to be inside a try so that die doesn't
         # print an ugly stack trace.
         __BU_INSIDE_TRY=1
-        quote_eval "${CALLED_NAME}" "${args[@]}"
+        quote_eval "${name}" "${args[@]}"
     fi
 
 # However, if called as bashutils...
