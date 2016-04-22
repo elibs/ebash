@@ -52,7 +52,6 @@ if [[ "${name}" != "bashutils" ]] ; then
 
         # Run the command, but pretend to be inside a try so that die doesn't
         # print an ugly stack trace.
-        __BU_INSIDE_TRY=1
         quote_eval "${name}_${1}" "${args[@]:1}"
 
     # Otherwise assume the called name is also the name of a bashutils function
@@ -60,7 +59,6 @@ if [[ "${name}" != "bashutils" ]] ; then
     else
         # Run the command, but pretend to be inside a try so that die doesn't
         # print an ugly stack trace.
-        __BU_INSIDE_TRY=1
         quote_eval "${name}" "${args[@]}"
     fi
 
@@ -71,7 +69,6 @@ else
     if [[ ${#args[@]} -gt 0 ]] ; then
         # Run the command, but pretend to be inside a try so that die doesn't
         # print an ugly stack trace.
-        __BU_INSIDE_TRY=1
         quote_eval "${args[@]}"
 
     # Or run ibu if nothing was specified
@@ -80,5 +77,3 @@ else
     fi
 
 fi
-
-

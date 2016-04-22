@@ -1360,7 +1360,7 @@ string_trim()
     local text=$*
     text=${text%%+([[:space:]])}
     text=${text##+([[:space:]])}
-    printf -- "${text}"
+    printf -- "%s" "${text}"
 }
 
 # Truncate a specified string to fit within the specified number of characters.
@@ -1380,9 +1380,9 @@ string_truncate()
     local text=$*
 
     if [[ ${#text} -gt ${length} && ${ellipsis} -eq 1 ]] ; then
-        printf -- "${text:0:$((length-3))}..."
+        printf -- "%s" "${text:0:$((length-3))}..."
     else
-        printf -- "${text:0:${length}}"
+        printf -- "%s" "${text:0:${length}}"
     fi
 }
 
