@@ -189,11 +189,12 @@ global_teardown()
     [[ ${delete} -eq 0 ]] && edebug "Skipping global_teardown" && return 0
     edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
+    assert_no_process_leaks
+    assert_no_mount_leaks ${TEST_DIR_OUTPUT}
+
     if cgroup_supported ; then
         cgroup_destroy -r ${ETEST_CGROUP}
     fi
-
-    assert_no_mount_leaks ${TEST_DIR_OUTPUT}
 
     # Convert logfile to HTML if requested
     if [[ ${html} -eq 1 ]] && which ansi2html &>/dev/null; then
