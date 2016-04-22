@@ -326,7 +326,6 @@ overlayfs_tree()
 #       mount point so that we can safely copy the new archive over the original archive.
 overlayfs_commit()
 {
-   # $(opt_parse mnt)
    $(opt_parse \
         "+color c=1 | Show a color diff if possible."      \
         "+diff  d=0 | Show a unified diff of the changes." \
@@ -335,7 +334,8 @@ overlayfs_commit()
 
     # First de-dupe the overlayfs. If nothing changed, then simply unmount and return success.
     overlayfs_dedupe "${mnt}"
-    if ! overlayfs_changed "${mnt}"; then
+    $(tryrc overlayfs_changed "${mnt}")
+    if [[ ${rc} -ne 0 ]]; then
         edebug "Nothing changed -- unmounting and returning success"
         overlayfs_unmount "${mnt}"
         return 0

@@ -142,7 +142,7 @@ ETEST_overlayfs_commit()
         etestmsg "Committing changes"
         assert_true emounted dest
         assert_true overlayfs_changed dest
-        overlayfs_commit dest #--list --diff dest
+        overlayfs_commit --list --diff dest
         assert_false emounted dest
 
         etestmsg "Mounting again -- ensuring files show new content"
@@ -156,6 +156,62 @@ ETEST_overlayfs_commit()
     done
 }
 
+ETEST_overlayfs_commit_nochanges()
+{
+    etestmsg "Populating source directory"
+    efreshdir src dest
+    touch src/{file0,file1,file2}
+    archive_create -d=src . src.squashfs
+    archive_list src.squashfs
+
+    etestmsg "Mounting at dest"
+    overlayfs_mount src.squashfs dest
+    overlayfs_tree dest
+    assert_false overlayfs_changed dest
+
+    etestmsg "Committing unchanged overlayfs"
+    local md5=$(md5sum src.squashfs)
+    local mod=$(stat -c %y src.squashfs)
+    assert_true emounted dest
+    assert_false overlayfs_changed dest
+    overlayfs_commit --list --diff dest
+    assert_false emounted dest
+
+    etestmsg "Ensuring archive is unmodified"
+    assert_eq "${md5}" "$(md5sum src.squashfs)"
+    assert_eq "${mod}" "$(stat -c %y src.squashfs)"
+}
+
+ETEST_overlayfs_commit_dedupe()
+{
+    etestmsg "Populating source directory"
+    efreshdir src dest
+    touch src/{file0,file1,file2}
+    archive_create -d=src . src.squashfs
+    archive_list src.squashfs
+
+    etestmsg "Mounting at dest"
+    overlayfs_mount src.squashfs dest
+    overlayfs_tree dest
+    assert_false overlayfs_changed dest
+
+    etestmsg "Creating duplicate files in RW later"
+    cp src/file0 dest/file0
+    cp src/file1 dest/file1
+    cp src/file2 dest/file2
+
+    etestmsg "Committing unchanged overlayfs"
+    local md5=$(md5sum src.squashfs)
+    local mod=$(stat -c %y src.squashfs)
+    assert_true emounted dest
+    assert_false overlayfs_changed dest
+    overlayfs_commit --list --diff dest
+    assert_false emounted dest
+
+    etestmsg "Ensuring archive is unmodified"
+    assert_eq "${md5}" "$(md5sum src.squashfs)"
+    assert_eq "${mod}" "$(stat -c %y src.squashfs)"
+}
 
 ETEST_overlayfs_multilayer()
 {
