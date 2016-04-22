@@ -95,6 +95,21 @@
 
     - Readme and unit tests are now included in the package.
 
+    - Revamp overlayfs module to to perform all parsing of the various mount 
+      layers into a single overlayfs_layers function. This uses a pack to more
+      easily and consistently access various mount points and sources of the
+      mount points throughout overlayfs code.
+
+    - Modified overlayfs_tree to dump contents top-down instead of bottom-up.
+      This means the uppermost layer is printed first to indicate it's a
+      read-through layer cake filesystem.
+
+    - Add new overlayfs_commit function to commit all pending changes in the
+      overlayfs write later back down into the lowest read-only layer and then
+      unmount the overlayfs mount. The intention of this function is that you should
+      call it when you're completely done with an overlayfs and you want its
+      changes to persist back to the original archive.
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common
