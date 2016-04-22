@@ -1864,7 +1864,7 @@ print_value()
     [[ -z ${__input} ]] && return 0
 
     # Special handling for packs, as long as their name is specified with a
-    # plus character in front of it
+    # '%' character in front of it
     if [[ "${__input:0:1}" == '%' ]] ; then
         pack_print "${__input:1}"
         return 0
@@ -4024,6 +4024,13 @@ array_indexes()
 {
     $(opt_parse __array_indexes_array)
     eval "echo \${!${__array_indexes_array}[@]}"
+}
+
+# Same as array_indexes only this enumerates them in reverse order.
+array_rindexes()
+{
+    $(opt_parse __array_indexes_array)
+    eval "echo \${!${__array_indexes_array}[@]} | rev"
 }
 
 # array_contains will check if an array contains a given value or not. This
