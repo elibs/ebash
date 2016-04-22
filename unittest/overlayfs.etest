@@ -115,6 +115,48 @@ ETEST_overlayfs_modify()
     done
 }
 
+ETEST_overlayfs_commit()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+        
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file0,file1,file2}
+        archive_create -d=src . src.${ftype}
+        archive_list src.${ftype}
+
+        etestmsg "Mounting at dest"
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        assert_false overlayfs_changed dest
+
+        etestmsg "Modifying mounted files"
+        echo "File#1" > dest/file1
+        echo "File#2" > dest/file2
+        assert_eq "File#1" "$(cat dest/file1)"
+        assert_eq "File#2" "$(cat dest/file2)"
+
+        etestmsg "Committing changes"
+        assert_true emounted dest
+        assert_true overlayfs_changed dest
+        overlayfs_commit dest #--list --diff dest
+        assert_false emounted dest
+
+        etestmsg "Mounting again -- ensuring files show new content"
+        efreshdir dest
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        assert_false overlayfs_changed dest
+        assert_eq "File#1" "$(cat dest/file1)"
+        assert_eq "File#2" "$(cat dest/file2)"
+        overlayfs_unmount dest
+    done
+}
+
+
 ETEST_overlayfs_multilayer()
 {
     etestmsg "Creating multiple squashfs images"
