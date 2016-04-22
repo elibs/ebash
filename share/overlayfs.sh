@@ -252,50 +252,36 @@ overlayfs_unmount()
 # along with some basic metadata about each file (as provided by find -ls).
 overlayfs_tree()
 {
-    if [[ -z "$@" ]]; then
-        return 0
-    fi
+    $(opt_parse mnt)
 
-    # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
-    # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
+    # Parse out the lower, upper and work directories to be unmounted
+    local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
+    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+    
+    # Split 'lower' on ':' so we can unmount each of the lower layers then
+    # append upper to the list so we see that as well.
+    local parts
+    array_init parts "${lower}" ":"
+    parts+=( "${upper}" )
+    local idx
+    for idx in $(array_indexes parts); do
+        eval "local layer=\${parts[$idx]}"
 
-    local mnt
-    for mnt in "$@"; do
- 
-        # If not mounted, just skip this.
-        if ! emounted "${mnt}"; then
-            continue
+        # Figure out source of the mountpoint
+        local src=$(grep "${layer}" /proc/mounts | head -1)
+
+        if [[ ${src} =~ "/dev/loop" ]]; then
+            src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
+        elif [[ ${src} =~ "overlay" ]]; then
+            src=$(echo "${src}" | awk '{print $2}')
+
         fi
- 
-        # Parse out the lower, upper and work directories to be unmounted
-        local output="$(grep "${__BU_OVERLAYFS} $(readlink -m ${mnt})" /proc/mounts)"
-        local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
-        local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-        
-        # Split 'lower' on ':' so we can unmount each of the lower layers then
-        # append upper to the list so we see that as well.
-        local parts
-        array_init parts "${lower}" ":"
-        parts+=( "${upper}" )
-        local idx
-        for idx in $(array_indexes parts); do
-            eval "local layer=\${parts[$idx]}"
 
-            # Figure out source of the mountpoint
-            local src=$(grep "${layer}" /proc/mounts | head -1)
-
-            if [[ ${src} =~ "/dev/loop" ]]; then
-                src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
-            elif [[ ${src} =~ "overlay" ]]; then
-                src=$(echo "${src}" | awk '{print $2}')
-
-            fi
-
-            # Pretty print the contents
-            local find_output=$(find ${layer} -ls | awk '{ $1=""; print}' | sed -e "s|${layer}|/|" -e 's|//|/|' | column -t | sort -k10)
-            echo "$(ecolor green)+--layer${idx} [${src}:${layer}]$(ecolor off)"
-            echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
-        done
+        # Pretty print the contents
+        local find_output=$(find ${layer} -ls | awk '{ $1=""; print}' | sed -e "s|${layer}|/|" -e 's|//|/|' | column -t | sort -k10)
+        echo "$(ecolor green)+--layer${idx} [${src}:${layer}]$(ecolor off)"
+        echo "${find_output}" | sed 's#^#'$(ecolor green)\|$(ecolor off)\ \ '#g'
     done
 }
 
