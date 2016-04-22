@@ -190,60 +190,58 @@ overlayfs_mount()
 # into the final mount image, they will all be unmounted as well.
 overlayfs_unmount()
 {
-    local mnt
-    for mnt in "$@"; do
+    $(opt_parse mnt)
 
-        # If empty string or not mounted just skip it
-        if [[ -z "${mnt}" ]] || ! emounted "${mnt}" ; then
+    # If empty string or not mounted just skip it
+    if [[ -z "${mnt}" ]] || ! emounted "${mnt}" ; then
+        return 0
+    fi
+
+    # Parse out required lower and upper directories to be unmounted.
+    # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
+    # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
+    local output="$(grep "${__BU_OVERLAYFS} $(emount_realpath ${mnt})" /proc/mounts)"
+    local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
+    local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+
+    # On newer kernels, also need to unmount work directory.
+    local work=""
+    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
+        work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
+    fi
+    
+    edebug "$(lval mnt lower upper work)"
+
+    # Split 'lower' on ':' so we can unmount each of the lower layers 
+    local parts
+    array_init parts "${lower}" ":"
+    
+    # In the event we have stacked multiple overlayfs mounts on top of one another
+    # we need to unmount the current set of mount points and then at the very end
+    # of this function unmount the lowest layer. So we pull that out of our array
+    # and handle it specially at the end.
+    if array_not_empty parts; then
+        lower=${parts[0]}
+        unset parts[0]
+    fi
+
+    local layer
+    for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
+
+        if [[ -z ${layer} ]] || ! emounted "${layer}"; then
+            edebug "Skipping non-mounted $(lval layer)"
             continue
         fi
-
-        # Parse out required lower and upper directories to be unmounted.
-        # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
-        # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
-        local output="$(grep "${__BU_OVERLAYFS} $(emount_realpath ${mnt})" /proc/mounts)"
-        local lower="$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*")"
-        local upper="$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
-
-        # On newer kernels, also need to unmount work directory.
-        local work=""
-        if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
-            work="$(echo "${output}"  | grep -Po "workdir=\K[^, ]*")"
-        fi
         
-        edebug "$(lval mnt lower upper work)"
+        edebug "Unmounting $(lval layer)"
+        umount -l "${layer}"
 
-        # Split 'lower' on ':' so we can unmount each of the lower layers 
-        local parts
-        array_init parts "${lower}" ":"
-        
-        # In the event we have stacked multiple overlayfs mounts on top of one another
-        # we need to unmount the current set of mount points and then at the very end
-        # of this function unmount the lowest layer. So we pull that out of our array
-        # and handle it specially at the end.
-        if array_not_empty parts; then
-            lower=${parts[0]}
-            unset parts[0]
-        fi
- 
-        local layer
-        for layer in ${parts[@]:-} "${upper}" "${work}" "${mnt}"; do
-
-            if [[ -z ${layer} ]] || ! emounted "${layer}"; then
-                edebug "Skipping non-mounted $(lval layer)"
-                continue
-            fi
-            
-            edebug "Unmounting $(lval layer)"
-            umount -l "${layer}"
-
-        done
-
-        # In case the overlayfs mounts are layered manually have to also unmount
-        # the lower layers. NOTE: It's important we call eunmount not overlayfs_unmount
-        # because the bottom most layer may not be overlayfs.
-        eunmount ${lower}
     done
+
+    # In case the overlayfs mounts are layered manually have to also unmount
+    # the lower layers. NOTE: It's important we call eunmount not overlayfs_unmount
+    # because the bottom most layer may not be overlayfs.
+    eunmount ${lower}
 }
 
 # overlayfs_tree is used to display a graphical representation for an overlayfs
