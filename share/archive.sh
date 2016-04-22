@@ -568,7 +568,7 @@ archive_mount()
 
         # Create a temporary directory, some brief metadata and then extract archive into it.
         local tmp=$(mktemp --tmpdir --directory archive-mount-XXXXXX)
-        stacktrace > ${tmp}/stacktrace
+        stacktrace > "${tmp}/stacktrace"
         archive_extract "${src}" "${tmp}/contents"
         ln -s "$(readlink -f "${src}")" "${tmp}/src"
 
