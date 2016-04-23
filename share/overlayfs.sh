@@ -360,14 +360,14 @@ overlayfs_commit()
 
     # Optionally list the changes
     if [[ ${list} -eq 1 ]]; then
-        einfo "Changed ${src}"
+        einfo "Changed ${src_name}"
         overlayfs_list_changes "${mnt}"
     fi
 
     # Optionally diff of the changes but don't let overlayfs_diff cause a failure since
     # we expect them to be different.
     if [[ ${diff} -eq 1 ]]; then
-        einfo "Diffing ${src}"
+        einfo "Diffing ${src_name}"
         opt_forward overlayfs_diff color -- "${mnt}" || true
     fi
 
