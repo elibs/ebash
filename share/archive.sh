@@ -184,7 +184,7 @@ archive_create()
         level=1
     fi
 
-    edebug "Creating archive $(lval dir srcs dest dest_real dest_type excludes ignore_missing nice level)"
+    edebug "Creating archive $(lval directory srcs dest dest_real dest_type excludes ignore_missing nice level)"
     mkdir -p "$(dirname "${dest}")"
 
     # Put entire function into a subshell to ensure clean up traps execute properly.

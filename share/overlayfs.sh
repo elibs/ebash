@@ -327,30 +327,40 @@ overlayfs_tree()
 overlayfs_commit()
 {
    $(opt_parse \
-        "+color c=1 | Show a color diff if possible."      \
-        "+diff  d=0 | Show a unified diff of the changes." \
-        "+list  l=1 | List the changes to stdout."         \
-        "mnt        | The overlayfs mount point.")
+       ":callback      | Callback to invoke after commit completes." \
+        "+color    c=1 | Show a color diff if possible."             \
+        "+error    e=0 | Error out if there is nothing to do."       \
+        "+diff     d=0 | Show a unified diff of the changes."        \
+        "+list     l=0 | List the changes to stdout."                \
+        "+progress p=0 | Show eprogress while committing changes."   \
+        "mnt           | The overlayfs mount point.")
 
-    # First de-dupe the overlayfs. If nothing changed, then simply unmount and return success.
+    # First de-dupe the overlayfs. If nothing changed, then simply unmount and return success
+    # unless caller opted in for this to be an error case.
     overlayfs_dedupe "${mnt}"
     $(tryrc overlayfs_changed "${mnt}")
     if [[ ${rc} -ne 0 ]]; then
-        edebug "Nothing changed -- unmounting and returning success"
+        edebug "Nothing changed"
         overlayfs_unmount "${mnt}"
+
+        if [[ ${error} -eq 1 ]]; then
+            eerror "Nothing changed"
+            return 1
+        fi
+
         return 0
     fi
 
     # Optionally list the changes
     if [[ ${list} -eq 1 ]]; then
-        einfo "${mnt} changes"
+        einfo "Changed ${mnt}"
         overlayfs_list_changes "${mnt}"
     fi
 
     # Optionally diff of the changes but don't let overlayfs_diff cause a failure since
     # we expect them to be different.
     if [[ ${diff} -eq 1 ]]; then
-        einfo "${mnt} diff"
+        einfo "Diffing ${mnt}"
         opt_forward overlayfs_diff color -- "${mnt}" || true
     fi
 
@@ -358,16 +368,41 @@ overlayfs_commit()
     local layers=""
     overlayfs_layers "${mnt}" layers
 
-    # Save the changes to a temporary archive of the same type.
     local src=$(pack_get layers src)
     local src_name=$(basename "${src}")
+    local src_type=$(archive_type "${src}")
     local tmp=$(mktemp --tmpdir ${src_name}.XXXXXX)
     trap_add "rm --force ${tmp}"
-    archive_create -d="${mnt}" . "${tmp}"
 
-    # Now unmount the original and move the new archive over the original
+    # Optionally start eprogress ticker
+    if [[ ${progress} -eq 1 ]]; then
+        eprogress "Committing ${src_name}"
+    fi
+
+    # Determine archive_create flags we need to use so we preserve flags originally used
+    # when the underlying source archive was created.
+    local flags=""
+    if [[ ${src_type} == "iso" ]]; then
+        flags+=' --volume="'$(isoinfo -d -i "${src}" | grep -oP "Volume id: (\K.*)")'"'
+        flags+=" --bootable=$(file "${src}" | grep --count "(bootable)")"
+    fi
+
+    # Save the changes to a temporary archive of the same type then unmount
+    # the original and move the new archive over the original.
+    archive_create ${flags} --directory "${mnt}" . "${tmp}"
     overlayfs_unmount "${mnt}"
     mv --force "${tmp}" "${src}"
+
+    # Optionally call callback
+    if [[ -n ${callback} ]]; then
+        edebug "Invoking $(lval callback)"
+        ${callback}
+    fi
+
+    # Optionally stop eprogress ticker
+    if [[ ${progress} -eq 1 ]]; then
+        eprogress_kill
+    fi
 }
 
 # Save the top-most read-write later from an existing overlayfs mount into the
