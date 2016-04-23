@@ -389,7 +389,7 @@ overlayfs_commit()
         # NOTE: Suppress stderr because isoinfo spews messages to stderr that can't be turned
         # of such as 'Setting input-charset to 'UTF-8' from locale.'
         flags+=' --volume="'$(isoinfo -d -i "${src}" | grep -oP "Volume id: (\K.*)" 2>/dev/null)'"'
-        flags+=" --bootable=$(file "${src}" | grep --count "(bootable)")"
+        flags+=" --bootable=$(file "${src}" | grep --count "(bootable)" || true)"
     fi
 
     # Save the changes to a temporary archive of the same type then unmount
