@@ -351,26 +351,27 @@ overlayfs_commit()
         return 0
     fi
 
+    # Load the layer map for this overlayfs mount
+    local layers=""
+    overlayfs_layers "${mnt}" layers
+    local src=$(pack_get layers src)
+    local src_name=$(basename "${src}")
+    local src_type=$(archive_type "${src}")
+
     # Optionally list the changes
     if [[ ${list} -eq 1 ]]; then
-        einfo "Changed ${mnt}"
+        einfo "Changed ${src}"
         overlayfs_list_changes "${mnt}"
     fi
 
     # Optionally diff of the changes but don't let overlayfs_diff cause a failure since
     # we expect them to be different.
     if [[ ${diff} -eq 1 ]]; then
-        einfo "Diffing ${mnt}"
+        einfo "Diffing ${src}"
         opt_forward overlayfs_diff color -- "${mnt}" || true
     fi
 
-    # Load the layer map for this overlayfs mount
-    local layers=""
-    overlayfs_layers "${mnt}" layers
-
-    local src=$(pack_get layers src)
-    local src_name=$(basename "${src}")
-    local src_type=$(archive_type "${src}")
+    # Create a tmp file to store changed version
     local tmp=$(mktemp --tmpdir ${src_name}.XXXXXX)
     trap_add "rm --force ${tmp}"
 
@@ -383,7 +384,11 @@ overlayfs_commit()
     # when the underlying source archive was created.
     local flags=""
     if [[ ${src_type} == "iso" ]]; then
-        flags+=' --volume="'$(isoinfo -d -i "${src}" | grep -oP "Volume id: (\K.*)")'"'
+
+        # Get volume name and bootable flag.
+        # NOTE: Suppress stderr because isoinfo spews messages to stderr that can't be turned
+        # of such as 'Setting input-charset to 'UTF-8' from locale.'
+        flags+=' --volume="'$(isoinfo -d -i "${src}" | grep -oP "Volume id: (\K.*)" 2>/dev/null)'"'
         flags+=" --bootable=$(file "${src}" | grep --count "(bootable)")"
     fi
 
