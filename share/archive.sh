@@ -470,7 +470,9 @@ archive_list()
     if [[ ${src_type} == squashfs ]]; then
         unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d'
     elif [[ ${src_type} == iso ]]; then
-        isoinfo -J -i "${src}" -f | sed -e 's|^/||'
+        # NOTE: Suppress stderr because isoinfo spews messages to stderr that can't be turned
+        # of such as 'Setting input-charset to 'UTF-8' from locale.'
+        isoinfo -J -i "${src}" -f 2>/dev/null | sed -e 's|^/||'
     elif [[ ${src_type} == tar ]]; then
         tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||'
     elif [[ ${src_type} == cpio ]]; then
