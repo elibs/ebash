@@ -388,7 +388,7 @@ overlayfs_commit()
         # Get volume name and bootable flag.
         # NOTE: Suppress stderr because isoinfo spews messages to stderr that can't be turned
         # of such as 'Setting input-charset to 'UTF-8' from locale.'
-        flags+=' --volume="'$(isoinfo -d -i "${src}" | grep -oP "Volume id: (\K.*)" 2>/dev/null)'"'
+        flags+=' --volume="'$(isoinfo -d -i "${src}" 2>/dev/null | grep -oP "Volume id: (\K.*)")'"'
         flags+=" --bootable=$(file "${src}" | grep --count "(bootable)" || true)"
     fi
 
