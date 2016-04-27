@@ -103,7 +103,7 @@ overlayfs_mount()
     # Parse positional arguments into a bashutils array. Then grab final mount
     # point from args.
     local args=( "$@" )
-    local dest=${args[${#args[@]}-1]}
+    local dest=$(readlink -m ${args[${#args[@]}-1]})
     unset args[${#args[@]}-1]
     
     # Mount layered mounts at requested destination, creating if it doesn't exist.
@@ -115,32 +115,30 @@ overlayfs_mount()
     mkdir -p ${metadir}/{sources,lowerdirs,upperdir,workdir,merged}
     mount --bind "${dest}" "${metadir}/merged"
 
+    # Track source and lowerdirs
+    local src="" lower="" lower_src=""
+    local sources=()
+    local lowerdirs=()
+
     # NEWER KERNEL VERSIONS (>= 3.20)
     if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 20 ) ]]; then
 
         edebug "Using Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
 
         # Iterate through all the images and mount each one into a temporary directory
-        local arg
-        local layers=()
         local idx
         for idx in $(array_indexes args); do
-            eval "local entry=\${args[$idx]}"
+            eval "src=\$(readlink -f \"\${args[$idx]}\")"
+            lower="${metadir}/lowerdirs/${idx}"
+            lower_src="${metadir}/sources/${idx}"
+            lowerdirs+=( "${lower}" )
+            sources+=( "${src}" )
 
-            # Store off a symlink to the source and then mount the archive into layer directory
-            ln -s "$(readlink -f ${entry})" "${metadir}/sources/${idx}"
-            archive_mount "${entry}" "${metadir}/lowerdirs/${idx}"
-            
-            layers+=( "${metadir}/lowerdirs/${idx}" )
+            ln -s "${src}" "${lower_src}"
+            archive_mount "${src}" "${lower}"
         done
 
-        # Create temporary directory to hold read-only and read-write layers.
-        # Create lowerdir parameter by joining all images with colon
-        # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
-        local lower=$(array_join layers ":")
-
-        # Mount overlayfs
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
+        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="$(array_join lowerdirs :)",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
  
     # OLDER KERNEL VERSIONS (<3.20)
     # NOTE: Older OverlayFS is really annoying because you can only stack 2 overlayfs
@@ -154,11 +152,16 @@ overlayfs_mount()
         edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
 
         # Grab bottom most layer
-        local lower="${metadir}/lowerdirs/0"
-        archive_mount "${args[0]}" "${lower}"
-        ln -s "$(readlink -f ${args[0]})" "${metadir}/sources/0"
+        src=$(readlink -f "${args[0]}")
+        lower="${metadir}/lowerdirs/0"
+        lower_src="${metadir}/sources/0"
         unset args[0]
+        lowerdirs+=( "${lower}" )
+        sources+=( "${src}" )
 
+        ln -s "${src}" "${lower_src}"
+        archive_mount "${src}" "${lower}"
+        
         # Extract all remaining layers into empty "middle" directory
         if array_not_empty args; then
        
@@ -185,6 +188,19 @@ overlayfs_mount()
             mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir" "${dest}"
         fi
     fi
+
+    # Populate a pack with what we created.
+    local layers=""
+    pack_set layers "merged=${dest}"
+    pack_set layers "metadir=${metadir}" 
+    pack_set layers "lowerdirs=${lowerdirs[*]}"
+    pack_set layers "upperdir=${metadir}/upperdir"
+    pack_set layers "workdir=${metadir}/workdir"
+    pack_set layers "sources=${sources[*]}"
+    pack_set layers "lowest=${lowerdirs[0]}"
+    pack_set layers "src=${sources[0]}"
+    edebug "Created $(lval %layers)"
+    echo "${layers}" > "${metadir}/layer.pack"
 }
 
 # overlayfs_unmount will unmount an overlayfs directory previously mounted
@@ -234,25 +250,23 @@ overlayfs_layers()
     # Ensure we use absolute path
     mnt=$(readlink -m ${mnt})
 
-    # Find the metadir
-    local upperdir=$(readlink -f $(grep "^${__BU_OVERLAYFS} ${mnt}" /proc/mounts | grep -Po "upperdir=\K[^, ]*"))
-    local metadir=$(dirname "${upperdir}")
-    pack_set ${layers_var} "merged=${mnt}"
-    pack_set ${layers_var} "metadir=${metadir}" 
+    # Initialize pack.
+    eval "${layers_var}="
 
-    # Parse directories
-    # NOTE: lowerdirs and sources may be empty depending on kernel version.
-    local lowerdirs=( $(ls -d ${metadir}/lowerdirs/* 2>/dev/null | sort --version-sort | tr '\n' ' ' || true) )
-    local src="" sources=()
-    for src in $(ls ${metadir}/sources/* 2>/dev/null | sort --version-sort | tr '\n' ' ' || true); do
-        sources+=( $(readlink -f "${src}") )
-    done
-    pack_set ${layers_var} "lowerdirs=${lowerdirs[*]:-}"
-    pack_set ${layers_var} "upperdir=${metadir}/upperdir"
-    pack_set ${layers_var} "workdir=${metadir}/workdir"
-    pack_set ${layers_var} "sources=${sources[*]:-}"
-    pack_set ${layers_var} "lowest=${lowerdirs[0]:-}"
-    pack_set ${layers_var} "src=${sources[0]:-}"
+    # Look for an overlayfs mount point matching provided mount point. It may NOT be
+    # mounted (hence the || true) in which case we should just return.
+    local entry=$(grep "^${__BU_OVERLAYFS} ${mnt}" /proc/mounts | grep -Po "upperdir=\K[^, ]*" || true)
+    if [[ -z ${entry} ]]; then
+        return 0
+    fi
+
+    # Read in contents of the pack if present. If not populate the pack with empty values.
+    local metadir=$(dirname $(readlink -f "${entry}"))
+    if [[ -e ${metadir}/layer.pack ]]; then
+        eval "${layers_var}=\$(<"\${metadir}/layer.pack")"
+    else
+        pack_set ${layers_var} merged="${mnt}" metadir= lowerdirs= upperdir= workdir= sources= lowest= src=
+    fi
 }
 
 # overlayfs_tree is used to display a graphical representation for an overlayfs
