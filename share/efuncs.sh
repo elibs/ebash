@@ -2385,7 +2385,13 @@ emount_realpath()
 {
     $(opt_parse path)
     path="${path//\\040\(deleted\)/}"
-    echo -n "$(readlink -m ${path} 2>/dev/null || true)"
+
+    # Despite what readlink's manpage says, it can fail if the
+    # top-level path doesn't exist. In that case we'd still want
+    # to return the original input path rather than an empty string.
+    if ! readlink -m ${path} 2>/dev/null; then
+        echo -n "${path}"
+    fi
 }
 
 # Echo the emount regex for a given path
@@ -2512,7 +2518,7 @@ eunmount()
 
     local mnt
     for mnt in $@; do
-      
+
         # If empty string just skip it
         [[ -z "${mnt}" ]] && continue
 

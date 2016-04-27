@@ -232,7 +232,7 @@ archive_create()
         # but it drastically simplifies the code to treat it the same and the overhead
         # of a bind mount is so small that it is justified by the simpler code path.
         local unified=$(mktemp --tmpdir --directory archive-create-XXXXXX)
-        trap_add "eunmount -a -r -d ${unified}"
+        trap_add "eunmount --all --recursive --delete ${unified}"
         for src in "${srcs[@]}"; do
 
             if [[ ! -e "${src}" ]]; then
@@ -545,14 +545,7 @@ archive_diff()
 }
 
 # Mount a given archive type to a temporary directory read-only if mountable
-# and if not extract it to the destination directory. If it is forced to extract
-# it because the archive format doesn't support direct mounting then we'll create
-# a temporary directory and extract it into that directory along with some metadata
-# and then bind mount that at the requested final mount point. This has several 
-# advantages. First, it's a true "mount" (bind) which unifies the mount/unmount
-# path for all archive formats. Second, we can tie the original source file back
-# to the final mount point more easily for code that wants access to the original 
-# source.
+# and if not extract it to the destination directory.
 archive_mount()
 {
     $(opt_parse src dest)
@@ -567,14 +560,6 @@ archive_mount()
     
     # TAR+CPIO files need to be extracted manually :-[
     elif [[ ${src_type} =~ tar|cpio ]]; then
-
-        # Create a temporary directory, some brief metadata and then extract archive into it.
-        local tmp=$(mktemp --tmpdir --directory archive-mount-XXXXXX)
-        stacktrace > "${tmp}/stacktrace"
-        archive_extract "${src}" "${tmp}/contents"
-        ln -s "$(readlink -f "${src}")" "${tmp}/src"
-
-        # Now bind mount the extracted contents directory into the expected location
-        emount --bind "${tmp}/contents" "${dest}"
+        archive_extract "${src}" "${dest}"
     fi
 }
