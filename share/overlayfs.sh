@@ -108,7 +108,13 @@ overlayfs_mount()
     
     # Mount layered mounts at requested destination, creating if it doesn't exist.
     mkdir -p "${dest}"
-     
+    
+    # Top-level matadata directory
+    local metadir=$(mktemp --tmpdir --directory overlayfs-meta-XXXXXX)
+    stacktrace > "${metadir}/stacktrace"
+    mkdir -p ${metadir}/{sources,lowerdirs,upperdir,workdir,merged}
+    mount --bind "${dest}" "${metadir}/merged"
+
     # NEWER KERNEL VERSIONS (>= 3.20)
     if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 20 ) ]]; then
 
@@ -117,21 +123,24 @@ overlayfs_mount()
         # Iterate through all the images and mount each one into a temporary directory
         local arg
         local layers=()
-        for arg in "${args[@]}"; do
-            local tmp=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
-            archive_mount "${arg}" "${tmp}"
-            layers+=( "${tmp}" )
+        local idx
+        for idx in $(array_indexes args); do
+            eval "local entry=\${args[$idx]}"
+
+            # Store off a symlink to the source and then mount the archive into layer directory
+            ln -s "$(readlink -f ${entry})" "${metadir}/sources/${idx}"
+            archive_mount "${entry}" "${metadir}/lowerdirs/${idx}"
+            
+            layers+=( "${metadir}/lowerdirs/${idx}" )
         done
 
         # Create temporary directory to hold read-only and read-write layers.
         # Create lowerdir parameter by joining all images with colon
         # (see https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt)
         local lower=$(array_join layers ":")
-        local upper="$(mktemp --tmpdir --directory overlayfs-upper-XXXXXX)"
-        local work="$(mktemp --tmpdir --directory overlayfs-work-XXXXXX)"
 
         # Mount overlayfs
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
+        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
  
     # OLDER KERNEL VERSIONS (<3.20)
     # NOTE: Older OverlayFS is really annoying because you can only stack 2 overlayfs
@@ -145,15 +154,14 @@ overlayfs_mount()
         edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
 
         # Grab bottom most layer
-        local lower=$(mktemp --tmpdir --directory overlayfs-lower-XXXXXX)
+        local lower="${metadir}/lowerdirs/0"
         archive_mount "${args[0]}" "${lower}"
         unset args[0]
 
         # Extract all remaining layers into empty "middle" directory
         if array_not_empty args; then
        
-            local middle=$(mktemp --tmpdir --directory overlayfs-middle-XXXXXX)
-            local work=$(mktemp --tmpdir --directory overlayfs-work-XXXXXX)
+            local middle="${metadir}/lowerdirs/1"
 
             # Extract this layer into middle directory using image specific mechanism.
             for arg in "${args[@]}"; do
@@ -161,7 +169,7 @@ overlayfs_mount()
             done
        
             if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
-                mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${work}" "${middle}"
+                mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${metadir}/workdir" "${middle}"
             else
                 mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
             fi
@@ -169,16 +177,10 @@ overlayfs_mount()
             lower=${middle}
         fi
 
-        # Mount this unpacked directory into overlayfs layer with an empty read-write 
-        # layer on top. This way if caller saves the changes they get only the changes
-        # they made in the top-most layer.
-        local upper=$(mktemp --tmpdir --directory squashfs-upper-XXXXXX)
-        local work=$(mktemp --tmpdir --directory squashfs-work-XXXXXX)
-
         if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
-            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}",workdir="${work}" "${dest}"
+            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
         else
-            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${upper}" "${dest}"
+            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir" "${dest}"
         fi
     fi
 }
@@ -200,14 +202,14 @@ overlayfs_unmount()
     local layers=""
     overlayfs_layers "${mnt}" layers
 
-    # Manually unmount final mount point. Cannot call eunmount since it would see
+    # Manually unmount merged mount point. Cannot call eunmount since it would see
     # this as an overlayfs mount and try to call overlayfs_unmount again and we'd
     # recurse infinitely.
-    umount -l $(pack_get layers mnt)
+    umount -l "${mnt}"
 
     # Now we can eunmount all the other layers to ensure everything is cleaned up.
     # This is necessary on older kernels which would leak the lower layer mounts.
-    eunmount $(pack_get layers upperdir) $(pack_get layers workdir) $(pack_get layers lowerdirs)
+    eunmount --all --recursive --delete $(pack_get layers metadir) "${mnt}"
 }
 
 # Parse an overlayfs mount point and populate a pack with entries for the 
@@ -227,53 +229,24 @@ overlayfs_layers()
         "mnt        | Overlayfs mount point to list the layers for." \
         "layers_var | Pack to store the details into.")
 
-    # Always add the mount point into the pack
-    pack_set ${layers_var} "mnt=${mnt}"
-    
-    # Parse out required lower and upper directories to be unmounted.
-    # /proc/mounts will show the mount point and its lowerdir,upperdir and workdir so that we can unmount it properly:
-    # "overlay /home/marshall/sandboxes/bashutils/output/squashfs.etest/ETEST_squashfs_mount/dst overlay rw,relatime,lowerdir=/tmp/squashfs-ro-basv,upperdir=/tmp/squashfs-rw-jWg9,workdir=/tmp/squashfs-work-cLd9 0 0"
-    local output="$(grep "${__BU_OVERLAYFS} $(emount_realpath ${mnt})" /proc/mounts)"
-    pack_set ${layers_var} "lowerdirs=$(echo "${output}" | grep -Po "lowerdir=\K[^, ]*" | sed 's|:| |g')"
-    pack_set ${layers_var} "upperdir=$(echo "${output}" | grep -Po "upperdir=\K[^, ]*")"
+    # Ensure we use absolute path
+    mnt=$(readlink -m ${mnt})
 
-    # Store off the bottom-most lowerdir for easier access
-    local lowerdirs=( $(pack_get ${layers_var} lowerdirs) )
+    # Find the metadir
+    local upperdir=$(grep "^${__BU_OVERLAYFS} ${mnt}" /proc/mounts | grep -Po "upperdir=\K[^, ]*")
+    local metadir=$(dirname "${upperdir}")
+    pack_set ${layers_var} "merged=${mnt}"
+    pack_set ${layers_var} "metadir=${metadir}" 
+
+    # Parse directories
+    local lowerdirs=( $(ls -d ${metadir}/lowerdirs/* | sort --version-sort | tr '\n' ' ') )
+    local sources=( $(readlink -f $(ls ${metadir}/sources/* | sort --version-sort | tr '\n' ' ')) )
+    pack_set ${layers_var} "lowerdirs=${lowerdirs[*]}"
+    pack_set ${layers_var} "upperdir=${metadir}/upperdir"
+    pack_set ${layers_var} "workdir=${metadir}/workdir"
+    pack_set ${layers_var} "sources=${sources[*]}"
     pack_set ${layers_var} "lowest=${lowerdirs[0]}"
-
-    # Set workdir if appropriate based on kernel version
-    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ) ]]; then
-        pack_set ${layers_var} "workdir=$(echo "${output}" | grep -Po "workdir=\K[^, ]*")"
-    else
-        pack_set ${layers_var} "workdir="
-    fi
-
-    # NOW, go through each layer and figure out the source of that original src
-    # of that layer mount point and add that to the pack as well.
-    local sources=()
-    local entry
-    for entry in ${lowerdirs[@]}; do
-        
-        local src=$(grep "${entry}" /proc/mounts | head -1)
-        
-        if [[ ${src} =~ "/dev/loop" ]]; then
-            src=$(losetup $(echo "${src}" | awk '{print $1}') | awk '{print $3}' | sed -e 's|^(||' -e 's|)$||')
-        elif [[ ${src} =~ "^overlay" ]]; then
-            src=$(echo "${src}" | awk '{print $2}')
-        else
-            src=$(findmnt --noheadings --output SOURCE "${entry}" || continue)
-            [[ -z ${src} ]] && continue
-
-            local metadir=$(dirname $(echo "${src}" | sed -e 's|.*\[||' -e 's|\]$||'))
-            src=$(readlink -f "${metadir}/src")
-        fi
-
-        sources+=( "${src}" )
-    done
-
-    # Add all sources and src for original bottom most source
-    pack_set ${layers_var} "sources=${sources[*]:-}"
-    pack_set ${layers_var} "src=${sources[0]:-}"
+    pack_set ${layers_var} "src=${sources[0]}"
 }
 
 # overlayfs_tree is used to display a graphical representation for an overlayfs

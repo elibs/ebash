@@ -2512,7 +2512,7 @@ eunmount()
 
     local mnt
     for mnt in $@; do
-      
+
         # If empty string just skip it
         [[ -z "${mnt}" ]] && continue
 
