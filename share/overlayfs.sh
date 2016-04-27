@@ -241,9 +241,10 @@ overlayfs_layers()
     pack_set ${layers_var} "metadir=${metadir}" 
 
     # Parse directories
-    local lowerdirs=( $(ls -d ${metadir}/lowerdirs/* | sort --version-sort | tr '\n' ' ' || true) )
+    # NOTE: lowerdirs and sources may be empty depending on kernel version.
+    local lowerdirs=( $(ls -d ${metadir}/lowerdirs/* 2>/dev/null | sort --version-sort | tr '\n' ' ' || true) )
     local src="" sources=()
-    for src in $(ls ${metadir}/sources/* | sort --version-sort | tr '\n' ' ' || true); do
+    for src in $(ls ${metadir}/sources/* 2>/dev/null | sort --version-sort | tr '\n' ' ' || true); do
         sources+=( $(readlink -f "${src}") )
     done
     pack_set ${layers_var} "lowerdirs=${lowerdirs[*]:-}"
