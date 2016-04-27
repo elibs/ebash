@@ -232,7 +232,7 @@ archive_create()
         # but it drastically simplifies the code to treat it the same and the overhead
         # of a bind mount is so small that it is justified by the simpler code path.
         local unified=$(mktemp --tmpdir --directory archive-create-XXXXXX)
-        trap_add "eunmount -a -r -d ${unified}"
+        trap_add "eunmount --all --recursive --delete ${unified}"
         for src in "${srcs[@]}"; do
 
             if [[ ! -e "${src}" ]]; then

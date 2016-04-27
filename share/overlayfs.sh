@@ -156,18 +156,20 @@ overlayfs_mount()
         # Grab bottom most layer
         local lower="${metadir}/lowerdirs/0"
         archive_mount "${args[0]}" "${lower}"
+        ln -s "$(readlink -f ${args[0]})" "${metadir}/sources/0"
         unset args[0]
 
         # Extract all remaining layers into empty "middle" directory
         if array_not_empty args; then
        
             local middle="${metadir}/lowerdirs/1"
+            ln -s "$(readlink -f "${args[1]}")" "${metadir}/sources/1"
 
             # Extract this layer into middle directory using image specific mechanism.
             for arg in "${args[@]}"; do
                 archive_extract "${arg}" "${middle}"
             done
-       
+ 
             if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
                 mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${metadir}/workdir" "${middle}"
             else
@@ -239,14 +241,17 @@ overlayfs_layers()
     pack_set ${layers_var} "metadir=${metadir}" 
 
     # Parse directories
-    local lowerdirs=( $(ls -d ${metadir}/lowerdirs/* | sort --version-sort | tr '\n' ' ') )
-    local sources=( $(readlink -f $(ls ${metadir}/sources/* | sort --version-sort | tr '\n' ' ')) )
-    pack_set ${layers_var} "lowerdirs=${lowerdirs[*]}"
+    local lowerdirs=( $(ls -d ${metadir}/lowerdirs/* | sort --version-sort | tr '\n' ' ' || true) )
+    local src="" sources=()
+    for src in $(ls ${metadir}/sources/* | sort --version-sort | tr '\n' ' ' || true); do
+        sources+=( $(readlink -f "${src}") )
+    done
+    pack_set ${layers_var} "lowerdirs=${lowerdirs[*]:-}"
     pack_set ${layers_var} "upperdir=${metadir}/upperdir"
     pack_set ${layers_var} "workdir=${metadir}/workdir"
-    pack_set ${layers_var} "sources=${sources[*]}"
-    pack_set ${layers_var} "lowest=${lowerdirs[0]}"
-    pack_set ${layers_var} "src=${sources[0]}"
+    pack_set ${layers_var} "sources=${sources[*]:-}"
+    pack_set ${layers_var} "lowest=${lowerdirs[0]:-}"
+    pack_set ${layers_var} "src=${sources[0]:-}"
 }
 
 # overlayfs_tree is used to display a graphical representation for an overlayfs
