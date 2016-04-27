@@ -211,7 +211,7 @@ overlayfs_unmount()
 
     # Now we can eunmount all the other layers to ensure everything is cleaned up.
     # This is necessary on older kernels which would leak the lower layer mounts.
-    eunmount --all --recursive --delete $(pack_get layers metadir) "${mnt}"
+    eunmount --all --recursive --delete "$(pack_get layers metadir)" "${mnt}"
 }
 
 # Parse an overlayfs mount point and populate a pack with entries for the 
