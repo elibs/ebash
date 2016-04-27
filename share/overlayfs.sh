@@ -235,7 +235,7 @@ overlayfs_layers()
     mnt=$(readlink -m ${mnt})
 
     # Find the metadir
-    local upperdir=$(grep "^${__BU_OVERLAYFS} ${mnt}" /proc/mounts | grep -Po "upperdir=\K[^, ]*")
+    local upperdir=$(readlink -f $(grep "^${__BU_OVERLAYFS} ${mnt}" /proc/mounts | grep -Po "upperdir=\K[^, ]*"))
     local metadir=$(dirname "${upperdir}")
     pack_set ${layers_var} "merged=${mnt}"
     pack_set ${layers_var} "metadir=${metadir}" 
