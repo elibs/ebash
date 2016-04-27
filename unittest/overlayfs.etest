@@ -83,8 +83,9 @@ ETEST_overlayfs_eunmount_foreign()
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir=lowerdir,upperdir=upperdir dest
     fi
 
-    # Unmount it through eunmount
-    eunmount --all --recursive --delete dest
+    # Unmount it through eunmount -- need to manually specify lowerdir here as well
+    # to avoid a mount leak since overlayfs_unmount won't have a clue where to find it.
+    eunmount --all --recursive --delete dest lowerdir
     assert_not_exists dest/file1 dest/file2 dest
 }
 
