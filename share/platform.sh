@@ -3,6 +3,14 @@
 # Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
 
+if [[ ${__BU_OS} == Linux ]] ; then
+    BU_WORD_BEGIN='\<'
+    BU_WORD_END='\>'
+elif [[ ${__BU_OS} == Darwin ]] ; then
+    BU_WORD_BEGIN='[[:<:]]'
+    BU_WORD_END='[[:>:]]'
+fi
+
 #-----------------------------------------------------------------------------
 # LINUX
 #-----------------------------------------------------------------------------

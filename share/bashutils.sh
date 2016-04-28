@@ -26,13 +26,20 @@ fi
 # inside functions that are already declared, only inside those declared after
 # this.
 source "${BASHUTILS}/platform.sh"
-source "${BASHUTILS}/efuncs.sh"
+
+source "${BASHUTILS}/archive.sh"
+source "${BASHUTILS}/array.sh"
 source "${BASHUTILS}/cgroup.sh"
 source "${BASHUTILS}/chroot.sh"
+source "${BASHUTILS}/daemon.sh"
 source "${BASHUTILS}/dpkg.sh"
+source "${BASHUTILS}/efuncs.sh"
 source "${BASHUTILS}/elock.sh"
+source "${BASHUTILS}/emsg.sh"
+source "${BASHUTILS}/json.sh"
+source "${BASHUTILS}/mount.sh"
 source "${BASHUTILS}/netns.sh"
 source "${BASHUTILS}/network.sh"
-source "${BASHUTILS}/daemon.sh"
-source "${BASHUTILS}/archive.sh"
+source "${BASHUTILS}/opt.sh"
 source "${BASHUTILS}/overlayfs.sh"
+source "${BASHUTILS}/pack.sh"
