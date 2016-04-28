@@ -128,7 +128,7 @@ overlayfs_mount()
         # Iterate through all the images and mount each one into a temporary directory
         local idx
         for idx in $(array_indexes args); do
-            src=$(readlink -f "${args[$idx]}")
+            src=$(readlink -m "${args[$idx]}")
             lower="${metadir}/lowerdirs/${idx}"
             lower_src="${metadir}/sources/${idx}"
             lowerdirs+=( "${lower}" )
@@ -152,7 +152,7 @@ overlayfs_mount()
         edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
 
         # Grab bottom most layer
-        src=$(readlink -f "${args[0]}")
+        src=$(readlink -m "${args[0]}")
         lower="${metadir}/lowerdirs/0"
         lower_src="${metadir}/sources/0"
         unset args[0]
@@ -166,7 +166,7 @@ overlayfs_mount()
         if array_not_empty args; then
        
             local middle="${metadir}/lowerdirs/1"
-            ln -s "$(readlink -f "${args[1]}")" "${metadir}/sources/1"
+            ln -s "$(readlink -m "${args[1]}")" "${metadir}/sources/1"
 
             # Extract this layer into middle directory using image specific mechanism.
             for arg in "${args[@]}"; do
@@ -261,7 +261,7 @@ overlayfs_layers()
     fi
 
     # Read in contents of the pack if present. If not populate the pack with empty values.
-    local metadir=$(dirname $(readlink -f "${entry}"))
+    local metadir=$(dirname $(readlink -m "${entry}"))
     if [[ -e ${metadir}/layer.pack ]]; then
         eval "${layers_var}=\$(<"\${metadir}/layer.pack")"
     else
