@@ -335,3 +335,54 @@ get_network_ports()
 
     done <<< "$(netstat --all --program --numeric --protocol=inet 2>/dev/null | sed '1d' | tr -s ' ')"
 }
+
+# Netselect chooses the host that responds most quickly and reliably among a
+# list of specified IP addresses or hostnames.  It does this by pinging each
+# and looking for response times as well as packet drops.
+netselect()
+{
+    $(opt_parse \
+        "+quiet q=0 | Don't display progress information, just print the chosen host on stdout." \
+        ":count c   | Number of times to ping.  Defaults to 10 for multiple hosts or 1 for a single host.")
+
+    local hosts=$@; argcheck hosts
+    [[ ${quiet} -eq 1 ]] || eprogress "Finding host with lowest latency $(lval hosts)"
+
+    [[ $# -eq 1 ]] && : ${count:=1} || : ${count:=10}
+
+    declare -a results sorted rows
+
+    for h in ${hosts}; do
+        local entry=$(ping -c${count} -w5 -q $h 2>/dev/null | \
+            awk '/packet loss/ {loss=$6}
+                 /min\/avg\/max/ {
+                    split($4,stats,"/")
+                    printf("%f|%f|%s|%f", stats[2], stats[4], loss, (stats[2] * stats[4]) * (loss + 1))
+                }' || true)
+
+        results+=("${h}|${entry}")
+    done
+
+    array_init_nl sorted "$(printf '%s\n' "${results[@]}" | sort -t\| -k5 -n)"
+    array_init_nl rows "Server|Latency|Jitter|Loss|Score"
+
+    for entry in ${sorted[@]} ; do
+        array_init parts "${entry}" "|"
+        array_add_nl rows "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${parts[4]}"
+    done
+
+    local best=$(echo "${sorted[0]}" | cut -d\| -f1)
+
+    if [[ ${quiet} -ne 1 ]] ; then
+        eprogress_kill
+
+        ## SHOW ALL RESULTS ##
+        einfos "All results:"
+        etable ${rows[@]} >&2
+
+        einfos "Best host=[${best}]"
+    fi
+
+    echo -en "${best}"
+}
+
