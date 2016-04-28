@@ -77,7 +77,9 @@ ETEST_overlayfs_eunmount_foreign()
     mkdir lowerdir upperdir workdir dest
     archive_mount src.squashfs lowerdir
 
-    if [[ ${__BU_KERNEL_MAJOR} -ge 3 || ${__BU_KERNEL_MINOR} -ge 18 ]]; then
+    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 20 ) ]]; then
+        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir=lowerdir,upperdir=upperdir,workdir=workdir dest
+    elif [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir=lowerdir,upperdir=upperdir,workdir=workdir dest
     else
         mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir=lowerdir,upperdir=upperdir dest
