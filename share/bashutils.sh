@@ -27,6 +27,10 @@ fi
 # this.
 source "${BASHUTILS}/platform.sh"
 
+# Efuncs needs to be soon after to define a few critical aliases such as
+# try/catch before sourcing everything else 
+source "${BASHUTILS}/efuncs.sh"
+
 source "${BASHUTILS}/archive.sh"
 source "${BASHUTILS}/array.sh"
 source "${BASHUTILS}/cgroup.sh"
@@ -43,6 +47,16 @@ source "${BASHUTILS}/opt.sh"
 source "${BASHUTILS}/overlayfs.sh"
 source "${BASHUTILS}/pack.sh"
 
-# efuncs must be last as it sets up a few final things that may call functions
-# in the other modules
-source "${BASHUTILS}/efuncs.sh"
+# Default traps
+die_on_abort
+die_on_error
+enable_trace
+
+# Add default trap for EXIT so that we can ensure _bashutils_on_exit_start
+# and _bashutils_on_exit_end get called when the process exits. Generally, 
+# this allows us to do any error handling and cleanup needed when a process
+# exits. But the main reason this exists is to ensure we can intercept
+# abnormal exits from things like unbound variables (e.g. set -u).
+trap_add "" EXIT
+
+return 0

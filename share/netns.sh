@@ -310,3 +310,4 @@ netns_iptables_rule_exists()
       grep -q ${devname}
 }
 
+return 0

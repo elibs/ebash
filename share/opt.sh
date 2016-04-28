@@ -613,3 +613,4 @@ opt_forward()
     quote_eval ${cmd} "${args[@]}"
 }
 
+return 0

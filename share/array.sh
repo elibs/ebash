@@ -270,3 +270,5 @@ array_sort()
         )
     done
 }
+
+return 0

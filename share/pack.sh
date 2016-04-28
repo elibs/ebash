@@ -241,3 +241,5 @@ _pack()
     # error output
     grep -av '^$' | tr '\n' '\0' | base64 2>/dev/null
 }
+
+return 0

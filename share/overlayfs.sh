@@ -531,3 +531,5 @@ overlayfs_dedupe()
     # the final mount point properly.
     emount -o remount "${mnt}"
 }
+
+return 0
