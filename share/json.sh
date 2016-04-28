@@ -197,4 +197,4 @@ json_import()
     echo -n "eval ${cmd}"
 }
 
-
+return 0

@@ -149,3 +149,5 @@ elock_unlocked()
 {
     ! elock_locked $@
 }
+
+return 0

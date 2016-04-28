@@ -11,6 +11,14 @@ elif [[ ${__BU_OS} == Darwin ]] ; then
     BU_WORD_END='[[:>:]]'
 fi
 
+if [[ "${__BU_OS}" == Linux ]] ; then
+    export LC_ALL="en_US.utf8"
+    export LANG="en_US.utf8"
+elif [[ "${__BU_OS}" == Darwin ]] ; then
+    export LC_ALL="en_US.UTF-8"
+    export LANG="en_US.UTF-8"
+fi
+
 #-----------------------------------------------------------------------------
 # LINUX
 #-----------------------------------------------------------------------------
@@ -181,3 +189,5 @@ rm()
 {
     command grm --one-file-system "${@}" 
 }
+
+return 0

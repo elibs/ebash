@@ -237,3 +237,5 @@ efindmnt()
     # Now look for anything beneath that directory
     list_mounts | grep --perl-regexp "(^| )${path}[/ ]" | awk '{print $2}' | sed '/^$/d' || true
 }
+
+return 0
