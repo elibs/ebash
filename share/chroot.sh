@@ -148,7 +148,7 @@ chroot_readlink()
     argcheck CHROOT
     $(opt_parse path)
 
-    echo -n "${CHROOT}$(chroot_cmd readlink -f "${path}" 2>/dev/null)"
+    echo -n "${CHROOT}$(chroot_cmd readlink -m "${path}" 2>/dev/null)"
 }
 
 #-----------------------------------------------------------------------------
