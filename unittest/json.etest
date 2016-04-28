@@ -20,6 +20,13 @@ ETEST_array_to_json()
     done
 }
 
+ETEST_empty_array_to_json()
+{
+    ARR=()
+    json=$(array_to_json ARR)
+    assert_eq "[]" "${json}"
+}
+
 ETEST_pack_to_json()
 {
     pack_set P A="alpha 1" B="beta 2"

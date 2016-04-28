@@ -4480,8 +4480,19 @@ array_to_json()
 {
     # This will store a copy of the specified array's contents into __array
     $(opt_parse __array)
-    eval "local __array=(\"\${${__array}[@]}\")"
 
+    # Return immediately if if array is not set. The reason we don't error out on
+    # an unset array is because bash doesn't save arrays with no members.
+    # For instance A=() unsets array A. Instead simply echo "[]" for the json
+    # equivalent of an empty array.
+    if [[ ! -v ${__array} ]]; then
+        echo -n "[]"
+        return 0
+    fi
+
+    # Otherwise grab the contents of the array and iterate over it and convert
+    # each element to json.
+    eval "local __array=(\"\${${__array}[@]}\")"
     echo -n "["
     local i notfirst=""
     for i in "${__array[@]}" ; do
