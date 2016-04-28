@@ -128,7 +128,7 @@ overlayfs_mount()
         # Iterate through all the images and mount each one into a temporary directory
         local idx
         for idx in $(array_indexes args); do
-            eval "src=\$(readlink -f \"\${args[$idx]}\")"
+            src=$(readlink -f "${args[$idx]}")
             lower="${metadir}/lowerdirs/${idx}"
             lower_src="${metadir}/sources/${idx}"
             lowerdirs+=( "${lower}" )
@@ -293,8 +293,8 @@ overlayfs_tree()
 
     local idx
     for idx in $(array_rindexes lowerdirs); do
-        eval "local layer=\${lowerdirs[$idx]}"
-        eval "local src=\${sources[$idx]}"
+        local layer=${lowerdirs[$idx]}
+        local src=${sources[$idx]}
 
         # Pretty print the contents
         local find_output=$(find ${layer} -ls           \
