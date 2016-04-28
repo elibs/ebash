@@ -33,7 +33,6 @@ source "${BASHUTILS}/cgroup.sh"
 source "${BASHUTILS}/chroot.sh"
 source "${BASHUTILS}/daemon.sh"
 source "${BASHUTILS}/dpkg.sh"
-source "${BASHUTILS}/efuncs.sh"
 source "${BASHUTILS}/elock.sh"
 source "${BASHUTILS}/emsg.sh"
 source "${BASHUTILS}/json.sh"
@@ -43,3 +42,7 @@ source "${BASHUTILS}/network.sh"
 source "${BASHUTILS}/opt.sh"
 source "${BASHUTILS}/overlayfs.sh"
 source "${BASHUTILS}/pack.sh"
+
+# efuncs must be last as it sets up a few final things that may call functions
+# in the other modules
+source "${BASHUTILS}/efuncs.sh"
