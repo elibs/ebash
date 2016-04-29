@@ -331,15 +331,36 @@ ETEST_opt_parse_refuses_option_starting_with_no()
     }
 }
 
-ETEST_opt_parse_implicit_no()
+ETEST_opt_parse_no()
 {
-    set -- --no-a --no-b --c --d
-    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0")
+    set -- --no-a --no-b --c --d --no-can-do
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
+
+    declare -p __BU_OPT __BU_OPT_REGEX __BU_OPT_TYPE
 
     assert_eq "0" "${a}"
     assert_eq "0" "${b}"
     assert_eq "1" "${c}"
     assert_eq "1" "${d}"
+    assert_eq "0" "${can_do}"
+
+    can_do=1
+    # Try the other permutations of underscores and hyphens
+    set -- --no_a --no_b --c --d --no_can_do
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
+    assert_eq "0" "${a}"
+    assert_eq "0" "${b}"
+    assert_eq "0" "${can_do}"
+
+    can_do=1
+    set -- --no-a --no-b --c --d --no-can_do
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
+    assert_eq "0" "${can_do}"
+
+    can_do=1
+    set -- --no-a --no-b --c --d --no_can-do
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
+    assert_eq "0" "${can_do}"
 }
 
 ETEST_opt_parse_boolean_specify()
