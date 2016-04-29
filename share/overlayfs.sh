@@ -320,7 +320,8 @@ overlayfs_tree()
 overlayfs_commit()
 {
    $(opt_parse \
-       ":callback      | Callback to invoke after commit completes." \
+        ":pre_commit   | Callback to invoke before commit begins."   \
+        ":post_commit  | Callback to invoke after commit completes." \
         "+color    c=1 | Show a color diff if possible."             \
         "+error    e=0 | Error out if there is nothing to do."       \
         "+diff     d=0 | Show a unified diff of the changes."        \
@@ -342,6 +343,12 @@ overlayfs_commit()
         fi
 
         return 0
+    fi
+
+    # Optionally call pre-commit callback
+    if [[ -n ${pre_commit} ]]; then
+        edebug "Invoking $(lval pre_commit)"
+        ${pre_commit}
     fi
 
     # Load the layer map for this overlayfs mount
@@ -391,10 +398,10 @@ overlayfs_commit()
     overlayfs_unmount "${mnt}"
     mv --force "${tmp}" "${src}"
 
-    # Optionally call callback
-    if [[ -n ${callback} ]]; then
-        edebug "Invoking $(lval callback)"
-        ${callback}
+    # Optionally call post-commit callback
+    if [[ -n ${post_commit} ]]; then
+        edebug "Invoking $(lval post_commit)"
+        ${post_commit}
     fi
 
     # Optionally stop eprogress ticker
