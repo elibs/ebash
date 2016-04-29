@@ -129,10 +129,12 @@ array_remove()
         "+all a  | Remove all instances of the item instead of just the first." \
         "__array | Name of array to operate on.")
 
-    # Return immediately if if array is not set or no values were given to be
+    # Return immediately if if array is empty or no values were given to be
     # removed. The reason we don't error out on an unset array is because
     # bash doesn't save arrays with no members.  For instance A=() unsets array A...
-    array_not_empty ${__array} && [[ $# -gt 0 ]] || return 0
+    if array_empty ${__array} || [[ $# -eq 0 ]]; then
+        return 0
+    fi
     
     local value
     for value in "${@}"; do
