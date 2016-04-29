@@ -31,6 +31,7 @@ source "${BASHUTILS}/platform.sh"
 # try/catch before sourcing everything else 
 source "${BASHUTILS}/efuncs.sh"
 
+
 source "${BASHUTILS}/archive.sh"
 source "${BASHUTILS}/array.sh"
 source "${BASHUTILS}/cgroup.sh"
@@ -46,6 +47,7 @@ source "${BASHUTILS}/network.sh"
 source "${BASHUTILS}/opt.sh"
 source "${BASHUTILS}/overlayfs.sh"
 source "${BASHUTILS}/pack.sh"
+source "${BASHUTILS}/process.sh"
 
 # Default traps
 die_on_abort
