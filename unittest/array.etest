@@ -43,6 +43,15 @@ ETEST_array_empty()
     assert_eq 0 $(array_size arr)
 }
 
+ETEST_array_empty_first_element_empty()
+{
+    # Validate behavior of array_empty when the array contains only empty strings.
+    # See the big comment block in array_empty regarding why this is done in order
+    # to accomodate greater compatibility with bash-4.2.
+    A=("")
+    assert_true array_empty A
+}
+
 ETEST_array_empty_reuse()
 {
     array_init arr "alpha|beta|delta" "|"
