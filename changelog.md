@@ -110,6 +110,11 @@
       call it when you're completely done with an overlayfs and you want its
       changes to persist back to the original archive.
 
+    - Pulled a lot of code out of efuncs in favor of keeping the files
+      small and focused.  For instance, messaging code moved to emsg.sh,
+      array code to array.sh, etc.  The proper thing to do is to continue
+      to source only bashutils.sh.  The rest are really just internals.
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common

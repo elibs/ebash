@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+if [[ ${__BU_OS} == Linux ]] ; then
+
+ETEST_get_listening_network_ports()
+{
+    [[ "$(edistro)" == "Arch" ]] && { ewarn "Test disabled on arch per DT-190." ; return 0 ; }
+
+    local ports
+    get_network_ports -l ports
+
+    # We should always be able to find a listening port on 22
+    for key in $(array_indexes ports); do
+        [[ $(pack_get ports[$key] local_port) == 22 ]] && return 0
+    done
+    die "Could not find port 22"
+}
+
+ETEST_netselect()
+{
+    local output=$(netselect --quiet localhost)
+
+    assert_eq "localhost" "${output}"
+}
+
+fi
+
