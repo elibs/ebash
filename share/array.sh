@@ -49,6 +49,25 @@ array_size()
     # bash to create an empty array it doesn't really allow you to
     # distinguish that from an unset variable.  (i.e. it doesn't show you
     # the variable until you put something in it)
+    # 
+    # NOTE: The mechanism we use here is to stringify the contents of an 
+    # array and see if that's an empty string or not. If it is, then we'll
+    # consider the array itself to have no elements. That's not actually
+    # true of course because you could have an array with empty strings
+    # inside of it. We accept this obvious shortcoming in order to provide
+    # greater compatibility with older versions of bash. In bash-4.3 and
+    # higher, the right way to determine this is to use the -v operation
+    # and to explicitly make it a string. As in:
+    #
+    # a=()
+    # [[ ! -v a[@] ]] && echo 0
+    #
+    # The problem is that this doesn't work with bash-4.2 because the -v
+    # operator doesn't work on arrays. This was added explicitly in 4.3:
+    # https://tiswww.case.edu/php/chet/bash/CHANGES:
+    # a.  The [[ -v ]] option now understands array references (foo[1]) and returns
+    #    success if the referenced element has a value.
+    #
     local value=$(eval "echo \${${__array}[*]:-}")
     if [[ -z "${value}" ]]; then
         echo 0
@@ -110,10 +129,12 @@ array_remove()
         "+all a  | Remove all instances of the item instead of just the first." \
         "__array | Name of array to operate on.")
 
-    # Return immediately if if array is not set or no values were given to be
+    # Return immediately if if array is empty or no values were given to be
     # removed. The reason we don't error out on an unset array is because
     # bash doesn't save arrays with no members.  For instance A=() unsets array A...
-    [[ -v ${__array} && $# -gt 0 ]] || return 0
+    if array_empty ${__array} || [[ $# -eq 0 ]]; then
+        return 0
+    fi
     
     local value
     for value in "${@}"; do
