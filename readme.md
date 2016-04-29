@@ -411,10 +411,11 @@ of the script.
 ## Data Structures
 ### Array Helpers
 
-In `efuncs.sh`, you can find several functions whose names start with `array_`.
-These are helpers for dealing with standard bash arrays.  The best place to get
-information on these right now is in the documentation headers above each
-function in the source file.  But I’ll point out a few interesting functions.
+In `array.sh`, there are several helpers for dealing with standard bash
+arrays.  These are helpers for dealing with standard bash arrays.  The
+best place to get information on these right now is in the documentation
+headers above each function in the source file.  But I’ll point out a few
+interesting functions.
 
 For example, since you don’t want to change `IFS`, you might be interested in a
 function that can initialize an array by splitting on a particular separator.
@@ -433,9 +434,10 @@ line (retaining whitespace within individual lines), you can use
 json data into an array.
 
 You can use `array_contains` to find out if a specific value is in an array,
-`array_sort` to sort an array, and `array_remove` to pull specific items out of
-an array.  Take a minute and glance through that section of `efuncs.sh`.  And
-if there’s a particular helper you’d like to see, let’s get it added!
+`array_sort` to sort an array, and `array_remove` to pull specific items
+out of an array.  Take a minute and glance through that section of
+`array.sh`.  And if there’s a particular helper you’d like to see, let’s
+get it added!
 
 ### Packs
 
@@ -739,7 +741,7 @@ are useful at a high-level have documentation as comments above them in the
 file they’re defined in.  Don’t be afraid to poke around and see if there’s
 anything else that can help you.
 
-- Convert arrays, associative arrays, and packs into json (`efuncs.sh`)
+- Convert arrays, associative arrays, and packs into json (`json.sh`)
 - Create and maintain ubuntu 12.04-based chroot environments (`chroot.sh`)
 - Assert statements to blow up if a condition you expect isn’t true
   (`efuncs.sh`)
