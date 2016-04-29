@@ -14,6 +14,8 @@ shopt -s expand_aliases
 shopt -s checkwinsize
 shopt -s extglob
 
+alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DEBUG || trap - DEBUG'
+
 #-----------------------------------------------------------------------------
 # TRY / CATCH
 #-----------------------------------------------------------------------------
