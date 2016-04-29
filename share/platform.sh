@@ -3,6 +3,22 @@
 # Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
 
+if [[ ${__BU_OS} == Linux ]] ; then
+    BU_WORD_BEGIN='\<'
+    BU_WORD_END='\>'
+elif [[ ${__BU_OS} == Darwin ]] ; then
+    BU_WORD_BEGIN='[[:<:]]'
+    BU_WORD_END='[[:>:]]'
+fi
+
+if [[ "${__BU_OS}" == Linux ]] ; then
+    export LC_ALL="en_US.utf8"
+    export LANG="en_US.utf8"
+elif [[ "${__BU_OS}" == Darwin ]] ; then
+    export LC_ALL="en_US.UTF-8"
+    export LANG="en_US.UTF-8"
+fi
+
 #-----------------------------------------------------------------------------
 # LINUX
 #-----------------------------------------------------------------------------
@@ -173,3 +189,5 @@ rm()
 {
     command grm --one-file-system "${@}" 
 }
+
+return 0

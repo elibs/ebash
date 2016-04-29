@@ -563,3 +563,5 @@ archive_mount()
         archive_extract "${src}" "${dest}"
     fi
 }
+
+return 0
