@@ -129,3 +129,65 @@ ETEST_ecolor_chart()
 
     echo ""
 }
+
+ETEST_print_value()
+{
+    VAR=a
+    assert_eq '"a"' "$(print_value VAR)"
+
+    VAR="A[b]"
+    assert_eq '"A[b]"' "$(print_value VAR)"
+
+    ARRAY=(a b "c d")
+    assert_eq '("a" "b" "c d")' "$(print_value ARRAY)"
+
+    declare -A AA
+    AA[alpha]="1 2 3"
+    AA[beta]="4 5 6"
+
+    assert_eq '([alpha]="1 2 3" [beta]="4 5 6" )' "$(print_value AA)"
+
+    unset V
+    assert_eq '""' "$(print_value V)"
+
+    assert_eq '""' "$(print_value /usr/local/share)"
+}
+
+ETEST_etrace()
+{
+    func_to_trace()
+    {
+        echo A
+        echo B
+        echo C
+    }
+
+    ETRACE=func_to_trace
+    etestmsg "Running func_to_trace with $(lval ETRACE)"
+    $(tryrc -o=stdout -e=stderr func_to_trace)
+
+    etestmsg "Ran func_to_trace which produced this output (note: stdout and stderr are no longer interleaved)"
+    echo "${stdout}"
+    echo "${stderr}"
+
+    # Output from the echos
+    assert_eq "3" "$(echo "${stdout}" | wc -l)"
+
+    # Each of the echo lines, plus the original function call
+    assert_eq "4" "$(echo "${stderr}" | wc -l)"
+
+    assert_match "${stderr}" "echo A"
+    assert_match "${stderr}" "echo B"
+    assert_match "${stderr}" "echo B"
+
+    assert_match "${stderr}" "func_to_trace"
+    assert_match "${stderr}" "${BASH_SOURCE##*/}"
+
+    ETRACE=""
+    etestmsg "Running func_to_trace with $(lval ETRACE)"
+    $(tryrc -o=stdout -e=stderr func_to_trace)
+
+    assert_eq "3" "$(echo "${stdout}" | wc -l)"
+    assert_empty "${stderr}"
+}
+

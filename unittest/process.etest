@@ -1,5 +1,84 @@
 #!/usr/bin/env bash
 
+ETEST_process_hierarchy()
+{
+    local my_processes_file=$(mktemp --tmpdir pids_XXXXX)
+    local ancestors_file=$(mktemp --tmpdir ancestors_XXXXX)
+    local ancestors_noarg_file=$(mktemp --tmpdir ancestors_noarg_XXXXX)
+    local children_file=$(mktemp --tmpdir children_XXXXX)
+    local tree_file=$(mktemp --tmpdir tree_XXXXX)
+
+    local first=$BASHPID
+    echo $BASHPID >> ${my_processes_file}
+    (
+        echo $BASHPID >> ${my_processes_file}
+        (
+            echo $BASHPID >> ${my_processes_file}
+            (
+                echo $BASHPID >> ${my_processes_file}
+                (
+                    etestmsg "Process tree"
+                    pstree $$
+
+                    process_ancestors ${BASHPID} > ${ancestors_file}
+                    process_ancestors > ${ancestors_noarg_file}
+
+                    process_children ${first} > ${children_file}
+                    process_tree ${first} > ${tree_file}
+                )
+            )
+        )
+    )
+
+    local last=$(tail -n 1 ${my_processes_file})
+
+    etestmsg "my_processes"
+    cat ${my_processes_file}
+    etestmsg "ancestors of ${last}"
+    cat ${ancestors_noarg_file}
+    etestmsg "ancestors_noarg of ${last}"
+    cat ${ancestors_noarg_file}
+    etestmsg "children of ${first}"
+    cat ${children_file}
+
+    local my_processes=( $(cat ${my_processes_file}) )
+    local ancestors=( $(cat ${ancestors_file}) )
+    local ancestors_noarg=( $(cat ${ancestors_noarg_file}) )
+    local children=( $(cat ${children_file}) )
+    local tree=( $(cat ${tree_file}) )
+
+    etestmsg "Verifying children $(lval my_processes children first)"
+    etestmsg "$(declare -p my_processes)"
+    assert_eq 1 $(array_size children)
+    assert_eq "${my_processes[1]}" "${children[0]}"
+
+
+    # The rest of the verification steps are just checking that a list of
+    # processes match, not checking them in order, so we'll sort them to make
+    # that easier.
+    array_sort my_processes ancestors ancestors_noarg children tree
+
+
+    etestmsg "Verifying ancestors $(lval ancestors process)"
+    # Note: there will be ancestors in the list that I don't know about
+    # (for instance, the etest processes), but I know that the processes I
+    # created and added to pids should be in there.  And so should init -- it's
+    # the parent of everything.
+    local process
+    for process in 1 ${my_processes[@]} ; do
+        assert array_contains ancestors ${process}
+        assert array_contains ancestors_noarg ${process}
+    done
+
+    assert_false array_contains ancestors 0
+    assert_false array_contains ancestors_noarg 0
+
+    etestmsg "Verifying tree contains my processes $(lval tree my_processes)"
+    for process in ${my_processes[@]} ; do
+        assert array_contains tree ${process}
+    done
+}
+
 ETEST_ekill()
 {
     # Start a simple process and ensure we can kill it
