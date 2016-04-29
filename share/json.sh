@@ -51,7 +51,7 @@ array_to_json()
     # an unset array is because bash doesn't save arrays with no members.
     # For instance A=() unsets array A. Instead simply echo "[]" for the json
     # equivalent of an empty array.
-    if array_empty "${__array}"; then
+    if array_empty ${__array}; then
         echo -n "[]"
         return 0
     fi
