@@ -191,6 +191,18 @@ would with arguments.
         "+boolean b=1        | Boolean option that defaults to true" \
         ":string s=something | String option that defaults to "something")
 
+
+Automatic Help
+--------------
+
+Opt_parse automatically supports a --help option for you, which will display
+a usage statement using the docstrings that you provided for each of the
+options and arguments.
+
+Functions called with --help as processed by opt_parse will not perform their
+typical operation and will instead return successfully after printing this
+usage statement.
+
 END
 opt_parse()
 {
@@ -213,7 +225,15 @@ opt_parse()
     # refers to the caller's arguments
     echo 'declare __BU_FULL_ARGS=("$@") ; '
     echo 'declare __BU_ARGS=("$@") ; '
+    echo 'declare __BU_OPT_USAGE_REQUESTED=0 ; '
     echo "opt_parse_options ; "
+
+    # If usage was requsted, print it and return success without doing anything
+    # else
+    echo 'if [[ ${__BU_OPT_USAGE_REQUESTED:-0} -eq 1 ]] ; then '
+    echo '   opt_display_usage ; '
+    echo '   [[ -v FUNCNAME ]] && return 0 || exit 0 ; '
+    echo 'fi ; '
 
     # Process options
     echo 'declare opt ; '
@@ -240,9 +260,12 @@ opt_parse_setup()
     local opt_cmd="__BU_OPT=( "
     local opt_regex_cmd="__BU_OPT_REGEX=( "
     local opt_type_cmd="__BU_OPT_TYPE=( "
+    local opt_docstring_cmd="__BU_OPT_DOCSTRING=( "
+
     local arg_cmd="__BU_ARG=( "
     local arg_names_cmd="__BU_ARG_NAMES=( "
     local arg_required_cmd="__BU_ARG_REQUIRED=( "
+    local arg_docstring_cmd="__BU_ARG_DOCSTRING=( "
 
     while (( $# )) ; do
         local complete_arg=$1 ; shift
@@ -282,6 +305,13 @@ opt_parse_setup()
         [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Name is empty."
         [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: name ${canonical} is not allowed to contain hyphens."
 
+        # None of the option names are allowed override help, which is provided
+        # by opt_parse
+        local name
+        for name in ${all_names} ; do
+            [[ "${name}" != "help" ]] || die "${FUNCNAME[2]}: The opt_parse help option cannot be overridden."
+        done
+
 
         # OPTIONS
         if [[ ${opt_type_char} == ":" || ${opt_type_char} == "+" ]] ; then
@@ -314,6 +344,11 @@ opt_parse_setup()
             opt_regex_cmd+="[${canonical}]='${name_regex}' "
             opt_type_cmd+="[${canonical}]='${opt_type}' "
 
+            # Docstring might contain weird characters like quotes and
+            # apostrophes, so let printf quote it to be sure
+            printf -v quoted_docstring "%q" "${docstring}"
+            opt_docstring_cmd+="[${canonical}]=${quoted_docstring} "
+
 
         # ARGUMENTS
         else
@@ -321,7 +356,17 @@ opt_parse_setup()
 
             arg_cmd+="'${default}' "
             arg_names_cmd+="'${canonical}' "
-            [[ ${opt_type_char} != "?" ]] && arg_required_cmd+="'${canonical}' "
+
+            # Keep __BU_ARG_REQUIRED array indexed the same, but only put in
+            # names for items that are required
+            if [[ ${opt_type_char} == "?" ]] ; then
+                arg_required_cmd+="'' "
+            else
+                arg_required_cmd+="'${canonical}' "
+            fi
+
+            printf -v quoted_docstring "%q" "${docstring}"
+            arg_docstring_cmd+="${quoted_docstring} "
         fi
 
     done
@@ -329,12 +374,15 @@ opt_parse_setup()
     opt_cmd+=")"
     opt_regex_cmd+=")"
     opt_type_cmd+=")"
+    opt_docstring_cmd+=")"
+
     arg_cmd+=")"
     arg_names_cmd+=")"
     arg_required_cmd+=")"
+    arg_docstring_cmd+=")"
 
-    printf "declare -A %s %s %s ; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_type_cmd}" 
-    printf "declare %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}"
+    printf "declare -A %s %s %s %s ; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_type_cmd}" "${opt_docstring_cmd}"
+    printf "declare %s %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}" "${arg_docstring_cmd}"
 }
 
 opt_parse_options()
@@ -353,6 +401,11 @@ opt_parse_options()
                 (( shift_count += 1 ))
                 break
                 ;;
+            --help)
+                __BU_OPT_USAGE_REQUESTED=1
+                return 0
+                ;;
+
             --*)
                 # Drop the initial hyphens, grab the option name and capture
                 # "=value" from the end if there is one
@@ -512,6 +565,63 @@ opt_parse_arguments()
 
         __BU_ARGS=( "${__BU_ARGS[@]:$shift_count}" )
     fi
+}
+
+opt_display_usage()
+{
+    {
+        # Function name and <option> specification if there are any options
+        echo -n "Usage: ${FUNCNAME[1]} "
+        [[ ${#__BU_OPT[@]} -gt 0 ]] && echo -n "[option]... "
+
+        # List arguments on the first line
+        local i
+        for i in ${!__BU_ARG_NAMES[@]} ; do
+
+            # Display name of the argument with brackets around it if it is
+            # optional
+            [[ -n ${__BU_ARG_REQUIRED[$i]} ]] || echo -n "["
+            echo -n "${__BU_ARG_NAMES[$i]}"
+            [[ -n ${__BU_ARG_REQUIRED[$i]} ]] || echo -n "]"
+
+
+            echo -n " "
+        done
+        echo
+
+        if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then
+            echo
+            echo "Options:"
+            local opt
+            for opt in ${!__BU_OPT[@]} ; do
+
+                printf "   --%s" "${opt}"
+
+                [[ ${__BU_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
+                echo
+
+                printf "%s" "${__BU_OPT_DOCSTRING[$opt]}" \
+                    | tr '\n' ' ' \
+                    | fmt --uniform-spacing --width 80 \
+                    | pr -T --indent 8
+
+                echo
+
+            done
+        fi
+        if [[ ${#__BU_ARG_NAMES[@]} -gt 0 ]] ; then
+            echo "Arguments:"
+
+            for i in "${!__BU_ARG_NAMES[@]}" ; do
+                printf  "   %s\n" "${__BU_ARG_NAMES[$i]}"
+                printf "%s" "${__BU_ARG_DOCSTRING[$i]:-}" \
+                    | tr '\n' ' ' \
+                    | fmt --uniform-spacing --width 80 \
+                    | pr -T --indent 8
+            done
+        fi
+
+    } >&2
 }
 
 opt_dump()
