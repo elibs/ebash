@@ -1501,20 +1501,22 @@ efetch()
     }
 }
 
-## etimeout
-## ========
-##
-## `etimeout` will execute an arbitrary bash command for you, but will only let
-## it use up the amount of time (i.e. the "timeout") you specify.
-##
-## If the command tries to take longer than that amount of time, it will be
-## killed and etimeout will return 124.  Otherwise, etimeout will return the
-## value that your called command returned.
-##
-## All arguments to `etimeout` (i.e. everything that isn't an option, or
-## everything after --) is assumed to be part of the command to execute.
-## `Etimeout` is careful to retain your quoting.
-##
+opt_usage etimeout <<'END'
+etimeout
+========
+
+`etimeout` will execute an arbitrary bash command for you, but will only let it
+use up the amount of time (i.e. the "timeout") you specify.
+
+If the command tries to take longer than that amount of time, it will be killed
+and etimeout will return 124.  Otherwise, etimeout will return the value that
+your called command returned.
+
+All arguments to `etimeout` (i.e. everything that isn't an option, or
+everything after --) is assumed to be part of the command to execute.
+`Etimeout` is careful to retain your quoting.
+END
+
 etimeout()
 {
     $(opt_parse \
@@ -1614,63 +1616,49 @@ etimeout()
     fi
 }
 
-# eretry executes arbitrary shell commands for you wrapped in a call to etimeout
-# and retrying up to a specified count. If the command eventually completes
-# successfully eretry will return 0. If the command never completes successfully
-# but continues to fail every time the return code from eretry will be the failing
-# command's return code. If the command is prematurely terminated via etimeout the
-# return code from eretry will be 124.
-#
-# OPTIONS:
-#
-# -d=DELAY. Amount of time to delay (sleep) after failed attempts before retrying.
-#   Note that this value can accept sub-second values, just as the sleep
-#   command does.  This parameter will be passed directly to sleep, so you can
-#   specify any arguments it accepts such as .01s, 5m, or 3d.
-#
-# -e=<space separated list of numbers>
-#   Any of the exit codes specified in this list will cause eretry to stop
-#   retrying. If eretry receives one of these codes, it will immediately stop
-#   retrying and return that exit code.  By default, only a zero return code
-#   will cause eretry to stop.  If you specify -e, you should consider whether
-#   you want to include 0 in the list.
-#
-# -r=RETRIES
-#   Command will be attempted RETRIES times total. If no options are provided to
-#   eretry it will use a default retry limit of 5.
-#
-# -s=SIGNAL=<signal name or number>     e.g. SIGNAL=2 or SIGNAL=TERM
-#   When ${TIMEOUT} seconds have passed since running the command, this will be
-#   the signal to send to the process to make it stop.  The default is TERM.
-#   [NOTE: KILL will _also_ be sent two seconds after the timeout if the first
-#   signal doesn't do its job]
-#
-# -t=TIMEOUT. After this duration, command will be killed (and retried if that's the
-#   right thing to do).  If unspecified, commands may run as long as they like
-#   and eretry will simply wait for them to finish. Uses sleep(1) time
-#   syntax.
-#
-# -T=TIMEOUT. Total timeout for entire eretry operation.
-#   This -T flag is different than -t in that -T applies to the entire eretry
-#   operation including all iterations and retry attempts and timeouts of each
-#   individual command. Uses sleep(1) time syntax.
-#
-# -w=SECONDS
-#   A warning will be generated on (or slightly after) every SECONDS while the
-#   command keeps failing.
-#
-# All direct parameters to eretry are assumed to be the command to execute, and
-# eretry is careful to retain your quoting.
+opt_usage eretry <<'END'
+Eretry executes arbitrary shell commands for you wrapped in a call to etimeout
+and retrying up to a specified count.
+
+If the command eventually completes successfully eretry will return 0. If the
+command never completes successfully but continues to fail every time the
+return code from eretry will be the failing command's return code. If the
+command is prematurely terminated via etimeout the return code from eretry will
+be 124.
+
+All direct parameters to eretry are assumed to be the command to execute, and
+eretry is careful to retain your quoting.
+END
 eretry()
 {
     $(opt_parse \
-        ":delay d=0              | Time to sleep between failed attempts before retrying." \
-        ":fatal_exit_codes e=0   | Space-separated list of exit codes that are fatal (i.e. will result in no retry)." \
-        ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
-        ":signal sig s=TERM      | Signal to be send to the command if it takes longer than the timeout." \
-        ":timeout t              | If one attempt takes longer than this duration, kill it and retry if appropriate." \
-        ":max_timeout T=infinity | If all attempts take longer than this duration, kill what's running and stop retrying." \
-        ":warn_every w           | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
+        ":delay d=0              | Amount of time to delay (sleep) after failed attempts before
+                                   retrying. Note that this value can accept sub-second values, just
+                                   as the sleep command does. This parameter will be passed directly
+                                   to sleep, so you can specify any arguments it accepts such as
+                                   .01s, 5m, or 3d." \
+        ":fatal_exit_codes e=0   | Space-separated list of exit codes.  Any of the exit codes
+                                   specified in this list will cause eretry to stop retrying. If
+                                   eretry receives one of these codes, it will immediately stop
+                                   retrying and return that exit code. By default, only a zero
+                                   return code will cause eretry to stop.  If you specify -e, you
+                                   should consider whether you want to include 0 in the list." \
+        ":retries r              | Command will be attempted this many times total. If no options
+                                   are provided to eretry it will use a default retry limit of 5." \
+        ":signal sig s=TERM      | When timeout seconds have passed since running the command, this
+                                   will be the signal to send to the process to make it stop.  The
+                                   default is TERM. [NOTE: KILL will _also_ be sent two seconds
+                                   after the timeout if the first signal doesn't do its job]" \
+        ":timeout t              | After this duration, command will be killed (and retried if
+                                   that's the right thing to do).  If unspecified, commands may run
+                                   as long as they like and eretry will simply wait for them to
+                                   finish. Uses sleep(1) time syntax." \
+        ":max_timeout T=infinity | Total timeout for entire eretry operation. This flag is different
+                                   than --timeout in that --max-timeout applies to the entire eretry
+                                   operation including all iterations and retry attempts and
+                                   timeouts of each individual command. Uses sleep(1) time syntax." \
+        ":warn_every w           | A warning will be generated on (or slightly after) every SECONDS
+                                   while the command keeps failing.")
 
     # If unspecified, limit timeout to the same as max_timeout
     : ${timeout:=${max_timeout:-infinity}}

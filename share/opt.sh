@@ -591,6 +591,10 @@ opt_display_usage()
         done
         echo
 
+        if [[ -n "${__BU_DOC[${FUNCNAME[1]:-}]:-}" ]] ; then
+            printf -- "\n%s\n" "${__BU_DOC[${FUNCNAME[1]}]}"
+        fi
+
         if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then
             echo
             echo "Options:"
@@ -749,5 +753,8 @@ opt_forward()
 
     quote_eval ${cmd} "${args[@]}"
 }
+
+# The opt_usage function is in bashutils.sh because it must be there before
+# anything else is sourced to have documentation work for files in bashutils.
 
 return 0
