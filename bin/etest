@@ -100,19 +100,21 @@ etestmsg()
 #
 no_process_leaks_remain()
 {
-    $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
+    if cgroup_supported ; then
+        $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
 
-    # If the cgroup no longer exists, we're in good shape because you can't
-    # destroy a cgroup until all its processes are dead.
-    if [[ ${exists_rc} -ne 0 ]] ; then
-        return 0
+        # If the cgroup no longer exists, we're in good shape because you can't
+        # destroy a cgroup until all its processes are dead.
+        if [[ ${exists_rc} -ne 0 ]] ; then
+            return 0
+        fi
+
+        # As long as it existed just now, we can assume cgroup_pids will exist,
+        # because nothing else will destroy the cgroup except for us.
+        local remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
+        edebug "$(lval remaining_pids exists_rc ETEST_CGROUP)"
+        [[ -z ${remaining_pids} ]]
     fi
-
-    # As long as it existed just now, we can assume cgroup_pids will exist,
-    # because nothing else will destroy the cgroup except for us.
-    local remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
-    edebug "$(lval remaining_pids exists_rc ETEST_CGROUP)"
-    [[ -z ${remaining_pids} ]]
 }
 
 assert_no_process_leaks()
@@ -130,7 +132,7 @@ assert_no_process_leaks()
     # The above command could have timed out but that doesn't necessarily mean
     # there are leaked processes. So KILL anything that's left, but only DIE
     # if there were actually processes leaked.
-    if [[ ${rc} -ne 0 ]] ; then
+    if [[ ${rc} -ne 0 ]] && cgroup_supported ; then
         local leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
         if [[ -n ${leaked_processes} ]]; then
             cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
