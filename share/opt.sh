@@ -259,6 +259,7 @@ opt_parse_setup()
 {
     local opt_cmd="__BU_OPT=( "
     local opt_regex_cmd="__BU_OPT_REGEX=( "
+    local opt_synonyms_cmd="__BU_OPT_SYNONYMS=( "
     local opt_type_cmd="__BU_OPT_TYPE=( "
     local opt_docstring_cmd="__BU_OPT_DOCSTRING=( "
 
@@ -342,6 +343,7 @@ opt_parse_setup()
             # Now that they're all computed, add them to the command that will generate associative arrays
             opt_cmd+="[${canonical}]='${default}' "
             opt_regex_cmd+="[${canonical}]='${name_regex}' "
+            opt_synonyms_cmd+="[${canonical}]='${all_names}' "
             opt_type_cmd+="[${canonical}]='${opt_type}' "
 
             # Docstring might contain weird characters like quotes and
@@ -373,6 +375,7 @@ opt_parse_setup()
 
     opt_cmd+=")"
     opt_regex_cmd+=")"
+    opt_synonyms_cmd+=")"
     opt_type_cmd+=")"
     opt_docstring_cmd+=")"
 
@@ -381,7 +384,7 @@ opt_parse_setup()
     arg_required_cmd+=")"
     arg_docstring_cmd+=")"
 
-    printf "declare -A %s %s %s %s ; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_type_cmd}" "${opt_docstring_cmd}"
+    printf "declare -A %s %s %s %s %s; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_synonyms_cmd}" "${opt_type_cmd}" "${opt_docstring_cmd}"
     printf "declare %s %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}" "${arg_docstring_cmd}"
 }
 
@@ -584,7 +587,6 @@ opt_display_usage()
             echo -n "${__BU_ARG_NAMES[$i]}"
             [[ -n ${__BU_ARG_REQUIRED[$i]} ]] || echo -n "]"
 
-
             echo -n " "
         done
         echo
@@ -595,11 +597,32 @@ opt_display_usage()
             local opt
             for opt in ${!__BU_OPT[@]} ; do
 
-                printf "   --%s" "${opt}"
+                # Print the names of all option "synonyms" next to each other
+                printf "   "
+                local synonym="" first=1
+                for synonym in ${__BU_OPT_SYNONYMS[$opt]} ; do
 
+                    if [[ ${first} -ne 1 ]] ; then
+                        printf ", "
+                    else
+                        first=0
+                    fi
+
+                    if [[ ${#synonym} -gt 1 ]] ; then
+                        printf -- "--%s" "${synonym//_/-}"
+                    else
+                        printf -- "-%s" "${synonym}"
+                    fi
+
+                done
+
+                # If the option accepts arguments, say that
                 [[ ${__BU_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
                 echo
 
+                # Print the docstring, constrained to term width of 80,
+                # indented another level past the option names, and compress
+                # whitespace to look like normal english prose.
                 printf "%s" "${__BU_OPT_DOCSTRING[$opt]}" \
                     | tr '\n' ' ' \
                     | fmt --uniform-spacing --width 80 \
@@ -614,6 +637,10 @@ opt_display_usage()
 
             for i in "${!__BU_ARG_NAMES[@]}" ; do
                 printf  "   %s\n" "${__BU_ARG_NAMES[$i]}"
+
+                # Print the docstring, constrained to term width of 80,
+                # indented another level past the argument name, and compress
+                # whitespace to look like normal english prose.
                 printf "%s" "${__BU_ARG_DOCSTRING[$i]:-}" \
                     | tr '\n' ' ' \
                     | fmt --uniform-spacing --width 80 \
