@@ -22,6 +22,50 @@ if [[ -z ${TERM:-} || ${TERM} == "dumb" || ${TERM} == "vt102" ]] ; then
     export TERM=xterm-256color
 fi
 
+# This function is used to create documentation for bash functions that can be
+# queried at runtime.  To avoid bloating the interpreter for this all the time,
+# it is only performed when __BU_SAVE_DOC is set to 1.
+#
+# In order to create documentation for your command, do something like this
+# near it:
+#
+#     opt_usage foo<<'END'
+#     Here is my documentation for foo.
+#     END
+#     foo() { $(opt_parse...) ; do_stuff ; }
+#
+# Realy short documentation blocks can be passed as a second string parameter
+# to opt_usage rather than on stdin if you prefer like this
+#
+#     opt_usage foo "Short doc block"
+#
+# Documentation placed in either of those formats will be printed out in the
+# usage statements (i.e. foo --help).
+#
+# It's our goal to eventually place this in man pages and web versions of
+# documentation in the future but this is not yet implemented.  If you need
+# markup in the text, use Markdown -- that's what we intend to use for man page
+# and web page documentation when the time comes.
+#
+declare -A __BU_DOC
+opt_usage()
+{
+    [[ -n ${1:-} ]] || { echo "opt_usage calls require a function name argument." ; exit 2 ; }
+
+    if [[ ${__BU_SAVE_DOC:-0} -eq 1 ]] ; then
+
+        if [[ -n ${2:-} ]] ; then
+            __BU_DOC[$1]="$2"
+        else
+            __BU_DOC[$1]=$(cat)
+        fi
+
+    else
+        true
+    fi
+}
+
+
 # PLATFORM MUST BE FIRST.  It sets up aliases.  Those aliases won't be expanded
 # inside functions that are already declared, only inside those declared after
 # this.
