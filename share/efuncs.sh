@@ -1658,7 +1658,8 @@ eretry()
                                    operation including all iterations and retry attempts and
                                    timeouts of each individual command. Uses sleep(1) time syntax." \
         ":warn_every w           | A warning will be generated on (or slightly after) every SECONDS
-                                   while the command keeps failing.")
+                                   while the command keeps failing." \
+        "@cmd                    | Command to run along with any of its own options and arguments.")
 
     # If unspecified, limit timeout to the same as max_timeout
     : ${timeout:=${max_timeout:-infinity}}
@@ -1669,13 +1670,13 @@ eretry()
         : ${retries:=infinity}
 
         etimeout -t=${max_timeout} -s=${signal} --          \
-            opt_forward eretry_internal timeout delay fatal_exit_codes signal warn_every retries -- "${@}"
+            opt_forward eretry_internal timeout delay fatal_exit_codes signal warn_every retries -- "${cmd[@]}"
     else
         # If no total timeout or retry limit was specified then default to prior
         # behavior with a max retry of 5.
         : ${retries:=5}
 
-        opt_forward eretry_internal timeout delay fatal_exit_codes signal warn_every retries -- "${@}"
+        opt_forward eretry_internal timeout delay fatal_exit_codes signal warn_every retries -- "${cmd[@]}"
     fi
 }
 
@@ -1689,12 +1690,12 @@ eretry_internal()
         ":retries r              | Command will be attempted once plus this number of retries if it continues to fail." \
         ":signal sig s           | Signal to be send to the command if it takes longer than the timeout." \
         ":timeout t              | If one attempt takes longer than this duration, kill it and retry if appropriate." \
-        ":warn_every w           | Generate warning messages after failed attempts when it has been more than this long since the last warning.")
+        ":warn_every w           | Generate warning messages after failed attempts when it has been more than this long since the last warning." \
+        "@cmd                    | Command to run followed by any of its own options and arguments.")
 
     argcheck delay fatal_exit_codes retries signal timeout
 
     # Command
-    local cmd=("${@}")
     local attempt=0
     local rc=0
     local exit_codes=()
