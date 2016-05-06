@@ -619,3 +619,43 @@ ETEST_opt_parse_help()
     assert_exists ${tmpfile}
 }
 
+ETEST_opt_parse_rest()
+{
+    A="a"
+    B="*"
+    C="  c  with doubled  whitespace  "
+    D="b & 3"
+
+    set -- first "${A}" "${B}" "${C}" "${D}"
+    $(opt_parse first "@rest")
+
+    etestmsg "Making sure \"rest\" options are saved properly despite crazy contents"
+    declare -p first rest || true
+
+    assert_eq "first" "${first}"
+    assert_eq "${A}"  "${rest[0]}"
+    assert_eq "${B}"  "${rest[1]}"
+    assert_eq "${C}"  "${rest[2]}"
+    assert_eq "${D}"  "${rest[3]}"
+}
+
+ETEST_opt_parse_rest_error_cases()
+{
+    etestmsg "Opt_parse should fail when passed two @ arguments."
+    foo()
+    {
+        $(opt_parse "@a" "@b")
+        true
+    }
+    assert_false foo
+
+
+    etestmsg "Opt_parse should fail when @ argument is not last."
+    bar()
+    {
+        $(opt_parse "@a" "b")
+        true
+    }
+    assert_false bar
+
+}
