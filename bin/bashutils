@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-: ${BASHUTILS_HOME:=$(dirname $0)/..}
-: ${BASHUTILS:=${BASHUTILS_HOME}/share}
-source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
-
 #
 # This tool is designed to run individual commands in a bashutils environment.
 # It can effectively turns bashutils functions into commands that can easily be
@@ -32,6 +28,35 @@ source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashut
 # And both "/path/to/unmount" and "/another/path" will be passed as arguments
 # to eunmount.
 #
+#-------------------------------------------------------------------------------
+
+
+# To be able to make good use of function documentation in places where we do
+# something like this, we need to save function documentation off into
+# variables (or else we'd have to parse bash source code enough to extract it,
+# which sounds very error prone)
+#
+#     somefunc --help
+#
+# But we don't want to bloat the interpreter with a bunch of documentation
+# every time we source bashutils.  Our solution is to only save them at times
+# where we believe the variables are going to be needed.  There's no reason to
+# expect they will be necessary unless `--help` is on the command line
+# somewhere.  Or for those few cases where it's needed, they can set this
+# variable, too.
+#
+# And for this to work in all of the bashutils files, we must do it before
+# sourcing them.
+for arg in "$@" ; do
+    if [[ ${arg} == "--help" ]] ; then
+        __BU_SAVE_DOC=1
+    fi
+done
+
+
+: ${BASHUTILS_HOME:=$(dirname $0)/..}
+: ${BASHUTILS:=${BASHUTILS_HOME}/share}
+source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
 $(opt_parse \
     ":source s        | Bashutils should source the specified file before attempting to run the specified command." \

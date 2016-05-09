@@ -343,9 +343,10 @@ netselect()
 {
     $(opt_parse \
         "+quiet q=0 | Don't display progress information, just print the chosen host on stdout." \
-        ":count c   | Number of times to ping.  Defaults to 10 for multiple hosts or 1 for a single host.")
+        ":count c   | Number of times to ping.  Defaults to 10 for multiple hosts or 1 for a single host." \
+        "@hosts     | Names or IP address of hosts to test.")
 
-    local hosts=$@; argcheck hosts
+    [[ ${#hosts[@]} -gt 0 ]] || die "must specify hosts to test."
     [[ ${quiet} -eq 1 ]] || eprogress "Finding host with lowest latency $(lval hosts)"
 
     [[ $# -eq 1 ]] && : ${count:=1} || : ${count:=10}

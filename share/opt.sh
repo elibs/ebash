@@ -100,6 +100,20 @@ verifies that the value is non-empty.
         "c=1  | Default is 1, if called with '', will blow up" \
         "?d=1 | Default is 1, will still be happy if '' is specified")
 
+But maybe you need a variable number of arguments.  Opt_parse always passes
+those back as $@, but you can request that they be put in an array for you.
+The biggest benefit is that you can add a docstring which will be included in
+the generated help statement.  For example:
+
+    $(opt_parse \
+        "first  | This will get the first thing passed on the command line" \
+        "@rest  | This will get everything after that.")
+
+This will create a standard bash array named "rest" that will contain all of
+the items remaining on the command line after other arguments are consumed.
+This may be zero or more, opt_parse does no valiation on the number .  Note
+that you may only use this in the final argument position.
+
 
 Options
 --------
@@ -191,6 +205,18 @@ would with arguments.
         "+boolean b=1        | Boolean option that defaults to true" \
         ":string s=something | String option that defaults to "something")
 
+
+Automatic Help
+--------------
+
+Opt_parse automatically supports a --help option for you, which will display
+a usage statement using the docstrings that you provided for each of the
+options and arguments.
+
+Functions called with --help as processed by opt_parse will not perform their
+typical operation and will instead return successfully after printing this
+usage statement.
+
 END
 opt_parse()
 {
@@ -213,54 +239,93 @@ opt_parse()
     # refers to the caller's arguments
     echo 'declare __BU_FULL_ARGS=("$@") ; '
     echo 'declare __BU_ARGS=("$@") ; '
+    echo 'declare __BU_OPT_USAGE_REQUESTED=0 ; '
     echo "opt_parse_options ; "
+
+    # If usage was requsted, print it and return success without doing anything
+    # else
+    echo 'if [[ ${__BU_OPT_USAGE_REQUESTED:-0} -eq 1 ]] ; then '
+    echo '   opt_display_usage ; '
+    echo '   [[ -v FUNCNAME ]] && return 0 || exit 0 ; '
+    echo 'fi ; '
 
     # Process options
     echo 'declare opt ; '
     echo 'if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then '
-        echo 'for opt in "${!__BU_OPT[@]}" ; do'
-            echo 'declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
-        echo 'done ; '
+    echo '    for opt in "${!__BU_OPT[@]}" ; do'
+    echo '        declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+    echo '    done ; '
     echo 'fi ; '
 
     # Process arguments
     echo 'opt_parse_arguments ; '
     echo 'if [[ ${#__BU_ARG[@]} -gt 0 ]] ; then '
-        echo 'for index in "${!__BU_ARG[@]}" ; do '
-            echo '[[ -n ${index} ]] || continue ; '
-            echo '[[ ${__BU_ARG_NAMES[$index]} != _ ]] && declare "${__BU_ARG_NAMES[$index]}=${__BU_ARG[$index]}" ; '
-        echo 'done ; '
+    echo '    for index in "${!__BU_ARG[@]}" ; do '
+    echo '        [[ -n ${index} ]] || continue ; '
+    echo '        [[ ${__BU_ARG_NAMES[$index]} != _ ]] && declare "${__BU_ARG_NAMES[$index]}=${__BU_ARG[$index]}" ; '
+    echo '    done ; '
     echo 'fi ; '
     echo 'argcheck "${__BU_ARG_REQUIRED[@]:-}" ; '
-    echo '[[ ${#__BU_ARGS[@]:-} -gt 0 ]] && set -- "${__BU_ARGS[@]}" || set -- ; '
+
+    # Make sure $@ and the optional @{whatever} array are filled with args that
+    # weren't already consumed
+    echo 'if [[ ${#__BU_ARGS[@]:-} -gt 0 ]] ; then '
+    echo '    set -- "${__BU_ARGS[@]}" ; '
+    echo '    [[ -z ${__BU_ARG_REST} ]] || declare -a "${__BU_ARG_REST}=( \"\${__BU_ARGS[@]}\" )" ; '
+    echo 'else '
+    echo '    set -- ; '
+    echo '    [[ -z ${__BU_ARG_REST} ]] || declare -a "${__BU_ARG_REST}=( )" ; '
+    echo 'fi ; '
 }
 
 opt_parse_setup()
 {
     local opt_cmd="__BU_OPT=( "
     local opt_regex_cmd="__BU_OPT_REGEX=( "
+    local opt_synonyms_cmd="__BU_OPT_SYNONYMS=( "
     local opt_type_cmd="__BU_OPT_TYPE=( "
+    local opt_docstring_cmd="__BU_OPT_DOCSTRING=( "
+
     local arg_cmd="__BU_ARG=( "
     local arg_names_cmd="__BU_ARG_NAMES=( "
     local arg_required_cmd="__BU_ARG_REQUIRED=( "
+    local arg_docstring_cmd="__BU_ARG_DOCSTRING=( "
+
+    local arg_rest_var=""
+    local arg_rest_docstring=""
 
     while (( $# )) ; do
+
+        # If we have already seen a "@rest" argument, nothing else is allowed.
+        [[ -n "${arg_rest_var}" ]] && die "${FUNCNAME[2]}: only one @ argument is allowed and it must be final argument."
+
         local complete_arg=$1 ; shift
 
-        # Arguments to opt_parse may contain multiple chunks of data, separated
-        # by pipe characters.
-        if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
-            local opt_definition=$(string_trim "${BASH_REMATCH[1]}")
-            local docstring=$(string_trim "${BASH_REMATCH[3]}")
-
-        else
-            die "Invalid option declaration: ${complete_arg}"
-        fi
+        # Arguments to opt_parse may contain two things, separated by a pipe
+        # character.  First is opt_definition.  This is all of the information
+        # about the argument that opt_parse uses to read it out of the command
+        # line arguments passed to your function.  The second is the docstring
+        # which is used only for documentation purposes.
+        #
+        # IMPLEMENTATION NOTE: This is a BIG FAT PERFORMANCE HOTSPOT inside
+        # bashutils.  Think of how many functions use opt_parse.  And this
+        # splitting into opt_definition and docstring must process all of the
+        # code lines that are passed in to opt_parse.  Every time.  Later lines
+        # in this function typically just handle bits and pieces of the
+        # opt_definition which is much smaller so they're not as important to
+        # performance.
+        #
+        # This implementation is on par with the original regex-based
+        # implementation.  Both of those are somewhat faster than an
+        # implementation based on IFS and read on bash 4.3 as of 2016-05.09.
+        local opt_definition=${complete_arg%%|*}
+        opt_definition=${opt_definition##+([[:space:]])}
+        local docstring=${complete_arg##*|}
 
         [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
-        # Make sure this option looks right
-        [[ ${opt_definition} =~ ([+:?])?([^=]+)(=.*)? ]]
+        # Make sure this option definition looks right
+        [[ ${opt_definition} =~ ^([+:?@])?([^=]+)(=.*)?$ ]]
 
         # TYPE is the first character of the definition
         local opt_type_char=${BASH_REMATCH[1]}
@@ -282,6 +347,12 @@ opt_parse_setup()
         [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Name is empty."
         [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: name ${canonical} is not allowed to contain hyphens."
 
+        # None of the option names are allowed override help, which is provided
+        # by opt_parse
+        local name
+        for name in ${all_names} ; do
+            [[ "${name}" != "help" ]] || die "${FUNCNAME[2]}: The opt_parse help option cannot be overridden."
+        done
 
         # OPTIONS
         if [[ ${opt_type_char} == ":" || ${opt_type_char} == "+" ]] ; then
@@ -312,8 +383,18 @@ opt_parse_setup()
             # Now that they're all computed, add them to the command that will generate associative arrays
             opt_cmd+="[${canonical}]='${default}' "
             opt_regex_cmd+="[${canonical}]='${name_regex}' "
+            opt_synonyms_cmd+="[${canonical}]='${all_names}' "
             opt_type_cmd+="[${canonical}]='${opt_type}' "
 
+            # Docstring might contain weird characters like quotes and
+            # apostrophes, so let printf quote it to be sure
+            printf -v quoted_docstring "%q" "${docstring}"
+            opt_docstring_cmd+="[${canonical}]=${quoted_docstring} "
+
+        elif [[ ${opt_type_char} == "@" ]] ; then
+
+            arg_rest_var=${canonical}
+            printf -v arg_rest_docstring "%q" "${docstring}"
 
         # ARGUMENTS
         else
@@ -321,20 +402,35 @@ opt_parse_setup()
 
             arg_cmd+="'${default}' "
             arg_names_cmd+="'${canonical}' "
-            [[ ${opt_type_char} != "?" ]] && arg_required_cmd+="'${canonical}' "
+
+            # Keep __BU_ARG_REQUIRED array indexed the same, but only put in
+            # names for items that are required
+            if [[ ${opt_type_char} == "?" ]] ; then
+                arg_required_cmd+="'' "
+            else
+                arg_required_cmd+="'${canonical}' "
+            fi
+
+            printf -v quoted_docstring "%q" "${docstring}"
+            arg_docstring_cmd+="${quoted_docstring} "
         fi
 
     done
 
     opt_cmd+=")"
     opt_regex_cmd+=")"
+    opt_synonyms_cmd+=")"
     opt_type_cmd+=")"
+    opt_docstring_cmd+=")"
+
     arg_cmd+=")"
     arg_names_cmd+=")"
     arg_required_cmd+=")"
+    arg_docstring_cmd+=")"
 
-    printf "declare -A %s %s %s ; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_type_cmd}" 
-    printf "declare %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}"
+    printf "declare -A %s %s %s %s %s; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_synonyms_cmd}" "${opt_type_cmd}" "${opt_docstring_cmd}"
+    printf "declare %s %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}" "${arg_docstring_cmd}"
+    printf "declare __BU_ARG_REST=%s __BU_ARG_REST_DOCSTRING=%s ;" "${arg_rest_var}" "${arg_rest_docstring}"
 }
 
 opt_parse_options()
@@ -353,6 +449,11 @@ opt_parse_options()
                 (( shift_count += 1 ))
                 break
                 ;;
+            --help)
+                __BU_OPT_USAGE_REQUESTED=1
+                return 0
+                ;;
+
             --*)
                 # Drop the initial hyphens, grab the option name and capture
                 # "=value" from the end if there is one
@@ -514,6 +615,114 @@ opt_parse_arguments()
     fi
 }
 
+opt_display_usage()
+{
+    {
+        # Function name and <option> specification if there are any options
+        echo -n "Usage: ${FUNCNAME[1]} "
+        [[ ${#__BU_OPT[@]} -gt 0 ]] && echo -n "[option]... "
+
+        # List arguments on the first line
+        local i
+        for i in ${!__BU_ARG_NAMES[@]} ; do
+
+            # Display name of the argument with brackets around it if it is
+            # optional
+            [[ -n ${__BU_ARG_REQUIRED[$i]} ]] || echo -n "["
+            echo -n "${__BU_ARG_NAMES[$i]}"
+            [[ -n ${__BU_ARG_REQUIRED[$i]} ]] || echo -n "]"
+
+            echo -n " "
+        done
+
+        # "Rest" argument if there is one
+        [[ -n "${__BU_ARG_REST}" ]] && echo -n "[${__BU_ARG_REST}]..."
+
+        # Finish the first line
+        echo
+
+        # If there's a documentation block in memory for this function, display
+        # it.  (Note: these only get saved when __BU_SAVE_DOC is set to 1 --
+        # see bashutils.sh)
+        if [[ -n "${__BU_DOC[${FUNCNAME[1]:-}]:-}" ]] ; then
+            printf -- "\n%s\n" "${__BU_DOC[${FUNCNAME[1]}]}"
+        fi
+
+        # Display block of documentation for options if there are any
+        if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then
+            echo
+            echo "Options:"
+            local opt
+            for opt in ${!__BU_OPT[@]} ; do
+
+                # Print the names of all option "synonyms" next to each other
+                printf "   "
+                local synonym="" first=1
+                for synonym in ${__BU_OPT_SYNONYMS[$opt]} ; do
+
+                    if [[ ${first} -ne 1 ]] ; then
+                        printf ", "
+                    else
+                        first=0
+                    fi
+
+                    if [[ ${#synonym} -gt 1 ]] ; then
+                        printf -- "--%s" "${synonym//_/-}"
+                    else
+                        printf -- "-%s" "${synonym}"
+                    fi
+
+                done
+
+                # If the option accepts arguments, say that
+                [[ ${__BU_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
+                echo
+
+                # Print the docstring, constrained to current terminal width,
+                # indented another level past the option names, and compress
+                # whitespace to look like normal english prose.
+                printf "%s" "${__BU_OPT_DOCSTRING[$opt]}" \
+                    | tr '\n' ' ' \
+                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
+                    | pr -T --indent 8
+
+                echo
+
+            done
+        fi
+
+        # Display block of documentation for arguments if there are any
+        if [[ ${#__BU_ARG_NAMES[@]} -gt 0 || -n ${__BU_ARG_REST} ]] ; then
+            echo "Arguments:"
+
+            for i in "${!__BU_ARG_NAMES[@]}" ; do
+                printf  "   %s\n" "${__BU_ARG_NAMES[$i]}"
+
+                # Print the docstring, constrained to current terminal width,
+                # indented another level past the argument name, and compress
+                # whitespace to look like normal english prose.
+                printf "%s" "${__BU_ARG_DOCSTRING[$i]:-}" \
+                    | tr '\n' ' ' \
+                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
+                    | pr -T --indent 8
+            done
+
+            if [[ -n ${__BU_ARG_REST} ]] ; then
+                printf  "   %s\n" "${__BU_ARG_REST}"
+
+                # Print the docstring, constrained to current terminal width,
+                # indented another level past the argument name, and compress
+                # whitespace to look like normal english prose.
+                printf "%s" "${__BU_ARG_REST_DOCSTRING:-}" \
+                    | tr '\n' ' ' \
+                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
+                    | pr -T --indent 8
+            fi
+        fi
+
+    } >&2
+}
+
 opt_dump()
 {
     for option in "${!__BU_OPT[@]}" ; do
@@ -612,5 +821,8 @@ opt_forward()
 
     quote_eval ${cmd} "${args[@]}"
 }
+
+# The opt_usage function is in bashutils.sh because it must be there before
+# anything else is sourced to have documentation work for files in bashutils.
 
 return 0
