@@ -301,20 +301,31 @@ opt_parse_setup()
 
         local complete_arg=$1 ; shift
 
-        # Arguments to opt_parse may contain multiple chunks of data, separated
-        # by pipe characters.
-        if [[ "${complete_arg}" =~ ^([^|]*)(\|([^|]*))?$ ]] ; then
-            local opt_definition=$(string_trim "${BASH_REMATCH[1]}")
-            local docstring=$(string_trim "${BASH_REMATCH[3]}")
-
-        else
-            die "Invalid option declaration: ${complete_arg}"
-        fi
+        # Arguments to opt_parse may contain two things, separated by a pipe
+        # character.  First is opt_definition.  This is all of the information
+        # about the argument that opt_parse uses to read it out of the command
+        # line arguments passed to your function.  The second is the docstring
+        # which is used only for documentation purposes.
+        #
+        # IMPLEMENTATION NOTE: This is a BIG FAT PERFORMANCE HOTSPOT inside
+        # bashutils.  Think of how many functions use opt_parse.  And this
+        # splitting into opt_definition and docstring must process all of the
+        # code lines that are passed in to opt_parse.  Every time.  Later lines
+        # in this function typically just handle bits and pieces of the
+        # opt_definition which is much smaller so they're not as important to
+        # performance.
+        #
+        # This implementation is on par with the original regex-based
+        # implementation.  Both of those are somewhat faster than an
+        # implementation based on IFS and read on bash 4.3 as of 2016-05.09.
+        local opt_definition=${complete_arg%%|*}
+        opt_definition=${opt_definition##+([[:space:]])}
+        local docstring=${complete_arg##*|}
 
         [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
-        # Make sure this option looks right
-        [[ ${opt_definition} =~ ([+:?@])?([^=]+)(=.*)? ]]
+        # Make sure this option definition looks right
+        [[ ${opt_definition} =~ ^([+:?@])?([^=]+)(=.*)?$ ]]
 
         # TYPE is the first character of the definition
         local opt_type_char=${BASH_REMATCH[1]}
