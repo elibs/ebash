@@ -163,11 +163,11 @@ archive_create()
         ":level l=9        | Compression level (1=fast, 9=best)." \
         "+nice n           | Be nice and use non-parallel compressors and only a single core." \
         ":type t           | Override automatic type detection and use explicit archive type." \
-        ":volume v         | Optional volume name to use (ISO only).")
+        ":volume v         | Optional volume name to use (ISO only)." \
+        "@srcs             | Source paths to archive.")
 
     # Parse positional arguments into a bashutils array. Then grab final argument
     # which is the destination.
-    local srcs=( "$@" )
     local dest=${srcs[${#srcs[@]}-1]}
     unset srcs[${#srcs[@]}-1]
 
