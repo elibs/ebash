@@ -135,11 +135,11 @@ process_ancestors()
     echo "${ancestors[@]}"
 }
 
-# Kill all pids provided as arguments to this function using the specified signal.
-# This function is best effort only. It makes every effort to kill all the specified
-# pids but ignores any errors while calling kill. This is largely due to the fact
-# that processes can exit before we get a chance to kill them. If you really care
-# about processes being gone consider using process_not_running or cgroups.
+# Kill all pids provided as arguments to this function using the specified signal. This function is
+# best effort only. It makes every effort to kill all the specified pids but ignores any errors
+# while calling kill. This is largely due to the fact that processes can exit before we get a chance
+# to kill them. If you really care about processes being gone consider using process_not_running or
+# cgroups.
 #
 # Options:
 # -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
@@ -149,11 +149,12 @@ process_ancestors()
 ekill()
 {
     $(opt_parse \
-        ":signal sig s=SIGTERM | The signal to send to specified processes, either as a number or a signal name." \
-        ":kill_after k         | Elevate to SIGKILL after waiting for this duration after sending the initial signal.  Accepts any duration that sleep would accept.")
-
-    # Determine what signal to send to the processes
-    local processes=( $@ )
+        ":signal sig s=SIGTERM | The signal to send to specified processes, either as a number or a
+                                 signal name.  Default is SIGTERM." \
+        ":kill_after k         | Elevate to SIGKILL after waiting for this duration after sending
+                                 the initial signal. Accepts any duration that sleep would accept.
+                                 By default no elevated signal is sent" \
+        "@processes            | Process IDs of processes to signal.")
 
     # Don't kill init, unless init has been replaced by our parent bash script
     # in which case we really do want to kill it.

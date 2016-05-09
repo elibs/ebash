@@ -217,10 +217,12 @@ ETEST_opt_parse_equal_empty()
 ETEST_opt_parse_default()
 {
     set --
-    $(opt_parse                     \
-        "+alpha a=1"                \
-        ":beta b=3"                 \
-        ":white w=with whitespace")
+    # Note whitespace at beginning of option definition here to verify that
+    # opt_parse handles it properly.
+    $(opt_parse \
+        "   +alpha a=1"                \
+        "   :beta b=3"                 \
+        "   :white w=with whitespace")
     etestmsg "$(opt_dump)"
 
     assert_eq 1 "${alpha}"
@@ -543,4 +545,119 @@ ETEST_opt_forward_different_name()
     }
 
     opt_forward subfunc option:altname
+}
+
+ETEST_opt_parse_help_not_allowed()
+{
+    foo()
+    {
+        $(opt_parse ":help")
+    }
+
+    bar()
+    {
+        $(opt_parse ":h help")
+    }
+
+    assert_false foo
+    assert_false bar
+}
+
+ETEST_opt_parse_help()
+{
+    local tmpfile=${FUNCNAME}.tmp
+    rm -f ${tmpfile}
+    assert_not_exists ${tmpfile}
+
+    set -- --help
+    foo()
+    {
+        $(opt_parse \
+            ":money m       | Units of tender" \
+            ":number n      | degrees of value" \
+            "+bool b        | on or off" \
+            "+long_option l | Here's an option that has a really really long docstring
+                              which is broken across multiple lines in order to
+                              do some level of validation that opt_parse can handle such
+                              things." \
+            "arg1           | First argument" \
+            "?arg2          | Second argument")
+
+        touch ${tmpfile}
+    }
+
+    etestmsg "Run with usage and make sure the function didn't perform its normal operation"
+    local usage=$(COLUMNS=80 foo --help 2>&1)
+    echo "${usage}"
+    assert_not_exists ${tmpfile}
+
+    etestmsg "Make sure the usage statement looks right"
+    assert_match "${usage}" "--bool"
+    assert_match "${usage}" "--money"
+    assert_match "${usage}" "--number"
+    assert_match "${usage}" "Units of tender"
+    assert_match "${usage}" "degrees of value"
+
+    # This check is dependant on the specific output format.  You might have to
+    # adjust it for reality if you change, for instance, the number of columns
+    # of output produced by opt_display_usage
+    etestmsg "Verify that the super-long docstring is broken into lines differently than it"
+    etestmsg "is in the code.  In other words that opt_parse formats it appropriately to fit"
+    etestmsg "available space."
+    assert_match "${usage}" "docstring which"
+
+    etestmsg "Further verify the first line"
+    local firstline=$(echo "${usage}" | head -n 1)
+    etestmsg "$(lval firstline)"
+
+    assert_match "${firstline}" "Usage"
+    assert_match "${firstline}" "foo"
+    assert_match "${firstline}" "\[option\]\.\.\."
+    assert_match "${firstline}" "arg1"
+    assert_match "${firstline}" "\[arg2\]"
+
+    etestmsg "Make sure a call to the function without --help works as expected."
+    foo a
+    assert_exists ${tmpfile}
+}
+
+ETEST_opt_parse_rest()
+{
+    A="a"
+    B="*"
+    C="  c  with doubled  whitespace  "
+    D="b & 3"
+
+    set -- first "${A}" "${B}" "${C}" "${D}"
+    $(opt_parse first "@rest")
+
+    etestmsg "Making sure \"rest\" options are saved properly despite crazy contents"
+    declare -p first rest || true
+
+    assert_eq "first" "${first}"
+    assert_eq "${A}"  "${rest[0]}"
+    assert_eq "${B}"  "${rest[1]}"
+    assert_eq "${C}"  "${rest[2]}"
+    assert_eq "${D}"  "${rest[3]}"
+}
+
+ETEST_opt_parse_rest_error_cases()
+{
+    etestmsg "Opt_parse should fail when passed two @ arguments."
+    foo()
+    {
+        $(opt_parse "@a" "@b")
+        true
+    }
+    assert_false foo
+
+
+    etestmsg "Opt_parse should fail when @ argument is not last."
+    bar()
+    {
+        $(opt_parse "@a" "b")
+        true
+    }
+    assert_false bar
+
 }

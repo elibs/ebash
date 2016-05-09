@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Allow calling function documentation in ibu.  This must happen before
+# sourcing bashutils.
+__BU_SAVE_DOC=1
+
 reload()
 {
     : ${BASHUTILS_HOME:=$(dirname $0)/..}
