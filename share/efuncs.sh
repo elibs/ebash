@@ -291,9 +291,8 @@ tryrc()
         ":rc r=rc  | Variable to assign the return code to." \
         ":stdout o | Write stdout to the specified variable rather than letting it go to stdout." \
         ":stderr e | Write stderr to the specified variable rather than letting it go to stderr." \
-        "+global g | Make variables created global rather than local")
-
-    local cmd=("$@")
+        "+global g | Make variables created global rather than local" \
+        "@cmd      | Command to run, along with any arguments.")
 
     # Determine flags to pass into declare
     local dflags=""
@@ -576,14 +575,12 @@ reenable_signals()
 # by default for any signal that would cause termination. If that's not the
 # desired behavior then simply pass in an explicit list of signals to trap.
 #
-# Options:
-# $1: body of trap to be appended
-# $@: Optional list of signals to trap (or default to DIE_SIGNALS and EXIT).
-#
 trap_add()
 {
-    $(opt_parse "?cmd")
-    local signals=( "${@}" )
+    $(opt_parse \
+        "?cmd     | Command to be added to the trap, quoted to be one argument." \
+        "@signals | Signals (or pseudo-signals) that should invoke the trap.  Default is EXIT.")
+
     [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
 
     local sig

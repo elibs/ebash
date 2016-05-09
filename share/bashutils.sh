@@ -34,7 +34,7 @@ fi
 #     END
 #     foo() { $(opt_parse...) ; do_stuff ; }
 #
-# Realy short documentation blocks can be passed as a second string parameter
+# Really short documentation blocks can be passed as a second string parameter
 # to opt_usage rather than on stdin if you prefer like this
 #
 #     opt_usage foo "Short doc block"
