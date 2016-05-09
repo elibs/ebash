@@ -678,12 +678,12 @@ opt_display_usage()
                 [[ ${__BU_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
                 echo
 
-                # Print the docstring, constrained to term width of 80,
+                # Print the docstring, constrained to current terminal width,
                 # indented another level past the option names, and compress
                 # whitespace to look like normal english prose.
                 printf "%s" "${__BU_OPT_DOCSTRING[$opt]}" \
                     | tr '\n' ' ' \
-                    | fmt --uniform-spacing --width 80 \
+                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
 
                 echo
@@ -698,24 +698,24 @@ opt_display_usage()
             for i in "${!__BU_ARG_NAMES[@]}" ; do
                 printf  "   %s\n" "${__BU_ARG_NAMES[$i]}"
 
-                # Print the docstring, constrained to term width of 80,
+                # Print the docstring, constrained to current terminal width,
                 # indented another level past the argument name, and compress
                 # whitespace to look like normal english prose.
                 printf "%s" "${__BU_ARG_DOCSTRING[$i]:-}" \
                     | tr '\n' ' ' \
-                    | fmt --uniform-spacing --width 80 \
+                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
             done
 
             if [[ -n ${__BU_ARG_REST} ]] ; then
                 printf  "   %s\n" "${__BU_ARG_REST}"
 
-                # Print the docstring, constrained to term width of 80,
+                # Print the docstring, constrained to current terminal width,
                 # indented another level past the argument name, and compress
                 # whitespace to look like normal english prose.
                 printf "%s" "${__BU_ARG_REST_DOCSTRING:-}" \
                     | tr '\n' ' ' \
-                    | fmt --uniform-spacing --width 80 \
+                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
             fi
         fi

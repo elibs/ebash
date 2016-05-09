@@ -587,7 +587,7 @@ ETEST_opt_parse_help()
     }
 
     etestmsg "Run with usage and make sure the function didn't perform its normal operation"
-    local usage=$(foo --help 2>&1)
+    local usage=$(COLUMNS=80 foo --help 2>&1)
     echo "${usage}"
     assert_not_exists ${tmpfile}
 
