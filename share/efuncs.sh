@@ -1735,8 +1735,8 @@ OPTIONAL CALLBACK:
 END
 setvars()
 {
-    $(opt_parse \ 
-        "filename" \
+    $(opt_parse \
+        "filename  | File to modify." \
         "?callback | You may provided an optional callback as the second parameter to this function.
                      The callback will be called with the key and the value it obtained from the
                      environment (if any). The callback is then free to make whatever modifications
