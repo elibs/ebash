@@ -5,9 +5,9 @@
 
 [[ ${__BU_OS} != Linux ]] && return 0
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # CORE CHROOT FUNCTIONS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 CHROOT_MOUNTS=( /dev /proc /sys )
 
 chroot_mount()
@@ -94,8 +94,10 @@ chroot_cmd()
     chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
 }
 
-# Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT})
-# that match the given regex.  [note: regex support is identical to pgrep]
+opt_usage chroot_kill <<'END'
+Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT}) that match the given
+regex.  [note: regex support is identical to pgrep]
+END
 #
 # $1: Optional pgrep pattern that match the processes you'd like to signal.
 #        If no pattern is specified, ALL proceses in the chroot will be
@@ -105,8 +107,10 @@ chroot_kill()
 {
     $(opt_parse \
         ":signal s=TERM   | The signal to send to killed pids." \
-        ":kill_after k    | Also send SIGKILL to processes that are still alive after this duration.  (Does not block)" \
-        "?regex           | Pgrep regex that should match processes you'd like to signal")
+        ":kill_after k    | Also send SIGKILL to processes that are still alive after this duration.
+                            (Does not block)" \
+        "?regex           | Pgrep regex that should match processes you'd like to signal.  If none
+                            is specified, all processes in the chroot will be killed.")
 
     argcheck CHROOT
 
@@ -140,9 +144,10 @@ chroot_exit()
     eunmount -r ${CHROOT}
 }
 
-# Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE
-# the chroot. For example, if inside the CHROOT you have "/a -> /b" then calling
-# chroot_readlink "/a" => "${CHROOT}/b"
+opt_usage chroot_readlink <<'END'
+Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE the chroot. For example, if
+inside the CHROOT you have "/a -> /b" then calling chroot_readlink "/a" => "${CHROOT}/b"
+END
 chroot_readlink()
 {
     argcheck CHROOT
@@ -151,9 +156,9 @@ chroot_readlink()
     echo -n "${CHROOT}$(chroot_cmd readlink -m "${path}" 2>/dev/null)"
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # APT-CHROOT FUNCTIONS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 ## APT SETTINGS ##
 CHROOT_APT="aptitude -f -y"
@@ -368,10 +373,11 @@ chroot_setup()
     )
 }
 
-# Create an UBUNTU based CHROOT using debootstrap. It will first try to fetch
-# a pre-built CHROOT tarball and unpack it. If this fails internal validation 
-# or is unavailable, then it will fallback to creating a fresh CHROOT via
-# debootstrap. 
+opt_usage mkchroot <<'END'
+Create an UBUNTU based CHROOT using debootstrap. It will first try to fetch a pre-built CHROOT
+tarball and unpack it. If this fails internal validation or is unavailable, then it will fallback to
+creating a fresh CHROOT via debootstrap. 
+END
 mkchroot()
 {
     $(opt_parse CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
@@ -406,7 +412,7 @@ mkchroot()
     chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # SOURCING
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 return 0

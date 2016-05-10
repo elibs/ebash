@@ -456,25 +456,14 @@ eerror()
     emsg "${COLOR_ERROR}" ">>" "ERROR" "$@"
 }
 
-# Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints
-# the entire stacktrace as a bright red error message with the funct and file:line
-# number nicely formatted for easily display of fatal errors.
-#
-# Allows you to optionally pass in a starting frame to start the stacktrace at. 0 is
-# the top of the stack and counts up. See also stacktrace and eerror_stacktrace.
-#
-# OPTIONS:
-# -f=N
-#   Frame number to start at (defaults to 2 to skip the top frames with
-#   eerror_stacktrace and stacktrace_array).
-#
-# -s=(0|1)
-#   Skip the initial error message (e.g. b/c the caller already displayed it).
-#
-# -c=(color)
-#   Use the specified color for output messages.  Defaults to red.  Supports
-#   any color that is supported by ecolor.
-#
+opt_usage eerror_stacktrace <<'END'
+Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints the entire
+stacktrace as a bright red error message with the funct and file:line number nicely formatted for
+easily display of fatal errors.
+
+Allows you to optionally pass in a starting frame to start the stacktrace at. 0 is the top of the
+stack and counts up. See also stacktrace and eerror_stacktrace.
+END
 eerror_stacktrace()
 {
     $(opt_parse \
@@ -562,10 +551,11 @@ eprompt()
     echo -en "${result}"
 }
 
-# eprompt_with_options allows the caller to specify what options are valid
-# responses to the provided question. The caller can also optionally provide
-# a list of "secret" options which will not be displayed in the prompt to the
-# user but will be accepted as a valid response.
+opt_usage eprompt_with_options <<'END'
+eprompt_with_options allows the caller to specify what options are valid responses to the provided
+question. The caller can also optionally provide a list of "secret" options which will not be
+displayed in the prompt to the user but will be accepted as a valid response.
+END
 eprompt_with_options()
 {
     $(opt_parse "msg" "opt" "?secret")
@@ -674,12 +664,10 @@ eprogress()
     trap_add "eprogress_kill -r=1 $!"
 }
 
-# Kill the most recent eprogress in the event multiple ones are queued up.
-# Can optionally pass in a specific list of eprogress pids to kill.
-#
-# Options:
-# -r Return code to use (defaults to 0)
-# -a Kill all eprogress pids.
+opt_usage eprogress_kill <<'END'
+Kill the most recent eprogress in the event multiple ones are queued up. Can optionally pass in a
+specific list of eprogress pids to kill.
+END
 eprogress_kill()
 {
     $(opt_parse \
