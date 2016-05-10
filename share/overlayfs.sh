@@ -4,7 +4,7 @@
 
 [[ ${__BU_OS} == Linux ]] || return 0
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 # OVERLAYFS
 # 
 # The overlayfs module is the bashutils interface around OverlayFS mounts. This
@@ -19,7 +19,7 @@
 # workdir option for the scratch work performed by overlayfs. Overlayfs was
 # available in older kernel versions but was not official and did not have this
 # additional "workdir" option.
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 
 # Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
 # use just 'overlay' so dynamically detected the correct type to use here. Some

@@ -2,7 +2,7 @@
 
 # Copyright 2015, SolidFire, Inc. All rights reserved.
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Cgroups are a capability of the linux kernel designed for categorizing
 # processes.  They're most typically used in ways that not only categorize
 # processes, but also control them in some fasion.  A popular reason is to
@@ -28,11 +28,11 @@
 # easier, and also help you to keep parallel hierarchies identical across the
 # various cgroups subsystems.
 #
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 
 CGROUP_SUBSYSTEMS=(cpu memory freezer)
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Detect whether the machine currently running this code is built with kernel
 # support for all of the cgroups subsystems that bashutils depends on.
 #
@@ -56,7 +56,7 @@ cgroup_supported()
 
 [[ ${__BU_OS} == Linux ]] || return 0
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Prior to using a cgroup, you must create it.  It is safe to attempt to
 # "create" a cgroup that already exists.
 #
@@ -74,7 +74,7 @@ cgroup_create()
 }
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_destroy <<'END'
 If you want to get rid of a cgroup, you can do so by calling cgroup_destroy.
 
@@ -109,7 +109,7 @@ cgroup_destroy()
 }
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Returns true if all specified cgroups exist.  In other words, they have been
 # created via cgroup_create but have not yet been removed with cgroup_destroy)
 #
@@ -144,7 +144,7 @@ cgroup_exists()
 }
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_move <<'END'
 Move one or more processes to a specific cgroup.  Once added, all (future) children of that process
 will also automatically go into that cgroup.
@@ -171,7 +171,7 @@ cgroup_move()
     fi
 }
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_set<<'END'
 Change the value of a cgroups subsystem setting for the specified cgroup. For instance, by using the
 memory subsystem, you could limit the amount of memory used by all pids underneath the distbox
@@ -193,7 +193,7 @@ cgroup_set()
     echo "${value}" > $(cgroup_find_setting_file ${cgroup} ${setting})
 }
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_get<<'END'
 Read the existing value of a subsystem-specific cgroups setting for the specified cgroup.  See
 cgroup_set for more info
@@ -211,7 +211,7 @@ cgroup_get()
     cat $(cgroup_find_setting_file ${cgroup} ${setting})
 }
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_pids<<'END'
 Recursively find all of the pids that live underneath a set of sections in the cgorups hierarchy.
 You may specify as many different cgroups as you like, and the processes in those cgroups AND THEIR
@@ -298,7 +298,7 @@ cgroup_pids()
     return "${rc}"
 }
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_ps "Run ps on all of the processes in a cgroup."
 cgroup_ps()
 {
@@ -327,7 +327,7 @@ cgroup_ps()
 }
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Return all items in the cgroup hierarchy.  By default this will echo to
 # stdout all directories in the cgroup hierarchy.  You may optionally specify
 # one or more cgroups and then only those cgroups descended from them it will
@@ -385,7 +385,7 @@ cgroup_tree()
 
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Display a graphical representation of all cgroups descended from those
 # specified as arguments.
 #
@@ -408,7 +408,7 @@ cgroup_pstree()
 }
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_current <<'END'
 Display the name of the cgroup that the specified process is in.  Defaults to the current process
 (i.e. ${BASHPID}).
@@ -423,7 +423,7 @@ cgroup_current()
 }
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_kill <<'END'
 Recursively KILL (or send a signal to) all of the pids that live underneath all of the specified
 cgroups (and their children!).  Accepts any number of cgroups.
@@ -466,7 +466,7 @@ cgroup_kill()
     return 0
 }
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 opt_usage cgroup_kill_and_wait <<'END'
 Ensure that no processes are running all of the specified cgroups by killing all of them and waiting
 until the group is empty.
