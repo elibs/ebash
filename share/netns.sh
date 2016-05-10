@@ -6,7 +6,7 @@
 
 NETNS_DIR="/run/netns"
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_create "Idempotent create a network namespace"
 netns_create()
 {
@@ -19,7 +19,7 @@ netns_create()
     netns_exec "${ns_name}" ip link set dev lo up
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_delete "Idempotent delete a network namespace"
 netns_delete()
 {
@@ -32,7 +32,7 @@ netns_delete()
     ip netns delete "${ns_name}"
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_exec "Execute a command in the given network namespace"
 netns_exec()
 {
@@ -40,14 +40,14 @@ netns_exec()
     ip netns exec "${ns_name}" "$@"
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_list "Get a list of network namespaces"
 netns_list()
 {
     ip netns list | sort
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_exists "Check if a network namespace exists"
 netns_exists()
 {
@@ -55,7 +55,7 @@ netns_exists()
     [[ -e "${NETNS_DIR}/${ns_name}" ]] && return 0 || return 1
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_init <<'END'
 create a pack containing the network namespace parameters
 
@@ -92,7 +92,7 @@ netns_init()
     return 0
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_check_pack <<'END'
 Ensure that the minimum parameters to set up a namespace are present in the pack and that the
 parameters meet some minimum criteria in form and/or length
@@ -135,7 +135,7 @@ netns_check_pack()
     fi
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_chroot_exec "Run a command in a netns chroot that already exists"
 netns_chroot_exec()
 {
@@ -151,7 +151,7 @@ netns_chroot_exec()
     netns_exec ${ns_name} chroot "${chroot_root}" "${cmd[@]}"
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_setup_connected_network <<'END'
 Set up the network inside a network namespace This will give you a network that can talk to the
 outside world from within the namespace
@@ -223,7 +223,7 @@ netns_setup_connected_network()
     #DNS is taken care of by the filesystem (either in a chroot or outside)
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_remove_network "Remove the namespace network"
 netns_remove_network()
 {
@@ -247,7 +247,7 @@ netns_remove_network()
     netns_remove_iptables_rules ${netns_args_packname}
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_add_iptables_rules <<'END'
 Add routing rules to the firewall to let traffic in/out of the namespace
 END
@@ -269,7 +269,7 @@ netns_add_iptables_rules()
     done
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_remove_iptables_rules <<'END'
 Remove routing rules added from above
 END
@@ -291,7 +291,7 @@ netns_remove_iptables_rules()
     done
 }
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 opt_usage netns_iptables_rule_exists <<'END'
 # Check if a rule exists for a given nic in the namespace
 END
