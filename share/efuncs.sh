@@ -581,7 +581,7 @@ trap_add()
         "?cmd     | Command to be added to the trap, quoted to be one argument." \
         "@signals | Signals (or pseudo-signals) that should invoke the trap.  Default is EXIT.")
 
-    [[ ${#signals[@]} -gt 0 ]] || signals=( EXIT )
+    array_not_empty signals || signals=( "EXIT" )
 
     local sig
     for sig in "${signals[@]}"; do
