@@ -39,9 +39,10 @@ to_json()
     echo -n "}"
 }
 
-# Convert an array specified by name (i.e ARRAY not ${ARRAY} or ${ARRAY[@]})
-# into a json array containing the same data.
-#
+opt_usage array_to_json <<'END'
+Convert an array specified by name (i.e ARRAY not ${ARRAY} or ${ARRAY[@]}) into a json array
+containing the same data.
+END
 array_to_json()
 {
     # This will store a copy of the specified array's contents into __array
@@ -119,25 +120,26 @@ json_escape()
     echo -n $(echo -n "$1" | jq --raw-input --slurp .)
 }
 
-# Import all of the key:value pairs from a non-nested Json object directly into
-# the caller's environment as proper bash variables. By default this will import all
-# the keys available into the caller's environment. Alternatively you can provide
-# an optional list of keys to restrict what is imported. If any of the explicitly
-# requested keys are not present this will be interpreted as an error and json_import
-# will return non-zero. Keys can be marked optional via the '?' prefix before the key
-# name in which case they will be set to an empty string if the key is missing. 
-#
-# Similar to a lot of other  methods inside bashutils, this uses the "eval command
-# invocation string" idom. So, the proper calling convention for this is:
-#
-# $(json_import)
-#
-# By default this function operates on stdin. Alternatively you can change it to
-# operate on a file via -f. To use via STDIN use one of these idioms:
-#
-# $(json_import <<< ${json})
-# $(curl ... | $(json_import)
-#
+opt_usage json_import <<'END'
+Import all of the key:value pairs from a non-nested Json object directly into the caller's
+environment as proper bash variables. By default this will import all the keys available into the
+caller's environment. Alternatively you can provide an optional list of keys to restrict what is
+imported. If any of the explicitly requested keys are not present this will be interpreted as an
+error and json_import will return non-zero. Keys can be marked optional via the '?' prefix before
+the key name in which case they will be set to an empty string if the key is missing. 
+
+Similar to a lot of other  methods inside bashutils, this uses the "eval command invocation string"
+idom. So, the proper calling convention for this is:
+
+    $(json_import)
+
+By default this function operates on stdin. Alternatively you can change it to operate on a file via
+-f. To use via STDIN use one of these idioms:
+
+    $(json_import <<< ${json})
+    $(curl ... | $(json_import)
+
+END
 json_import()
 {
     $(opt_parse \
@@ -147,7 +149,8 @@ json_import()
         "+upper_snake_case u | Convert all keys into UPPER_SNAKE_CASE." \
         ":prefix p           | Prefix all keys with the provided required prefix." \
         ":query jq q         | Use JQ style query expression on given JSON before parsing." \
-        ":exclude x          | Whitespace separated list of keys to exclude while importing.")
+        ":exclude x          | Whitespace separated list of keys to exclude while importing." \
+        "@_json_import_keys  | Optional list of json keys to import.  If none, all are imported." )
 
     # Determine flags to pass into declare
     local dflags=""
@@ -162,8 +165,7 @@ json_import()
     local _json_import_data=$(cat ${file} | jq -r "${query}")
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
-    local _json_import_keys=("${@:-}")
-    [[ ${#_json_import_keys} -eq 0 ]] && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
+    array_empty _json_import_keys && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
 
     # Get list of optional keys to exclude
     local excluded
