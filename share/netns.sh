@@ -7,8 +7,7 @@
 NETNS_DIR="/run/netns"
 
 #-------------------------------------------------------------------------------
-# Idempotent create a network namespace
-#
+opt_usage netns_create "Idempotent create a network namespace"
 netns_create()
 {
     $(opt_parse ns_name)
@@ -21,8 +20,7 @@ netns_create()
 }
 
 #-------------------------------------------------------------------------------
-# Idempotent delete a network namespace
-#
+opt_usage netns_delete "Idempotent delete a network namespace"
 netns_delete()
 {
     $(opt_parse ns_name)
@@ -35,8 +33,7 @@ netns_delete()
 }
 
 #-------------------------------------------------------------------------------
-# Execute a command in the given network namespace
-#
+opt_usage netns_exec "Execute a command in the given network namespace"
 netns_exec()
 {
     $(opt_parse ns_name)
@@ -44,16 +41,14 @@ netns_exec()
 }
 
 #-------------------------------------------------------------------------------
-# Get a list of network namespaces
-#
+opt_usage netns_list "Get a list of network namespaces"
 netns_list()
 {
     ip netns list | sort
 }
 
 #-------------------------------------------------------------------------------
-# Check if a network namespace exists
-#
+opt_usage netns_exists "Check if a network namespace exists"
 netns_exists()
 {
     $(opt_parse ns_name)
@@ -61,25 +56,27 @@ netns_exists()
 }
 
 #-------------------------------------------------------------------------------
-# create a pack containing the network namespace parameters
-#
-# Args: <netns pack name> <optional parameter pair list>
-#
-# ex: netns_init nsparams ns_name=mynamespace devname=mynamespace_eth0       \
-#             peer_devname=eth0 connected_nic=eth0 bridge_cidr=<ipaddress>   \
-#             nic_cidr=<ipaddress>
-#
-#  Where the options are:
-#        ns_name        : The namespace name
-#        devname        : veth pair's external dev name
-#        peer_devname   : veth pair's internal dev name
-#        connected_nic  : nic that can talk to the internet
-#        bridge_cidr    : cidr for the bridge (ex: 1.2.3.4/24)
-#        nic_cidr       : cidr for the internal nic (peer_devname)
-#
+opt_usage netns_init <<'END'
+create a pack containing the network namespace parameters
+
+example: netns_init nsparams ns_name=mynamespace devname=mynamespace_eth0       \
+            peer_devname=eth0 connected_nic=eth0 bridge_cidr=<ipaddress>   \
+            nic_cidr=<ipaddress>
+
+ Where the options are:
+       ns_name        : The namespace name
+       devname        : veth pair's external dev name
+       peer_devname   : veth pair's internal dev name
+       connected_nic  : nic that can talk to the internet
+       bridge_cidr    : cidr for the bridge (ex: 1.2.3.4/24)
+       nic_cidr       : cidr for the internal nic (peer_devname)
+
+END
 netns_init()
 {
-    $(opt_parse netns_args_packname)
+    $(opt_parse \
+        "netns_args_packname | Name of variable that will be used to hold this netns's information." \
+        "@netns_options      | Network namespace options to use in form option=value")
 
     pack_set ${netns_args_packname}             \
         netns_args_name=${netns_args_packname}  \
@@ -88,21 +85,23 @@ netns_init()
         peer_devname=                           \
         connected_nic=                          \
         bridge_cidr=                            \
-        nic_cidr=                               \
-        "${@}"
+        nic_cidr=
+
+    array_empty netns_options || pack_set "${netns_options[@]}"
 
     return 0
 }
 
 #-------------------------------------------------------------------------------
-# Ensure that the minimum parameters to set up a namespace are present in the pack
-#    and that the parameters meet some minimum criteria in form and/or length
-#
-# Args: <netns pack name>
-#
+opt_usage netns_check_pack <<'END'
+Ensure that the minimum parameters to set up a namespace are present in the pack and that the
+parameters meet some minimum criteria in form and/or length
+END
 netns_check_pack()
 {
-    $(opt_parse netns_args_packname)
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
 
     local key
     for key in ns_name devname peer_devname connected_nic bridge_cidr nic_cidr ; do
@@ -137,33 +136,34 @@ netns_check_pack()
 }
 
 #-------------------------------------------------------------------------------
-# Run a command in a netns chroot that already exists
-#
-# Args: <netns pack name> <chroot root dir> <command with args>
-#
+opt_usage netns_chroot_exec "Run a command in a netns chroot that already exists"
 netns_chroot_exec()
 {
-    $(opt_parse netns_args_packname chroot_root)
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)" \
+        "chroot_root         | Existing chroot to run within." \
+        "@command            | Command and arguments.")
 
     $(pack_import ${netns_args_packname} ns_name)
 
-    edebug "Executing command in namespace [${ns_name}] and chroot [${chroot_root}]: ${@}"
-    netns_exec ${ns_name} chroot "${chroot_root}" "${@}"
+    edebug "Executing command in namespace [${ns_name}] and chroot [${chroot_root}]: ${cmd[@]}"
+    netns_exec ${ns_name} chroot "${chroot_root}" "${cmd[@]}"
 }
 
 #-------------------------------------------------------------------------------
-# Set up the network inside a network namespace
-#
-# This will give you a network that can talk to the outside world from within
-# the namespace
-#
-# Args: <netns pack name>
-#
-# Note: https://superuser.com/questions/764986/howto-setup-a-veth-virtual-network
-#
+opt_usage netns_setup_connected_network <<'END'
+Set up the network inside a network namespace This will give you a network that can talk to the
+outside world from within the namespace
+
+Note: https://superuser.com/questions/764986/howto-setup-a-veth-virtual-network
+
+END
 netns_setup_connected_network()
 {
-    $(opt_parse netns_args_packname)
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
 
     netns_check_pack ${netns_args_packname}
 
@@ -224,13 +224,12 @@ netns_setup_connected_network()
 }
 
 #-------------------------------------------------------------------------------
-# Remove the namespace network
-#
-# Args: <netns pack name>
-#
+opt_usage netns_remove_network "Remove the namespace network"
 netns_remove_network()
 {
-    $(opt_parse netns_args_packname)
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
 
     netns_check_pack ${netns_args_packname}
 
@@ -249,13 +248,14 @@ netns_remove_network()
 }
 
 #-------------------------------------------------------------------------------
-# Add routing rules to the firewall to let traffic in/out of the namespace
-#
-# Args: <netns pack name> <additional targets to remove>
-#
+opt_usage netns_add_iptables_rules <<'END'
+Add routing rules to the firewall to let traffic in/out of the namespace
+END
 netns_add_iptables_rules()
 {
-    $(opt_parse netns_args_packname)
+    $(opt_parse
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
 
     netns_check_pack ${netns_args_packname}
 
@@ -270,13 +270,14 @@ netns_add_iptables_rules()
 }
 
 #-------------------------------------------------------------------------------
-# Remove routing rules added from above
-#
-# Args: <netns pack name> <device name>...
-#
+opt_usage netns_remove_iptables_rules <<'END'
+Remove routing rules added from above
+END
 netns_remove_iptables_rules()
 {
-    $(opt_parse netns_args_packname)
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
 
     netns_check_pack ${netns_args_packname}
 
@@ -291,13 +292,15 @@ netns_remove_iptables_rules()
 }
 
 #-------------------------------------------------------------------------------
+opt_usage netns_iptables_rule_exists <<'END'
 # Check if a rule exists for a given nic in the namespace
-#
-# Args: <netns pack name> <device name>
-#
+END
 netns_iptables_rule_exists()
 {
-    $(opt_parse netns_args_packname devname)
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)" \
+        "devname             | Network device to operate on.")
 
     netns_check_pack ${netns_args_packname}
 
