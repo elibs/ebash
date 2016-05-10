@@ -3,9 +3,9 @@
 # Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # GLOBAL EFUNCS SETTINGS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 set -o pipefail
 set -o nounset
 set -o functrace
@@ -16,9 +16,9 @@ shopt -s extglob
 
 alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DEBUG || trap - DEBUG'
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # TRY / CATCH
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 DIE_MSG_KILLED='[Killed]'
 DIE_MSG_CAUGHT='[ExceptionCaught pid=$BASHPID cmd=$(string_truncate -e 60 ${BASH_COMMAND})]'
@@ -198,7 +198,7 @@ fd_path()
     fi
 }
 
-# Helper method to read from a pipe until we see EOF.
+opt_usage pipe_read "Helper method to read from a pipe until we see EOF."
 pipe_read()
 {
     $(opt_parse "pipe")
@@ -215,15 +215,15 @@ pipe_read()
     done <${pipe}
 }
 
-# Helper method to read from a pipe until we see EOF and then also 
-# intelligently quote the output in a way that can be reused as shell input
-# via "printf %q". This will allow us to safely eval the input without fear
-# of anything being exectued.
-#
-# NOTE: This method will echo "" instead of using printf if the output is an
-#       empty string to avoid causing various test failures where we'd
-#       expect an empty string ("") instead of a string with literl quotes
-#       in it ("''").
+opt_usage pipe_read_quote <<'END'
+Helper method to read from a pipe until we see EOF and then also intelligently quote the output in a
+way that can be reused as shell input via "printf %q". This will allow us to safely eval the input
+without fear of anything being exectued.
+
+NOTE: This method will echo "" instead of using printf if the output is an empty string to avoid
+causing various test failures where we'd expect an empty string ("") instead of a string with literl
+quotes in it ("''").
+END
 pipe_read_quote()
 {
     $(opt_parse "pipe")
@@ -235,56 +235,42 @@ pipe_read_quote()
     fi
 }
 
-# tryrc is a convenience wrapper around try/catch that makes it really easy to
-# execute a given command and capture the command's return code, stdout and stderr
-# into local variables. We created this idiom because if you handle the failure 
-# of a command in any way then bash effectively disables set -e that command
-# invocation REGARDLESS OF DEPTH. "Handling the failure" includes putting it in
-# a while or until loop, part of an if/else statement or part of a command 
-# executed in a && or ||.
-#
-# Consider a function call chain such as:
-#
-# foo->bar->zap
-#
-# and you want to get the return value from foo, you might (wrongly) think you
-# could safely use this and safely bypass set -e explosion:
-#
-# foo || rc=$?
-#
-# The problem is bash effectively disables "set -e" for this command when used
-# in this context. That means even if zap encounteres an unhandled error die()
-# will NOT get implicitly called (explicit calls to die would still get called
-# of course).
-# 
-# Here's the insidious documentation from 'man bash' regarding this obscene
-# behavior:
-#
-# "The ERR trap is not executed if the failed command is part of the command
-#  list immediately following a while or until keyword, part of the test in
-#  an if statement, part of a command executed in a && or ||  list  except 
-#  the command following the final && or ||, any command in a pipeline but
-#  the last, or if the command's return value is being inverted using !."
-#
-# What's not obvious from that statement is that this applies to the entire
-# expression including any functions it may call not just the top-level 
-# expression that had an error. Ick.
-#
-# Thus we created tryrc to allow safely capturing the return code, stdout
-# and stderr of a function call WITHOUT bypassing set -e safety!
-#
-# This is invoked using the "eval command invocation string" idiom so that it
-# is invoked in the caller's envionment. For example: $(tryrc some-command)
-#
-# OPTIONS:
-# -r=VAR The variable to assign the return code to (OPTIONAL, defaults to 'rc').
-# -o=VAR The variable to assign STDOUT to (OPTIONAL). If not provided STDOUT
-#        will go to /dev/stdout as normal. This is BUFFERED and not displayed
-#        until the call completes.
-# -e=VAR The variable to assign STDERR to (OPTIONAL). If not provided STDERR
-#        will go to /dev/stderr as normal. This is NOT BUFFERED and will display
-#        to /dev/stderr in real-time.
-# -g     Make variables global even if called in a local context.
+opt_usage tryrc <<'END'
+tryrc is a convenience wrapper around try/catch that makes it really easy to execute a given command
+and capture the command's return code, stdout and stderr into local variables. We created this idiom
+because if you handle the failure of a command in any way then bash effectively disables set -e that
+command invocation REGARDLESS OF DEPTH. "Handling the failure" includes putting it in a while or
+until loop, part of an if/else statement or part of a command executed in a && or ||.
+
+Consider a function call chain such as:
+
+    foo->bar->zap
+
+and you want to get the return value from foo, you might (wrongly) think you could safely use this
+and safely bypass set -e explosion:
+
+    foo || rc=$?
+
+The problem is bash effectively disables "set -e" for this command when used in this context. That
+means even if zap encounteres an unhandled error die() will NOT get implicitly called (explicit
+calls to die would still get called of course).
+
+Here's the insidious documentation from 'man bash' regarding this obscene behavior:
+
+    "The ERR trap is not executed if the failed command is part of the command list immediately
+    following a while or until keyword, part of the test in an if statement, part of a command
+    executed in a && or ||  list  except the command following the final && or ||, any command in a
+    pipeline but the last, or if the command's return value is being inverted using !."
+
+What's not obvious from that statement is that this applies to the entire expression including any
+functions it may call not just the top-level expression that had an error. Ick.
+
+Thus we created tryrc to allow safely capturing the return code, stdout and stderr of a function
+call WITHOUT bypassing set -e safety!
+
+This is invoked using the "eval command invocation string" idiom so that it is invoked in the
+caller's envionment. For example: $(tryrc some-command)
+END
 tryrc()
 {
     $(opt_parse \
@@ -374,17 +360,15 @@ tryrc()
     rm --recursive --force ${tmpdir}
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # TRAPS / DIE / STACKTRACE
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
-# Print stacktrace to stdout. Each frame of the stacktrace is separated by a
-# newline. Allows you to optionally pass in a starting frame to start the
-# stacktrace at. 0 is the top of the stack and counts up. See also stacktrace
-# and error_stacktrace.
-#
-# OPTIONS:
-# -f=N Frame number to start at.
+opt_usage stacktrace <<'END'
+Print stacktrace to stdout. Each frame of the stacktrace is separated by a newline. Allows you to
+optionally pass in a starting frame to start the stacktrace at. 0 is the top of the stack and counts
+up. See also stacktrace and error_stacktrace.
+END
 stacktrace()
 {
     $(opt_parse ":frame f=0 | Frame number to start at if not the current one")
@@ -394,13 +378,11 @@ stacktrace()
     done
 }
 
-# Populate an array with the frames of the current stacktrace. Allows you
-# to optionally pass in a starting frame to start the stacktrace at. 0 is
-# the top of the stack and counts up. See also stacktrace and eerror_stacktrace
-#
-# OPTIONS:
-# -f=N Frame number to start at (defaults to 1 to skip lower level stacktrace
-#      frame that this function calls.)
+opt_usage stacktrace_array <<'END'
+Populate an array with the frames of the current stacktrace. Allows you to optionally pass in a
+starting frame to start the stacktrace at. 0 is the top of the stack and counts up. See also
+stacktrace and eerror_stacktrace
+END
 stacktrace_array()
 {
     $(opt_parse \
@@ -410,9 +392,11 @@ stacktrace_array()
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
 
-# Print the trap command associated with a given signal (if any). This
-# essentially parses trap -p in order to extract the command from that
-# trap for use in other functions such as call_die_traps and trap_add.
+opt_usage trap_get <<'END'
+Print the trap command associated with a given signal (if any). This essentially parses trap -p in
+order to extract the command from that trap for use in other functions such as call_die_traps and
+trap_add.
+END
 trap_get()
 {
     $(opt_parse "sig | Signal name to print traps for.")
@@ -455,14 +439,18 @@ exit()
     builtin exit ${1:-${exit_code}}
 }
 
-# die is our central error handling function for all bashutils code which is
-# called on any unhandled error or via the ERR trap. It is responsible for
-# printing a stacktrace to STDERR indicating the source of the fatal error
-# and then killing our process tree and finally signalling our parent process
-# that we died via SIGTERM. With this careful setup, we do not need to do any
-# error checking in our bash scripts. Instead we rely on the ERR trap getting
-# invoked for any unhandled error which will call die(). At that point we 
-# take extra care to ensure that process and all its children exit with error.
+opt_usage die <<'END'
+die is our central error handling function for all bashutils code which is called on any unhandled
+error or via the ERR trap. It is responsible for printing a stacktrace to STDERR indicating the
+source of the fatal error and then killing our process tree and finally signalling our parent
+process that we died via SIGTERM. With this careful setup, we do not need to do any error checking
+in our bash scripts. Instead we rely on the ERR trap getting invoked for any unhandled error which
+will call die(). At that point we take extra care to ensure that process and all its children exit
+with error.
+
+You may call die and tell it what message to print upon death if you'd like to produce a descriptive
+error message.
+END
 die()
 {
     # Capture off our BASHPID into a local variable so we can use it in subsequent
@@ -485,7 +473,8 @@ die()
         ":return_code rc r=1 | Return code that die will eventually exit with." \
         ":signal s           | Signal that caused this die to occur." \
         ":color c            | DEPRECATED OPTION -- no longer has any effect." \
-        ":frames f=3         | Number of stack frames to skip.")
+        ":frames f=3         | Number of stack frames to skip." \
+        "@message            | Message to display.")
 
     __BU_DIE_IN_PROGRESS=${return_code}
     : ${__BU_DIE_BY_SIGNAL:=${signal}}
@@ -496,7 +485,7 @@ die()
 
     else
         echo "" >&2
-        eerror_internal   -c="${COLOR_ERROR}" "${@}"
+        eerror_internal   -c="${COLOR_ERROR}" "${message[@]}"
         eerror_stacktrace -c="${COLOR_ERROR}" -f=${frames} -s
     fi
 
@@ -544,7 +533,7 @@ die()
         fi
     else
         if declare -f die_handler &>/dev/null; then
-            die_handler -r=${__BU_DIE_IN_PROGRESS} "${@}"
+            die_handler -r=${__BU_DIE_IN_PROGRESS} "${message[@]}"
             __BU_DIE_IN_PROGRESS=0
         else
             ekilltree -s=SIGTERM -k=2s $$
@@ -570,11 +559,12 @@ reenable_signals()
     eval "${_BASHUTILS_SAVED_TRAPS[$BASHPID]}"
 }
 
-# Appends a command to a trap. By default this will use the default list of
-# signals: ${DIE_SIGNALS[@]}, ERR and EXIT so that this trap gets called
-# by default for any signal that would cause termination. If that's not the
-# desired behavior then simply pass in an explicit list of signals to trap.
-#
+opt_usage trap_add <<'END'
+Appends a command to a trap. By default this will use the default list of signals:
+${DIE_SIGNALS[@]}, ERR and EXIT so that this trap gets called by default for any signal that would
+cause termination. If that's not the desired behavior then simply pass in an explicit list of
+signals to trap.
+END
 trap_add()
 {
     $(opt_parse \
@@ -739,9 +729,9 @@ nodie_on_abort()
 }
 
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # SIGNAL FUNCTIONS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 # Given a name or number, echo the signal name associated with it.
 #
@@ -761,14 +751,14 @@ signum()
     return 0
 }
 
-# Given a signal name or number, echo the signal number associated with it.
-#
-# With the --include-sig option, SIG will be part of the name for signals where
-# that is appropriate.  For instance, SIGTERM or SIGABRT rather than TERM or
-# ABRT.  Note that bash pseudo signals never use SIG.  This function treats
-# those appropriately (i.e. even with --include sig will return EXIT rather
-# than SIGEXIT)
-# 
+opt_usage signame <<'END'
+Given a signal name or number, echo the signal number associated with it.
+
+With the --include-sig option, SIG will be part of the name for signals where that is appropriate.
+For instance, SIGTERM or SIGABRT rather than TERM or ABRT.  Note that bash pseudo signals never use
+SIG.  This function treats those appropriately (i.e. even with --include sig will return EXIT rather
+than SIGEXIT)
+END
 signame()
 {
     $(opt_parse \
@@ -808,9 +798,9 @@ sigexitcode()
 }
 
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # FILESYSTEM HELPERS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 pushd()
 {
@@ -847,7 +837,7 @@ efreshdir()
     done
 }
 
-# Copies the given file to *.bak if it doesn't already exist
+opt_usage ebackup "Copies the given file to *.bak if it doesn't already exist"
 ebackup()
 {
     $(opt_parse src)
@@ -862,38 +852,27 @@ erestore()
     [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
 }
 
-# elogrotate rotates all the log files with a given basename similar to what
-# happens with logrotate. It will always touch an empty non-versioned file
-# just log logrotate.
-#
-# For example, if you pass in the pathname '/var/log/foo' and ask to keep a
-# max of 5, it will do the following:
-#   /var/log/foo.4 -> /var/log/foo.5
-#   /var/log/foo.3 -> /var/log/foo.4
-#   /var/log/foo.2 -> /var/log/foo.3
-#   /var/log/foo.1 -> /var/log/foo.2
-#   /var/log/foo   -> /var/log/foo.1
-#   touch /var/log/foo
-#
-# OPTIONS
-# -c=NUM
-#   Maximum count of logs to keep (defaults to 5).
-#
-# -s=SIZE
-#   Rotate logfiles if the size of most recent file is greater than SIZE.
-#   SIZE can be expressed using syntax accepted by find(1) --size option.
-#   Specifically, you add a suffix to denote the units:
-#   c for bytes
-#   w for two-byte words
-#   k for kilobytes
-#   M for Megabytes
-#   G for gigabytes
-#
+opt_usage elogrotate <<'END'
+elogrotate rotates all the log files with a given basename similar to what happens with logrotate.
+It will always touch an empty non-versioned file just log logrotate.
+
+For example, if you pass in the pathname '/var/log/foo' and ask to keep a max of 5, it will do the
+following:
+
+    /var/log/foo.4 -> /var/log/foo.5
+    /var/log/foo.3 -> /var/log/foo.4
+    /var/log/foo.2 -> /var/log/foo.3
+    /var/log/foo.1 -> /var/log/foo.2
+    /var/log/foo   -> /var/log/foo.1
+    touch /var/log/foo
+END
 elogrotate()
 {
     $(opt_parse \
         ":count c=5 | Maximum number of logs to keep" \
-        ":size s=0  | If specified, rotate logs at this specified size rather than each call to elogrotate" \
+        ":size s=0  | If specified, rotate logs at this specified size rather than each call to
+                      elogrotate.  You can use these units: c -- bytes, w -- two-byte words, k --
+                      kilobytes, m -- Megabytes, G -- gigabytes" \
         "name       | Base name to use for the logfile.")
 
     # Ensure we don't try to rotate non-files
@@ -930,37 +909,13 @@ elogrotate()
         | sort --version-sort | awk "NR>${count}" | xargs rm -f
 }
 
-# elogfile provides the ability to duplicate the calling processes STDOUT
-# and STDERR and send them both to a list of files while simultaneously displaying
-# them to the console. Using this function is much preferred over manually doing this
-# with tee and named pipe redirection as we take special care to ensure STDOUT and
-# STDERR pipes are kept separate to avoid problems with logfiles getting truncated.
-#
-# OPTIONS
-#
-# -e=(0|1)
-#   Redirect STDERR (defaults to 1)
-#
-# -o=(0|1)
-#   Redirect STDOUT (defaults to 1)
-#
-# -r=NUM
-#   Rotate logfile via elogrotate and keep maximum of NUM logs (defaults to 0
-#   which is disabled).
-#
-# -s=SIZE
-#   Rotate logfiles via elogrotate if the size of most recent file is greater
-#   than SIZE. SIZE can be expressed using syntax accepted by find(1) --size
-#   option. Specifically, you add a suffix to denote the units:
-#   c for bytes, w for two-byte words, k for kilobytes, M for Megabytes, and
-#   G for gigabytes.
-#
-# -t=(0|1)
-#   Tail the output (defaults to 1)
-#
-# -m=(0|1)
-#   Merge STDOUT and STDERR output streams into a single stream on STDOUT.
-#
+opt_usage elogfile <<'END'
+elogfile provides the ability to duplicate the calling processes STDOUT and STDERR and send them
+both to a list of files while simultaneously displaying them to the console. Using this function is
+much preferred over manually doing this with tee and named pipe redirection as we take special care
+to ensure STDOUT and STDERR pipes are kept separate to avoid problems with logfiles getting
+truncated.
+END
 elogfile()
 {
     $(opt_parse \
@@ -1085,11 +1040,12 @@ elogfile()
     fi
 }
 
-# Wrapper around computing the md5sum of a file to output just the filename
-# instead of the full path to the filename. This is a departure from normal
-# md5sum for good reason. If you download an md5 file with a path embedded into
-# it then the md5sum can only be validated if you put it in the exact same path.
-# This function will die on failure.
+opt_usage emd5sum <<'END'
+Wrapper around computing the md5sum of a file to output just the filename instead of the full path
+to the filename. This is a departure from normal md5sum for good reason. If you download an md5 file
+with a path embedded into it then the md5sum can only be validated if you put it in the exact same
+path. This function will die on failure.
+END
 emd5sum()
 {
     $(opt_parse path)
@@ -1102,10 +1058,11 @@ emd5sum()
     popd
 }
 
-# Wrapper around checking an md5sum file by pushd into the directory that contains
-# the md5 file so that paths to the file don't affect the md5sum check. This
-# assumes that the md5 file is a sibling next to the source file with the suffix
-# 'md5'. This method will die on failure.
+opt_usage emd5sum_check <<'END'
+Wrapper around checking an md5sum file by pushd into the directory that contains the md5 file so
+that paths to the file don't affect the md5sum check. This assumes that the md5 file is a sibling
+next to the source file with the suffix 'md5'. This method will die on failure.
+END
 emd5sum_check()
 {
     $(opt_parse path)
@@ -1118,22 +1075,16 @@ emd5sum_check()
     popd
 }
 
-# Output checksum information for the given file to STDOUT. Specifically output
-# the following:
-#
-# Filename=foo
-# MD5=864ec6157c1eea88acfef44d0f34d219
-# Size=2192793069
-# SHA1=75490a32967169452c10c937784163126c4e9753
-# SHA256=8297aefe5bb7319ab5827169fce2e664fe9cd7b88c9b31c40658ab55fcae3bfe
-#
-# Options:
-#
-# -p=PathToPrivateKey:  In addition to above checksums also output Base64 encoded
-#    PGPSignature. The reason it is Base64 encoded is to properly deal with the
-#    required header and footers before the actual signature body.
-#
-# -k=keyphrase: Optional keyphrase for the PGP Private Key
+opt_usage emetadata <<'END'
+Output checksum information for the given file to STDOUT. Specifically output
+the following:
+
+    Filename=foo
+    MD5=864ec6157c1eea88acfef44d0f34d219
+    Size=2192793069
+    SHA1=75490a32967169452c10c937784163126c4e9753
+    SHA256=8297aefe5bb7319ab5827169fce2e664fe9cd7b88c9b31c40658ab55fcae3bfe
+END
 emetadata()
 {
     $(opt_parse \
@@ -1170,18 +1121,15 @@ emetadata()
     echo "PGPSignature=$(gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>/dev/null | base64 --wrap 0)"
 }
 
-# Validate an exiting source file against a companion *.meta file which contains
-# various checksum fields. The list of checksums is optional but at present the
-# supported fields we inspect are: Filename, Size, MD5, SHA1, SHA256, PGPSignature.
-# 
-# For each of the above fields, if they are present in the .meta file, validate 
-# it against the source file. If any of them fail this function returns non-zero.
-# If NO validators are present in the info file, this function returns non-zero.
-#
-# Options:
-# -q=(0|1) Quiet mode (default=0)
-# -p=PathToPublicKey: Use provided PGP Public Key for PGP validation (if PGPSignature
-#                     is present in .meta file).
+opt_usage emetadata_check <<'END'
+Validate an exiting source file against a companion *.meta file which contains various checksum
+fields. The list of checksums is optional but at present the supported fields we inspect are:
+Filename, Size, MD5, SHA1, SHA256, PGPSignature.
+
+For each of the above fields, if they are present in the .meta file, validate it against the source
+file. If any of them fail this function returns non-zero. If NO validators are present in the info
+file, this function returns non-zero.
+END
 emetadata_check()
 {
     $(opt_parse \
@@ -1270,9 +1218,9 @@ directory_not_empty()
 }
 
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # DISTRO-SPECIFIC
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 edistro()
 {
@@ -1294,13 +1242,15 @@ isfedora()
     [[ "Fedora" == $(edistro) ]]
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # COMPARISON FUNCTIONS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
-# Generic comparison function using awk which doesn't suffer from bash stupidity
-# with regards to having to do use separate comparison operators for integers and
-# strings and even worse being completely incapable of comparing floats.
+opt_usage compare <<'END'
+Generic comparison function using awk which doesn't suffer from bash stupidity with regards to
+having to do use separate comparison operators for integers and strings and even worse being
+completely incapable of comparing floats.
+END
 compare()
 {
     $(opt_parse "?lh" "op" "?rh")
@@ -1341,9 +1291,9 @@ compare_version()
     return 1
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # ARGUMENT HELPERS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 # Check to ensure all the provided arguments are non-empty
 argcheck()
@@ -1355,9 +1305,9 @@ argcheck()
 }
 
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # MISC HELPERS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 # save_function is used to safe off the contents of a previously declared
 # function into ${1}_real to aid in overridding a function or altering
@@ -1369,14 +1319,14 @@ save_function()
     eval "${new}" &>/dev/null
 }
 
-# override_function is a more powerful version of save_function in that it will
-# still save off the contents of a previously declared function into ${1}_real
-# but it will also define a new function with the provided body ${2} and
-# mark this new function as readonly so that it cannot be overridden later.
-# If you call override_function multiple times we have to ensure it's idempotent.
-# The danger here is in calling save_function multiple tiems as it may cause
-# infinite recursion. So this guards against saving off the same function multiple
-# times.
+opt_usage override_function <<'END'
+override_function is a more powerful version of save_function in that it will still save off the
+contents of a previously declared function into ${1}_real but it will also define a new function
+with the provided body ${2} and mark this new function as readonly so that it cannot be overridden
+later. If you call override_function multiple times we have to ensure it's idempotent. The danger
+here is in calling save_function multiple tiems as it may cause infinite recursion. So this guards
+against saving off the same function multiple times.
+END
 override_function()
 {
     $(opt_parse func body)
@@ -1404,10 +1354,11 @@ numcores()
     echo $(cat /proc/cpuinfo | grep "processor" | wc -l)
 }
 
-# Internal only efetch function which fetches an individual file using curl.
-# This will show an eprogress ticker and then kill the ticker with either
-# success or failure indicated. The return value is then returned to the
-# caller for handling.
+opt_usage efetch_iternal <<'END'
+Internal only efetch function which fetches an individual file using curl. This will show an
+eprogress ticker and then kill the ticker with either success or failure indicated. The return value
+is then returned to the caller for handling.
+END
 efetch_internal()
 {
     $(opt_parse url dst)
@@ -1421,16 +1372,12 @@ efetch_internal()
     return ${rc}
 }
 
-# Fetch a provided URL to an optional destination path via efetch_internal. 
-# This function can also optionally validate the fetched data against various
-# companion files which contain metadata for file fetching. If validation is
-# requested and the validation fails then all temporary files fetched are
-# removed.
-#
-# Options:
-# -m=(0|1) Fetch companion .md5 file and validate fetched file's MD5 matches.
-# -M=(0|1) Fetch companion .meta file and validate metadata fields using emetadata_check.
-# -q=(0|1) Quiet mode (disable eprogress and other info messages)
+opt_usage efetch <<'END'
+Fetch a provided URL to an optional destination path via efetch_internal. This function can also
+optionally validate the fetched data against various companion files which contain metadata for file
+fetching. If validation is requested and the validation fails then all temporary files fetched are
+removed.
+END
 efetch()
 {
     $(opt_parse \
@@ -1517,14 +1464,16 @@ END
 etimeout()
 {
     $(opt_parse \
-        ":signal sig s=TERM | First signal to send if the process doesn't complete in time.  KILL will still be sent later if it's not dead." \
-        ":timeout t         | After this duration, command will be killed if it hasn't already completed.")
+        ":signal sig s=TERM | First signal to send if the process doesn't complete in time.  KILL
+                              will still be sent later if it's not dead." \
+        ":timeout t         | After this duration, command will be killed if it hasn't already
+                              completed." \
+        "@cmd               | Command and its arguments that should be executed.")
 
     argcheck timeout
 
     # Background the command to be run
     local start=${SECONDS}
-    local cmd=("${@}")
 
     # If no command to execute just return success immediately
     if [[ -z "${cmd[@]:-}" ]]; then
@@ -1677,8 +1626,10 @@ eretry()
     fi
 }
 
-# Internal method called by eretry so that we can wrap the call to eretry_internal with a call
-# to etimeout in order to provide upper bound on entire invocation.
+opt_usage eretry_internal <<'END'
+Internal method called by eretry so that we can wrap the call to eretry_internal with a call to
+etimeout in order to provide upper bound on entire invocation.
+END
 eretry_internal()
 {
     $(opt_parse \
@@ -1748,39 +1699,50 @@ eretry_internal()
     return ${rc}
 }
 
-# setvars takes a template file with optional variables inside the file which
-# are surrounded on both sides by two underscores.  It will replace the variable
-# (and surrounding underscores) with a value you specify in the environment.
-#
-# For example, if the input file looks like this:
-#   Hi __NAME__, my name is __OTHERNAME__.
-# And you call setvars like this
-#   NAME=Bill OTHERNAME=Ted setvars intputfile
-# The inputfile will be modified IN PLACE to contain:
-#   Hi Bill, my name is Ted.
-#
-# SETVARS_ALLOW_EMPTY=(0|1)
-#   By default, empty values are NOT allowed. Meaning that if the provided key
-#   evaluates to an empty string, it will NOT replace the __key__ in the file.
-#   if you require that functionality, simply use SETVARS_ALLOW_EMPTY=1 and it
-#   will happily allow you to replace __key__ with an empty string.
-#
-#   After all variables have been expanded in the provided file, a final check
-#   is performed to see if all variables were set properly. It will return 0 if
-#   all variables have been successfully set and 1 otherwise.
-#
-# SETVARS_WARN=(0|1)
-#   To aid in debugging this will display a warning on any unset variables.
-#
-# OPTIONAL CALLBACK:
-#   You may provided an optional callback as the second parameter to this function.
-#   The callback will be called with the key and the value it obtained from the
-#   environment (if any). The callback is then free to make whatever modifications
-#   or filtering it desires and then echo the new value to stdout. This value
-#   will then be used by setvars as the replacement value.
+opt_usage setvars <<'END'
+setvars takes a template file with optional variables inside the file which are surrounded on both
+sides by two underscores.  It will replace the variable (and surrounding underscores) with a value
+you specify in the environment.
+
+For example, if the input file looks like this:
+    Hi __NAME__, my name is __OTHERNAME__.
+
+And you call setvars like this
+    NAME=Bill OTHERNAME=Ted setvars intputfile
+
+The inputfile will be modified IN PLACE to contain:
+    Hi Bill, my name is Ted.
+
+SETVARS_ALLOW_EMPTY=(0|1)
+    By default, empty values are NOT allowed. Meaning that if the provided key
+    evaluates to an empty string, it will NOT replace the __key__ in the file.
+    if you require that functionality, simply use SETVARS_ALLOW_EMPTY=1 and it
+    will happily allow you to replace __key__ with an empty string.
+
+    After all variables have been expanded in the provided file, a final check
+    is performed to see if all variables were set properly. It will return 0 if
+    all variables have been successfully set and 1 otherwise.
+
+SETVARS_WARN=(0|1)
+    To aid in debugging this will display a warning on any unset variables.
+
+OPTIONAL CALLBACK:
+    You may provided an optional callback as the second parameter to this function.
+    The callback will be called with the key and the value it obtained from the
+    environment (if any). The callback is then free to make whatever modifications
+    or filtering it desires and then echo the new value to stdout. This value
+    will then be used by setvars as the replacement value.
+END
 setvars()
 {
-    $(opt_parse "filename" "?callback")
+    $(opt_parse \
+        "filename  | File to modify." \
+        "?callback | You may provided an optional callback as the second parameter to this function.
+                     The callback will be called with the key and the value it obtained from the
+                     environment (if any). The callback is then free to make whatever modifications
+                     or filtering it desires and then echo the new value to stdout. This value will
+                     then be used by setvars as the replacement value.")
+
     edebug "Setting variables $(lval filename callback)"
     [[ -f ${filename} ]] || die "$(lval filename) does not exist"
 
@@ -1822,44 +1784,41 @@ setvars()
     return 0
 }
 
-## Ever want to evaluate a bash command that is stored in an array?  It's
-## mostly a great way to do things.  Keeping the various arguments separate in
-## the array means you don't have to worry about quoting.  Bash keeps the
-## quoting you gave it in the first place.  So the typical way to run such a
-## command is like this:
-##
-##     > cmd=(echo "\$\$")
-##     > "${cmd[@]}"
-##     $$
-##
-##  As you can see, since the dollar signs were quoted as the command was put
-##  into the array, so the quoting was retained when the command was executed.
-##  If you had instead used eval, you wouldn't get that behavior:
-##
-##     > cmd=(echo "\$\$")
-##     > "${cmd[@]}"
-##     53355
-##
-##  Instead, the argument gets "evaluated" by bash, turning it into the current
-##  process id.  So if you're storing commands in an array, you can see that
-##  you typically don't want to use eval.
-##
-##  But there's a wrinkle, of course.  If the first item in your array is the
-##  name of an alias, bash won't expand that alias when using the first syntax.
-##  This is because alias expansion happens in a stage _before_ bash expands
-##  the contents of the variable.
-##
-##  So what can you do if you want alias expansion to happen but also want
-##  things in the array to be quoted properly?  Use `quote_array`.  It will
-##  ensure that all of the arguments don't get evaluated by bash, but that the
-##  name of the command _does_ go through alias expansion.
-##
-##      > cmd=(echo "\$\$")
-##      > quote_eval "${cmd[@]}"
-##      $$
-##
-##  There, wasn't that simple?
-##
+opt_usage quote_eval <<'END'
+Ever want to evaluate a bash command that is stored in an array?  It's mostly a great way to do
+things.  Keeping the various arguments separate in the array means you don't have to worry about
+quoting.  Bash keeps the quoting you gave it in the first place.  So the typical way to run such a
+command is like this:
+
+    > cmd=(echo "\$\$")
+    > "${cmd[@]}"
+    $$
+
+As you can see, since the dollar signs were quoted as the command was put into the array, so the
+quoting was retained when the command was executed. If you had instead used eval, you wouldn't get
+that behavior:
+
+    > cmd=(echo "\$\$")
+    > "${cmd[@]}"
+    53355
+
+Instead, the argument gets "evaluated" by bash, turning it into the current process id.  So if
+you're storing commands in an array, you can see that you typically don't want to use eval.
+
+But there's a wrinkle, of course.  If the first item in your array is the name of an alias, bash
+won't expand that alias when using the first syntax. This is because alias expansion happens in a
+stage _before_ bash expands the contents of the variable.
+
+So what can you do if you want alias expansion to happen but also want things in the array to be
+quoted properly?  Use `quote_array`.  It will ensure that all of the arguments don't get evaluated
+by bash, but that the name of the command _does_ go through alias expansion.
+
+    > cmd=(echo "\$\$")
+    > quote_eval "${cmd[@]}"
+    $$
+
+There, wasn't that simple?
+END
 quote_eval()
 {
     local cmd=("$1")
@@ -1873,27 +1832,27 @@ quote_eval()
 }
 
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # STRING MANIPULATION
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
-# Convert a given input string into "upper snake case". This is generally most
-# useful when converting a "CamelCase" string although it will work just as
-# well on non-camel case input. Essentially it looks for all upper case letters
-# and puts an underscore before it, then uppercase the entire input string.
-#
-# For example:
-#
-# sliceDriveSize => SLICE_DRIVE_SIZE
-# slicedrivesize => SLICEDRIVESIZE
-#
-# It has some special handling for some common corner cases where the normal
-# camel case idiom isn't well followed. The best example for this is around
-# units (e.g. MB, GB). Consider "sliceDriveSizeGB" where SLICE_DRIVE_SIZE_GB
-# is preferable to SLICE_DRIVE_SIZE_G_B.
-#
-# The current list of translation corner cases this handles:
-# KB, MB, GB, TB
+opt_usage to_upper_snake_case <<'END'
+Convert a given input string into "upper snake case". This is generally most useful when converting
+a "CamelCase" string although it will work just as well on non-camel case input. Essentially it
+looks for all upper case letters and puts an underscore before it, then uppercase the entire input
+string.
+
+For example:
+
+    sliceDriveSize => SLICE_DRIVE_SIZE
+    slicedrivesize => SLICEDRIVESIZE
+
+It has some special handling for some common corner cases where the normal camel case idiom isn't
+well followed. The best example for this is around units (e.g. MB, GB). Consider "sliceDriveSizeGB"
+where SLICE_DRIVE_SIZE_GB is preferable to SLICE_DRIVE_SIZE_G_B.
+
+The current list of translation corner cases this handles: KB, MB, GB, TB
+END
 to_upper_snake_case()
 {
     $(opt_parse input)
@@ -1914,14 +1873,13 @@ string_trim()
     printf -- "%s" "${text}"
 }
 
-# Truncate a specified string to fit within the specified number of characters.
-# If the ellipsis option is specified, truncation will result in an ellipses
-# where the removed characters were (and the total string will still fit within
-# length characters)
-#
-# Any arguments after the length will be considered part of the text to
-# string_truncate
-#
+opt_usage string_truncate <<'END'
+Truncate a specified string to fit within the specified number of characters. If the ellipsis option
+is specified, truncation will result in an ellipses where the removed characters were (and the total
+string will still fit within length characters)
+
+Any arguments after the length will be considered part of the text to string_truncate
+END
 string_truncate()
 {
     $(opt_parse \
@@ -1944,9 +1902,9 @@ string_collapse()
     echo -en "${output}"
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # Type detection
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 # These functions take a parameter that is a variable NAME and allow you to
 # determine information about that variable name.
@@ -1973,9 +1931,9 @@ discard_qualifiers()
     echo "${1##%}"
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # ASSERTS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 # Executes a command (simply type the command after assert as if you were
 # running it without assert) and calls die if that command returns a bad exit
@@ -2164,8 +2122,8 @@ assert_directory_contents()
     done
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # SOURCING
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 return 0

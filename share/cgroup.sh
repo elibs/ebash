@@ -2,7 +2,7 @@
 
 # Copyright 2015, SolidFire, Inc. All rights reserved.
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Cgroups are a capability of the linux kernel designed for categorizing
 # processes.  They're most typically used in ways that not only categorize
 # processes, but also control them in some fasion.  A popular reason is to
@@ -28,11 +28,11 @@
 # easier, and also help you to keep parallel hierarchies identical across the
 # various cgroups subsystems.
 #
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 
 CGROUP_SUBSYSTEMS=(cpu memory freezer)
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Detect whether the machine currently running this code is built with kernel
 # support for all of the cgroups subsystems that bashutils depends on.
 #
@@ -56,7 +56,7 @@ cgroup_supported()
 
 [[ ${__BU_OS} == Linux ]] || return 0
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Prior to using a cgroup, you must create it.  It is safe to attempt to
 # "create" a cgroup that already exists.
 #
@@ -74,13 +74,13 @@ cgroup_create()
 }
 
 
-#-------------------------------------------------------------------------------
-# If you want to get rid of a cgroup, you can do so by calling cgroup_destroy.
-#
-# NOTE: It is an error to try to destroy a cgroup that contains any processes
-# or any child cgroups.  You can use cgroup_kill_and_wait to ensure that they
-# are if you like.
-#
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_destroy <<'END'
+If you want to get rid of a cgroup, you can do so by calling cgroup_destroy.
+
+NOTE: It is an error to try to destroy a cgroup that contains any processes or any child cgroups.
+You can use cgroup_kill_and_wait to ensure that they are if you like.
+END
 cgroup_destroy()
 {
     $(opt_parse "+recursive r | Destroy cgroup's children recursively")
@@ -109,7 +109,7 @@ cgroup_destroy()
 }
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Returns true if all specified cgroups exist.  In other words, they have been
 # created via cgroup_create but have not yet been removed with cgroup_destroy)
 #
@@ -144,29 +144,21 @@ cgroup_exists()
 }
 
 
-#-------------------------------------------------------------------------------
-# Move one or more processes to a specific cgroup.  Once added, all (future)
-# children of that process will also automatically go into that cgroup.
-#
-# It's worth noting that _all_ pids live in exactly one place in each cgroup
-# subsystem.  By default, processes are started in the cgroup of their parent
-# (which by default is the root of the cgroup hierarchy).  If you'd like to
-# remove a process from your cgroup, you should simply move it up to that root
-# (i.e. cgroup_move "/" $pid)
-#
-#
-# $1:   The name of a cgroup (e.g. distbox/distcc or colorado/denver or alpha)
-# rest: PIDs of processes to add to that cgroup (NOTE: empty strings are
-#       allowed, but have no effect on cgroups)
-#
-# Example:
-#      cgroup_move distbox $$
-#
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_move <<'END'
+Move one or more processes to a specific cgroup.  Once added, all (future) children of that process
+will also automatically go into that cgroup.
+
+It's worth noting that _all_ pids live in exactly one place in each cgroup subsystem.  By default,
+processes are started in the cgroup of their parent (which by default is the root of the cgroup
+hierarchy).  If you'd like to remove a process from your cgroup, you should simply move it up to
+that root (i.e. cgroup_move "/" $pid)
+END
 cgroup_move()
 {
-    $(opt_parse cgroup)
-
-    local pids=( "${@}" )
+    $(opt_parse \
+        "cgroup | Name of a cgroup which should already have been created." \
+        "@pids  | IDs of processes to move.  Empty strings are allowed and ignored.")
 
     array_remove -a pids ""
 
@@ -179,56 +171,64 @@ cgroup_move()
     fi
 }
 
-#-------------------------------------------------------------------------------
-# Change the value of a cgroups subsystem setting for the specified cgroup.
-# For instance, by using the memory subsystem, you could limit the amount of
-# memory used by all pids underneath the distbox hierarchy like this:
-#
-#     cgroup_set distbox memory.kmem.limit_in.bytes $((4*1024*1024*1024))
-#
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_set<<'END'
+Change the value of a cgroups subsystem setting for the specified cgroup. For instance, by using the
+memory subsystem, you could limit the amount of memory used by all pids underneath the distbox
+hierarchy like this:
+
+    cgroup_set distbox memory.kmem.limit_in.bytes $((4*1024*1024*1024))
+END
 #  $1: Name of the cgroup (e.g. distbox/distcc or fruit/apple or fruit)
 #  $2: Name of the subsystem-specific setting
 #  $3: Value that should be assigned to that subsystem-specific setting
 #
 cgroup_set()
 {
-    $(opt_parse cgroup setting value)
+    $(opt_parse \
+        "cgroup  | Name of the cgroup (e.g. distbox/distcc or fruit/apple or fruit)" \
+        "setting | Name of the subsystem-specific setting" \
+        "value   | Value that should be assined to that subsystem-specific setting")
 
     echo "${value}" > $(cgroup_find_setting_file ${cgroup} ${setting})
 }
 
-#-------------------------------------------------------------------------------
-# Read the existing value of a subsystem-specific cgroups setting for the
-# specified cgroup.  See cgroup_set for more info
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_get<<'END'
+Read the existing value of a subsystem-specific cgroups setting for the specified cgroup.  See
+cgroup_set for more info
+END
 #
 # $1: Name of the cgroup (i.e. distbox/dtest or usa/colorado)
 # $2: Name of the subsystem-specific setting (e.g. memory.kmem.limit_in.bytes)
 #
 cgroup_get()
 {
-    $(opt_parse cgroup setting)
+    $(opt_parse \
+        "cgroup  | Name of the cgroup (e.g distbox/dtest or usa/colorado)" \
+        "setting | Name of the subsystem-specific setting e.g. memory.kmem.limit_in.bytes)")
+
     cat $(cgroup_find_setting_file ${cgroup} ${setting})
 }
 
-#-------------------------------------------------------------------------------
-# Recursively find all of the pids that live underneath a set of sections in
-# the cgorups hierarchy.  You may specify as many different cgroups as you
-# like, and the processes in those cgroups AND THEIR CHILDREN will be echoed to
-# stdout.
-#
-# Cgroup_pids will return success as long as all of the specified cgroups
-# exist, and failure if they do not (but it will still echo pids for any
-# cgroups that _do_ exist).  On failure, it returns the number of specified
-# cgroups that did not exist.
-#
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_pids<<'END'
+Recursively find all of the pids that live underneath a set of sections in the cgorups hierarchy.
+You may specify as many different cgroups as you like, and the processes in those cgroups AND THEIR
+CHILDREN will be echoed to stdout.
+
+Cgroup_pids will return success as long as all of the specified cgroups exist, and failure if they
+do not (but it will still echo pids for any cgroups that _do_ exist).  On failure, it returns the
+    number of specified cgroups that did not exist.
+END
 cgroup_pids()
 {
     $(opt_parse \
         ":exclude x   | Space separated list of pids not to return.  By default returns all." \
-        "+recursive r | Additionally return pids for processes of this cgroup's children.")
+        "+recursive r | Additionally return pids for processes of this cgroup's children." \
+        "@cgroups     | Cgroups whose processes should be listed.")
 
     local cgroups cgroup ignorepids all_pids rc
-    cgroups=( ${@} )
     rc=0
 
     array_init ignorepids "${exclude}"
@@ -298,9 +298,8 @@ cgroup_pids()
     return "${rc}"
 }
 
-#-------------------------------------------------------------------------------
-# Run ps on all of the processes in a cgroup.
-#
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_ps "Run ps on all of the processes in a cgroup."
 cgroup_ps()
 {
     $(opt_parse \
@@ -328,7 +327,7 @@ cgroup_ps()
 }
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Return all items in the cgroup hierarchy.  By default this will echo to
 # stdout all directories in the cgroup hierarchy.  You may optionally specify
 # one or more cgroups and then only those cgroups descended from them it will
@@ -386,7 +385,7 @@ cgroup_tree()
 
 
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------
 # Display a graphical representation of all cgroups descended from those
 # specified as arguments.
 #
@@ -409,13 +408,14 @@ cgroup_pstree()
 }
 
 
-#-------------------------------------------------------------------------------
-# Display the name of the cgroup that the specified process is in.  Defaults to
-# the current process (i.e. ${BASHPID}).
-#
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_current <<'END'
+Display the name of the cgroup that the specified process is in.  Defaults to the current process
+(i.e. ${BASHPID}).
+END
 cgroup_current()
 {
-    $(opt_parse "?pid")
+    $(opt_parse "?pid | Process whose cgroup should be listed.  Default is the current process.")
     : ${pid:=${BASHPID}}
 
     local line=$(grep -w "${CGROUP_SUBSYSTEMS[0]}" /proc/${pid}/cgroup)
@@ -423,21 +423,20 @@ cgroup_current()
 }
 
 
-#-------------------------------------------------------------------------------
-# Recursively KILL (or send a signal to) all of the pids that live underneath
-# all of the specified cgroups (and their children!).  Accepts any number of
-# cgroups.
-#
-# NOTE: $$ and $BASHPID are always added to this list so as to not kill the
-# calling process
-#
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_kill <<'END'
+Recursively KILL (or send a signal to) all of the pids that live underneath all of the specified
+cgroups (and their children!).  Accepts any number of cgroups.
+
+NOTE: $$ and $BASHPID are always added to this list so as to not kill the calling process
+END
 cgroup_kill()
 {
     $(opt_parse \
         ":signal s=TERM | The signal to send to processs in the specified cgroup" \
-        ":exclude x     | Space separated list of processes not to kill.  Note: current process and ancestors are always excluded.")
-
-    local cgroups=( ${@} )
+        ":exclude x     | Space separated list of processes not to kill.  Note: current process and
+                          ancestors are always excluded." \
+        "@cgroups       | Cgroups whose processes should be signalled.")
 
     [[ $(array_size cgroups) -gt 0 ]] || return 0
 
@@ -467,29 +466,24 @@ cgroup_kill()
     return 0
 }
 
-#-------------------------------------------------------------------------------
-# Ensure that no processes are running all of the specified cgroups by killing
-# all of them and waiting until the group is empty.
-#
-# NOTE: This probably won't work well if your script is already in that cgroup.
-#
-# Options:
-#       -s=<signal>
-#       -x=space separated list of pids not to kill.  WARNING: YOU SHOULD
-#          PROBABLY ALWAYS use -x="${BASHPID} $$" because cgroup_kill_and_wait
-#          may not know the pids of those shells for you and hence you may
-#          commit suicide or end up stuck waiting forever if you do not.
-#       -t=Maximum number of seconds to wait.  If processes still exist at this
-#          point, an error will be returned instead of hanging forever.  The
-#          default is zero, which means to WAIT FOREVER.
-#   
+#-------------------------------------------------------------------------------------------------------------------------
+opt_usage cgroup_kill_and_wait <<'END'
+Ensure that no processes are running all of the specified cgroups by killing all of them and waiting
+until the group is empty.
+
+NOTE: This probably won't work well if your script is already in that cgroup.
+END
 cgroup_kill_and_wait()
 {
     $(opt_parse \
         ":signal s=TERM   | Signal to send to processes in the cgroup" \
-        ":exclude x       | Space-separated list of processes not to kill.  Current process and ancestors are always excluded." \
-        ":timeout max t=0 | Maximum number of seconds to wait for all processes to die.  If some still exist at that point, an error code will be returned.")
-    local cgroups=( ${@} )
+        ":exclude x       | Space-separated list of processes not to kill.  Current process and
+                            ancestors are always excluded." \
+        ":timeout max t=0 | Maximum number of seconds to wait for all processes to die.  If some
+                            still exist at that point, an error code will be returned.  WARNING: The
+                            default of 0 will cause this function to wait forever." \
+        "@cgroups         | Cgroups whose processes should be signalled and waited upon")
+
     local startTime=${SECONDS}
 
     [[ $# -gt 0 ]] || return 0

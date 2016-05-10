@@ -3,15 +3,17 @@
 # Copyright 2011-2016, SolidFire, Inc. All rights reserved.
 #
 
-# array_init will split a string on any characters you specify, placing the
-# results in an array for you.
-#
-#  $1: name of array to assign to (i.e. "array")
-#  $2: string to be split
-#  $3: (optional) character(s) to be used as delimiters.
+
+opt_usage array_init <<'END'
+array_init will split a string on any characters you specify, placing the results in an array for
+you.
+END
 array_init()
 {
-    $(opt_parse "__array" "?__string" "?__delim")
+    $(opt_parse \
+        "__array     | Name of array to assign to." \
+        "?__string   | String to be split" \
+        "?__delim    | Optional delimiting characters to split on.  Defaults to IFS.")
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
@@ -39,11 +41,13 @@ array_init_json()
     array_init "$1" "$(echo "${2}" | sed -e 's|^\[\s*||' -e 's|\s*\]$||' -e 's|",\s*"|","|g' -e 's|"||g')" ","
 }
 
-# Print the size of any array.  Yes, you can also do this with ${#array[@]}.
-# But this functions makes for symmertry with pack (i.e. pack_size).
+opt_usage array_size <<'END'
+Print the size of any array.  Yes, you can also do this with ${#array[@]}. But this functions makes
+for symmertry with pack (i.e. pack_size).
+END
 array_size()
 {
-    $(opt_parse __array)
+    $(opt_parse "__array | Name of array to check the size of.")
 
     # Treat unset variables as being an empty array, because when you tell
     # bash to create an empty array it doesn't really allow you to
@@ -78,29 +82,30 @@ array_size()
     return 0
 }
 
-# Return true (0) if an array is empty and false (1) otherwise
+opt_usage array_empty "Return true (0) if an array is empty and false (1) otherwise"
 array_empty()
 {
-    $(opt_parse __array)
+    $(opt_parse "__array | Name of array to test.")
     [[ $(array_size ${__array}) -eq 0 ]]
 }
 
-# Returns true (0) if an array is not empty and false (1) otherwise
+opt_usage array_not_empty "Returns true (0) if an array is not empty and false (1) otherwise"
 array_not_empty()
 {
-    $(opt_parse __array)
+    $(opt_parse "__array | Name of array to test.")
     [[ $(array_size ${__array}) -ne 0 ]]
 }
 
-# array_add will split a given input string on requested delimiters and add them
-# to the given array (which may or may not already exist).
-#
-# $1: name of the array to add the new elements to
-# $2: string to be split
-# $3: (optional) character(s) to be used as delimiters.
+opt_usage array_add<<'END'
+array_add will split a given input string on requested delimiters and add them to the given array
+(which may or may not already exist).
+END
 array_add()
 {
-    $(opt_parse "__array" "?__string" "?__delim")
+    $(opt_parse \
+        "__array    | Name of array to add elements to." \
+        "?__string  | String to be split up and added to that array." \
+        "?__delim   | Delimiter to use when splitting.  Defaults to IFS.")
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && return 0
@@ -119,10 +124,7 @@ array_add_nl()
     array_add "$1" "$2" $'\n'
 }
 
-# array_remove will remove the given value(s) from an array, if present.
-#
-# OPTIONS:
-# -a=(0|1) Remove all instances (defaults to only removing the first instance)
+opt_usage array_remove "Remove one (or optionally, all copies of ) the given value(s) from an array, if present."
 array_remove()
 {
     $(opt_parse \
@@ -152,36 +154,38 @@ array_remove()
     done
 }
 
-# Bash arrays may have non-contiguous indexes.  For instance, you can unset an
-# ARRAY[index] to remove an item from the array and bash does not shuffle the
-# indexes.
-#
-# If you need to iterate over the indexes of an array (rather than simply
-# iterating over the items), you can call array_indexes on the array and it
-# will echo all of the indexes that exist in the array.
-#
+opt_usage array_indexes<<'END'
+Bash arrays may have non-contiguous indexes.  For instance, you can unset an
+ARRAY[index] to remove an item from the array and bash does not shuffle the
+indexes.
+
+If you need to iterate over the indexes of an array (rather than simply
+iterating over the items), you can call array_indexes on the array and it
+will echo all of the indexes that exist in the array.
+END
 array_indexes()
 {
-    $(opt_parse __array_indexes_array)
+    $(opt_parse "__array_indexes_array | Name of array to produce indexes from.")
     eval "echo \${!${__array_indexes_array}[@]}"
 }
 
-# Same as array_indexes only this enumerates them in reverse order.
+opt_usage array_rindexes "Same as array_indexes only this enumerates them in reverse order."
 array_rindexes()
 {
-    $(opt_parse __array_indexes_array)
+    $(opt_parse "__array_indexes_array | Name of array whose indexes should be produced.")
     eval "echo \${!${__array_indexes_array}[@]} | rev"
 }
 
+opt_usage array_contains<<'END'
 # array_contains will check if an array contains a given value or not. This
 # will return success (0) if it contains the requested element and failure (1)
 # if it does not.
-#
-# $1: name of the array to search
-# $2: value to check for existance in the array
+END
 array_contains()
 {
-    $(opt_parse __array __value)
+    $(opt_parse \
+        "__array | Name of the array to search." \
+        "__value | Value to seek in that array.")
 
     local idx=0
     for idx in $(array_indexes ${__array}); do
@@ -192,13 +196,12 @@ array_contains()
     return 1
 }
 
+opt_usage array_join<<'END'
 # array_join will join an array into one flat string with the provided multi
 # character delimeter between each element in the resulting string. Can also
 # optionally pass in options to also put the delimiter before or after (or both)
 # all elements.
-#
-# $1: name of the array to join
-# $2: (optional) delimiter
+END
 array_join()
 {
     $(opt_parse \
@@ -243,33 +246,31 @@ array_join_nl()
     array_join "$1" $'\n'
 }
 
-# Create a regular expression that will match any one of the items in this
-# array.  Suppose you had an array containing the first four letters of the
-# alphabet.  Calling array_regex on that array will produce:
-#
-#    (a|b|c|d)
-#
-# Perhaps this is an esoteric thing to do, but it's pretty handy when you want
-# it.
-#
-# NOTE: Be sure to quote the output of your array_regex call, because bash
-# finds parantheses and pipe characters to be very important.
-#
-# WARNING: This probably only works if your array contains items that do not
-# have whitespace or regex-y characters in them.  Pids are good.  Other stuff,
-# probably not so much.
-#
+opt_usage array_regex<<'END'
+Create a regular expression that will match any one of the items in this array.  Suppose you had an
+array containing the first four letters of the alphabet.  Calling array_regex on that array will
+produce:
+
+   (a|b|c|d)
+
+Perhaps this is an esoteric thing to do, but it's pretty handy when you want it.
+
+NOTE: Be sure to quote the output of your array_regex call, because bash finds parantheses and pipe
+characters to be very important.
+
+WARNING: This probably only works if your array contains items that do not have whitespace or
+regex-y characters in them.  Pids are good.  Other stuff, probably not so much.
+END
 array_regex()
 {
-    $(opt_parse __array)
+    $(opt_parse "__array | Name of array to read and create a regex from.")
 
     echo -n "("
     array_join ${__array}
     echo -n ")"
 }
 
-# Sort an array in-place.
-#
+opt_usage array_sort "Sort an array in-place."
 array_sort()
 {
     $(opt_parse \

@@ -3,9 +3,9 @@
 # Copyright 2011-2016, SolidFire, Inc. All rights reserved.
 #
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # NETWORKING FUNCTIONS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 valid_ip()
 {
     $(opt_parse ip)
@@ -58,24 +58,26 @@ fully_qualify_hostname()
 
 [[ ${__BU_OS} == Linux ]] || return 0
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # Linux-specific networking functions
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
-# Get the IPAddress currently bound to the requested interface (if any). It is
-# not an error for an interface to be unbound so this function will not fail if
-# no IPAddress is set on the interface. Instead it will simply return an empty
-# string.
+opt_usage getipaddress <<'END'
+Get the IPAddress currently bound to the requested interface (if any). It is not an error for an
+interface to be unbound so this function will not fail if no IPAddress is set on the interface.
+Instead it will simply return an empty string.
+END
 getipaddress()
 {
     $(opt_parse iface)
     ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
-# Get the netmask (IPv4 dotted notation) currently set on the requested
-# interface (if any). It is not an error for an interface to be unbound so this
-# method will not fail if no Netmask has been set on an interface. Instead it
-# will simply return an empty string.
+opt_usage getnetmask <<'END'
+Get the netmask (IPv4 dotted notation) currently set on the requested interface (if any). It is not
+an error for an interface to be unbound so this method will not fail if no Netmask has been set on
+an interface. Instead it will simply return an empty string.
+END
 getnetmask()
 {
     $(opt_parse iface)
@@ -122,10 +124,11 @@ cidr2netmask ()
     echo ${1-0}.${2-0}.${3-0}.${4-0}
 }
 
-# Get the broadcast address for the requested interface, if any. It is not an
-# error for a network interface not to have a broadcast address associated with
-# it (e.g. loopback interfaces). If no broadcast address is set this will just
-# echo an empty string.
+opt_usage getbroadcast <<'END'
+Get the broadcast address for the requested interface, if any. It is not an error for a network
+interface not to have a broadcast address associated with it (e.g. loopback interfaces). If no
+broadcast address is set this will just echo an empty string.
+END
 getbroadcast()
 {
     $(opt_parse iface)
@@ -140,11 +143,12 @@ getgateway()
     route -n | awk '/UG[ \t]/ { print $2 }' || true
 }
 
-# Compute the subnet given the current IPAddress (ip) and Netmask (nm). If either
-# the provided IPAddress or Netmask is empty then we cannot compute the subnet.
-# As it's not an error to have no IPAddress or Netmask assigned to an unbound
-# interface, getsubnet will not fail in this case. The output will be an empty
-# string and it will return 0.
+opt_usage getsubnet <<'END'
+Compute the subnet given the current IPAddress (ip) and Netmask (nm). If either the provided
+IPAddress or Netmask is empty then we cannot compute the subnet. As it's not an error to have no
+IPAddress or Netmask assigned to an unbound interface, getsubnet will not fail in this case. The
+output will be an empty string and it will return 0.
+END
 getsubnet()
 {
     $(opt_parse "?ip" "?nm")
@@ -156,7 +160,7 @@ getsubnet()
     printf "%d.%d.%d.%d" "$((i1 & m1))" "$(($i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
 }
 
-# Get the MTU that is currently set on a given interface.
+opt_usage getmt "Get the MTU that is currently set on a given interface."
 getmtu()
 {
     $(opt_parse iface)
@@ -200,9 +204,12 @@ get_network_interfaces_10g()
     get_network_interfaces_with_port "FIBRE"
 }
 
-# Get the permanent MAC address for given ifname.
-# NOTE: Do NOT use ethtool -P for this as that doesn't reliably
-#       work on all cards since the firmware has to support it properly.
+opt_usage get_permanent_mac_address <<'END'
+Get the permanent MAC address for given ifname.
+
+NOTE: Do NOT use ethtool -P for this as that doesn't reliably work on all cards since the firmware
+has to support it properly.
+END
 get_permanent_mac_address()
 {
     $(opt_parse ifname)
@@ -216,8 +223,11 @@ get_permanent_mac_address()
     fi
 }
 
-# Get the PCI device location for a given ifname
-# NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
+opt_usage get_network_pci_device <<'END'
+Get the PCI device location for a given ifname
+
+NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
+END
 get_network_pci_device()
 {
     $(opt_parse ifname)
@@ -243,20 +253,20 @@ export_network_interface_names()
     done
 }
 
-# Get a list of the active network ports on this machine. The result is returned as an array of packs stored in the
-# variable passed to the function.
-#
-# Options:
-#  -l Only include listening ports
-#
-# For example:
-# declare -A ports
-# get_listening_ports ports
-# einfo $(lval %ports[5])
-# >> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
-# einfo $(lval %ports[42])
-# ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
-#
+opt_usage get_network_ports <<'END'
+Get a list of the active network ports on this machine. The result is returned as an array of packs
+stored in the variable passed to the function.
+
+For example:
+
+    declare -A ports
+    get_listening_ports ports
+    einfo $(lval %ports[5])
+    >> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
+    einfo $(lval %ports[42])
+    ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
+
+END
 get_network_ports()
 {
     $(opt_parse \
@@ -336,9 +346,11 @@ get_network_ports()
     done <<< "$(netstat --all --program --numeric --protocol=inet 2>/dev/null | sed '1d' | tr -s ' ')"
 }
 
-# Netselect chooses the host that responds most quickly and reliably among a
-# list of specified IP addresses or hostnames.  It does this by pinging each
-# and looking for response times as well as packet drops.
+opt_usage netselect <<'END'
+Netselect chooses the host that responds most quickly and reliably among a list of specified IP
+addresses or hostnames.  It does this by pinging each and looking for response times as well as
+packet drops.
+END
 netselect()
 {
     $(opt_parse \
