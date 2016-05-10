@@ -3,10 +3,11 @@
 # Copyright 2011-2016, SolidFire, Inc. All rights reserved.
 #
 
-# Helper method to take care of resolving a given path or mount point to its
-# realpath as well as remove any errant '\040(deleted)' which may be suffixed
-# on the path. This can happen if a device's source mount point is deleted
-# while the destination path is still mounted.
+opt_usage emount_realpath <<'END'
+Helper method to take care of resolving a given path or mount point to its realpath as well as
+remove any errant '\040(deleted)' which may be suffixed on the path. This can happen if a device's
+source mount point is deleted while the destination path is still mounted.
+END
 emount_realpath()
 {
     $(opt_parse path)
@@ -20,14 +21,14 @@ emount_realpath()
     fi
 }
 
-# Echo the emount regex for a given path
+opt_usage emount_regex "Echo the emount regex for a given path"
 emount_regex()
 {
     $(opt_parse path)
     echo -n "(^| )${path}(\\\\040\\(deleted\\))* "
 }
 
-# Echo the number of times a given directory is mounted.
+opt_usage emount_count "Echo the number of times a given directory is mounted."
 emount_count()
 {
     $(opt_parse path)
@@ -36,7 +37,7 @@ emount_count()
     echo -n ${num_mounts}
 }
 
-# Get the mount type of a given mount point.
+opt_usage emount_type "Get the mount type of a given mount point."
 emount_type()
 {
     $(opt_parse path)
@@ -53,17 +54,20 @@ emounted()
     [[ $(emount_count "${path}") -gt 0 ]]
 }
 
-# Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of
-# your mounts are private so that we don't see different behavior between
-# systemd machines (where shared mounts are the default) and everywhere else
-# (where private mounts are the default)
+opt_usage ebindmount <<'END'
+# Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of your mounts are private
+# so that we don't see different behavior between systemd machines (where shared mounts are the
+# default) and everywhere else (where private mounts are the default)
 #
-# Source and destination MUST be the first two parameters of this function.
-# You may specify any other mount options after them.
-#
+# Source and destination MUST be the first two parameters of this function. You may specify any
+# other mount options after them.
+END
 ebindmount()
 {
-    $(opt_parse src dest)
+    $(opt_parse \
+        "src" \
+        "dest" \
+        "@mount_options")
 
     # The make-private commands are best effort.  We'll try to mark them as
     # private so that nothing, for example, inside a chroot can mess up the
@@ -76,11 +80,13 @@ ebindmount()
     mount --make-rprivate "${dest}" &> /dev/null || true
 }
 
-# Mount a filesystem.
-#
-# WARNING: Do not use opt_parse in this function as then we don't properly pass
-#          the options into mount itself. Since this is just a passthrough
-#          operation into mount you should see mount(8) manpage for usage.
+opt_usage emount <<'END'
+Mount a filesystem.
+
+WARNING: Do not use opt_parse in this function as then we don't properly pass the options into mount
+         itself. Since this is just a passthrough operation into mount you should see mount(8)
+         manpage for usage.
+END
 emount()
 {
     if edebug_enabled || [[ "${@}" =~ (^| )(-v|--verbose)( |$) ]]; then
@@ -113,23 +119,12 @@ eunmount_internal()
     done
 }
 
-# Recursively unmount a list of mount points. This function iterates over the 
-# provided argument list and will unmount each provided mount point if it is
-# mounted. It is not an error to try to unmount something which is already
-# unmounted as we're already in the desired state and this is more useful in
-# cleanup code. 
-#
-# OPTIONS:
-# -r=0|1    Optionally recursively unmount everything beneath the mount point.
-#           (defaults to 0)
-#
-# -d=0|1    Optionally delete the mount points (with -r this is recursive)
-#           (defaults to 0).
-#
-# -a=0|1    Unmount ALL copies of requested mount points instead of a single
-#           instance (defaults to 0).
-#
-# -v=0|1    Show verbose output (defaults to 0)
+opt_usage eunmount <<'END'
+Recursively unmount a list of mount points. This function iterates over the provided argument list
+and will unmount each provided mount point if it is mounted. It is not an error to try to unmount
+something which is already unmounted as we're already in the desired state and this is more useful
+in cleanup code. 
+END
 eunmount()
 {
     $(opt_parse \
@@ -222,10 +217,12 @@ list_mounts()
     fi
 }
 
-# Recursively find all mount points beneath a given root.
-# This is like findmnt with a few additional enhancements:
-# (1) Automatically recusrive
-# (2) findmnt doesn't find mount points beneath a non-root directory
+opt_usage efindmnt <<'END'
+Recursively find all mount points beneath a given root. This is like findmnt with a few additional
+enhancements:
+    1. Automatically recusrive
+    2. findmnt doesn't find mount points beneath a non-root directory
+END
 efindmnt()
 {
     $(opt_parse path)

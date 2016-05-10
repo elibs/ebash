@@ -4,7 +4,7 @@
 
 [[ ${__BU_OS} == Linux ]] || return 0
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # ARCHIVE.SH
 #
 # archive.sh is a generic module for dealing with various archive formats in a
@@ -45,11 +45,14 @@
 # recognized.[1] The use of cpio by the RPM Package Manager, in the initramfs
 # program of Linux kernel 2.6, and in Apple Computer's Installer (pax) make cpio
 # an important archiving tool" (https://en.wikipedia.org/wiki/Cpio).
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 
-# Determine archive format based on the file suffix. You can override type 
-# detection by passing in explicit -t=type where type is one of the supported
-# file extension types (e.g. squashfs, iso, tar, tgz, cpio, cgz, etc).
+
+opt_usage archive_type <<'END'
+Determine archive format based on the file suffix. You can override type detection by passing in
+explicit -t=type where type is one of the supported file extension types (e.g. squashfs, iso, tar,
+tgz, cpio, cgz, etc).
+END
 archive_type()
 {
     $(opt_parse \
@@ -115,42 +118,41 @@ archive_compress_program()
     [[ -n ${prog} ]]
 } 
 
-# Generic function for creating an archive file of a given type from the given
-# list of source paths and write it out to the requested destination directory.
-# This function will intelligently figure out the correct archive type based
-# on the suffix of the file.
-#
-# You can also optionally exclude certain paths from being included in
-# the resultant archive. Unfortunately, each of the supported archive formats
-# have different levels of support for excluding via filename, glob or regex.
-# So, to provide a common interface in archive_create, we pre-expand all exclude
-# paths using find(1).
-#
-# This function also provides a uniform way of dealing with multiple source
-# paths. All of the various archive formats handle this differently so the
-# uniformity is important. Essentially, any path provided will be the name of 
-# a top-level entry in the archive with the entire directory structure intact.
-# This is essentially how tar works but different from how mksquashfs and mkiso
-# normally behave. 
-# 
-# A few examples will help clarify the behavior:
-#
-# Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call
-# `archive_create a dest.squashfs`. archive_create will then yield the following:
-# a/1
-# a/2
-# a/3
-#
-# Example #2: Suppose you have these files spread out across three directories:
-# a/1 b/2 c/3 and you call `archive_create a b c dest.squashfs`. archive_create
-# will then yield the following:
-# a/1
-# b/2
-# c/3
-#
-# In the above examples note that the contents are consistent regardless of 
-# whether you provide a single file, single directory or list of files or list
-# of directories.
+opt_usage archive_create <<'END'
+Generic function for creating an archive file of a given type from the given list of source paths
+and write it out to the requested destination directory. This function will intelligently figure out
+the correct archive type based on the suffix of the file.
+
+You can also optionally exclude certain paths from being included in the resultant archive.
+Unfortunately, each of the supported archive formats have different levels of support for excluding
+via filename, glob or regex. So, to provide a common interface in archive_create, we pre-expand all
+exclude paths using find(1).
+
+This function also provides a uniform way of dealing with multiple source paths. All of the various
+archive formats handle this differently so the uniformity is important. Essentially, any path
+provided will be the name of a top-level entry in the archive with the entire directory structure
+intact. This is essentially how tar works but different from how mksquashfs and mkiso normally
+behave. 
+
+A few examples will help clarify the behavior:
+
+Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call `archive_create a
+dest.squashfs`. archive_create will then yield the following:
+
+    a/1
+    a/2
+    a/3
+
+Example #2: Suppose you have these files spread out across three directories: a/1 b/2 c/3 and you
+call `archive_create a b c dest.squashfs`. archive_create will then yield the following:
+
+    a/1
+    b/2
+    c/3
+
+In the above examples note that the contents are consistent regardless of whether you provide a
+single file, single directory or list of files or list of directories.
+END
 archive_create()
 {
     $(opt_parse \
@@ -322,10 +324,11 @@ archive_create()
     )
 }
 
-# Extract a previously constructed archive image. This works on all of our
-# supported archive types. Also takes an optional list of find(1) glob patterns
-# to limit what files are extracted from the archive. If no files are provided
-# it will extract all files from the archive.
+opt_usage archive_extract <<'END'
+Extract a previously constructed archive image. This works on all of our supported archive types.
+Also takes an optional list of find(1) glob patterns to limit what files are extracted from the
+archive. If no files are provided it will extract all files from the archive.
+END
 archive_extract()
 {
     $(opt_parse \
@@ -455,7 +458,7 @@ archive_extract()
     fi
 }
 
-# Simple function to list the contents of an archive image.
+opt_usage archive_list "Simple function to list the contents of an archive image."
 archive_list()
 {
     $(opt_parse \
@@ -489,14 +492,16 @@ archive_list()
     fi | sort --unique | sed '/^$/d'
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # CONVERSIONS
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
-# Convert given source file into the requested destination type. This is done
-# by figuring out the source and destination types using archive_type. Then it 
-# mounts the source file into a temporary file, then calls archive_create on the
-# temporary directory to write it out to the new destination type.
+opt_usage archive_convert <<'END'
+Convert given source file into the requested destination type. This is done by figuring out the
+source and destination types using archive_type. Then it mounts the source file into a temporary
+file, then calls archive_create on the temporary directory to write it out to the new destination
+type.
+END
 archive_convert()
 {
     $(opt_parse src dest)
@@ -518,9 +523,9 @@ archive_convert()
     )
 }
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # MISC UTILITIES
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 # Diff two or more archive images.
 archive_diff()
@@ -544,8 +549,10 @@ archive_diff()
     )
 }
 
-# Mount a given archive type to a temporary directory read-only if mountable
-# and if not extract it to the destination directory.
+opt_usage archive_mount <<'END'
+Mount a given archive type to a temporary directory read-only if mountable and if not extract it to
+the destination directory.
+END
 archive_mount()
 {
     $(opt_parse src dest)

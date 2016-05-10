@@ -44,13 +44,15 @@ process_not_running()
     return 0
 }
 
-# Generate a depth first recursive listing of entire process tree beneath a given PID.
-# If the pid does not exist this will produce an empty string.
-#
+opt_usage process_tree <<'END'
+Generate a depth first recursive listing of entire process tree beneath a given PID. If the pid does
+not exist this will produce an empty string.
+END
 process_tree()
 {
     $(opt_parse \
         ":ps_all | Pre-prepared output of \"ps -eo ppid,pid\" so I can avoid calling ps repeatedly")
+
     : ${ps_all:=$(ps -eo ppid,pid)}
 
 
@@ -73,12 +75,13 @@ process_tree()
     done
 }
 
-# Print the pids of all children of the specified list of processes.  If no
-# processes were specified, default to ${BASHPID}.
-#
-# Note, this doesn't print grandchildren and other descendants.  Just children.
-# See process_tree for a recursive tree of descendants.
-#
+opt_usage process_children <<'END'
+Print the pids of all children of the specified list of processes.  If no processes were specified,
+default to ${BASHPID}.
+
+Note, this doesn't print grandchildren and other descendants.  Just children. See process_tree for a
+recursive tree of descendants.
+END
 process_children()
 {
     $(opt_parse \
@@ -99,9 +102,9 @@ process_children()
     echo "${children[@]:-}"
 }
 
-# Print the pid of the parent of the specified process, or of $BASHPID if none
-# is specified.
-#
+opt_usage process_parent <<'END'
+Print the pid of the parent of the specified process, or of $BASHPID if none is specified.
+END
 process_parent()
 {
     $(opt_parse "?child | pid of child process")
@@ -112,10 +115,11 @@ process_parent()
     ps -eo ppid,pid | awk '$2 == '${child}' {print $1}'
 }
 
-# Print pids of all ancestores of the specified list of processes, up to and
-# including init (pid 1).  If no processes are specified as arguments, defaults
-# to ${BASHPID}
-#
+
+opt_usage process_ancestors <<'END'
+Print pids of all ancestores of the specified list of processes, up to and including init (pid 1).
+If no processes are specified as arguments, defaults to ${BASHPID}
+END
 process_ancestors()
 {
     $(opt_parse "?child | pid of process whose ancestors will be printed.")
@@ -135,17 +139,12 @@ process_ancestors()
     echo "${ancestors[@]}"
 }
 
-# Kill all pids provided as arguments to this function using the specified signal. This function is
-# best effort only. It makes every effort to kill all the specified pids but ignores any errors
-# while calling kill. This is largely due to the fact that processes can exit before we get a chance
-# to kill them. If you really care about processes being gone consider using process_not_running or
-# cgroups.
-#
-# Options:
-# -s=SIGNAL The signal to send to the pids (defaults to SIGTERM).
-# -k=duration 
-#   Elevate to SIGKILL after waiting for the specified duration after sending
-#   the initial signal.  If unspecified, ekill does not elevate.
+opt_usage ekill <<'END'
+Kill all pids provided as arguments to this function using the specified signal. This function is
+best effort only. It makes every effort to kill all the specified pids but ignores any errors while
+calling kill. This is largely due to the fact that processes can exit before we get a chance to kill
+them. If you really care about processes being gone consider using process_not_running or cgroups.
+END
 ekill()
 {
     $(opt_parse \
@@ -191,38 +190,31 @@ ekill()
     fi
 }
 
-# Kill entire process tree for each provided pid by doing a depth first search to find
-# all the descendents of each pid and kill all leaf nodes in the process tree first.
-# Then it walks back up and kills the parent pids as it traverses back up the tree.
-# Like ekill(), this function is best effort only. If you want more robust guarantees
-# consider process_not_running or cgroups.
-#
-# Note that ekilltree will never kill the current process or ancestors of the
-# current process, as that would cause ekilltree to be unable to succeed.
 
-# Options:
-# -s=SIGNAL 
-#       The signal to send to the pids (defaults to SIGTERM).
-# -x="pids"
-#       Pids to exclude from killing.  Ancestors of the current process are
-#       _ALWAYS_ excluded (because if not, it would likely prevent ekilltree
-#       from succeeding)
-# -k=duration 
-#       Elevate to SIGKILL after waiting for the specified duration after
-#       sending the initial signal.  If unspecified, ekilltree does not
-#       elevate.
-#
+opt_usage ekilltree <<'END'
+Kill entire process tree for each provided pid by doing a depth first search to find all the
+descendents of each pid and kill all leaf nodes in the process tree first. Then it walks back up and
+kills the parent pids as it traverses back up the tree. Like ekill(), this function is best effort
+only. If you want more robust guarantees consider process_not_running or cgroups.
+
+Note that ekilltree will never kill the current process or ancestors of the current process, as that
+would cause ekilltree to be unable to succeed.
+END
 ekilltree()
 {
     $(opt_parse \
-        ":signal sig s=SIGTERM | The signal to send to the process tree, either as a number or a name." \
+        ":signal sig s=SIGTERM | The signal to send to the process tree, either as a number or a
+                                 name." \
         ":exclude x            | Processes to exclude from being killed." \
-        ":kill_after k         | Elevate to SIGKILL after this duration if the processes haven't died.")
+        ":kill_after k         | Elevate to SIGKILL after this duration if the processes haven't
+                                 died." \
+        "@pids                 | IDs of processes to be affected.  All of these plus their children
+                                 will receive the specified signal.")
 
     # Determine what signal to send to the processes
     local excluded="$(process_ancestors ${BASHPID}) ${exclude}"
 
-    local processes=( $(process_tree ${@}) )
+    local processes=( $(process_tree ${pids[@]:-}) )
     array_remove -a processes ${excluded}
 
     edebug "Killing $(lval processes signal kill_after excluded)"
