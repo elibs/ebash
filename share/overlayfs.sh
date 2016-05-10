@@ -4,7 +4,7 @@
 
 [[ ${__BU_OS} == Linux ]] || return 0
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 # OVERLAYFS
 # 
 # The overlayfs module is the bashutils interface around OverlayFS mounts. This
@@ -19,7 +19,7 @@
 # workdir option for the scratch work performed by overlayfs. Overlayfs was
 # available in older kernel versions but was not official and did not have this
 # additional "workdir" option.
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------
 
 # Older kernel versions used the filesystem type 'overlayfs' whereas newer ones
 # use just 'overlay' so dynamically detected the correct type to use here. Some
@@ -203,10 +203,11 @@ overlayfs_mount()
     echo "${layers}" > "${metadir}/layer.pack"
 }
 
-# overlayfs_unmount will unmount an overlayfs directory previously mounted
-# via overlayfs_mount. It takes multiple arguments where each is the final
-# overlayfs mount point. In the event there are multiple overlayfs layered
-# into the final mount image, they will all be unmounted as well.
+opt_usage overlayfs_unmount <<'END'
+overlayfs_unmount will unmount an overlayfs directory previously mounted via overlayfs_mount. It
+takes multiple arguments where each is the final overlayfs mount point. In the event there are
+multiple overlayfs layered into the final mount image, they will all be unmounted as well.
+END
 overlayfs_unmount()
 {
     $(opt_parse mnt)
@@ -230,17 +231,17 @@ overlayfs_unmount()
     eunmount --all --recursive --delete "$(pack_get layers metadir)" "${mnt}"
 }
 
-# Parse an overlayfs mount point and populate a pack with entries for the 
-# sources, lowerdirs, lowest, upperdir, workdir, and src and mnt.
-#
-# NOTE: Because 'lowerdir' may actually be stacked its value may contain
-#       multiple whitespace separated entries we use the key 'lowerdirs'
-#       instead of 'lowerdir' to more accurately reflect that it's multiple
-#       entries instead of a single entry. There is an additional 'lowest'
-#       key we put in the pack that is the bottom-most 'lowerdir' when we
-#       need to directly access it.
-#
-# NOTE: Depending on kernel version, 'workdir' may be empty as it may not be used.
+opt_usage overlayfs_layers <<'END'
+Parse an overlayfs mount point and populate a pack with entries for the sources, lowerdirs, lowest,
+upperdir, workdir, and src and mnt.
+
+NOTE: Because 'lowerdir' may actually be stacked its value may contain multiple whitespace separated
+      entries we use the key 'lowerdirs' instead of 'lowerdir' to more accurately reflect that it's
+      multiple entries instead of a single entry. There is an additional 'lowest' key we put in the
+      pack that is the bottom-most 'lowerdir' when we need to directly access it.
+
+NOTE: Depending on kernel version, 'workdir' may be empty as it may not be used.
+END
 overlayfs_layers()
 {
     $(opt_parse \
@@ -269,13 +270,13 @@ overlayfs_layers()
     fi
 }
 
-# overlayfs_tree is used to display a graphical representation for an overlayfs
-# mount. The graphical format is meant to show details about each layer in the
-# overlayfs mount hierarchy to make it clear what files reside in what layers
-# along with some basic metadata about each file (as provided by find -ls). The
-# order of the output is top-down to clearly represent that overlayfs is a
-# read-through layer cake filesystem such that things "above" mask things "below"
-# in the layer cake.
+opt_usage overlayfs_tree <<'END'
+overlayfs_tree is used to display a graphical representation for an overlayfs mount. The graphical
+format is meant to show details about each layer in the overlayfs mount hierarchy to make it clear
+what files reside in what layers along with some basic metadata about each file (as provided by find
+-ls). The order of the output is top-down to clearly represent that overlayfs is a read-through
+layer cake filesystem such that things "above" mask things "below" in the layer cake.
+END
 overlayfs_tree()
 {
     $(opt_parse mnt)
@@ -306,17 +307,18 @@ overlayfs_tree()
     done
 }
 
-# Commit all pending changes in the overlayfs write later back down into the lowest read-only
-# layer and then unmount the overlayfs mount. The intention of this function is that you should
-# call it when you're completely done with an overlayfs and you want its changes to persist
-# back to the original archive. To avoid doing any unecessary work, this function will first
-# call overlayfs_dedupe and only if something has changed will it actually write out a new
-# archive.
-#
-# NOTE: You can't just save the overlayfs mounted directory back to the original archive while
-#       it's mounted or you'll corrupt the currently mounted overlayfs. To work around this, we
-#       archive the overlayfs mount point to a temporary archive, then we unmount the current
-#       mount point so that we can safely copy the new archive over the original archive.
+opt_usage overlayfs_commit <<'END'
+Commit all pending changes in the overlayfs write later back down into the lowest read-only layer
+and then unmount the overlayfs mount. The intention of this function is that you should call it when
+you're completely done with an overlayfs and you want its changes to persist back to the original
+archive. To avoid doing any unecessary work, this function will first call overlayfs_dedupe and only
+if something has changed will it actually write out a new archive.
+
+NOTE: You can't just save the overlayfs mounted directory back to the original archive while it's
+      mounted or you'll corrupt the currently mounted overlayfs. To work around this, we archive the
+      overlayfs mount point to a temporary archive, then we unmount the current mount point so that
+      we can safely copy the new archive over the original archive.
+END
 overlayfs_commit()
 {
    $(opt_parse \
@@ -410,9 +412,10 @@ overlayfs_commit()
     fi
 }
 
-# Save the top-most read-write later from an existing overlayfs mount into the
-# requested destination file. This file can be a squashfs image, an ISO, or any
-# supported archive format.
+opt_usage overlayfs_save_changes <<'END'
+Save the top-most read-write later from an existing overlayfs mount into the requested destination
+file. This file can be a squashfs image, an ISO, or any supported archive format.
+END
 overlayfs_save_changes()
 {
     $(opt_parse mnt dest)
@@ -425,7 +428,7 @@ overlayfs_save_changes()
     archive_create -d="$(pack_get layers upperdir)" . "${dest}"
 }
 
-# Check if there are any changes in an overlayfs or not.
+opt_usage overlayfs_changed "Check if there are any changes in an overlayfs or not."
 overlayfs_changed()
 {
     $(opt_parse mnt)
@@ -438,7 +441,7 @@ overlayfs_changed()
     directory_not_empty "$(pack_get layers upperdir)"
 }
 
-# List the changes in an overlayfs
+opt_usage overlayfs_list_changes "List the changes in an overlayfs"
 overlayfs_list_changes()
 {
     $(opt_parse \
@@ -463,7 +466,7 @@ overlayfs_list_changes()
     fi
 }
 
-# Show a unified diff between the lowest and upper layers
+opt_usage overlayfs_diff "Show a unified diff between the lowest and upper layers"
 overlayfs_diff()
 {
     $(opt_parse \
@@ -483,11 +486,12 @@ overlayfs_diff()
     ${bin} --recursive --unified "$(pack_get layers lowest)" "$(pack_get layers upperdir)"
 }
 
-# Dedupe files in overlayfs such that all files in the upper directory which are
-# identical IN CONTENT to the original ones in the lower layer are removed from
-# the upper layer. This uses 'cmp' in order to compare each file byte by byte.
-# Thus even if the upper file has a newer timestamp it will be removed if its
-# content is otherwise identical.
+opt_usage overlayfs_dedupe <<'END'
+Dedupe files in overlayfs such that all files in the upper directory which are identical IN CONTENT
+to the original ones in the lower layer are removed from the upper layer. This uses 'cmp' in order
+to compare each file byte by byte. Thus even if the upper file has a newer timestamp it will be
+removed if its content is otherwise identical.
+END
 overlayfs_dedupe()
 {
     $(opt_parse mnt)

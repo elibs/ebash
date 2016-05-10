@@ -130,24 +130,21 @@ pack_iterate()
     done
 }
 
-# Spews bash commands that, when executed will declare a series of variables
-# in the caller's environment for each and every item in the pack. This uses
-# the "eval command invocation string" which the caller then executes in order
-# to manifest the commands. For instance, if your pack contains keys a and b
-# with respective values 1 and 2, you can create locals a=1 and b=2 by running:
-#
-#   $(pack_import pack)
-#
-# If you don't want the pack's entire contents, but only a limited subset, you
-# may specify them.  For instance, in the same example scenario, the following
-# will create a local a=1, but not a local for b.
-#
-#  $(pack_import pack a)
-#
-# OPTIONS:
-# -l: Emit local variables with 'local' scope qualifier (default)
-# -g: Emit global variables with no scope qualifier
-# -e: Emit exported variables with 'export' keyword
+opt_usage pack_import <<'END'
+Spews bash commands that, when executed will declare a series of variables in the caller's
+environment for each and every item in the pack. This uses the "eval command invocation string"
+which the caller then executes in order to manifest the commands. For instance, if your pack
+contains keys a and b with respective values 1 and 2, you can create locals a=1 and b=2 by running:
+
+    $(pack_import pack)
+
+If you don't want the pack's entire contents, but only a limited subset, you may specify them.  For
+instance, in the same example scenario, the following will create a local a=1, but not a local
+for b.
+
+    $(pack_import pack a)
+
+END
 pack_import()
 {
     $(opt_parse \
@@ -174,16 +171,17 @@ pack_import()
     echo "eval "${_pack_import_cmd}""
 }
 
-#
-# Assigns values into a pack by extracting them from the caller environment.
-# For instance, if you have locals a=1 and b=2 and run the following:
-#
-#    pack_export pack a b
-#
-# You will be left with the same pack as if you instead said:
-#
-#   pack_set pack a=${a} b=${b}
-#
+opt_usage pack_export <<'END'
+Assigns values into a pack by extracting them from the caller environment. For instance, if you have
+locals a=1 and b=2 and run the following:
+
+    pack_export pack a b
+
+You will be left with the same pack as if you instead said:
+
+    pack_set pack a=${a} b=${b}
+END
+
 pack_export()
 {
     local _pack_export_pack=$1 ; shift
