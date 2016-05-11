@@ -25,7 +25,7 @@
 # use just 'overlay' so dynamically detected the correct type to use here. Some
 # kernels also support BOTH in which case we need to only take the first one we
 # find (hence the use of head -1).
-__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null | head -1 || true)
+__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null | sort | head -1 || true)
 
 # Detect whether overlayfs is supported or not.
 overlayfs_supported()
