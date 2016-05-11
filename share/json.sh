@@ -181,19 +181,26 @@ json_import()
         # If the key is marked as optional then add filter "//empty" so that 'null' literal is replaced with an empty string
         if [[ ${key} == \?* ]]; then
             key="${key#\?}"
-            val=$(jq -r ".${key}//empty" <<< ${_json_import_data})
+            val=$(jq -c -r ".${key}//empty" <<< ${_json_import_data})
         else
             # Ensure the data has the requested key by appending a 'has' filter which emit 'true' or 'false' if the key was
             # present. Adding '-e' option to jq will cause it to exit with non-zero if the last filter produces 'null' or 'false'.
             # We don't actually care about the 'true/false' since we're relying on the return code being non-zero to trigger
             # set -e error handling. So, we remove that from what we ultimately store into our value via 'head -1'.
-            val=$(jq -r -e '.'${key}', has("'${key}'")' <<< ${_json_import_data} | head -1)
+            val=$(jq -c -r -e '.'${key}', has("'${key}'")' <<< ${_json_import_data} | head -1)
         fi
 
         edebug $(lval key val)
         [[ ${upper_snake_case} -eq 1 ]] && key=$(to_upper_snake_case "${key}")
 
-        cmd+="declare ${dflags} ${prefix}${key}=\"${val}\";"
+        # If the value is an array implicitly convert it
+        if [[ "${val:0:1}" == "[" && "${val: -1}" == "]" ]]; then
+            local array_val=()
+            array_init_json array_val "${val}"
+            cmd+="declare ${dflags} -a ${prefix}${key}=( "${array_val[@]}" );"
+        else
+            cmd+="declare ${dflags} ${prefix}${key}=\"${val}\";"
+        fi
     done
 
     echo -n "eval ${cmd}"
