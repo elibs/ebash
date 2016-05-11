@@ -28,7 +28,7 @@ array_init()
 # be a newline.
 array_init_nl()
 {
-    [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters"
+    [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters but passed=($@)"
     array_init "$1" "$2" $'\n'
 }
 
@@ -37,7 +37,7 @@ array_init_nl()
 # quotes on each value since they are unecessary in bash.
 array_init_json()
 {
-    [[ $# -ne 2 ]] && die "array_init_json requires exactly two parameters"
+    [[ $# -ne 2 ]] && die "array_init_json requires exactly two parameters but passed=($@)"
     array_init "$1" "$(echo "${2}" | sed -e 's|^\[\s*||' -e 's|\s*\]$||' -e 's|",\s*"|","|g' -e 's|"||g')" ","
 }
 
@@ -120,7 +120,7 @@ array_add()
 # Identical to array_add only hard codes the delimter to be a newline.
 array_add_nl()
 {
-    [[ $# -ne 2 ]] && die "array_add_nl requires exactly two parameters"
+    [[ $# -ne 2 ]] && die "array_add_nl requires exactly two parameters but passed=($@)"
     array_add "$1" "$2" $'\n'
 }
 
@@ -242,7 +242,7 @@ array_join()
 # Identical to array_join only it hardcodes the dilimter to a newline.
 array_join_nl()
 {
-    [[ $# -ne 1 ]] && die "array_join_nl requires exactly one parameter"
+    [[ $# -ne 1 ]] && die "array_join_nl requires exactly one parameter but passed=($@)"
     array_join "$1" $'\n'
 }
 
