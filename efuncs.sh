@@ -3463,7 +3463,7 @@ array_init()
 # be a newline.
 array_init_nl()
 {
-    [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters"
+    [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters but passed=($@)"
     array_init "$1" "$2" $'\n'
 }
 
@@ -3472,7 +3472,7 @@ array_init_nl()
 # quotes on each value since they are unecessary in bash.
 array_init_json()
 {
-    [[ $# -ne 2 ]] && die "array_init_json requires exactly two parameters"
+    [[ $# -ne 2 ]] && die "array_init_json requires exactly two parameters but passed=($@)"
     array_init "$1" "$(echo "${2}" | sed -e 's|^\[\s*||' -e 's|\s*\]$||' -e 's|",\s*"|","|g' -e 's|"||g')" ","
 }
 
@@ -3533,7 +3533,7 @@ array_add()
 # Identical to array_add only hard codes the delimter to be a newline.
 array_add_nl()
 {
-    [[ $# -ne 2 ]] && die "array_add_nl requires exactly two parameters"
+    [[ $# -ne 2 ]] && die "array_add_nl requires exactly two parameters but passed=($@)"
     array_add "$1" "$2" $'\n'
 }
 
@@ -3646,7 +3646,7 @@ array_join()
 # Identical to array_join only it hardcodes the dilimter to a newline.
 array_join_nl()
 {
-    [[ $# -ne 1 ]] && die "array_join_nl requires exactly one parameter"
+    [[ $# -ne 1 ]] && die "array_join_nl requires exactly one parameter but passed=($@)"
     array_join "$1" $'\n'
 }
 
@@ -4112,19 +4112,26 @@ json_import()
         # If the key is marked as optional then add filter "//empty" so that 'null' literal is replaced with an empty string
         if [[ ${key} == \?* ]]; then
             key="${key#\?}"
-            val=$(jq -r ".${key}//empty" <<< ${_json_import_data})
+            val=$(jq -c -r ".${key}//empty" <<< ${_json_import_data})
         else
             # Ensure the data has the requested key by appending a 'has' filter which emit 'true' or 'false' if the key was
             # present. Adding '-e' option to jq will cause it to exit with non-zero if the last filter produces 'null' or 'false'.
             # We don't actually care about the 'true/false' since we're relying on the return code being non-zero to trigger
             # set -e error handling. So, we remove that from what we ultimately store into our value via 'head -1'.
-            val=$(jq -r -e '.'${key}', has("'${key}'")' <<< ${_json_import_data} | head -1)
+            val=$(jq -c -r -e '.'${key}', has("'${key}'")' <<< ${_json_import_data} | head -1)
         fi
 
         edebug $(lval key val)
         opt_true "u" && key=$(to_upper_snake_case "${key}")
 
-        cmd+="declare ${dflags} ${_json_import_prefix}${key}=\"${val}\";"
+        # If the value is an array implicitly convert it
+        if [[ "${val:0:1}" == "[" && "${val: -1}" == "]" ]]; then
+            local array_val=()
+            array_init_json array_val "${val}"
+            cmd+="declare ${dflags} -a ${_json_import_prefix}${key}=( "${array_val[@]}" );"
+        else
+            cmd+="declare ${dflags} ${_json_import_prefix}${key}=\"${val}\";"
+        fi
     done
 
     echo -n "eval ${cmd}"

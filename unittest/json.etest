@@ -305,3 +305,35 @@ ETEST_json_import_query_platform()
     assert_eq "300069052416" "${BLOCK_DRIVE_SIZE}"
     assert_eq "16"           "${SLICE_BUFFER_CACHE_GB}"
 }
+
+ETEST_json_import_array()
+{
+    echo '{ "R620": { "SF3010": { "sliceDrives": [ "/dev/slot0" ], "blockDrives": [ "/dev/slot1", "/dev/slot2"] } } }' > file.json
+    cat file.json
+    $(json_import -u -q=".R620.SF3010" -f=file.json)
+
+    argcheck SLICE_DRIVES BLOCK_DRIVES
+    einfo "$(lval SLICE_DRIVES BLOCK_DRIVES)"
+
+    local slice_expect=( "/dev/slot0" )
+    local block_expect=( "/dev/slot1" "/dev/slot2" )
+
+    assert_eq "${slice_expect[*]}" "${SLICE_DRIVES[*]}"
+    assert_eq "${block_expect[*]}" "${BLOCK_DRIVES[*]}"
+}
+
+ETEST_json_import_array_spaces()
+{
+    echo '{ "R620": { "SF3010": { "sliceDrives": [ "/dev/slot0", "/dev/slot with spaces" ], "blockDrives": [ "/dev/slot1", "/dev/slot2"] } } }' > file.json
+    cat file.json
+    $(json_import -u -q=".R620.SF3010" -f=file.json)
+
+    argcheck SLICE_DRIVES BLOCK_DRIVES
+    einfo "$(lval SLICE_DRIVES BLOCK_DRIVES)"
+
+    local slice_expect=( "/dev/slot0" "/dev/slot with spaces" )
+    local block_expect=( "/dev/slot1" "/dev/slot2" )
+
+    assert_eq "${slice_expect[*]}" "${SLICE_DRIVES[*]}"
+    assert_eq "${block_expect[*]}" "${BLOCK_DRIVES[*]}"
+}
