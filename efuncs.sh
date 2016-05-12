@@ -4128,7 +4128,7 @@ json_import()
         if [[ "${val:0:1}" == "[" && "${val: -1}" == "]" ]]; then
             local array_val=()
             array_init_json array_val "${val}"
-            cmd+="declare ${dflags} -a ${_json_import_prefix}${key}=( "${array_val[@]}" );"
+            cmd+="declare ${dflags} -a ${_json_import_prefix}${key}=( "${array_val[@]:-}" );"
         else
             cmd+="declare ${dflags} ${_json_import_prefix}${key}=\"${val}\";"
         fi
