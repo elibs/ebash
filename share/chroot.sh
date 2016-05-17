@@ -135,12 +135,10 @@ chroot_kill()
 
 # Cleanly exit a chroot by:
 # (1) Kill any processes started inside chroot (chroot_kill)
-# (1) Unmount chroot bind mounted directories  (chroot_unmount)
-# (2) Recursively unmount anything else mounted beneath the chroot
+# (2) Recursively unmount the chroot and anything mounted underneath it
 chroot_exit()
 {
     chroot_kill
-    chroot_unmount
     eunmount -r ${CHROOT}
 }
 
