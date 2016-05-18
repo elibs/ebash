@@ -5,6 +5,13 @@ if [[ $(id -u) != "0" ]]; then
     exec sudo -E "$0" "$@"
 fi
 
+# Hide mount shenanigans going on in etest from the rest of the world by making our own mount
+# namespace
+if [[ ${ETEST_OWN_MOUNT_NS:-0} -ne 1 ]] ; then
+    export ETEST_OWN_MOUNT_NS=1
+    exec unshare -m "$0" "$@"
+fi
+
 : ${EMSG_PREFIX:=time}
 
 : ${BASHUTILS_HOME:=$(dirname $0)/..}
@@ -343,7 +350,7 @@ run_all_tests_in_file()
             test_rc=$?
             [[ ${break} -eq 0 ]] || die "${testfunc} failed and break=1" &>${ETEST_OUT}
             FAILURES[${testfilename}]+="${testfunc} "
-            [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_FAILED_COUNT += 1 ))
+            (( TEST_FAILED_COUNT += 1 ))
         }
         [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_EXECUTED_COUNT += 1 ))
 
