@@ -69,15 +69,19 @@ ebindmount()
         "dest" \
         "@mount_options")
 
-    # The make-private commands are best effort.  We'll try to mark them as
-    # private so that nothing, for example, inside a chroot can mess up the
-    # machine outside that chroot.
+    # In order to avoid polluting other mount points that we recursively bind, we want to make sure
+    # that our mount points are "private" (not seen by other mount namespaces).  For example, that
+    # prevents one chroot from messing with another's mounts.
     #
-    # NOTE: Redirect all output from make-private to avoid spewing confusing messages
-    # [efuncs.sh:2390:ebindmount] mount: /dest is not mountpoint or bad option
-    mount --make-rprivate "${src}"  &> /dev/null || true
+    # We must make sure the source mount is private first, because otherwise when we bind mount our
+    # location into our mount namespace, it will start off as shared.  And the shared version will
+    # be seen across _other_ mount namespaces.  Sure, we can subsequently mark it private in our
+    # own, but that action won't actually affect the others.
+    #
+    # stat --format %m <file> lists the mount point that a particular file is on.
+    mount --make-rprivate "$(stat -c %m "${src}")"
     emount --rbind "${@}" "${src}" "${dest}"
-    mount --make-rprivate "${dest}" &> /dev/null || true
+    mount --make-rprivate "${dest}" 
 }
 
 opt_usage emount <<'END'
@@ -207,7 +211,7 @@ eunmount()
 list_mounts()
 {
     if [[ ${__BU_OS} == Linux ]] ; then
-        cat /proc/mounts
+        cat /proc/self/mounts
 
     elif [[ ${__BU_OS} == Darwin ]] ; then
         mount
