@@ -734,6 +734,8 @@ reexec()
         "+sudo     | Ensure this process is root, and use sudo to become root if not." \
         "+mount_ns | Create a new mount namespace to run in.")
 
+    array_not_empty __BU_REEXEC_CMD || die "reexec must be called via its eponymous alias."
+
     if [[ ${sudo} -eq 1 ]] ; then
         if [[ $(id -u) != 0 ]] ; then
             exec sudo -E "${__BU_REEXEC_CMD[@]}"
@@ -746,9 +748,9 @@ reexec()
             exec unshare -m "${__BU_REEXEC_CMD[@]}"
         fi
     fi
-
+    unset __BU_REEXEC_CMD
 }
-alias reexec='__BU_REEXEC_CMD=("$0" "$@") ; reexec'
+alias reexec='declare -a __BU_REEXEC_CMD=("$0" "$@") ; reexec'
 
 
 
