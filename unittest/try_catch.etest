@@ -593,6 +593,7 @@ ETEST_tryrc_no_eol()
     assert_eq "" "${stderr}"
 }
 
+if [[ $(id -u) == 0 ]] ; then
 ETEST_tryrc_multiline_monster_output()
 {
     einfo "Generating input"
@@ -606,6 +607,7 @@ ETEST_tryrc_multiline_monster_output()
     assert_eq 0  "${rc}"
     assert_eq "" "${stderr}"
 }
+fi
 
 ETEST_tryrc_hang_recreate()
 {

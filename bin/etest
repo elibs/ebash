@@ -7,7 +7,9 @@
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
 export BASHUTILS
 
-[[ ${__BU_OS} == "Linux" ]] && reexec --sudo --mount-ns
+if [[ ${__BU_OS} == "Linux" ]] ; then
+    reexec --sudo --mount-ns
+fi
 
 # Normalize BASHUTILS path in case any tests depend on it looking... normal.
 # Note: wait until after sourcing so that we can let bashutils make sure we get
