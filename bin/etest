@@ -1,23 +1,13 @@
 #!/usr/bin/env bash
 
-## Check if we're root and re-execute if we're not through sudo ##
-if [[ $(id -u) != "0" ]]; then
-    exec sudo -E "$0" "$@"
-fi
-
-# Hide mount shenanigans going on in etest from the rest of the world by making our own mount
-# namespace
-if [[ ${ETEST_OWN_MOUNT_NS:-0} -ne 1 ]] ; then
-    export ETEST_OWN_MOUNT_NS=1
-    exec unshare -m "$0" "$@"
-fi
-
 : ${EMSG_PREFIX:=time}
 
 : ${BASHUTILS_HOME:=$(dirname $0)/..}
 : ${BASHUTILS:=${BASHUTILS_HOME}/share}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
 export BASHUTILS
+
+[[ ${__BU_OS} == "Linux" ]] && reexec --sudo --mount-ns
 
 # Normalize BASHUTILS path in case any tests depend on it looking... normal.
 # Note: wait until after sourcing so that we can let bashutils make sure we get

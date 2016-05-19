@@ -728,6 +728,29 @@ nodie_on_abort()
     trap - ${signals[@]}
 }
 
+reexec()
+{
+    $(opt_parse \
+        "+sudo     | Ensure this process is root, and use sudo to become root if not." \
+        "+mount_ns | Create a new mount namespace to run in.")
+
+    if [[ ${sudo} -eq 1 ]] ; then
+        if [[ $(id -u) != 0 ]] ; then
+            exec sudo -E "${__BU_REEXEC_CMD[@]}"
+        fi
+    fi
+
+    if [[ ${mount_ns} -eq 1 ]] ; then
+        if [[ ${__BU_REEXEC_MOUNT_NS:-} != ${BASHPID} ]] ; then
+            export __BU_REEXEC_MOUNT_NS=${BASHPID}
+            exec unshare -m "${__BU_REEXEC_CMD[@]}"
+        fi
+    fi
+
+}
+alias reexec='__BU_REEXEC_CMD=("$0" "$@") ; reexec'
+
+
 
 #---------------------------------------------------------------------------------------------------
 # SIGNAL FUNCTIONS
