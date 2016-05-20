@@ -73,7 +73,8 @@ ETEST_overlayfs_eunmount_foreign()
     archive_create -d=src . src.squashfs
     archive_list src.squashfs
 
-    etestmsg "Mounting src.squashfs at dest (manually)"
+    etestmsg "Mounting src.squashfs at dest (manually with ${__BU_OVERLAYFS})"
+    argcheck __BU_OVERLAYFS
     mkdir lowerdir upperdir workdir dest
     archive_mount src.squashfs lowerdir
 
