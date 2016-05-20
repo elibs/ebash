@@ -237,8 +237,8 @@ opt_parse()
     # opt_parse. Opt_parse_options will modifiy __BU_ARGS to be whatever was
     # left to be processed after it is finished. Note: here $@ is quoted so it
     # refers to the caller's arguments
-    echo 'declare __BU_FULL_ARGS=("$@") ; '
-    echo 'declare __BU_ARGS=("$@") ; '
+    echo 'declare -a __BU_FULL_ARGS=("$@") ; '
+    echo 'declare -a __BU_ARGS=("$@") ; '
     echo 'declare __BU_OPT_USAGE_REQUESTED=0 ; '
     echo "opt_parse_options ; "
 
@@ -267,14 +267,16 @@ opt_parse()
     echo 'fi ; '
     echo 'argcheck "${__BU_ARG_REQUIRED[@]:-}" ; '
 
-    # Make sure $@ and the optional @{whatever} array are filled with args that
-    # weren't already consumed
+    # Make sure $@ is filled with args that weren't already consumed
     echo 'if [[ ${#__BU_ARGS[@]:-} -gt 0 ]] ; then '
     echo '    set -- "${__BU_ARGS[@]}" ; '
-    echo '    [[ -z ${__BU_ARG_REST} ]] || declare -a "${__BU_ARG_REST}=( \"\${__BU_ARGS[@]}\" )" ; '
     echo 'else '
     echo '    set -- ; '
-    echo '    [[ -z ${__BU_ARG_REST} ]] || declare -a "${__BU_ARG_REST}=( )" ; '
+    echo 'fi ; '
+
+    # And also put them in the "rest" array of arguments, if one was requested
+    echo 'if [[ -n ${__BU_ARG_REST} ]] ; then '
+    echo '    eval "declare -a ${__BU_ARG_REST}=(\"\$@\")" ; '
     echo 'fi ; '
 }
 
@@ -428,9 +430,9 @@ opt_parse_setup()
     arg_required_cmd+=")"
     arg_docstring_cmd+=")"
 
-    printf "declare -A %s %s %s %s %s; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_synonyms_cmd}" "${opt_type_cmd}" "${opt_docstring_cmd}"
-    printf "declare %s %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}" "${arg_docstring_cmd}"
-    printf "declare __BU_ARG_REST=%s __BU_ARG_REST_DOCSTRING=%s ;" "${arg_rest_var}" "${arg_rest_docstring}"
+    printf "declare -A %s %s %s %s %s ; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_synonyms_cmd}" "${opt_type_cmd}" "${opt_docstring_cmd}"
+    printf "declare -a %s %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}" "${arg_docstring_cmd}"
+    printf "declare __BU_ARG_REST=%s __BU_ARG_REST_DOCSTRING=%s ; " "${arg_rest_var}" "${arg_rest_docstring}"
 }
 
 opt_parse_options()
