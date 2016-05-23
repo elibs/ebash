@@ -61,10 +61,10 @@ ETEST_emount_unmount_recursive()
 
     etestmsg "Recursively unmounting dst"
     einfo "Mounts before unmount"
-    grep "${TEST_DIR_OUTPUT}" /proc/mounts || true
+    list_mounts | grep "${TEST_DIR_OUTPUT}" || true
     eunmount -r dst
     einfo "Mounts after unmount"
-    grep "${TEST_DIR_OUTPUT}" /proc/mounts || true
+    list_mounts | grep "${TEST_DIR_OUTPUT}" || true
     
     etestmsg "Validating mounts"
     assert_false emounted dst/dst1
@@ -86,85 +86,6 @@ ETEST_emount_partial_match()
 
     # Use a partial match -- should NOT find any mounts
     assert_false emounted dst/d
-}
-
-ETEST_emount_bind_count_separate()
-{
-    mkdir src
-
-    # Mount a few times and ensure counter goes up correctly
-    local nmounts=10
-    for (( i=0; i<${nmounts}; ++i )); do
-        mkdir dst${i}
-        emount --bind src dst${i}
-        check_mounts dst${i} 1
-    done
-
-    # Umount and verify counts go down properly
-    for (( i=${nmounts}-1; i>=0; --i )); do
-        eunmount dst${i}
-        check_mounts dst${i} 0
-    done
-}
-
-ETEST_emount_bind_count_shared()
-{
-    mkdir src dst
-
-    etestmsg "Mounting several times to ensure mount count goes up correctly"
-    local nmounts=10
-    for (( i=0; i<${nmounts}; ++i )); do
-        einfo "$(lval i)"
-        emount --bind src dst
-        emount --make-private dst
-        check_mounts dst $((i+1))
-    done
-
-    etestmsg "Umounting to verify counts go down properly"
-    for (( i=${nmounts}; i>0; --i )); do
-        einfo "$(lval i)"
-        eunmount dst
-        check_mounts dst $((i-1))
-    done
-}
-
-# Test bugfix where if you bind mount a directory (or file) and later 
-# remove the source of the bind mount then we were unable to unmount
-# the destination mount point and it would get caught in an infinite
-# loop.
-ETEST_emount_bind_orphaned()
-{
-    einfo "Creating src and dst"
-    mkdir src dst
-    einfo "Bind mounting src to dst"
-    emount --bind src dst
-    emounted dst || die
-    assert_eq 1 $(emount_count dst)
-
-    # Remove the source of the bind mount and verify we still
-    # recongize it's mounted (as we had a bug in emounted as well).
-    # NOTE: NO --one-file-system here as we purposefully want to cause
-    #       this problem. That also means we have to byass our 'rm' function.
-    einfo "Remove src and verify still mounted"
-    command rm --recursive --force src
-    emounted dst || die
-    assert_eq 1 $(emount_count dst)
-
-    # Ensure eunmount can unmount it and doesn't hang.
-    einfo "Unmount dst and verify not mounted"
-    eunmount dst
-    emounted dst && die
-    assert_eq 0 $(emount_count dst)
-}
-
-# Verify "emount -v" and "emount --verbose" enable verbose output.
-ETEST_emount_verbose()
-{
-    mkdir src dest
-    local output=$(EFUNCS_COLOR=0 emount --bind --verbose src dest 2>&1)
-    trap_add "eunmount dest"
-
-    assert_match "${output}" "- Mounting --bind --verbose src dest"
 }
 
 # Verify "eunmount -v" enables verbose output.

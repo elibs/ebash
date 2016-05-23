@@ -266,9 +266,9 @@ ETEST_overlayfs_multilayer()
     etestmsg "Unmounting final image"
     overlayfs_unmount dest
     assert_not_exists dest/{file1,file2,file3,file4,file5,file6}
-    assert_false grep "src1.squashfs" /proc/mounts
-    assert_false grep "src2.squashfs" /proc/mounts
-    assert_false grep "src3.squashfs" /proc/mounts
+    list_mounts | assert_false grep "src1.squashfs"
+    list_mounts | assert_false grep "src2.squashfs"
+    list_mounts | assert_false grep "src3.squashfs"
 }
 
 ETEST_overlayfs_multilayer_mixed_types()
