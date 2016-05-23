@@ -485,7 +485,7 @@ die()
 
     else
         echo "" >&2
-        eerror_internal   -c="${COLOR_ERROR}" "${message[@]}"
+        eerror_internal   -c="${COLOR_ERROR}" "${message[*]:-}"
         eerror_stacktrace -c="${COLOR_ERROR}" -f=${frames} -s
     fi
 
@@ -533,7 +533,7 @@ die()
         fi
     else
         if declare -f die_handler &>/dev/null; then
-            die_handler -r=${__BU_DIE_IN_PROGRESS} "${message[@]}"
+            die_handler -r=${__BU_DIE_IN_PROGRESS} "${@}"
             __BU_DIE_IN_PROGRESS=0
         else
             ekilltree -s=SIGTERM -k=2s $$
