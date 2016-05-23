@@ -152,7 +152,7 @@ assert_no_mount_leaks()
     
     if ! array_empty mounts; then
         eunmount -a -r -d=${delete} "${path}"
-        die "Leaked mounts under $(lval path)\n$(array_join_nl mounts)"
+        die "Leaked mounts under $(lval path)"$'\n'"$(array_join_nl mounts)"
     fi
 
     if [[ ${delete} -eq 1 ]]; then

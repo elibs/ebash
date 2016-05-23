@@ -195,7 +195,7 @@ eunmount()
             # Verify there are no mounts beneath this directory
             local mounts=( $(efindmnt "${mnt}") )
             if ! array_empty mounts; then
-                die "Cannot remove $(lval directory=mnt) with mounted filesystems:\n$(array_join_nl mounts)"
+                die "Cannot remove $(lval directory=mnt) with mounted filesystems:"$'\n'"$(array_join_nl mounts)"
             fi
 
             local rm_opts="--force"
