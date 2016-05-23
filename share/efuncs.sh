@@ -738,14 +738,14 @@ reexec()
 
     if [[ ${sudo} -eq 1 ]] ; then
         if [[ $(id -u) != 0 ]] ; then
-            exec sudo -E "${__BU_REEXEC_CMD[@]}"
+            exec sudo -E -- "${__BU_REEXEC_CMD[@]}"
         fi
     fi
 
     if [[ ${mount_ns} -eq 1 ]] ; then
         if [[ ${__BU_REEXEC_MOUNT_NS:-} != ${BASHPID} ]] ; then
             export __BU_REEXEC_MOUNT_NS=${BASHPID}
-            exec unshare -m "${__BU_REEXEC_CMD[@]}"
+            exec unshare -m -- "${__BU_REEXEC_CMD[@]}"
         fi
     fi
     unset __BU_REEXEC_CMD
