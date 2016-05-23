@@ -19,7 +19,18 @@ file_setup()
 file_teardown()
 {
     chroot_kill
-    chroot_unmount
+
+    # A known bug in bash (fixed in 4.3) causes exit traps not to be executed sometimes.  This seems
+    # to manifest itself when using our daemon functions in chroots, and the exit trap not executing
+    # leaks a mount.
+    #
+    # This only seems to affect bash 4.2.  DT-250 (https://solidfire.atlassian.net/browse/DT-250)
+    # will hopefully improve the daemon code so that this workaround is no longer necessary.
+    #
+    if [[ ${BASH_VERSION} == 4.2* ]] ; then
+        eunmount -r -a ${CHROOT}
+    fi
+
     eunmount -r -d ${CHROOT}
 }
 

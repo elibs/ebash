@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 
-## Check if we're root and re-execute if we're not through sudo ##
-if [[ $(id -u) != "0" ]]; then
-    exec sudo -E "$0" "$@"
-fi
-
 : ${EMSG_PREFIX:=time}
 
 : ${BASHUTILS_HOME:=$(dirname $0)/..}
 : ${BASHUTILS:=${BASHUTILS_HOME}/share}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
 export BASHUTILS
+
+if [[ ${__BU_OS} == "Linux" ]] ; then
+    reexec --sudo --mount-ns
+fi
 
 # Normalize BASHUTILS path in case any tests depend on it looking... normal.
 # Note: wait until after sourcing so that we can let bashutils make sure we get
@@ -153,7 +152,7 @@ assert_no_mount_leaks()
     
     if ! array_empty mounts; then
         eunmount -a -r -d=${delete} "${path}"
-        die "Leaked mounts under $(lval path)\n$(array_join_nl mounts)"
+        die "Leaked mounts under $(lval path)"$'\n'"$(array_join_nl mounts)"
     fi
 
     if [[ ${delete} -eq 1 ]]; then
@@ -343,7 +342,7 @@ run_all_tests_in_file()
             test_rc=$?
             [[ ${break} -eq 0 ]] || die "${testfunc} failed and break=1" &>${ETEST_OUT}
             FAILURES[${testfilename}]+="${testfunc} "
-            [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_FAILED_COUNT += 1 ))
+            (( TEST_FAILED_COUNT += 1 ))
         }
         [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_EXECUTED_COUNT += 1 ))
 

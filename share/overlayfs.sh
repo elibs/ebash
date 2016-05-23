@@ -113,7 +113,7 @@ overlayfs_mount()
     local metadir=$(mktemp --tmpdir --directory overlayfs-meta-XXXXXX)
     stacktrace > "${metadir}/stacktrace"
     mkdir -p ${metadir}/{sources,lowerdirs,upperdir,workdir,merged}
-    mount --bind "${dest}" "${metadir}/merged"
+    ebindmount "${dest}" "${metadir}/merged"
 
     # Track source and lowerdirs
     local src="" lower="" lower_src=""
@@ -256,7 +256,7 @@ overlayfs_layers()
 
     # Look for an overlayfs mount point matching provided mount point. It may NOT be
     # mounted (hence the || true) in which case we should just return.
-    local entry=$(grep "^${__BU_OVERLAYFS} ${mnt}" /proc/mounts | grep -Po "upperdir=\K[^, ]*" || true)
+    local entry=$(list_mounts | grep "^${__BU_OVERLAYFS} ${mnt}" | grep -Po "upperdir=\K[^, ]*" || true)
     if [[ -z ${entry} ]]; then
         return 0
     fi

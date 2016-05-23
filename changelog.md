@@ -115,6 +115,9 @@
       array code to array.sh, etc.  The proper thing to do is to continue
       to source only bashutils.sh.  The rest are really just internals.
 
+    - New reexec function that can re-execute the current script with the
+      same arguments under sudo, in a mount namespace, or both.
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common
