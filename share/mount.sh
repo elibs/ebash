@@ -79,7 +79,19 @@ ebindmount()
     # own, but that action won't actually affect the others.
     #
     # stat --format %m <file> lists the mount point that a particular file is on.
-    mount --make-rprivate "$(stat -c %m "${src}")"
+    local source_mountpoint="$(stat -c %m "${src}")"
+
+    # Then we look in the mount table to make sure we can access the mount point.  We might not be
+    # able to see it if we're in a chroot, for instance.
+    local mountinfo_entry=$(awk '$5 == "'${source_mountpoint}'"' /proc/self/mountinfo)
+
+    # Assuming we can see the mountpoint, make it private
+    if [[ -n "${mountinfo_entry}" ]] ; then
+        edebug "Making source mountpoint private $(lval source_mountpoint src dest)"
+        mount --make-rprivate "${source_mountpoint}"
+    fi
+
+    # Last, do the bind mount and make the destination private as well
     emount --rbind "${@}" "${src}" "${dest}"
     mount --make-rprivate "${dest}" 
 }

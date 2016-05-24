@@ -166,6 +166,36 @@ ETEST_chroot_install()
     chroot_uninstall
 }
 
+# This test verifies a portion of ebindmount that can only readily be demonstrated inside a chroot.
+# Once inside, you're no longer able to see mountpoints that exist on the filesystem outside the
+# chroot.  But ebindmount attempts to call mount --make-rprivate on the source of things it bind
+# mounts.  If it cannot see them, it fails.
+#
+# This test thus does a bind mount from something that would be on a filesystem whose mount point
+# the chroot cannot see.
+ETEST_chroot_ebindmount()
+{
+    chroot_mount
+    trap_add "chroot_exit"
+
+    local dirname=${FUNCNAME}-$BASHPID-$$
+
+    chroot_cmd 'mkdir /'"${dirname}"
+    chroot_cmd 'mkdir /'"${dirname}-bound"
+
+    # Bind mount bashutils into the chroot so we can call ebindmount from that
+    ebindmount "${BASHUTILS_HOME}" "${CHROOT}/${dirname}"
+
+    # Bind a local directory to another at the top of the hierarchy so we can be sure the filesystem
+    # source of the first is a filesystem whose root we cannot see in this chroot
+    chroot_cmd "BASHUTILS_HOME=/${dirname} BASHUTILS=${dirname}/share /${dirname}/bin/bashutils ebindmount /${dirname} /${dirname}-bound"
+
+    assert_exists "${CHROOT}/${dirname}-bound/share/bashutils.sh"
+
+    # Clean up
+    eunmount -r "${CHROOT}/${dirname}"
+}
+
 #-----------------------------------------------------------------------------
 # CHROOT DAEMON TESTS
 #-----------------------------------------------------------------------------
