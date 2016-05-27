@@ -237,10 +237,11 @@ ETEST_daemon_logfile()
     }
 
     local mdaemon
-    daemon_init mdaemon      \
-        "${DAEMON_EXPECT[@]}"\
-        name="My Daemon"     \
-        cmdline="launch"
+    daemon_init mdaemon       \
+        "${DAEMON_EXPECT[@]}" \
+        name="My Daemon"      \
+        cmdline="launch"      \
+        logfile="logfile.log" \
 
     $(pack_import mdaemon logfile)
 
@@ -393,4 +394,90 @@ ETEST_daemon_respawn_reset()
     assert_false daemon_running sleep_daemon
     assert_false daemon_status -q sleep_daemon
     assert_not_exists pidfile
+}
+
+ETEST_daemon_output()
+{
+    local script=${FUNCNAME}.testscript
+cat >${script} <<EOF
+#!/usr/bin/env bash
+
+echo "Starting test"
+while true ; do
+    echo ${FUNCNAME}:stdout
+    echo ${FUNCNAME}:stderr >&2
+    sleep .1
+done
+EOF
+    chmod +x ${script}
+    script=$(readlink -m ${script})
+
+    local logfile=$(readlink -m logfile)
+
+    daemon_init noisy_daemon    \
+        "${DAEMON_EXPECT[@]}"   \
+        name="noisy daemon"     \
+        cmdline="${script}"     \
+        logfile="${logfile}"
+
+    ebanner "Running noisy daemon with logfile, which should make it quiet"
+
+    EDEBUG=0 daemon_start noisy_daemon >stdout 2>stderr
+    daemon_expect pre_start
+    daemon_expect post_mount
+
+    sleep .5
+
+    daemon_stop noisy_daemon&
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+
+    local stdout="$(cat stdout)"
+    local stderr="$(cat stderr)"
+
+    local log_contents="$(cat ${logfile})"
+    etestmsg stdout
+    cat stdout
+    etestmsg stderr
+    cat stderr
+    etestmsg logfile
+    cat "${logfile}"
+
+    assert_not_match "${stdout}"       "${FUNCNAME}"
+    assert_not_match "${stderr}"       "${FUNCNAME}"
+    assert_match     "${log_contents}" "${FUNCNAME}:stdout" 
+    assert_match     "${log_contents}" "${FUNCNAME}:stderr" 
+
+    ebanner "Running noisy daemon without logfile, so we should see output"
+
+    unset noisy_daemon
+    daemon_init noisy_daemon    \
+        "${DAEMON_EXPECT[@]}"   \
+        name="noisy daemon"     \
+        cmdline="${script}"     \
+
+    EDEBUG=0 daemon_start noisy_daemon >stdout 2>stderr
+    daemon_expect pre_start
+    daemon_expect post_mount
+
+    sleep .5
+
+    daemon_stop noisy_daemon&
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+
+    local stdout="$(cat stdout)"
+    local stderr="$(cat stderr)"
+
+    etestmsg stdout
+    cat stdout
+    etestmsg stderr
+    cat stderr
+
+    assert_match     "${stdout}" "${FUNCNAME}:stdout"
+    assert_match     "${stderr}" "${FUNCNAME}:stderr"
+    assert_not_match "${stdout}" "stderr"
+    assert_not_match "${stderr}" "stdout"
 }
