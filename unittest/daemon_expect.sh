@@ -27,7 +27,6 @@
 DAEMON_LOCK="daemon.lock"
 DAEMON_STATE="daemon_state"
 DAEMON_EXPECT=(
-    logfile="logfile.log"
     pre_start="daemon_react pre_start"
     pre_stop="daemon_react pre_stop"
     post_mount="daemon_react post_mount"
