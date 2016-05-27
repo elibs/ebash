@@ -187,7 +187,9 @@ daemon_start()
         enable_trace
 
         # Setup logfile
-        elogfile -o=1 -e=1 -r=${logfile_count} -s=${logfile_size} "${logfile}"
+        if [[ -n "${logfile}" ]] ; then
+            elogfile --stdout --stderr --no-tail --rotate_count ${logfile_count} --rotate_size ${logfile_size} "${logfile}"
+        fi
 
         # Info
         einfo "Starting ${name}"
@@ -199,9 +201,6 @@ daemon_start()
         # have been done by elogfile).
         exec 0</dev/null
         close_fds
-        if [[ -z ${logfile} ]]; then
-            exec 1>/dev/null 2>/dev/null
-        fi
 
         # Create empty pidfile
         mkdir -p $(dirname ${pidfile})
@@ -348,7 +347,9 @@ daemon_stop()
     $(pack_import ${optpack})
 
     # Setup logfile
-    elogfile -o=1 -e=1 "${logfile}"
+    if [[ -n "${logfile}" ]] ; then
+        elogfile -o=1 -e=1 "${logfile}"
+    fi
 
     # Info
     einfo "Stopping ${name}"

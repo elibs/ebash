@@ -118,6 +118,9 @@
     - New reexec function that can re-execute the current script with the
       same arguments under sudo, in a mount namespace, or both.
 
+    - The daemon functions will now close stdout and stderr when a logfile
+      is specified but leave them open if not.
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common
