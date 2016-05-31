@@ -236,7 +236,7 @@ pipe_read_quote()
 }
 
 opt_usage tryrc <<'END'
-tryrc is a convenience wrapper around try/catch that makes it really easy to execute a given command
+Tryrc is a convenience wrapper around try/catch that makes it really easy to execute a given command
 and capture the command's return code, stdout and stderr into local variables. We created this idiom
 because if you handle the failure of a command in any way then bash effectively disables set -e that
 command invocation REGARDLESS OF DEPTH. "Handling the failure" includes putting it in a while or
