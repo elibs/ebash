@@ -88,12 +88,12 @@ ebindmount()
     # Assuming we can see the mountpoint, make it private
     if [[ -n "${mountinfo_entry}" ]] ; then
         edebug "Making source mountpoint private $(lval source_mountpoint src dest)"
-        mount --make-rprivate "${source_mountpoint}"
+        mount --no-mtab --make-rprivate "${source_mountpoint}"
     fi
 
     # Last, do the bind mount and make the destination private as well
     emount --rbind "${@}" "${src}" "${dest}"
-    mount --make-rprivate "${dest}" 
+    mount --no-mtab --make-rprivate "${dest}"
 }
 
 opt_usage emount <<'END'
