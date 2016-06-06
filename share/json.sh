@@ -183,11 +183,14 @@ json_import()
             key="${key#\?}"
             val=$(jq -c -r ".${key}//empty" <<< ${_json_import_data})
         else
-            # Ensure the data has the requested key by appending a 'has' filter which emit 'true' or 'false' if the key was
-            # present. Adding '-e' option to jq will cause it to exit with non-zero if the last filter produces 'null' or 'false'.
-            # We don't actually care about the 'true/false' since we're relying on the return code being non-zero to trigger
-            # set -e error handling. So, we remove that from what we ultimately store into our value via 'head -1'.
-            val=$(jq -c -r -e '.'${key}', has("'${key}'")' <<< ${_json_import_data} | head -1)
+
+            local has_field=$(jq --raw-output '. | has("'${key}'")' <<< "${_json_import_data}")
+
+            if [[ ${has_field} != "true" ]] ; then
+                die "Data does not contain required $(lval key _json_import_data)"
+            fi
+
+            val=$(jq -c -r '.'${key} <<< "${_json_import_data}")
         fi
 
         edebug $(lval key val)
