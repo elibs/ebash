@@ -187,7 +187,7 @@ json_import()
             local has_field=$(jq --raw-output '. | has("'${key}'")' <<< "${_json_import_data}")
 
             if [[ ${has_field} != "true" ]] ; then
-                die "Data does not contain required key $(lval key _json_import_data)"
+                die "Data does not contain required $(lval key _json_import_data)"
             fi
 
             val=$(jq -c -r '.'${key} <<< "${_json_import_data}")
