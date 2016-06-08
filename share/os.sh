@@ -23,6 +23,9 @@ isfedora()
     [[ "Fedora" == $(edistro) ]]
 }
 
+opt_usage os_distro<<'EOF'
+Get the name of the currently running distro, or check whether it is in a list of specified distros.
+EOF
 os_distro()
 {
     $(opt_parse \
@@ -51,6 +54,10 @@ os_distro()
     fi
 }
 
+opt_usage os_release <<'EOF'
+Get the released version of the currently running OS or distribution, OR check whether that is in a
+list of release versions that you specify.
+EOF
 os_release()
 {
     $(opt_parse \
@@ -89,6 +96,11 @@ os_release()
 
 }
 
+
+opt_usage os <<'EOF'
+Get the unix name of the currently running OS, OR test it against a list of specified OSes returning
+success if it is in that list.
+EOF
 os()
 {
     $(opt_parse \
@@ -109,14 +121,4 @@ os()
     else
         echo "${__BU_OS}"
     fi
-}
-
-os_is_linux()
-{
-    [[ ${__BU_OS,,} == "linux" ]]
-}
-
-os_is_darwin()
-{
-    [[ ${__BU_OS,,} == "darwin" ]]
 }
