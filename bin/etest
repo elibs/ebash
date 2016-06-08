@@ -43,7 +43,6 @@ EDEBUG=${debug}
 edebug "$(lval TEST_DIR) $(opt_dump)"
 
 if ! cgroup_supported ; then
-    ewarn "Cgroups not supported on this system.  Process leaks will not be detected."
     export ETEST_CGROUP_BASE=unsupported
 else
     # Global cgroup name for all unit tests

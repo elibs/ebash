@@ -121,6 +121,8 @@
     - The daemon functions will now close stdout and stderr when a logfile
       is specified but leave them open if not.
 
+    - Added os detection functions (os, os_distro, os_release)
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common

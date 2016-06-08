@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+ETEST_os()
+{
+    local os=$(os)
+
+    assert_false os "dummy" "dummy2"
+    assert_true  os "dummy" "${os}" "dummy2"
+    assert_true  os "dummy" "${os^^}" "dummy2"
+    assert_true  os "dummy" "${os,,}" "dummy2"
+}
+
+ETEST_os_distro()
+{
+    if [[ ${__BU_OS} == "Linux" ]] ; then
+        local distro=$(os_distro)
+
+        assert_false os_distro MythicalDistro
+        assert_true  os_distro "${distro}"
+        assert_true  os_distro "${distro,,}"
+        assert_true  os_distro "${distro^^}"
+        assert_true  os_distro a b c "${distro^^}" e f g
+
+    else
+
+        # For an OS that doesn't support distro, no distro should match
+        assert_false os_distro SomeDistro
+
+        # but the function should still pass if you call it, albeit returning an empty string
+        assert_true  os_distro
+
+    fi
+}
+
+ETEST_os_release()
+{
+    local release=$(os_release)
+
+    assert_false os_release dummy1 dummy2
+    assert_true  os_release dummy1 "${release}" dummy2
+    assert_true  os_release dummy1 "${release^^}" dummy2
+    assert_true  os_release dummy1 "${release,,}" dummy2
+
+    # Pretend that this is ubuntu 16.04, whether it is or not
+    os() { [[ $1 == linux ]] && return 0 || return 1 ; }
+    lsb_release() { echo "16.04" ; } 
+
+    assert_eq 16.04 "$(os_release)"
+
+    # Pretend that this is darwin 10.11, whether it is or not
+    os() { [[ $1 == darwin ]] && return 0 || return 1 ; }
+    sw_vers() { echo "10.11.5" ; }
+
+    assert_eq 10.11.5 "$(os_release)"
+    
+
+}
