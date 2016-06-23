@@ -3,31 +3,35 @@
 ETEST_bashutils_bin_args()
 {
     string=" alpha   omega "
-    $(tryrc --stderr stderr ${BASHUTILS_HOME}/bin/bashutils einfo "${string}")
+    $(tryrc --rc rc --stderr stderr ${BASHUTILS_HOME}/bin/bashutils einfo "${string}")
 
+    assert_eq 0 ${rc}
     assert_match "${stderr}" "${string}"
 }
 
 ETEST_bashutils_bin_symlink()
 {
     string=" beta  gamma  "
-    $(tryrc --stderr stderr ${BASHUTILS_HOME}/bin/ewarn "${string}")
+    $(tryrc --rc rc --stderr stderr ${BASHUTILS_HOME}/bin/ewarn "${string}")
 
+    assert_eq 0 ${rc}
     assert_match "${stderr}" "${string}"
 }
 
 ETEST_bashutils_bin_symlink_name_plus_func()
 {
     string="  omega  alpha  "
-    $(tryrc --stdout stdout ${BASHUTILS_HOME}/bin/string trim "${string}")
+    $(tryrc --rc rc --stdout stdout ${BASHUTILS_HOME}/bin/string trim "${string}")
 
+    assert_eq 0 ${rc}
     assert_eq "omega  alpha" "${stdout}"
 }
 
 ETEST_bashutils_bin_calls_ibu()
 {
-    $(tryrc --stderr stderr ${BASHUTILS_HOME}/bin/bashutils</dev/null)
+    $(tryrc --rc rc --stderr stderr ${BASHUTILS_HOME}/bin/bashutils</dev/null)
 
+    assert_eq 0 ${rc}
     assert_match "${stderr}" ">>.*Bashutils BASHUTILS="
 }
 
@@ -44,4 +48,13 @@ EOF
 
     assert_match "${output}" "in an_unusual_func"
 
+}
+
+ETEST_bashutils_bin_specify_name()
+{
+    string="  hello  there  "
+    $(tryrc --rc rc --stderr stderr ${BASHUTILS_HOME}/bin/bashutils --name einfo "${string}")
+
+    assert_eq 0 ${rc}
+    assert_match "${stderr}" "${string}"
 }
