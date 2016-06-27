@@ -58,15 +58,24 @@ done
 : ${BASHUTILS:=${BASHUTILS_HOME}/share}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
-$(opt_parse \
-    ":source s        | Bashutils should source the specified file before attempting to run the specified command." \
-    ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend bashutils is running with the specified name.")
+
+declare name=${0##*/}
+declare source=""
+
+# If we were called as "bashutils", then the caller can specify options to this script.
+if [[ ${name} == "bashutils" ]] ; then
+
+    $(opt_parse \
+        ":source s        | Bashutils should source the specified file before attempting to run the specified command." \
+        ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend bashutils is running with the specified name.")
+
+    if [[ -n ${source} ]] ; then
+        source "${source}"
+    fi
+fi
 
 args=( "${@}" )
 
-if [[ -n ${source} ]] ; then
-    source "${source}"
-fi
 
 # If not called as bashutils...
 if [[ "${name}" != "bashutils" ]] ; then
