@@ -259,6 +259,24 @@ ecolor_internal()
     done
 }
 
+opt_usage noansi<<'END'
+Use this as a pipe that filters out ansi characters or specify file names that should be modified to
+remove ansi characters.
+END
+# Use this as a pipe that filters out ansi characters
+noansi()
+{
+    $(opt_parse "@files | Files to modify.  If none are specified, operate on stdin and spew to stdout.")
+
+    if array_empty files ; then
+        sed "s:\x1B\[[0-9;]*[mK]::g"
+
+    else
+        sed -i "s:\x1B\[[0-9;]*[mK]::g" "${files[@]}"
+    fi
+}
+    
+
 eclear()
 {
     tput clear >&2
