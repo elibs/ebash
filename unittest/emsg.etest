@@ -191,3 +191,60 @@ ETEST_etrace()
     assert_empty "${stderr}"
 }
 
+ETEST_emsg_reset_at_end_when_needed()
+{
+    local output=$(EMSG_PREFIX="" emsg "red" "XX" "WARN" "message" 2>&1)
+    local without_prefix_or_start_of_message=$(echo "${output}" | sed 's/^.*XX.*mess//')
+
+    echo "output: ${output}" | cat -evt
+    echo "without_prefix_or_start_of_message: ${without_prefix_or_start_of_message}" | cat -evt
+
+    assert_ne "${without_prefix_or_start_of_message}" "age"
+    assert_eq "age" "$(echo "${without_prefix_or_start_of_message}" | noansi)"
+}
+
+ETEST_emsg_reset_not_at_end_when_unnecessary()
+{
+    local output=$(EMSG_PREFIX="" emsg "red" "XX" "INFO" "message" 2>&1)
+    local without_prefix_or_start_of_message=$(echo "${output}" | sed 's/^.*XX.*mess//')
+
+    echo "output: ${output}" | cat -evt
+    echo "without_prefix_or_start_of_message: ${without_prefix_or_start_of_message}" | cat -evt
+
+    assert_eq "${without_prefix_or_start_of_message}" "age"
+}
+
+ETEST_noansi_pipe()
+{
+    etestmsg "This line shouldn't be colored." |& noansi
+
+    declare without_color=$(ECOLOR=1 ewarn "HELLO" |& noansi)
+    declare with_color=$(ECOLOR=1 ewarn "HELLO" 2>&1 )
+
+    declare -p without_color with_color
+
+    assert_match "${with_color}" "HELLO"
+    assert_match "${without_color}" "HELLO"
+    assert_ne "${without_color}" "${with_color}"
+}
+
+ETEST_noansi_files()
+{
+    ECOLOR=1 EMSG_PREFIX="" ewarn "A" 2> file_a
+    ECOLOR=1 EMSG_PREFIX="" ewarn "B" 2> file_b
+
+    declare a_contents="$(cat file_a)"
+    declare b_contents="$(cat file_b)"
+    
+    assert_ne "A" "${a_contents}"
+    assert_ne "B" "${b_contents}"
+
+    noansi file_a file_b
+
+    a_contents="$(cat file_a)"
+    b_contents="$(cat file_b)"
+
+    assert_eq ">> A" "${a_contents}"
+    assert_eq ">> B" "${b_contents}"
+}
+
