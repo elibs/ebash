@@ -191,6 +191,29 @@ ETEST_etrace()
     assert_empty "${stderr}"
 }
 
+ETEST_emsg_reset_at_end_when_needed()
+{
+    local output=$(EMSG_PREFIX="" emsg "red" "XX" "WARN" "message" 2>&1)
+    local without_prefix_or_start_of_message=$(echo "${output}" | sed 's/^.*XX.*mess//')
+
+    echo "output: ${output}" | cat -evt
+    echo "without_prefix_or_start_of_message: ${without_prefix_or_start_of_message}" | cat -evt
+
+    assert_ne "${without_prefix_or_start_of_message}" "age"
+    assert_eq "age" "$(echo "${without_prefix_or_start_of_message}" | noansi)"
+}
+
+ETEST_emsg_reset_not_at_end_when_unnecessary()
+{
+    local output=$(EMSG_PREFIX="" emsg "red" "XX" "INFO" "message" 2>&1)
+    local without_prefix_or_start_of_message=$(echo "${output}" | sed 's/^.*XX.*mess//')
+
+    echo "output: ${output}" | cat -evt
+    echo "without_prefix_or_start_of_message: ${without_prefix_or_start_of_message}" | cat -evt
+
+    assert_eq "${without_prefix_or_start_of_message}" "age"
+}
+
 ETEST_noansi_pipe()
 {
     etestmsg "This line shouldn't be colored." |& noansi

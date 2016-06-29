@@ -430,15 +430,16 @@ emsg()
             echo -n "${header} "
         fi
 
+        declare msg_color=1
         # If EMSG_COLOR doesn't say to color the message turn off color before
         # we start printing it
-        [[ ! ${EMSG_COLOR} =~ ${BU_WORD_BEGIN}(all|msg)${BU_WORD_END} ]] && ecolor reset
+        [[ ! ${EMSG_COLOR} =~ ${BU_WORD_BEGIN}(all|msg)${BU_WORD_END} ]] && { msg_color=0 ; ecolor reset ; }
 
         # Also, only print colored messages for certain levels
-        [[ ${level} != @(DEBUG|WARN|WARNS|ERROR) ]] && ecolor reset
+        [[ ${level} != @(DEBUG|WARN|WARNS|ERROR) ]] && { msg_color=0 ; ecolor reset ; }
 
         echo -n "${msg}"
-        ecolor reset
+        [[ ${msg_color} -eq 1 ]] && ecolor reset
         echo ""
     } >&2
 }
