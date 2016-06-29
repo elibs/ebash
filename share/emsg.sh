@@ -259,6 +259,24 @@ ecolor_internal()
     done
 }
 
+opt_usage noansi<<'END'
+Noansi filters out ansi characters such as color codes.  It can modify files in place if you specify
+any.  If you do not, it will assume that you'd like it to operate on stdin and repeat the modified
+output to stdout.
+END
+noansi()
+{
+    $(opt_parse "@files | Files to modify.  If none are specified, operate on stdin and spew to stdout.")
+
+    if array_empty files ; then
+        sed "s:\x1B\[[0-9;]*[mK]::g"
+
+    else
+        sed -i "s:\x1B\[[0-9;]*[mK]::g" "${files[@]}"
+    fi
+}
+    
+
 eclear()
 {
     tput clear >&2
@@ -412,15 +430,16 @@ emsg()
             echo -n "${header} "
         fi
 
+        declare msg_color=1
         # If EMSG_COLOR doesn't say to color the message turn off color before
         # we start printing it
-        [[ ! ${EMSG_COLOR} =~ ${BU_WORD_BEGIN}(all|msg)${BU_WORD_END} ]] && ecolor reset
+        [[ ! ${EMSG_COLOR} =~ ${BU_WORD_BEGIN}(all|msg)${BU_WORD_END} ]] && { msg_color=0 ; ecolor reset ; }
 
         # Also, only print colored messages for certain levels
-        [[ ${level} != @(DEBUG|WARN|WARNS|ERROR) ]] && ecolor reset
+        [[ ${level} != @(DEBUG|WARN|WARNS|ERROR) ]] && { msg_color=0 ; ecolor reset ; }
 
         echo -n "${msg}"
-        ecolor reset
+        [[ ${msg_color} -eq 1 ]] && ecolor reset
         echo ""
     } >&2
 }

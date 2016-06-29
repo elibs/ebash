@@ -200,7 +200,7 @@ global_teardown()
     if [[ ${html} -eq 1 ]] && which ansi2html &>/dev/null; then
         edebug "Converting ${ETEST_LOG} into HTML"
         cat ${ETEST_LOG} | ansi2html --scheme=xterm > ${ETEST_LOG/.log/.html}
-        sed -i "s:\x1B\[[0-9;]*[mK]::g" ${ETEST_LOG}
+        noansi ${ETEST_LOG}
     fi
 
     edebug "Finished global_teardown"
