@@ -260,10 +260,10 @@ ecolor_internal()
 }
 
 opt_usage noansi<<'END'
-Use this as a pipe that filters out ansi characters or specify file names that should be modified to
-remove ansi characters.
+Noansi filters out ansi characters such as color codes.  It can modify files in place if you specify
+any.  If you do not, it will assume that you'd like it to operate on stdin and repeat the modified
+output to stdout.
 END
-# Use this as a pipe that filters out ansi characters
 noansi()
 {
     $(opt_parse "@files | Files to modify.  If none are specified, operate on stdin and spew to stdout.")
