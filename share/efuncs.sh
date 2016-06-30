@@ -1971,12 +1971,12 @@ discard_qualifiers()
 #
 assert()
 {
-    quote_eval "${@}"
+    eval "${@}"
 }
 
 assert_true()
 {
-    quote_eval "${@}"
+    eval "${@}"
 }
 
 assert_false()
