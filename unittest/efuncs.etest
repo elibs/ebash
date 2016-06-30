@@ -216,3 +216,21 @@ ETEST_string_truncate()
     assert_eq "${string:0:15}"    "$(string_truncate     15 "${string}")"
     assert_eq "${string:0:12}..." "$(string_truncate -e  15 "${string}")"
 }
+
+ETEST_assert_true()
+{
+    assert_true true
+    $(tryrc assert_true false)
+    [[ ${rc} -ne 0 ]]
+}
+
+ETEST_assert_false()
+{
+    etestmsg "assert_false false is true"
+    assert_false false
+
+    etestmsg "assert_false true is false"
+    $(tryrc assert_false true)
+    [[ ${rc} -ne 0 ]]
+}
+
