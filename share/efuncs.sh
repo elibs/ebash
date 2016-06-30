@@ -1971,35 +1971,28 @@ discard_qualifiers()
 #
 assert()
 {
-    local cmd=( "${@}" )
-    
-    try
-    {
-        eval "${cmd[@]}"
-    }
-    catch
-    {
-        [[ $? -eq 0 ]] || die "assert failed (rc=$?}) :: ${cmd[@]}"
-    }
+    eval "${@}"
 }
 
 assert_true()
 {
-    assert "${@}"
+    eval "${@}"
 }
 
 assert_false()
 {
     local cmd=( "${@}" )
     
+    local rc=0
     try
     {
         eval "${cmd[@]}"
     }
     catch
     {
-        [[ $? -ne 0 ]] || die "assert failed (rc=$?) :: ${cmd[@]}"
+        rc=$?
     }
+    [[ ${rc} -ne 0 ]] || die "assert failed (rc=${rc}) :: ${cmd[@]}"
 }
 
 assert_op()

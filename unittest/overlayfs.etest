@@ -237,7 +237,11 @@ ETEST_overlayfs_commit_dedupe()
     local md5=$(md5sum src.squashfs)
     local mod=$(stat -c %y src.squashfs)
     assert_true emounted dest
-    assert_false overlayfs_changed dest
+
+    # Note: although we only copied files effectively over themselves, we should see them as changes
+    # unless someone calls overlayfs_dedupe
+    overlayfs_changed dest
+
     overlayfs_commit --list --diff dest
     assert_false emounted dest
 
