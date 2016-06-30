@@ -74,36 +74,29 @@ if [[ ${name} == "bashutils" ]] ; then
     fi
 fi
 
-args=( "${@}" )
-
-
 # If not called as bashutils...
 if [[ "${name}" != "bashutils" ]] ; then
 
     # If there's a function in the group with the specified command name call
     # it
-    if declare -f "${name}_${1}" &>/dev/null ; then
+    if [[ -n ${1:-} ]] && declare -f "${name}_${1}" &>/dev/null ; then
 
-        # Run the command, but pretend to be inside a try so that die doesn't
-        # print an ugly stack trace.
-        quote_eval "${name}_${1}" "${args[@]:1}"
+        quote_eval "${name}_${1}" "${@:2}"
 
     # Otherwise assume the called name is also the name of a bashutils function
     # and pass everything as arguments to it.
     else
-        # Run the command, but pretend to be inside a try so that die doesn't
-        # print an ugly stack trace.
-        quote_eval "${name}" "${args[@]}"
+        quote_eval "${name}" "${@:1}"
     fi
 
 # However, if called as bashutils...
 else
 
     # Use all arguments to bashutils as a command to execute
-    if [[ ${#args[@]} -gt 0 ]] ; then
+    if [[ ${#@} -gt 0 ]] ; then
         # Run the command, but pretend to be inside a try so that die doesn't
         # print an ugly stack trace.
-        quote_eval "${args[@]}"
+        quote_eval "${@}"
 
     # Or run ibu if nothing was specified
     else
