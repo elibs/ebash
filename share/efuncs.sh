@@ -1940,7 +1940,7 @@ discard_qualifiers()
 # running it without assert) and calls die if that command returns a bad exit
 # code.
 #
-# NOTE: This doesn't work with bash double-braket expressions.  Use test instead
+# NOTE: This doesn't work with bash double-bracket expressions.  Use test instead.
 # 
 # For example:
 #    assert test 0 -eq 1
@@ -2048,9 +2048,9 @@ assert_empty()
     done
 }
 
-opt_usage assert_empty<<'END'
-All arguments passed to assert_empty must be non-empty strings or else it will die and display the
-first that is not.
+opt_usage assert_not_empty<<'END'
+All arguments passed to assert_not_empty must be non-empty strings or else it will die and display
+the first that is not.
 END
 assert_not_empty()
 {
