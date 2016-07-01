@@ -465,8 +465,8 @@ ETEST_tryrc_no_output()
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 1 "${rc}"
-    assert_empty stdout
-    assert_empty stderr
+    assert_var_empty stdout
+    assert_var_empty stderr
 }
 
 ETEST_tryrc_stacktrace()
