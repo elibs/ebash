@@ -1829,6 +1829,12 @@ quote_eval()
         cmd+=( "$(printf %q "${arg}")" )
     done
 
+    # The bash [[ ]] expression doesn't deal well with having it's end quoted.  And quoting isn't
+    # necessary for those characters, so drop quoting whenever we see ]] at the end of an expression
+    if [[ ${cmd[-1]} == '\]\]' ]] ; then
+        cmd[-1]=']]'
+    fi
+
     eval "${cmd[@]}"
 }
 
@@ -1971,12 +1977,12 @@ discard_qualifiers()
 #
 assert()
 {
-    eval "${@}"
+    quote_eval "${@}"
 }
 
 assert_true()
 {
-    eval "${@}"
+    quote_eval "${@}"
 }
 
 assert_false()
@@ -1986,7 +1992,7 @@ assert_false()
     local rc=0
     try
     {
-        eval "${cmd[@]}"
+        "${cmd[@]}"
     }
     catch
     {
@@ -2034,22 +2040,47 @@ assert_not_zero()
     [[ ${1:-1} -ne 0 ]] || die "assert_not_zero received ${1}."
 }
 
+opt_usage assert_empty<<'END'
+All arguments passed to assert_empty must be empty strings or else it will die and display the first
+that is not.
+END
 assert_empty()
 {
     local _arg
-    for _arg in $@; do
-        [[ "${!_arg:-""}" == "" ]] || die "assert_empty received $(lval _arg)"
+    for _arg in "$@" ; do
+        [[ -z "${_arg}" ]] || die "${FUNCNAME} received $(lval _arg)"
     done
 }
 
+opt_usage assert_empty<<'END'
+All arguments passed to assert_empty must be non-empty strings or else it will die and display the
+first that is not.
+END
 assert_not_empty()
 {
     local _arg
-    for _arg in $@; do
-        [[ "${!_arg}" != "" ]] || die "assert_not_empty received $(lval _arg)"
+    for _arg in "$@" ; do
+        [[ -n ${_arg} ]] || die "${FUNCNAME} received $(lval _arg)"
     done
 }
 
+opt_usage assert_var_empty<<'END'
+Accepts variable names as parameters.  All passed in variable names must be either unset or must
+contain only an empty string.
+
+Note: there is not an analogue assert_var_not_empty.  Use argcheck instead.
+END
+assert_var_empty()
+{
+    local _arg
+    for _arg in "$@" ; do
+        [[ "${!_arg:-}" == "" ]] || die "${FUNCNAME} received $(lval _arg)"
+    done
+}
+
+opt_usage assert_exists<<'END'
+Accepts any number of filenames.  Blows up if any of the named files do not exist.
+END
 assert_exists()
 {
     local name
@@ -2058,6 +2089,9 @@ assert_exists()
     done
 }
 
+opt_usage assert_exists<<'END'
+Accepts any number of filenames.  Blows up if any of the named files exist.
+END
 assert_not_exists()
 {
     local name

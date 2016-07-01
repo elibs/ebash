@@ -16,11 +16,11 @@ ETEST_pack_empty_values()
 
     val=$(pack_get P a)
     assert_zero $?
-    assert_empty val
+    assert_var_empty val
 
     val=$(pack_get P b)
     assert_zero $?
-    assert_empty val
+    assert_var_empty val
 
     assert_eq 2 $(pack_size P)
 }
@@ -58,7 +58,7 @@ ETEST_pack_nonexistent()
     pack_set P a=1
 
     b=$(pack_get P b)
-    assert_empty b
+    assert_var_empty b
     assert_false pack_contains P b
 }
 
@@ -87,7 +87,7 @@ ETEST_pack_get_from_empty()
     a=$(pack_get P a)
 
     assert_false pack_contains P a
-    assert_empty a
+    assert_var_empty a
 }
 
 ETEST_pack_last_of_dupes()
@@ -149,7 +149,7 @@ ETEST_pack_values_can_contain_whitespace()
 ETEST_pack_update_empty_stays_empty()
 {
     pack_update P a=1 b=2 c=3
-    assert_empty P
+    assert_var_empty P
 }
 
 ETEST_pack_update_updates_values()
@@ -265,7 +265,7 @@ ETEST_pack_copy_over()
 
 ETEST_pack_import_all()
 {
-    assert_empty a b
+    assert_var_empty a b
 
     pack_set P a=10 b=20
     $(pack_import P)
@@ -276,14 +276,14 @@ ETEST_pack_import_all()
 
 ETEST_pack_import_specific()
 {
-    assert_empty a b c
+    assert_var_empty a b c
 
     pack_set P a=1 b=2 c=3
     $(pack_import P a b)
 
     assert_eq 1  ${a}
     assert_eq 2  ${b}
-    assert_empty c
+    assert_var_empty c
 }
 
 ETEST_pack_export()
