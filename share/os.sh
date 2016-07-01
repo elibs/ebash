@@ -49,6 +49,10 @@ os_distro()
 
         return 1
 
+    elif [[ -z ${actual_distro} && ${#@} -gt 0 ]] ; then
+        # If we're not on an OS with distros, no specified distro can be a match.
+        return 1
+
     else
         echo "${actual_distro}"
     fi

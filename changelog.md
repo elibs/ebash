@@ -1,4 +1,12 @@
 # Bashutils 1.3
+    
+    - Corrected substantial defects in the existing assert functions and
+      added unit tests for them.
+
+    - assert_empty and assert_not_empty now accept strings and blows up if
+      any of the strings do not meet their criteria.  Previously they
+      expected the name of a variable.  Assert_var_empty and
+      assert_var_not_empty have been added to handle that use case.
 
     - Created a new opt_parse function that contains all of the argument
       handling functionality that `declare_args` used to while also being
