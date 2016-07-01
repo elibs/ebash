@@ -58,8 +58,8 @@ ETEST_elogrotate_size()
     ls -ltr
     assert_exists foo foo.1
     assert_not_exists foo.2
-    assert_false [[ -s foo   ]]
-    assert_true  [[ -s foo.1 ]]
+    assert_false test -s foo
+    assert_true  test -s foo.1
 }
 
 ETEST_elogrotate_prune()

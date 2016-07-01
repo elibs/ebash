@@ -262,7 +262,6 @@ daemon_start()
                             fi
 
                             ebindmount "${src}" "${CHROOT}/${dest}"
-                            trap_add "eunmount ${CHROOT}/${dest}"
                         done
                     fi
 
@@ -291,6 +290,17 @@ daemon_start()
             # it).
             SECONDS=0
             wait ${pid} &>/dev/null || true
+
+            # Note: it would be quite possible to accomplish this as a trap in the shell where the
+            # mount is created, but traps are less-than-perfectly-reliable on Ubuntu 12.04.  To be
+            # sure we clean up mounts, we do it here explicitly.
+            if [[ -n ${bindmounts} ]] ; then
+                local to_unmount=( ${bindmounts} )
+                for mnt in "${to_unmount[@]}" ; do
+                    eunmount "${CHROOT}/${mnt}"
+                done
+            fi
+
 
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }

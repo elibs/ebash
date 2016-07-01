@@ -41,7 +41,7 @@ ETEST_daemon_start_stop()
     daemon_expect pre_start
     daemon_expect post_mount
     assert_true daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
+    assert test -s ${pidfile}
     assert process_running $(cat ${pidfile})
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
@@ -116,7 +116,7 @@ DISABLED_ETEST_daemon_netns()
     daemon_expect pre_start
     daemon_expect post_mount
     assert_true daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
+    assert test -s ${pidfile}
     assert process_running $(cat ${pidfile})
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
@@ -157,7 +157,7 @@ ETEST_daemon_cgroup()
     daemon_expect pre_start
     daemon_expect post_mount
     assert_true daemon_running sleep_daemon
-    assert [[ -s ${pidfile} ]]
+    assert test -s ${pidfile}
 
     local running_pids=$(cgroup_pids ${CGROUP})
     etestmsg "Daemon running $(lval CGROUP running_pids)"
