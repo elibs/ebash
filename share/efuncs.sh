@@ -1940,8 +1940,6 @@ discard_qualifiers()
 # running it without assert) and calls die if that command returns a bad exit
 # code.
 #
-# NOTE: This doesn't work with bash double-bracket expressions.  Use test instead.
-# 
 # For example:
 #    assert test 0 -eq 1
 #
@@ -1970,6 +1968,20 @@ discard_qualifiers()
 # which you could use like this:
 #
 #    assert_empty empty
+#
+#
+# IMPLEMENTATION NOTE: This doesn't work with bash double-bracket expressions.  Use test instead.
+# To the best of my (Odell) understanding (as of 2016-07-01) bash must treat [[ ]] syntax specially.
+# The problem is that we have two options for trying to run what is passed in to assert.
+#
+#     1) Pass it through eval, which will drop one more layer of quoting that we'd normally expect
+#        (because it already dropped 1 layer of quoting when assert was called)
+#     2) Just execute the command as something inside an array.  For instance, we could run it like
+#        this
+#           "${cmd[@]"
+#        It works great for most commands, but blows up complaining that [[ isn't known as a valid
+#        command.  Perhaps you can't run builtins in this manner?  Or at the very least you can't
+#        run [[.
 #
 assert()
 {
