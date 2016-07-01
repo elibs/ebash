@@ -49,7 +49,7 @@ ETEST_edebug_pipe_input()
 
 ETEST_edebug_pipe_empty()
 {
-    local output=$(EDEBUG=${FUNCNAME}; true | edebug 2>&1)
+    local output=$(EMSG_PREFIX="" ; EDEBUG=${FUNCNAME}; true | edebug 2>&1)
     assert_empty "${output}"
 }
 

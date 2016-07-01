@@ -85,7 +85,7 @@ ETEST_cgroup_destroy_recursive()
 
     cgroup_destroy -r ${CGROUP}
 
-    assert ! cgroup_exists ${CGROUP}/{a,b,c,d} ${CGROUP}
+    assert_false cgroup_exists ${CGROUP}/{a,b,c,d} ${CGROUP}
 }
 
 ETEST_cgroup_create_destroy()
@@ -96,7 +96,7 @@ ETEST_cgroup_create_destroy()
     # Create cgroup and make sure the directories exist in each subsystem
     cgroup_create ${CGROUP}
     for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
-        assert [[ -d /sys/fs/cgroup/${subsys}/${CGROUP} ]]
+        assert test -d /sys/fs/cgroup/${subsys}/${CGROUP}
     done
 
     cgroup_exists ${CGROUP}
@@ -104,7 +104,7 @@ ETEST_cgroup_create_destroy()
     # And make sure they get cleaned up
     cgroup_destroy ${CGROUP}
     for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
-        assert [[ ! -d /sys/fs/cgroup/${subsys}/${CGROUP} ]]
+        assert test ! -d /sys/fs/cgroup/${subsys}/${CGROUP}
     done
 }
 
@@ -127,7 +127,7 @@ ETEST_cgroup_exists()
     etestmsg "Checking detection of destroyed cgroup"
     cgroup_destroy -r ${CGROUP}
     cgroup_exists ${CGROUP} || rc=$?
-    assert [[ ${rc} -eq 1 ]]
+    assert test ${rc} -eq 1
 
     etestmsg "Checking detection of created cgroup"
     rc=0
@@ -139,7 +139,7 @@ ETEST_cgroup_exists()
     rmdir /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${CGROUP}
     find /sys/fs/cgroup -wholename "${CGROUP}" -ls
     $(tryrc cgroup_exists ${CGROUP})
-    assert [[ ${rc} -eq 2 ]]
+    assert test ${rc} -eq 2
 }
 
      
@@ -226,7 +226,7 @@ ETEST_cgroup_pids_missing_cgroup()
         # And it should return an error code, specifically two for the two
         # cgroups (b and c) that do not exist
         cgroup_pids -r ${CGROUP}/{a,b,c} || rc=$?
-        assert [[ ${rc} -eq 2 ]]
+        assert test ${rc} -eq 2
     )
 }
 

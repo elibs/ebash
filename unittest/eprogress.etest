@@ -129,7 +129,7 @@ ETEST_eprogress_inside_eretry()
     eprogress "Waiting for eretry"
     $(tryrc eretry false)
     eprogress_kill
-    assert [[ "$(tail -1 ${OUTPUT} || true)" -ge 5 ]]
+    assert test "$(tail -1 ${OUTPUT} || true)" -ge 5
 }
 
 ETEST_eprogress_kill_before_eprogress()

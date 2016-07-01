@@ -1829,12 +1829,6 @@ quote_eval()
         cmd+=( "$(printf %q "${arg}")" )
     done
 
-    # The bash [[ ]] expression doesn't deal well with having it's end quoted.  And quoting isn't
-    # necessary for those characters, so drop quoting whenever we see ]] at the end of an expression
-    if [[ ${cmd[-1]} == '\]\]' ]] ; then
-        cmd[-1]=']]'
-    fi
-
     eval "${cmd[@]}"
 }
 
@@ -1945,9 +1939,11 @@ discard_qualifiers()
 # Executes a command (simply type the command after assert as if you were
 # running it without assert) and calls die if that command returns a bad exit
 # code.
+#
+# NOTE: This doesn't work with bash double-braket expressions.  Use test instead
 # 
 # For example:
-#    assert [[ 0 -eq 1 ]]
+#    assert test 0 -eq 1
 #
 # There's a subtlety here that I don't think can easily be fixed given bash's
 # semantics.  All of the arguments get evaluated prior to assert ever seeing
@@ -1956,11 +1952,11 @@ discard_qualifiers()
 #
 #   a=1
 #   b=2
-#   assert [[ ${a} -eq ${b} ]]
+#   assert test "${a}" -eq "${b}"
 #
 # because assert will tell you that the command that it executed was 
 #
-#     [[ 1 -eq 2 ]]
+#     test 1 -eq 2
 #
 # There it seems ideal.  But if you have an empty variable, things get a bit
 # annoying.  For instance, this command will blow up because inside assert bash
@@ -1968,7 +1964,7 @@ discard_qualifiers()
 # blows up, just not in quite the way you'd expect)
 #
 #    empty=""
-#    assert [[ -z ${empty} ]]
+#    assert test -z ${empty}
 #
 # To make this particular case easier to deal with, we also have assert_empty
 # which you could use like this:
@@ -1977,12 +1973,12 @@ discard_qualifiers()
 #
 assert()
 {
-    quote_eval "${@}"
+    "${@}"
 }
 
 assert_true()
 {
-    quote_eval "${@}"
+    "${@}"
 }
 
 assert_false()

@@ -41,7 +41,7 @@ ETEST_die_traps()
         true
     }
 
-    assert [[ ! -e ${fname} ]]
+    assert test ! -e ${fname}
 }
 
 # Ensure if we have traps registered in our parent process that those are executed before death.
@@ -67,8 +67,8 @@ ETEST_die_traps_parent()
 
     ) || true
 
-    assert [[ ! -e ${fname1} ]]
-    assert [[ ! -e ${fname2} ]]
+    assert test ! -e ${fname1}
+    assert test ! -e ${fname2}
 }
 
 # Ensure trap_add works properly and appends traps to existing ones.
