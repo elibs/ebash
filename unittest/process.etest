@@ -177,7 +177,7 @@ ETEST_ekilltree_excludes_self()
     }
     catch
     {
-        assert [[ $? -eq 0 ]]
+        assert test $? -eq 0
     }
 
     assert_false process_running $(cat pid)
@@ -200,7 +200,7 @@ ETEST_ekilltree_exclude_abritrary()
     }
     catch
     {
-        assert [[ $? -eq 0 ]]
+        assert test $? -eq 0
     }
 
     etestmsg "Ensuring safe process is still running $(cat safe_pid)"

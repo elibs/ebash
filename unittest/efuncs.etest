@@ -223,12 +223,12 @@ ETEST_assert_true()
     $(tryrc assert_true false)
     [[ ${rc} -ne 0 ]]
 
-    assert_true [[ a == a ]]
+    assert_true test a == a
 
     a=" 1 2 3 "
     b=" 4  5  6 "
-    assert_true [[ "${a}" == "${a}" ]]
-    $(tryrc assert_true [[ "${a}" == "${b}" ]])
+    assert_true test "${a}" == "${a}"
+    $(tryrc assert_true test "${a}" == "${b}")
     [[ ${rc} -ne 0 ]]
 }
 
