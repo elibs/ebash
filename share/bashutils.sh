@@ -78,6 +78,7 @@ source "${BASHUTILS}/efuncs.sh"
 
 source "${BASHUTILS}/archive.sh"
 source "${BASHUTILS}/array.sh"
+source "${BASHUTILS}/assert.sh"
 source "${BASHUTILS}/cgroup.sh"
 source "${BASHUTILS}/chroot.sh"
 source "${BASHUTILS}/daemon.sh"
