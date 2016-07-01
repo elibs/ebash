@@ -138,7 +138,7 @@ ETEST_cgroup_exists()
     rc=0
     rmdir /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${CGROUP}
     find /sys/fs/cgroup -wholename "${CGROUP}" -ls
-    cgroup_exists ${CGROUP} || rc=$?
+    $(tryrc cgroup_exists ${CGROUP})
     assert [[ ${rc} -eq 2 ]]
 }
 
@@ -305,7 +305,7 @@ ETEST_cgroup_functions_like_empty_cgroups()
 
     local empty
     empty=$(cgroup_pids -r ${CGROUP})
-    assert_empty empty
+    assert_var_empty empty
 
     cgroup_kill ${CGROUP}
     cgroup_kill_and_wait ${CGROUP}
