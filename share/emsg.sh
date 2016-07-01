@@ -112,6 +112,7 @@ edebug()
         msg="${@}"
     else
         msg="$(cat)"
+        [[ -z ${msg} ]] && return 0
     fi
     
     # If debugging isn't enabled then simply return without writing anything.

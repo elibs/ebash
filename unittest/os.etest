@@ -22,13 +22,12 @@ ETEST_os_distro()
         assert_true  os_distro a b c "${distro^^}" e f g
 
     else
-
-        # For an OS that doesn't support distro, no distro should match
+        etestmsg "Not on linux.  Shouldn't match any specific distro"
         assert_false os_distro SomeDistro
 
-        # but the function should still pass if you call it, albeit returning an empty string
-        assert_true  os_distro
-
+        etestmsg "But it should still be safe to call the function"
+        local distro=$(os_distro)
+        assert_var_empty distro
     fi
 }
 

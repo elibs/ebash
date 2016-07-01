@@ -54,7 +54,7 @@ check_mounts()
 ETEST_chroot_create()
 {
     etestmsg "Chroot was created via setup routine -- verifying it looks minimally sane."
-    assert [[ -x ${CHROOT}/bin/bash ]]
+    assert test -x ${CHROOT}/bin/bash
 }
 
 

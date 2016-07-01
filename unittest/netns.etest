@@ -29,17 +29,17 @@ ETEST_netns_with_whitespace_create_list_delete()
 
     # Create the namespace and verify it exists
     netns_create "${NS_NAME}"
-    assert netns_exists "\"${NS_NAME}\""
+    assert netns_exists "${NS_NAME}"
 
     # Verify the loopback is up in the namespace
     netns_exec "${NS_NAME}" ip link | grep "lo:" | assert grep -q "UP"
 
     # Verify the namespace shows up in the list of namespaces
-    echo $(netns_list) | assert grep -q "\"${NS_NAME}\""
+    echo $(netns_list) | assert grep -q "${NS_NAME}"
 
     # Delete and verify it is gone
     netns_delete "${NS_NAME}"
-    assert_false netns_exists "\"${NS_NAME}\""
+    assert_false netns_exists "${NS_NAME}"
 }
 
 ETEST_netns_exec()
