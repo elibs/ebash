@@ -299,7 +299,7 @@ archive_create()
         elif [[ ${dest_type} == tar ]]; then
 
             cmd="tar --exclude-from ${exclude_file} --create"
-            $(tryrc -o=prog -e=stderr archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+            $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
                 cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
             else
@@ -310,7 +310,7 @@ archive_create()
         elif [[ ${dest_type} == cpio ]]; then
             
             cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
-            $(tryrc -o=prog -e=stderr archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+            $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
             if [[ ${rc} -eq 0 ]]; then
                 cmd+=" | ${prog} -${level} > ${dest_real}"
             else
@@ -421,7 +421,7 @@ archive_extract()
         pushd "${dest}"
         
         local cmd=""
-        $(tryrc -r=compress_rc -o=compress_prog -e=compress_stderr archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
+        $(tryrc -r=compress_rc -o=compress_prog archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
         if [[ ${compress_rc} -eq 0 ]]; then
             cmd="${compress_prog} --decompress --stdout < ${src_real} | "
         fi 
@@ -482,7 +482,7 @@ archive_list()
 
         # Do decompression first
         local cmd=""
-        $(tryrc -o=prog -e=stderr archive_compress_program --type "${type}" "${src}")
+        $(tryrc -o=prog archive_compress_program --type "${type}" "${src}")
         if [[ ${rc} -eq 0 ]]; then
             ${prog} --decompress --stdout < ${src} | cpio --quiet -it
         else
