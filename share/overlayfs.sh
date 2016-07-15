@@ -328,23 +328,26 @@ overlayfs_commit()
         "+error    e=0 | Error out if there is nothing to do."       \
         "+diff     d=0 | Show a unified diff of the changes."        \
         "+list     l=0 | List the changes to stdout."                \
+        "+dedupe   D=1 | Dedupe contents before commit."             \
         "+progress p=0 | Show eprogress while committing changes."   \
         "mnt           | The overlayfs mount point.")
 
     # First de-dupe the overlayfs. If nothing changed, then simply unmount and return success
     # unless caller opted in for this to be an error case.
-    overlayfs_dedupe "${mnt}"
-    $(tryrc overlayfs_changed "${mnt}")
-    if [[ ${rc} -ne 0 ]]; then
-        edebug "Nothing changed"
-        overlayfs_unmount "${mnt}"
+    if [[ ${dedupe} -eq 1 ]]; then
+        overlayfs_dedupe "${mnt}"
+        $(tryrc overlayfs_changed "${mnt}")
+        if [[ ${rc} -ne 0 ]]; then
+            edebug "Nothing changed"
+            overlayfs_unmount "${mnt}"
 
-        if [[ ${error} -eq 1 ]]; then
-            eerror "Nothing changed"
-            return 1
+            if [[ ${error} -eq 1 ]]; then
+                eerror "Nothing changed"
+                return 1
+            fi
+
+            return 0
         fi
-
-        return 0
     fi
 
     # Optionally call pre-commit callback
@@ -396,7 +399,7 @@ overlayfs_commit()
 
     # Save the changes to a temporary archive of the same type then unmount
     # the original and move the new archive over the original.
-    archive_create ${flags} --directory "${mnt}" . "${tmp}"
+    archive_create ${flags} "${mnt}/." "${tmp}"
     overlayfs_unmount "${mnt}"
     mv --force "${tmp}" "${src}"
 
@@ -425,7 +428,7 @@ overlayfs_save_changes()
     overlayfs_layers "${mnt}" layers
 
     # Save the upper RW layer to requested type.   
-    archive_create -d="$(pack_get layers upperdir)" . "${dest}"
+    archive_create "$(pack_get layers upperdir)/." "${dest}"
 }
 
 opt_usage overlayfs_changed "Check if there are any changes in an overlayfs or not."
