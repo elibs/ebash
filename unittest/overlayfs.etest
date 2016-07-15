@@ -22,7 +22,7 @@ ETEST_overlayfs_mount()
         touch src/{file1,file2}
 
         etestmsg "Creating src.${ftype}"
-        archive_create -d=src . src.${ftype}
+        archive_create src/. src.${ftype}
 
         etestmsg "Mounting src.${ftype} at dest"
         overlayfs_mount src.${ftype} dest
@@ -45,7 +45,7 @@ ETEST_overlayfs_eunmount()
     find src
 
     etestmsg "Creating src.squashfs"
-    archive_create -d=src . src.squashfs
+    archive_create src/. src.squashfs
     archive_list src.squashfs
 
     etestmsg "Mounting src.squashfs at dest"
@@ -70,7 +70,7 @@ ETEST_overlayfs_eunmount_foreign()
     find src
 
     etestmsg "Creating src.squashfs"
-    archive_create -d=src . src.squashfs
+    archive_create src/. src.squashfs
     archive_list src.squashfs
 
     etestmsg "Mounting src.squashfs at dest (manually with ${__BU_OVERLAYFS})"
@@ -102,7 +102,7 @@ ETEST_overlayfs_modify()
         etestmsg "Populating source directory"
         efreshdir src dest
         touch src/{file0,file1,file2}
-        archive_create -d=src . src.${ftype}
+        archive_create src/. src.${ftype}
         archive_list src.${ftype}
 
         etestmsg "Mounting at dest"
@@ -158,7 +158,7 @@ ETEST_overlayfs_commit()
         etestmsg "Populating source directory"
         efreshdir src dest
         touch src/{file0,file1,file2}
-        archive_create -d=src . src.${ftype}
+        archive_create src/. src.${ftype}
         archive_list src.${ftype}
 
         etestmsg "Mounting at dest"
@@ -194,7 +194,7 @@ ETEST_overlayfs_commit_nochanges()
     etestmsg "Populating source directory"
     efreshdir src dest
     touch src/{file0,file1,file2}
-    archive_create -d=src . src.squashfs
+    archive_create src/. src.squashfs
     archive_list src.squashfs
 
     etestmsg "Mounting at dest"
@@ -220,7 +220,7 @@ ETEST_overlayfs_commit_dedupe()
     etestmsg "Populating source directory"
     efreshdir src dest
     touch src/{file0,file1,file2}
-    archive_create -d=src . src.squashfs
+    archive_create src/. src.squashfs
     archive_list src.squashfs
 
     etestmsg "Mounting at dest"
@@ -255,9 +255,9 @@ ETEST_overlayfs_multilayer()
     etestmsg "Creating multiple squashfs images"
     mkdir -p src1 src2 src3
     touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
-    archive_create -d=src1 . src1.squashfs
-    archive_create -d=src2 . src2.squashfs
-    archive_create -d=src3 . src3.squashfs
+    archive_create src1/. src1.squashfs
+    archive_create src2/. src2.squashfs
+    archive_create src3/. src3.squashfs
 
     # Mount all three images and verify expected contents
     etestmsg "Mounting all squashfs images into single dest directory"
@@ -280,9 +280,9 @@ ETEST_overlayfs_multilayer_mixed_types()
     etestmsg "Creating squashfs, ISO and TAR files"
     mkdir -p src1 src2 src3
     touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
-    archive_create -d=src1 . src1.squashfs
-    archive_create -d=src2 . src2.iso
-    archive_create -d=src3 . src3.tgz
+    archive_create src1/. src1.squashfs
+    archive_create src2/. src2.iso
+    archive_create src3/. src3.tgz
 
     etestmsg "Mounting all files into single dest directory"
     efreshdir dest
@@ -301,7 +301,7 @@ ETEST_overlayfs_dedupe()
     efreshdir src dest
     echo "File#0" > src/file0
     echo "File#1" > src/file1
-    archive_create -d=src . src.squashfs
+    archive_create src/. src.squashfs
     archive_list src.squashfs
 
     etestmsg "Mounting at dest"
