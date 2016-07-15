@@ -827,11 +827,29 @@ sigexitcode()
 # FILESYSTEM HELPERS
 #---------------------------------------------------------------------------------------------------
 
+# Variable containing documentation for what we call the "path mapping syntax" idiom. This variable
+# can then be used in the docstrings for functions which make use of path mapping syntax without
+# having to repeat the documentation (and hence become stale) or refer to another function and be
+# less usable.
+PATH_MAPPING_SYNTAX_DOC="This function uses the 'path mapping syntax' idiom. Path mapping syntax is a generic idiom used to
+map one path to another using a colon to delimit source and destination paths. This is a convenient
+idiom often used by functions which need to have a source file and use it in an alternative location
+inside the function. For example, '/var/log/kern.log:kern.log' specifies a source file of
+'/var/log/kern.log' and a destination file of 'kern.log'. 
+    
+The path mapping syntax also supports referring to the contents of a directory rather than the
+directory itself using scp like syntax. For example, if you wanted to refer to the contents of
+/var/log instead of the directory /var/log, you would say '/var/log/.'. The trailing '/.' indicates
+the contents of the directory should be used rather than the directory itself. You can also map the
+contents of that directory into an alternative destination path using '/var/log/.:logs'."
+
+# Wrapper around pushd to suppress its noisy output.
 pushd()
 {
     builtin pushd "${@}" >/dev/null
 }
 
+# Wrapper around popd to suppress its noisy output.
 popd()
 {
     builtin popd "${@}" >/dev/null
@@ -1241,7 +1259,6 @@ directory_not_empty()
     $(opt_parse dir)
     find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
-
 
 #---------------------------------------------------------------------------------------------------
 # COMPARISON FUNCTIONS

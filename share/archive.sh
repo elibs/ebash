@@ -105,7 +105,7 @@ archive_compress_program()
     elif [[ ${fname} =~ .xz|.txz|.tlz|.cxz|.clz ]]; then
         progs=( lzma xz )
     else
-        eerror "No suitable compress program for $(lval fname)"
+        edebug "No suitable compress program for $(lval fname)"
         return 1
     fi
 
@@ -116,12 +116,14 @@ archive_compress_program()
     local prog=$(which ${progs[@]:-} 2>/dev/null | head -1 || true)
     echo -n "${prog}"
     [[ -n ${prog} ]]
-} 
+}
 
-opt_usage archive_create <<'END'
+opt_usage archive_create <<END
 Generic function for creating an archive file of a given type from the given list of source paths
 and write it out to the requested destination directory. This function will intelligently figure out
-the correct archive type based on the suffix of the file.
+the correct archive type based on the suffix of the destination file.
+
+${PATH_MAPPING_SYNTAX_DOC}
 
 You can also optionally exclude certain paths from being included in the resultant archive.
 Unfortunately, each of the supported archive formats have different levels of support for excluding
@@ -136,15 +138,15 @@ behave.
 
 A few examples will help clarify the behavior:
 
-Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call `archive_create a
-dest.squashfs`. archive_create will then yield the following:
+Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call "archive_create a
+dest.squashfs". archive_create will then yield the following:
 
     a/1
     a/2
     a/3
 
 Example #2: Suppose you have these files spread out across three directories: a/1 b/2 c/3 and you
-call `archive_create a b c dest.squashfs`. archive_create will then yield the following:
+call "archive_create a b c dest.squashfs". archive_create will then yield the following:
 
     a/1
     b/2
@@ -157,7 +159,6 @@ archive_create()
 {
     $(opt_parse \
         "+best             | Use the best compression (level=9)." \
-        ":directory dir  d | Directory to cd into before archive creation." \
         "+bootable boot b  | Make the ISO bootable (ISO only)." \
         ":exclude x        | List of paths to be excluded from archive." \
         "+fast             | Use the fastest compression (level=1)." \
@@ -186,44 +187,53 @@ archive_create()
         level=1
     fi
 
-    edebug "Creating archive $(lval directory srcs dest dest_real dest_type excludes ignore_missing nice level)"
+    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing nice level)"
     mkdir -p "$(dirname "${dest}")"
 
     # Put entire function into a subshell to ensure clean up traps execute properly.
     (
-        # If requested change directory first
-        if [[ -n ${directory} ]]; then
-            cd "${directory}"
-        fi
-            
         # Create excludes file
         local exclude_file=$(mktemp --tmpdir archive-exclude-XXXXXX)
         trap_add "rm --force ${exclude_file}"
+        
+        # Also exclude any of our sources which would incorrectly contain the destination
+        local exclude_prefix=""
+        if [[ ${dest_type} == iso ]]; then
+            exclude_prefix="./"
+        fi
 
-        # Always exclude the source file. Need to canonicalize it and then remove
+        # In case including and excluding something excludes take precedence.
+        if array_not_empty excludes; then
+            array_remove srcs ${excludes[@]}
+        fi
+     
+        # Always exclude the destination file. Need to canonicalize it and then remove
         # any illegal prefix characters (/, ./, ../)
         echo "${dest_real#${PWD}/}" | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
 
         # Provide a common API around excludes, use find to pre-expand all excludes.
-        if array_not_empty excludes; then
- 
-            # In case including and excluding something excludes take precedence.
-            array_remove srcs ${excludes[@]}
-        
-            # Look for matching excludes in each source directory
-            for src in "${srcs[@]}"; do
+        local entry
+        for entry in "${srcs[@]}"; do
 
-                local exclude_prefix=""
-                if [[ ${dest_type} == iso ]]; then
-                    exclude_prefix="./"
-                fi
+            # Parse optional ':' in the entry to be able to bind mount at alternative path. If not
+            # present default to full path.
+            local src="${entry%%:*}"
+            local mnt="${entry#*:}"
+            [[ -z ${mnt} ]] && mnt="${src}"
+            
+            local src_norm=$(readlink -m "${src}")
+            if [[ ${dest_real} == ${src_norm}/* ]]; then
+                echo "${dest_real#${src_norm}/}" | sed "s%^\(/\|./\|../\)%%"
+            fi
 
+            if array_not_empty excludes; then
                 find ${excludes[@]} -maxdepth 0 2>/dev/null | sed "s|^|${exclude_prefix}|" || true
-            done | sort --unique >> "${exclude_file}"
-        fi
+            fi
+
+        done | sort --unique >> "${exclude_file}"
 
         edebug $'Exclude File:\n'"$(cat ${exclude_file})"
-
+        
         # In order to provide a common interface around all the archive formats we
         # must deal with inconsistencies in how multiple mount points are handled. 
         # mksquashfs would use the basename of each provided path, whereas mkisofs 
@@ -235,28 +245,7 @@ archive_create()
         # of a bind mount is so small that it is justified by the simpler code path.
         local unified=$(mktemp --tmpdir --directory archive-create-XXXXXX)
         trap_add "eunmount --all --recursive --delete ${unified}"
-        for src in "${srcs[@]}"; do
-
-            if [[ ! -e "${src}" ]]; then
-                if [[ ${ignore_missing} -eq 1 ]]; then
-                    edebug "Skipping missing file $(lval src)"
-                    continue
-                else
-                    eerror "Missing file $(lval src)"
-                    return 1
-                fi
-            fi
-
-            # Create path inside unified directory then bind mount it read-only.
-            if [[ -d "${src}" ]]; then
-                mkdir -p "${unified}/${src}"
-            else
-                mkdir -p "$(dirname "${unified}/${src}")"
-                touch "${unified}/${src}"
-            fi
-
-            ebindmount "${src}" "${unified}/${src}"
-        done
+        opt_forward ebindmount_into ignore_missing -- "${unified}" "${srcs[@]}"
 
         # If nothing was merged and we're ignoring missing files that's still success.
         if directory_empty ${unified} ; then
@@ -490,6 +479,34 @@ archive_list()
         fi | sed -e "s|^.$||" 
 
     fi | sort --unique | sed '/^$/d'
+}
+
+opt_usage archive_append <<'END'
+Append a given list of paths to an existing archive atomically. The way this is done atomically is
+to do all the work on a temporary file and only move it over to the final file once all the append
+work is complete. The reason we do this atomically is to ensure that we never have a corrupt or
+half written archive which would be unusable.
+END
+archive_append()
+{
+    $(opt_parse \
+        "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
+        "dest              | Archive to append files to." \
+        "@srcs             | Source paths to archive.")
+
+    edebug "Appending to archive $(lval srcs dest ignore_missing)"
+    assert_exists "${dest}"
+
+    # Mount the archive using overlayfs so we have a writeable mount point to copy the new files into.
+    local unified=$(mktemp --tmpdir --directory archive-append-XXXXXX)
+    overlayfs_mount "${dest}" "${unified}"
+    trap_add "eunmount --all --recursive --delete ${unified}"
+
+    # Now bind mount the new sources into the overlayfs mount point.
+    opt_forward ebindmount_into ignore_missing -- "${unified}" "${srcs[@]}"
+
+    # Write the changes back out to the original archive
+    overlayfs_commit --no-dedupe "${unified}"
 }
 
 #---------------------------------------------------------------------------------------------------
