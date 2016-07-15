@@ -173,4 +173,68 @@ ETEST_eunmount_all()
     assert_not_exists dest
 }
 
+ETEST_ebindmount_into()
+{
+    etestmsg "Creating source directory"
+    mkdir src1 src2 dest
+    touch src1/{file1,file2,file3} src2/{file4,file5,file6}
 
+    etestmsg "Bind Mounting src1 and src2 into dest"
+    ebindmount_into dest src1 src2
+    trap_add "eunmount --recursive --delete dest"
+
+    etestmsg "Verifying contents"
+    assert_directory_contents dest src1 src1/file1 src1/file2 src1/file3 src2 src2/file4 src2/file5 src2/file6
+}
+
+ETEST_ebindmount_into_contents()
+{
+    etestmsg "Creating source directory"
+    mkdir src1 src2 dest
+    touch src1/{file1,file2,file3} src2/{file4,file5,file6}
+
+    etestmsg "Bind Mounting src1 and src2 into dest"
+    ebindmount_into dest src1/. src2/.
+    trap_add "eunmount --recursive --delete dest"
+
+    etestmsg "Verifying contents"
+    assert_directory_contents dest file1 file2 file3 file4 file5 file6
+}
+
+ETEST_ebindmount_into_alternative_paths()
+{
+    etestmsg "Creating source directory"
+    mkdir src1 src2 dest
+    touch src1/{file1,file2,file3} src2/{file4,file5,file6}
+
+    etestmsg "Bind Mounting src1 and src2 into dest"
+    ebindmount_into dest src1:s1 src2:s2
+    trap_add "eunmount --recursive --delete dest"
+
+    etestmsg "Verifying contents"
+    assert_directory_contents dest s1 s1/file1 s1/file2 s1/file3 s2 s2/file4 s2/file5 s2/file6
+}
+
+ETEST_ebindmount_into_multi_shadow()
+{
+    etestmsg "Creating source directories"
+    mkdir src1 dest
+    touch src1/{file1,file2}
+    echo "data1" >src1/file1
+    echo "data2" >src1/file2
+    
+    mkdir src2
+    echo "XXXX1" >src2/file1
+    echo "XXXX2" >src2/file2
+
+    etestmsg "Bind Mounting src1 and src2 into dest"
+    ebindmount_into dest src1/. src2/.
+    trap_add "eunmount --recursive --delete dest"
+    
+    etestmsg "Validating contents"
+    assert_directory_contents dest file1 file2
+
+    etestmsg "Validating updated contents"
+    assert_eq "XXXX1" "$(cat dest/file1)"
+    assert_eq "XXXX2" "$(cat dest/file2)"
+}
