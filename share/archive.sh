@@ -118,20 +118,12 @@ archive_compress_program()
     [[ -n ${prog} ]]
 }
 
-opt_usage archive_create <<'END'
+opt_usage archive_create <<END
 Generic function for creating an archive file of a given type from the given list of source paths
 and write it out to the requested destination directory. This function will intelligently figure out
-the correct archive type based on the suffix of the destination file. The syntax for the source files
-to include in the archive support mapping the path to a different location inside the acrhive using a
-colon to delimit the source path outside the archive and the desired path inside the acrhive. For
-example: /var/log/kern.log:kern.log. This would put the file '/var/log/kern.log' into the root of the
-archive at path './kern.log' instead of using the fully qualified path.
+the correct archive type based on the suffix of the destination file.
 
-The path mapping syntax also supports mapping the contents of a directory rather than a directory itself
-into the archive at a given path using scp like syntax. For example, if you wanted the contents of 
-/var/log at the top of the archive, you could use this syntax: '/var/log/.'. The trailing '/.' indicates 
-the contents of the directory should be included rather than the directory itself. You can also map that
-into a different path in the archive, e.g. '/var/log/.:logs'.
+${PATH_MAPPING_SYNTAX_DOC}
 
 You can also optionally exclude certain paths from being included in the resultant archive.
 Unfortunately, each of the supported archive formats have different levels of support for excluding
@@ -146,15 +138,15 @@ behave.
 
 A few examples will help clarify the behavior:
 
-Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call `archive_create a
-dest.squashfs`. archive_create will then yield the following:
+Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call "archive_create a
+dest.squashfs". archive_create will then yield the following:
 
     a/1
     a/2
     a/3
 
 Example #2: Suppose you have these files spread out across three directories: a/1 b/2 c/3 and you
-call `archive_create a b c dest.squashfs`. archive_create will then yield the following:
+call "archive_create a b c dest.squashfs". archive_create will then yield the following:
 
     a/1
     b/2

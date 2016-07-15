@@ -96,20 +96,12 @@ ebindmount()
     mount --no-mtab --make-rprivate "${dest}"
 }
 
-opt_usage ebindmount_into <<'END'
-Bind mount a list of paths into the specified directory. The syntax for the source files to bind
-mount support specifying an alternate path to mount the source file at using a colon to delimit
-the source path and the desired bind mount path inside the directory. For example, 
-'/var/log/kern.log:kern.log' would mount the file '/var/log/kern.log' into the top of the directory
-at path 'kern.log' instead of using the fully qualified path beneath the destination directory.
-Without using the ':' mounting syntax, the destination directory would have this file located at
-'var/log/kern.log'.
+opt_usage ebindmount_into <<END
+Bind mount a list of paths into the specified directory. This function will iterate over 
+all the source paths provided and bind mount each source path into the provided destination
+directory. 
 
-The path mapping syntax also supports bind mounting the contents of a directory rather than a
-directory itself at an alternative path using scp like syntax. For example, if you wanted the
-contents of /var/log mounted into a directory, you could use this syntax: '/var/log/.'. The
-trailing '/.' indicates the contents of the directory should be bind mounted rather than the
-directory itself. You can also map that into a different path via '/var/log/.:logs'.
+${PATH_MAPPING_SYNTAX_DOC}
 END
 ebindmount_into()
 {
@@ -120,6 +112,7 @@ ebindmount_into()
 
     # Create destination directory if it doesn't exist.
     mkdir -p "${dest}"
+    local dest_real=$(readlink -m "${dest}")
 
     # This flag is used to keep track if we've bind mounted the contents of a source path 
     # into the target directory or not. This is an optimization to avoid having to bind
@@ -160,11 +153,11 @@ ebindmount_into()
             # earlier one.
             if [[ ${flatten} -eq 1 ]]; then
                 pushd "${src}"
-                opt_forward ebindmount_into ignore_missing -- "$(readlink -m ${dest}/${src}/..)" $(find . -maxdepth 1 -printf '%P\n')
+                opt_forward ebindmount_into ignore_missing -- "$(readlink -m ${dest_real}/${src}/..)" $(find . -maxdepth 1 -printf '%P\n')
                 popd
             else
                 pushd "${src}"
-                ebindmount "." "${dest}/."
+                ebindmount "." "${dest_real}/."
                 popd
             fi
 
@@ -172,13 +165,13 @@ ebindmount_into()
             continue
 
         elif [[ -d "${src}" ]]; then
-            mkdir -p "${dest}/${mnt}"
+            mkdir -p "${dest_real}/${mnt}"
         else
-            mkdir -p "$(dirname "${dest}/${mnt}")"
-            touch "${dest}/${mnt}"
+            mkdir -p "$(dirname "${dest_real}/${mnt}")"
+            touch "${dest_real}/${mnt}"
         fi
 
-        ebindmount "${src}" "${dest}/${mnt}"
+        ebindmount "${src}" "${dest_real}/${mnt}"
     done
 }
 
