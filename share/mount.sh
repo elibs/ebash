@@ -55,12 +55,12 @@ emounted()
 }
 
 opt_usage ebindmount <<'END'
-# Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of your mounts are private
-# so that we don't see different behavior between systemd machines (where shared mounts are the
-# default) and everywhere else (where private mounts are the default)
-#
-# Source and destination MUST be the first two parameters of this function. You may specify any
-# other mount options after them.
+Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of your mounts are private
+so that we don't see different behavior between systemd machines (where shared mounts are the
+default) and everywhere else (where private mounts are the default)
+
+Source and destination MUST be the first two parameters of this function. You may specify any
+other mount options after them.
 END
 ebindmount()
 {
@@ -94,6 +94,85 @@ ebindmount()
     # Last, do the bind mount and make the destination private as well
     emount --rbind "${@}" "${src}" "${dest}"
     mount --no-mtab --make-rprivate "${dest}"
+}
+
+opt_usage ebindmount_into <<END
+Bind mount a list of paths into the specified directory. This function will iterate over 
+all the source paths provided and bind mount each source path into the provided destination
+directory. 
+
+${PATH_MAPPING_SYNTAX_DOC}
+END
+ebindmount_into()
+{
+    $(opt_parse \
+        "+ignore_missing i  | Ignore missing files instead of failing and returning non-zero." \
+        "dest               | The destination directory to mount the specified list of paths into." \
+        "@srcs              | The list of source paths to bind mount into the specified destination.")
+
+    # Create destination directory if it doesn't exist.
+    mkdir -p "${dest}"
+    local dest_real=$(readlink -m "${dest}")
+
+    # This flag is used to keep track if we've bind mounted the contents of a source path 
+    # into the target directory or not. This is an optimization to avoid having to bind
+    # mount all the contents of a directory if only a single directory's contents are 
+    # being bind mounted. If the caller passes in 'foo/.' and 'bar/.' then we can do 
+    # a very efficient bind mount of foo/. into the target directory, and then we only
+    # have to iterate and bind mount the contents of bar instead of both foo and bar.
+    local flatten=0
+
+    # Iterate over each entry and parse optional ':' in the entry and then bind mount
+    # the source path into the specified destination path.
+    local entry
+    for entry in "${srcs[@]}"; do
+        
+        local src="${entry%%:*}"
+        local mnt="${entry#*:}"
+        [[ -z ${mnt} ]] && mnt="${src}"
+        edebug "$(lval entry src mnt)"
+
+        if [[ ! -e "${src}" ]]; then
+            if [[ ${ignore_missing} -eq 1 ]]; then
+                edebug "Skipping missing file $(lval src)"
+                continue
+            else
+                eerror "Missing file $(lval src)"
+                return 1
+            fi
+        fi
+
+        # Create path inside unified directory then bind mount it read-only.
+        #
+        # NOTE: If the path ends with '/.' then we want the contents of the directory
+        # rather than the directory itself
+        if [[ -d "${src}" && "${src: -2}" == "/." ]]; then
+
+            # If we've already bind mounted the contents of a directory then we must flatten
+            # the contents of this directory manually to avoid shadow mounting over the
+            # earlier one.
+            if [[ ${flatten} -eq 1 ]]; then
+                pushd "${src}"
+                opt_forward ebindmount_into ignore_missing -- "$(readlink -m ${dest_real}/${src}/..)" $(find . -maxdepth 1 -printf '%P\n')
+                popd
+            else
+                pushd "${src}"
+                ebindmount "." "${dest_real}/."
+                popd
+            fi
+
+            flatten=1
+            continue
+
+        elif [[ -d "${src}" ]]; then
+            mkdir -p "${dest_real}/${mnt}"
+        else
+            mkdir -p "$(dirname "${dest_real}/${mnt}")"
+            touch "${dest_real}/${mnt}"
+        fi
+
+        ebindmount "${src}" "${dest_real}/${mnt}"
+    done
 }
 
 opt_usage emount <<'END'

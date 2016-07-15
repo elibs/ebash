@@ -126,7 +126,7 @@ ETEST_archive_create_directory_dot()
 
         etestmsg "Creating src.${ftype}"
         archive_create src/. src.${ftype}
-        assert_archive_contents src.${ftype} src src/file1 src/file2
+        assert_archive_contents src.${ftype} file1 file2
     done
 }
 
@@ -207,6 +207,44 @@ ETEST_archive_create_mixed_files_directories()
         etestmsg "Creating src.${ftype}"
         archive_create file0 src1 src2 src.${ftype}
         assert_archive_contents src.${ftype} file0 src1 src1/{file1,file2} src2 src2/{file3,file4}
+
+        rm src.${ftype}
+    done
+}
+
+ETEST_archive_create_alternate_paths()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src1 src2
+        touch file0 src1/{file1,file2} src2/{file3,file4}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create file0:a_file0 src1:b_src1 src2:c_src2 src.${ftype}
+        assert_archive_contents src.${ftype} a_file0 b_src1 b_src1/{file1,file2} c_src2 c_src2/{file3,file4}
+
+        rm src.${ftype}
+    done
+}
+
+ETEST_archive_create_alternate_paths_multiroot()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src1 src2
+        touch src1/{file1,file2} src2/{file3,file4}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src1/. src2/. src.${ftype}
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
 
         rm src.${ftype}
     done
@@ -410,7 +448,7 @@ ETEST_archive_create_pivot_root_cd()
         touch ${oldroot}/var/log/sf-master-{1..10}.info
 
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
-        archive_create -d=${oldroot} . ${oldroot}/var/log/sfbackup.${ftype}
+        archive_create "${oldroot}/." ${oldroot}/var/log/sfbackup.${ftype}
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
             boot                                    \
@@ -757,6 +795,64 @@ ETEST_archive_extract_content()
         diff --unified --recursive src dest/src
     done
 }
+
+ETEST_archive_append()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src src.${ftype}
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        touch file3 file4
+        archive_append src.${ftype} file3:src/file3 file4:src/file4
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2,file3,file4}
+    done
+}
+
+ETEST_archive_append_overwrite()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+        echo "data1" >src/file1
+        echo "data2" >src/file2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src src.${ftype}
+        assert_exists src.${ftype}
+
+        etestmsg "Appending file with new content"
+        echo "XXXX1" >file3
+        echo "XXXX2" >file4
+        archive_append src.${ftype} file3:src/file1 file4:src/file2
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2}
+
+        etestmsg "Validating updated contents"
+        assert_eq "XXXX1" "$(cat dest/src/file1)"
+        assert_eq "XXXX2" "$(cat dest/src/file2)"
+    done
+}
+
 
 ETEST_archive_xnice()
 {
