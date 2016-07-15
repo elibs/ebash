@@ -160,6 +160,7 @@ archive_create()
     $(opt_parse \
         "+best             | Use the best compression (level=9)." \
         "+bootable boot b  | Make the ISO bootable (ISO only)." \
+        ":directory dir  d | Directory to cd into before archive creation." \
         ":exclude x        | List of paths to be excluded from archive." \
         "+fast             | Use the fastest compression (level=1)." \
         "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
@@ -187,11 +188,16 @@ archive_create()
         level=1
     fi
 
-    edebug "Creating archive $(lval srcs dest dest_real dest_type excludes ignore_missing nice level)"
+    edebug "Creating archive $(lval directory srcs dest dest_real dest_type excludes ignore_missing nice level)"
     mkdir -p "$(dirname "${dest}")"
 
     # Put entire function into a subshell to ensure clean up traps execute properly.
     (
+        # If requested change directory first
+        if [[ -n ${directory} ]]; then
+            cd "${directory}"
+        fi
+
         # Create excludes file
         local exclude_file=$(mktemp --tmpdir archive-exclude-XXXXXX)
         trap_add "rm --force ${exclude_file}"
