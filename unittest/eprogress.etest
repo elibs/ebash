@@ -80,7 +80,7 @@ ETEST_eprogress_ticker_off()
     )
 
     wait_for_eprogress
-    assert_eq ">> Waiting.[ ok ]" "$(cat ${OUTPUT})"
+    assert_eq --hexdump ">> Waiting.[ ok ]" "$(cat ${OUTPUT})"
 }
 
 ETEST_eprogress_ticker_on()
@@ -107,7 +107,7 @@ ETEST_eprogress_ticker_on()
     wait_for_eprogress
 
     etestmsg "${OUTPUT} contents"
-    cat ${OUTPUT}
+    cat -evt ${OUTPUT}
     etestmsg "End ${OUTPUT} contents"
 
     # The ticker may actuall run for slightly longer than we requested due to
@@ -118,7 +118,7 @@ ETEST_eprogress_ticker_on()
     # Different terms have different codes.  Ignore the number in the ANSI code.
     sed -i "s|\[[0-9]\+C||" ${OUTPUT}
 
-    assert_eq ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|^H \$"$'\n'"^[M^[[ ok ]\$" "$(cat -evt ${OUTPUT})"
+    assert_eq --hexdump ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|\$"$'\n'"^[M^[[ ok ]\$" "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_inside_eretry()
@@ -155,6 +155,26 @@ ETEST_eprogress_killall()
     for pid in "${pids[@]}"; do
         eretry -t=2s -T=10s process_not_running ${pid}
     done
+}
+
+ETEST_eprogress_file()
+{
+    local file=${FUNCNAME}.txt
+    echo "HELLO" > ${file}
+
+    (
+        eprogress --no-time --file ${file}
+        eprogress_kill
+    ) &> output
+
+    etestmsg "output"
+    cat output
+    etestmsg "end output"
+
+
+    assert_match "$(cat output)" "HELLO"
+    assert_match "$(cat output)" "ok"
+
 }
 
 ETEST_eprogress_killall_empty()
