@@ -1,4 +1,8 @@
 # Bashutils 1.3
+
+    - Added --file option to eprogress
+
+    - Added --hexdump option to assert_eq
     
     - Corrected substantial defects in the existing assert functions and
       added unit tests for them.
