@@ -83,8 +83,26 @@ assert_op()
 
 assert_eq()
 {
-    $(opt_parse "?lh" "?rh" "?msg")
-    [[ "${lh}" == "${rh}" ]] || die "assert_eq failed [${msg:-}] :: $(lval lh rh)"
+    $(opt_parse \
+        "+hexdump h | If there is a failure, display contents of both values through a hex dump
+                      tool." \
+        "?expected  | The first of two values you expect to be equivalent." \
+        "?actual    | The second of two values you expect to be equivalent." \
+        "?msg       | Optional message to display in the output if there is a failure")
+
+    if [[ "${expected}" != "${actual}" ]] ; then
+
+        if [[ ${hexdump} -eq 1 ]] ; then
+            eerror "expected:"
+            echo "${expected}" | hexdump -C >&2
+            eerror "actual:"
+            echo "${actual}" | hexdump -C >&2
+            die "assert_eq failed [${msg:-}]"
+
+        else
+            die "assert_eq failed [${msg:-}] :: $(lval expected actual)"
+        fi
+    fi
 }
 
 assert_ne()

@@ -249,13 +249,16 @@ ecolor_internal()
     local c=""
     for c in $@; do
         case ${c} in
-            dim)            echo -en "\033[2m"                 ;;
-            invert)         tput rev                           ;;
-            bold)           tput bold                          ;;
-            underline)      tput smul                          ;;
-            reset|none|off) echo -en "\033[0m"                 ;;
-            b:*)            tput setab $(ecolor_code ${c#b:})  ;;
-            *)              tput setaf $(ecolor_code ${c})     ;;
+            dim)                echo -en "\033[2m"                 ;;
+            invert)             tput rev                           ;;
+            cub1|move_left)     tput cub1                          ;;
+            el|clear_to_eol)    tput el                            ;;
+            cr|start_of_line)   tput cr                            ;;
+            bold)               tput bold                          ;;
+            underline)          tput smul                          ;;
+            reset|none|off)     echo -en "\033[0m"                 ;;
+            b:*)                tput setab $(ecolor_code ${c#b:})  ;;
+            *)                  tput setaf $(ecolor_code ${c})     ;;
         esac
     done
 }
@@ -630,8 +633,28 @@ spinout()
 
 do_eprogress()
 {
+    $(opt_parse \
+        ":file f  | A file whose contents should be continually updated and displayed along with the
+                    ticker." \
+        "+time=1  | If true, the amount of time since epgoress start will be displayed next to the
+                    ticker.  To turn it off, try --no-time" \
+        "@message | A message to be displayed once prior to showing a time ticker.  This will occur
+                    before the file contents if you also use --file.")
+
+    # Don't produce any errors when tools here catch a signal.  That's what we expect to happen
+    nodie_on_error
+
     # Automatically detect if we should use ticker based on if we are interactive or not.
     if ! einteractive; then
+
+        # Print the message but with no newline
+        echo -en "$(emsg "${COLOR_INFO}" ">>" "INFO" "$*" 2>&1)"
+
+        # Display file if appropriate
+        if [[ -n ${file} && -r ${file} ]] ; then
+            printf " %s" "$(<${file})"
+        fi
+
         while true; do
             echo -n "." >&2
             sleep 1
@@ -648,9 +671,22 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        ecolor bold >&2
-        printf " [%02d:%02d:%02d]  " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 )) >&2
-        ecolor none >&2
+        # Print the message but with no newline
+        echo -en "$(emsg "${COLOR_INFO}" ">>" "INFO" "$*" 2>&1)"
+
+        # Display file if appropriate
+        if [[ -n ${file} && -r ${file} ]] ; then
+            printf " %s" "$(<${file})"
+        fi
+
+        if [[ ${time} -eq 1 ]] ; then
+            ecolor bold
+            printf " [%02d:%02d:%02d]" $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 ))
+            ecolor none
+        fi
+
+        # Put space before the ticker
+        echo -n "  "
 
         spinout "/"
         spinout "-"
@@ -662,16 +698,25 @@ do_eprogress()
         spinout "|"
 
         # If we're terminating delete whatever character was lost displayed and print a blank space over it
-        # then return immediately instead of resetting for next loop
-        [[ ${done} -eq 1 ]] && { echo -en "\b " >&2; return 0; }
+        # then return immediately instead of resetting while loop
+        if [[ ${done} -eq 1 ]] ; then
+            ecolor move_left clear_to_eol
+            return 0
+        fi
 
-        echo -en "\b\b\b\b\b\b\b\b\b\b\b\b\b" >&2
-    done
+        ecolor start_of_line clear_to_eol
+    done >&2
 }
 
 eprogress()
 {
-    echo -en "$(emsg "${COLOR_INFO}" ">>" "INFO" "$@" 2>&1)" >&2
+    $(opt_parse \
+        ":file f  | A file whose contents should be continually updated and displayed along with the
+                    ticker." \
+        "+time=1  | As long as not turned off with --no-time, the amount of time since eprogress
+                    start will be displayed next to the ticker." \
+        "@message | A message to be displayed once prior to showing a time ticker.  This will occur
+                    before the file contents if you also use --file.")
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
@@ -679,7 +724,7 @@ eprogress()
     # Prepend this new eprogress pid to the front of our list of eprogress PIDs
     # Add a trap to ensure we kill this backgrounded process in the event we
     # die before calling eprogress_kill.
-    ( close_fds ; do_eprogress ) &
+    ( close_fds ; opt_forward do_eprogress file time -- "${@}" ) &
     __BU_EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
