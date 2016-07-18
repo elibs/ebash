@@ -214,6 +214,15 @@ ETEST_emsg_reset_not_at_end_when_unnecessary()
     assert_eq "${without_prefix_or_start_of_message}" "age"
 }
 
+ETEST_emsg_final_newline()
+{
+    einfo    with-newline    2> with-newline
+    einfo -n without-newline 2> without-newline
+
+    assert_eq "1" "$(wc -l < with-newline)"
+    assert_eq "0" "$(wc -l < without-newline)"
+}
+
 ETEST_noansi_pipe()
 {
     etestmsg "This line shouldn't be colored." |& noansi

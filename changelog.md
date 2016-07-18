@@ -3,6 +3,10 @@
     - Added --file option to eprogress
 
     - Added --hexdump option to assert_eq
+
+    - Added -n option to einfo, ewarn, edebug that prevents them from
+      generating a newline at the end of the message.  Note that this must
+      be held in the first argument to the einfo/ewarn/edebug function.
     
     - Corrected substantial defects in the existing assert functions and
       added unit tests for them.

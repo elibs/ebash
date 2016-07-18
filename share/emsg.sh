@@ -371,6 +371,14 @@ emsg()
         local color=$1 ; shift
         local header=$1 ; shift
         local level=$1 ; shift
+
+        local final_newline=1
+
+        if [[ ${1:-} == "-n" ]] ; then
+            final_newline=0
+            shift
+        fi
+
         local msg="$*"
 
         local informative_header=0
@@ -444,7 +452,10 @@ emsg()
 
         echo -n "${msg}"
         [[ ${msg_color} -eq 1 ]] && ecolor reset
-        echo ""
+
+        if [[ ${final_newline} -eq 1 ]] ; then
+            echo ""
+        fi
     } >&2
 }
 
@@ -636,7 +647,7 @@ do_eprogress()
     $(opt_parse \
         ":file f  | A file whose contents should be continually updated and displayed along with the
                     ticker." \
-        "+time=1  | If true, the amount of time since epgoress start will be displayed next to the
+        "+time=1  | If true, the amount of time since eprogress start will be displayed next to the
                     ticker.  To turn it off, try --no-time" \
         "@message | A message to be displayed once prior to showing a time ticker.  This will occur
                     before the file contents if you also use --file.")
@@ -647,12 +658,11 @@ do_eprogress()
     # Automatically detect if we should use ticker based on if we are interactive or not.
     if ! einteractive; then
 
-        # Print the message but with no newline
-        echo -en "$(emsg "${COLOR_INFO}" ">>" "INFO" "$*" 2>&1)"
+        einfo -n "$*"
 
         # Display file if appropriate
         if [[ -n ${file} && -r ${file} ]] ; then
-            printf " %s" "$(<${file})"
+            printf " %s" "$(<${file})" >&2
         fi
 
         while true; do
@@ -671,8 +681,7 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        # Print the message but with no newline
-        echo -en "$(emsg "${COLOR_INFO}" ">>" "INFO" "$*" 2>&1)"
+        einfo -n "$*"
 
         # Display file if appropriate
         if [[ -n ${file} && -r ${file} ]] ; then
