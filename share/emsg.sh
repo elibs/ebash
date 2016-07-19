@@ -645,12 +645,14 @@ spinout()
 do_eprogress()
 {
     $(opt_parse \
-        ":file f  | A file whose contents should be continually updated and displayed along with the
-                    ticker." \
-        "+time=1  | If true, the amount of time since eprogress start will be displayed next to the
-                    ticker.  To turn it off, try --no-time" \
-        "@message | A message to be displayed once prior to showing a time ticker.  This will occur
-                    before the file contents if you also use --file.")
+        ":file f      | A file whose contents should be continually updated and displayed along with
+                        the ticker." \
+        "+time=1      | If true, the amount of time since eprogress start will be displayed next to
+                        the ticker.  To turn it off, try --no-time" \
+        ":style=einfo | Style used when displaying the message.  You might want to use, for
+                        instance, einfos or ewarn or eerror instead." \
+        "@message     | A message to be displayed once prior to showing a time ticker.  This will
+                        occur before the file contents if you also use --file.")
 
     # Don't produce any errors when tools here catch a signal.  That's what we expect to happen
     nodie_on_error
@@ -662,7 +664,7 @@ do_eprogress()
 
         # Display file if appropriate
         if [[ -n ${file} && -r ${file} ]] ; then
-            printf " %s" "$(<${file})" >&2
+            printf "%s " "$(<${file})" >&2
         fi
 
         while true; do
@@ -681,21 +683,21 @@ do_eprogress()
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        einfo -n "$*"
+        "${style}" -n "$*"
 
         # Display file if appropriate
         if [[ -n ${file} && -r ${file} ]] ; then
-            printf " %s" "$(<${file})"
+            printf "%s " "$(<${file})"
         fi
 
         if [[ ${time} -eq 1 ]] ; then
             ecolor bold
-            printf " [%02d:%02d:%02d]" $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 ))
+            printf " [%02d:%02d:%02d] " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 ))
             ecolor none
         fi
 
-        # Put space before the ticker
-        echo -n "  "
+        # Put an extra space before the ticker
+        echo -n " "
 
         spinout "/"
         spinout "-"
@@ -720,12 +722,14 @@ do_eprogress()
 eprogress()
 {
     $(opt_parse \
-        ":file f  | A file whose contents should be continually updated and displayed along with the
-                    ticker." \
-        "+time=1  | As long as not turned off with --no-time, the amount of time since eprogress
-                    start will be displayed next to the ticker." \
-        "@message | A message to be displayed once prior to showing a time ticker.  This will occur
-                    before the file contents if you also use --file.")
+        ":file f      | A file whose contents should be continually updated and displayed along with
+                        the ticker." \
+        "+time=1      | As long as not turned off with --no-time, the amount of time since eprogress
+                        start will be displayed next to the ticker." \
+        ":style=einfo | Style used when displaying the message.  You might want to use, for
+                        instance, einfos or ewarn or eerror instead." \
+        "@message     | A message to be displayed once prior to showing a time ticker.  This will
+                        occur before the file contents if you also use --file.")
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
@@ -733,7 +737,7 @@ eprogress()
     # Prepend this new eprogress pid to the front of our list of eprogress PIDs
     # Add a trap to ensure we kill this backgrounded process in the event we
     # die before calling eprogress_kill.
-    ( close_fds ; opt_forward do_eprogress file time -- "${@}" ) &
+    ( close_fds ; opt_forward do_eprogress file time style -- "${@}" ) &
     __BU_EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
