@@ -226,6 +226,12 @@ ETEST_elogfile_multiple_spaces()
         etestmsg "Test"
     )
 
+    etestmsg "${fname1} contents"
+    cat "${fname1}"
+
+    etestmsg "${fname2} contents"
+    cat "${fname2}"
+
     for fname in "${fname1}" "${fname2}"; do
         assert_exists "${fname}"
         grep --quiet "Test" "${fname}"
