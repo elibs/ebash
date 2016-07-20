@@ -1200,8 +1200,16 @@ emetadata_check()
     done
     [[ -n ${public_key} && -n ${pgpsignature} ]] && digests+=( "PGP" )
 
-    [[ ${quiet} -eq 1 ]] || eprogress "Verifying integrity of $(lval path metadata=digests)"
-    pack_print metapack |& edebug
+    if edebug_enabled; then
+        edebug "Verifying integrity of $(lval path metadata=digests)"
+        pack_print metapack |& edebug
+    fi
+
+    if [[ ${quiet} -eq 0 ]]; then
+        einfo "Verifying integrity of $(basename ${path})"
+        eprogress --style einfos "$(lval metadata=digests)"
+    fi
+
     local pids=()
 
     # Validate size
