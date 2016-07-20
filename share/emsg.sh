@@ -254,6 +254,8 @@ ecolor_internal()
             cub1|move_left)     tput cub1                          ;;
             el|clear_to_eol)    tput el                            ;;
             cr|start_of_line)   tput cr                            ;;
+            sc|save_cursor)     tput sc                            ;;
+            rc|restore_cursor)  tput rc                            ;;
             bold)               tput bold                          ;;
             underline)          tput smul                          ;;
             reset|none|off)     echo -en "\033[0m"                 ;;
@@ -678,14 +680,15 @@ do_eprogress()
     local done=0
     trap "done=1" ${DIE_SIGNALS[@]}
 
+    "${style}" -n "$*"
+
+    ecolor save_cursor
     local start=${SECONDS}
     while [[ ${done} -ne 1 ]]; do
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
 
-        "${style}" -n "$*"
-
-        # Display file if appropriate
+        # Display file contents if appropriate (minus final newline)
         if [[ -n ${file} && -r ${file} ]] ; then
             printf "%s " "$(<${file})"
         fi
@@ -698,6 +701,7 @@ do_eprogress()
 
         # Put an extra space before the ticker
         echo -n " "
+        ecolor clear_to_eol
 
         spinout "/"
         spinout "-"
@@ -711,11 +715,12 @@ do_eprogress()
         # If we're terminating delete whatever character was lost displayed and print a blank space over it
         # then return immediately instead of resetting while loop
         if [[ ${done} -eq 1 ]] ; then
-            ecolor move_left clear_to_eol
+            ecolor move_left
+            echo -n " "
             return 0
         fi
 
-        ecolor start_of_line clear_to_eol
+        ecolor restore_cursor
     done >&2
 }
 
