@@ -680,13 +680,13 @@ do_eprogress()
     local done=0
     trap "done=1" ${DIE_SIGNALS[@]}
 
+    "${style}" -n "$*"
+
     ecolor save_cursor
     local start=${SECONDS}
     while [[ ${done} -ne 1 ]]; do
         local now="${SECONDS}"
         local diff=$(( ${now} - ${start} ))
-
-        "${style}" -n "$*"
 
         # Display file contents if appropriate (minus final newline)
         if [[ -n ${file} && -r ${file} ]] ; then
