@@ -260,19 +260,24 @@ ETEST_noansi_files()
 OUTPUT=ticks-$$
 
 # Fake EPROGRESS function body to use in some of the tests which
-# don't want the real do_eprogress
-FAKE_DO_EPROGRESS='
+# don't want the real eprogress
+FAKE_EPROGRESS='
 {
-    trap "exit 0" ${DIE_SIGNALS[@]}
+    (
+        trap "exit 0" ${DIE_SIGNALS[@]}
 
-    local tick=0
-    rm --force ${OUTPUT}
+        local tick=0
+        rm --force ${OUTPUT}
 
-    while true; do
-        echo "${tick}" >> ${OUTPUT}
-        (( tick++ )) || true
-        sleep 0.10   || true
-    done
+        while true; do
+            echo "${tick}" >> ${OUTPUT}
+            (( tick++ )) || true
+            sleep 0.10   || true
+        done
+    ) &
+
+    __BU_EPROGRESS_PIDS+=( $! )
+    trap_add "eprogress_kill -r=1 $!"
 }
 '
 
@@ -299,7 +304,7 @@ wait_for_ticks()
 
 ETEST_eprogress_ticks()
 {
-    override_function do_eprogress "${FAKE_DO_EPROGRESS}"
+    override_function eprogress "${FAKE_EPROGRESS}"
 
     eprogress "Waiting 1 second"
     wait_for_ticks 9
@@ -308,7 +313,7 @@ ETEST_eprogress_ticks()
 
 ETEST_eprogress_ticks_reuse()
 {
-    override_function do_eprogress "${FAKE_DO_EPROGRESS}"
+    override_function eprogress "${FAKE_EPROGRESS}"
 
     eprogress "Waiting for Ubuntu to stop sucking"
     wait_for_ticks 5
@@ -342,7 +347,6 @@ ETEST_eprogress_ticker_off()
 
 ETEST_eprogress_ticker_on()
 {
-    type eprogress
     etestmsg "Starting background process that writes to ${OUTPUT}"
     (
         exec &> >(tee ${OUTPUT})
@@ -380,7 +384,7 @@ ETEST_eprogress_ticker_on()
 
 ETEST_eprogress_inside_eretry()
 {
-    override_function do_eprogress "${FAKE_DO_EPROGRESS}"
+    override_function eprogress "${FAKE_EPROGRESS}"
 
     etestmsg "Starting eprogress"
     eprogress "Waiting for eretry"
