@@ -435,7 +435,8 @@ ETEST_eprogress_file()
     assert_match "$(cat output)" "HELLO"
     assert_match "$(cat output)" "ok"
 
-    assert_not_exists "${file}"
+    # File should get deleted.
+    eretry assert_not_exists "${file}"
 }
 
 ETEST_eprogress_file_no_delete()
