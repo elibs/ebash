@@ -684,10 +684,10 @@ eprogress()
                 sleep 1
             done
 
-        # Delete file if requested
-        if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
-            rm --force "${file}"
-        fi
+            # Delete file if requested
+            if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
+                rm --force "${file}"
+            fi
 
             return 0
         fi
@@ -734,10 +734,10 @@ eprogress()
                 ecolor move_left
                 echo -n " "
 
-            # Delete file if requested
-            if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
-                rm --force "${file}"
-            fi
+                # Delete file if requested
+                if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
+                    rm --force "${file}"
+                fi
 
                 return 0
             fi
