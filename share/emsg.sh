@@ -648,9 +648,10 @@ do_eprogress()
 {
     $(opt_parse \
         ":file f      | A file whose contents should be continually updated and displayed along with
-                        the ticker." \
-        "+time=1      | If true, the amount of time since eprogress start will be displayed next to
-                        the ticker.  To turn it off, try --no-time" \
+                        the ticker. This file will be deleted by default when eprogress is complete." \
+        "+delete d=1  | Delete file when eprogress completes if one was specified via --file option." \
+        "+time=1      | As long as not turned off with --no-time, the amount of time since eprogress
+                        start will be displayed next to the ticker." \
         ":style=einfo | Style used when displaying the message.  You might want to use, for
                         instance, einfos or ewarn or eerror instead." \
         "@message     | A message to be displayed once prior to showing a time ticker.  This will
@@ -673,6 +674,12 @@ do_eprogress()
             echo -n "." >&2
             sleep 1
         done
+
+        # Delete file if requested
+        if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
+            rm --force "${file}"
+        fi
+
         return 0
     fi
 
@@ -690,7 +697,7 @@ do_eprogress()
 
         # Display file contents if appropriate (minus final newline)
         if [[ -n ${file} && -r ${file} ]] ; then
-            printf "%s " "$(<${file})"
+            printf "%s" "$(<${file})"
         fi
 
         if [[ ${time} -eq 1 ]] ; then
@@ -717,6 +724,12 @@ do_eprogress()
         if [[ ${done} -eq 1 ]] ; then
             ecolor move_left
             echo -n " "
+
+            # Delete file if requested
+            if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
+                rm --force "${file}"
+            fi
+
             return 0
         fi
 
@@ -728,7 +741,8 @@ eprogress()
 {
     $(opt_parse \
         ":file f      | A file whose contents should be continually updated and displayed along with
-                        the ticker." \
+                        the ticker. This file will be deleted by default when eprogress is complete." \
+        "+delete d=1  | Delete file when eprogress completes if one was specified via --file option." \
         "+time=1      | As long as not turned off with --no-time, the amount of time since eprogress
                         start will be displayed next to the ticker." \
         ":style=einfo | Style used when displaying the message.  You might want to use, for
@@ -742,7 +756,7 @@ eprogress()
     # Prepend this new eprogress pid to the front of our list of eprogress PIDs
     # Add a trap to ensure we kill this backgrounded process in the event we
     # die before calling eprogress_kill.
-    ( close_fds ; opt_forward do_eprogress file time style -- "${@}" ) &
+    ( close_fds ; opt_forward do_eprogress file delete time style -- "${@}" ) &
     __BU_EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
