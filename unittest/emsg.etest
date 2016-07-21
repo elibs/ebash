@@ -423,10 +423,12 @@ ETEST_eprogress_file()
     local file=${FUNCNAME}.txt
     echo "HELLO" > ${file}
 
-    (
+    local pids=()
+    {
         eprogress --no-time --file ${file}
+        pids=( "${__BU_EPROGRESS_PIDS[@]}" )
         eprogress_kill
-    ) &> output
+    } &> output
 
     etestmsg "output"
     cat output
@@ -435,8 +437,14 @@ ETEST_eprogress_file()
     assert_match "$(cat output)" "HELLO"
     assert_match "$(cat output)" "ok"
 
+    # Kill all eprogress pids and verify they exit
+    eprogress_kill -a
+    for pid in "${pids[@]}"; do
+        eretry -t=2s -T=10s process_not_running ${pid}
+    done
+ 
     # File should get deleted.
-    eretry assert_not_exists "${file}"
+    assert_not_exists "${file}"
 }
 
 ETEST_eprogress_file_no_delete()
