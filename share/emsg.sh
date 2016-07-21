@@ -281,7 +281,6 @@ noansi()
         sed -i "s:\x1B\[[0-9;]*[mK]::g" "${files[@]}"
     fi
 }
-    
 
 eclear()
 {
@@ -329,7 +328,7 @@ ebanner()
             local _ktag="${k%%=*}";
             : ${_ktag:=${k}}
             local _kval="${k#*=}";
-            _ktag=${_ktag#+}
+            _ktag=${_ktag#%}
             __details[${_ktag}]=$(print_value ${_kval})
 
         done
