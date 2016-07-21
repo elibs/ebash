@@ -282,7 +282,17 @@ archive_create()
         # ISO
         elif [[ ${dest_type} == iso ]]; then
 
-            cmd="mkisofs -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
+            local mkisofs
+            if which mkisofs &> /dev/null ; then
+                mkisofs=mkisofs
+            elif which xorrisofs &> /dev/null ; then
+                mkisofs=xorrisofs
+            else
+                eerror "no mkisofs-compatible program found"
+                return 1
+            fi
+
+            cmd="${mkisofs} -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
             
             if [[ ${bootable} -eq 1 ]]; then
                 cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
