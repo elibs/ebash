@@ -428,10 +428,27 @@ ETEST_eprogress_file()
     cat output
     etestmsg "end output"
 
-
     assert_match "$(cat output)" "HELLO"
     assert_match "$(cat output)" "ok"
 
+    assert_not_exists "${file}"
+}
+
+ETEST_eprogress_file_no_delete()
+{
+    local file=${FUNCNAME}.txt
+    echo "HELLO" > ${file}
+
+    (
+        eprogress --no-time --file ${file} --no-delete
+        eprogress_kill
+    ) &> output
+
+    etestmsg "output"
+    cat output
+    etestmsg "end output"
+
+    assert_exists "${file}"
 }
 
 ETEST_eprogress_killall_empty()
