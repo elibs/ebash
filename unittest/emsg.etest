@@ -329,7 +329,7 @@ ETEST_eprogress_ticks_reuse()
     eprogress_kill
 }
 
-# Verify EPROGRESS_TICKER can be used to forcibly enable/disable ticker
+# Verify EPROGRESS=0 can be used to forcibly disable ticker
 ETEST_eprogress_ticker_off()
 {
     (
@@ -340,14 +340,14 @@ ETEST_eprogress_ticker_off()
         EDEBUG=0
         ETRACE=0
         EINTERACTIVE=0
+        EPROGRESS=0
         EMSG_PREFIX=""
         eprogress "Waiting"
         eprogress_kill
-
     )
 
     wait_for_eprogress
-    assert_eq --hexdump ">> Waiting.[ ok ]" "$(cat ${OUTPUT})"
+    assert_eq --hexdump ">> Waiting [ ok ]" "$(cat ${OUTPUT})"
 }
 
 ETEST_eprogress_ticker_on()
@@ -428,10 +428,8 @@ ETEST_eprogress_file()
     local file=${FUNCNAME}.txt
     echo "HELLO" > ${file}
 
-    local pids=()
     {
         eprogress --no-time --file ${file}
-        pids=( "${__BU_EPROGRESS_PIDS[@]}" )
         eprogress_kill
     } &> output
 
@@ -442,12 +440,6 @@ ETEST_eprogress_file()
     assert_match "$(cat output)" "HELLO"
     assert_match "$(cat output)" "ok"
 
-    # Kill all eprogress pids and verify they exit
-    eprogress_kill -a
-    for pid in "${pids[@]}"; do
-        eretry -t=2s -T=10s process_not_running ${pid}
-    done
- 
     # File should get deleted.
     assert_not_exists "${file}"
 }
@@ -457,10 +449,10 @@ ETEST_eprogress_file_no_delete()
     local file=${FUNCNAME}.txt
     echo "HELLO" > ${file}
 
-    (
+    {
         eprogress --no-time --file ${file} --no-delete
         eprogress_kill
-    ) &> output
+    } &> output
 
     etestmsg "output"
     cat output
