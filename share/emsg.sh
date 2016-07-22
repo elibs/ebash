@@ -730,9 +730,7 @@ eprogress()
         done >&2
 
         # If we're terminating delete whatever character was lost displayed and print a blank space over it
-        # then return immediately instead of resetting while loop
-        ecolor move_left
-        echo -n " " >&2
+        { ecolor move_left ; echo -n " " ; } >&2
 
         # Delete file if requested
         if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
