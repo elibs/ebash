@@ -499,6 +499,11 @@ eerror()
     emsg "${COLOR_ERROR}" ">>" "ERROR" "$@"
 }
 
+etestmsg()
+{
+    EMSG_COLOR="all" emsg "magenta" "##" "WARN" "$@"
+}
+
 opt_usage eerror_stacktrace <<'END'
 Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints the entire
 stacktrace as a bright red error message with the funct and file:line number nicely formatted for

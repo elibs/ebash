@@ -88,11 +88,6 @@ die_handler()
     exit ${rc}
 }
 
-etestmsg()
-{
-    EMSG_COLOR="all" emsg "magenta" "##" "WARN" "$@"
-}
-
 # Returns success if there are no stale processes remaining in the cgroup for
 # this test and failure if there are any.
 #
