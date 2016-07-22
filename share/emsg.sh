@@ -292,6 +292,11 @@ etimestamp()
     echo -en "$(date '+%b %d %T.%3N')"
 }
 
+etimestamp_rfc3339()
+{
+    echo -en "$(date '+%FT%TZ')"
+}
+
 # Display a very prominent banner with a provided message which may be multi-line
 # and an optional timestamp as well as the ability to provide any number of extra
 # arguments which will be included in the banner in a pretty printed tag=value
@@ -383,7 +388,7 @@ emsg()
         local msg="$*"
 
         local informative_header=0
-        if [[ ${EMSG_PREFIX} =~ ${BU_WORD_BEGIN}(time|times|level|caller|pid|all)${BU_WORD_END} ]] ; then
+        if [[ ${EMSG_PREFIX} =~ ${BU_WORD_BEGIN}(time|times|time_rfc3339|level|caller|pid|all)${BU_WORD_END} ]] ; then
             informative_header=1
         fi
 
@@ -396,7 +401,7 @@ emsg()
             ecolor reset
 
             local field first_printed=0
-            for field in time level caller pid ; do
+            for field in time time_rfc3339 level caller pid ; do
 
                 # If the field is one selected by EMSG_PREFIX...
                 if [[ ${EMSG_PREFIX} =~ ${BU_WORD_BEGIN}(all|${field})${BU_WORD_END} ]] ; then
@@ -411,6 +416,9 @@ emsg()
                     case ${field} in
                         time|times)
                             etimestamp
+                            ;;
+                        time_rfc3339)
+                            etimestamp_rfc3339
                             ;;
                         level)
                             echo -n "${level}"

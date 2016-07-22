@@ -35,6 +35,11 @@ ETEST_emsg_time()
     EMSG_PREFIX="time" emsg_aux
 }
 
+ETEST_emsg_time_rfc3339()
+{
+    EMSG_PREFIX="time_rfc3339" emsg_aux
+}
+
 ETEST_emsg_time_legacy()
 {
     EFUNCS_TIME=1 emsg_aux
