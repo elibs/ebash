@@ -656,8 +656,18 @@ eprogress()
         "@message     | A message to be displayed once prior to showing a time ticker.  This will
                         occur before the file contents if you also use --file.")
 
-    # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
-    [[ ${EPROGRESS:-1} -eq 0 ]] && return 0
+    # Allow caller to opt-out of eprogress entirely via EPROGRESS=0. Simply display static message and then return.
+    if [[ ${EPROGRESS:-1} -eq 0 ]]; then
+        
+        "${style}" -n "$* "
+        
+        # Delete file if requested
+        if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
+            rm --force "${file}"
+        fi
+        
+        return 0
+    fi
 
     # Background a subshell to perform actual eprogress ticker work. Store the new pid in our list of eprogress PIDs
     # and setup a trap to ensure we kill this background process in the event we die before calling eprogress_kill.
@@ -668,38 +678,20 @@ eprogress()
         # Don't produce any errors when tools here catch a signal.  That's what we expect to happen
         nodie_on_error
 
-        # Automatically detect if we should use ticker based on if we are interactive or not.
-        if ! einteractive; then
-
-            einfo -n "$*"
-
-            # Display file if appropriate
-            if [[ -n ${file} && -r ${file} ]] ; then
-                printf "%s " "$(<${file})" >&2
-            fi
-
-            while true; do
-                echo -n "." >&2
-                sleep 1
-            done
-
-            # Delete file if requested
-            if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
-                rm --force "${file}"
-            fi
-
-            return 0
-        fi
-
         # Sentinal for breaking out of the loop on signal from eprogress_kill
         local done=0
         trap "done=1" ${DIE_SIGNALS[@]}
 
+        # Display static message.
         "${style}" -n "$*"
 
+        # Save current position and start time
         ecolor save_cursor
         local start=${SECONDS}
-        while [[ ${done} -ne 1 ]]; do
+
+        # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out 
+        # gracefully at the right point in the loop.
+        while true; do
             local now="${SECONDS}"
             local diff=$(( ${now} - ${start} ))
 
@@ -726,23 +718,30 @@ eprogress()
             spinout "-"
             spinout "\\"
             spinout "|"
-
-            # If we're terminating delete whatever character was lost displayed and print a blank space over it
-            # then return immediately instead of resetting while loop
-            if [[ ${done} -eq 1 ]] ; then
-                ecolor move_left
-                echo -n " "
-
-                # Delete file if requested
-                if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
-                    rm --force "${file}"
-                fi
-
-                return 0
+       
+            # If we are done then break out of the loop and perform necessary clean-up. Otherwise prepare for next
+            # iteration.
+            if [[ ${done} -eq 1 ]]; then
+                break
+            else
+                ecolor restore_cursor
             fi
 
-            ecolor restore_cursor
         done >&2
+
+        # If we're terminating delete whatever character was lost displayed and print a blank space over it
+        # then return immediately instead of resetting while loop
+        ecolor move_left
+        echo -n " " >&2
+
+        # Delete file if requested
+        if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
+            rm --force "${file}"
+        fi
+
+        # Always exit with success
+        exit 0
+
     ) &
     
     __BU_EPROGRESS_PIDS+=( $! )
@@ -761,7 +760,6 @@ eprogress_kill()
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
-        einteractive && echo "" >&2
         eend ${rc}
         return 0
     fi
