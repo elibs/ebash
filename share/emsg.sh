@@ -699,7 +699,7 @@ eprogress()
         "${style}" -n "$*"
 
         # Save current position and start time
-        ecolor save_cursor
+        ecolor save_cursor >&2
         local start=${SECONDS}
 
         # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out 
