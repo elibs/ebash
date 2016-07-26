@@ -191,142 +191,155 @@ archive_create()
     edebug "Creating archive $(lval directory srcs dest dest_real dest_type excludes ignore_missing nice level)"
     mkdir -p "$(dirname "${dest}")"
 
-    # Put entire function into a subshell to ensure clean up traps execute properly.
-    (
-        # If requested change directory first
-        if [[ -n ${directory} ]]; then
-            cd "${directory}"
-        fi
+    # List of files to clean-up
+    local cleanup_files=()
+    trap_add "array_not_empty cleanup_files && eunmount --all --recursive --delete \${cleanup_files[@]}"
 
-        # Create excludes file
-        local exclude_file=$(mktemp --tmpdir archive-exclude-XXXXXX)
-        trap_add "rm --force ${exclude_file}"
-        
-        # Also exclude any of our sources which would incorrectly contain the destination
-        local exclude_prefix=""
-        if [[ ${dest_type} == iso ]]; then
-            exclude_prefix="./"
-        fi
+    # If requested change directory first
+    if [[ -n ${directory} ]]; then
+        pushd "${directory}"
+    fi
 
-        # In case including and excluding something excludes take precedence.
-        if array_not_empty excludes; then
-            array_remove srcs ${excludes[@]}
-        fi
-     
-        # Always exclude the destination file. Need to canonicalize it and then remove
-        # any illegal prefix characters (/, ./, ../)
-        echo "${dest_real#${PWD}/}" | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
-
-        # Provide a common API around excludes, use find to pre-expand all excludes.
-        local entry
-        for entry in "${srcs[@]}"; do
-
-            # Parse optional ':' in the entry to be able to bind mount at alternative path. If not
-            # present default to full path.
-            local src="${entry%%:*}"
-            local mnt="${entry#*:}"
-            [[ -z ${mnt} ]] && mnt="${src}"
-            
-            local src_norm=$(readlink -m "${src}")
-            if [[ ${dest_real} == ${src_norm}/* ]]; then
-                echo "${dest_real#${src_norm}/}" | sed "s%^\(/\|./\|../\)%%"
-            fi
-
-            if array_not_empty excludes; then
-                find ${excludes[@]} -maxdepth 0 2>/dev/null | sed "s|^|${exclude_prefix}|" || true
-            fi
-
-        done | sort --unique >> "${exclude_file}"
-
-        edebug $'Exclude File:\n'"$(cat ${exclude_file})"
-        
-        # In order to provide a common interface around all the archive formats we
-        # must deal with inconsistencies in how multiple mount points are handled. 
-        # mksquashfs would use the basename of each provided path, whereas mkisofs 
-        # would merge them all into a flat directory while tar would preserve the
-        # entire directory structure for each provided path. In order to make them
-        # all work the same we bind mount each provided source into a single unified
-        # directory. This isn't strictly necessary if a single source path is given
-        # but it drastically simplifies the code to treat it the same and the overhead
-        # of a bind mount is so small that it is justified by the simpler code path.
-        local unified=$(mktemp --tmpdir --directory archive-create-XXXXXX)
-        trap_add "eunmount --all --recursive --delete ${unified}"
-        opt_forward ebindmount_into ignore_missing -- "${unified}" "${srcs[@]}"
-
-        # If nothing was merged and we're ignoring missing files that's still success.
-        if directory_empty ${unified} ; then
-            if [[ ${ignore_missing} -eq 1 ]]; then
-                edebug "Nothing merged and ignoring missing files"
-                rm --force "${dest}"
-                return 0
-            else
-                eerror "Nothing merged"
-                rm --force "${dest}"
-                return 1
-            fi
-        fi
-
-        # Change directory into single unified directory so all tools produce same output
-        cd "${unified}"
-       
-        # SQUASHFS
-        if [[ ${dest_type} == squashfs ]]; then
+    # Create excludes file
+    local exclude_file=$(mktemp --tmpdir archive-exclude-XXXXXX)
+    cleanup_files+=( "${exclude_file}" )
     
-            local mksquashfs_flags="-no-duplicates -no-recovery -no-exports -no-progress -noappend -wildcards"
-            if [[ ${nice} -eq 1 ]]; then
-                mksquashfs_flags+=" -processors 1"
-            fi          
+    # Also exclude any of our sources which would incorrectly contain the destination
+    local exclude_prefix=""
+    if [[ ${dest_type} == iso ]]; then
+        exclude_prefix="./"
+    fi
 
-            cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+    # In case including and excluding something excludes take precedence.
+    if array_not_empty excludes; then
+        array_remove srcs ${excludes[@]}
+    fi
+ 
+    # Always exclude the destination file. Need to canonicalize it and then remove
+    # any illegal prefix characters (/, ./, ../)
+    echo "${dest_real#${PWD}/}" | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
 
-        # ISO
-        elif [[ ${dest_type} == iso ]]; then
+    # Provide a common API around excludes, use find to pre-expand all excludes.
+    local entry
+    for entry in "${srcs[@]}"; do
 
-            local mkisofs
-            if which mkisofs &> /dev/null ; then
-                mkisofs=mkisofs
-            elif which xorrisofs &> /dev/null ; then
-                mkisofs=xorrisofs
-            else
-                eerror "no mkisofs-compatible program found"
-                return 1
-            fi
-
-            cmd="${mkisofs} -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
-            
-            if [[ ${bootable} -eq 1 ]]; then
-                cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
-            fi
-
-            cmd+=" ."
-
-        # TAR
-        elif [[ ${dest_type} == tar ]]; then
-
-            cmd="tar --exclude-from ${exclude_file} --create"
-            $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
-            if [[ ${rc} -eq 0 ]]; then
-                cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
-            else
-                cmd+=" --file ${dest_real} ."
-            fi
-
-        # CPIO
-        elif [[ ${dest_type} == cpio ]]; then
-            
-            cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
-            $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
-            if [[ ${rc} -eq 0 ]]; then
-                cmd+=" | ${prog} -${level} > ${dest_real}"
-            else
-                cmd+=" --file ${dest_real}"
-            fi
+        # Parse optional ':' in the entry to be able to bind mount at alternative path. If not
+        # present default to full path.
+        local src="${entry%%:*}"
+        local mnt="${entry#*:}"
+        [[ -z ${mnt} ]] && mnt="${src}"
+        
+        local src_norm=$(readlink -m "${src}")
+        if [[ ${dest_real} == ${src_norm}/* ]]; then
+            echo "${dest_real#${src_norm}/}" | sed "s%^\(/\|./\|../\)%%"
         fi
 
-        # Execute command
-        edebug "$(lval cmd)"
-        eval "${cmd}" |& edebug
-    )
+        if array_not_empty excludes; then
+            find ${excludes[@]} -maxdepth 0 2>/dev/null | sed "s|^|${exclude_prefix}|" || true
+        fi
+
+    done | sort --unique >> "${exclude_file}"
+
+    edebug $'Exclude File:\n'"$(cat ${exclude_file})"
+    
+    # In order to provide a common interface around all the archive formats we
+    # must deal with inconsistencies in how multiple mount points are handled. 
+    # mksquashfs would use the basename of each provided path, whereas mkisofs 
+    # would merge them all into a flat directory while tar would preserve the
+    # entire directory structure for each provided path. In order to make them
+    # all work the same we bind mount each provided source into a single unified
+    # directory. This isn't strictly necessary if a single source path is given
+    # but it drastically simplifies the code to treat it the same and the overhead
+    # of a bind mount is so small that it is justified by the simpler code path.
+    local unified=$(mktemp --tmpdir --directory archive-create-XXXXXX)
+    cleanup_files+=( "${unified}" )
+    opt_forward ebindmount_into ignore_missing -- "${unified}" "${srcs[@]}"
+
+    # If nothing was merged and we're ignoring missing files that's still success.
+    if directory_empty ${unified} ; then
+        if [[ ${ignore_missing} -eq 1 ]]; then
+            edebug "Nothing merged and ignoring missing files"
+            rm --force "${dest}"
+            return 0
+        else
+            eerror "Nothing merged"
+            rm --force "${dest}"
+            return 1
+        fi
+    fi
+
+    # Change directory into single unified directory so all tools produce same output
+    pushd "${unified}"
+   
+    # SQUASHFS
+    if [[ ${dest_type} == squashfs ]]; then
+
+        local mksquashfs_flags="-no-duplicates -no-recovery -no-exports -no-progress -noappend -wildcards"
+        if [[ ${nice} -eq 1 ]]; then
+            mksquashfs_flags+=" -processors 1"
+        fi          
+
+        cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+
+    # ISO
+    elif [[ ${dest_type} == iso ]]; then
+
+        local mkisofs
+        if which mkisofs &> /dev/null ; then
+            mkisofs=mkisofs
+        elif which xorrisofs &> /dev/null ; then
+            mkisofs=xorrisofs
+        else
+            eerror "no mkisofs-compatible program found"
+            return 1
+        fi
+
+        cmd="${mkisofs} -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
+        
+        if [[ ${bootable} -eq 1 ]]; then
+            cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
+        fi
+
+        cmd+=" ."
+
+    # TAR
+    elif [[ ${dest_type} == tar ]]; then
+
+        cmd="tar --exclude-from ${exclude_file} --create"
+        $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+        if [[ ${rc} -eq 0 ]]; then
+            cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
+        else
+            cmd+=" --file ${dest_real} ."
+        fi
+
+    # CPIO
+    elif [[ ${dest_type} == cpio ]]; then
+        
+        cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
+        $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+        if [[ ${rc} -eq 0 ]]; then
+            cmd+=" | ${prog} -${level} > ${dest_real}"
+        else
+            cmd+=" --file ${dest_real}"
+        fi
+    fi
+
+    # Execute command
+    edebug "$(lval cmd)"
+    eval "${cmd}" |& edebug
+
+    # Pop out of the unified directory
+    popd
+
+    # If requested change directory first
+    if [[ -n ${directory} ]]; then
+        popd
+    fi
+
+    # Execute clean-up and clear the list so it won't get called again on trap teardown
+    eunmount --all --recursive --delete ${cleanup_files[@]}
+    unset cleanup_files
 }
 
 opt_usage archive_extract <<'END'
