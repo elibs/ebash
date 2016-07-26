@@ -91,7 +91,7 @@ EOF
 
 ETEST_bashutils_bin_no_args()
 {
-    local output=$(EMSG_PREFIX="" ECOLOR=1 ewarn hi |& ${BASHUTILS_HOME}/bin/noansi)
+    local output=$(EMSG_PREFIX="" EFUNCS_COLOR=1 ewarn hi |& ${BASHUTILS_HOME}/bin/noansi)
     etestmsg "$(lval output)"
 
     assert_eq ">> hi" "${output}"
