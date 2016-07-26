@@ -232,8 +232,8 @@ ETEST_noansi_pipe()
 {
     etestmsg "This line shouldn't be colored." |& noansi
 
-    declare without_color=$(ECOLOR=1 ewarn "HELLO" |& noansi)
-    declare with_color=$(ECOLOR=1 ewarn "HELLO" 2>&1 )
+    declare without_color=$(EFUNCS_COLOR=1 ewarn "HELLO" |& noansi)
+    declare with_color=$(EFUNCS_COLOR=1 ewarn "HELLO" 2>&1 )
 
     declare -p without_color with_color
 
@@ -244,8 +244,8 @@ ETEST_noansi_pipe()
 
 ETEST_noansi_files()
 {
-    ECOLOR=1 EMSG_PREFIX="" ewarn "A" 2> file_a
-    ECOLOR=1 EMSG_PREFIX="" ewarn "B" 2> file_b
+    EFUNCS_COLOR=1 EMSG_PREFIX="" ewarn "A" 2> file_a
+    EFUNCS_COLOR=1 EMSG_PREFIX="" ewarn "B" 2> file_b
 
     declare a_contents="$(cat file_a)"
     declare b_contents="$(cat file_b)"
@@ -466,3 +466,28 @@ ETEST_eprogress_killall_empty()
     eprogress_kill -a
 }
 
+ETEST_no_stdout_contamination()
+{
+    foo()
+    {
+        echo "EXPECTED"
+        eprogress progress
+        edebug edebug
+        einfo einfo
+        einfos einfos
+        ewarn ewarn
+        ewarns ewarns
+        eerror eerror
+        ebanner ebanner
+        etestmsg etestmsg
+        eerror_stacktrace "PHONY ERROR"
+        eend 0
+        eend 1
+        sleep .5
+        eprogress_kill --rc 0
+    }
+
+    local capture=$(EFUNCS_COLOR=1 EINTERACTIVE=1 ETRACE=foo EDEBUG=foo foo)
+
+    assert_eq "EXPECTED" "${capture}"
+}
