@@ -1,5 +1,9 @@
 # Bashutils 1.3
 
+    - Added pkg subsystem with tools for installing and uninstalling
+      packages as well as determining whether they're installed in a safe
+      way across Linux distros.
+
     - Added --file option to eprogress
 
     - Added --hexdump option to assert_eq
