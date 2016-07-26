@@ -232,7 +232,9 @@ ecolor()
 {
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
     local efuncs_color=${EFUNCS_COLOR:=}
-    [[ -z ${efuncs_color} ]] && einteractive && efuncs_color=1
+    if [[ -z ${efuncs_color} ]] && einteractive ; then
+        efuncs_color=1
+    fi
     [[ ${efuncs_color} -eq 1 ]] || return 0
 
     declare -Ag __BU_COLOR_CACHE
