@@ -193,7 +193,7 @@ archive_create()
 
     # List of files to clean-up
     local cleanup_files=()
-    trap_add "array_not_empty cleanup_files && eunmount --all --recursive --delete \${cleanup_files[@]}"
+    trap_add "array_not_empty cleanup_files && eunmount --recursive --delete \${cleanup_files[@]}"
 
     # If requested change directory first
     if [[ -n ${directory} ]]; then
@@ -227,7 +227,7 @@ archive_create()
         # present default to full path.
         local src="${entry%%:*}"
         local mnt="${entry#*:}"
-        [[ -z ${mnt} ]] && mnt="${src}"
+        : ${mnt:=${src}}
         
         local src_norm=$(readlink -m "${src}")
         if [[ ${dest_real} == ${src_norm}/* ]]; then
@@ -338,7 +338,7 @@ archive_create()
     fi
 
     # Execute clean-up and clear the list so it won't get called again on trap teardown
-    eunmount --all --recursive --delete ${cleanup_files[@]}
+    eunmount --recursive --delete ${cleanup_files[@]}
     unset cleanup_files
 }
 
