@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# Copyright 2016 SolidFire, Inc. All rights reserved.
+#
+
+setup()
+{
+    PKG_EXISTS=coreutils
+    PKG_NOT_EXIST=does-not-exist
+
+    PKG_INSTALLED=coreutils
+
+    PKG_TO_INSTALL=hello
+    if os fedora arch ; then
+        PKG_TO_INSTALL=banner
+    fi
+
+    einfo "$(lval PKG_EXISTS PKG_NOT_EXIST PKG_INSTALLED PKG_TO_INSTALL)"
+}
+
+ETEST_pkg_exists()
+{
+    pkg_exists ${PKG_EXISTS}
+    assert_false pkg_exists ${PKG_NOT_EXIST}
+}
+
+ETEST_pkg_install()
+{
+    etestmsg "First make sure $(lval PKG_TO_INSTALL) is not installed."
+    pkg_exists ${PKG_TO_INSTALL}
+    assert_false pkg_installed ${PKG_TO_INSTALL}
+
+    etestmsg "Install it and verify it exists and can be verified as installed."
+    pkg_install ${PKG_TO_INSTALL}
+    pkg_exists ${PKG_TO_INSTALL}
+    pkg_installed ${PKG_TO_INSTALL}
+
+    etestmsg "Then uninstall it and verify that we don't believe it's installed."
+    pkg_uninstall ${PKG_TO_INSTALL}
+    assert_false pkg_installed ${PKG_TO_INSTALL}
+}
+
+ETEST_pkg_manager()
+{
+    assert_ne "unknown" "$(pkg_manager)"
+}
+
+if os_distro gentoo ; then
+
+    ETEST_pkg_gentoo_find()
+    {
+        assert_eq "www-servers/nginx" "$(pkg_gentoo_find_with_category nginx)"
+    }
+
+    ETEST_pkg_gentoo_find_ambiguous()
+    {
+        $(tryrc --stderr stderr pkg_gentoo_find_with_category ssh)
+        assert_match "${stderr}" "ambiguous"
+        assert_ne 0 ${rc}
+    }
+
+fi
