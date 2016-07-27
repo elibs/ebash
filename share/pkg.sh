@@ -48,8 +48,10 @@ pkg_gentoo_find_with_category()
 
     else
 
-        local found=( "/usr/portage/*/${name}" )
+        pushd /usr/portage
+        local found=( */${name} )
         local size=$(array_size found)
+        popd
 
         if [[ ${size} -eq 0 ]] ; then
             return 1
@@ -58,7 +60,8 @@ pkg_gentoo_find_with_category()
             echo "${found[0]}"
 
         else
-            die "${name} is ambiguous.  You must specify a category."
+            eerror "${name} is ambiguous.  You must specify a category."
+            return 2
         fi
     fi
 }
@@ -77,7 +80,10 @@ pkg_installed()
         portage)
 
             name=$(pkg_gentoo_find_with_category ${name})
-            [[ -d /var/db/pkg/${name} ]]
+            pushd /var/db/pkg
+            local all_versions=( ${name}* )
+            popd
+            [[ ${#all_versions[@]} -gt 0 && -d /var/db/pkg/${all_versions[0]} ]]
             ;;
 
         dnf)
