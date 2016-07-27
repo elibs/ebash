@@ -118,7 +118,7 @@ pkg_install()
 
         portage)
             if ! pkg_exists "${@}" ; then
-                eix-sync
+                emerge --sync
             fi
 
             emerge --ask=n "${@}"
@@ -228,7 +228,7 @@ pkg_uninstall()
 
     case $(pkg_manager) in
         dpkg)
-            aptitude purge -y "${@}"
+            DEBIAN_FRONTEND=noninteractive apt-get purge -y "${@}"
             ;;
 
         portage)
@@ -250,34 +250,6 @@ pkg_uninstall()
             ;;
     esac
 }
-
-pkg_database_update()
-{
-    case $(pkg_manager) in
-        dpkg)
-            apt-get update
-            ;;
-
-        portage)
-            eix-sync
-            ;;
-
-        dnf)
-            # dnf doesn't give you the option to do this separately -- it may do it as often as
-            # every call, depending on system configuration
-            :
-            ;;
-
-        pacman)
-            pacman -Sy
-            ;;
-
-        default)
-            die "Unsupported package manager $(pkg_manager)"
-            ;;
-    esac
-}
-
 
 pkg_manager()
 {
