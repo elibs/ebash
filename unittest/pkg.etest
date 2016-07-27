@@ -13,7 +13,7 @@ setup()
     PKG_INSTALLED=coreutils
 
     PKG_TO_INSTALL=hello
-    if os_distro fedora arch ; then
+    if os_distro gentoo fedora arch ; then
         PKG_TO_INSTALL=banner
     fi
 
@@ -32,13 +32,18 @@ ETEST_pkg_install()
     pkg_exists ${PKG_TO_INSTALL}
     assert_false pkg_installed ${PKG_TO_INSTALL}
 
-    etestmsg "Install it and verify it exists and can be verified as installed."
+    etestmsg "Install it."
     pkg_install ${PKG_TO_INSTALL}
+
+    etestmsg "Verify it exists and can be verified as installed."
     pkg_exists ${PKG_TO_INSTALL}
     pkg_installed ${PKG_TO_INSTALL}
 
-    etestmsg "Then uninstall it and verify that we don't believe it's installed."
+    etestmsg "Uninstall it."
     pkg_uninstall ${PKG_TO_INSTALL}
+
+    etestmsg "and verify that we don't believe it's installed."
+    pkg_exists ${PKG_TO_INSTALL}
     assert_false pkg_installed ${PKG_TO_INSTALL}
 }
 
@@ -56,9 +61,10 @@ if os_distro gentoo ; then
 
     ETEST_pkg_gentoo_find_ambiguous()
     {
+        etestmsg "Looking for category for ssh app, which lives in virtual AND python-dev"
         $(tryrc --stderr stderr pkg_gentoo_find_with_category ssh)
-        assert_match "${stderr}" "ambiguous"
         assert_ne 0 ${rc}
+        assert_match "${stderr}" "ambiguous"
     }
 
 fi
