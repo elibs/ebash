@@ -26,7 +26,7 @@ ETEST_pkg_exists()
     assert_false pkg_exists ${PKG_NOT_EXIST}
 }
 
-ETEST_pkg_install()
+ETEST_pkg_install_and_upgrade()
 {
     etestmsg "First make sure $(lval PKG_TO_INSTALL) is not installed."
     pkg_exists ${PKG_TO_INSTALL}
@@ -35,7 +35,15 @@ ETEST_pkg_install()
     etestmsg "Install $(lval PKG_TO_INSTALL)"
     pkg_install ${PKG_TO_INSTALL}
 
+    # Make sure things get cleaned up, even if something goes wrong after this point
+    trap_add "einfo CLEANUP ; pkg_uninstall ${PKG_TO_INSTALL} || true"
+
     etestmsg "Verify $(lval PKG_TO_INSTALL) exists and can be verified as installed."
+    pkg_exists ${PKG_TO_INSTALL}
+    pkg_installed ${PKG_TO_INSTALL}
+
+    etestmsg "Attempt upgrade on $(lval PKG_TO_INSTALL)"
+    pkg_upgrade ${PKG_TO_INSTALL}
     pkg_exists ${PKG_TO_INSTALL}
     pkg_installed ${PKG_TO_INSTALL}
 
