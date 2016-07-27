@@ -270,7 +270,7 @@ pkg_upgrade()
             ;;
 
         portage)
-            emerge --upgrade "${name}"
+            emerge --update "${name}"
             ;;
 
         dnf)
