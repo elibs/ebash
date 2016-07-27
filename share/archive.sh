@@ -67,13 +67,13 @@ archive_type()
     fi
 
     # Detect type based on suffix
-    if [[ ${src} =~ .squashfs ]]; then
+    if [[ ${src} == @(*.squashfs) ]]; then
         echo -n "squashfs"
-    elif [[ ${src} =~ .iso ]]; then
+    elif [[ ${src} == @(*.iso) ]]; then
         echo -n "iso"
-    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.txz|.tlz ]]; then
+    elif [[ ${src} == @(*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.txz|*.tlz) ]]; then
         echo -n "tar"
-    elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cxz|.clz ]]; then
+    elif [[ ${src} == @(*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cxz|*.clz) ]]; then
         echo -n "cpio"
     else
         eerror "Unsupported fstype $(lval src)"
@@ -96,13 +96,13 @@ archive_compress_program()
         fname=".${type}"
     fi
 
-    if [[ ${fname} =~ .bz2|.tz2|.tbz2|.tbz ]]; then
+    if [[ ${fname} == @(*.bz2|*.tz2|*.tbz2|*.tbz) ]]; then
         progs=( lbzip2 pbzip2 bzip2 )
         [[ ${nice} -eq 1 ]] && progs=( bzip2 )
-    elif [[ ${fname} =~ .gz|.tgz|.taz ]]; then
+    elif [[ ${fname} == @(*.gz|*.tgz|*.taz) ]]; then
         progs=( pigz gzip )
         [[ ${nice} -eq 1 ]] && progs=( gzip )
-    elif [[ ${fname} =~ .xz|.txz|.tlz|.cxz|.clz ]]; then
+    elif [[ ${fname} == @(*.xz|*.txz|*.tlz|*.cxz|*.clz) ]]; then
         progs=( lzma xz )
     else
         edebug "No suitable compress program for $(lval fname)"
@@ -366,7 +366,7 @@ archive_extract()
     # SQUASHFS + ISO
     # Neither of the tools for these archive formats support extracting a list
     # of globs patterns. So we mount them first and use find.
-    if [[ ${src_type} =~ squashfs|iso ]]; then
+    if [[ ${src_type} == @(squashfs|iso) ]]; then
 
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
@@ -407,7 +407,7 @@ archive_extract()
         )
 
     # TAR or CPIO
-    elif [[ ${src_type} =~ tar|cpio ]]; then
+    elif [[ ${src_type} == @(tar|cpio) ]]; then
 
         # By default the files to extract from the archive is all the files requested.
         # If files is an empty array this will evaluate to an empty string and all files
@@ -608,11 +608,11 @@ archive_mount()
     mkdir -p "${dest}"
 
     # SQUASHFS or ISO can be directly mounted
-    if [[ ${src_type} =~ squashfs|iso ]]; then
+    if [[ ${src_type} == @(squashfs|iso) ]]; then
         mount --read-only "${src}" "${dest}"
     
     # TAR+CPIO files need to be extracted manually :-[
-    elif [[ ${src_type} =~ tar|cpio ]]; then
+    elif [[ ${src_type} == @(tar|cpio) ]]; then
         archive_extract "${src}" "${dest}"
     fi
 }
