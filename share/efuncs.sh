@@ -1380,7 +1380,7 @@ numcores()
     echo $(cat /proc/cpuinfo | grep "processor" | wc -l)
 }
 
-opt_usage efetch_iternal <<'END'
+opt_usage efetch_internal <<'END'
 Internal only efetch function which fetches an individual file using curl. This will show an
 eprogress ticker and then kill the ticker with either success or failure indicated. The return value
 is then returned to the caller for handling.
