@@ -13,7 +13,7 @@ setup()
     PKG_INSTALLED=coreutils
 
     PKG_TO_INSTALL=hello
-    if os fedora arch ; then
+    if os_distro fedora arch ; then
         PKG_TO_INSTALL=banner
     fi
 

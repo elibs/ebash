@@ -136,8 +136,6 @@ pkg_install()
             die "Unsupported package manager $(pkg_manager)"
             ;;
     esac
-
-    einfo BYE
 }
 
 pkg_install_dpkg()
