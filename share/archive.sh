@@ -99,14 +99,14 @@ archive_compress_program()
     if [[ ${fname} == @(*.bz2|*.tz2|*.tbz2|*.tbz) ]]; then
         progs=( lbzip2 pbzip2 bzip2 )
         [[ ${nice} -eq 1 ]] && progs=( bzip2 )
-    elif [[ ${fname} == @(*.gz|*.tgz|*.taz) ]]; then
+    elif [[ ${fname} == @(*.gz|*.tgz|*.taz|*.cgz) ]]; then
         progs=( pigz gzip )
         [[ ${nice} -eq 1 ]] && progs=( gzip )
     elif [[ ${fname} == @(*.xz|*.txz|*.tlz|*.cxz|*.clz) ]]; then
         progs=( lzma xz )
     else
         edebug "No suitable compress program for $(lval fname)"
-        return 1
+        return 0
     fi
 
     # Look for matching installed program using which and head -1 to select
@@ -115,7 +115,6 @@ archive_compress_program()
     # to look at the output and not rely on the return code.
     local prog=$(which ${progs[@]:-} 2>/dev/null | head -1 || true)
     echo -n "${prog}"
-    [[ -n ${prog} ]]
 }
 
 opt_usage archive_create <<END
@@ -306,8 +305,8 @@ archive_create()
     elif [[ ${dest_type} == tar ]]; then
 
         cmd="tar --exclude-from ${exclude_file} --create"
-        $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
-        if [[ ${rc} -eq 0 ]]; then
+        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+        if [[ -n "${prog}" ]]; then
             cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
         else
             cmd+=" --file ${dest_real} ."
@@ -317,8 +316,8 @@ archive_create()
     elif [[ ${dest_type} == cpio ]]; then
         
         cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
-        $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
-        if [[ ${rc} -eq 0 ]]; then
+        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+        if [[ -n "${prog}" ]]; then
             cmd+=" | ${prog} -${level} > ${dest_real}"
         else
             cmd+=" --file ${dest_real}"
@@ -439,11 +438,10 @@ archive_extract()
         pushd "${dest}"
         
         local cmd=""
-        $(tryrc -r=compress_rc -o=compress_prog archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
-        if [[ ${compress_rc} -eq 0 ]]; then
-            cmd="${compress_prog} --decompress --stdout < ${src_real} | "
+        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
+        if [[ -n "${prog}" ]]; then
+            cmd="${prog} --decompress --stdout < ${src_real} | "
         fi 
-
 
         if [[ ${src_type} == tar ]]; then
             cmd+="tar --extract --wildcards --no-anchored"
@@ -455,7 +453,7 @@ archive_extract()
         cmd+=" ${includes}"
 
         # Conditionally feed it the archive file to extract via stdin.
-        if [[ ${compress_rc} -ne 0 ]]; then
+        if [[ -z "${prog}" ]]; then
             cmd+=" < "${src_real}""
         fi
 
@@ -500,8 +498,8 @@ archive_list()
 
         # Do decompression first
         local cmd=""
-        $(tryrc -o=prog archive_compress_program --type "${type}" "${src}")
-        if [[ ${rc} -eq 0 ]]; then
+        local prog=$(archive_compress_program --type "${type}" "${src}")
+        if [[ -n "${prog}" ]]; then
             ${prog} --decompress --stdout < ${src} | cpio --quiet -it
         else
             cpio --quiet -it < "${src}"
