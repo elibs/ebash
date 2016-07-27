@@ -7,7 +7,10 @@ os darwin && return 0
 
 opt_usage pkg_exists <<'END'
 Determine if the package management system locally knows of a package with the specified name.  This
-won't update the package database to do its check.
+won't update the package database to do its check.  Note that this does _not_ mean the package is
+installed.  Just that the package system believes it could install it.
+
+See pkg_installed to check if a package is actually installed.
 END
 pkg_exists()
 {
@@ -39,6 +42,12 @@ pkg_exists()
     esac
 }
 
+opt_usage pkg_gentoo_canonicalize<<'END'
+Takes as input a package name that may or may not have a category identifier on it.  If it does not
+have a category (e.g. app-misc or dev-util), then find the category that contains the specified package.
+
+NOTE: If the results would be ambiguous, fails and indicates that a category is required.
+END
 pkg_gentoo_canonicalize()
 {
     $(opt_parse "name | Package name whose category you'd like to find.")
@@ -66,6 +75,9 @@ pkg_gentoo_canonicalize()
     fi
 }
 
+opt_usage pkg_installed<<'END'
+Returns success if the specified package has been installed on this machine and false if it has not.
+END
 pkg_installed()
 {
     $(opt_parse \
@@ -98,7 +110,6 @@ pkg_installed()
             die "Unsupported package manager $(pkg_manager)"
             ;;
     esac
-
 }
 
 opt_usage pkg_install <<'END'
@@ -222,6 +233,9 @@ pkg_install_dpkg()
     )
 }
 
+opt_usage pkg_uninstall<<'END'
+Use local package manager to remove any number of specified packages without prompting to ask any questions.
+END
 pkg_uninstall()
 {
     $(opt_parse "@names | Names of package to install.")
