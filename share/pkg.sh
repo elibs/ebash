@@ -5,14 +5,14 @@
 
 os darwin && return 0
 
-opt_usage pkg_exists <<'END'
+opt_usage pkg_known <<'END'
 Determine if the package management system locally knows of a package with the specified name.  This
 won't update the package database to do its check.  Note that this does _not_ mean the package is
 installed.  Just that the package system believes it could install it.
 
 See pkg_installed to check if a package is actually installed.
 END
-pkg_exists()
+pkg_known()
 {
     $(opt_parse \
         "name | Name of package to look for.")
@@ -122,30 +122,36 @@ pkg_install()
 
     local pkg_manager=$(pkg_manager)
 
+    if ! pkg_known "${@}" ; then
+        pkg_sync
+    fi
+
     case ${pkg_manager} in
         dpkg)
-            pkg_install_dpkg "${@}"
+            $(tryrc DEBIAN_FRONTEND=noninteractive apt-get -y install "${@}")
+
+            # If it fails the first time...
+            if [[ ${rc} -ne 0 ]] ; then
+                # Try a bit of cleanup
+                DEBIAN_FRONTEND=noninteractive dpkg --force-confdef --force-confold --configure -a
+                DEBIAN_FRONTEND=noninteractive apt-get -f -y --force-yes install
+
+                # And then give it one more chance
+                DEBIAN_FRONTEND=noninteractive apt-get -y install "${@}"
+            fi
             ;;
 
         portage)
-            if ! pkg_exists "${@}" ; then
-                emerge --sync
-            fi
-
             emerge --ask=n "${@}"
             ;;
 
 
         dnf)
-            dnf install -y "${@}"
+            dnf install --cacheonly -y "${@}"
             ;;
 
 
         pacman)
-            if ! pkg_exists "${@}" ; then
-                pacman -Sy
-            fi
-
             pacman -S --noconfirm "${@}"
             ;;
 
@@ -153,95 +159,6 @@ pkg_install()
             die "Unsupported package manager $(pkg_manager)"
             ;;
     esac
-}
-
-pkg_install_dpkg()
-{
-    $(opt_parse \
-        "+try_without_update=1 | Try to install the packacge without doing an apt-get update first.
-                                 This is faster if your package database is probably up to date.  It
-                                 may lead to your not getting the newest version of the package if
-                                 it's not.  This will not induce a failure if no version of the
-                                 package is known.  Instead, we'll fall back to updating prior to
-                                 the install." \
-        "@names                | Names of each of the packages to install.")
-
-    (
-        set +e
-
-        export DEBIAN_FRONTEND=noninteractive
-
-        if [[ ${try_without_update} -eq 1 ]] ; then
-            # Try the install in basic form first off.  If it passes, we don't need to update sources or do
-            # anything else.  OTOH, if it fails, we have ways of making apt do what it's told.
-            apt-get -y install "${@}"
-            if [[ $? == 0 ]] ; then
-                exit 0
-            fi
-        fi
-
-        # This command cleans up some caches that like to cause apt to cough up a
-        # segfault.
-        local F_APT="find /var/lib/apt/lists -type f -a ! -name lock -a ! -name partial -delete"
-
-        # Most of these commands simply try to clean up bad situations that apt
-        # likes to get itself in.  Each item in this list will be run until it
-        # succeeds or we run out of retries.
-        #
-        #
-        local commands_left=(
-            "dpkg --force-confdef --force-confold --configure -a"
-            "${F_APT} ; apt-get -f -y --force-yes install"
-            # Note: ignore failures from apt-get update here.  Sometimes it fails because of a repo
-            # we don't care about.  All we care is that we can install our own packages.
-            "${F_APT} ; apt-get update ; apt-get -y install \${@}"
-            )
-
-
-        # Loop until we run out of chances, or until all of these commands have run successfully
-        local attempts=0
-        while [[ ${#commands_left[@]} -gt 0 ]] ; do
-
-            # Iterate over the commands that have not passed yet
-            local cmd cmd_rc
-            for cmd in "${commands_left[@]}" ; do
-
-                # Run this one
-                eval ${cmd}
-                cmd_rc=$?
-
-                edebug "Ran ${cmd} with exit ${cmd_rc}"
-
-                # If it was successful, remove it from the list
-                if [[ ${cmd_rc} -eq 0 ]] ; then
-                    commands_left=("${commands_left[@]:1}")
-                else
-                    # If not, wait for the next retry
-                    break;
-                fi
-
-            done
-
-
-            # If any of the commands failed, prepare to retry
-            if [[ ${#commands_left[@]} -ne 0 ]] ; then
-
-                # Sleep a random amount between 3 and 7 seconds
-                local random=$(( $RANDOM % 5 + 3))
-                edebug "Waiting ${random} seconds before trying to install ${@} again."
-                sleep ${random}
-
-                # Prepare for the next attempt unless we've already waited too long
-                (( attempts++ ))
-                [[ ${attempts} -gt 60 ]] && break
-                [[ $(( attempts % 3 )) -eq 0 ]] && einfo "Unable to install ${@} after ${attempts} tries.  Still trying..."
-            fi
-        done
-
-        set -e
-
-        exit ${cmd_rc}
-    )
 }
 
 opt_usage pkg_uninstall<<'END'
@@ -276,6 +193,67 @@ pkg_uninstall()
     esac
 }
 
+opt_usage pkg_sync<<'END'
+Sync the local package manager database with whatever remote repositories are known so that all
+packages known to those repositories are also known locally.
+END
+pkg_sync()
+{
+    case $(pkg_manager) in
+        dpkg)
+            apt-get update
+            ;;
+
+        portage)
+            emerge --sync
+            ;;
+
+        dnf)
+            dnf makecache
+            ;;
+
+        pacman)
+            pacman -Sy
+            ;;
+
+        *)
+            die "Unsupported package manager $(pkg_manager)"
+            ;;
+    esac
+}
+
+opt_usage pkg_clean<<'END'
+Clean out the local package manager database cache and do anything else to the package manager to
+try to clean up any bad states it might be in.
+END
+pkg_clean()
+{
+    case $(pkg_manager) in
+        dpkg)
+            find /var/lib/apt/lists -type f -a ! -name lock -a ! -name partial -delete
+            ;;
+
+        portage)
+            # Gentoo's sync is more thorough than the package syncing of most other package managers
+            # and so cleaning is typically unnecessary
+            ;;
+
+        dnf)
+            dnf clean expire-cache
+            ;;
+
+        pacman)
+            pacman -Sc
+            ;;
+
+        *)
+            die "Unsupported package manager $(pkg_manager)"
+            ;;
+    esac
+
+    pkg_sync
+}
+
 opt_usage pkg_upgrade<<'END'
 Replace the existing version of the specified package with the newest available package by that name.
 END
@@ -284,16 +262,15 @@ pkg_upgrade()
     $(opt_parse \
         "name | Name of the package that should be upgraded to the newest possible version.")
 
-    pkg_exists ${name}
+    pkg_installed ${name}
 
     case $(pkg_manager) in
         dpkg)
-            pkg_install_dpkg --no-try-without-update "${name}"
+            apt-get upgrade "${name}"
             ;;
 
         portage)
-            emerge --sync
-            pkg_install "${name}"
+            emerge --upgrade "${name}"
             ;;
 
         dnf)
@@ -301,7 +278,6 @@ pkg_upgrade()
             ;;
 
         pacman)
-            pacman -Sy
             pacman -S --noconfirm "${name}"
             ;;
 
