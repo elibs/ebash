@@ -266,7 +266,7 @@ pkg_upgrade()
 
     case $(pkg_manager) in
         dpkg)
-            apt-get upgrade "${name}"
+            DEBIAN_FRONTEND=noninteractive apt-get upgrade -y "${name}"
             ;;
 
         portage)
