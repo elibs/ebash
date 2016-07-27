@@ -13,6 +13,20 @@ ARCHIVE_TYPES=(
     cxz
 )
 
+ETEST_archive_compress_program()
+{
+    assert_empty "$(archive_compress_program foobar)"
+    assert_empty "$(archive_compress_program tarfoo)"
+    assert_empty "$(archive_compress_program foo.squashfs)"
+    assert_empty "$(archive_compress_program foo.tar)"
+    assert_empty "$(archive_compress_program foo.iso)"
+    assert_empty "$(archive_compress_program foo.cpio)"
+    assert_match "$(archive_compress_program foo.tbz2)"       "lbzip2|pbzip2|bzip2"
+    assert_match "$(archive_compress_program foo.tar.gz)"     "pigz|gzip"
+    assert_match "$(archive_compress_program foo.cgz)"        "pigz|gzip"
+    assert_match "$(archive_compress_program foo.cxz)"        "lzma|xz"
+}
+
 ETEST_archive_create()
 {
     local idx=0

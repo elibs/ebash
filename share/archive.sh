@@ -67,13 +67,13 @@ archive_type()
     fi
 
     # Detect type based on suffix
-    if [[ ${src} =~ .squashfs ]]; then
+    if [[ ${src} == @(*.squashfs) ]]; then
         echo -n "squashfs"
-    elif [[ ${src} =~ .iso ]]; then
+    elif [[ ${src} == @(*.iso) ]]; then
         echo -n "iso"
-    elif [[ ${src} =~ .tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.txz|.tlz ]]; then
+    elif [[ ${src} == @(*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.txz|*.tlz) ]]; then
         echo -n "tar"
-    elif [[ ${src} =~ .cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cxz|.clz ]]; then
+    elif [[ ${src} == @(*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cxz|*.clz) ]]; then
         echo -n "cpio"
     else
         eerror "Unsupported fstype $(lval src)"
@@ -96,17 +96,17 @@ archive_compress_program()
         fname=".${type}"
     fi
 
-    if [[ ${fname} =~ .bz2|.tz2|.tbz2|.tbz ]]; then
+    if [[ ${fname} == @(*.bz2|*.tz2|*.tbz2|*.tbz) ]]; then
         progs=( lbzip2 pbzip2 bzip2 )
         [[ ${nice} -eq 1 ]] && progs=( bzip2 )
-    elif [[ ${fname} =~ .gz|.tgz|.taz ]]; then
+    elif [[ ${fname} == @(*.gz|*.tgz|*.taz|*.cgz) ]]; then
         progs=( pigz gzip )
         [[ ${nice} -eq 1 ]] && progs=( gzip )
-    elif [[ ${fname} =~ .xz|.txz|.tlz|.cxz|.clz ]]; then
+    elif [[ ${fname} == @(*.xz|*.txz|*.tlz|*.cxz|*.clz) ]]; then
         progs=( lzma xz )
     else
         edebug "No suitable compress program for $(lval fname)"
-        return 1
+        return 0
     fi
 
     # Look for matching installed program using which and head -1 to select
@@ -115,7 +115,6 @@ archive_compress_program()
     # to look at the output and not rely on the return code.
     local prog=$(which ${progs[@]:-} 2>/dev/null | head -1 || true)
     echo -n "${prog}"
-    [[ -n ${prog} ]]
 }
 
 opt_usage archive_create <<END
@@ -306,8 +305,8 @@ archive_create()
     elif [[ ${dest_type} == tar ]]; then
 
         cmd="tar --exclude-from ${exclude_file} --create"
-        $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
-        if [[ ${rc} -eq 0 ]]; then
+        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+        if [[ -n "${prog}" ]]; then
             cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
         else
             cmd+=" --file ${dest_real} ."
@@ -317,8 +316,8 @@ archive_create()
     elif [[ ${dest_type} == cpio ]]; then
         
         cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
-        $(tryrc -o=prog archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
-        if [[ ${rc} -eq 0 ]]; then
+        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+        if [[ -n "${prog}" ]]; then
             cmd+=" | ${prog} -${level} > ${dest_real}"
         else
             cmd+=" --file ${dest_real}"
@@ -366,7 +365,7 @@ archive_extract()
     # SQUASHFS + ISO
     # Neither of the tools for these archive formats support extracting a list
     # of globs patterns. So we mount them first and use find.
-    if [[ ${src_type} =~ squashfs|iso ]]; then
+    if [[ ${src_type} == @(squashfs|iso) ]]; then
 
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
@@ -407,7 +406,7 @@ archive_extract()
         )
 
     # TAR or CPIO
-    elif [[ ${src_type} =~ tar|cpio ]]; then
+    elif [[ ${src_type} == @(tar|cpio) ]]; then
 
         # By default the files to extract from the archive is all the files requested.
         # If files is an empty array this will evaluate to an empty string and all files
@@ -439,11 +438,10 @@ archive_extract()
         pushd "${dest}"
         
         local cmd=""
-        $(tryrc -r=compress_rc -o=compress_prog archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
-        if [[ ${compress_rc} -eq 0 ]]; then
-            cmd="${compress_prog} --decompress --stdout < ${src_real} | "
+        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
+        if [[ -n "${prog}" ]]; then
+            cmd="${prog} --decompress --stdout < ${src_real} | "
         fi 
-
 
         if [[ ${src_type} == tar ]]; then
             cmd+="tar --extract --wildcards --no-anchored"
@@ -455,7 +453,7 @@ archive_extract()
         cmd+=" ${includes}"
 
         # Conditionally feed it the archive file to extract via stdin.
-        if [[ ${compress_rc} -ne 0 ]]; then
+        if [[ -z "${prog}" ]]; then
             cmd+=" < "${src_real}""
         fi
 
@@ -500,8 +498,8 @@ archive_list()
 
         # Do decompression first
         local cmd=""
-        $(tryrc -o=prog archive_compress_program --type "${type}" "${src}")
-        if [[ ${rc} -eq 0 ]]; then
+        local prog=$(archive_compress_program --type "${type}" "${src}")
+        if [[ -n "${prog}" ]]; then
             ${prog} --decompress --stdout < ${src} | cpio --quiet -it
         else
             cpio --quiet -it < "${src}"
@@ -608,11 +606,11 @@ archive_mount()
     mkdir -p "${dest}"
 
     # SQUASHFS or ISO can be directly mounted
-    if [[ ${src_type} =~ squashfs|iso ]]; then
+    if [[ ${src_type} == @(squashfs|iso) ]]; then
         mount --read-only "${src}" "${dest}"
     
     # TAR+CPIO files need to be extracted manually :-[
-    elif [[ ${src_type} =~ tar|cpio ]]; then
+    elif [[ ${src_type} == @(tar|cpio) ]]; then
         archive_extract "${src}" "${dest}"
     fi
 }
