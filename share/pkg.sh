@@ -157,16 +157,27 @@ pkg_install()
 
 pkg_install_dpkg()
 {
+    $(opt_parse \
+        "+try_without_update=1 | Try to install the packacge without doing an apt-get update first.
+                                 This is faster if your package database is probably up to date.  It
+                                 may lead to your not getting the newest version of the package if
+                                 it's not.  This will not induce a failure if no version of the
+                                 package is known.  Instead, we'll fall back to updating prior to
+                                 the install." \
+        "@names                | Names of each of the packages to install.")
+
     (
         set +e
 
         export DEBIAN_FRONTEND=noninteractive
 
-        # Try the install in basic form first off.  If it passes, we don't need to update sources or do
-        # anything else.  OTOH, if it fails, we have ways of making apt do what it's told.
-        apt-get -y install "${@}"
-        if [[ $? == 0 ]] ; then
-            return 0
+        if [[ ${try_without_update} -eq 1 ]] ; then
+            # Try the install in basic form first off.  If it passes, we don't need to update sources or do
+            # anything else.  OTOH, if it fails, we have ways of making apt do what it's told.
+            apt-get -y install "${@}"
+            if [[ $? == 0 ]] ; then
+                exit 0
+            fi
         fi
 
         # This command cleans up some caches that like to cause apt to cough up a
@@ -229,7 +240,7 @@ pkg_install_dpkg()
 
         set -e
 
-        exit ${apt_rc}
+        exit ${cmd_rc}
     )
 }
 
@@ -257,6 +268,41 @@ pkg_uninstall()
 
         pacman)
             pacman -R --noconfirm "${@}"
+            ;;
+
+        *)
+            die "Unsupported package manager $(pkg_manager)"
+            ;;
+    esac
+}
+
+opt_usage pkg_upgrade<<'END'
+Replace the existing version of the specified package with the newest available package by that name.
+END
+pkg_upgrade()
+{
+    $(opt_parse \
+        "name | Name of the package that should be upgraded to the newest possible version.")
+
+    pkg_exists ${name}
+
+    case $(pkg_manager) in
+        dpkg)
+            pkg_install_dpkg --no-try-without-update "${name}"
+            ;;
+
+        portage)
+            emerge --sync
+            pkg_install "${name}"
+            ;;
+
+        dnf)
+            dnf update -y "${name}"
+            ;;
+
+        pacman)
+            pacman -Sy
+            pacman -S --noconfirm "${name}"
             ;;
 
         *)
