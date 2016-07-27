@@ -32,17 +32,17 @@ ETEST_pkg_install()
     pkg_exists ${PKG_TO_INSTALL}
     assert_false pkg_installed ${PKG_TO_INSTALL}
 
-    etestmsg "Install it."
+    etestmsg "Install $(lval PKG_TO_INSTALL)"
     pkg_install ${PKG_TO_INSTALL}
 
-    etestmsg "Verify it exists and can be verified as installed."
+    etestmsg "Verify $(lval PKG_TO_INSTALL) exists and can be verified as installed."
     pkg_exists ${PKG_TO_INSTALL}
     pkg_installed ${PKG_TO_INSTALL}
 
-    etestmsg "Uninstall it."
+    etestmsg "Uninstall $(lval PKG_TO_INSTALL)"
     pkg_uninstall ${PKG_TO_INSTALL}
 
-    etestmsg "and verify that we don't believe it's installed."
+    etestmsg "and verify that we don't believe $(lval PKG_TO_INSTALL) is installed."
     pkg_exists ${PKG_TO_INSTALL}
     assert_false pkg_installed ${PKG_TO_INSTALL}
 }
