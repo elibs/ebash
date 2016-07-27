@@ -257,12 +257,6 @@ overlayfs_layers()
     # Look for an overlayfs mount point matching provided mount point. It may NOT be
     # mounted (hence the || true) in which case we should just return.
     local entry=$(list_mounts | grep "^${__BU_OVERLAYFS} ${mnt} " | grep -Po "upperdir=\K[^, ]*" || true)
-    
-    if edebug_enabled; then
-        edebug "Looking up layers from $(lval mnt entry)"
-        list_mounts | grep "^${__BU_OVERLAYFS} ${mnt}"
-    fi
-
     if [[ -z ${entry} ]]; then
         return 0
     fi
