@@ -56,13 +56,13 @@ if os_distro gentoo ; then
 
     ETEST_pkg_gentoo_find()
     {
-        assert_eq "www-servers/nginx" "$(pkg_gentoo_find_with_category nginx)"
+        assert_eq "www-servers/nginx" "$(pkg_gentoo_canonicalize nginx)"
     }
 
     ETEST_pkg_gentoo_find_ambiguous()
     {
         etestmsg "Looking for category for ssh app, which lives in virtual AND python-dev"
-        $(tryrc --stderr stderr pkg_gentoo_find_with_category ssh)
+        $(tryrc --stderr stderr pkg_gentoo_canonicalize ssh)
         assert_ne 0 ${rc}
         assert_match "${stderr}" "ambiguous"
     }

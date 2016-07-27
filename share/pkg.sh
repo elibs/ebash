@@ -21,7 +21,7 @@ pkg_exists()
 
         portage)
 
-            name=$(pkg_gentoo_find_with_category ${name})
+            name=$(pkg_gentoo_canonicalize ${name})
             [[ -d /usr/portage/${name} ]]
             ;;
 
@@ -39,7 +39,7 @@ pkg_exists()
     esac
 }
 
-pkg_gentoo_find_with_category()
+pkg_gentoo_canonicalize()
 {
     $(opt_parse "name | Package name whose category you'd like to find.")
 
@@ -79,7 +79,7 @@ pkg_installed()
 
         portage)
 
-            name=$(pkg_gentoo_find_with_category ${name})
+            name=$(pkg_gentoo_canonicalize ${name})
             pushd /var/db/pkg
             local all_versions=( ${name}* )
             popd
