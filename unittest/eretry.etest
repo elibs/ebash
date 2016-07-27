@@ -205,7 +205,7 @@ ETEST_eretry_partial_output_timeout()
         return 0
     }
 
-    local output=$(eretry -r=2 -t=.5s callback)
+    $(tryrc --stdout output eretry -r=2 -t=.5s callback)
     einfo "$(lval output)"
     echo "${output}" | jq .
     assert_eq '{"key":"value"}' "${output}"
