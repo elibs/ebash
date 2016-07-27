@@ -3,6 +3,8 @@
 # Copyright 2016 SolidFire, Inc. All rights reserved.
 #
 
+os darwin && return 0
+
 opt_usage pkg_exists <<'END'
 Determine if the package management system locally knows of a package with the specified name.  This
 won't update the package database to do its check.

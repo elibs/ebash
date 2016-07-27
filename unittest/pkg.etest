@@ -3,6 +3,8 @@
 # Copyright 2016 SolidFire, Inc. All rights reserved.
 #
 
+os darwin && return 0
+
 setup()
 {
     PKG_EXISTS=coreutils
