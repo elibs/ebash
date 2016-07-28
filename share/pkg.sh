@@ -243,7 +243,7 @@ pkg_clean()
             ;;
 
         pacman)
-            pacman -Sc
+            pacman -Sc --noconfirm
             ;;
 
         *)
