@@ -412,9 +412,10 @@ fi
         eerror "FAILED TESTS:"
         for index in ${!FAILURES[@]} ; do
             for failed_test in ${FAILURES[$index]} ; do
-                echo "$(ecolor "red")      ${failed_test}"
+                echo "$(ecolor "red")      ${failed_test}" >&2
             done
         done
+	ecolor off >&2
     fi
 } |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
 
