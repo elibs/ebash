@@ -480,7 +480,9 @@ archive_list()
     $(opt_parse \
         ":type t | Override automatic type detection and use explicit archive type." \
         "src     | Archive whose contents should be listed.")
+
     local src_type=$(archive_type --type "${type}" "${src}")
+    edebug "File: $(file "${src}") $(lval type src_type)"
 
     # The code below calls out to the various archive format specific tools to dump
     # their contents. There's a little sed on each command's output to normalize the
