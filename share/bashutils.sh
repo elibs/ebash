@@ -93,6 +93,7 @@ source "${BASHUTILS}/opt.sh"
 source "${BASHUTILS}/os.sh"
 source "${BASHUTILS}/overlayfs.sh"
 source "${BASHUTILS}/pack.sh"
+source "${BASHUTILS}/pkg.sh"
 source "${BASHUTILS}/process.sh"
 
 # Default traps
