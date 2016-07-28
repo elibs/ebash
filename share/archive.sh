@@ -192,7 +192,7 @@ archive_create()
 
     # List of files to clean-up
     local cleanup_files=()
-    trap_add "array_not_empty cleanup_files && eunmount --recursive --delete \${cleanup_files[@]}"
+    trap_add "array_not_empty cleanup_files && eunmount --all --recursive --delete \${cleanup_files[@]}"
 
     # If requested change directory first
     if [[ -n ${directory} ]]; then
@@ -200,7 +200,7 @@ archive_create()
     fi
 
     # Create excludes file
-    local exclude_file=$(mktemp --tmpdir archive-exclude-XXXXXX)
+    local exclude_file=$(mktemp --tmpdir archive-create-exclude-XXXXXX)
     cleanup_files+=( "${exclude_file}" )
     
     # Also exclude any of our sources which would incorrectly contain the destination
@@ -250,7 +250,7 @@ archive_create()
     # directory. This isn't strictly necessary if a single source path is given
     # but it drastically simplifies the code to treat it the same and the overhead
     # of a bind mount is so small that it is justified by the simpler code path.
-    local unified=$(mktemp --tmpdir --directory archive-create-XXXXXX)
+    local unified=$(mktemp --tmpdir --directory archive-create-unified-XXXXXX)
     cleanup_files+=( "${unified}" )
     opt_forward ebindmount_into ignore_missing -- "${unified}" "${srcs[@]}"
 
@@ -337,7 +337,7 @@ archive_create()
     fi
 
     # Execute clean-up and clear the list so it won't get called again on trap teardown
-    eunmount --recursive --delete ${cleanup_files[@]}
+    eunmount --all --recursive --delete ${cleanup_files[@]}
     unset cleanup_files
 }
 
@@ -369,9 +369,9 @@ archive_extract()
 
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
-            local mnt=$(mktemp --tmpdir --directory archive-mnt-XXXXXX)
+            local mnt=$(mktemp --tmpdir --directory archive-extract-XXXXXX)
             mount --read-only "${src}" "${mnt}"
-            trap_add "eunmount -r -d ${mnt}"
+            trap_add "eunmount --recursive --delete ${mnt}"
 
             local dest_real=$(readlink -m "${dest}")
             cd "${mnt}"
@@ -557,8 +557,8 @@ archive_convert()
 
     # Temporary directory for mounting
     (
-        local mnt="$(mktemp --tmpdir --directory archive-mnt-XXXXXX)"
-        trap_add "eunmount -r -d ${mnt}"
+        local mnt="$(mktemp --tmpdir --directory archive-convert-XXXXXX)"
+        trap_add "eunmount --recursive --delete ${mnt}"
 
         # Mount (if possible) or extract the archive image if mounting is not supported.
         archive_mount "${src}" "${mnt}"
@@ -582,8 +582,8 @@ archive_diff()
         local src
         for src in "${@}"; do
             
-            local mnt="$(mktemp --tmpdir --directory archive-mnt-XXXXXX)"
-            trap_add "eunmount -r -d ${mnt}"
+            local mnt="$(mktemp --tmpdir --directory archive-diff-XXXXXX)"
+            trap_add "eunmount --recursive --delete ${mnt}"
             local src_type=$(archive_type "${src}")
             mnts+=( "${mnt}" )
 
