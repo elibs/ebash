@@ -230,7 +230,7 @@ overlayfs_unmount()
     # This is necessary on older kernels which would leak the lower layer mounts.
     local metadir=$(pack_get layers metadir)
     if [[ -n ${metadir} ]] ; then
-        eunmount --all --recursive --delete "${metadir}" "${mnt}"
+        eunmount --all --recursive --delete "${metadir}"
     fi
 }
 
