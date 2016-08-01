@@ -59,6 +59,33 @@ ETEST_overlayfs_eunmount()
     assert_not_exists dest/file1 dest/file2 dest
 }
 
+ETEST_overlayfs_file_in_other_overlayfs()
+{
+    etestmsg "Creating one overlayfs"
+    efreshdir src1
+    for i in file1 file2 ; do
+        echo $i > src1/$i
+    done
+    find src1
+    archive_create src1/. src1.squashfs
+
+    etestmsg "Mounting it"
+    efreshdir target1
+    overlayfs_mount src1.squashfs target1
+    find target1
+
+    etestmsg "Creating another archive containing one of those files"
+    archive_create target1/. target1.squashfs
+    archive_list target1.squashfs
+
+    etestmsg "Mounting it at target2"
+    efreshdir target2
+    overlayfs_mount target1.squashfs target2
+    find target2
+
+    eunmount --all --recursive --delete target1 target2
+}
+
 # Ensure if we see a 'foreign' overlayfs mount not created by bashutils
 # that we don't blow up trying to unmount it and instead make a best
 # effort to unmount it.
