@@ -506,32 +506,63 @@ archive_list()
     fi | sort --unique | sed '/^$/d'
 }
 
-opt_usage archive_append <<'END'
+opt_usage archive_append <<END
 Append a given list of paths to an existing archive atomically. The way this is done atomically is
 to do all the work on a temporary file and only move it over to the final file once all the append
 work is complete. The reason we do this atomically is to ensure that we never have a corrupt or
 half written archive which would be unusable.
+
+${PATH_MAPPING_SYNTAX_DOC}
+
+NOTE: The implementation of this function purposefully doesn't use native --append functions in
+the various archive formats as they do not all support it. The ones which do support append 
+do not implement in a remotely sane manner. You might ask why we don't use overlayfs for this.
+First, overlayfs with bindmounting and chroots on older kernels causes some serious problems 
+wherein orphaned mounts become unmountable and the file systems containing them cannot be
+unmounted later due to reference counts not being freed in the kernel. Additionally, if
+compression is used (which it almost always is) we are forced to decompress and recompress
+the archive regardless so overlayfs doesn't save us anything. If you're really concerned about
+performance just ensure TMPDIR is in memory as that is where all the work is performed.
+
 END
 archive_append()
 {
     $(opt_parse \
+        "+best             | Use the best compression (level=9)." \
+        "+bootable boot b  | Make the ISO bootable (ISO only)." \
+        "+fast             | Use the fastest compression (level=1)." \
         "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
+        ":level l=9        | Compression level (1=fast, 9=best)." \
+        "+nice n           | Be nice and use non-parallel compressors and only a single core." \
+        ":volume v         | Optional volume name to use (ISO only)." \
         "dest              | Archive to append files to." \
-        "@srcs             | Source paths to archive.")
+        "@srcs             | Source paths to append to the archive.")
 
-    edebug "Appending to archive $(lval srcs dest ignore_missing)"
+    # Parse options
+    local dest_name=$(basename "${dest}")
+    local dest_real=$(readlink -m "${dest}")
+ 
+    edebug "Appending to archive $(lval dest srcs ignore_missing)"
     assert_exists "${dest}"
 
-    # Mount the archive using overlayfs so we have a writeable mount point to copy the new files into.
-    local unified=$(mktemp --tmpdir --directory archive-append-XXXXXX)
-    overlayfs_mount "${dest}" "${unified}"
-    trap_add "eunmount --all --recursive --delete ${unified}"
+    # Extract the archive into tmpfs directory
+    local unified=$(mktemp --tmpdir --directory archive-append-unified-XXXXXX)
+    opt_forward archive_extract nice -- "${dest}" "${unified}"
 
-    # Now bind mount the new sources into the overlayfs mount point.
+    # Bind mount all src paths being append to the archive into unified directory.
     opt_forward ebindmount_into ignore_missing -- "${unified}" "${srcs[@]}"
+    trap_add "eunmount --recursive --delete ${unified}"
 
-    # Write the changes back out to the original archive
-    overlayfs_commit --no-dedupe "${unified}"
+    # Create an archive of the unified directory. It's important that this temporary file:
+    # (1) Is created in the same directory as the final destination we will move it to in order to
+    #     guarantee atomiciy.
+    # (2) Ends in the same exact suffix as the original file so that we'll use the correct compression.
+    local appended=$(mktemp $(dirname ${dest_real})/archive-append-XXXXXX-${dest_name})
+    opt_forward archive_create best bootable exclude fast ignore_missing level nice volume -- "${appended}" "${unified}/."
+
+    # Now move the append archive over the original.
+    mv "${appended}" "${dest}"
+    eunmount --recursive --delete "${unified}"
 }
 
 #---------------------------------------------------------------------------------------------------

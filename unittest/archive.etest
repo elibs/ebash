@@ -905,6 +905,58 @@ ETEST_archive_append_overwrite()
     done
 }
 
+ETEST_archive_append_no_shadow_mount_files()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir dest
+        touch file1 file2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} file1 file2
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        efreshdir new
+        touch new/file3 new/file4
+        archive_append src.${ftype} new/.
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest file1 file2 file3 file4
+    done
+}
+
+ETEST_archive_append_no_shadow_mount_directory()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        efreshdir src
+        touch src/{file3,file4}
+        archive_append src.${ftype} src
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2,file3,file4}
+    done
+}
+
 
 ETEST_archive_xnice()
 {

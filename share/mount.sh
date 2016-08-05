@@ -114,14 +114,6 @@ ebindmount_into()
     mkdir -p "${dest}"
     local dest_real=$(readlink -m "${dest}")
 
-    # This flag is used to keep track if we've bind mounted the contents of a source path 
-    # into the target directory or not. This is an optimization to avoid having to bind
-    # mount all the contents of a directory if only a single directory's contents are 
-    # being bind mounted. If the caller passes in 'foo/.' and 'bar/.' then we can do 
-    # a very efficient bind mount of foo/. into the target directory, and then we only
-    # have to iterate and bind mount the contents of bar instead of both foo and bar.
-    local flatten=0
-
     # Iterate over each entry and parse optional ':' in the entry and then bind mount
     # the source path into the specified destination path.
     local entry
@@ -142,36 +134,47 @@ ebindmount_into()
             fi
         fi
 
-        # Create path inside unified directory then bind mount it read-only.
-        #
-        # NOTE: If the path ends with '/.' then we want the contents of the directory
-        # rather than the directory itself
+        # If the requested source path is a directory which ends with '/.' then caller wants to bind
+        # mount the contents of the directory rather than the directory itself.
         if [[ -d "${src}" && "${src: -2}" == "/." ]]; then
 
-            # If we've already bind mounted the contents of a directory then we must flatten
-            # the contents of this directory manually to avoid shadow mounting over the
-            # earlier one.
-            if [[ ${flatten} -eq 1 ]]; then
-                pushd "${src}"
-                opt_forward ebindmount_into ignore_missing -- "$(readlink -m ${dest_real}/${src}/..)" $(find . -maxdepth 1 -printf '%P\n')
-                popd
+            local parent="$(readlink -m ${dest_real}/${src}/..)"
+            pushd "${src}"
+
+            # If the destination parent directory has already been created then we have to be
+            # careful not to shadow mount over as we'd mask it's contents. So if it is there
+            # bind mount the contents of the src directory into the parent directory. 
+            # Otherwise we can simply bind mount the directory into thd destination directory.
+            if [[ -d "${parent}" ]]; then
+                opt_forward ebindmount_into ignore_missing -- "${parent}" $(find . -maxdepth 1 -printf '%P\n')
             else
-                pushd "${src}"
                 ebindmount "." "${dest_real}/."
-                popd
             fi
 
-            flatten=1
-            continue
+            popd
 
-        elif [[ -d "${src}" ]]; then
-            mkdir -p "${dest_real}/${mnt}"
+        # If the destination directory has already been created then we have to be careful not
+        # to shadow mount over as we'd mask it's contents. So if it is there bind mount the
+        # contents of the src directory into the destination directory.
+        elif [[ -d "${dest_real}/${mnt}" ]]; then
+            pushd "${src}"
+            opt_forward ebindmount_into ignore_missing -- "$(readlink -m ${dest_real}/${src})" $(find . -maxdepth 1 -printf '%P\n')
+            popd
+
+        # Otherwise simply bindmount the source path into the destination path. Taking care
+        # to create the proper tree structure inside destination path.
         else
-            mkdir -p "$(dirname "${dest_real}/${mnt}")"
-            touch "${dest_real}/${mnt}"
+            
+            if [[ -d "${src}" ]]; then
+                mkdir -p "${dest_real}/${mnt}"
+            else
+                mkdir -p "$(dirname "${dest_real}/${mnt}")"
+                touch "${dest_real}/${mnt}"
+            fi
+
+            ebindmount "${src}" "${dest_real}/${mnt}"
         fi
 
-        ebindmount "${src}" "${dest_real}/${mnt}"
     done
 }
 
