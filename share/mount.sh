@@ -100,11 +100,13 @@ opt_usage ebindmount_into <<END
 Bind mount a list of paths into the specified directory. This function will iterate over 
 all the source paths provided and bind mount each source path into the provided destination
 directory. This function will merge the contents all into the final destination path much like
-cp or rsync would but without the overhead of actually copying the files. If there are files
-with the same name already in the destination directory the new version will be shadow mounted
-over the existing version. This has the effect of merging the contents but allowing updated 
-files to effectively replace what is already in the directory. This property holds true for
-files as well as directories. Consider the following example:
+cp or rsync would but without the overhead of actually copying the files. To fully cleanup the
+destination directory created by ebindmount_into you should use eunmount --all --recursive.
+
+If there are files with the same name already in the destination directory the new version will
+be shadow mounted over the existing version. This has the effect of merging the contents but
+allowing updated files to effectively replace what is already in the directory. This property
+holds true for files as well as directories. Consider the following example:
 
 # echo "src1" >src1/file1
 # echo "src2" >src2/file1
