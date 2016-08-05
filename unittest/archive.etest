@@ -39,7 +39,7 @@ ETEST_archive_create()
         touch src/{file1,file2}
 
         etestmsg "Creating dest.${ftype}"
-        archive_create src dest.${ftype}
+        archive_create dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
     done
 }
@@ -51,12 +51,12 @@ ETEST_archive_create_type()
     touch src/{file1,file2}
 
     etestmsg "Creating dest.img (cpio)"
-    archive_create -t=cpio src dest.img
+    archive_create -t=cpio dest.img src
     assert_match "$(file dest.img)" "ASCII cpio archive"
     archive_list -t=cpio dest.img
 
     etestmsg "Creating dest.img (cgz)"
-    archive_create -t=cgz src dest.img
+    archive_create -t=cgz dest.img src
     assert_match "$(file dest.img)" "gzip compressed data"
     archive_list -t=cgz dest.img
 }
@@ -73,19 +73,19 @@ ETEST_archive_create_level()
         touch src/{file1,file2}
 
         etestmsg "Creating dest.${ftype}"
-        archive_create --level 1 src dest.${ftype}
+        archive_create --level 1 dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
         rm dest.${ftype}
 
-        archive_create --level 9 src dest.${ftype}
+        archive_create --level 9 dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
         rm dest.${ftype}
  
-        archive_create --fast src dest.${ftype}
+        archive_create --fast dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
         rm dest.${ftype}
  
-        archive_create --best src dest.${ftype}
+        archive_create --best dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
         rm dest.${ftype}
     done
@@ -104,7 +104,7 @@ ETEST_archive_create_single_file()
         touch file1
 
         etestmsg "Creating dest.${ftype}"
-        archive_create file1 dest.${ftype}
+        archive_create dest.${ftype} file1
         assert_archive_contents dest.${ftype} file1
     done
 }
@@ -122,7 +122,7 @@ ETEST_archive_create_single_filetree()
         touch src/sub1/sub2/file1
 
         etestmsg "Creating dest.${ftype}"
-        archive_create src/sub1/sub2/file1 dest.${ftype}
+        archive_create dest.${ftype} src/sub1/sub2/file1
         assert_archive_contents dest.${ftype} src src/sub1 src/sub1/sub2 src/sub1/sub2/file1
     done
 }
@@ -139,7 +139,7 @@ ETEST_archive_create_directory_dot()
         touch src/{file1,file2}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src/. src.${ftype}
+        archive_create src.${ftype} src/.
         assert_archive_contents src.${ftype} file1 file2
     done
 }
@@ -157,7 +157,7 @@ ETEST_archive_create_directory()
 
         etestmsg "Creating src.${ftype}"
         assert_not_exists DIR
-        archive_create src DIR/src.${ftype}
+        archive_create DIR/src.${ftype} src
         assert_archive_contents DIR/src.${ftype} src src/file1 src/file2
         rm -rf DIR
     done
@@ -174,7 +174,7 @@ ETEST_archive_create_files()
         touch {file1,file2,file3,file4}
         
         etestmsg "Creating src.${ftype}"
-        archive_create file1 file2 file3 file4 src.${ftype}
+        archive_create src.${ftype} file1 file2 file3 file4
         assert_archive_contents src.${ftype} file1 file2 file3 file4
 
         rm --force src.${ftype}
@@ -192,15 +192,15 @@ ETEST_archive_create_missing_files()
         touch {file1,file2,file3,file4}
  
         etestmsg "Creating src.${ftype} (should do nothing)"
-        archive_create -i NOT1 NOT2 src.${ftype}
+        archive_create -i src.${ftype} NOT1 NOT2
         assert_not_exists src.${ftype}
         
         etestmsg "Creating src.${ftype} (should fail)"
-        assert_false archive_create NOT1 file1 file2 file3 file4 NOT2 src.${ftype}
+        assert_false archive_create src.${ftype} NOT1 file1 file2 file3 file4 NOT2
         #BUG: assert_not_exists src.${ftype}
 
         etestmsg "Creating src.${ftype} (ignoring missing files -- should pass)"
-        archive_create -i NOT1 file1 file2 file3 file4 NOT2 src.${ftype}
+        archive_create -i src.${ftype} NOT1 file1 file2 file3 file4 NOT2
         assert_archive_contents src.${ftype} file1 file2 file3 file4
         
         rm src.${ftype}
@@ -219,7 +219,7 @@ ETEST_archive_create_mixed_files_directories()
         touch file0 src1/{file1,file2} src2/{file3,file4}
 
         etestmsg "Creating src.${ftype}"
-        archive_create file0 src1 src2 src.${ftype}
+        archive_create src.${ftype} file0 src1 src2
         assert_archive_contents src.${ftype} file0 src1 src1/{file1,file2} src2 src2/{file3,file4}
 
         rm src.${ftype}
@@ -238,7 +238,7 @@ ETEST_archive_create_alternate_paths()
         touch file0 src1/{file1,file2} src2/{file3,file4}
 
         etestmsg "Creating src.${ftype}"
-        archive_create file0:a_file0 src1:b_src1 src2:c_src2 src.${ftype}
+        archive_create src.${ftype} file0:a_file0 src1:b_src1 src2:c_src2
         assert_archive_contents src.${ftype} a_file0 b_src1 b_src1/{file1,file2} c_src2 c_src2/{file3,file4}
 
         rm src.${ftype}
@@ -257,7 +257,7 @@ ETEST_archive_create_alternate_paths_multiroot()
         touch src1/{file1,file2} src2/{file3,file4}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src1/. src2/. src.${ftype}
+        archive_create src.${ftype} src1/. src2/.
         assert_archive_contents src.${ftype} file1 file2 file3 file4
 
         rm src.${ftype}
@@ -276,7 +276,7 @@ ETEST_archive_create_exclude()
         touch src/{file1,file2,XXX,YYY}
         
         etestmsg "Creating src.${ftype}"
-        archive_create -x="src/XXX src/YYY" src src.${ftype}
+        archive_create -x="src/XXX src/YYY" src.${ftype} src
         assert_archive_contents src.${ftype} src src/file1 src/file2
     done
 }
@@ -298,7 +298,7 @@ ETEST_archive_create_exclude_illegal_prefix()
         # path to be used (which is an illegal prefix to the archive formats).
         etestmsg "Creating src/dest.${ftype}"
         local dest=$(mktemp --tmpdir=/tmp archive-XXXXXX.${ftype})
-        archive_create ${src} ${dest}
+        archive_create ${dest} ${src}
         assert_archive_contents ${dest} $(dirname ${src##/}) ${src##/} ${src##/}/file1 ${src##/}/file2
     done
 }
@@ -316,16 +316,16 @@ ETEST_archive_create_exclude_glob()
         touch src/tmp/{t1,t2,t3,t10,x1,x2,x3}
 
         etestmsg "Creating src.${ftype} (excluding tmp/*)"
-        archive_create -x="src/tmp/*" src src.${ftype}
+        archive_create -x="src/tmp/*" src.${ftype} src
         assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp
         rm src.${ftype}
 
         etestmsg "Creating src.${ftype} (excluding tmp/t?)"
-        archive_create -x="src/tmp/t?" src src.${ftype}
+        archive_create -x="src/tmp/t?" src.${ftype} src
         assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp src/tmp/t10 src/tmp/x1 src/tmp/x2 src/tmp/x3
 
         etestmsg "Creating src.${ftype} (excluding tmp/t* tmp/x*)"
-        archive_create -x="src/tmp/t* src/tmp/x*" src src.${ftype}
+        archive_create -x="src/tmp/t* src/tmp/x*" src.${ftype} src
         assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp
     done
 }
@@ -342,7 +342,7 @@ ETEST_archive_create_exclude_self()
         touch src/{file1,file2}
 
         etestmsg "Creating src/dest.${ftype}"
-        archive_create src src/dest.${ftype}
+        archive_create src/dest.${ftype} src
         assert_archive_contents src/dest.${ftype} src src/file1 src/file2
     done
 }
@@ -360,7 +360,7 @@ ETEST_archive_create_exclude_self_canonicalize()
         touch src/{file1,file2}
 
         etestmsg "Creating src/dest.${ftype}"
-        archive_create src src///././///dest.${ftype}
+        archive_create src///././///dest.${ftype} src
         assert_archive_contents src/dest.${ftype} src src/file1 src/file2
     done
 }
@@ -383,7 +383,7 @@ ETEST_archive_create_pivot_root()
         touch ${oldroot}/var/log/sf-master-{1..10}.info
 
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
-        archive_create ${oldroot} ${oldroot}//var/log/sfbackup.${ftype}
+        archive_create ${oldroot}//var/log/sfbackup.${ftype} ${oldroot}
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
             tmp                                                \
             ${oldroot#/}                                       \
@@ -423,7 +423,7 @@ ETEST_archive_create_pivot_root_cd_manual()
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
         (
             cd ${oldroot}
-            archive_create . ${oldroot}/var/log/sfbackup.${ftype}
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} .
         )
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
@@ -462,7 +462,7 @@ ETEST_archive_create_pivot_root_cd()
         touch ${oldroot}/var/log/sf-master-{1..10}.info
 
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
-        archive_create "${oldroot}/." ${oldroot}/var/log/sfbackup.${ftype}
+        archive_create ${oldroot}/var/log/sfbackup.${ftype} "${oldroot}/."
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
             boot                                    \
@@ -500,7 +500,7 @@ ETEST_archive_create_pivot_root_multi()
 
         KEEP_PATHS=( /boot /var )
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
-        archive_create -d="${oldroot}" ${KEEP_PATHS[@]##/} ${oldroot}/var/log/sfbackup.${ftype}
+        archive_create -d="${oldroot}" ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/} 
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
             boot                                    \
@@ -540,7 +540,7 @@ ETEST_archive_create_pivot_root_multi_cd_manual()
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
         (
             cd ${oldroot}
-            archive_create ${KEEP_PATHS[@]##/} ${oldroot}/var/log/sfbackup.${ftype}
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/} 
         )
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
@@ -563,7 +563,6 @@ ETEST_archive_create_pivot_root_multi_cd_manual()
     done
 }
 
-
 ETEST_archive_create_exclude_self_multi()
 {
     local idx=0
@@ -576,7 +575,7 @@ ETEST_archive_create_exclude_self_multi()
         touch src1/{file1,file2} src2/{file3,file4}
 
         etestmsg "Creating src1/dest.${ftype}"
-        archive_create src1 src2 src1/dest.${ftype}
+        archive_create src1/dest.${ftype} src1 src2
         assert_archive_contents src1/dest.${ftype} src1 src1/{file1,file2} src2 src2/{file3,file4}
     done
 }
@@ -592,7 +591,7 @@ ETEST_archive_create_exclude_files()
         touch {file1,file2,file3,file4,XXX,YYY}
         
         etestmsg "Creating dest.${ftype}"
-        archive_create -x="XXX YYY" file1 file2 file3 file4 XXX YYY src.${ftype}
+        archive_create -x="XXX YYY" src.${ftype} file1 file2 file3 file4 XXX YYY
         assert_archive_contents src.${ftype} file1 file2 file3 file4 
         rm src.${ftype}
    done
@@ -609,7 +608,7 @@ ETEST_archive_create_mount()
         touch {file1,file2,file3,file4,XXX,YYY}
         
         etestmsg "Creating dest.${ftype}"
-        archive_create -x="XXX YYY" file1 file2 file3 file4 XXX YYY src.${ftype}
+        archive_create -x="XXX YYY" src.${ftype} file1 file2 file3 file4 XXX YYY
         
         # Mount it and verify mount type
         archive_mount src.${ftype} dest
@@ -638,7 +637,7 @@ ETEST_archive_extract()
         touch src/{file1,file2}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
 
         etestmsg "Extracting src.${ftype} to dest"
         archive_extract src.${ftype} dest
@@ -655,7 +654,7 @@ ETEST_archive_extract_type()
     touch src/{file1,file2}
 
     etestmsg "Creating src.img"
-    archive_create -t=clz src src.img
+    archive_create -t=clz src.img src
 
     etestmsg "Extracting src.img to dest (clz)"
     archive_extract -t=clz src.img dest
@@ -675,7 +674,7 @@ ETEST_archive_extract_files_same()
         touch {file1,file2,file3,file4}
         
         etestmsg "Creating src.${ftype}"
-        archive_create file1 file2 file3 file4 src.${ftype}
+        archive_create src.${ftype} file1 file2 file3 file4
         assert_archive_contents src.${ftype} file1 file2 file3 file4
 
         etestmsg "Extracting src.${ftype} over original source files"
@@ -726,7 +725,7 @@ ETEST_archive_extract_pivot_root_multi_deep()
         (
             cd ${oldroot}
             find . -printf '%P\n'
-            archive_create ${KEEP_PATHS[@]##/} ${oldroot}/var/log/sfbackup.${ftype}
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/} 
         )
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} ${expect[@]}
 
@@ -748,7 +747,7 @@ ETEST_archive_extract_specific_files()
         touch src/{file1,file2,XXX,YYY}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
 
         etestmsg "Extracting src.${ftype}/{file1,file2} to dest"
         archive_extract src.${ftype} dest src/{file1,file2}
@@ -768,7 +767,7 @@ ETEST_archive_extract_missing_required_files()
         touch src/{file1,file2,XXX,YYY}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
 
    done
 }
@@ -785,7 +784,7 @@ ETEST_archive_extract_ignore_missing()
         touch src/{file1,file2,XXX,YYY}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
 
         etestmsg "Extracting src.${ftype}/{file1,file2} to dest (should fail)"
         assert_false archive_extract src.${ftype} dest src/NOT1 src/file1 src/file2 src/NOT2
@@ -816,7 +815,7 @@ ETEST_archive_extract_glob()
         touch src/{file1,file2,XXX,YYY,tmp/1,tmp/2}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
         archive_list src.${ftype}
 
         etestmsg "Extracting src.${ftype}/{file*,tmp/*} to dest"
@@ -839,7 +838,7 @@ ETEST_archive_extract_content()
         echo "data2" >src/file2
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
 
         etestmsg "Extracting src.${ftype} to dest"
         archive_extract src.${ftype} dest
@@ -861,7 +860,7 @@ ETEST_archive_append()
         touch src/{file1,file2}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
         assert_exists src.${ftype}
 
         etestmsg "Appending new files"
@@ -888,7 +887,7 @@ ETEST_archive_append_overwrite()
         echo "data2" >src/file2
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
         assert_exists src.${ftype}
 
         etestmsg "Appending file with new content"
@@ -906,6 +905,58 @@ ETEST_archive_append_overwrite()
     done
 }
 
+ETEST_archive_append_no_shadow_mount_files()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir dest
+        touch file1 file2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} file1 file2
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        efreshdir new
+        touch new/file3 new/file4
+        archive_append src.${ftype} new/.
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest file1 file2 file3 file4
+    done
+}
+
+ETEST_archive_append_no_shadow_mount_directory()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        efreshdir src
+        touch src/{file3,file4}
+        archive_append src.${ftype} src
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2,file3,file4}
+    done
+}
+
 
 ETEST_archive_xnice()
 {
@@ -919,10 +970,10 @@ ETEST_archive_xnice()
         touch src/{file1,file2}
 
         etestmsg "Creating src.${ftype}"
-        archive_create -n=1 src src.${ftype}
+        archive_create --nice src.${ftype} src
 
         etestmsg "Extracting src.${ftype} to dest"
-        archive_extract -n=1 src.${ftype} dest
+        archive_extract --nice src.${ftype} dest
 
         etestmsg "Validating src and dest"
         diff --unified --recursive src dest/src
@@ -941,7 +992,7 @@ ETEST_archive_xconvert()
         touch src/{file1,file2}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
 
         local other
         for other in ${ARCHIVE_TYPES[@]}; do
@@ -976,13 +1027,13 @@ ETEST_archive_xdiff()
         touch src/{file1,file2}
 
         etestmsg "Creating src.${ftype}"
-        archive_create src src.${ftype}
+        archive_create src.${ftype} src
 
         # Iterate over all types and create copy -- diff should match
         for other in ${ARCHIVE_TYPES[@]}; do
            
             etestmsg "Creating cpy.${other}"
-            archive_create src cpy.${other}
+            archive_create cpy.${other} src
 
             etestmsg "Diffing against cpy.${other}"
             archive_diff src.${ftype} cpy.${other}
@@ -996,7 +1047,7 @@ ETEST_archive_xdiff()
             efreshdir diff
             cp src/* diff
             touch diff/EXTRA_FILE
-            archive_create diff diff.${other}
+            archive_create diff.${other} diff
 
             etestmsg "Diffing against diff.${other} (should fail)"
             $(tryrc archive_diff src.${ftype} diff.${other})
