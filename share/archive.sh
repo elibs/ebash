@@ -167,12 +167,8 @@ archive_create()
         "+nice n           | Be nice and use non-parallel compressors and only a single core." \
         ":type t           | Override automatic type detection and use explicit archive type." \
         ":volume v         | Optional volume name to use (ISO only)." \
+        "dest              | Destination path for resulting archive." \
         "@srcs             | Source paths to archive.")
-
-    # Parse positional arguments into a bashutils array. Then grab final argument
-    # which is the destination.
-    local dest=${srcs[${#srcs[@]}-1]}
-    unset srcs[${#srcs[@]}-1]
 
     # Parse options
     local dest_real=$(readlink -m "${dest}")
@@ -565,7 +561,7 @@ archive_convert()
 
         # Now we can create a new archive from 'mnt'
         cd ${mnt}
-        archive_create . "${dest_real}"
+        archive_create "${dest_real}" .
     )
 }
 
