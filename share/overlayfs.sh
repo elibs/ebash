@@ -402,7 +402,7 @@ overlayfs_commit()
 
     # Save the changes to a temporary archive of the same type then unmount
     # the original and move the new archive over the original.
-    archive_create ${flags} "${mnt}/." "${tmp}"
+    archive_create ${flags} "${tmp}" "${mnt}/."
     overlayfs_unmount "${mnt}"
     mv --force "${tmp}" "${src}"
 
@@ -431,7 +431,7 @@ overlayfs_save_changes()
     overlayfs_layers "${mnt}" layers
 
     # Save the upper RW layer to requested type.   
-    archive_create "$(pack_get layers upperdir)/." "${dest}"
+    archive_create "${dest}" "$(pack_get layers upperdir)/."
 }
 
 opt_usage overlayfs_changed "Check if there are any changes in an overlayfs or not."
