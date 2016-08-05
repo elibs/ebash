@@ -201,6 +201,18 @@ ETEST_ebindmount_into_contents()
     assert_directory_contents dest file1 file2 file3 file4 file5 file6
 }
 
+ETEST_ebindmount_into_contents_empty()
+{
+    etestmsg "Creating source directory"
+    mkdir src dest
+
+    etestmsg "Bind Mounting src (empty) into dest"
+    ebindmount_into dest src/.
+
+    etestmsg "Verifying contents"
+    assert_directory_contents dest
+}
+
 ETEST_ebindmount_into_alternative_paths()
 {
     etestmsg "Creating source directory"
@@ -215,7 +227,7 @@ ETEST_ebindmount_into_alternative_paths()
     assert_directory_contents dest s1 s1/file1 s1/file2 s1/file3 s2 s2/file4 s2/file5 s2/file6
 }
 
-ETEST_ebindmount_into_multi_shadow()
+ETEST_ebindmount_into_shadow()
 {
     etestmsg "Creating source directories"
     mkdir src1 dest
@@ -229,6 +241,14 @@ ETEST_ebindmount_into_multi_shadow()
 
     etestmsg "Bind Mounting src1 and src2 into dest"
     ebindmount_into dest src1/. src2/.
+
+    # Setup a trap to unmount and delete all the mounts beneath dest. 
+    # NOTE: We MUST use --all here since we are ->intentionally<- bind mounting multiple files with the same name.
+    #       This causes there to be multiple copies of the same filename show up in /proc/mounts, e.g.:
+    # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file2 ext4 rw,noatime,data=ordered 0 0
+    # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file1 ext4 rw,noatime,data=ordered 0 0
+    # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file2 ext4 rw,noatime,data=ordered 0 0
+    # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file1 ext4 rw,noatime,data=ordered 0 0
     trap_add "eunmount --all --recursive --delete dest"
     
     etestmsg "Validating contents"
@@ -237,4 +257,43 @@ ETEST_ebindmount_into_multi_shadow()
     etestmsg "Validating updated contents"
     assert_eq "XXXX1" "$(cat dest/file1)"
     assert_eq "XXXX2" "$(cat dest/file2)"
+}
+
+ETEST_ebindmount_into_shadow_recursive_merge()
+{
+    etestmsg "Creating source directories"
+    mkdir -p src1/foo/bar/zap dest
+    echo "src1" >src1/foo/alpha
+    echo "src1" >src1/foo/file1
+    echo "src1" >src1/foo/file2
+    echo "src1" >src1/foo/bar/file1
+    echo "src1" >src1/foo/bar/zap/file1
+
+    mkdir -p src2/foo/bar/zap
+    echo "src2" >src2/foo/file1
+    echo "src2" >src2/foo/file2
+    echo "src2" >src2/foo/bar/file1
+    echo "src2" >src2/foo/bar/beta
+
+    etestmsg "Bind Mounting src1 and src2 into dest"
+    ebindmount_into dest src1/. src2/.
+
+    # NOTE: We MUST use --all here since we are ->intentionally<- bind mounting multiple files with the same name.
+    #       This causes there to be multiple copies of the same filename show up in /proc/mounts, e.g.:
+    # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file2 ext4 rw,noatime,data=ordered 0 0
+    # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file1 ext4 rw,noatime,data=ordered 0 0
+    # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file2 ext4 rw,noatime,data=ordered 0 0
+    # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file1 ext4 rw,noatime,data=ordered 0 0
+    trap_add "eunmount --all --recursive --delete dest"
+    
+    etestmsg "Validating contents"
+    assert_directory_contents dest foo foo/alpha foo/file1 foo/file2 foo/bar foo/bar/file1 foo/bar/beta foo/bar/zap foo/bar/zap/file1
+
+    etestmsg "Validating updated contents"
+    assert_eq "src1" "$(cat dest/foo/alpha)"
+    assert_eq "src1" "$(cat dest/foo/bar/zap/file1)"
+    assert_eq "src2" "$(cat dest/foo/file1)"
+    assert_eq "src2" "$(cat dest/foo/file2)"
+    assert_eq "src2" "$(cat dest/foo/bar/file1)"
+    assert_eq "src2" "$(cat dest/foo/bar/beta)"
 }

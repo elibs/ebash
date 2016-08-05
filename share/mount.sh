@@ -99,7 +99,39 @@ ebindmount()
 opt_usage ebindmount_into <<END
 Bind mount a list of paths into the specified directory. This function will iterate over 
 all the source paths provided and bind mount each source path into the provided destination
-directory. 
+directory. This function will merge the contents all into the final destination path much like
+cp or rsync would but without the overhead of actually copying the files. If there are files
+with the same name already in the destination directory the new version will be shadow mounted
+over the existing version. This has the effect of merging the contents but allowing updated 
+files to effectively replace what is already in the directory. This property holds true for
+files as well as directories. Consider the following example:
+
+# echo "src1" >src1/file1
+# echo "src2" >src2/file1
+# ebindmount_into dest src1/. src2/.
+# cat dest/file1
+# src2
+
+Notce that since 'file1' existed in both src1 and src2 and we bindmount src2 after src1, we
+will see the contents of src2/file1 inside dest/file1 instead of src1/file1. The last one
+wins.
+
+This example is true of directories as well with the important caveat that the directory's
+contents are still MERGED but files shadow over one another. Consider the following example:
+
+# echo "src1" >src1/foo/file0
+# echo "src1" >src1/foo/file1
+# echo "src2" >src2/foo/file1
+# ebindmount_into dest src1/. src2/.
+# cat dest/foo/file1
+# src2
+# ls dest
+# foo/file0 foo/file1
+
+Again, notice that since 'file1' existed in both src1/foo and src2/foo and we bindmount src2
+after src1, we see 'src2' in the file instead of 'src1'. Also, notice that the bindmount of
+the directory src2/foo did not hide the contents of the existing src1/foo directory that we
+already bind mounted into dest. 
 
 ${PATH_MAPPING_SYNTAX_DOC}
 END
@@ -146,7 +178,10 @@ ebindmount_into()
             # bind mount the contents of the src directory into the parent directory. 
             # Otherwise we can simply bind mount the directory into thd destination directory.
             if [[ -d "${parent}" ]]; then
-                opt_forward ebindmount_into ignore_missing -- "${parent}" $(find . -maxdepth 1 -printf '%P\n')
+                local contents=$(find . -maxdepth 1 -printf '%P\n')
+                if [[ -n "${contents}" ]]; then
+                    opt_forward ebindmount_into ignore_missing -- "${parent}" ${contents}
+                fi
             else
                 ebindmount "." "${dest_real}/."
             fi
@@ -158,7 +193,12 @@ ebindmount_into()
         # contents of the src directory into the destination directory.
         elif [[ -d "${dest_real}/${mnt}" ]]; then
             pushd "${src}"
-            opt_forward ebindmount_into ignore_missing -- "$(readlink -m ${dest_real}/${src})" $(find . -maxdepth 1 -printf '%P\n')
+
+            local contents=$(find . -maxdepth 1 -printf '%P\n')
+            if [[ -n "${contents}" ]]; then
+                opt_forward ebindmount_into ignore_missing -- "$(readlink -m ${dest_real}/${src})" ${contents}
+            fi
+
             popd
 
         # Otherwise simply bindmount the source path into the destination path. Taking care

@@ -549,7 +549,7 @@ archive_append()
     local unified=$(mktemp --tmpdir --directory archive-append-unified-XXXXXX)
     opt_forward archive_extract nice -- "${dest}" "${unified}"
 
-    # Bind mount all src paths being append to the archive into unified directory.
+    # Bind mount all src paths being appended to the archive into unified directory.
     opt_forward ebindmount_into ignore_missing -- "${unified}" "${srcs[@]}"
     trap_add "eunmount --recursive --delete ${unified}"
 
