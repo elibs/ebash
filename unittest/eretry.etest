@@ -19,8 +19,7 @@ ETEST_etimeout_return_codes()
 
     etestmsg BEGIN
     etestmsg "Testing that bad return code (50) is passed back."
-    $(tryrc eretry -r 2 eretry -r 2 --fatal-exit-codes "50" etimeout -t=1 "bash -c 'exit 50'")
-    #$(tryrc -r rc2 etimeout -t=1 "bash -c 'exit 50'")
+    $(tryrc eretry -r 2 eretry -r 2 --fatal-exit-codes "50" etimeout -t=30 "bash -c 'exit 50'")
     assert_eq 50 ${rc}
 }
 
