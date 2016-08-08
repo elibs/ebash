@@ -607,7 +607,10 @@ ETEST_opt_parse_help()
     assert_match "${usage}" "docstring which"
 
     etestmsg "Further verify the first line"
-    local firstline=$(echo "${usage}" | head -n 1)
+    # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right
+    # info (because it was displayed above in the log).  Not sure what happened there, but the
+    # following statements will still catch errors even if we ignore the failure in head.
+    local firstline=$(echo "${usage}" | head -n 1 || true)
     etestmsg "$(lval firstline)"
 
     assert_match "${firstline}" "Usage"
