@@ -558,7 +558,7 @@ archive_append()
     #     guarantee atomiciy.
     # (2) Ends in the same exact suffix as the original file so that we'll use the correct compression.
     local appended=$(mktemp $(dirname ${dest_real})/archive-append-XXXXXX-${dest_name})
-    opt_forward archive_create best bootable exclude fast ignore_missing level nice volume -- "${appended}" "${unified}/."
+    opt_forward archive_create best bootable fast ignore_missing level nice volume -- "${appended}" "${unified}/."
 
     # Now move the append archive over the original.
     mv "${appended}" "${dest}"
