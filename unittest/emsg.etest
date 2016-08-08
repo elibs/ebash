@@ -333,8 +333,7 @@ ETEST_eprogress_ticks_reuse()
 ETEST_eprogress_ticker_off()
 {
     (
-        exec &> >(tee ${OUTPUT})
-
+        exec &> ${OUTPUT}
         COLUMNS=28
         EFUNCS_COLOR=0
         EDEBUG=0
@@ -346,7 +345,6 @@ ETEST_eprogress_ticker_off()
         eprogress_kill
     )
 
-    wait_for_eprogress
     assert_eq --hexdump ">> Waiting [ ok ]" "$(cat ${OUTPUT})"
 }
 
@@ -354,7 +352,7 @@ ETEST_eprogress_ticker_on()
 {
     etestmsg "Starting background process that writes to ${OUTPUT}"
     (
-        exec &> >(tee ${OUTPUT})
+        exec &> ${OUTPUT}
 
         COLUMNS=28
         EFUNCS_COLOR=0
@@ -368,9 +366,6 @@ ETEST_eprogress_ticker_on()
         eprogress "Waiting"
         eprogress_kill
     )
-
-    etestmsg "Waiting for eprogress to run."
-    wait_for_eprogress
 
     etestmsg "${OUTPUT} contents"
     cat -evt ${OUTPUT}

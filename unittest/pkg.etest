@@ -32,8 +32,11 @@ ETEST_pkg_install_and_upgrade()
     pkg_known ${PKG_TO_INSTALL}
     assert_false pkg_installed ${PKG_TO_INSTALL}
 
+    # NOTE: Some packaging systems (e.g. dpkg) don't deal well with different processes trying to
+    # install things at the same time.  The retries here are intended to harden against issues like
+    # that.
     etestmsg "Install $(lval PKG_TO_INSTALL)"
-    pkg_install ${PKG_TO_INSTALL}
+    eretry --delay 5s --retries 5 pkg_install ${PKG_TO_INSTALL}
 
     # Make sure things get cleaned up, even if something goes wrong after this point
     trap_add "einfo CLEANUP ; pkg_uninstall ${PKG_TO_INSTALL} || true"
@@ -43,12 +46,12 @@ ETEST_pkg_install_and_upgrade()
     pkg_installed ${PKG_TO_INSTALL}
 
     etestmsg "Attempt upgrade on $(lval PKG_TO_INSTALL)"
-    pkg_upgrade ${PKG_TO_INSTALL}
+    eretry --delay 5s --retries 5 pkg_upgrade ${PKG_TO_INSTALL}
     pkg_known ${PKG_TO_INSTALL}
     pkg_installed ${PKG_TO_INSTALL}
 
     etestmsg "Uninstall $(lval PKG_TO_INSTALL)"
-    pkg_uninstall ${PKG_TO_INSTALL}
+    eretry --delay 5s --retries 5 pkg_uninstall ${PKG_TO_INSTALL}
 
     etestmsg "and verify that we don't believe $(lval PKG_TO_INSTALL) is installed."
     pkg_known ${PKG_TO_INSTALL}

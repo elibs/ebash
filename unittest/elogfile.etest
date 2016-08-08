@@ -314,7 +314,8 @@ ETEST_elogfile_merge_off()
 
     etestmsg "Verifying file"
     eretry cat ${FUNCNAME}.log
-    assert_eq stdout$'\n'stderr "$(cat ${FUNCNAME}.log)"
+    assert_match "$(cat ${FUNCNAME}.log)" "stdout"
+    assert_match "$(cat ${FUNCNAME}.log)" "stderr"
     assert_eq "stdout" "$(cat stdout)"
     assert_eq "stderr" "$(cat stderr)"
 }
