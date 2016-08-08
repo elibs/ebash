@@ -322,12 +322,12 @@ archive_create()
 
     # Execute command
     edebug "$(lval cmd)"
-    eval "${cmd}" |& edebug
+    $(tryrc -r=archive_create_rc -o=archive_create_stdout -e=archive_create_stderr "eval ${cmd}")
 
     # Pop out of the unified directory
     popd
 
-    # If requested change directory first
+    # If requested change directory
     if [[ -n ${directory} ]]; then
         popd
     fi
@@ -335,6 +335,15 @@ archive_create()
     # Execute clean-up and clear the list so it won't get called again on trap teardown
     eunmount --all --recursive --delete ${cleanup_files[@]}
     unset cleanup_files
+
+    # Propogate any errors
+    if [[ ${archive_create_rc} -ne 0 ]]; then
+        printf "${archive_create_stdout}"
+        eerror "${archive_create_stderr}"
+        return "${archive_create_rc}"
+    fi
+
+    return 0
 }
 
 opt_usage archive_extract <<'END'
@@ -454,7 +463,7 @@ archive_extract()
         fi
 
         edebug "$(lval cmd)"
-        eval "${cmd}" |& edebug
+        $(tryrc -r=archive_extract_rc -o=archive_extract_stdout -e=archive_extract_stderr "eval ${cmd}")
 
         # cpio doesn't return an error if included files are missing. So do another check to see if
         # all requested files were found. Redirect stdout to /dev/null, so any errors (due to missing files)
@@ -467,6 +476,13 @@ archive_extract()
         fi
         
         popd
+
+        # Propogate any errors
+        if [[ ${archive_extract_rc} -ne 0 ]]; then
+            printf "${archive_extract_stdout}"
+            eerror "${archive_extract_stderr}"
+            return "${archive_extract_rc}"
+        fi
     fi
 }
 
