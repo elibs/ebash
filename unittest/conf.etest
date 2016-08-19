@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+
+ETEST_conf_basic()
+{
+    e_a="val1"
+    e_b="https://en.wikipedia.org/wiki/INI_file"
+    e_c="something   with internal whitespace"
+    e_d="value containing apostophe (say it ain't so)"
+    e_e='value containing "double quotes"'
+
+cat >file <<END
+[section_a]
+a=${e_a}
+#a=3
+ b = ${e_b}
+;b=2
+c = ${e_c}  
+d = ${e_d}
+e = ${e_e}
+
+
+[section_b]
+c=1
+END
+
+    etestmsg "Configuration contents"
+    cat file
+
+    etestmsg "Reading configuration"
+    declare -A CONF
+    conf_read CONF file
+
+    einfo "$(lval %CONF[section_a] %CONF[section_b])"
+    assert_eq "${e_a}" "$(pack_get CONF[section_a] a)"
+    assert_eq "${e_b}" "$(pack_get CONF[section_a] b)"
+    assert_eq "${e_c}" "$(pack_get CONF[section_a] c)"
+    assert_eq "${e_d}" "$(pack_get CONF[section_a] d)"
+    assert_eq "${e_e}" "$(pack_get CONF[section_a] e)"
+
+    assert_eq "1" "$(pack_get CONF[section_b] c)"
+}
+
+ETEST_conf_value_quotes()
+{
+    expected=" a b c "
+
+cat > file <<END
+[s]
+a="${expected}"
+b='${expected}'
+END
+
+    declare -A CONF_QUOTES
+    conf_read CONF_QUOTES file
+
+    einfo "$(lval %CONF_QUOTES[s])"
+    assert_eq "${expected}" "$(pack_get CONF_QUOTES[s] a)"
+    assert_eq "${expected}" "$(pack_get CONF_QUOTES[s] b)"
+}
+
+ETEST_conf_default_section()
+{
+    echo "a=1" >file
+    declare -A CONF
+    conf_read CONF file
+
+    assert_eq "1" "$(pack_get CONF[default] a)"
+}
+
+ETEST_conf_checks_quotes()
+{
+    echo 'a="""' >file
+    declare -A CONF
+    assert_false conf_read CONF file
+
+    echo "b='''" >file
+    assert_false conf_read CONF file
+}
+
+ETEST_conf_section_name_whitespace()
+{
+cat >file <<END
+[section whitespace]
+a=2
+END
+
+    declare -A CONF
+    conf_read CONF file
+    assert_eq "2" "$(pack_get CONF["section whitespace"] a)"
+}
+
+ETEST_conf_set()
+{
+cat >file <<END
+# COMMENT1
+[section_x]
+# COMMENT2
+a = 1
+# COMMENT3
+b = 2
+
+[section_y]
+a = 10
+b = 20
+END
+
+    etestmsg "Initial file"
+    cat file
+
+    local line_count=$(wc -l < file)
+
+    declare -A CONF
+    conf_read CONF file
+
+    assert_eq "1" "$(pack_get CONF[section_x] a)"
+    assert_eq "2" "$(pack_get CONF[section_x] b)"
+    assert_eq "10" "$(pack_get CONF[section_y] a)"
+    assert_eq "20" "$(pack_get CONF[section_y] b)"
+
+
+    etestmsg "One modification"
+    conf_set --file file --section section_x a 11
+    cat file
+
+    unset CONF ; declare -A CONF
+    conf_read CONF file
+    assert_eq "11" "$(pack_get CONF[section_x] a)"
+    assert_eq "2"  "$(pack_get CONF[section_x] b)"
+    assert_eq "10" "$(pack_get CONF[section_y] a)"
+    assert_eq "20" "$(pack_get CONF[section_y] b)"
+    # No change in number of lines
+    assert_eq "${line_count}" $(wc -l < file)
+
+
+    etestmsg "Two mods"
+    conf_set --file file --section section_y a 22
+
+    unset CONF ; declare -A CONF
+    conf_read CONF file
+    assert_eq "11" "$(pack_get CONF[section_x] a)"
+    assert_eq "2"  "$(pack_get CONF[section_x] b)"
+    assert_eq "22" "$(pack_get CONF[section_y] a)"
+    assert_eq "20" "$(pack_get CONF[section_y] b)"
+    # No change in number of lines
+    assert_eq "${line_count}" $(wc -l < file)
+
+
+    etestmsg "Three mods"
+    conf_set --file file --section section_z a 7
+
+    unset CONF ; declare -A CONF
+    conf_read CONF file
+    assert_eq "11" "$(pack_get CONF[section_x] a)"
+    assert_eq "2"  "$(pack_get CONF[section_x] b)"
+    assert_eq "22" "$(pack_get CONF[section_y] a)"
+    assert_eq "20" "$(pack_get CONF[section_y] b)"
+    assert_eq "7"  "$(pack_get CONF[section_z] a)"
+    # This one did change the number of lines
+
+
+    # Make sure all comments made it through
+    grep -q COMMENT1 file
+    grep -q COMMENT2 file
+    grep -q COMMENT3 file
+}
+
+ETEST_conf_empty_file()
+{
+    >file
+
+    etestmsg "Reading an empty file"
+    declare -A CONF
+    conf_read CONF file
+
+    #declare -p CONF
+    assert_eq "0" $(array_size CONF)
+
+    etestmsg "Setting value in an empty file."
+    conf_set --file file --section a b 1
+    cat file
+
+    conf_read CONF file
+    assert_eq "1" $(array_size CONF)
+
+    # Make sure the file contains all the relevant stuff now
+    grep -q a file
+    grep -q b file
+    grep -q 1 file
+}
+
+ETEST_conf_set_default()
+{
+    etestmsg "Try on an empty file"
+    >file
+    conf_set --file file a 1
+
+    cat file
+    grep -q a file
+    grep -q 1 file
+    assert_false grep default file
+
+
+    etestmsg "Try a file that has a section named default"
+    echo "[default]" >file
+    conf_set --file file a 1
+    cat file
+    grep -q a file
+    grep -q 1 file
+    grep -q default file
+    
+}
