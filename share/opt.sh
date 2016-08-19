@@ -246,7 +246,7 @@ opt_parse()
     # else
     echo 'if [[ ${__BU_OPT_USAGE_REQUESTED:-0} -eq 1 ]] ; then '
     echo '   opt_display_usage ; '
-    echo '   [[ -v FUNCNAME ]] && return 0 || exit 0 ; '
+    echo '   [[ -n ${FUNCNAME:-} ]] && return 0 || exit 0 ; '
     echo 'fi ; '
 
     # Process options
