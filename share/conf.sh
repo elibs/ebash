@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 
-opt_usage conf_read<<'END'
-Reads one or more "INI"-style configuration file into an associative array that you have prepared in
-advance. Keys in the associative array will be named for the sections of your INI file, and the
-entry will be a pack containing all configuration values from inside that section.
-
-These typically look something like the following:
+# General doc on bashutils' interpretation of what it means to be an INI file.
+declare _bu_conf_ini_doc="These typically look something like the following:
 
     [section]
     property=value
@@ -57,6 +53,14 @@ Properties
   - When quoted, all whitespace in the value within the quotes is retained.  This doesn't change
     that values cannot contain newlines.
 
+"
+
+opt_usage conf_read<<END
+Reads one or more "INI"-style configuration file into an associative array that you have prepared in
+advance. Keys in the associative array will be named for the sections of your INI file, and the
+entry will be a pack containing all configuration values from inside that section.
+
+${_bu_conf_ini_doc}
 END
 conf_read()
 {
@@ -118,6 +122,11 @@ conf_read()
     done
 }
 
+opt_usage conf_set<<END
+Set a value in an INI-style configuration file.
+
+${_bu_conf_ini_doc}
+END
 conf_set()
 {
     $(opt_parse \
@@ -197,3 +206,5 @@ conf_set()
         printf "%s" "${output}"
     fi
 }
+
+unset _bu_conf_ini_doc
