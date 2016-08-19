@@ -50,12 +50,12 @@ a="${expected}"
 b='${expected}'
 END
 
-    declare -A CONF
-    conf_read CONF file
+    declare -A CONF_QUOTES
+    conf_read CONF_QUOTES file
 
-    einfo "$(lval %CONF[s])"
-    assert_eq "${expected}" "$(pack_get CONF[s] a)"
-    assert_eq "${expected}" "$(pack_get CONF[s] b)"
+    einfo "$(lval %CONF_QUOTES[s])"
+    assert_eq "${expected}" "$(pack_get CONF_QUOTES[s] a)"
+    assert_eq "${expected}" "$(pack_get CONF_QUOTES[s] b)"
 }
 
 ETEST_conf_default_section()

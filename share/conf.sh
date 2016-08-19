@@ -112,7 +112,7 @@ conf_read()
                 fi
 
                 edebug "$(lval filename section key value)"
-                pack_set CONF["$section"] ${key}="${value}"
+                pack_set ${var}["$section"] ${key}="${value}"
 
             else
                 die "Invalid configuration at ${filename}:${line_count}: ${line}"
