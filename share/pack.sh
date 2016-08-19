@@ -31,7 +31,7 @@ pack_set()
         local _pack_set_key="${_pack_set_arg%%=*}"
         local _pack_set_val="${_pack_set_arg#*=}"
 
-        pack_set_internal ${_pack_set_pack} "${_pack_set_key}" "${_pack_set_val}"
+        pack_set_internal "${_pack_set_pack}" "${_pack_set_key}" "${_pack_set_val}"
     done
 }
 
@@ -49,7 +49,7 @@ pack_update()
         local _pack_update_val="${_pack_update_arg#*=}"
 
         pack_keys ${_pack_update_pack} | grep -aPq "\b${_pack_update_key}\b" \
-            && pack_set_internal ${_pack_update_pack} "${_pack_update_key}" "${_pack_update_val}" \
+            && pack_set_internal "${_pack_update_pack}" "${_pack_update_key}" "${_pack_update_val}" \
             || true
     done
 }
@@ -68,7 +68,7 @@ pack_set_internal()
     local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
     local _packed=$(echo "${_addNew}" | _pack)
 
-    printf -v ${1} "${_packed}"
+    printf -v "${1}" "${_packed}"
 }
 
 #
