@@ -78,6 +78,9 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | grep -P 'ekill.*-(SIG|TERM|KILL|INT|[0-9])' \
         && fail "Ekill or ekilltree cannot take a -SIGNAL argument -- you must specify -s=<signal>"
 
+    echo "${CONTENTS}" | grep -P '(assert|assert_true|assert_false)\s+\[\[' \
+        && fail "Assert commands cannot be followed by a double bracket expression"
+
     [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }
 done
 
