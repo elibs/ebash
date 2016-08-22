@@ -123,3 +123,31 @@ ETEST_assert_zero()
     assert_not_zero 1
     assert_false assert_not_zero 0
 }
+
+ETEST_assert_lt()
+{
+    assert_lt 1 2
+    assert_false assert_lt 2 1
+    assert_false assert_lt 2 2
+}
+
+ETEST_assert_le()
+{
+    assert_le 1 2
+    assert_le 2 2
+    assert_false assert_le 2 1
+}
+
+ETEST_assert_gt()
+{
+    assert_gt 2 1
+    assert_false assert_gt 2 2
+    assert_false assert_gt 2 10
+}
+
+ETEST_assert_ge()
+{
+    assert_ge 10 10
+    assert_ge 10 1
+    assert_false assert_ge 2 10
+}

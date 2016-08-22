@@ -111,6 +111,30 @@ assert_ne()
     [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
 }
 
+assert_lt()
+{
+    $(opt_parse "?lh" "?rh" "?msg")
+    [[ "${lh}" -lt "${rh}" ]] || die "assert_lt failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_le()
+{
+    $(opt_parse "?lh" "?rh" "?msg")
+    [[ "${lh}" -le "${rh}" ]] || die "assert_le failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_gt()
+{
+    $(opt_parse "?lh" "?rh" "?msg")
+    [[ "${lh}" -gt "${rh}" ]] || die "assert_gt failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_ge()
+{
+    $(opt_parse "?lh" "?rh" "?msg")
+    [[ "${lh}" -ge "${rh}" ]] || die "assert_ge failed [${msg:-}] :: $(lval lh rh)"
+}
+
 assert_match()
 {
     $(opt_parse "?text" "?regex" "?msg")
