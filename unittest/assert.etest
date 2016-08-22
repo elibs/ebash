@@ -170,12 +170,7 @@ ETEST_assert_zero()
 
 ETEST_assert_int()
 {
-    for ((val = 0; val < 20; val++)); do
-        assert_int "${val}"
-    done
-
-    # Polarity
-    assert_int "-1" "+1"
+    assert_int 0 5 10 -1 +1
 
     # Negative tests
     assert_false assert_int "1.0"
@@ -184,15 +179,11 @@ ETEST_assert_int()
 
 ETEST_assert_num()
 {
-    for ((val = 0; val < 20; val++)); do
-        assert_num "${val}"
-    done
-
-    # Polarity
-    assert_num "-1" "-1.0" "-1.1234" "+1.1234"
+    assert_num 0 5 10 -1 -1.0 -1.1234 +1.1234
 
     # Negative tests
     assert_false assert_num "zen"
+    assert_false assert_num "2.0.2"
 }
 
 ETEST_assert_num_eq()
