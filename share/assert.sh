@@ -76,11 +76,6 @@ assert_false()
     [[ ${rc} -ne 0 ]] || die "assert failed (rc=${rc}) :: ${cmd[@]}"
 }
 
-assert_op()
-{
-    compare "${@}" || "assert_op failed :: ${@}"
-}
-
 assert_eq()
 {
     $(opt_parse \
@@ -109,6 +104,30 @@ assert_ne()
 {
     $(opt_parse "?lh" "?rh" "?msg")
     [[ ! "${lh}" == "${rh}" ]] || die "assert_ne failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_lt()
+{
+    $(opt_parse "?lh" "?rh" "?msg")
+    assert compare "${lh}" "<" "${rh}" || die "assert_lt failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_le()
+{
+    $(opt_parse "?lh" "?rh" "?msg")
+    assert compare "${lh}" "<=" "${rh}" || die "assert_le failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_gt()
+{
+    $(opt_parse "?lh" "?rh" "?msg")
+    assert compare "${lh}" ">" "${rh}" || die "assert_gt failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_ge()
+{
+    $(opt_parse "?lh" "?rh" "?msg")
+    assert compare "${lh}" ">=" "${rh}" || die "assert_ge failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_match()
@@ -243,3 +262,60 @@ assert_directory_contents()
     done
 }
 
+assert_int()
+{
+    local _arg
+    for _arg in "$@" ; do
+        assert is_int "${_arg}"
+    done
+}
+
+assert_num()
+{
+    local _arg
+    for _arg in "$@" ; do
+        assert is_num "${_arg}"
+    done
+}
+
+assert_num_eq()
+{
+    $(opt_parse "lh" "rh" "?msg")
+    assert_num "${lh}" "${rh}"
+    assert compare "${lh}" "==" "${rh}" || die "assert_num_eq failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_num_ne()
+{
+    $(opt_parse "lh" "rh" "?msg")
+    assert_num "${lh}" "${rh}"
+    assert compare "${lh}" "!=" "${rh}" || die "assert_num_ne failed [${msg:-}] :: $(lval lh rh)"
+}
+
+assert_num_lt()
+{
+    $(opt_parse "lh" "rh" "?msg")
+    assert_num "${lh}" "${rh}"
+    assert_lt "${lh}" "${rh}" "${msg}"
+}
+
+assert_num_le()
+{
+    $(opt_parse "lh" "rh" "?msg")
+    assert_num "${lh}" "${rh}"
+    assert_le "${lh}" "${rh}" "${msg}"
+}
+
+assert_num_gt()
+{
+    $(opt_parse "lh" "rh" "?msg")
+    assert_num "${lh}" "${rh}"
+    assert_gt "${lh}" "${rh}" "${msg}"
+}
+
+assert_num_ge()
+{
+    $(opt_parse "lh" "rh" "?msg")
+    assert_num "${lh}" "${rh}"
+    assert_ge "${lh}" "${rh}" "${msg}"
+}
