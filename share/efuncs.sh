@@ -1928,14 +1928,14 @@ string_collapse()
     echo -en "${output}"
 }
 
-opt_usage is_integer <<'END'
+opt_usage is_int <<'END'
 Returns true if the input string is an integer and false otherwise. May have a leading '-' or '+'
 to indicate the number is negative or positive. This does NOT handle floating point numbers. For
 that you should instead use is_num.
 END
 is_int()
 {
-    [[ "${1}" =~ ^[-+]?[0-9]+*$ ]] && return 0 || return 1
+    [[ "${1}" =~ ^[-+]?[0-9]+$ ]] && return 0 || return 1
 }
 
 opt_usage is_num <<'END'
