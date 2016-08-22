@@ -1928,6 +1928,30 @@ string_collapse()
     echo -en "${output}"
 }
 
+opt_usage is_integer <<'END'
+Returns true if the input string is an integer and false otherwise. May have a leading '-' or '+'
+to indicate the number is negative or positive. This does NOT handle floating point numbers. For
+that you should instead use is_num.
+END
+is_int()
+{
+    [[ $1 == ?([-\+])+([0-9]) ]] && return 0 || return 1
+}
+
+opt_usage is_num <<'END'
+Returns true if the input string is a number and false otherwise. May have a leading '-' or '+'
+to indicate the number is negative or positive. Unlike is_integer, this function properly handles
+floating point numbers.
+
+is_num at present does not handle fractions or exponents or numbers is other bases (e.g. hex).
+But in the future we may add support for these as needed. As such we decided not to limit ourselves
+with calling this just is_float.
+END
+is_num()
+{
+    [[ $1 == ?([-\+])+([0-9.]) ]] && return 0 || return 1
+}
+
 #---------------------------------------------------------------------------------------------------
 # Type detection
 #---------------------------------------------------------------------------------------------------
