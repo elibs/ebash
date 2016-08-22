@@ -282,14 +282,14 @@ assert_num_eq()
 {
     $(opt_parse "lh" "rh" "?msg")
     assert_num "${lh}" "${rh}"
-    assert_eq "${lh}" "${rh}" "${msg}"
+    assert compare "${lh}" "==" "${rh}" || die "assert_num_eq failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_num_ne()
 {
     $(opt_parse "lh" "rh" "?msg")
     assert_num "${lh}" "${rh}"
-    assert_ne "${lh}" "${rh}" "${msg}"
+    assert compare "${lh}" "!=" "${rh}" || die "assert_num_ne failed [${msg:-}] :: $(lval lh rh)"
 }
 
 assert_num_lt()

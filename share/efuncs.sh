@@ -1935,7 +1935,7 @@ that you should instead use is_num.
 END
 is_int()
 {
-    [[ $1 == ?([-\+])+([0-9]) ]] && return 0 || return 1
+    [[ "${1}" =~ ^[-+]?[0-9]+*$ ]] && return 0 || return 1
 }
 
 opt_usage is_num <<'END'
@@ -1949,7 +1949,7 @@ with calling this just is_float.
 END
 is_num()
 {
-    [[ $1 == ?([-\+])+([0-9.]) ]] && return 0 || return 1
+    [[ "${1}" =~ ^[-+]?[0-9]+\.?[0-9]*$ ]] && return 0 || return 1
 }
 
 #---------------------------------------------------------------------------------------------------
