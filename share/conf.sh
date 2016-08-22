@@ -65,10 +65,10 @@ END
 conf_read()
 {
     $(opt_parse \
-        "var    | Name of the associative array to store configuration in.  This must be previously
-                  declared and existing contents will be overwritten." \
-        "@files | Configuration files that should be read in.  Settings from files later in the list
-                  will override those earlier in the list.")
+        "__conf_store | Name of the associative array to store configuration in.  This must be previously
+                        declared and existing contents will be overwritten." \
+        "@files       | Configuration files that should be read in.  Settings from files later in the list
+                        will override those earlier in the list.")
 
 
     if array_empty files ; then
@@ -112,7 +112,7 @@ conf_read()
                 fi
 
                 edebug "$(lval filename section key value)"
-                pack_set ${var}["$section"] ${key}="${value}"
+                pack_set ${__conf_store}["$section"] ${key}="${value}"
 
             else
                 die "Invalid configuration at ${filename}:${line_count}: ${line}"
@@ -147,7 +147,7 @@ conf_set()
 
         (( line_count += 1 ))
 
-        if (( done == 1 )) ; then
+        if [[ ${done} -eq 1 ]] ; then
             output+="${line}"$'\n'
             continue
         fi
@@ -192,7 +192,7 @@ conf_set()
     done < ${file}
 
     # If the section wasn't encountered or it was the last section and we never wrote to it
-    if (( done == 0 )) ; then
+    if [[ ${done} -eq 0 ]] ; then
 
         if [[ ${section} != ${current_section} ]] ; then
             output+=$'\n'"[${section}]"$'\n'
