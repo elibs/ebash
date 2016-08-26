@@ -187,7 +187,7 @@ archive_create()
 
     # Blow up if pass in --dereference flag for a non-tar format
     if [[ ${dereference} -eq 1 ]]; then
-        assert_eq ${dest_type} "tar" "--dereference option only valid for tar archive format"
+        assert_eq "${dest_type}" "tar" "--dereference option only valid for tar archive format"
     fi
 
     edebug "Creating archive $(lval directory srcs dest dest_real dest_type excludes ignore_missing nice level)"
