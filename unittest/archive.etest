@@ -43,6 +43,9 @@ ETEST_archive_create()
         etestmsg "Creating dest.${ftype}"
         archive_create dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
+
+        # Verify source files still exist since we did not specify --delete
+        assert_exists src src/file1 src/file2
     done
 }
 
@@ -61,6 +64,26 @@ ETEST_archive_create_type()
     archive_create -t=cgz dest.img src
     assert_match "$(file dest.img)" "gzip compressed data"
     archive_list -t=cgz dest.img
+}
+
+ETEST_archive_create_delete()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create --delete dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+
+        etestmsg "Ensuring source files were deleted"
+        assert_not_exists src src/file1 src/file2
+    done
 }
 
 ETEST_archive_create_level()
@@ -872,6 +895,34 @@ ETEST_archive_append()
         etestmsg "Extracting"
         archive_extract src.${ftype} dest
         assert_directory_contents dest src src/{file1,file2,file3,file4}
+    done
+}
+
+ETEST_archive_append_delete()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create --delete src.${ftype} src
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        touch file3 file4
+        archive_append --delete src.${ftype} file3:src/file3 file4:src/file4
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2,file3,file4}
+
+        # Ensure source files were deleted
+        assert_not_exists src src/file1 src/file2 file3 file4
     done
 }
 
