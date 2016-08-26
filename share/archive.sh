@@ -160,6 +160,7 @@ archive_create()
         "+best             | Use the best compression (level=9)." \
         "+bootable boot b  | Make the ISO bootable (ISO only)." \
         "+delete           | Delete the source files after successful archive creation." \
+        "+dereference      | Dereference (follow) symbolic links (tar only)." \
         ":directory dir  d | Directory to cd into before archive creation." \
         ":exclude x        | List of paths to be excluded from archive." \
         "+fast             | Use the fastest compression (level=1)." \
@@ -182,6 +183,11 @@ archive_create()
         level=9
     elif [[ ${fast} -eq 1 ]]; then
         level=1
+    fi
+
+    # Blow up if pass in --dereference flag for a non-tar format
+    if [[ ${dereference} -eq 1 ]]; then
+        assert_eq ${dest_type} "tar" "--dereference option only valid for tar archive format"
     fi
 
     edebug "Creating archive $(lval directory srcs dest dest_real dest_type excludes ignore_missing nice level)"
@@ -302,6 +308,11 @@ archive_create()
     elif [[ ${dest_type} == tar ]]; then
 
         cmd="tar --exclude-from ${exclude_file} --create"
+        
+        if [[ ${dereference} -eq 1 ]]; then
+            cmd+=" --dereference"
+        fi
+
         local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
         if [[ -n "${prog}" ]]; then
             cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
@@ -554,6 +565,7 @@ archive_append()
         "+best             | Use the best compression (level=9)." \
         "+bootable boot b  | Make the ISO bootable (ISO only)." \
         "+delete           | Delete the source files after successful archive creation." \
+        "+dereference      | Dereference (follow) symbolic links (tar only)." \
         "+fast             | Use the fastest compression (level=1)." \
         "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
         ":level l=9        | Compression level (1=fast, 9=best)." \
@@ -570,7 +582,7 @@ archive_append()
     # of blowing up.
     if [[ ! -e "${dest}" ]]; then
         edebug "Destination archive doesn't exist -- forwarding call to archive_create"
-        opt_forward archive_create best bootable delete fast ignore_missing level nice volume -- "${dest}" "${srcs[@]}"
+        opt_forward archive_create best bootable delete dereference fast ignore_missing level nice volume -- "${dest}" "${srcs[@]}"
         return 0
     fi
 
@@ -589,7 +601,7 @@ archive_append()
     #     guarantee atomiciy.
     # (2) Ends in the same exact suffix as the original file so that we'll use the correct compression.
     local appended=$(mktemp $(dirname ${dest_real})/archive-append-XXXXXX-${dest_name})
-    opt_forward archive_create best bootable fast ignore_missing level nice volume -- "${appended}" "${unified}/."
+    opt_forward archive_create best bootable dereference fast ignore_missing level nice volume -- "${appended}" "${unified}/."
 
     # Now move the append archive over the original.
     mv "${appended}" "${dest}"
