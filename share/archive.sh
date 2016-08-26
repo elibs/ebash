@@ -159,6 +159,7 @@ archive_create()
     $(opt_parse \
         "+best             | Use the best compression (level=9)." \
         "+bootable boot b  | Make the ISO bootable (ISO only)." \
+        "+delete           | Delete the source files after successful archive creation." \
         ":directory dir  d | Directory to cd into before archive creation." \
         ":exclude x        | List of paths to be excluded from archive." \
         "+fast             | Use the fastest compression (level=1)." \
@@ -341,6 +342,11 @@ archive_create()
         printf "${archive_create_stdout}"
         eerror "${archive_create_stderr}"
         return "${archive_create_rc}"
+    fi
+
+    # Delete source files if requested. Eunmount doesn't support path mapping syntax so strip it off of each path.
+    if [[ ${delete} -eq 1 ]]; then
+        eunmount --all --recursive --delete "${srcs[@]%%:*}"
     fi
 
     return 0
@@ -547,6 +553,7 @@ archive_append()
     $(opt_parse \
         "+best             | Use the best compression (level=9)." \
         "+bootable boot b  | Make the ISO bootable (ISO only)." \
+        "+delete           | Delete the source files after successful archive creation." \
         "+fast             | Use the fastest compression (level=1)." \
         "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
         ":level l=9        | Compression level (1=fast, 9=best)." \
@@ -563,7 +570,7 @@ archive_append()
     # of blowing up.
     if [[ ! -e "${dest}" ]]; then
         edebug "Destination archive doesn't exist -- forwarding call to archive_create"
-        opt_forward archive_create best bootable fast ignore_missing level nice volume -- "${dest}" "${srcs[@]}"
+        opt_forward archive_create best bootable delete fast ignore_missing level nice volume -- "${dest}" "${srcs[@]}"
         return 0
     fi
 
@@ -587,6 +594,11 @@ archive_append()
     # Now move the append archive over the original.
     mv "${appended}" "${dest}"
     eunmount --recursive --delete "${unified}"
+
+    # Delete source files if requested. Eunmount doesn't support path mapping syntax so strip it off of each path.
+    if [[ ${delete} -eq 1 ]]; then
+        eunmount --all --recursive --delete "${srcs[@]%%:*}"
+    fi
 }
 
 #---------------------------------------------------------------------------------------------------
