@@ -102,7 +102,7 @@ archive_compress_program()
     elif [[ ${fname} == @(*.gz|*.tgz|*.taz|*.cgz) ]]; then
         progs=( pigz gzip )
         [[ ${nice} -eq 1 ]] && progs=( gzip )
-    elif [[ ${fname} == @(*.xz|*.txz|*.tlz|*.cxz|*.clz) ]]; then
+    elif [[ ${fname} == @(*.lz|*.xz|*.txz|*.tlz|*.cxz|*.clz) ]]; then
         progs=( lzma xz )
     else
         edebug "No suitable compress program for $(lval fname)"

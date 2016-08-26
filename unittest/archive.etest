@@ -25,6 +25,8 @@ ETEST_archive_compress_program()
     assert_match "$(archive_compress_program foo.tar.gz)"     "pigz|gzip"
     assert_match "$(archive_compress_program foo.cgz)"        "pigz|gzip"
     assert_match "$(archive_compress_program foo.cxz)"        "lzma|xz"
+    assert_match "$(archive_compress_program foo.tar.xz)"     "lzma|xz"
+    assert_match "$(archive_compress_program foo.tar.lz)"     "lzma|xz"
 }
 
 ETEST_archive_create()
