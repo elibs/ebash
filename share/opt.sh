@@ -253,7 +253,11 @@ opt_parse()
     echo 'declare opt ; '
     echo 'if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then '
     echo '    for opt in "${!__BU_OPT[@]}" ; do'
-    echo '        declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+    echo '        if [[ ${__BU_OPT_TYPE[$opt]} == "array" ]] ; then '
+    echo '            array_init_nl "${opt//-/_}" "${__BU_OPT[$opt]}" ; '
+    echo '        else '
+    echo '            declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+    echo '        fi ; '
     echo '    done ; '
     echo 'fi ; '
 
@@ -327,7 +331,7 @@ opt_parse_setup()
         [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
         # Make sure this option definition looks right
-        [[ ${opt_definition} =~ ^([+:?@])?([^=]+)(=.*)?$ ]]
+        [[ ${opt_definition} =~ ^([+:&?@])?([^=]+)(=.*)?$ ]]
 
         # TYPE is the first character of the definition
         local opt_type_char=${BASH_REMATCH[1]}
@@ -357,12 +361,15 @@ opt_parse_setup()
         done
 
         # OPTIONS
-        if [[ ${opt_type_char} == ":" || ${opt_type_char} == "+" ]] ; then
+        if [[ ${opt_type_char} == @(:|&|+) ]] ; then
 
             local name_regex=^\(${all_names//+( )/|}\)$
 
             if [[ ${opt_type_char} == ":" ]] ; then
                 opt_type="string"
+
+            elif [[ ${opt_type_char} == "&" ]] ; then
+                opt_type="array"
 
             elif [[ ${opt_type_char} == "+" ]] ; then
                 opt_type="boolean"
@@ -482,6 +489,21 @@ opt_parse_options()
 
                     __BU_OPT[$canonical]=${opt_arg}
 
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "array" ]]; then
+                    # If it wasn't specified after an equal sign, instead grab
+                    # the next argument off the command line
+                    if [[ -z ${has_arg} ]] ; then
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument but didn't receive one."
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                    fi
+
+                    if [[ -z ${__BU_OPT[$canonical]} ]]; then
+                        __BU_OPT[$canonical]=${opt_arg}
+                    else
+                        __BU_OPT[$canonical]+=$'\n'${opt_arg}
+                    fi
+
                 elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 
                     # The value that will get assigned to this boolean option
@@ -544,7 +566,25 @@ opt_parse_options()
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
+
                     __BU_OPT[$canonical]=${opt_arg}
+                
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "array" ]] ; then
+
+                    # If it wasn't specified after an equal sign, instead grab
+                    # the next argument off the command line
+                    if [[ -z ${has_arg} ]] ; then
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
+
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                    fi
+
+                    if [[ -z ${__BU_OPT[$canonical]} ]]; then
+                        __BU_OPT[$canonical]=${opt_arg}
+                    else
+                        __BU_OPT[$canonical]+=$'\n'${opt_arg}
+                    fi
 
                 elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 
