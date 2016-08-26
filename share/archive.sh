@@ -71,7 +71,7 @@ archive_type()
         echo -n "squashfs"
     elif [[ ${src} == @(*.iso) ]]; then
         echo -n "iso"
-    elif [[ ${src} == @(*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.txz|*.tlz) ]]; then
+    elif [[ ${src} == @(*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz) ]]; then
         echo -n "tar"
     elif [[ ${src} == @(*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cxz|*.clz) ]]; then
         echo -n "cpio"
@@ -102,7 +102,7 @@ archive_compress_program()
     elif [[ ${fname} == @(*.gz|*.tgz|*.taz|*.cgz) ]]; then
         progs=( pigz gzip )
         [[ ${nice} -eq 1 ]] && progs=( gzip )
-    elif [[ ${fname} == @(*.xz|*.txz|*.tlz|*.cxz|*.clz) ]]; then
+    elif [[ ${fname} == @(*.lz|*.xz|*.txz|*.tlz|*.cxz|*.clz) ]]; then
         progs=( lzma xz )
     else
         edebug "No suitable compress program for $(lval fname)"
@@ -159,6 +159,7 @@ archive_create()
     $(opt_parse \
         "+best             | Use the best compression (level=9)." \
         "+bootable boot b  | Make the ISO bootable (ISO only)." \
+        "+delete           | Delete the source files after successful archive creation." \
         ":directory dir  d | Directory to cd into before archive creation." \
         ":exclude x        | List of paths to be excluded from archive." \
         "+fast             | Use the fastest compression (level=1)." \
@@ -341,6 +342,11 @@ archive_create()
         printf "${archive_create_stdout}"
         eerror "${archive_create_stderr}"
         return "${archive_create_rc}"
+    fi
+
+    # Delete source files if requested. Eunmount doesn't support path mapping syntax so strip it off of each path.
+    if [[ ${delete} -eq 1 ]]; then
+        eunmount --all --recursive --delete "${srcs[@]%%:*}"
     fi
 
     return 0
@@ -526,7 +532,8 @@ opt_usage archive_append <<END
 Append a given list of paths to an existing archive atomically. The way this is done atomically is
 to do all the work on a temporary file and only move it over to the final file once all the append
 work is complete. The reason we do this atomically is to ensure that we never have a corrupt or
-half written archive which would be unusable.
+half written archive which would be unusable. If the destination archive does not exist this will
+implicitly call archive_create much like 'cat foo >> nothere'.
 
 ${PATH_MAPPING_SYNTAX_DOC}
 
@@ -546,6 +553,7 @@ archive_append()
     $(opt_parse \
         "+best             | Use the best compression (level=9)." \
         "+bootable boot b  | Make the ISO bootable (ISO only)." \
+        "+delete           | Delete the source files after successful archive creation." \
         "+fast             | Use the fastest compression (level=1)." \
         "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
         ":level l=9        | Compression level (1=fast, 9=best)." \
@@ -558,8 +566,15 @@ archive_append()
     local dest_name=$(basename "${dest}")
     local dest_real=$(readlink -m "${dest}")
  
+    # If the destination to append to doesn't exist reroute this call to archive_append instead
+    # of blowing up.
+    if [[ ! -e "${dest}" ]]; then
+        edebug "Destination archive doesn't exist -- forwarding call to archive_create"
+        opt_forward archive_create best bootable delete fast ignore_missing level nice volume -- "${dest}" "${srcs[@]}"
+        return 0
+    fi
+
     edebug "Appending to archive $(lval dest srcs ignore_missing)"
-    assert_exists "${dest}"
 
     # Extract the archive into tmpfs directory
     local unified=$(mktemp --tmpdir --directory archive-append-unified-XXXXXX)
@@ -579,6 +594,11 @@ archive_append()
     # Now move the append archive over the original.
     mv "${appended}" "${dest}"
     eunmount --recursive --delete "${unified}"
+
+    # Delete source files if requested. Eunmount doesn't support path mapping syntax so strip it off of each path.
+    if [[ ${delete} -eq 1 ]]; then
+        eunmount --all --recursive --delete "${srcs[@]%%:*}"
+    fi
 }
 
 #---------------------------------------------------------------------------------------------------
