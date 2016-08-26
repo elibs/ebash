@@ -143,6 +143,10 @@
 
     - Added os detection functions (os, os_distro, os_release)
 
+    - Added array parsing into opt_parse using new type character '&'.  This
+      allows you to specify an option multiple times and they will all get
+      accumulated into a single array.
+
 # Bashutils 1.2
 
     - Created new general purpose abstract archive module. This provides common
