@@ -71,7 +71,7 @@ archive_type()
         echo -n "squashfs"
     elif [[ ${src} == @(*.iso) ]]; then
         echo -n "iso"
-    elif [[ ${src} == @(*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.txz|*.tlz) ]]; then
+    elif [[ ${src} == @(*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz) ]]; then
         echo -n "tar"
     elif [[ ${src} == @(*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cxz|*.clz) ]]; then
         echo -n "cpio"
@@ -526,7 +526,8 @@ opt_usage archive_append <<END
 Append a given list of paths to an existing archive atomically. The way this is done atomically is
 to do all the work on a temporary file and only move it over to the final file once all the append
 work is complete. The reason we do this atomically is to ensure that we never have a corrupt or
-half written archive which would be unusable.
+half written archive which would be unusable. If the destination archive does not exist this will
+implicitly call archive_create much like 'cat foo >> nothere'.
 
 ${PATH_MAPPING_SYNTAX_DOC}
 
@@ -558,8 +559,15 @@ archive_append()
     local dest_name=$(basename "${dest}")
     local dest_real=$(readlink -m "${dest}")
  
+    # If the destination to append to doesn't exist reroute this call to archive_append instead
+    # of blowing up.
+    if [[ ! -e "${dest}" ]]; then
+        edebug "Destination archive doesn't exist -- forwarding call to archive_create"
+        opt_forward archive_create best bootable fast ignore_missing level nice volume -- "${dest}" "${srcs[@]}"
+        return 0
+    fi
+
     edebug "Appending to archive $(lval dest srcs ignore_missing)"
-    assert_exists "${dest}"
 
     # Extract the archive into tmpfs directory
     local unified=$(mktemp --tmpdir --directory archive-append-unified-XXXXXX)
