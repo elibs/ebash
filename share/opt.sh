@@ -518,7 +518,7 @@ opt_parse_options()
 
                     # Do not allow the value to contain a newline in an accumulator since this would cause
                     # failures in array_init_nl later.
-                    [[ "${opt_arg}" =~ $'\n' ]] && die "Newlines cannot appear in accumulator values."
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
 
                     __BU_OPT[$canonical]+=${opt_arg}$'\n'
 
@@ -600,7 +600,7 @@ opt_parse_options()
 
                     # Do not allow the value to contain a newline in an accumulator since this would cause
                     # failures in array_init_nl later.
-                    [[ "${opt_arg}" =~ $'\n' ]] && die "Newlines cannot appear in accumulator values."
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
                     
                     __BU_OPT[$canonical]+=${opt_arg}$'\n'
 
