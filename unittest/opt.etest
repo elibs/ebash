@@ -665,7 +665,7 @@ ETEST_opt_parse_rest_error_cases()
 
 }
 
-ETEST_opt_parse_array()
+ETEST_opt_parse_accumulator()
 {
     validate()
     {
@@ -686,7 +686,7 @@ ETEST_opt_parse_array()
     validate
 }
 
-ETEST_opt_parse_array_whitespace()
+ETEST_opt_parse_accumulator_whitespace()
 {
     validate()
     {
@@ -708,7 +708,7 @@ ETEST_opt_parse_array_whitespace()
 }
 
 # Ensure we only have a single entry in the array if only given the option once
-ETEST_opt_parse_array_single()
+ETEST_opt_parse_accumulator_single()
 {
     set -- --files apples
     $(opt_parse "&files")

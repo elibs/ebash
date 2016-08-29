@@ -194,6 +194,24 @@ order to get a string option, you prepend its name with a colon character.
     # output -- STRING: XX
 
 
+Accumulator Values
+------------------
+
+Opt parse also supports the ability to accumulate string values into an array
+when the option is given multiple times.  In order to use an accumulator, you
+prepend its name with an ampersand character.  The values placed into an
+accumulated array cannot contain a newline character.
+
+    func()
+    {
+        $(opt_parse "&files f")
+        echo "FILES: ${files[@]}"
+    }
+
+    func --files "alpha" --files "beta" --files "gamma"
+    # output -- FILES: alpha beta gamma
+
+
 Default Values
 --------------
 
@@ -253,7 +271,7 @@ opt_parse()
     echo 'declare opt ; '
     echo 'if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then '
     echo '    for opt in "${!__BU_OPT[@]}" ; do'
-    echo '        if [[ ${__BU_OPT_TYPE[$opt]} == "array" ]] ; then '
+    echo '        if [[ ${__BU_OPT_TYPE[$opt]} == "accumulator" ]] ; then '
     echo '            array_init_nl "${opt//-/_}" "${__BU_OPT[$opt]}" ; '
     echo '        else '
     echo '            declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
@@ -369,7 +387,7 @@ opt_parse_setup()
                 opt_type="string"
 
             elif [[ ${opt_type_char} == "&" ]] ; then
-                opt_type="array"
+                opt_type="accumulator"
 
             elif [[ ${opt_type_char} == "+" ]] ; then
                 opt_type="boolean"
@@ -489,7 +507,7 @@ opt_parse_options()
 
                     __BU_OPT[$canonical]=${opt_arg}
 
-                elif [[ ${__BU_OPT_TYPE[$canonical]} == "array" ]]; then
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "accumulator" ]]; then
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
@@ -498,11 +516,11 @@ opt_parse_options()
                         shift && (( shift_count += 1 ))
                     fi
 
-                    if [[ -z ${__BU_OPT[$canonical]} ]]; then
-                        __BU_OPT[$canonical]=${opt_arg}
-                    else
-                        __BU_OPT[$canonical]+=$'\n'${opt_arg}
-                    fi
+                    # Do not allow the value to contain a newline in an accumulator since this would cause
+                    # failures in array_init_nl later.
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "Newlines cannot appear in accumulator values."
+
+                    __BU_OPT[$canonical]+=${opt_arg}$'\n'
 
                 elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 
@@ -569,7 +587,7 @@ opt_parse_options()
 
                     __BU_OPT[$canonical]=${opt_arg}
                 
-                elif [[ ${__BU_OPT_TYPE[$canonical]} == "array" ]] ; then
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "accumulator" ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
@@ -580,11 +598,11 @@ opt_parse_options()
                         shift && (( shift_count += 1 ))
                     fi
 
-                    if [[ -z ${__BU_OPT[$canonical]} ]]; then
-                        __BU_OPT[$canonical]=${opt_arg}
-                    else
-                        __BU_OPT[$canonical]+=$'\n'${opt_arg}
-                    fi
+                    # Do not allow the value to contain a newline in an accumulator since this would cause
+                    # failures in array_init_nl later.
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "Newlines cannot appear in accumulator values."
+                    
+                    __BU_OPT[$canonical]+=${opt_arg}$'\n'
 
                 elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 
