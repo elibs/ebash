@@ -194,6 +194,24 @@ order to get a string option, you prepend its name with a colon character.
     # output -- STRING: XX
 
 
+Accumulator Values
+------------------
+
+Opt parse also supports the ability to accumulate string values into an array
+when the option is given multiple times.  In order to use an accumulator, you
+prepend its name with an ampersand character.  The values placed into an
+accumulated array cannot contain a newline character.
+
+    func()
+    {
+        $(opt_parse "&files f")
+        echo "FILES: ${files[@]}"
+    }
+
+    func --files "alpha" --files "beta" --files "gamma"
+    # output -- FILES: alpha beta gamma
+
+
 Default Values
 --------------
 
@@ -253,7 +271,11 @@ opt_parse()
     echo 'declare opt ; '
     echo 'if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then '
     echo '    for opt in "${!__BU_OPT[@]}" ; do'
-    echo '        declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+    echo '        if [[ ${__BU_OPT_TYPE[$opt]} == "accumulator" ]] ; then '
+    echo '            array_init_nl "${opt//-/_}" "${__BU_OPT[$opt]}" ; '
+    echo '        else '
+    echo '            declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+    echo '        fi ; '
     echo '    done ; '
     echo 'fi ; '
 
@@ -327,7 +349,7 @@ opt_parse_setup()
         [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
 
         # Make sure this option definition looks right
-        [[ ${opt_definition} =~ ^([+:?@])?([^=]+)(=.*)?$ ]]
+        [[ ${opt_definition} =~ ^([+:&?@])?([^=]+)(=.*)?$ ]]
 
         # TYPE is the first character of the definition
         local opt_type_char=${BASH_REMATCH[1]}
@@ -357,12 +379,15 @@ opt_parse_setup()
         done
 
         # OPTIONS
-        if [[ ${opt_type_char} == ":" || ${opt_type_char} == "+" ]] ; then
+        if [[ ${opt_type_char} == @(:|&|+) ]] ; then
 
             local name_regex=^\(${all_names//+( )/|}\)$
 
             if [[ ${opt_type_char} == ":" ]] ; then
                 opt_type="string"
+
+            elif [[ ${opt_type_char} == "&" ]] ; then
+                opt_type="accumulator"
 
             elif [[ ${opt_type_char} == "+" ]] ; then
                 opt_type="boolean"
@@ -482,6 +507,21 @@ opt_parse_options()
 
                     __BU_OPT[$canonical]=${opt_arg}
 
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "accumulator" ]]; then
+                    # If it wasn't specified after an equal sign, instead grab
+                    # the next argument off the command line
+                    if [[ -z ${has_arg} ]] ; then
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument but didn't receive one."
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                    fi
+
+                    # Do not allow the value to contain a newline in an accumulator since this would cause
+                    # failures in array_init_nl later.
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
+
+                    __BU_OPT[$canonical]+=${opt_arg}$'\n'
+
                 elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 
                     # The value that will get assigned to this boolean option
@@ -544,7 +584,25 @@ opt_parse_options()
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
+
                     __BU_OPT[$canonical]=${opt_arg}
+                
+                elif [[ ${__BU_OPT_TYPE[$canonical]} == "accumulator" ]] ; then
+
+                    # If it wasn't specified after an equal sign, instead grab
+                    # the next argument off the command line
+                    if [[ -z ${has_arg} ]] ; then
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
+
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                    fi
+
+                    # Do not allow the value to contain a newline in an accumulator since this would cause
+                    # failures in array_init_nl later.
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
+                    
+                    __BU_OPT[$canonical]+=${opt_arg}$'\n'
 
                 elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 

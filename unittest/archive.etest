@@ -86,6 +86,30 @@ ETEST_archive_create_delete()
     done
 }
 
+ETEST_archive_create_symlinks()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+        echo "foo" > foo
+        ln -s ${PWD}/foo src/filelnk
+        find src -ls
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/filelnk src/file1 src/file2
+
+        etestmsg "Ensuring symlinks preserved"
+        archive_extract dest.${ftype} dest
+        [[ -L dest/src/filelnk ]]
+    done
+}
+
 ETEST_archive_create_level()
 {
     local idx=0
