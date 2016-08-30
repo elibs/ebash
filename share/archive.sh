@@ -348,6 +348,16 @@ archive_create()
     eunmount --all --recursive --delete ${cleanup_files[@]}
     unset cleanup_files
 
+    # Tar has a pecularity with return codes that is inconsistent with the other archive formats.
+    # It returns 1 if any files were modified during creation. This isn't something we want to guard
+    # against as it's extremely frequent when archiving files for them to be modified during archival.
+    # Moreover, since none of the other archive formats have this behavior ignoring this error helps
+    # to unify archive_create across all its supported formats.
+    if [[ ${dest_type} == tar && ${archive_create_rc} -eq 1 ]]; then
+        edebug "Ignoring tar error resulting from files being modified during archive creation"
+        archive_create_rc=0
+    fi
+
     # Propogate any errors
     if [[ ${archive_create_rc} -ne 0 ]]; then
         printf "${archive_create_stdout}"
