@@ -223,18 +223,13 @@ assert_archive_contents()
     assert_exists "${archive}"
     local actual=( $(archive_list ${archive}) )
 
-    edebug "$(lval expect)"
-    edebug "$(lval actual)"
+    local expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
+    echo "$(array_join_nl expect)" > "${expect_tmp}"
+    
+    local actual_tmp=$(mktemp --tmpdir assert_directory_contents-actual-XXXXXX)
+    echo "$(array_join_nl actual)" > "${actual_tmp}"
 
-    assert_eq "${#expect[@]}" "${#actual[@]}" "Size mismatch"
-
-    local idx
-    for idx in $(array_indexes expect); do
-        eval "local e=\${expect[$idx]}"
-        eval "local a=\${actual[$idx]}"
-
-        assert_eq "${e}" "${a}" "Mismatch at index=${idx}"
-    done
+    assert diff --unified "${expect_tmp}" "${actual_tmp}"
 }
 
 assert_directory_contents()
@@ -248,18 +243,13 @@ assert_directory_contents()
     assert_exists "${directory}"
     local actual=( $(find "${directory}" -printf '%P\n' | sort) )
 
-    edebug "$(lval expect)"
-    edebug "$(lval actual)"
+    local expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
+    echo "$(array_join_nl expect)" > "${expect_tmp}"
+    
+    local actual_tmp=$(mktemp --tmpdir assert_directory_contents-actual-XXXXXX)
+    echo "$(array_join_nl actual)" > "${actual_tmp}"
 
-    assert_eq "${#expect[@]}" "${#actual[@]}" "Size mismatch"
-
-    local idx
-    for idx in $(array_indexes expect); do
-        eval "local e=\${expect[$idx]}"
-        eval "local a=\${actual[$idx]}"
-
-        assert_eq "${e}" "${a}" "Mismatch at index=${idx}"
-    done
+    assert diff --unified "${expect_tmp}" "${actual_tmp}"
 }
 
 assert_int()
