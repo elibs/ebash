@@ -224,10 +224,10 @@ assert_archive_contents()
     local actual=( $(archive_list ${archive}) )
 
     local expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
-    echo "$(array_join_nl expect)" > "${expect_tmp}"
+    echo "$(array_join_nl expect)" | sort --unique > "${expect_tmp}"
     
     local actual_tmp=$(mktemp --tmpdir assert_directory_contents-actual-XXXXXX)
-    echo "$(array_join_nl actual)" > "${actual_tmp}"
+    echo "$(array_join_nl actual)" | sort --unique > "${actual_tmp}"
 
     assert diff --unified "${expect_tmp}" "${actual_tmp}"
 }
@@ -244,10 +244,10 @@ assert_directory_contents()
     local actual=( $(find "${directory}" -printf '%P\n' | sort) )
 
     local expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
-    echo "$(array_join_nl expect)" > "${expect_tmp}"
+    echo "$(array_join_nl expect)" | sort --unique > "${expect_tmp}"
     
     local actual_tmp=$(mktemp --tmpdir assert_directory_contents-actual-XXXXXX)
-    echo "$(array_join_nl actual)" > "${actual_tmp}"
+    echo "$(array_join_nl actual)" | sort --unique > "${actual_tmp}"
 
     assert diff --unified "${expect_tmp}" "${actual_tmp}"
 }
