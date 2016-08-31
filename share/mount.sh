@@ -283,6 +283,8 @@ eunmount()
         # If empty string just skip it
         [[ -z "${mnt}" ]] && continue
 
+        mnt=$(emount_realpath "${mnt}")
+
         edebug "Unmounting $(lval mnt recursive delete all)"
         
         # WHILE loop to **optionally** continue unmounting until no more matching
