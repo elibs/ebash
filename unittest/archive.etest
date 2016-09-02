@@ -5,9 +5,10 @@
 BANNER_WIDTH=50
 ARCHIVE_TYPES=(
     squashfs
-    tar
     iso
+    tar
     tar.gz
+    tlz
     cpio
     cgz
     cxz
@@ -42,6 +43,7 @@ ETEST_archive_create()
 
         etestmsg "Creating dest.${ftype}"
         archive_create dest.${ftype} src
+        archive_list dest.${ftype}
         assert_archive_contents dest.${ftype} src src/file1 src/file2
 
         # Verify source files still exist since we did not specify --delete
