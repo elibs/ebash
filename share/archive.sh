@@ -533,18 +533,32 @@ archive_list()
         # NOTE: Suppress stderr because isoinfo spews messages to stderr that can't be turned
         # of such as 'Setting input-charset to 'UTF-8' from locale.'
         isoinfo -J -i "${src}" -f 2>/dev/null | sed -e 's|^/||'
-    elif [[ ${src_type} == tar ]]; then
-        tar --list --file "${src}" | sed -e "s|^./||" -e '/^\/$/d' -e 's|/$||'
-    elif [[ ${src_type} == cpio ]]; then
 
+    # TAR or CPIO
+    elif [[ ${src_type} == @(tar|cpio) ]]; then
+
+        # Setup some variables to make this code less insane.
+        local tar_cmd="tar --list"         
+        local tar_input=" --file "${src}""
+        local tar_filter=" | sed -e 's|^./||' -e '/^\/$/d' -e 's|/$||'"
+        
+        local cpio_cmd="cpio --quiet -it"
+        local cpio_input=" < "${src}""
+        local cpio_filter=" | sed -e 's|^.$||'"
+ 
         # Do decompression first
         local cmd=""
         local prog=$(archive_compress_program --type "${type}" "${src}")
         if [[ -n "${prog}" ]]; then
-            ${prog} --decompress --stdout < ${src} | cpio --quiet -it
-        else
-            cpio --quiet -it < "${src}"
-        fi | sed -e "s|^.$||" 
+            cmd="${prog} --decompress --stdout < ${src} | "
+        fi
+
+        # Build up the rest of the command to execute using variables above.
+        eval "cmd+=\${${src_type}_cmd}"
+        [[ -z "${prog}" ]] && eval "cmd+=\${${src_type}_input}"
+        eval "cmd+=\${${src_type}_filter}"
+        edebug "$(lval cmd)"
+        eval "${cmd}"
 
     fi | sort --unique | sed '/^$/d'
 }
