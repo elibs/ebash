@@ -14,7 +14,7 @@ ETEST_etimeout_return_codes()
     etimeout -t=1 "true"
 
     etestmsg "Testing that bad return code (1) is passed back."
-    $(tryrc -r rc1 etimeout -t=1 "bash -c 'exit 1'")
+    $(tryrc -r rc1 etimeout -t=30 "bash -c 'exit 1'")
     assert_eq 1 ${rc1}
 
     etestmsg BEGIN
