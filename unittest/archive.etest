@@ -30,6 +30,68 @@ ETEST_archive_compress_program()
     assert_match "$(archive_compress_program foo.tar.lz)"     "lzma|xz"
 }
 
+ETEST_archive_suffixes()
+{
+    assert_eq ".squashfs" "$(archive_suffixes squashfs)"
+    assert_eq ".iso"      "$(archive_suffixes iso)"
+
+    assert_eq ".tar .tar.gz .tgz .taz .tar.bz2 .tz2 .tbz2 .tbz .tar.xz .txz .tar.lz .tlz" \
+        "$(archive_suffixes tar)"
+    
+    assert_eq ".cpio .cpio.gz .cgz .caz .cpio.bz2 .cz2 .cbz2 .cbz .cpio.xz .cxz .cpio.lz .clz" \
+        "$(archive_suffixes cpio)"
+
+    assert_eq ".squashfs .iso .tar .tar.gz .tgz .taz .tar.bz2 .tz2 .tbz2 .tbz .tar.xz .txz .tar.lz .tlz .cpio .cpio.gz .cgz .caz .cpio.bz2 .cz2 .cbz2 .cbz .cpio.xz .cxz .cpio.lz .clz" \
+        "$(archive_suffixes squashfs iso tar cpio)" 
+
+    assert_false archive_suffixes invalid 
+}
+
+ETEST_archive_suffixes_wildcard()
+{
+    assert_eq "*.squashfs" "$(archive_suffixes --wildcard squashfs)"
+    assert_eq "*.iso"      "$(archive_suffixes --wildcard iso)"
+
+    assert_eq "*.tar *.tar.gz *.tgz *.taz *.tar.bz2 *.tz2 *.tbz2 *.tbz *.tar.xz *.txz *.tar.lz *.tlz" \
+        "$(archive_suffixes --wildcard tar)"
+    
+    assert_eq "*.cpio *.cpio.gz *.cgz *.caz *.cpio.bz2 *.cz2 *.cbz2 *.cbz *.cpio.xz *.cxz *.cpio.lz *.clz" \
+        "$(archive_suffixes --wildcard cpio)"
+
+    assert_eq "*.squashfs *.iso *.tar *.tar.gz *.tgz *.taz *.tar.bz2 *.tz2 *.tbz2 *.tbz *.tar.xz *.txz *.tar.lz *.tlz *.cpio *.cpio.gz *.cgz *.caz *.cpio.bz2 *.cz2 *.cbz2 *.cbz *.cpio.xz *.cxz *.cpio.lz *.clz" \
+        "$(archive_suffixes --wildcard squashfs iso tar cpio)" 
+}
+
+ETEST_archive_suffixes_pattern_list()
+{
+    assert_eq ".squashfs" "$(archive_suffixes --pattern squashfs)"
+    assert_eq ".iso"      "$(archive_suffixes --pattern iso)"
+
+    assert_eq ".tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.tar.xz|.txz|.tar.lz|.tlz" \
+        "$(archive_suffixes --pattern tar)"
+    
+    assert_eq ".cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cpio.xz|.cxz|.cpio.lz|.clz" \
+        "$(archive_suffixes --pattern cpio)"
+
+    assert_eq ".squashfs|.iso|.tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.tar.xz|.txz|.tar.lz|.tlz|.cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cpio.xz|.cxz|.cpio.lz|.clz" \
+        "$(archive_suffixes --pattern squashfs iso tar cpio)" 
+}
+
+ETEST_archive_suffixes_pattern_list_wildcard()
+{
+    assert_eq "*.squashfs" "$(archive_suffixes --pattern --wildcard squashfs)"
+    assert_eq "*.iso"      "$(archive_suffixes --pattern --wildcard iso)"
+
+    assert_eq "*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz" \
+        "$(archive_suffixes --pattern --wildcard tar)"
+    
+    assert_eq "*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cpio.xz|*.cxz|*.cpio.lz|*.clz" \
+        "$(archive_suffixes --pattern --wildcard cpio)"
+
+    assert_eq "*.squashfs|*.iso|*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz|*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cpio.xz|*.cxz|*.cpio.lz|*.clz" \
+        "$(archive_suffixes --pattern --wildcard squashfs iso tar cpio)" 
+}
+
 ETEST_archive_create()
 {
     local idx=0
