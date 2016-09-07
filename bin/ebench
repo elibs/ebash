@@ -186,6 +186,18 @@ BENCH_edebug_pipe_disabled_massive_output()
     ( EDEBUG=0 dmesg | edebug )
 }
 
+BENCH_array_join()
+{
+    local suffixes=( ".squashfs" ".iso" ".tar" ".tar.gz" ".tgz" ".taz" ".tar.bz2" ".tz2" ".tbz2" ".tbz" ".tar.xz" ".txz" ".tar.lz" ".tlz" ".cpio" ".cpio.gz" ".cgz" ".caz" ".cpio.bz2" ".cz2" ".cbz2" ".cbz" ".cpio.xz" ".cxz" ".cpio.lz" ".clz" )
+    local output=$(array_join suffixes "|")
+}
+
+BENCH_array_join_sed()
+{
+    local suffixes=( ".squashfs" ".iso" ".tar" ".tar.gz" ".tgz" ".taz" ".tar.bz2" ".tz2" ".tbz2" ".tbz" ".tar.xz" ".txz" ".tar.lz" ".tlz" ".cpio" ".cpio.gz" ".cgz" ".caz" ".cpio.bz2" ".cz2" ".cbz2" ".cbz" ".cpio.xz" ".cxz" ".cpio.lz" ".clz" )
+    local output=$(echo "${suffixes[@]}" | sed -e 's/ /|/g')
+}
+
 #-----------------------------------------------------------------------------
 # MAIN
 #-----------------------------------------------------------------------------
