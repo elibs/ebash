@@ -47,6 +47,54 @@
 # an important archiving tool" (https://en.wikipedia.org/wiki/Cpio).
 #-----------------------------------------------------------------------------------------------------
 
+opt_usage archive_suffixes <<'END'
+Echo a list of the supported archive suffixes for the optional provided type. If no type is given it 
+returns a unified list of all the supported archive suffixes supported. By default the list of the
+supported suffixes is echoed as a whitespace separated list. But using the --pattern option it will
+instead echo the result in a pattern-list which is a list of one or more patterns separated by a '|'.
+This can then be used more seamlessly inside extended glob matching.
+END
+archive_suffixes()
+{
+    $(opt_parse \
+        "+pattern p  | Echo the results using pattern-list syntax instead of whitespace separated." \
+        "+wildcard w | Add wildcard * before each suffix." \
+        "@types      | Filter the list of supported suffixes to the given archive types.")
+
+    local results=()
+    if array_empty types; then
+        types=( "squashfs" "iso" "tar" "cpio" )
+    fi
+
+    local entry
+    for entry in "${types[@]}"; do
+        if [[ ${entry} == "squashfs" ]]; then
+            results+=( ".squashfs" )
+        elif [[ ${entry} == "iso" ]]; then
+            results+=( ".iso" )
+        elif [[ ${entry} == "tar" ]]; then
+            results+=( ".tar" ".tar.gz" ".tgz" ".taz" ".tar.bz2" ".tz2" ".tbz2" ".tbz" ".tar.xz" ".txz" ".tar.lz" ".tlz" )
+        elif [[ ${entry} == "cpio" ]]; then
+            results+=( ".cpio" ".cpio.gz" ".cgz" ".caz" ".cpio.bz2" ".cz2" ".cbz2" ".cbz" ".cpio.xz" ".cxz" ".cpio.lz" ".clz" )
+        else
+            die "Unsupported $(lval entry types)"
+        fi
+    done
+
+    # If wildcard was requested replace each leading '.' with "*.'
+    if [[ ${wildcard} -eq 1 ]]; then
+        results=( "${results[@]/./*.}" )
+    fi
+
+    # If pattern-list was requested convert the result to a pattern-list.
+    # NOTE: Use sed here instead of array_join because it is an order of magnitude faster, the
+    #       array is well-formed without holes, and we don't need additional functionality offered by array_join.
+    if [[ ${pattern} -eq 1 ]]; then
+        echo "${results[@]}" | sed -e 's/ /|/g'
+    else
+        echo "${results[@]}"
+    fi
+}
 
 opt_usage archive_type <<'END'
 Determine archive format based on the file suffix. You can override type detection by passing in
@@ -67,18 +115,16 @@ archive_type()
     fi
 
     # Detect type based on suffix
-    if [[ ${src} == @(*.squashfs) ]]; then
-        echo -n "squashfs"
-    elif [[ ${src} == @(*.iso) ]]; then
-        echo -n "iso"
-    elif [[ ${src} == @(*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz) ]]; then
-        echo -n "tar"
-    elif [[ ${src} == @(*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cxz|*.clz) ]]; then
-        echo -n "cpio"
-    else
-        eerror "Unsupported fstype $(lval src)"
-        return 1
-    fi
+    local entry
+    for entry in squashfs iso tar cpio; do
+        if [[ ${src} == @($(archive_suffixes --pattern --wildcard ${entry})) ]]; then
+            echo "${entry}"
+            return 0
+        fi
+    done
+
+    # If we got here then we never found a valid archive type.
+    die "Unsupported fstype $(lval src)"
 }
 
 # Determine the best compress programm to use based on the archive suffix.
