@@ -163,6 +163,30 @@ archive_compress_program()
     echo -n "${prog}"
 }
 
+# Tar has a pecularity with return codes that is inconsistent with the other archive formats.
+# It returns 1 if any files were modified during creation. This isn't something we want to guard
+# against as it's extremely frequent when archiving files for them to be modified during archival.
+# Moreover, since none of the other archive formats have this behavior ignoring this error helps
+# to unify archive_create across all its supported formats.
+tar_ignore_modified_files()
+{
+    try
+    {
+        command tar "${@}"
+    }
+    catch
+    {
+        rc=$?
+
+        if [[ ${rc} -eq 1 ]]; then
+            edebug "Ignoring tar error resulting from files being modified during archive creation"
+            return 0
+        else
+            return ${rc}
+        fi
+    }
+}
+
 opt_usage archive_create <<END
 Generic function for creating an archive file of a given type from the given list of source paths
 and write it out to the requested destination directory. This function will intelligently figure out
@@ -353,7 +377,7 @@ archive_create()
     # TAR
     elif [[ ${dest_type} == tar ]]; then
 
-        cmd="tar --exclude-from ${exclude_file} --create"
+        cmd="tar_ignore_modified_files --exclude-from ${exclude_file} --create"
         
         if [[ ${dereference} -eq 1 ]]; then
             cmd+=" --dereference"
@@ -393,16 +417,6 @@ archive_create()
     # Execute clean-up and clear the list so it won't get called again on trap teardown
     eunmount --all --recursive --delete ${cleanup_files[@]}
     unset cleanup_files
-
-    # Tar has a pecularity with return codes that is inconsistent with the other archive formats.
-    # It returns 1 if any files were modified during creation. This isn't something we want to guard
-    # against as it's extremely frequent when archiving files for them to be modified during archival.
-    # Moreover, since none of the other archive formats have this behavior ignoring this error helps
-    # to unify archive_create across all its supported formats.
-    if [[ ${dest_type} == tar && ${archive_create_rc} -eq 1 ]]; then
-        edebug "Ignoring tar error resulting from files being modified during archive creation"
-        archive_create_rc=0
-    fi
 
     # Propogate any errors
     if [[ ${archive_create_rc} -ne 0 ]]; then
