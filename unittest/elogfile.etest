@@ -174,8 +174,13 @@ ETEST_elogfile_truncate()
         echo "&2"          >&2
     )
 
+    etestmsg "Whole log file:"
+    cat ${FUNCNAME}.log
+
+    etestmsg "Verifying specific contents"
     for match in "/dev/stdout" "/dev/stderr" "/dev/fd/1" "/dev/fd/2" "edebug" "&1" "&2"; do
-        grep --quiet "${match}" ${FUNCNAME}.log || die "Logfile was truncated"
+        einfo "Verifying $(lval match)"
+        eretry --max-timeout 30s grep --quiet "${match}" ${FUNCNAME}.log
     done
 }
 
