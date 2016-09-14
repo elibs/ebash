@@ -128,16 +128,16 @@ pkg_install()
 
     case ${pkg_manager} in
         dpkg)
-            $(tryrc DEBIAN_FRONTEND=noninteractive apt-get -y install "${@}")
+            $(tryrc DEBIAN_FRONTEND=noninteractive aptitude -y install "${@}")
 
             # If it fails the first time...
             if [[ ${rc} -ne 0 ]] ; then
                 # Try a bit of cleanup
                 DEBIAN_FRONTEND=noninteractive dpkg --force-confdef --force-confold --configure -a
-                DEBIAN_FRONTEND=noninteractive apt-get -f -y --force-yes install
+                DEBIAN_FRONTEND=noninteractive aptitude -f -y --force-yes install
 
                 # And then give it one more chance
-                DEBIAN_FRONTEND=noninteractive apt-get -y install "${@}"
+                DEBIAN_FRONTEND=noninteractive aptitude -y install "${@}"
             fi
             ;;
 
@@ -170,7 +170,7 @@ pkg_uninstall()
 
     case $(pkg_manager) in
         dpkg)
-            DEBIAN_FRONTEND=noninteractive apt-get purge -y "${@}"
+            DEBIAN_FRONTEND=noninteractive aptitude purge -y "${@}"
             ;;
 
         portage)
@@ -201,7 +201,7 @@ pkg_sync()
 {
     case $(pkg_manager) in
         dpkg)
-            apt-get update
+            aptitude update
             ;;
 
         portage)
@@ -266,7 +266,7 @@ pkg_upgrade()
 
     case $(pkg_manager) in
         dpkg)
-            DEBIAN_FRONTEND=noninteractive apt-get install -y "${name}"
+            DEBIAN_FRONTEND=noninteractive aptitude install -y "${name}"
             ;;
 
         portage)
