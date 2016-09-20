@@ -62,7 +62,7 @@ ETEST_get_network_pci_device_sanity()
     for ifname in $(pack_keys mock_nics); do
         address=$(get_network_pci_device ${ifname})
         # Make sure the address looks like a PCI address
-        edebug $(lval ifname address)
+        edebug "$(lval ifname address)"
         [[ ${address} =~ ^[0-9]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9] ]] || die "Invalid PCI address"
     done
 }
