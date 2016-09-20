@@ -23,5 +23,49 @@ ETEST_netselect()
     assert_eq "localhost" "${output}"
 }
 
+ETEST_get_network_pci_device_sanity()
+{
+    # Mock info pulled from samples of these nodes:
+    # eth0-3:   R630 node
+    # eth4-7:   VMware node
+    # eth8-11:  VirtualBox node
+    # eth12-15: KVM node
+    # eth16-19: C220 node
+    pack_set mock_nics eth0="bus-info: 0000:01:00.0" \
+                       eth1="bus-info: 0000:01:00.1" \
+                       eth2="bus-info: 0000:01:00.2" \
+                       eth3="bus-info: 0000:01:00.3" \
+                       \
+                       eth4="bus-info: 0000:03:00.0" \
+                       eth5="bus-info: 0000:0b:00.0" \
+                       eth6="bus-info: 0000:13:00.0" \
+                       eth7="bus-info: 0000:1b:00.0" \
+                       \
+                       eth8="bus-info: 0000:00:03.0" \
+                       eth9="bus-info: 0000:00:08.0" \
+                       eth10="bus-info: 0000:00:09.0" \
+                       eth11="bus-info: 0000:00:0a.0" \
+                       \
+                       eth12="bus-info: 0000:00:1e.0" \
+                       eth13="bus-info: 0000:00:1e.1" \
+                       eth14="bus-info: 0000:00:1e.2" \
+                       eth15="bus-info: 0000:00:1e.3" \
+                       \
+                       eth16="bus-info: 0000:09:00.0" \
+                       eth17="bus-info: 0000:0a:00.0" \
+                       eth18="bus-info: 0000:01:00.0" \
+                       eth19="bus-info: 0000:01:00.1"
+
+    # Mock out ethtool for invocation "ethtool -i ifname"
+    ethtool(){ pack_get mock_nics $2; }
+
+    for ifname in $(pack_keys mock_nics); do
+        address=$(get_network_pci_device ${ifname})
+        # Make sure the address looks like a PCI address
+        edebug $(lval ifname address)
+        [[ ${address} =~ ^[0-9]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9] ]] || die "Invalid PCI address"
+    done
+}
+
 fi
 
