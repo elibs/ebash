@@ -232,7 +232,7 @@ get_network_pci_device()
 {
     $(opt_parse ifname)
 
-    (cd /sys/class/net/${ifname}/device; basename $(pwd -P))
+    ethtool -i ${ifname} | grep -Po "bus-info: \K.*"
 }
 
 # Export ethernet device names in the form ETH_1G_0=eth0, etc.
