@@ -36,14 +36,14 @@ Comments
 
 Sections
 
-  - Section names may contain whitespace but be careful with your quoting.
+  - Section names may not contain whitespace, nor may they contain equal signs or periods.
   - Section names are case sensitive.
   - No section is required, properties without a section declaration are placed in "default"
 
 
 Properties
 
-  - Property names may not contain whitespace.
+  - Property names may not contain whitespace, nor may they contain equal signs
   - Property names are case sensitive.
   - Whitespace around the name is ignored.
   - Values cannot contain newlines.  Whitespace is stripped from the ends, but retained within the
@@ -122,6 +122,48 @@ conf_read()
     done
 }
 
+opt_usage conf_get<<'END'
+Read a particular configuration value out of a configuration store that has already been read from
+disk with conf_read.
+END
+conf_get()
+{
+    $(opt_parse \
+        "__conf_store | Associative array variable that conf_read filled with configuration data." \
+        "property     | Property of the form 'section.key'.  If no section is specified 'default' is
+                        assumed.")
+
+    local section=default
+    local key=${property}
+    if [[ ${property} == *.* ]] ; then
+        section=${key%%.*}
+        key=${key#*.}
+    fi
+
+    pack_get "${__conf_store}[$section]" "${key}"
+}
+
+opt_usage conf_contains<<'END'
+Determine whether a configuration store that conf_read extracted from file contains a particular
+configuration property.
+END
+conf_contains()
+{
+    $(opt_parse \
+        "__conf_store | Associative array variable that conf_read filled with configuration data." \
+        "property     | Property of the form 'section.key'.  If no section is specified 'default' is
+                        assumed.")
+
+    local section=default
+    local key=${property}
+    if [[ ${property} == *.* ]] ; then
+        section=${key%%.*}
+        key=${key#*.}
+    fi
+
+    pack_contains "${__conf_store}[$section]" "${key}"
+}
+
 opt_usage conf_set<<END
 Set a value in an INI-style configuration file.
 
@@ -130,11 +172,14 @@ END
 conf_set()
 {
     $(opt_parse \
-        ":file f            | Config file that should be modified.  Required." \
-        ":section s=default | Section that contains (or should contain) the property." \
-        "+pretend p         | Don't actually modify the file.  Just print what it would end up containing" \
-        "key                | Name of the property to set in that file." \
-        "value              | New value to give the property.")
+        ":file f    | Config file that should be modified.  Required." \
+        "+pretend p | Don't actually modify the file.  Just print what it would end up containing." \
+        "+unset u   | Remove the property and value from the configuration file." \
+        "property   | The config property to set in the form 'section.key'.  If no section is specified,
+                      default is assumed.  Note that it is fine for the property name to contain
+                      additional periods.  The first separates section from key, but the rest are
+                      assumed to be part of the key name." \
+        "?value     | New value to give the property.")
 
     argcheck file
 
@@ -142,6 +187,13 @@ conf_set()
     local done=0
     local current_section="default"
     local line_count=0
+
+    local section=default
+    local key=${property}
+    if [[ ${property} == *.* ]] ; then
+        section=${key%%.*}
+        key=${key#*.}
+    fi
 
     while read line ; do
 
@@ -178,7 +230,10 @@ conf_set()
             local this_key=${BASH_REMATCH[1]}
 
             if [[ ${section} == ${current_section} && ${this_key} == ${key} ]] ; then
-                output+="${key} = ${value}"$'\n'
+
+                if [[ ${unset} -eq 0 ]] ; then
+                    output+="${key} = ${value}"$'\n'
+                fi
                 done=1
 
             else
@@ -192,7 +247,7 @@ conf_set()
     done < ${file}
 
     # If the section wasn't encountered or it was the last section and we never wrote to it
-    if [[ ${done} -eq 0 ]] ; then
+    if [[ ${done} -eq 0 && ${unset} != 1 ]] ; then
 
         if [[ ${section} != ${current_section} ]] ; then
             output+=$'\n'"[${section}]"$'\n'
@@ -205,6 +260,29 @@ conf_set()
     else
         printf "%s" "${output}"
     fi
+}
+
+opt_usage conf_dump<<'END'
+Display an entire configuration in a form that could be written to a file and re-read as a new
+configuration.  Note that when we read and store a configuration, the comments are dropped so if you
+used this to re-create a configuration file you trash all of the comments.
+
+Use conf_set to modify a configuration file without blowing away comments.
+END
+conf_dump()
+{
+    $(opt_parse "__conf_store | Variable containing the configuration data.")
+
+    for key in $(array_indexes ${__conf_store}) ; do
+        echo "[$key]"
+        pack_iterate _conf_dump_helper "${__conf_store}[$key]"
+        echo ""
+    done
+}
+
+_conf_dump_helper()
+{
+    printf "%s = %s\n" "$1" "$2"
 }
 
 unset _bu_conf_ini_doc
