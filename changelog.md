@@ -1,5 +1,8 @@
 # Bashutils 1.3
 
+    - New configuration file reading and writing tools for INI-style
+      configuration files.  (see share/conf.sh for more info)
+
     - Added pkg subsystem with tools for installing and uninstalling
       packages as well as determining whether they're installed in a safe
       way across Linux distros.
