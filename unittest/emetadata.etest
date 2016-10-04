@@ -24,7 +24,7 @@ ETEST_emetadata_pgp()
 
     local gpgVer=$(gpg --version | grep GnuPG | sed 's/^gpg (GnuPG) //')
     compare_version "${gpgVer}" ">=" "2.1" && {
-        ewarn "GPG version ${gpgVer} detected, test is disabled for versions 2.1 and later per EMBER-147" ; return0 ;
+        ewarn "GPG version ${gpgVer} detected, test is disabled for versions 2.1 and later per EMBER-147" ; return 0 ;
     }
 
     # Grab public and private keys as well as passphrase
