@@ -25,14 +25,15 @@ opt_usage emount_regex "Echo the emount regex for a given path"
 emount_regex()
 {
     $(opt_parse path)
-    echo -n "(^| )${path}(\\\\040\\(deleted\\))* "
+    local rpath=$(emount_realpath "${path}")
+
+    echo -n "(^| )(${path}|${rpath})(\\\\040\\(deleted\\))* "
 }
 
 opt_usage emount_count "Echo the number of times a given directory is mounted."
 emount_count()
 {
     $(opt_parse path)
-    path=$(emount_realpath ${path})
     local num_mounts=$(list_mounts | grep --count --perl-regexp "$(emount_regex ${path})" || true)
     echo -n ${num_mounts}
 }
@@ -48,9 +49,7 @@ emount_type()
 emounted()
 {
     $(opt_parse path)
-    path=$(emount_realpath ${path})
     [[ -z ${path} ]] && { edebug "Unable to resolve $(lval path) to check if mounted"; return 1; }
-
     [[ $(emount_count "${path}") -gt 0 ]]
 }
 
