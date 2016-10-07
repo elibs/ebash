@@ -282,8 +282,6 @@ eunmount()
         # If empty string just skip it
         [[ -z "${mnt}" ]] && continue
 
-        mnt=$(emount_realpath "${mnt}")
-
         edebug "Unmounting $(lval mnt recursive delete all)"
         
         # WHILE loop to **optionally** continue unmounting until no more matching
@@ -367,13 +365,15 @@ END
 efindmnt()
 {
     $(opt_parse path)
-    path=$(emount_realpath ${path})
 
     # First check if the requested path itself is mounted
-    emounted "${path}" && echo "${path}" || true
+    if emounted "${path}"; then
+        echo "${path}"
+    fi
 
     # Now look for anything beneath that directory
-    list_mounts | grep --perl-regexp "(^| )${path}[/ ]" | awk '{print $2}' | sed '/^$/d' || true
+    local rpath=$(emount_realpath "${path}")
+    list_mounts | grep --perl-regexp "(^| )(${path}|${rpath})[/ ]" | awk '{print $2}' | sed '/^$/d' || true
 }
 
 return 0
