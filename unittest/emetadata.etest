@@ -22,6 +22,12 @@ ETEST_emetadata_pgp()
 {
     [[ ${__BU_OS} == "Darwin" ]] && { ewarn "Test is disabled on Darwin per DT-188." ; return 0 ; }
 
+    local gpgVer=$(gpg --version | grep GnuPG | sed 's/^gpg (GnuPG) //')
+    if compare_version "${gpgVer}" ">=" "2.1" ; then
+        ewarn "GPG version ${gpgVer} detected, test is disabled for versions 2.1 and later per EMBER-147"
+        return 0
+    fi
+
     # Grab public and private keys as well as passphrase
     efetch http://bdr-jenkins:/keys/solidfire_packaging_public.asc  public.asc
     efetch http://bdr-jenkins:/keys/solidfire_packaging_private.asc private.asc
