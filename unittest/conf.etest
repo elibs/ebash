@@ -32,12 +32,22 @@ END
 
     einfo "$(lval %CONF[section_a] %CONF[section_b])"
     assert_eq "${e_a}" "$(pack_get CONF[section_a] a)"
+    assert_eq "${e_a}" "$(conf_get CONF section_a.a)"
+
     assert_eq "${e_b}" "$(pack_get CONF[section_a] b)"
+    assert_eq "${e_b}" "$(conf_get CONF section_a.b)"
+
     assert_eq "${e_c}" "$(pack_get CONF[section_a] c)"
+    assert_eq "${e_c}" "$(conf_get CONF section_a.c)"
+
     assert_eq "${e_d}" "$(pack_get CONF[section_a] d)"
+    assert_eq "${e_d}" "$(conf_get CONF section_a.d)"
+
     assert_eq "${e_e}" "$(pack_get CONF[section_a] e)"
+    assert_eq "${e_e}" "$(conf_get CONF section_a.e)"
 
     assert_eq "1" "$(pack_get CONF[section_b] c)"
+    assert_eq "1" "$(conf_get CONF section_b.c)"
 }
 
 ETEST_conf_value_quotes()
@@ -119,7 +129,7 @@ END
 
 
     etestmsg "One modification"
-    conf_set --file file --section section_x a 11
+    conf_set --file file section_x.a 11
     cat file
 
     unset CONF ; declare -A CONF
@@ -133,7 +143,7 @@ END
 
 
     etestmsg "Two mods"
-    conf_set --file file --section section_y a 22
+    conf_set --file file section_y.a 22
 
     unset CONF ; declare -A CONF
     conf_read CONF file
@@ -146,7 +156,7 @@ END
 
 
     etestmsg "Three mods"
-    conf_set --file file --section section_z a 7
+    conf_set --file file section_z.a 7
 
     unset CONF ; declare -A CONF
     conf_read CONF file
@@ -176,7 +186,7 @@ ETEST_conf_empty_file()
     assert_eq "0" $(array_size CONF)
 
     etestmsg "Setting value in an empty file."
-    conf_set --file file --section a b 1
+    conf_set --file file a.b 1
     cat file
 
     conf_read CONF file
@@ -207,5 +217,65 @@ ETEST_conf_set_default()
     grep -q a file
     grep -q 1 file
     grep -q default file
-    
+}
+
+ETEST_conf_dump_circle()
+{
+cat >file <<END
+[section_a]
+a = 1
+b = 2
+
+[section_b]
+a = 300
+b = 400
+c = 10
+
+END
+
+    declare -A MYCONF
+    conf_read MYCONF file
+    declare -p MYCONF
+
+    conf_dump MYCONF > other_file
+
+    assert_eq --hexdump "$(cat file)" "$(cat other_file)"
+}
+
+ETEST_conf_contains()
+{
+cat >file <<END
+[section_a]
+a = 1
+b = 2
+
+[section_b]
+a = 300
+b = 400
+c = 10
+
+END
+    etestmsg "Before removal"
+    cat file
+
+    declare -A CONF
+    conf_read CONF file
+    assert_eq "2" "$(pack_size CONF[section_a])"
+    assert_eq "3" "$(pack_size CONF[section_b])"
+    conf_contains CONF section_a.a
+    conf_contains CONF section_b.a
+
+    conf_set --file file --unset section_a.a
+    conf_set --file file --unset section_b.a
+
+    etestmsg "Contents after removal"
+    cat file
+
+    # Re-read after the items have been removed
+    declare -A CONF_REMOVED
+    conf_read CONF_REMOVED file
+    assert_eq "1" "$(pack_size CONF_REMOVED[section_a])"
+    assert_eq "2" "$(pack_size CONF_REMOVED[section_b])"
+    assert_false conf_contains CONF_REMOVED section_a.a
+    assert_false conf_contains CONF_REMOVED section_b.a
 }
