@@ -96,7 +96,7 @@ ETEST_eunmount_verbose()
     trap_add "eunmount dest"
 
     local output=$(EFUNCS_COLOR=0 eunmount -v dest 2>&1)
-    assert_match "${output}" "Unmounting $(readlink -m dest)"
+    assert_match "${output}" "Unmounting dest"
 }
 
 # Verify eunmount -d behavior
