@@ -24,7 +24,7 @@ BASHUTILS=$(readlink -f "${BASHUTILS}")
 START_TIME=$SECONDS
 
 $(opt_parse \
-    ":filter  f=${FILTER:-}    | Tests whose name or file amtch this will be run." \
+    ":filter  f=${FILTER:-}    | Tests whose name or file match this will be run." \
     ":exclude x=${EXCLUDE:-}   | Tests whose name or file match this will not be run." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
     "+verbose v=${VERBOSE:-0}  | Verbose output." \
