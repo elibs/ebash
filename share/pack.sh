@@ -153,6 +153,8 @@ pack_import()
         "+export e         | Emit exported variables via export builtin." \
         "_pack_import_pack | Pack to operate on.")
 
+    edebug "$(lval _pack_import_pack)"
+
     local _pack_import_keys=("${@}")
     [[ $(array_size _pack_import_keys) -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
 

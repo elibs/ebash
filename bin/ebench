@@ -55,6 +55,31 @@ BENCH_func_call_overhead()
     :
 }
 
+BENCH_lang_bash()
+{
+    ~/tmp/bash >/dev/null
+}
+
+BENCH_lang_python2()
+{
+    ~/tmp/python2 >/dev/null
+}
+
+BENCH_lang_python3()
+{
+    ~/tmp/python3 >/dev/null
+}
+
+BENCH_lang_ruby()
+{
+    ~/tmp/ruby >/dev/null
+}
+
+BENCH_lang_perl()
+{
+    ~/tmp/perl >/dev/null
+}
+
 BENCH_trivial_subshell()
 {
     (

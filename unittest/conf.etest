@@ -68,6 +68,60 @@ END
     assert_eq "${expected}" "$(pack_get CONF_QUOTES[s] b)"
 }
 
+ETEST_conf_envsubst()
+{
+    export VAR=badvalue
+# NOTE: No substitutions happen in here -- the conf reader should be performing them
+cat > file <<'END'
+[s]
+a="${VAR}"
+b=${VAR}
+c='${VAR}'
+END
+
+    etestmsg "Conf file:"
+    cat file
+
+    export VAR=goodvalue
+
+    declare -A CONF_SUBST
+    conf_read CONF_SUBST file
+    einfo "Finished reading"
+
+    declare -p CONF_SUBST
+
+    assert_eq '${VAR}'    "$(conf_get CONF_SUBST s.c)"
+    assert_eq "goodvalue" "$(conf_get CONF_SUBST s.a)"
+    assert_eq "goodvalue" "$(conf_get CONF_SUBST s.b)"
+}
+
+ETEST_conf_envsubst_previous_var()
+{
+cat > file <<'END'
+[section_a]
+VERSION=1.2
+HOME=package-${VERSION}
+
+[section_b]
+HOME=package-${VERSION}
+END
+
+    etestmsg "Conf file:"
+    cat file
+
+    #export VERSION=wrong
+
+    declare -A CONF
+    conf_read CONF file
+    einfo "Finished reading"
+
+    declare -p CONF
+
+    assert_eq "1.2"           "$(conf_get CONF section_a.VERSION)"
+    assert_eq 'package-wrong' "$(conf_get CONF section_b.HOME)"
+    assert_eq "package-1.2"   "$(conf_get CONF section_a.HOME)"
+}
+
 ETEST_conf_default_section()
 {
     echo "a=1" >file

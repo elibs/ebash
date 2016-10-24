@@ -53,6 +53,15 @@ Properties
   - When quoted, all whitespace in the value within the quotes is retained.  This doesn't change
     that values cannot contain newlines.
 
+
+Variable Expansion
+
+  - Within propery values that are _not_ surrounded by single quotes, you can request variable
+    expansion in your configuration file by using shell-like syntax with curly braces.  For example,
+    the value of prop here will be substitued by the configuration reader and the returned value
+    will be the local hostname plus /a.
+    
+     prop = ${HOSTNAME}/a 
 "
 
 opt_usage conf_read<<END
@@ -100,15 +109,21 @@ conf_read()
                 local key=${BASH_REMATCH[1]}
                 local value=${BASH_REMATCH[2]}
 
-                # If surrounded by double quotes, strip them off
+                # If surrounded by double quotes, strip them off AND substitute env vars
                 if [[ ${value} =~ ^\"(.*)\"$ ]] ; then
                     value=${BASH_REMATCH[1]}
                     [[ ${value} != *\"* ]] || die "Property ${key} contains unmatched double quotes."
+                    value=$( array_contains ${__conf_store} "${section}" && $(pack_import -e ${__conf_store["$section"]}) ; ewarn "$(lval VERSION)" ; echo "${value}" | envsubst)
 
                 # If surrounded by single quotes, strip them off
                 elif [[ ${value} =~ ^\'(.*)\'$ ]] ; then
                     value=${BASH_REMATCH[1]}
                     [[ ${value} != *\'* ]] || die "Property ${key} contains unmatched single quotes."
+
+                # If no quotes, still do the substitution
+                else
+                    value=$( [[ -n ${__conf_store[$section]:-} ]] && $(pack_import -e ${__conf_store["$section"]}) ; ewarn "$(lval VERSION)" ; echo "${value}" | envsubst)
+                    #value=$( $(pack_import -x ${__conf_store["$section"]}) ; echo "${value}" | envsubst)
                 fi
 
                 edebug "$(lval filename section key value)"
