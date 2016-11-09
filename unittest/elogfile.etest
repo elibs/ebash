@@ -190,9 +190,9 @@ ETEST_elogfile_truncate_efetch()
     echo "source" >src
 
     (
+        etestmsg "Starting elogfile"
         elogfile ${FUNCNAME}.log
-        etestmsg "Test"
-        efetch file://src dst
+        efetch file://${PWD}/src dst
     )
 
     grep --quiet "Test" ${FUNCNAME}.log || die "Logfile was truncated" 
