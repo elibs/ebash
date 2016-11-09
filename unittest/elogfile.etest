@@ -184,20 +184,6 @@ ETEST_elogfile_truncate()
     done
 }
 
-# Validate efetch doesn't cause log truncate.
-ETEST_elogfile_truncate_efetch()
-{
-    echo "source" >src
-
-    (
-        etestmsg "Starting elogfile"
-        elogfile ${FUNCNAME}.log
-        efetch file://${PWD}/src dst
-    )
-
-    grep --quiet "Test" ${FUNCNAME}.log || die "Logfile was truncated" 
-}
-
 # Verify we can send logfile to multiple output files
 ETEST_elogfile_multiple()
 {
