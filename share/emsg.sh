@@ -854,7 +854,15 @@ print_value()
 
     # Special handling for arrays and associative arrays
     regex="declare -[aA]"
-    [[ ${decl} =~ ${regex} ]] && { val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g"); }
+    if [[ ${decl} =~ ${regex} ]] ; then
+        if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -gt 3 ]] ; then
+            # BASH 4.4 and beyond -- no single quote
+            val=$(declare -p ${__input} | sed -e "s/[^=]*=(\(.*\))/(\1)/" -e "s/[[[:digit:]]\+]=//g")
+        else
+            # BASH 4.2 and 4.3
+            val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g")
+        fi
+    fi
 
     echo -n "${val}"
 }
