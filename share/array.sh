@@ -66,11 +66,10 @@ array_size()
     # a=()
     # [[ ! -v a[@] ]] && echo 0
     #
-    # The problem is that this doesn't work with bash-4.2 because the -v
-    # operator doesn't work on arrays. This was added explicitly in 4.3:
-    # https://tiswww.case.edu/php/chet/bash/CHANGES:
-    # a.  The [[ -v ]] option now understands array references (foo[1]) and returns
-    #    success if the referenced element has a value.
+    # The problem is that this doesn't work with bash-4.2 because the -v operator doesn't work on arrays. This was added
+    # explicitly in 4.3 pre https://tiswww.case.edu/php/chet/bash/CHANGES:
+    #     a.  The [[ -v ]] option now understands array references (foo[1]) and returns success if the referenced
+    #         element has a value.
     #
     local value=$(eval "echo \${${__array}[*]:-}")
     if [[ -z "${value}" ]]; then

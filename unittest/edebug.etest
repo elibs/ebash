@@ -53,14 +53,6 @@ ETEST_edebug_pipe_empty()
     assert_empty "${output}"
 }
 
-ETEST_edebug_pipe_multiple_lines()
-{
-    local input="$(dmesg)"
-    local output="$(EMSG_PREFIX=""; EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")"
-
-    diff --unified <(echo -en "${input}") <(echo -en "${output}")
-}
-
 ETEST_edebug_pipe_return_code()
 {
     try
@@ -81,3 +73,16 @@ ETEST_edebug_filename()
 {
     EDEBUG=${BASH_SOURCE[0]} edebug_enabled
 }
+
+if ! os linux ; then
+    return 0
+fi
+
+ETEST_edebug_pipe_multiple_lines()
+{
+    local input="$(dmesg)"
+    local output="$(EMSG_PREFIX=""; EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")"
+
+    diff --unified <(echo -en "${input}") <(echo -en "${output}")
+}
+
