@@ -12,7 +12,7 @@ file_setup()
     einfo "Making chroot in ${CHROOT}"
     efreshdir ${CHROOT}
     etestmsg "Cleaned ${CHROOT}"
-    mkchroot ${CHROOT} precise oxygen bdr-jenkins amd64
+    mkchroot ${CHROOT} precise oxygen bdr-jenkins.den.solidfire.net amd64
     etestmsg "Finished creating ${CHROOT}"
 }
 

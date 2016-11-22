@@ -29,9 +29,9 @@ ETEST_emetadata_pgp()
     fi
 
     # Grab public and private keys as well as passphrase
-    efetch http://bdr-jenkins:/keys/solidfire_packaging_public.asc  public.asc
-    efetch http://bdr-jenkins:/keys/solidfire_packaging_private.asc private.asc
-    efetch http://bdr-jenkins:/keys/solidfire_packaging.phrase      phrase.txt
+    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_public.asc  public.asc
+    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_private.asc private.asc
+    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging.phrase      phrase.txt
 
     cp ${BASH_SOURCE} .
     local src="$(basename ${BASH_SOURCE})"
