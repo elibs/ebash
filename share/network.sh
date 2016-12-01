@@ -233,12 +233,14 @@ get_network_pci_device()
     $(opt_parse ifname)
 
     # Try with ethtool first (works on physical platforms and VMware, KVM, VirtualBox)
-    local addr=$(ethtool -i ${ifname} | grep -Po "bus-info: \K.*" || true)
+    local pci_addr=$(ethtool -i ${ifname} | grep -Po "bus-info: \K.*" || true)
 
     # If that did not give a result (HyperV), fall back to looking at the device path in sysfs
-    [[ -z ${addr} ]] && addr=$(cd /sys/class/net/${ifname}/device; basename $(pwd -P))
+    if [[ -z ${pci_addr} ]]; then
+        pci_addr=$(cd /sys/class/net/${ifname}/device; basename $(pwd -P))
+    fi
 
-    echo ${addr}
+    echo ${pci_addr}
 }
 
 # Export ethernet device names in the form ETH_1G_0=eth0, etc.
