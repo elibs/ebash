@@ -67,5 +67,17 @@ ETEST_get_network_pci_device_sanity()
     done
 }
 
+ETEST_get_network_pci_device_hyperv()
+{
+    local addr_expected="vmbus_0_13"
+
+    # Mock out ethtool to not return the requested info, as it behaves on HyperV VMs
+    ethtool(){ echo ""; }
+    # Mock out basename to return a HyperV looking address
+    basename(){ echo "${addr_expected}"; }
+
+    local addr_result=$(get_network_pci_device eth0)
+    [[ ${addr_result} == ${addr_expected} ]] || die "$(lval test_addr) does not equal expected $(lval addr_expected)"
+}
 fi
 
