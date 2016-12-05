@@ -1224,7 +1224,7 @@ emetadata_check()
 
         if [[ ${ctype} == "Size" ]]; then
             actual=$(stat --printf="%s" "${path}")
-            [[ ${expect} -eq ${actual} ]] || fail "Size mismatch: $(lval path expect actual)"
+            [[ ${expect} == ${actual} ]] || fail "Size mismatch: $(lval path expect actual)"
         elif [[ ${ctype} = @(MD5|SHA1|SHA256|SHA512) ]]; then
             actual=$(eval ${ctype,,}sum ${path} | awk '{print $1}')
             [[ ${expect} == ${actual} ]] || fail "${ctype} mismatch: $(lval path expect actual)"
