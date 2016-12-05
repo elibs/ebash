@@ -1139,9 +1139,9 @@ emetadata()
     echo "Filename=$(basename ${path})"
     echo "Size=$(stat --printf="%s" "${path}")"
 
-    # Now output MD5, SHA1, and SHA256
+    # Now output MD5, SHA256, SHA512
     local ctype
-    for ctype in MD5 SHA1 SHA256; do
+    for ctype in MD5 SHA256 SHA512; do
         echo "${ctype}=$(eval ${ctype,,}sum "${path}" | awk '{print $1}')"
     done
 
@@ -1167,7 +1167,7 @@ emetadata()
 opt_usage emetadata_check <<'END'
 Validate an exiting source file against a companion *.meta file which contains various checksum
 fields. The list of checksums is optional but at present the supported fields we inspect are:
-Filename, Size, MD5, SHA1, SHA256, PGPSignature.
+Filename, Size, MD5, SHA1, SHA256, SHA512, PGPSignature.
 
 For each of the above fields, if they are present in the .meta file, validate it against the source
 file. If any of them fail this function returns non-zero. If NO validators are present in the info
@@ -1195,7 +1195,7 @@ emetadata_check()
     local pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
 
     # Figure out what digests we're going to validate
-    for ctype in Size MD5 SHA1 SHA256; do
+    for ctype in Size MD5 SHA1 SHA256 SHA512; do
         pack_contains metapack "${ctype}" && digests+=( "${ctype}" )
     done
     [[ -n ${public_key} && -n ${pgpsignature} ]] && digests+=( "PGP" )
@@ -1210,43 +1210,33 @@ emetadata_check()
         eprogress --style einfos "$(lval metadata=digests)"
     fi
 
-    local pids=()
-
-    # Validate size
-    if pack_contains metapack "Size"; then
-        (
-            expect=$(pack_get metapack Size)
-            actual=$(stat --printf="%s" "${path}")
-            [[ ${expect} -eq ${actual} ]] || fail "Size mismatch: $(lval path expect actual)"
-        ) &
-
-        pids+=( $! )
+    # Fail if there were no digest validation fields to check
+    if array_empty digests; then
+        fail "No digest validation fields found: $(lval path)"
     fi
 
-    # Now validated MD5, SHA1, and SHA256 (if present)
-    for ctype in MD5 SHA1 SHA256; do
-        if pack_contains metapack "${ctype}"; then
-            (
-                expect=$(pack_get metapack ${ctype})
-                actual=$(eval ${ctype,,}sum ${path} | awk '{print $1}')
-                [[ ${expect} == ${actual} ]] || fail "${ctype} mismatch: $(lval path expect actual)"
-            ) &
+    # Now validate all digests we found
+    local pids=()
+    local ctype
+    for ctype in ${digests[@]}; do
 
-            pids+=( $! )
-        fi
-    done
+        expect=$(pack_get metapack ${ctype})
 
-    # If Public Key was provied and PGPSignature is present validate PGP signature
-    if [[ -n ${public_key} && -n ${pgpsignature} ]]; then
-        (
+        if [[ ${ctype} == "Size" ]]; then
+            actual=$(stat --printf="%s" "${path}")
+            [[ ${expect} -eq ${actual} ]] || fail "Size mismatch: $(lval path expect actual)"
+        elif [[ ${ctype} = @(MD5|SHA1|SHA256|SHA512) ]]; then
+            actual=$(eval ${ctype,,}sum ${path} | awk '{print $1}')
+            [[ ${expect} == ${actual} ]] || fail "${ctype} mismatch: $(lval path expect actual)"
+        elif [[ ${ctype} == "PGP" && -n ${public_key} && -n ${pgpsignature} ]]; then
             local keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
             trap_add "rm --force ${keyring}"
             GPG_AGENT_INFO="" gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} |& edebug
             GPG_AGENT_INFO="" echo "${pgpsignature}" | gpg --verify - "${path}" |& edebug || fail "PGP verification failure: $(lval path)"
-        ) &
+        fi &
 
-        pids+=( $! )
-    fi
+         pids+=( $! )
+    done
 
     # Wait for all pids
     wait ${pids[@]} && rc=0 || rc=$?

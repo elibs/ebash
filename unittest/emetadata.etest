@@ -14,8 +14,36 @@ ETEST_emetadata_basic()
     assert_eq "${Filename}" "$(basename "${src}")"
     assert_eq "${Size}"     "$(stat --printf='%s' ${src})"
     assert_eq "${MD5}"      "$(md5sum    ${src} | awk '{print $1}')"
+    assert_eq "${SHA256}"   "$(sha256sum ${src} | awk '{print $1}')"
+    assert_eq "${SHA512}"   "$(sha512sum ${src} | awk '{print $1}')"
+
+    # Ensure SHA1 has not been exported anymore since it's been broken and is not secure.
+    assert_var_empty SHA1
+}
+
+# Verify emetadata_check still validates SHA1 field if present even if we don't use it anymore
+ETEST_emetadata_sha1_backwards_compatible()
+{
+    cp ${BASH_SOURCE} .
+    local src="$(basename ${BASH_SOURCE})"
+    local meta="${src}.meta"
+    emetadata ${src} > ${meta}
+    
+    # Insert legacy SHA1 field by hand since emetadata doesn't do it anymore. This way we can validate
+    # that emetadata_check still checks it.
+    echo "SHA1=$(sha1sum ${src} | awk '{print $1}')" >> ${meta}
+    cat ${meta}
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+
+    assert_eq "${Filename}" "$(basename "${src}")"
+    assert_eq "${Size}"     "$(stat --printf='%s' ${src})"
+    assert_eq "${MD5}"      "$(md5sum    ${src} | awk '{print $1}')"
     assert_eq "${SHA1}"     "$(sha1sum   ${src} | awk '{print $1}')"
     assert_eq "${SHA256}"   "$(sha256sum ${src} | awk '{print $1}')"
+    assert_eq "${SHA512}"   "$(sha512sum ${src} | awk '{print $1}')"
+    
+    emetadata_check ${src}
 }
 
 ETEST_emetadata_pgp()
