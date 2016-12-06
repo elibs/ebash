@@ -443,6 +443,7 @@ archive_extract()
     $(opt_parse \
         "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
         "+nice n           | Be nice and use non-parallel compressors and only a single core." \
+        "+overwrite o=1    | Overwrite existing files when extracting." \
         ":type t           | Override automatic type detection and use explicit archive type." \
         "src               | Source archive to extract." \
         "dest              | Location to place the files extracted from that archive.")
@@ -459,6 +460,11 @@ archive_extract()
     # of globs patterns. So we mount them first and use find.
     if [[ ${src_type} == @(squashfs|iso) ]]; then
 
+        local cp_flags="--archive --recursive --parents"
+        if [[ ${overwrite} -eq 0 ]]; then
+            cp_flags+=" --no-clobber"
+        fi
+
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
             local mnt=$(mktemp --tmpdir --directory archive-extract-XXXXXX)
@@ -469,7 +475,8 @@ archive_extract()
             cd "${mnt}"
 
             if array_empty files; then
-                cp --archive --recursive . "${dest_real}"
+                edebug "$(lval cp_flags includes dest_real)"
+                cp ${cp_flags} . "${dest_real}"
             else
 
                 local includes=( ${files[@]} )
@@ -493,7 +500,8 @@ archive_extract()
                 fi
 
                 # Do the actual extracting
-                cp --archive --recursive --parents ${includes[@]} "${dest_real}"
+                edebug "$(lval cp_flags includes dest_real)"
+                cp ${cp_flags} ${includes[@]} "${dest_real}"
             fi
         )
 
@@ -537,8 +545,15 @@ archive_extract()
 
         if [[ ${src_type} == tar ]]; then
             cmd+="tar --extract --wildcards --no-anchored"
+            if [[ ${overwrite} -eq 0 ]]; then
+                cmd+=" --skip-old-files"
+            fi
+
         else
-            cmd+="cpio --quiet --extract --preserve-modification-time --make-directories --no-absolute-filenames --unconditional"
+            cmd+="cpio --quiet --extract --preserve-modification-time --make-directories --no-absolute-filenames"
+            if [[ ${overwrite} -eq 1 ]]; then
+                cmd+=" --unconditional"
+            fi
         fi
 
         # Give list of files to extract.
