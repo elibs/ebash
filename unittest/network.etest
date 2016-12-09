@@ -76,7 +76,8 @@ ETEST_get_network_pci_device_hyperv()
     # Mock out basename to return a HyperV looking address
     basename(){ echo "${addr_expected}"; }
 
-    local addr_result=$(get_network_pci_device eth0)
+    ifaces=( $(get_network_interfaces) )
+    local addr_result=$(get_network_pci_device ${ifaces[0]})
     [[ ${addr_result} == ${addr_expected} ]] || die "$(lval test_addr) does not equal expected $(lval addr_expected)"
 }
 fi
