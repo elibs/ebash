@@ -202,7 +202,7 @@ json_import()
             array_init_json array_val "${val}"
             cmd+="declare ${dflags} -a ${prefix}${key}=( "${array_val[@]:-}" );"
         else
-            cmd+="declare ${dflags} ${prefix}${key}=\"${val}\";"
+            cmd+="$(printf "declare %s %s%s=%q ;" "${dflags}" "${prefix}" "${key}" "${val}")"
         fi
     done
 
@@ -225,9 +225,8 @@ file_to_json()
         # Parse the file and strip out any ansi escape codes and then replace newlines with spaces. This gives a bunch
         # of separate, quoted items that we can safely insert into a pack. We can then pass that pack through eval so
         # that bash can safely interpret those quotes and make them separate arguments passed into pack_set. 
-        local raw="$(cat "${file}" | noansi | tr '\n' ' ')"
-        local pack=""
-        eval "pack_set pack ${raw}"
+        array_init_nl parts "$(cat "${file}" | noansi)"
+        pack_set pack "${parts[@]}"
         pack_to_json pack
     )
     else
