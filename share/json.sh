@@ -209,4 +209,30 @@ json_import()
     echo -n "eval ${cmd}"
 }
 
+opt_usage file_to_json <<'END'
+Parse the contents of a given file and echo the output in JSON format. This function requires you to specify the format
+of the file being parsed. At present the only supported format is --exports which is essentially a KEY=VALUE exports
+file.
+END
+file_to_json()
+{
+    $(opt_parse \
+        "+exports  | File format is an 'exports file' (e.g. KEY=VALUE)." \
+        "file      | Parse contents of provided file.")
+
+    if [[ ${exports} -eq 1 ]]; then
+    (
+        # Parse the file and strip out any ansi escape codes and then replace newlines with spaces. This gives a bunch
+        # of separate, quoted items that we can safely insert into a pack. We can then pass that pack through eval so
+        # that bash can safely interpret those quotes and make them separate arguments passed into pack_set. 
+        local raw="$(cat "${file}" | noansi | tr '\n' ' ')"
+        local pack=""
+        eval "pack_set pack ${raw}"
+        pack_to_json pack
+    )
+    else
+        die "Unsupported file format"
+    fi
+}
+
 return 0
