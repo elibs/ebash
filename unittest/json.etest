@@ -91,6 +91,31 @@ ETEST_AA_to_json()
     assert_eq "${AA[beta]}"  "$(echo ${json} | jq --raw-output .beta)"
 }
 
+ETEST_file_to_json()
+{
+    cat <<-"EOF" >data.txt
+	Filename=platformconfig-9.1.0.48.tbz2
+	Size=5423
+	MD5=48880ec09bd56c2f5367b9e4258f8200
+	SHA256=df1ae6f732804dd5b9ced2dccf501fb6926aaf6d7c679ac77f8c095ce8744bac
+	SHA512=5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a
+	PGPKey=solidfire_packaging_private.asc
+	PGPSignature=MYSIGN ATURE$FOO
+	Spaces=Some Data With Spaces
+	EOF
+
+    local raw=$(file_to_json --exports data.txt)
+    $(json_import <<< "${raw}")
+    assert_eq "platformconfig-9.1.0.48.tbz2"     "${Filename}"
+    assert_eq "5423"                             "${Size}"
+    assert_eq "48880ec09bd56c2f5367b9e4258f8200" "${MD5}"
+    assert_eq "df1ae6f732804dd5b9ced2dccf501fb6926aaf6d7c679ac77f8c095ce8744bac" "${SHA256}"
+    assert_eq "5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a" "${SHA512}"
+    assert_eq "solidfire_packaging_private.asc" "${PGPKey}"
+    assert_eq 'MYSIGN ATURE$FOO' "${PGPSignature}"
+    assert_eq "Some Data With Spaces" "${Spaces}"
+}
+
 ETEST_to_json_single()
 {
     A="1 2 3"
