@@ -61,4 +61,29 @@ ETEST_efetch_meta()
 
     emetadata_check copy.txt
 }
- 
+
+ETEST_efetch_meta_pgp()
+{
+    local gpgVer=$(gpg --version | grep GnuPG | sed 's/^gpg (GnuPG) //')
+    if compare_version "${gpgVer}" ">=" "2.1" ; then
+        ewarn "GPG version ${gpgVer} detected, test is disabled for versions 2.1 and later per EMBER-147"
+        return 0
+    fi
+
+    # Grab public and private keys as well as passphrase
+    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_public.asc  public.asc
+    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_private.asc private.asc
+    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging.phrase      phrase.txt
+    
+    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
+    emetadata -p="private.asc" -k="$(cat phrase.txt)" ${tmpfile} > ${tmpfile}.meta
+    emetadata_check ${tmpfile}
+
+    efetch --meta --public-key "public.asc" file://${tmpfile} copy.txt
+    [[ -e copy.txt ]]
+    [[ -e copy.txt.meta ]]
+    diff ${tmpfile} copy.txt
+
+    emetadata_check -p="public.asc" copy.txt
+}

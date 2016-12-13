@@ -1397,11 +1397,12 @@ END
 efetch()
 {
     $(opt_parse \
-        "+md5 m   | Fetch companion .md5 file and validate fetched file's MD5 matches." \
-        "+meta M  | Fetch companion .meta file and validate metadata fields using emetadata_check." \
-        "+quiet q | Quiet mode.  (Disable eprogress and other info messages)" \
-        "url      | URL from which efetch should pull data." \
-        "dst=/tmp | Destination directory.")
+        "+md5 m        | Fetch companion .md5 file and validate fetched file's MD5 matches." \
+        "+meta M       | Fetch companion .meta file and validate metadata fields using emetadata_check." \
+        "+quiet q      | Quiet mode.  (Disable eprogress and other info messages)" \
+        ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file."     \
+        "url           | URL from which efetch should pull data." \
+        "dst=/tmp      | Destination directory.")
 
     [[ -d ${dst} ]] && dst+="/$(basename ${url})"
     
@@ -1443,7 +1444,7 @@ efetch()
 
             efetch_internal "${url}.meta" "${meta_file}"
             efetch_internal "${url}"      "${dst}"
-            emetadata_check "${dst}"
+            opt_forward emetadata_check quiet public_key -- "${dst}"
         
         ## BASIC file fetching only
         else
