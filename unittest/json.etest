@@ -113,7 +113,7 @@ ETEST_file_to_json()
     assert_eq "5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a" "${SHA512}"
     assert_eq "solidfire_packaging_private.asc" "${PGPKey}"
     assert_eq 'MYSIGN ATURE$FOO' "${PGPSignature}"
-	assert_eq "Some Data With Spaces" "${Spaces}"
+    assert_eq "Some Data With Spaces" "${Spaces}"
 }
 
 ETEST_to_json_single()
