@@ -1381,6 +1381,9 @@ efetch_internal()
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
 
+    # Create the destination directory if it's not present.
+    mkdir -p "$(dirname "${dst}")"
+
     eprogress "Fetching $(lval url dst)"
     $(tryrc curl "${url}" ${timecond} --output "${dst}" --location --fail --silent --show-error --insecure)
     eprogress_kill -r=${rc}
