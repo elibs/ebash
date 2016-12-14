@@ -64,6 +64,8 @@ ETEST_efetch_meta()
 
 ETEST_efetch_meta_pgp()
 {
+    [[ ${__BU_OS} == "Darwin" ]] && { ewarn "Test is disabled on Darwin per DT-188." ; return 0 ; }
+    
     local gpgVer=$(gpg --version | grep GnuPG | sed 's/^gpg (GnuPG) //')
     if compare_version "${gpgVer}" ">=" "2.1" ; then
         ewarn "GPG version ${gpgVer} detected, test is disabled for versions 2.1 and later per EMBER-147"
