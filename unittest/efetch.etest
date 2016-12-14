@@ -88,6 +88,7 @@ ETEST_efetch_meta_pgp()
 ETEST_efetch_missing_dir()
 {
     local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    assert_not_exists "dest"
 
     # Try to fetch it to a non-existant directory. It should create it for us.
     efetch file://${tmpfile} "dest/sub1/sub2/file1.txt"
