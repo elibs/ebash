@@ -2,8 +2,7 @@
 
 ETEST_efetch_md5_bogus()
 {
-    local tmpfile
-    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     touch ${tmpfile}.md5
 
     # efetch should fail b/c this isn't a valid MD5 file
@@ -12,8 +11,7 @@ ETEST_efetch_md5_bogus()
 
 ETEST_efetch_md5()
 {
-    local tmpfile
-    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1M count=2
     emd5sum ${tmpfile} > ${tmpfile}.md5
 
@@ -25,8 +23,7 @@ ETEST_efetch_md5()
 
 ETEST_efetch_md5_missing_md5()
 {
-    local tmpfile
-    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1M count=2
 
     # efetch should fail and both files should get removed
@@ -37,8 +34,7 @@ ETEST_efetch_md5_missing_md5()
 
 ETEST_efetch_md5_missing_file()
 {
-    local tmpfile
-    tmpfile=$(mktemp --tmpdir etest-efetch-md5-XXXXXX)
+    local tmpfile=$(mktemp --tmpdir etest-efetch-md5-XXXXXX)
 
     # efetch should fail and both files should get removed
     ! efetch -m file://${tmpfile%%.md5} copy.txt
@@ -48,8 +44,7 @@ ETEST_efetch_md5_missing_file()
 
 ETEST_efetch_meta()
 {
-    local tmpfile
-    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1M count=2
     emetadata ${tmpfile} > ${tmpfile}.meta
     emetadata_check ${tmpfile}
@@ -88,4 +83,14 @@ ETEST_efetch_meta_pgp()
     diff ${tmpfile} copy.txt
 
     emetadata_check -p="public.asc" copy.txt
+}
+
+ETEST_efetch_missing_dir()
+{
+    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+
+    # Try to fetch it to a non-existant directory. It should create it for us.
+    efetch file://${tmpfile} "dest/sub1/sub2/file1.txt"
+    assert_exists "dest/sub1/sub2/file1.txt"
+    assert_directory_contents "dest" "sub1" "sub1/sub2" "sub1/sub2/file1.txt"
 }
