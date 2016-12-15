@@ -1388,6 +1388,7 @@ efetch_internal()
     # If curl succeeded, but the file wasn't created, then the remote file was an empty file. This was a bug in older
     # versions of curl that was fixed in newer versions. To make the old curl match the new curl behavior, simply
     # touch an empty file if one doesn't exist.
+    # See: https://github.com/curl/curl/issues/183
     if [[ ${rc} -eq 0 && ! -e "${dst}" ]]; then
         edebug "Working around old curl bug #183 wherein empty files are not properly created."
         touch "${dst}"
