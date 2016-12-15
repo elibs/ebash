@@ -85,9 +85,25 @@ ETEST_efetch_meta_pgp()
     emetadata_check -p="public.asc" copy.txt
 }
 
+# Older curl versions wrongly refused to create an empty file even if an empty file
+# was successfully fetched. This test verifies efetch works around this dumb bug.
+# See: https://github.com/curl/curl/issues/183
+ETEST_efetch_empty_file()
+{
+    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    assert_not_exists "dest"
+    [[ ! -s "${tmpfile}" ]] || die "$(lval tmpfile) should be an empty file"
+
+    # Try to fetch empty file. It should be created and be empty.
+    efetch file://${tmpfile} "output.txt"
+    assert_exists "output.txt"
+    [[ ! -s "output.txt" ]] || die "output.txt should be an empty file."
+}
+
 ETEST_efetch_missing_dir()
 {
     local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
     assert_not_exists "dest"
 
     # Try to fetch it to a non-existant directory. It should create it for us.
