@@ -87,7 +87,7 @@ netns_init()
         bridge_cidr=                            \
         nic_cidr=
 
-    array_empty netns_options || pack_set "${netns_options[@]}"
+    array_empty netns_options || pack_set ${netns_args_packname} "${netns_options[@]}"
 
     return 0
 }
@@ -253,9 +253,13 @@ Add routing rules to the firewall to let traffic in/out of the namespace
 END
 netns_add_iptables_rules()
 {
-    $(opt_parse
+    $(opt_parse \
         "netns_args_packname | Name of variable containing netns information.  (Was created by netns
                                init with a name you chose)")
+
+    if ! grep -q nat /proc/net/ip_tables_names ; then
+        return 0
+    fi
 
     netns_check_pack ${netns_args_packname}
 
@@ -279,6 +283,10 @@ netns_remove_iptables_rules()
         "netns_args_packname | Name of variable containing netns information.  (Was created by netns
                                init with a name you chose)")
 
+    if ! grep -q nat /proc/net/ip_tables_names ; then
+        return 0
+    fi
+
     netns_check_pack ${netns_args_packname}
 
     $(pack_import ${netns_args_packname} ns_name connected_nic)
@@ -301,6 +309,10 @@ netns_iptables_rule_exists()
         "netns_args_packname | Name of variable containing netns information.  (Was created by netns
                                init with a name you chose)" \
         "devname             | Network device to operate on.")
+
+    if ! grep -q nat /proc/net/ip_tables_names ; then
+        return 1
+    fi
 
     netns_check_pack ${netns_args_packname}
 
