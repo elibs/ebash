@@ -10,15 +10,11 @@ BU_NETNS_DIR="/run/netns"
 opt_usage netns_supported "check which network namespace features are supported"
 netns_supported()
 {
-    $(opt_parse "?area")
+    $(opt_parse "?area=all")
 
     local valid_areas=( "all" "user" "iptables" )
 
-    if [[ -z ${area} ]] ; then
-        area="all"
-    fi
-
-    [[ ${valid_areas[@]} =~ ${area} ]] || die "netns_supported: Invalid area [${area}]"
+    array_contains valid_areas "${area}" || die "netns_supported: Invalid area [${area}]"
 
     if [[ ${area} =~ all|user ]] ; then
        if [[ $(id -u) -ne 0 ]] ; then
@@ -143,10 +139,10 @@ netns_check_pack()
 
     $(pack_import ${netns_args_packname})
 
-    [[ ${#ns_name} -lt 13 ]] || die "ERROR: namespace name too long (Max: 12 chars)"
-    [[ ${#devname} -lt 16 ]] || die "ERROR: devname too long (Max: 16 chars)"
-    [[ ${#peer_devname} -lt 16 ]] || die "ERROR: peer_devname too long (Max: 16 chars)"
-    [[ ${#connected_nic} -lt 16 ]] || die "ERROR: connected_nic too long (Max: 16 chars)"
+    [[ ${#ns_name} -le 12 ]] || die "ERROR: namespace name too long (Max: 12 chars)"
+    [[ ${#devname} -le 16 ]] || die "ERROR: devname too long (Max: 16 chars)"
+    [[ ${#peer_devname} -le 16 ]] || die "ERROR: peer_devname too long (Max: 16 chars)"
+    [[ ${#connected_nic} -le 16 ]] || die "ERROR: connected_nic too long (Max: 16 chars)"
 
     # a cidr is an ip address with the number of static (or network) bits 
     # added to the end.  It is typically of the form "A.B.C.D/##".  the "ip"
