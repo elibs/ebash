@@ -71,6 +71,153 @@ netns_teardown_traphandler()
   $(tryrc netns_delete ${ns_name})
 }
 
+netns_setup_connected_network()
+{
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
+
+    netns_check_pack ${netns_args_packname}
+
+    $(pack_import ${netns_args_packname})
+
+    # this allows packets to come in on the real nic and be forwarded to the
+    # virtual nic.  It turns on routing in the kernel.
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+
+    $(tryrc netns_exists ${ns_name})
+    if [[ ${rc} -eq 1 ]] ; then
+        edebug "ERROR: namespace [${ns_name}] does not exist"
+        return 1
+    fi
+
+    if [[ -L /sys/class/net/${devname} ]] ; then
+        edebug "WARN: device (${devname}) already exists, returning"
+        return 0
+    fi
+
+    # We create all the virtual things we need.  A veth pair, a tap adapter
+    # and a virtual bridge
+    ip link add dev ${devname} type veth peer name ${devname}p
+    ip link set dev ${devname} up
+    ip tuntap add ${ns_name}_t mode tap
+    ip link set dev ${ns_name}_t up
+    ip link add ${ns_name}_br type bridge
+
+    # put the tap adapter in the bridge
+    ip link set ${ns_name}_t master ${ns_name}_br
+
+    # put one end of the veth pair in the bridge
+    ip link set ${devname} master ${ns_name}_br
+
+    # give the bridge a cidr address (a.b.c.d/##)
+    ip addr add ${bridge_cidr} dev ${ns_name}_br
+
+    # bring up the bridge
+    ip link set ${ns_name}_br up
+
+    # put the other end of the veth pair in the namespace
+    ip link set ${devname}p netns ${ns_name}
+
+    # and rename the nic in the namespace to what was specified in the args
+    ip netns exec ${ns_name} ip link set dev ${devname}p name ${peer_devname}
+
+    # Add iptables rules to allow the bridge and the connected nic to MASQARADE
+    netns_add_iptables_rules ${netns_args_packname}
+
+    #add the cidr address to the nic in the namespace
+    ip netns exec ${ns_name} ip addr add ${nic_cidr} dev ${peer_devname}
+    ip netns exec ${ns_name} ip link set dev ${peer_devname} up
+
+    # Add a route so that the namespace can communicate out
+    ip netns exec ${ns_name} ip route add default via ${bridge_cidr//\/[0-9]*/}
+
+    #DNS is taken care of by the filesystem (either in a chroot or outside)
+}
+
+
+netns_remove_network()
+{
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
+
+    netns_check_pack ${netns_args_packname}
+
+    $(pack_import ${netns_args_packname} ns_name connected_nic)
+
+    local device
+    for device in /sys/class/net/${ns_name}* ; do
+      if [[ -L ${device} ]] ; then
+          local basename_device=$(basename ${device})
+          ip link set ${basename_device} down
+          ip link delete ${basename_device}
+      fi
+    done
+
+    netns_remove_iptables_rules ${netns_args_packname}
+}
+
+netns_add_iptables_rules()
+{
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
+
+    netns_supported iptables || return 0
+
+    netns_check_pack ${netns_args_packname}
+
+    $(pack_import ${netns_args_packname} ns_name connected_nic)
+
+    local device
+    for device in ${ns_name}_br ${connected_nic} ${@} ; do
+        $(tryrc netns_iptables_rule_exists ${netns_args_packname} ${device})
+        [[ ${rc} -eq 0 ]] && continue
+        iptables -t nat -A POSTROUTING -o ${device} -j MASQUERADE
+    done
+}
+
+netns_remove_iptables_rules()
+{
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)")
+
+    netns_supported iptables || return 0
+
+    netns_check_pack ${netns_args_packname}
+
+    $(pack_import ${netns_args_packname} ns_name connected_nic)
+
+    local device
+    for device in ${ns_name}_br ${connected_nic} ${@} ; do
+        $(tryrc netns_iptables_rule_exists ${netns_args_packname} ${device})
+        [[ ${rc} -ne 0 ]] && continue
+        iptables -t nat -D POSTROUTING -o ${device} -j MASQUERADE
+    done
+}
+
+netns_iptables_rule_exists()
+{
+    $(opt_parse \
+        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+                               init with a name you chose)" \
+        "devname             | Network device to operate on.")
+
+    netns_supported iptables || die "iptables nat support missing"
+
+    netns_check_pack ${netns_args_packname}
+
+    $(pack_import ${netns_args_packname} ns_name)
+
+    iptables -t nat -nvL           | \
+      sed -n '/POSTROUTING/,/^$/p' | \
+      grep -v "^$"                 | \
+      tail -n -2                   | \
+      grep -q ${devname}
+}
+
 ETEST_daemon_netns()
 {
 # This test is different.  12.04 doesn't have a way to ask the system what netns
@@ -85,7 +232,7 @@ ETEST_daemon_netns()
     local sleep_daemon
     local testns_args
 
-    local local_ns_name="netns_$$"
+    local local_ns_name="etest$$"
 
     if [[ $(id -u) -ne 0 ]] ; then
       etestmsg "Must be uid 0 (root) to manipulate nampspaces"
@@ -94,13 +241,13 @@ ETEST_daemon_netns()
 
     netns_init testns_args                   \
         ns_name="${local_ns_name}"           \
-        devname="${local_ns_name}_eth0"      \
-        peer_devname="eth0_${local_ns_name}" \
+        devname="${local_ns_name}_e0"      \
+        peer_devname="e0_${local_ns_name}" \
         connected_nic="eth0"                 \
         bridge_cidr="127.0.0.2/24"           \
         nic_cidr="127.0.0.3/24"
 
-    echo $(lval %testns_args)
+    echo "$(lval %testns_args)"
 
     netns_check_pack testns_args
 
@@ -123,12 +270,12 @@ ETEST_daemon_netns()
     # is cleaned up immediately after.  Regardless, that is why the cmdline
     # specifies the script to run the way it does.
     etestmsg "Starting infinity daemon"
-    daemon_init sleep_daemon                        \
-        "${DAEMON_EXPECT[@]}"                       \
-        name="Netns test daemon"                    \
-        cmdline="../../../unittest/netns_runner.sh" \
-        netns_name=${ns_name}                       \
-        cgroup="${ETEST_CGROUP}/daemon"             \
+    daemon_init sleep_daemon                                        \
+        "${DAEMON_EXPECT[@]}"                                       \
+        name="Netns test daemon"                                    \
+        cmdline="../../../unittest/netns_runner.sh ${peer_devname}" \
+        netns_name=${ns_name}                                       \
+        cgroup="${ETEST_CGROUP}/daemon"                             \
         pidfile="${pidfile}"
 
     echo $(lval %sleep_daemon)

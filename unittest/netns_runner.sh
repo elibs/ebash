@@ -1,9 +1,11 @@
 #!/bin/bash
 
-if [[ ! -e /sys/class/net/eth0_testns ]] ; then
-  echo "eth0_testns doesn't exist"
-  ifconfig
-  return 1
+nic=${1:-eth0}
+
+if [[ ! -e /sys/class/net/${nic} ]] ; then
+  echo "netns_runner.sh: ERROR: ${nic} doesn't exist"
+  echo "Valid nics: $(\ls -m /sys/class/net)"
+  exit 1
 else
   sleep infinity
 fi
