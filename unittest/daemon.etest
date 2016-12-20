@@ -235,7 +235,7 @@ ETEST_daemon_netns()
     local local_ns_name="etest$$"
 
     if [[ $(id -u) -ne 0 ]] ; then
-      etestmsg "Must be uid 0 (root) to manipulate nampspaces"
+      etestmsg "Must be uid 0 (root) to manipulate namespaces"
       return 1
     fi
 
