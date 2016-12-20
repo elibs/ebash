@@ -4,7 +4,38 @@
 
 [[ ${__BU_OS} != Linux ]] && return 0
 
-NETNS_DIR="/run/netns"
+BU_NETNS_DIR="/run/netns"
+
+#-----------------------------------------------------------------------------------------------------
+opt_usage netns_supported "check which network namespace features are supported"
+netns_supported()
+{
+    $(opt_parse "?area")
+
+    local valid_areas=( "all" "user" "iptables" )
+
+    if [[ -z ${area} ]] ; then
+        area="all"
+    fi
+
+    [[ ${valid_areas[@]} =~ ${area} ]] || die "netns_supported: Invalid area [${area}]"
+
+    if [[ ${area} =~ all|user ]] ; then
+       if [[ $(id -u) -ne 0 ]] ; then
+          edebug "netns_supported: Invalid User"
+          return 1
+       fi
+    fi
+
+    if [[ ${area} =~ all|iptables ]] ; then
+       if ! grep -q nat /proc/net/ip_tables_names ; then
+          edebug "netns_supported: no iptables nat support"
+          return 1
+       fi
+    fi
+
+    return 0
+}
 
 #-----------------------------------------------------------------------------------------------------
 opt_usage netns_create "Idempotent create a network namespace"
@@ -13,7 +44,7 @@ netns_create()
     $(opt_parse ns_name)
 
     # Do not create if it already exists
-    [[ -e "${NETNS_DIR}/${ns_name}" ]] && return 0
+    [[ -e "${BU_NETNS_DIR}/${ns_name}" ]] && return 0
 
     ip netns add "${ns_name}"
     netns_exec "${ns_name}" ip link set dev lo up
@@ -26,7 +57,7 @@ netns_delete()
     $(opt_parse ns_name)
 
     # Do not delete if it does not exist
-    [[ ! -e "${NETNS_DIR}/${ns_name}" ]] && return 0
+    [[ ! -e "${BU_NETNS_DIR}/${ns_name}" ]] && return 0
 
     netns_exec "${ns_name}" ip link set dev lo down
     ip netns delete "${ns_name}"
@@ -52,7 +83,7 @@ opt_usage netns_exists "Check if a network namespace exists"
 netns_exists()
 {
     $(opt_parse ns_name)
-    [[ -e "${NETNS_DIR}/${ns_name}" ]] && return 0 || return 1
+    [[ -e "${BU_NETNS_DIR}/${ns_name}" ]] && return 0 || return 1
 }
 
 #-----------------------------------------------------------------------------------------------------
@@ -110,11 +141,12 @@ netns_check_pack()
         fi
     done
 
-    $(pack_import ${netns_args_packname} ns_name bridge_cidr nic_cidr)
+    $(pack_import ${netns_args_packname})
 
-    if [[ ${#ns_name} -gt 12 ]] ; then
-        die "ERROR: namespace name too long (Max: 12 chars)"
-    fi
+    [[ ${#ns_name} -lt 13 ]] || die "ERROR: namespace name too long (Max: 12 chars)"
+    [[ ${#devname} -lt 16 ]] || die "ERROR: devname too long (Max: 16 chars)"
+    [[ ${#peer_devname} -lt 16 ]] || die "ERROR: peer_devname too long (Max: 16 chars)"
+    [[ ${#connected_nic} -lt 16 ]] || die "ERROR: connected_nic too long (Max: 16 chars)"
 
     # a cidr is an ip address with the number of static (or network) bits 
     # added to the end.  It is typically of the form "A.B.C.D/##".  the "ip"
@@ -151,178 +183,5 @@ netns_chroot_exec()
     netns_exec ${ns_name} chroot "${chroot_root}" "${cmd[@]}"
 }
 
-#-----------------------------------------------------------------------------------------------------
-opt_usage netns_setup_connected_network <<'END'
-Set up the network inside a network namespace This will give you a network that can talk to the
-outside world from within the namespace
-
-Note: https://superuser.com/questions/764986/howto-setup-a-veth-virtual-network
-
-END
-netns_setup_connected_network()
-{
-    $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
-                               init with a name you chose)")
-
-    netns_check_pack ${netns_args_packname}
-
-    $(pack_import ${netns_args_packname})
-
-    # this allows packets to come in on the real nic and be forwarded to the
-    # virtual nic.  It turns on routing in the kernel.
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-
-    $(tryrc netns_exists ${ns_name})
-    if [[ ${rc} -eq 1 ]] ; then
-        edebug "ERROR: namespace [${ns_name}] does not exist"
-        return 1
-    fi
-
-    if [[ -L /sys/class/net/${devname} ]] ; then
-        edebug "WARN: device (${devname}) already exists, returning"
-        return 0
-    fi
-
-    # We create all the virtual things we need.  A veth pair, a tap adapter
-    # and a virtual bridge
-    ip link add dev ${devname} type veth peer name ${devname}p
-    ip link set dev ${devname} up
-    ip tuntap add ${ns_name}_t mode tap
-    ip link set dev ${ns_name}_t up
-    ip link add ${ns_name}_br type bridge
-
-    # put the tap adapter in the bridge
-    ip link set ${ns_name}_t master ${ns_name}_br
-
-    # put one end of the veth pair in the bridge
-    ip link set ${devname} master ${ns_name}_br
-
-    # give the bridge a cidr address (a.b.c.d/##)
-    ip addr add ${bridge_cidr} dev ${ns_name}_br
-
-    # bring up the bridge
-    ip link set ${ns_name}_br up
-
-    # put the other end of the veth pair in the namespace
-    ip link set ${devname}p netns ${ns_name}
-
-    # and rename the nic in the namespace to what was specified in the args
-    ip netns exec ${ns_name} ip link set dev ${devname}p name ${peer_devname}
-
-    # Add iptables rules to allow the bridge and the connected nic to MASQARADE
-    netns_add_iptables_rules ${netns_args_packname}
-
-    #add the cidr address to the nic in the namespace
-    ip netns exec ${ns_name} ip addr add ${nic_cidr} dev ${peer_devname}
-    ip netns exec ${ns_name} ip link set dev ${peer_devname} up
-
-    # Add a route so that the namespace can communicate out
-    ip netns exec ${ns_name} ip route add default via ${bridge_cidr//\/[0-9]*/}
-
-    #DNS is taken care of by the filesystem (either in a chroot or outside)
-}
-
-#-----------------------------------------------------------------------------------------------------
-opt_usage netns_remove_network "Remove the namespace network"
-netns_remove_network()
-{
-    $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
-                               init with a name you chose)")
-
-    netns_check_pack ${netns_args_packname}
-
-    $(pack_import ${netns_args_packname} ns_name connected_nic)
-
-    local device
-    for device in /sys/class/net/${ns_name}* ; do
-      if [[ -L ${device} ]] ; then
-          local basename_device=$(basename ${device})
-          ip link set ${basename_device} down
-          ip link delete ${basename_device}
-      fi
-    done
-
-    netns_remove_iptables_rules ${netns_args_packname}
-}
-
-#-----------------------------------------------------------------------------------------------------
-opt_usage netns_add_iptables_rules <<'END'
-Add routing rules to the firewall to let traffic in/out of the namespace
-END
-netns_add_iptables_rules()
-{
-    $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
-                               init with a name you chose)")
-
-    if ! grep -q nat /proc/net/ip_tables_names ; then
-        return 0
-    fi
-
-    netns_check_pack ${netns_args_packname}
-
-    $(pack_import ${netns_args_packname} ns_name connected_nic)
-
-    local device
-    for device in ${ns_name}_br ${connected_nic} ${@} ; do
-        $(tryrc netns_iptables_rule_exists ${netns_args_packname} ${device})
-        [[ ${rc} -eq 0 ]] && continue
-        iptables -t nat -A POSTROUTING -o ${device} -j MASQUERADE
-    done
-}
-
-#-----------------------------------------------------------------------------------------------------
-opt_usage netns_remove_iptables_rules <<'END'
-Remove routing rules added from above
-END
-netns_remove_iptables_rules()
-{
-    $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
-                               init with a name you chose)")
-
-    if ! grep -q nat /proc/net/ip_tables_names ; then
-        return 0
-    fi
-
-    netns_check_pack ${netns_args_packname}
-
-    $(pack_import ${netns_args_packname} ns_name connected_nic)
-
-    local device
-    for device in ${ns_name}_br ${connected_nic} ${@} ; do
-        $(tryrc netns_iptables_rule_exists ${netns_args_packname} ${device})
-        [[ ${rc} -ne 0 ]] && continue
-        iptables -t nat -D POSTROUTING -o ${device} -j MASQUERADE
-    done
-}
-
-#-----------------------------------------------------------------------------------------------------
-opt_usage netns_iptables_rule_exists <<'END'
-# Check if a rule exists for a given nic in the namespace
-END
-netns_iptables_rule_exists()
-{
-    $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
-                               init with a name you chose)" \
-        "devname             | Network device to operate on.")
-
-    if ! grep -q nat /proc/net/ip_tables_names ; then
-        return 1
-    fi
-
-    netns_check_pack ${netns_args_packname}
-
-    $(pack_import ${netns_args_packname} ns_name)
-
-    iptables -t nat -nvL           | \
-      sed -n '/POSTROUTING/,/^$/p' | \
-      grep -v "^$"                 | \
-      tail -n -2                   | \
-      grep -q ${devname}
-}
-
 return 0
+
