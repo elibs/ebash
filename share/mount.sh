@@ -206,7 +206,10 @@ ebindmount_into()
         # tree since we do not follow symlinks. If it's not a symlink, then simply bindmount the source path
         # into the destination path. Taking care to create the proper tree structure inside destination path.
         else
-           
+        
+            # If the source path is a symlink, just copy the symlink directly since we do not follow symlinks.
+            # There is a 'continue' if it's a symlink because we do not want to do the ebindmount that is 
+            # outside the if/else statement that we normally do for non-symlinks.
             if [[ -L "${src}" ]]; then
                 cp --no-dereference "${src}" "${dest_real}/${mnt}"
                 continue
