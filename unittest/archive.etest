@@ -180,17 +180,46 @@ ETEST_archive_create_symlinks()
         etestmsg "Populating source directory"
         efreshdir src
         touch src/{file1,file2}
+        mkdir src/dir1
         echo "foo" > foo
-        ln -s ${PWD}/foo src/filelnk
+        ln -s ./foo  src/filelnk
+        ln -s ./dir1 src/dirlnk
         find src -ls
 
         etestmsg "Creating dest.${ftype}"
         archive_create dest.${ftype} src
-        assert_archive_contents dest.${ftype} src src/filelnk src/file1 src/file2
+        assert_archive_contents dest.${ftype} src src/dir1 src/dirlnk src/filelnk src/file1 src/file2
 
         etestmsg "Ensuring symlinks preserved"
         archive_extract dest.${ftype} dest
         [[ -L dest/src/filelnk ]]
+        [[ -L dest/src/dirlnk  ]]
+    done
+}
+
+ETEST_archive_create_symlinks_contents()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory with symlinks"
+        efreshdir src
+        touch src/{file1,file2}
+        echo "foo" > foo
+        ln -s ${PWD}/foo src/filelnk
+        ln -s ${PWD}/.   src/dirlnk
+        find src -ls
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create dest.${ftype} src/.
+        assert_archive_contents dest.${ftype} filelnk file1 file2 dirlnk
+
+        etestmsg "Ensuring symlinks preserved"
+        archive_extract dest.${ftype} dest
+        [[ -L dest/filelnk ]]
+        [[ -L dest/dirlnk  ]]
     done
 }
 

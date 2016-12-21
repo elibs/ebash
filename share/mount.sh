@@ -202,11 +202,15 @@ ebindmount_into()
 
             popd
 
-        # Otherwise simply bindmount the source path into the destination path. Taking care
-        # to create the proper tree structure inside destination path.
+        # Otherwise check if the source is a symlink and if it is just copy the symlink into the destination
+        # tree since we do not follow symlinks. If it's not a symlink, then simply bindmount the source path
+        # into the destination path. Taking care to create the proper tree structure inside destination path.
         else
-            
-            if [[ -d "${src}" ]]; then
+           
+            if [[ -L "${src}" ]]; then
+                cp --no-dereference "${src}" "${dest_real}/${mnt}"
+                continue
+            elif [[ -d "${src}" ]]; then
                 mkdir -p "${dest_real}/${mnt}"
             else
                 mkdir -p "$(dirname "${dest_real}/${mnt}")"
