@@ -366,7 +366,7 @@ archive_create()
             return 1
         fi
 
-        cmd="${mkisofs} -r -V "${volume}" -cache-inodes -J -l -o "${dest_real}" -exclude-list ${exclude_file}"
+        cmd="${mkisofs} -r -V "${volume}" -cache-inodes -J -joliet-long -l -o "${dest_real}" -exclude-list ${exclude_file}"
         
         if [[ ${bootable} -eq 1 ]]; then
             cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
