@@ -366,7 +366,7 @@ archive_create()
             return 1
         fi
 
-        cmd="${mkisofs} -r -V "${volume}" -cache-inodes -J -joliet-long -l -o "${dest_real}" -exclude-list ${exclude_file}"
+        cmd="${mkisofs} -r -V "${volume}" -cache-inodes -iso-level 3 -J -joliet-long -o "${dest_real}" -exclude-list ${exclude_file}"
         
         if [[ ${bootable} -eq 1 ]]; then
             cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
@@ -393,7 +393,7 @@ archive_create()
     # CPIO
     elif [[ ${dest_type} == cpio ]]; then
         
-        cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
+        cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H ustar"
         local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
         if [[ -n "${prog}" ]]; then
             cmd+=" | ${prog} -${level} > ${dest_real}"
@@ -624,7 +624,7 @@ archive_list()
         # Build up the rest of the command to execute.
         cmd+="cpio --quiet -it"
         [[ -z "${prog}" ]] && cmd+=" < \"${src}\""
-        cmd+=" | sed -e 's|^.$||'"
+        cmd+=" | sed -e 's|^./||' -e '/^\/$/d' -e 's|/$||'"
         edebug "$(lval cmd)"
         eval "${cmd}"
 
