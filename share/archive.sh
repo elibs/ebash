@@ -356,17 +356,19 @@ archive_create()
     # ISO
     elif [[ ${dest_type} == iso ]]; then
 
-        local mkisofs
-        if which mkisofs &> /dev/null ; then
-            mkisofs=mkisofs
+        local cmd=""
+        if which genisoimage &> /dev/null; then
+            cmd="genisoimage --allow-limited-size"
+        elif which mkisofs &> /dev/null ; then
+            cmd="mkisofs"
         elif which xorrisofs &> /dev/null ; then
-            mkisofs=xorrisofs
+            cmd="xorrisofs"
         else
             eerror "no mkisofs-compatible program found"
             return 1
         fi
 
-        cmd="${mkisofs} -r -V "${volume}" -cache-inodes -iso-level 3 -J -joliet-long -o "${dest_real}" -exclude-list ${exclude_file}"
+        cmd+=" -r -V "${volume}" -cache-inodes -iso-level 3 -J -joliet-long -o "${dest_real}" -exclude-list ${exclude_file}"
         
         if [[ ${bootable} -eq 1 ]]; then
             cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
