@@ -849,7 +849,7 @@ ETEST_archive_create_long_filenames()
     done
 }
 
-ETEST_archive_create_gigantic_file()
+ETEST_archive_create_large_file()
 {
     local idx=0
     for idx in $(array_indexes ARCHIVE_TYPES); do
