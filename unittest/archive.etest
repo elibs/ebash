@@ -830,6 +830,42 @@ ETEST_archive_create_mount()
    done
 }
 
+ETEST_archive_create_long_filenames()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        local longname="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 90; echo '')"
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/${longname}-1 src/${longname}-2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+        assert_archive_contents src.${ftype} src src/${longname}-1 src/${longname}-2
+    done
+}
+
+ETEST_archive_create_gigantic_file()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        eprogress "Creating 5GB file"
+        dd if=/dev/zero of=random.img count=5000 bs=1MB
+        eprogress_kill
+        ls -l random.img
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} random.img
+        assert_archive_contents src.${ftype} random.img
+    done
+}
+
 ETEST_archive_extract()
 {
     local idx=0
