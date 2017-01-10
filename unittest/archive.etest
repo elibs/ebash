@@ -122,7 +122,6 @@ ETEST_archive_create_type()
     etestmsg "Creating dest.img (cpio)"
     archive_create -t=cpio dest.img src
     assert_match "$(file dest.img)" "ASCII cpio archive"
-
     archive_list -t=cpio dest.img
 
     etestmsg "Creating dest.img (cgz)"
