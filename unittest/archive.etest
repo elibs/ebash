@@ -121,7 +121,7 @@ ETEST_archive_create_type()
 
     etestmsg "Creating dest.img (cpio)"
     archive_create -t=cpio dest.img src
-    assert_match "$(file dest.img)" "POSIX tar archive"
+    assert_match "$(file dest.img)" "ASCII cpio archive"
 
     archive_list -t=cpio dest.img
 
@@ -849,22 +849,16 @@ ETEST_archive_create_long_filenames()
     done
 }
 
-ETEST_archive_create_large_file()
+ETEST_archive_create_iso_large_file()
 {
-    local idx=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+    eprogress "Creating 5GB file"
+    dd if=/dev/zero of=random.img count=5000 bs=1MB
+    eprogress_kill
+    ls -l random.img
 
-        eprogress "Creating 5GB file"
-        dd if=/dev/zero of=random.img count=5000 bs=1MB
-        eprogress_kill
-        ls -l random.img
-
-        etestmsg "Creating src.${ftype}"
-        archive_create src.${ftype} random.img
-        assert_archive_contents src.${ftype} random.img
-    done
+    etestmsg "Creating src.iso"
+    archive_create src.iso random.img
+    assert_archive_contents src.iso random.img
 }
 
 ETEST_archive_extract()
