@@ -342,7 +342,6 @@ eunmount()
 
             local rm_opts="--force"
             [[ ${recursive} -eq 1 ]] && rm_opts+=" --recursive"
-            [[ ${verbose}   -eq 1 ]] && rm_opts+=" --verbose"
 
             rm ${rm_opts} $(readlink -m "${mnt}")
         fi
