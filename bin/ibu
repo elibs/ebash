@@ -74,10 +74,10 @@ die_handler()
 }
 
 $(opt_parse \
-    ":source s | Source the specified file prior to running the interactive interpreter.")
+    ":load l | Load the specified file prior to running the interactive interpreter.")
 
-if [[ -n "${source}" ]] ; then
-    source "${source}"
+if [[ -n "${load}" ]] ; then
+    source "${load}"
 fi
 
 einfo "Bashutils $(lval BASHUTILS)"
