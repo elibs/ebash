@@ -54,9 +54,14 @@ for arg in "$@" ; do
 done
 
 
-: ${BASHUTILS_HOME:=$(readlink -m "$(dirname $0)/..")}
+: ${BASHUTILS_HOME:=$(dirname $0)/..}
 : ${BASHUTILS:=${BASHUTILS_HOME}/share}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
+
+# Canonicalize BASHUTILS_HOME and BASHUTILS _after_ sourcing bashutils because it makes sure readlink behaves the same for
+# both mac and linux
+BASHUTILS=$(readlink -f "${BASHUTILS}")
+BASHUTILS_HOME=$(readlink -f "${BASHUTILS_HOME}")
 
 
 declare name=${0##*/}

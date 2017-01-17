@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-$(${BASHUTILS}/bin/bashutils --source)
+$(${BASHUTILS_HOME}/bin/bashutils --source)
 
 #-------------------------------------------------------------------------------------------------------------------------
 # SANITY TEST OF DIE FUNCTIONALITY
