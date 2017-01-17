@@ -3,6 +3,16 @@
 # Copyright 2011-2015, SolidFire, Inc. All rights reserved.
 #
 
+########################################################################################################################
+#
+# The preferred way to load bashutils in a script is to add this to your code:
+#    $( ${BASHUTILS}/bin/bashutils --source )
+#
+# Or to ensure ${BASHUTILS}/bin is in your path and to load it like this:
+#    $( bashutils --source )
+#
+########################################################################################################################
+
 __BU_OS=$(uname)
 
 

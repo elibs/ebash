@@ -369,19 +369,24 @@ for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
 
     # Run all standalone *.etest scripts directly outside of etest framework
     einfo "Running standalone tests ${REPEAT_STRING}" &>${ETEST_OUT}
-    for filename in $(find ${TEST_DIR} -type f -name "*.etest" -executable | sort || true); do
+    (
+        # Give the standalone tests access to this version of bashutils
+        export BASHUTILS BASHUTILS_HOME
 
-        base=$(basename "${filename}" .etest)
+        for filename in $(find ${TEST_DIR} -type f -name "*.etest" -executable | sort || true); do
 
-        if [[ ( -z ${filter} || ${filter} =~ ${base} ) && ! ${exclude} =~ ${base} ]] ; then
-            MSG="Running standalone $(lval script=filename)"
-            einfos "ETEST_${base%%.etest}" &>${ETEST_OUT}
-            ebanner "${MSG}"
-            ${filename}
-            eend &>${ETEST_OUT}
-        fi
+            base=$(basename "${filename}" .etest)
 
-    done
+            if [[ ( -z ${filter} || ${filter} =~ ${base} ) && ! ${exclude} =~ ${base} ]] ; then
+                MSG="Running standalone $(lval script=filename)"
+                einfos "ETEST_${base%%.etest}" &>${ETEST_OUT}
+                ebanner "${MSG}"
+                ${filename}
+                eend &>${ETEST_OUT}
+            fi
+
+        done
+    )
 
     # Run *.etest files which are not executable and need to be sourced and run inside etest
     for filename in $(find ${TEST_DIR} -type f -name "*.etest" ! -executable | sort || true); do
