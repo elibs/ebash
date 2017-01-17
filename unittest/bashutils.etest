@@ -35,7 +35,7 @@ ETEST_bashutils_bin_calls_ibu()
     assert_match "${stderr}" ">>.*Bashutils BASHUTILS="
 }
 
-ETEST_bashutils_bin_source()
+ETEST_bashutils_bin_load()
 {
 cat<<'EOF' >testfile.sh
 an_unusual_func()
@@ -44,7 +44,7 @@ an_unusual_func()
 }
 EOF
 
-    output=$(${BASHUTILS_HOME}/bin/bashutils --source testfile.sh an_unusual_func)
+    output=$(${BASHUTILS_HOME}/bin/bashutils --load testfile.sh an_unusual_func)
 
     assert_match "${output}" "in an_unusual_func"
 
@@ -72,18 +72,18 @@ argchecker_func()
 }
 EOF
 
-    $(tryrc --rc rc --stdout stdout ${BASHUTILS_HOME}/bin/bashutils --source testfile.sh argchecker ARG1 ARG2)
+    $(tryrc --rc rc --stdout stdout ${BASHUTILS_HOME}/bin/bashutils --load testfile.sh argchecker ARG1 ARG2)
 
     etestmsg "Called as bashutils $(lval stdout rc)"
     assert_eq "called with args ARG1 ARG2" "${stdout}"
     assert_eq 0 ${rc}
 
-    $(tryrc --rc rc --stdout stdout ${BASHUTILS_HOME}/bin/bashutils --source testfile.sh --name argchecker ALPHA BETA )
+    $(tryrc --rc rc --stdout stdout ${BASHUTILS_HOME}/bin/bashutils --load testfile.sh --name argchecker ALPHA BETA )
     etestmsg "Called by binary name $(lval stdout rc)"
     assert_eq "called with args ALPHA BETA" "${stdout}"
     assert_eq 0 ${rc}
 
-    $(tryrc --rc rc --stdout stdout ${BASHUTILS_HOME}/bin/bashutils --source testfile.sh --name argchecker func MARS JUPITER)
+    $(tryrc --rc rc --stdout stdout ${BASHUTILS_HOME}/bin/bashutils --load testfile.sh --name argchecker func MARS JUPITER)
     etestmsg "Called by binary nume with func following $(lval stdout rc)"
     assert_eq "called func with args MARS JUPITER" "${stdout}"
     assert_eq 0 ${rc}
@@ -95,4 +95,23 @@ ETEST_bashutils_bin_no_args()
     etestmsg "$(lval output)"
 
     assert_eq ">> hi" "${output}"
+}
+
+ETEST_bashutils_bin_dump_env()
+{
+    local output=$( ${BASHUTILS_HOME}/bin/bashutils --dump-env )
+
+    (
+        ACTUAL_BASHUTILS_HOME=${BASHUTILS_HOME}
+        ACTUAL_BASHUTILS=${BASHUTILS}
+
+        unset BASHUTILS_HOME
+        unset BASHUTILS
+        eval "${output}"
+
+        einfo "$(lval BASHUTILS BASHUTILS_HOME)"
+
+        assert_eq "${ACTUAL_BASHUTILS_HOME}" "${BASHUTILS_HOME}"
+        assert_eq "${ACTUAL_BASHUTILS}" "${BASHUTILS}"
+    )
 }
