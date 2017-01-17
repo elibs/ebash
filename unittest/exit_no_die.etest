@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" >&2 ; exit 1 ; }
+$(${BASHUTILS}/bin/bashutils --source)
 
 #-------------------------------------------------------------------------------------------------------------------------
 # SANITY TEST EXPLICITLY CALLING EXIT TO ENSURE DIE IS NOT CALLED

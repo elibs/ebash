@@ -54,23 +54,36 @@ for arg in "$@" ; do
 done
 
 
-: ${BASHUTILS_HOME:=$(dirname $0)/..}
+: ${BASHUTILS_HOME:=$(readlink -m "$(dirname $0)/..")}
 : ${BASHUTILS:=${BASHUTILS_HOME}/share}
 source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
 
 
 declare name=${0##*/}
-declare source=""
 
 # If we were called as "bashutils", then the caller can specify options to this script.
 if [[ ${name} == "bashutils" ]] ; then
 
     $(opt_parse \
-        ":source s        | Bashutils should source the specified file before attempting to run the specified command." \
-        ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend bashutils is running with the specified name.")
+        ":load l          | Bashutils should source the specified file before attempting to run the specified command." \
+        "+source s        | Print commands that would load bashutils from its existing location on disk into the current
+                            shell and then exit.  You'd use this in a script like this: \$(bashutils --load)" \
+        "+print_environment printenv p | Dump environment variables that bashutils would like to use in a format bash
+                            can interpret" \
+        ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend bashutils is running
+                            with the specified name.")
 
-    if [[ -n ${source} ]] ; then
-        source "${source}"
+    if [[ -n ${load} ]] ; then
+        source "${load}"
+    fi
+
+    if [[ ${source} -eq 1 ]] ; then
+        echo "eval export BASHUTILS=${BASHUTILS} ; source \"${BASHUTILS}/bashutils.sh\" || { echo \"Unable to source ${BASHUTILS}/bashtuils.sh\" ; exit 1 ; }"
+        exit 0
+    elif [[ ${print_environment} -eq 1 ]] ; then
+        printf "export BASHUTILS=%q\n" "${BASHUTILS}"
+        printf "export BASHUTILS_HOME=%q\n" "${BASHUTILS_HOME}"
+        exit 0
     fi
 fi
 
@@ -100,7 +113,7 @@ else
 
     # Or run ibu if nothing was specified
     else
-        exec ${BASHUTILS_HOME}/bin/ibu --source "${source}"
+        exec ${BASHUTILS_HOME}/bin/ibu --load "${load}"
     fi
 
 fi
