@@ -1,5 +1,7 @@
 #!/bin/bash
 
+$(${BASHUTILS}/bin/bashutils --source)
+
 nic=${1:-eth0}
 
 if [[ ! -e /sys/class/net/${nic} ]] ; then
