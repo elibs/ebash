@@ -68,7 +68,8 @@ if [[ ${name} == "bashutils" ]] ; then
         ":load l          | Bashutils should source the specified file before attempting to run the specified command." \
         "+source s        | Print commands that would load bashutils from its existing location on disk into the current
                             shell and then exit.  You'd use this in a script like this: \$(bashutils --load)" \
-        "+dump_env d      | Dump environment variables that bashutils would like to use in a format bash can interpret" \
+        "+print_environment printenv p | Dump environment variables that bashutils would like to use in a format bash
+                            can interpret" \
         ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend bashutils is running
                             with the specified name.")
 
@@ -79,7 +80,7 @@ if [[ ${name} == "bashutils" ]] ; then
     if [[ ${source} -eq 1 ]] ; then
         echo "eval export BASHUTILS=${BASHUTILS} ; source \"${BASHUTILS}/bashutils.sh\" || { echo \"Unable to source ${BASHUTILS}/bashtuils.sh\" ; exit 1 ; }"
         exit 0
-    elif [[ ${dump_env} -eq 1 ]] ; then
+    elif [[ ${print_environment} -eq 1 ]] ; then
         printf "export BASHUTILS=%q\n" "${BASHUTILS}"
         printf "export BASHUTILS_HOME=%q\n" "${BASHUTILS_HOME}"
         exit 0
