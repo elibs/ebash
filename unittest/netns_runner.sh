@@ -1,6 +1,6 @@
 #!/bin/bash
 
-$(${BASHUTILS}/bin/bashutils --source)
+$(${BASHUTILS_HOME}/bin/bashutils --source)
 
 nic=${1:-eth0}
 
