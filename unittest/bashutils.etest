@@ -97,9 +97,9 @@ ETEST_bashutils_bin_no_args()
     assert_eq ">> hi" "${output}"
 }
 
-ETEST_bashutils_bin_dump_env()
+ETEST_bashutils_bin_printenv()
 {
-    local output=$( ${BASHUTILS_HOME}/bin/bashutils --dump-env )
+    local output=$( ${BASHUTILS_HOME}/bin/bashutils --printenv )
 
     (
         ACTUAL_BASHUTILS_HOME=${BASHUTILS_HOME}
