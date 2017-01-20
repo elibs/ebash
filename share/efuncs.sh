@@ -736,23 +736,21 @@ reexec()
 
     array_not_empty __BU_REEXEC_CMD || die "reexec must be called via its eponymous alias."
 
-    if [[ ${sudo} -eq 1 ]] ; then
-        if [[ $(id -u) != 0 ]] ; then
-            exec sudo -E -- "${__BU_REEXEC_CMD[@]}"
-        fi
+    # If sudo was requested and the caller is not already root then exec sudo. Take special care to
+    # pass through the TMPDIR variable since glibc silently deletes it from the environment of any
+    # suid binary such as sudo. If TMPDIR isn't set, then set it to /tmp which is what would normally
+    # happen if the variable wasn't set.
+    if [[ ${sudo} -eq 1 && $(id -u) != 0 ]] ; then
+        exec sudo TMPDIR=${TMPDIR:-/tmp} -E -- "${__BU_REEXEC_CMD[@]}"
     fi
 
-    if [[ ${mount_ns} -eq 1 ]] ; then
-        if [[ ${__BU_REEXEC_MOUNT_NS:-} != ${BASHPID} ]] ; then
-            export __BU_REEXEC_MOUNT_NS=${BASHPID}
-            exec unshare -m -- "${__BU_REEXEC_CMD[@]}"
-        fi
+    if [[ ${mount_ns} -eq 1 && ${__BU_REEXEC_MOUNT_NS:-} != ${BASHPID} ]] ; then
+        export __BU_REEXEC_MOUNT_NS=${BASHPID}
+        exec unshare -m -- "${__BU_REEXEC_CMD[@]}"
     fi
     unset __BU_REEXEC_CMD
 }
 alias reexec='declare -a __BU_REEXEC_CMD=("$0" "$@") ; reexec'
-
-
 
 #---------------------------------------------------------------------------------------------------
 # SIGNAL FUNCTIONS
