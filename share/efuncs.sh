@@ -1146,12 +1146,26 @@ emetadata()
     # If PGP signature is NOT requested we can simply return
     [[ -n ${private_key} ]] || return 0
 
+    local gpg_home=$(mktemp -d --tmpdir=/tmp gpghome-XXXXXX)
+    trap_add "rm -rf $gpg_home"
+
+    local gpg_version=$(gpg --version | awk 'NR==1{print $NF}')
+    if compare_version "${gpg_version}" ">=" "2.1"; then
+        local agent_command="gpg-agent --homedir $gpg_home --daemon --allow-loopback-pinentry"
+        $agent_command
+        trap_add "pkill -f \"$agent_command\""
+    fi
+
     # Import that into temporary secret keyring
     local keyring="" keyring_command=""
     keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
-    keyring_command="--no-default-keyring --secret-keyring ${keyring}"
     trap_add "rm --force ${keyring}"
-    GPG_AGENT_INFO="" gpg ${keyring_command} --import ${private_key} |& edebug
+
+    keyring_command="--no-default-keyring --secret-keyring ${keyring}"
+    if compare_version "${gpg_version}" ">=" "2.1"; then
+        keyring_command="${keyring_command} --pinentry-mode loopback"
+    fi
+    GPG_AGENT_INFO="" GNUPGHOME="$gpg_home" gpg ${keyring_command} --batch --import ${private_key} |& edebug
 
     # Get optional keyphrase
     local keyphrase_command=""
@@ -1159,7 +1173,7 @@ emetadata()
 
     # Output PGPSignature encoded in base64
     echo "PGPKey=$(basename ${private_key})"
-    echo "PGPSignature=$(GPG_AGENT_INFO="" gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>/dev/null | base64 --wrap 0)"
+    echo "PGPSignature=$(GPG_AGENT_INFO="" GNUPGHOME="$gpg_home" gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>/dev/null | base64 --wrap 0)"
 }
 
 opt_usage emetadata_check <<'END'
