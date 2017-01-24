@@ -1146,7 +1146,9 @@ emetadata()
     # If PGP signature is NOT requested we can simply return
     [[ -n ${private_key} ]] || return 0
 
-    local gpg_home=$(mktemp --tmpdir=/tmp --directory gpghome-XXXXXX)
+    # Needs to be in /tmp rather than using $TMPDIR because gpg creates a socket in this directory and the complete
+    # path can't be longer than 108 characters. gpg also expands relative paths, so no getting around it that way.
+    local gpg_home=$(mktemp --directory /tmp/gpghome-XXXXXX)
     trap_add "rm -rf ${gpg_home}"
 
     # If using GPG 2.1 or higher, start our own gpg-agent. Otherwise, GPG will start one and leave it running.
