@@ -1151,8 +1151,8 @@ emetadata()
 
     (
         # cd to GPG home directory and use absolute paths for other things to work around socket path length limit.
-        path=$(realpath "${path}")
-        private_key=$(realpath "${private_key}")
+        path=$(readlink -m "${path}")
+        private_key=$(readlink -m "${private_key}")
         cd "${gpg_home}"
 
         # If using GPG 2.1 or higher, start our own gpg-agent. Otherwise, GPG will start one and leave it running.
