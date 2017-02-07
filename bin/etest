@@ -21,8 +21,6 @@ BASHUTILS=$(readlink -f "${BASHUTILS}")
 # GLOBAL SETUP
 #-------------------------------------------------------------------------------------------------------------------------
 
-START_TIME=$SECONDS
-
 $(opt_parse \
     ":filter  f=${FILTER:-}    | Tests whose name or file match this will be run." \
     ":exclude x=${EXCLUDE:-}   | Tests whose name or file match this will not be run." \
@@ -33,9 +31,45 @@ $(opt_parse \
     "+delete  d=1              | Delete all output files when tests complete." \
     "+clean   c=0              | Clean only and then exit." \
     "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
-    "TEST_DIR=$(readlink -f .) | Look for tests inside this directory.")
+    ":log_dir                  | Directory to place logs in.  Defaults to the current directory." \
+    ":work_dir                 | Temporary location where etest can place temporary files.  This location will be both
+                                 created and deleted by etest." \
+    "&test_list l              | File that contains a list of tests to run.  This file may contain comments on lines
+                                 that begin with the # character.  All other nonblank lines will be interpreted as
+                                 things that could be passed as @tests -- directories, executable scripts, or .etest
+                                 files.  Relative paths will be interpreted against the current directory.  This option
+                                 may be specified multiple times." \
+    "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
+                                 exit code or may be files whose names end in .etest, in which case they will be sourced
+                                 and any test functions found will be executed.  You may also specify directories in
+                                 which case etest will recursively find executables and .etest files and treat them in
+                                 similar fashion.")
 
-ETEST_TOPDIR=${TEST_DIR}
+declare -A _BU_CONF
+conf_read _BU_CONF .bashutils
+
+START_TIME=$SECONDS
+
+# Default log directory from conf file if unspecified on the command line
+: ${log_dir:=$(conf_get _BU_CONF etest.log_dir)}
+log_dir=$(readlink -f ${log_dir})
+
+# Default set of tests from conf file if unspecified on the command line
+if array_empty tests && array_empty test_list ; then
+    tests=( $(conf_get _BU_CONF etest.tests) )
+fi
+
+if array_not_empty test_list ; then
+    # Read non-comment lines from test_list and treat them as if they were passed as arguments to this script
+    array_init_nl tests_from_list "$(grep -vP '^\s*(#.*)$' "${test_list[@]}")"
+    tests+=( "${tests_from_list[@]}" )
+fi
+
+# Default working directory from conf file if unspecified, or ./output if not in either place
+: ${work_dir:=$(conf_get _BU_CONF etest.work_dir)}
+: ${work_dir:=./output}
+work_dir=$(readlink -f ${work_dir})
+
 EDEBUG=${debug}
 
 (( ${repeat} < 1 )) && repeat=1
@@ -45,14 +79,14 @@ edebug "$(lval TEST_DIR) $(opt_dump)"
 if ! cgroup_supported ; then
     export ETEST_CGROUP_BASE=unsupported
 else
-    # Global cgroup name for all unit tests
-    export ETEST_CGROUP_BASE="etest/$(basename ${TEST_DIR})"
+    # Global cgroup name for all unit tests run here
+    export ETEST_CGROUP_BASE="etest"
 fi
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
-ETEST_LOG=${TEST_DIR}/etest.log
+ETEST_LOG=${log_dir}/etest.log
 elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
@@ -163,12 +197,11 @@ global_setup()
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
-    TEST_DIR_OUTPUT="${TEST_DIR}/output"
-    efreshdir ${TEST_DIR_OUTPUT}
+    efreshdir ${work_dir}
 
     # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
-    export TMPDIR=$(readlink -m ${TEST_DIR_OUTPUT}/tmp)
-    mkdir ${TMPDIR}
+    export TMPDIR=$(readlink -m ${work_dir}/tmp)
+    mkdir "${TMPDIR}"
  
     if cgroup_supported ; then
         # And a cgroup that will contain all output
@@ -186,7 +219,7 @@ global_teardown()
     edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
     assert_no_process_leaks
-    assert_no_mount_leaks ${TEST_DIR_OUTPUT}
+    assert_no_mount_leaks ${work_dir}
 
     if cgroup_supported ; then
         cgroup_destroy -r ${ETEST_CGROUP}
@@ -229,7 +262,7 @@ run_single_test()
         __BU_INSIDE_TRY=0
 
         # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
-        export TMPDIR=$(readlink -m ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}/tmp)
+        export TMPDIR=$(readlink -m ${work_dir}/${testfilename}/${testfunc}/tmp)
         efreshdir ${TMPDIR}
  
         if cgroup_supported ; then
@@ -243,7 +276,7 @@ run_single_test()
             setup
         fi
         
-        cd ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
+        cd ${work_dir}/${testfilename}/${testfunc}
 
         etestmsg "Calling test"
         ${testfunc}
@@ -259,7 +292,7 @@ run_single_test()
     fi
 
     local mount_leak_rc=0
-    $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}")
+    $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${work_dir}/${testfilename}/${testfunc}")
 
     if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 && ${mount_leak_rc} -eq 0 ]]; then
         einfo "$(ecolor green)${testfunc} PASSED."
@@ -320,7 +353,7 @@ run_all_tests_in_file()
     for testfunc in file_setup ${ETEST_FUNCTIONS[@]} file_teardown; do
      
         # Unit test infrastructure setup
-        efreshdir ${TEST_DIR_OUTPUT}/${testfilename}/${testfunc}
+        efreshdir ${work_dir}/${testfilename}/${testfunc}
      
         local test_rc=0
         try
@@ -367,30 +400,36 @@ TEST_FAILED_COUNT=0
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
     [[ ${repeat} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${repeat})" || REPEAT_STRING=""
 
-    # Run all standalone *.etest scripts directly outside of etest framework
-    einfo "Running standalone tests ${REPEAT_STRING}" &>${ETEST_OUT}
-    (
-        # Give the standalone tests access to this version of bashutils
-        export BASHUTILS BASHUTILS_HOME
+    for test_location in "${tests[@]}" ; do
 
-        for filename in $(find ${TEST_DIR} -type f -name "*.etest" -executable | sort || true); do
+        TEST_DIR_OUTPUT=${work_dir}
 
-            base=$(basename "${filename}" .etest)
+        # Run all standalone *.etest scripts directly outside of etest framework
+        einfo "Running standalone tests ${REPEAT_STRING}" &>${ETEST_OUT}
+        (
+            # Give the standalone tests access to relevant variables
+            export BASHUTILS BASHUTILS_HOME TEST_DIR_OUTPUT
 
-            if [[ ( -z ${filter} || ${filter} =~ ${base} ) && ! ${exclude} =~ ${base} ]] ; then
-                MSG="Running standalone $(lval script=filename)"
-                einfos "ETEST_${base%%.etest}" &>${ETEST_OUT}
-                ebanner "${MSG}"
-                ${filename}
-                eend &>${ETEST_OUT}
-            fi
+                for filename in $(find "${test_location}" -type f -name "*.etest" -executable | sort || true); do
 
+                    base=$(basename "${filename}" .etest)
+
+                    if [[ ( -z ${filter} || ${filter} =~ ${base} ) && ! ${exclude} =~ ${base} ]] ; then
+                        MSG="Running standalone $(lval script=filename)"
+                        einfos "${base%%.etest}" &>${ETEST_OUT}
+                        ebanner "${MSG}"
+                        ${filename}
+                        eend &>${ETEST_OUT}
+                    fi
+
+                done
+        )
+
+        # Run *.etest files which are not executable and need to be sourced and run inside etest
+        for filename in $(find "${test_location}" -type f -name "*.etest" ! -executable | sort || true); do
+            run_all_tests_in_file ${filename}
         done
-    )
 
-    # Run *.etest files which are not executable and need to be sourced and run inside etest
-    for filename in $(find ${TEST_DIR} -type f -name "*.etest" ! -executable | sort || true); do
-        run_all_tests_in_file ${filename}
     done
 done
 
@@ -403,7 +442,7 @@ fi
 
 {
     echo
-    message="Finished testing $(basename ${ETEST_TOPDIR})${changeset_info}."
+    message="Finished testing ${changeset_info}."
     message+=" $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT))/${TEST_EXECUTED_COUNT} tests passed"
     message+=" in $(( SECONDS - START_TIME )) seconds."
 

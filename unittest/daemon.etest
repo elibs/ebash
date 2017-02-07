@@ -2,7 +2,7 @@
 
 [[ ${__BU_OS} == Linux ]] || return 0
 
-source ${ETEST_TOPDIR}/unittest/daemon_expect.sh
+source ${BASHUTILS_HOME}/unittest/daemon_expect.sh
 
 ETEST_daemon_init()
 {
