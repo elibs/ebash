@@ -1,0 +1,5 @@
+[etest]
+log_dir = .
+work_dir = output
+tests = unittest
+

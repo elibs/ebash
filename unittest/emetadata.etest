@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 
+make_testfile()
+{
+    # Generate some data into a file that we can checksum and such
+    local testfile=testfile
+    
+    date > "${testfile}"
+    echo "These are a few simple file contents that we can run some checksums against." >> "${testfile}"
+    ls / >> "${testfile}"
+
+    echo "${testfile}"
+}
+
 ETEST_emetadata_basic()
 {
-    cp ${BASH_SOURCE} .
-    local src="$(basename ${BASH_SOURCE})"
+    local src="$(make_testfile)"
     local meta="${src}.meta"
 
     emetadata ${src} > ${meta}
@@ -24,8 +35,7 @@ ETEST_emetadata_basic()
 # Verify emetadata_check still validates SHA1 field if present even if we don't use it anymore
 ETEST_emetadata_sha1_backwards_compatible()
 {
-    cp ${BASH_SOURCE} .
-    local src="$(basename ${BASH_SOURCE})"
+    local src="$(make_testfile)"
     local meta="${src}.meta"
     emetadata ${src} > ${meta}
     
@@ -55,8 +65,7 @@ ETEST_emetadata_pgp()
     efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_private.asc private.asc
     efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging.phrase      phrase.txt
 
-    cp ${BASH_SOURCE} .
-    local src="$(basename ${BASH_SOURCE})"
+    local src="$(make_testfile)"
     local meta="${src}.meta"
     emetadata -p="private.asc" -k="$(cat phrase.txt)" ${src} > ${meta}
     cat ${meta}
@@ -69,8 +78,7 @@ ETEST_emetadata_pgp()
 
 ETEST_emetadata_failure()
 {
-    cp ${BASH_SOURCE} .
-    local src="$(basename ${BASH_SOURCE})"
+    local src="$(make_testfile)"
     local meta="${src}.meta"
 
     emetadata ${src} > ${meta}
