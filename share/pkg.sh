@@ -295,7 +295,7 @@ pkg_manager()
     elif os_distro fedora; then
         echo "dnf"
 
-    elif os_distro gentoo ; then
+    elif os_distro gentoo ember ; then
         echo "portage"
 
     elif os_distro arch ; then

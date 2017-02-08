@@ -59,39 +59,6 @@ ETEST_overlayfs_eunmount()
     assert_not_exists dest/file1 dest/file2 dest
 }
 
-# Ensure if we see a 'foreign' overlayfs mount not created by bashutils
-# that we don't blow up trying to unmount it and instead make a best
-# effort to unmount it.
-ETEST_overlayfs_eunmount_foreign()
-{
-    etestmsg "Populating source directory"
-    efreshdir src
-    touch src/{file1,file2}
-    find src
-
-    etestmsg "Creating src.squashfs"
-    archive_create src.squashfs src/.
-    archive_list src.squashfs
-
-    etestmsg "Mounting src.squashfs at dest (manually with ${__BU_OVERLAYFS})"
-    argcheck __BU_OVERLAYFS
-    mkdir lowerdir upperdir workdir dest
-    archive_mount src.squashfs lowerdir
-
-    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 20 ) ]]; then
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir=lowerdir,upperdir=upperdir,workdir=workdir dest
-    elif [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir=lowerdir,upperdir=upperdir,workdir=workdir dest
-    else
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir=lowerdir,upperdir=upperdir dest
-    fi
-
-    # Unmount it through eunmount -- need to manually specify lowerdir here as well
-    # to avoid a mount leak since overlayfs_unmount won't have a clue where to find it.
-    eunmount --all --recursive --delete dest lowerdir
-    assert_not_exists dest/file1 dest/file2 dest
-}
-
 ETEST_overlayfs_modify()
 {
     local idx=0
