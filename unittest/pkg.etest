@@ -13,7 +13,7 @@ setup()
     PKG_INSTALLED=coreutils
 
     PKG_TO_INSTALL=hello
-    if os_distro gentoo fedora arch ; then
+    if os_distro gentoo ember fedora arch ; then
         PKG_TO_INSTALL=banner
     fi
 
@@ -63,7 +63,7 @@ ETEST_pkg_manager()
     assert_ne "unknown" "$(pkg_manager)"
 }
 
-if os_distro gentoo ; then
+if os_distro gentoo ember ; then
 
     ETEST_pkg_gentoo_find()
     {
