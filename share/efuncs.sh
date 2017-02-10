@@ -1906,6 +1906,35 @@ to_upper_snake_case()
         | perl -ne 'print uc(join("_", split(/(?=[A-Z])/)))'
 }
 
+opt_usage to_lower_snake_case <<'END'
+Convert a given input string into "lower snake case". This is generally most useful when converting
+a "CamelCase" string although it will work just as well on non-camel case input. Essentially it
+looks for all upper case letters and puts an underscore before it, then uppercase the entire input
+string.
+
+For example:
+
+    sliceDriveSize => slice_drive_size
+    slicedrivesize => slicedrivesize
+
+It has some special handling for some common corner cases where the normal camel case idiom isn't
+well followed. The best example for this is around units (e.g. MB, GB). Consider "sliceDriveSizeGB"
+where slice_drive_size_gb is preferable to slice_drive_size_g_b.
+
+The current list of translation corner cases this handles: KB, MB, GB, TB
+END
+to_lower_snake_case()
+{
+    $(opt_parse input)
+
+    echo "${input}"         \
+        | sed -e 's|KB|Kb|' \
+              -e 's|MB|Mb|' \
+              -e 's|GB|Gb|' \
+              -e 's|TB|Tb|' \
+        | perl -ne 'print lc(join("_", split(/(?=[A-Z])/)))'
+}
+
 string_trim()
 {
     local text=$*

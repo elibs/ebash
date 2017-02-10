@@ -21,3 +21,25 @@ ETEST_to_upper_snake_case_units_mixed()
     assert_eq "NODE_KB_FREE_WITH_MB_USED" $(to_upper_snake_case "nodeKBFreeWithMBUsed")
     assert_eq "KB_FREE_WITH_MB_USED_GB"   $(to_upper_snake_case "KBFreeWithMBUsedGB")
 }
+
+ETEST_to_lower_snake_case_units_end()
+{
+    assert_eq "node_kb" $(to_lower_snake_case "nodeKB")
+    assert_eq "node_mb" $(to_lower_snake_case "nodeMB")
+    assert_eq "node_gb" $(to_lower_snake_case "nodeGB")
+    assert_eq "node_tb" $(to_lower_snake_case "nodeTB")
+}
+
+ETEST_to_lower_snake_case_units_middle()
+{
+    assert_eq "node_kb_free" $(to_lower_snake_case "nodeKBFree")
+    assert_eq "node_mb_free" $(to_lower_snake_case "nodeMBFree")
+    assert_eq "node_gb_free" $(to_lower_snake_case "nodeGBFree")
+    assert_eq "node_tb_free" $(to_lower_snake_case "nodeTBFree")
+}
+
+ETEST_to_lower_snake_case_units_mixed()
+{
+    assert_eq "node_kb_free_with_mb_used" $(to_lower_snake_case "nodeKBFreeWithMBUsed")
+    assert_eq "kb_free_with_mb_used_gb"   $(to_lower_snake_case "KBFreeWithMBUsedGB")
+}
