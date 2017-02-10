@@ -70,7 +70,7 @@ END
 getipaddress()
 {
     $(opt_parse iface)
-    ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
+    ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global .*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
 opt_usage getnetmask <<'END'
@@ -81,7 +81,7 @@ END
 getnetmask()
 {
     $(opt_parse iface)
-    local cidr=$(ip addr show "${iface}" | awk '/inet [0-9.\/]+ .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
+    local cidr=$(ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global .*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
     cidr2netmask "${cidr}"
@@ -132,7 +132,7 @@ END
 getbroadcast()
 {
     $(opt_parse iface)
-    ip addr show "${iface}" | awk '/inet [0-9.\/]+ brd .*'${iface}'$/ { print $4 }' || true
+    ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ brd .* scope global .*'${iface}'$/ { print $4 }' || true
 }
 
 # Gets the default gateway that is currently in use, if any. It is not an
@@ -140,7 +140,8 @@ getbroadcast()
 # empty string.
 getgateway()
 {
-    route -n | awk '/UG[ \t]/ { print $2 }' || true
+    $(opt_parse iface)
+    route -n | awk '/UG[ \t].*${iface}$/ { print $2 }' || true
 }
 
 opt_usage getsubnet <<'END'
@@ -164,7 +165,7 @@ opt_usage getmt "Get the MTU that is currently set on a given interface."
 getmtu()
 {
     $(opt_parse iface)
-    ip addr show "${iface}" | grep -Po 'mtu \K[\d.]+'
+    ip addr show "${iface}" 2>/dev/null | grep -Po 'mtu \K[\d.]+' || true
 }
 
 # Get list of network interfaces
