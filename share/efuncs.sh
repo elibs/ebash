@@ -1909,7 +1909,7 @@ to_upper_snake_case()
 opt_usage to_lower_snake_case <<'END'
 Convert a given input string into "lower snake case". This is generally most useful when converting
 a "CamelCase" string although it will work just as well on non-camel case input. Essentially it
-looks for all upper case letters and puts an underscore before it, then uppercase the entire input
+looks for all upper case letters and puts an underscore before it, then lowercase the entire input
 string.
 
 For example:
