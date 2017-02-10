@@ -175,6 +175,8 @@ conf_set()
         ":file f    | Config file that should be modified.  Required." \
         "+pretend p | Don't actually modify the file.  Just print what it would end up containing." \
         "+unset u   | Remove the property and value from the configuration file." \
+        "+compact c | Use a more compact format for properties. Without this option enabled, it emits 'key = value'
+                      but with this option it emits a more compact 'key=value'." \
         "property   | The config property to set in the form 'section.key'.  If no section is specified,
                       default is assumed.  Note that it is fine for the property name to contain
                       additional periods.  The first separates section from key, but the rest are
@@ -193,6 +195,11 @@ conf_set()
     if [[ ${property} == *.* ]] ; then
         section=${key%%.*}
         key=${key#*.}
+    fi
+
+    local pad=" "
+    if [[ ${compact} -eq 1 ]]; then
+        pad=""
     fi
 
     while read line ; do
@@ -217,7 +224,7 @@ conf_set()
 
             # Before leaving a section, see if we need to write the new value to this section
             if [[ ${section} == ${current_section} ]] ; then
-                output+="${key}=${value}"$'\n'
+                output+="${key}${pad}=${pad}${value}"$'\n'
                 done=1
             fi
 
@@ -232,7 +239,7 @@ conf_set()
             if [[ ${section} == ${current_section} && ${this_key} == ${key} ]] ; then
 
                 if [[ ${unset} -eq 0 ]] ; then
-                    output+="${key} = ${value}"$'\n'
+                    output+="${key}${pad}=${pad}${value}"$'\n'
                 fi
                 done=1
 
@@ -250,9 +257,14 @@ conf_set()
     if [[ ${done} -eq 0 && ${unset} != 1 ]] ; then
 
         if [[ ${section} != ${current_section} ]] ; then
-            output+=$'\n'"[${section}]"$'\n'
+            local prefix=""
+            if [[ ${line_count} -gt 0 ]]; then
+                prefix=$'\n'
+            fi
+
+            output+="${prefix}[${section}]"$'\n'
         fi
-        output+="${key} = ${value}"$'\n'
+        output+="${key}${pad}=${pad}${value}"$'\n'
     fi
 
     if (( pretend == 0 )) ; then
