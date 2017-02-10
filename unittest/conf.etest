@@ -172,6 +172,12 @@ END
     grep -q COMMENT1 file
     grep -q COMMENT2 file
     grep -q COMMENT3 file
+
+    etestmsg "Setting compact value"
+    conf_set --file file --compact section_z.b 42
+    cat file
+    grep -q "[section_z]"$'\n'"a = 7" file
+    grep -q "[section_z]"$'\n'"b=42"  file
 }
 
 ETEST_conf_empty_file()
@@ -181,13 +187,12 @@ ETEST_conf_empty_file()
     etestmsg "Reading an empty file"
     declare -A CONF
     conf_read CONF file
-
-    #declare -p CONF
     assert_eq "0" $(array_size CONF)
 
     etestmsg "Setting value in an empty file."
     conf_set --file file a.b 1
-    cat file
+    local contents="$(cat file)"
+    assert_eq "[a]"$'\n'"b = 1" "${contents}"
 
     conf_read CONF file
     assert_eq "1" $(array_size CONF)
