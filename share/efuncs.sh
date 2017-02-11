@@ -1155,7 +1155,7 @@ emetadata()
     local gpg_version=$(gpg --version | awk 'NR==1{print $NF}')
     if compare_version "${gpg_version}" ">=" "2.1"; then
         local agent_command="gpg-agent --homedir ${gpg_home} --daemon --allow-loopback-pinentry"
-        ${agent_command}
+        ${agent_command} |& edebug
         trap_add "pkill -f \"${agent_command}\""
     fi
 
