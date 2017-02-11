@@ -184,6 +184,17 @@ ETEST_array_contains()
     assert_false array_contains arr "e"
 }
 
+ETEST_array_contains_empty()
+{
+    array_init arr "a b c d"
+    declare -p arr
+    assert_false array_contains arr
+
+    array_init arr ""
+    declare -p arr
+    assert_false array_contains arr ""
+}
+
 ETEST_array_add()
 {
     array_init arr "a b c d"

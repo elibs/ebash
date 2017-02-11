@@ -183,8 +183,8 @@ END
 array_contains()
 {
     $(opt_parse \
-        "__array | Name of the array to search." \
-        "__value | Value to seek in that array.")
+        "__array  | Name of the array to search." \
+        "?__value | Value to seek in that array.")
 
     local idx=0
     for idx in $(array_indexes ${__array}); do
