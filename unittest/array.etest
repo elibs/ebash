@@ -190,7 +190,7 @@ ETEST_array_contains_empty()
     declare -p arr
     assert_false array_contains arr
 
-    array_init arr ""
+    array_init arr
     declare -p arr
     assert_false array_contains arr ""
 }
