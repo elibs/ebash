@@ -141,7 +141,7 @@ getbroadcast()
 getgateway()
 {
     $(opt_parse iface)
-    route -n | awk '/UG[ \t].*${iface}$/ { print $2 }' || true
+    route -n | awk "/UG[ \t].*'${iface}'$/ { print $2 }" || true
 }
 
 opt_usage getsubnet <<'END'
