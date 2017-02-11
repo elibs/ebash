@@ -70,7 +70,7 @@ END
 getipaddress()
 {
     $(opt_parse iface)
-    ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global dynamic '${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
+    ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global (dynamic )*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
 opt_usage getnetmask <<'END'
@@ -81,7 +81,7 @@ END
 getnetmask()
 {
     $(opt_parse iface)
-    local cidr=$(ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global dynamic '${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
+    local cidr=$(ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global (dynamic )*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
     cidr2netmask "${cidr}"
@@ -132,7 +132,7 @@ END
 getbroadcast()
 {
     $(opt_parse iface)
-    ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ brd .* scope global dynamic '${iface}'$/ { print $4 }' || true
+    ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ brd .* scope global (dynamic )*'${iface}'$/ { print $4 }' || true
 }
 
 # Gets the default gateway that is currently in use, if any. It is not an
