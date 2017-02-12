@@ -1154,8 +1154,8 @@ emetadata()
     # If using GPG 2.1 or higher, start our own gpg-agent. Otherwise, GPG will start one and leave it running.
     local gpg_version=$(gpg --version | awk 'NR==1{print $NF}')
     if compare_version "${gpg_version}" ">=" "2.1"; then
-        local agent_command="gpg-agent --homedir ${gpg_home} --daemon --allow-loopback-pinentry"
-        ${agent_command} |& edebug
+        local agent_command="gpg-agent --homedir ${gpg_home} --quiet --daemon --allow-loopback-pinentry"
+        ${agent_command}
         trap_add "pkill -f \"${agent_command}\""
     fi
 
