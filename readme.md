@@ -727,7 +727,7 @@ leeway), the test will fail.  For example:
       PID  STARTED NLWP  NI COMMAND
     24783 11:49:05    1   0 sleep 15
        :: etest:122            | assert_no_process_leaks
-       :: etest:275            | run_all_tests_in_file
+       :: etest:275            | run_etest_file
        :: etest:313            | main
 
 If you are having trouble with leaky processes, you should probably look into

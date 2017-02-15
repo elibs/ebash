@@ -4,11 +4,10 @@
 
 source ${BASHUTILS_HOME}/unittest/daemon_expect.sh
 
-# Global settings
-CHROOT=${TEST_DIR_OUTPUT}/chroot
-
-file_setup()
+setup()
 {
+    CHROOT=${TEST_DIR_OUTPUT}/chroot
+
     einfo "Making chroot in ${CHROOT}"
     efreshdir ${CHROOT}
     etestmsg "Cleaned ${CHROOT}"
@@ -16,7 +15,7 @@ file_setup()
     etestmsg "Finished creating ${CHROOT}"
 }
 
-file_teardown()
+teardown()
 {
     chroot_kill
 

@@ -83,7 +83,7 @@ if [[ ${name} == "bashutils" ]] ; then
     fi
 
     if [[ ${source} -eq 1 ]] ; then
-        echo "eval export BASHUTILS=${BASHUTILS} ; source \"${BASHUTILS}/bashutils.sh\" || { echo \"Unable to source ${BASHUTILS}/bashtuils.sh\" ; exit 1 ; }"
+        echo "eval export BASHUTILS=${BASHUTILS} BASHUTILS_HOME=${BASHUTILS_HOME} ; source \"${BASHUTILS}/bashutils.sh\" || { echo \"Unable to source ${BASHUTILS}/bashtuils.sh\" ; exit 1 ; }"
         exit 0
     elif [[ ${print_environment} -eq 1 ]] ; then
         printf "export BASHUTILS=%q\n" "${BASHUTILS}"

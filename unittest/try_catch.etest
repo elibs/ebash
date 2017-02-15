@@ -165,6 +165,7 @@ ERR_TRAP_NONE="-"
 
 assert_stack_eq()
 {
+    einfo "Asserting stack is $* -- $(lval __BU_DIE_ON_ERROR_TRAP_STACK)"
     assert_eq $# $(array_size __BU_DIE_ON_ERROR_TRAP_STACK)
 
     local frame=0
@@ -180,7 +181,7 @@ assert_stack_eq()
 
 ETEST_try_catch_stack()
 {
-    assert_stack_eq DIE CATCH
+    assert_stack_eq DIE
 
     # Add some more try-catches with various enable/disable
     err_trap_exists || die "ERR trap should be enabled"
@@ -247,11 +248,11 @@ ETEST_try_catch_stack()
     }
     catch
     { 
-        assert_stack_eq DIE CATCH
+        assert_stack_eq DIE
     }
             
     ! err_trap_exists || die "ERR trap should be disabled"
-    assert_stack_eq DIE CATCH
+    assert_stack_eq DIE
 }
 
 etest_deep_error_2()

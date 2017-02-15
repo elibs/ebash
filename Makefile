@@ -1,4 +1,4 @@
-.PHONY: ctags clean
+.PHONY: ctags clean clobber
 
 ctags: unittest/*.sh unittest/*.etest share/*.sh bin/*
 	ctags -f .tags . $^
@@ -6,3 +6,5 @@ ctags: unittest/*.sh unittest/*.etest share/*.sh bin/*
 clean:
 	git clean -fX
 	bin/bashutils rm -fr --one-file-system .forge/work
+
+clobber: clean

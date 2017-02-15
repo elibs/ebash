@@ -730,6 +730,20 @@ nodie_on_abort()
 
 reexec()
 {
+    # If opt_parse has already been called in the main script, we want to preserve the options that it removed from $@
+    # as it worked. Luckily, it saves those off and we can read them from __BU_FULL_ARGS.
+    #
+    # Determining if __BU_FULL_ARGS contains anything is difficult for a couple reasons.  One is that we want to be
+    # compatible with bash 4.2, 4.3, and 4.4 and each behaves differently with respect to emtpy arrays and set -u.  See
+    # array_size in array.sh for more info on that.  We'd normally use array_size, but it calls opt_parse which
+    # helpfullly overwrites __BU_FULL_ARGS for us. Here, we sidestep the issue by presuming that opt_parse will have
+    # done nothing to $@ unless it contains at least one characters, so we'll only do anything if __BU_FULL_ARGS
+    # contains at least one character in any one slot in the array.
+    #
+    if [[ -n "${__BU_FULL_ARGS[*]:-}" ]] ; then
+        __BU_REEXEC_CMD=( "${__BU_REEXEC_CMD[0]}" "${__BU_FULL_ARGS[@]}" )
+    fi
+
     $(opt_parse \
         "+sudo     | Ensure this process is root, and use sudo to become root if not." \
         "+mount_ns | Create a new mount namespace to run in.")
@@ -2018,6 +2032,15 @@ is_associative_array()
 is_pack()
 {
     [[ "${1:0:1}" == '%' ]]
+}
+
+is_function()
+{
+    if [[ $# != 1 ]] ; then
+        die "is_function takes only a single argument but was passed $@"
+    fi
+
+    declare -F "$1" &>/dev/null
 }
 
 discard_qualifiers()

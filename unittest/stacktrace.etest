@@ -9,7 +9,7 @@ ETEST_stacktrace()
     assert_eq 4 $(array_size stack)
     assert_eq "ETEST_stacktrace"       "$(echo "${stack[0]}" | awk '{print $2}')"
     assert_eq "run_single_test"        "$(echo "${stack[1]}" | awk '{print $2}')"
-    assert_eq "run_all_tests_in_file"  "$(echo "${stack[2]}" | awk '{print $2}')"
+    assert_eq "run_etest_file"         "$(echo "${stack[2]}" | awk '{print $2}')"
     assert_eq "main"                   "$(echo "${stack[3]}" | awk '{print $2}')"
 }
 
@@ -34,7 +34,7 @@ ETEST_stacktrace_array()
     assert_eq 4 $(array_size stack)
     assert_eq "ETEST_stacktrace_array" "$(echo "${stack[0]}" | awk '{print $2}')"
     assert_eq "run_single_test"        "$(echo "${stack[1]}" | awk '{print $2}')"
-    assert_eq "run_all_tests_in_file"  "$(echo "${stack[2]}" | awk '{print $2}')"
+    assert_eq "run_etest_file"         "$(echo "${stack[2]}" | awk '{print $2}')"
     assert_eq "main"                   "$(echo "${stack[3]}" | awk '{print $2}')"
 }
 
@@ -49,6 +49,6 @@ ETEST_stacktrace_error()
     assert_eq ">> Boo"                 "$(echo "${stack[0]}")"
     assert_eq "ETEST_stacktrace_error" "$(echo "${stack[1]}" | awk '{print $4}')"
     assert_eq "run_single_test"        "$(echo "${stack[2]}" | awk '{print $4}')"
-    assert_eq "run_all_tests_in_file"  "$(echo "${stack[3]}" | awk '{print $4}')"
+    assert_eq "run_etest_file"         "$(echo "${stack[3]}" | awk '{print $4}')"
     assert_eq "main"                   "$(echo "${stack[4]}" | awk '{print $4}')"
 }

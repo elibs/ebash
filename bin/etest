@@ -8,7 +8,7 @@ source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 
 export BASHUTILS
 
 if [[ ${__BU_OS} == "Linux" ]] ; then
-    reexec --sudo --mount-ns
+    reexec --sudo
 fi
 
 # Normalize BASHUTILS path in case any tests depend on it looking... normal.
@@ -31,6 +31,7 @@ $(opt_parse \
     "+delete  d=1              | Delete all output files when tests complete." \
     "+clean   c=0              | Clean only and then exit." \
     "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
+    "+mount_ns=1               | Run tests inside a mount namespace." \
     ":log_dir                  | Directory to place logs in.  Defaults to the current directory." \
     ":work_dir                 | Temporary location where etest can place temporary files.  This location will be both
                                  created and deleted by etest." \
@@ -45,13 +46,20 @@ $(opt_parse \
                                  which case etest will recursively find executables and .etest files and treat them in
                                  similar fashion.")
 
+if [[ ${mount_ns} -eq 1 ]] && os linux; then
+    reexec --mount-ns
+fi
+
 declare -A _BU_CONF
-conf_read _BU_CONF .bashutils
+if [[ -r .bashutils ]] ; then
+    conf_read _BU_CONF .bashutils
+fi
 
 START_TIME=$SECONDS
 
 # Default log directory from conf file if unspecified on the command line
 : ${log_dir:=$(conf_get _BU_CONF etest.log_dir)}
+: ${log_dir:=.}
 log_dir=$(readlink -f ${log_dir})
 
 # Default set of tests from conf file if unspecified on the command line
@@ -61,8 +69,14 @@ fi
 
 if array_not_empty test_list ; then
     # Read non-comment lines from test_list and treat them as if they were passed as arguments to this script
+    edebug "Grabbing test list from $(lval test_list)"
     array_init_nl tests_from_list "$(grep -vP '^\s*(#.*)$' "${test_list[@]}")"
-    tests+=( "${tests_from_list[@]}" )
+    if array_not_empty tests_from_list ; then
+        edebug "Found $(lval test_list tests_from_list)"
+        tests+=( "${tests_from_list[@]}" )
+    else
+        edebug "Found no tests in $(lval test_list)"
+    fi
 fi
 
 # Default working directory from conf file if unspecified, or ./output if not in either place
@@ -197,12 +211,8 @@ global_setup()
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
-    efreshdir ${work_dir}
+    efreshdir "${work_dir}"
 
-    # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
-    export TMPDIR=$(readlink -m ${work_dir}/tmp)
-    mkdir "${TMPDIR}"
- 
     if cgroup_supported ; then
         # And a cgroup that will contain all output
         cgroup_create ${ETEST_CGROUP}
@@ -238,17 +248,34 @@ global_teardown()
 
 run_single_test()
 {
-    local testfile=$1
-    local testfunc=$2
-    local testfilename=$(basename ${testfile})
+    $(opt_parse \
+        ":work_dir | Temporary directory that the test should use as its current working directory." \
+        ":source   | Name file to be sourced in the shell that will run the test.  Most useful if the test is a function
+                     inside that file." \
+        "testname  | Command to execute to run the test")
+
     local rc=0
 
-    source ${testfile}
-    declare -f ${testfunc} &>/dev/null || return 0
+    # If the test name or optional source name doesn't match a specified FILTER, we're done
+    if ! [[ -z ${filter} || ${testname} =~ ${filter} || ( -n ${source} && ${source} =~ ${filter} ) ]] ; then
+        return 0
+    fi
 
-    ebanner "${testfunc}" REPEAT=REPEAT_STRING
+    # If the test name does match a specified EXCLUDE, we're done
+    if [[ -n ${exclude} && ${testname} =~ ${exclude} ]] ; then
+        return 0
+    fi
+
+    local display_testname=${testname}
+    if [[ -n ${source} ]] ; then
+        display_testname="${source}:${testname}"
+    fi
+
+    ebanner "${display_testname}" REPEAT=REPEAT_STRING
  
-    einfos ${testfunc} &>${ETEST_OUT}
+    einfos ${display_testname} &>${ETEST_OUT}
+
+    (( TEST_EXECUTED_COUNT += 1 ))
    
     # We want to make sure that any traps from the tests
     # execute _before_ we run teardown, and also we don't
@@ -256,14 +283,20 @@ run_single_test()
     # cgroup.  This subshell solves both issues.
     try
     {
+        export BASHUTILS BASHUTILS_HOME TEST_DIR_OUTPUT=${work_dir}
+        if [[ -n ${source} ]] ; then
+            source "${source}"
+        fi
+
         # Pretend that the test _not_ executing inside a try/catch so that the
         # error stack will get printed if part of the test fails, as if etest
         # weren't running it inside a try/catch
         __BU_INSIDE_TRY=0
 
-        # Create a specific TMPDIR so that all calls to mktemp are under the test specific directory
-        export TMPDIR=$(readlink -m ${work_dir}/${testfilename}/${testfunc}/tmp)
-        efreshdir ${TMPDIR}
+        # Create our temporary workspace in the directory specified by the caller
+        efreshdir "${work_dir}"
+        mkdir "${work_dir}/tmp"
+        export TMPDIR="$(readlink -m ${work_dir}/tmp)"
  
         if cgroup_supported ; then
             cgroup_create ${ETEST_CGROUP}
@@ -271,20 +304,31 @@ run_single_test()
         fi
 
         # Unit test provided setup
-        if declare -f setup &>/dev/null ; then
-            etestmsg "Calling test_setup"
+        if is_function setup ; then
+            etestmsg "Calling setup"
             setup
         fi
+
+        local command="${testname}"
+        if ! is_function "${testname}" ; then
+            command=$(readlink -f "${testname}")
+        fi
         
-        cd ${work_dir}/${testfilename}/${testfunc}
+        cd "${work_dir}"
 
         etestmsg "Calling test"
-        ${testfunc}
+        "${command}"
+
+        if is_function teardown ; then
+            etestmsg "Calling teardown"
+            teardown
+        fi
     }
     catch
     {
         rc=$?
     }
+    edebug "Finished $(lval testname display_testname rc)"
 
     local process_leak_rc=0
     if cgroup_supported ; then
@@ -292,18 +336,27 @@ run_single_test()
     fi
 
     local mount_leak_rc=0
-    $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${work_dir}/${testfilename}/${testfunc}")
+    $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${work_dir}")
 
     if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 && ${mount_leak_rc} -eq 0 ]]; then
-        einfo "$(ecolor green)${testfunc} PASSED."
+        einfo "$(ecolor green)${display_testname} PASSED."
+
     elif [[ ${rc} -eq 0 && ${process_leak_rc} -ne 0 ]] ; then
-        eerror "${testfunc} FAILED due to process leak."
+        eerror "${display_testname} FAILED due to process leak."
+        (( TEST_FAILED_COUNT += 1 ))
+        FAILURES+=( "${display_testname}" )
         rc=1
+
     elif [[ ${rc} -eq 0 && ${mount_leak_rc} -ne 0 ]] ; then
-        eerror "${testfunc} FAILED due to mount leak."
+        eerror "${display_testname} FAILED due to mount leak."
+        (( TEST_FAILED_COUNT += 1 ))
+        FAILURES+=( "${display_testname}" )
         rc=1
+
     else
-        eerror "${testfunc} FAILED."
+        eerror "${display_testname} FAILED."
+        (( TEST_FAILED_COUNT += 1 ))
+        FAILURES+=( "${display_testname}" )
     fi
 
     eend ${rc} &>${ETEST_OUT}
@@ -314,76 +367,46 @@ run_single_test()
         $(tryrc -r=teardown_rc teardown)
     fi
 
-    return ${rc}
+    # NOTE: Don't return rc here.  We've already set things up so etest knows if there was a failure.
 }
 
-run_all_tests_in_file()
+run_etest_file()
 {
-    local testfile=$1
+    $(opt_parse testfile)
     local testfilename=$(basename ${testfile})
 
-    # Skip files that don't contain any tests
-    grep -q "^ETEST_" ${testfile} >/dev/null || return 0
-
-    # Skip files whose name matches the exclude filter
-    [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] && return 0
-
-    # Get all function names that begin with ETEST_ (and optionally match $2)
-    if [[ -z ${filter} || ${testfile} =~ ${filter} ]]; then
-        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" {print $3}' || true) )
-    else
-        ETEST_FUNCTIONS=( $(source ${testfile}; declare -F | awk '$3 ~ "^ETEST" && $3 ~ "'${filter}'" {print $3}' || true) )
+    # If the test file name does match a specified exclude, we're done
+    if [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] ; then
+        return 0
     fi
+
+    # Get all function names that begin with ETEST_
     edebug $(lval testfile ETEST_FUNCTIONS)
+    ETEST_FUNCTIONS=( $(source "${testfile}" ; declare -F | awk '$3 ~ "^ETEST" {print $3}' || true) )
 
-    [[ ${#ETEST_FUNCTIONS[@]} -gt 0 ]] || return 0
-
-    # Exclude those functions that match the exclude filter
-    if [[ -n ${exclude} ]] ; then
-        for index in "${!ETEST_FUNCTIONS[@]}" ; do
-            if [[ ${ETEST_FUNCTIONS[$index]} =~ ${exclude} ]] ; then
-                unset ETEST_FUNCTIONS[$index]
-            fi
-        done
+    if [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] ; then
+        ewarn "No tests found in $(lval testfile)"
+        return 0
     fi
 
-    einfo "Running tests in ${testfile} ${REPEAT_STRING}" &>${ETEST_OUT}
-    local file_start=${SECONDS}
+    local testfunc
+    for testfunc in ${ETEST_FUNCTIONS[@]} ; do
 
-    for testfunc in file_setup ${ETEST_FUNCTIONS[@]} file_teardown; do
-     
-        # Unit test infrastructure setup
-        efreshdir ${work_dir}/${testfilename}/${testfunc}
-     
-        local test_rc=0
-        try
-        {
-            # Pretend that the test _not_ executing inside a try/catch so that
-            # the error stack will get printed if part of the test fails, as if
-            # etest weren't running it inside a try/catch
-            __EFUNCS_INSIDE_TRY=0
+        local test_work_dir="${work_dir}/${testfilename}/${testfunc}"
+        run_single_test --work-dir "${test_work_dir}" --source "${testfile}" "${testfunc}"
 
-            ( run_single_test ${testfile} ${testfunc} )
-        }
-        catch
-        {
-            test_rc=$?
-            [[ ${break} -eq 0 ]] || die "${testfunc} failed and break=1" &>${ETEST_OUT}
-            FAILURES[${testfilename}]+="${testfunc} "
-            (( TEST_FAILED_COUNT += 1 ))
-        }
-        [[ ${testfunc} != file_setup && ${testfunc} != file_teardown ]] && (( TEST_EXECUTED_COUNT += 1 ))
+        if [[ ${break} -eq 1 && TEST_FAILED_COUNT -gt 0 ]] ; then
+            die "${testfunc} failed and break=1" &>${ETEST_OUT}
+        fi
 
     done
-
-    einfos "Finished $(basename ${testfile}) in $(( SECONDS - file_start )) seconds.  ${REPEAT_STRING}" &>${ETEST_OUT}
 }
 
 #-------------------------------------------------------------------------------------------------------------------------
 # GLOBAL SETUP
 #-------------------------------------------------------------------------------------------------------------------------
 
-declare -A FAILURES
+declare -ag FAILURES
 global_setup
 trap_add global_teardown
 
@@ -397,37 +420,20 @@ trap_add global_teardown
 TEST_EXECUTED_COUNT=0
 TEST_FAILED_COUNT=0
 
+
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
     [[ ${repeat} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${repeat})" || REPEAT_STRING=""
 
     for test_location in "${tests[@]}" ; do
 
-        TEST_DIR_OUTPUT=${work_dir}
-
         # Run all standalone *.etest scripts directly outside of etest framework
-        einfo "Running standalone tests ${REPEAT_STRING}" &>${ETEST_OUT}
-        (
-            # Give the standalone tests access to relevant variables
-            export BASHUTILS BASHUTILS_HOME TEST_DIR_OUTPUT
-
-                for filename in $(find "${test_location}" -type f -name "*.etest" -executable | sort || true); do
-
-                    base=$(basename "${filename}" .etest)
-
-                    if [[ ( -z ${filter} || ${filter} =~ ${base} ) && ! ${exclude} =~ ${base} ]] ; then
-                        MSG="Running standalone $(lval script=filename)"
-                        einfos "${base%%.etest}" &>${ETEST_OUT}
-                        ebanner "${MSG}"
-                        ${filename}
-                        eend &>${ETEST_OUT}
-                    fi
-
-                done
-        )
+        for filename in $(find "${test_location}" -type f -executable | sort || true); do
+            run_single_test --work-dir "${work_dir}/standalone" "${filename}"
+        done
 
         # Run *.etest files which are not executable and need to be sourced and run inside etest
-        for filename in $(find "${test_location}" -type f -name "*.etest" ! -executable | sort || true); do
-            run_all_tests_in_file ${filename}
+        for filename in $(find "${test_location}" -type f -name "*.etest" | sort || true); do
+            run_etest_file "${filename}"
         done
 
     done
@@ -442,7 +448,7 @@ fi
 
 {
     echo
-    message="Finished testing ${changeset_info}."
+    message="Finished testing${changeset_info}."
     message+=" $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT))/${TEST_EXECUTED_COUNT} tests passed"
     message+=" in $(( SECONDS - START_TIME )) seconds."
 
@@ -455,12 +461,10 @@ fi
 
     if array_not_empty FAILURES; then
         eerror "FAILED TESTS:"
-        for index in ${!FAILURES[@]} ; do
-            for failed_test in ${FAILURES[$index]} ; do
-                echo "$(ecolor "red")      ${failed_test}" >&2
-            done
+        for failed_test in "${FAILURES[@]}" ; do
+            echo "$(ecolor "red")      ${failed_test}" >&2
         done
-	ecolor off >&2
+        ecolor off >&2
     fi
 } |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
 
