@@ -1409,10 +1409,16 @@ efetch_internal()
     $(opt_parse url dst)
     local timecond=""
     [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
-
+    
     eprogress "Fetching $(lval url dst)"
-    $(tryrc curl "${url}" ${timecond} --create-dirs --output "${dst}" --location --fail --silent --show-error --insecure)
+    $(tryrc curl "${url}" ${timecond} --create-dirs --output "${dst}.pending" --location --fail --silent --show-error --insecure)
     eprogress_kill -r=${rc}
+    if [[ ${rc} -eq 0 ]]; then
+        mv "${dst}.pending" "${dst}"
+    elif [[ -e "${dst}.pending" ]]; then
+	rm "${dst}.pending"
+    fi
+
 
     # If curl succeeded, but the file wasn't created, then the remote file was an empty file. This was a bug in older
     # versions of curl that was fixed in newer versions. To make the old curl match the new curl behavior, simply

@@ -105,3 +105,24 @@ ETEST_efetch_missing_dir()
     assert_exists "dest/sub1/sub2/file1.txt"
     assert_directory_contents "dest" "sub1" "sub1/sub2" "sub1/sub2/file1.txt"
 }
+
+ETEST_efetch_fail_curl()
+{
+    # Try to fetch file and force failure to verify the destination file does not exist
+    curl()
+    {
+        # Grab the destination parameter from the curl command in efetch
+	local dst=$(echo $* | grep -Po -- '--output \K\S+')
+	touch "${dst}"
+	return 1
+    }
+
+    try {
+        efetch "http://test" output.txt
+        die "We should have caught an exception here"
+    }
+    catch {
+        assert_not_exists output.txt
+	assert_not_exists output.txt.pending
+    }
+}
