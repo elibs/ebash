@@ -112,9 +112,7 @@ ETEST_efetch_fail_curl()
     curl()
     {
         # Grab the destination parameter from the curl command in efetch
-	params=("$@")
-        local dst=${params[3]}
-
+	local dst=$(echo $* | grep -Po -- '--output \K\S+')
 	touch "${dst}"
 	return 1
     }
@@ -125,5 +123,6 @@ ETEST_efetch_fail_curl()
     }
     catch {
         assert_not_exists output.txt
+	assert_not_exists output.txt.pending
     }
 }

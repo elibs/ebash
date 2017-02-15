@@ -1401,6 +1401,8 @@ efetch_internal()
     eprogress_kill -r=${rc}
     if [[ ${rc} -eq 0 ]]; then
         mv "${dst}.pending" "${dst}"
+    elif [[ -e "${dst}.pending" ]]; then
+	rm "${dst}.pending"
     fi
 
 
