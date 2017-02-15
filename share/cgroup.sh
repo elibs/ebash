@@ -43,6 +43,11 @@ cgroup_supported()
         return 1
     fi
 
+    if grep -q docker /proc/1/cgroup ; then
+        edebug "Bashutils cgroup functions don't work under docker."
+        return 1
+    fi
+
     local subsystem missing_count=0
     for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
         if ! grep -qw "^${subsystem}" /proc/cgroups ; then

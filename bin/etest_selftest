@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+
+# Source bashutils from the same directory as this script
+$( $(dirname $0)/bashutils --source )
+
+# All of the asserts below depend on etest having been run by this function, which sets up the values of ETEST_OUTPUT,
+# ETEST_LOG, and ETEST_RC.
+#
+declare ETEST_OUTPUT="" ETEST_LOG="" ETEST_RC=255
+run_etest()
+{
+    $(opt_parse ":desc d | Optional human-readable description for this set of tests .")
+    if [[ -n ${desc} ]] ; then
+        ebanner "${desc}"
+    else
+        ebanner "Running etest $*"
+    fi
+
+    local rc=0
+    EDEBUG="" ${ETEST} "${@}" |& tee log.log && rc=0 || rc=1
+    ETEST_OUTPUT=$(< log.log)
+    ETEST_LOG=$(< etest.log)
+    ETEST_RC=${rc}
+
+    rm -f log.log
+    rm -f etest.log
+}
+
+# Accepts a list of test names and asserts that everything matches the fact that that test should have failed.  Requires
+# that you run etest via run_etest.
+#
+# WARNING: Won't deal well when facing two or more tests where the name of one test is simply an
+# addition of characters to the end of the other test name.  Just don't do that in the tests or fix these asserts
+assert_test_fail()
+{
+    local this_test 
+    for this_test in "${@}" ; do
+
+        # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
+        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # assert call, so ignore them for the initial grab
+        output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
+        assert_match "${output_state}" "${this_test}"
+        assert_match "${output_state}" " !! "
+
+        # Make sure the test was listed as passed in the log, too
+        assert_match "${ETEST_LOG}" "${this_test} FAILED"
+
+        # And make sure it's not in either of the lists of failed tests
+        assert_not_match "${ETEST_OUTPUT}" "FAILED TESTS:.*${this_test}"
+        assert_not_match "${ETEST_LOG}" "FAILED TESTS:.*${this_test}"
+
+    done
+}
+
+# Accepts a list of test names and asserts that everything matches the fact that that test should have failed.  Requires
+# that you run etest via run_etest.
+#
+# WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
+# to the end of the other test name.  Just don't do that in the tests or fix these asserts
+assert_test_pass()
+{
+    local this_test 
+    for this_test in "${@}" ; do
+
+        # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
+        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # assert call, so ignore them for the initial grab
+        output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
+        echo "${output_state}" | grep -q "ok" || true
+        assert_match "${output_state}" "${this_test}"
+        assert_match "${output_state}" " ok "
+
+        # Make sure the test was listed as passed in the log, too
+        assert_match "${ETEST_LOG}" "${this_test} PASSED"
+
+        # And make sure it's not in either of the lists of failed tests
+        assert_not_match "${ETEST_OUTPUT}" "FAILED TESTS:.*${this_test}"
+        assert_not_match "${ETEST_LOG}" "FAILED TESTS:.*${this_test}"
+
+    done
+}
+
+# Verifies that output and log looks correct for a specified number of tests attempted and passed.  For instance, if you
+# call assert_test_count 2 2, that should mean that 2 tests were run and both passed.
+#
+# You must call etest by the run_etest function to use this assert.
+#
+assert_test_count()
+{
+    $(opt_parse pass total)
+    assert_match "${ETEST_OUTPUT}" "${pass}/${total} tests passed"
+    assert_match "${ETEST_LOG}"    "${pass}/${total} tests passed"
+
+    if [[ pass -lt total ]] ; then
+        assert_not_zero "${ETEST_RC}"
+    else
+        assert_zero "${ETEST_RC}"
+    fi
+}
+
+
+ETEST=${BASHUTILS_HOME}/bin/etest
+
+[[ -x ${ETEST} ]] || die "Unable to find etest $(lval ETEST BASHUTILS BASHUTILS_HOME)"
+
+cd ${BASHUTILS_HOME}/etest_selftest
+
+run_etest --desc "Just passing standalone tests" -- plain_script sources_bashutils noisy
+assert_test_count 3 3
+assert_test_pass plain_script sources_bashutils noisy
+assert_not_match "${ETEST_OUTPUT}" "!!"
+assert_match "${ETEST_LOG}" VERY_NOISY_STDOUT
+assert_match "${ETEST_LOG}" VERY_NOISY_STDERR
+
+
+run_etest --desc "Passing and failing standalone tests" -- fail_standalone plain_script sources_bashutils noisy
+assert_test_count 3 4
+assert_test_pass plain_script sources_bashutils noisy
+assert_test_fail fail_standalone
+
+
+run_etest --desc "Passing and failing etests" -- pass_many.etest fail_many.etest
+assert_test_count 7 14
+assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
+assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+
+
+run_etest --desc "Filter to get just the passing etests" -- --filter "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
+assert_test_count 7 7
+assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
+
+
+run_etest --desc "Exclude and get just the failing etests" -- --exclude "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
+assert_test_count 0 7
+assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+
+
+ebanner "Etest passed all self tests."

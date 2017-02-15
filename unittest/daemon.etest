@@ -265,6 +265,24 @@ ETEST_daemon_netns()
     etestmsg "Creating network in namespace"
     netns_setup_connected_network testns_args
 
+cat << 'END' > netns_runner
+#!/bin/bash
+
+$(${BASHUTILS_HOME}/bin/bashutils --source)
+
+nic=${1:-eth0}
+
+if [[ ! -e /sys/class/net/${nic} ]] ; then
+    echo "$(basename $0): ERROR: ${nic} doesn't exist"
+    echo "Valid nics: $(ls -m /sys/class/net)"
+    exit 1
+else
+    sleep infinity
+fi
+END
+    chmod +x netns_runner
+
+
     # This script is run from the directory output/daemon.sh/ETEST_daemon.sh/, 
     # which is a transient directory that only exists during the test run and
     # is cleaned up immediately after.  Regardless, that is why the cmdline
@@ -273,7 +291,7 @@ ETEST_daemon_netns()
     daemon_init sleep_daemon                                        \
         "${DAEMON_EXPECT[@]}"                                       \
         name="Netns test daemon"                                    \
-        cmdline="../../../unittest/netns_runner.sh ${peer_devname}" \
+        cmdline="./netns_runner ${peer_devname}"                    \
         netns_name=${ns_name}                                       \
         cgroup="${ETEST_CGROUP}/daemon"                             \
         pidfile="${pidfile}"

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+echo VERY_NOISY_STDOUT
+echo VERY_NOISY_STDERR >&2
+
+true

@@ -7,3 +7,5 @@ $(${BASHUTILS_HOME}/bin/bashutils --source)
 # If bashutils was able to be sourced, this should pass.  If not, einfo won't be a recognized command and the set -eu
 # above will ensure that it fails
 einfo hi
+
+assert_match "$(type einfo)" "einfo is a function"
