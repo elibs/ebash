@@ -108,7 +108,7 @@ ETEST_efetch_missing_dir()
 
 ETEST_efetch_fail_curl()
 {
-    # Try to fetch and make it fail, make sure the file gets removed.
+    # Try to fetch file and force failure to verify the destination file does not exist
     curl()
     {
         # Grab the destination parameter from the curl command in efetch
@@ -116,13 +116,12 @@ ETEST_efetch_fail_curl()
         local dst=${params[3]}
 
 	touch "${dst}"
-        
 	return 1
     }
 
     try {
         efetch "http://test" output.txt
-	die "Should have caught exception"
+        die "We should have caught an exception here"
     }
     catch {
         assert_not_exists output.txt
