@@ -105,3 +105,26 @@ ETEST_efetch_missing_dir()
     assert_exists "dest/sub1/sub2/file1.txt"
     assert_directory_contents "dest" "sub1" "sub1/sub2" "sub1/sub2/file1.txt"
 }
+
+ETEST_efetch_fail_curl()
+{
+    # Try to fetch and make it fail, make sure the file gets removed.
+    curl()
+    {
+        # Grab the destination parameter from the curl command in efetch
+	params=("$@")
+        local dst=${params[3]}
+
+	touch "${dst}"
+        
+	return 1
+    }
+
+    try {
+        efetch "http://test" output.txt
+	die "Should have caught exception"
+    }
+    catch {
+        assert_not_exists output.txt
+    }
+}
