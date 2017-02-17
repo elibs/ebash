@@ -1413,20 +1413,20 @@ efetch_internal()
     eprogress "Fetching $(lval url dst)"
     $(tryrc curl "${url}" ${timecond} --create-dirs --output "${dst}.pending" --location --fail --silent --show-error --insecure)
     eprogress_kill -r=${rc}
+
     if [[ ${rc} -eq 0 ]]; then
-        mv "${dst}.pending" "${dst}"
+        if [[ -e "${dst}.pending" ]]; then
+            mv "${dst}.pending" "${dst}"
+        else
+            # If curl succeeded, but the file wasn't created, then the remote file was an empty file. This was a bug in older
+            # versions of curl that was fixed in newer versions. To make the old curl match the new curl behavior, simply
+            # touch an empty file if one doesn't exist.
+            # See: https://github.com/curl/curl/issues/183
+            edebug "Working around old curl bug #183 wherein empty files are not properly created."
+            touch "${dst}"
+	fi
     elif [[ -e "${dst}.pending" ]]; then
-	rm "${dst}.pending"
-    fi
-
-
-    # If curl succeeded, but the file wasn't created, then the remote file was an empty file. This was a bug in older
-    # versions of curl that was fixed in newer versions. To make the old curl match the new curl behavior, simply
-    # touch an empty file if one doesn't exist.
-    # See: https://github.com/curl/curl/issues/183
-    if [[ ${rc} -eq 0 && ! -e "${dst}" ]]; then
-        edebug "Working around old curl bug #183 wherein empty files are not properly created."
-        touch "${dst}"
+        rm "${dst}.pending"
     fi
 
     return ${rc}
