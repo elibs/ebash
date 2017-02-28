@@ -591,44 +591,6 @@ etable()
     done
 }
 
-eprompt()
-{
-    echo -en "$(ecolor bold) * $@: $(ecolor none)" >&2
-    local result=""
-
-    read result < /dev/stdin
-
-    echo -en "${result}"
-}
-
-opt_usage eprompt_with_options <<'END'
-eprompt_with_options allows the caller to specify what options are valid responses to the provided
-question. The caller can also optionally provide a list of "secret" options which will not be
-displayed in the prompt to the user but will be accepted as a valid response.
-END
-eprompt_with_options()
-{
-    $(opt_parse "msg" "opt" "?secret")
-    local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
-    msg+=" (${opt})"
-
-    ## Keep reading input until a valid response is given
-    while true; do
-        response=$(eprompt "${msg}")
-        matches=( $(echo "${valid}" | grep -io "^${response}\S*" || true) )
-        edebug "$(lval response opt secret matches valid)"
-        [[ ${#matches[@]} -eq 1 ]] && { echo -en "${matches[0]}"; return 0; }
-
-        eerror "Invalid response=[${response}] -- use a unique prefix from options=[${opt}]"
-    done
-}
-
-epromptyn()
-{
-    $(opt_parse "msg")
-    eprompt_with_options "${msg}" "Yes,No"
-}
-
 eend()
 {
     local rc=${1:-0}
