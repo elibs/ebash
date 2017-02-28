@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# Helper function to call eprompt and assert that it has the expected return code and output.
+# Helper function to call either eprompt, epromptyn or eprompt_with_options and assert that it has the expected return
+# code and output based on the provided input.
 assert_eprompt()
 {
     $(opt_parse \
