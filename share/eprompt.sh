@@ -64,7 +64,7 @@ eprompt_dialog_read()
     $(opt_parse output)
 
     # Try to read the first character if this fails for any reason (usually due to EOF) then propagate the error.
-    local timeout=0.0001 c1="" c2="" c3="" c4=""
+    local c1="" c2="" c3="" c4=""
     IFS= read -rsN1 c1 || return 1
 
     # If that character was KEY_ESC, then that is a signal that there are more characters to be read as this is the
@@ -72,6 +72,7 @@ eprompt_dialog_read()
     # Don't fail if nothing is retrieved since user may not actually have pressed a mult-byte character. There is no
     # danger of a race condition here since the multibyte characters are presented to the input stream atomically.
     if [[ "${c1}" == ${KEY_ESC} ]]; then
+        local timeout=0.0001
         IFS= read -rsN1 -t ${timeout} c2 || true
 
         # If we just read a '[' then that is another signal that there is more to read. There may or may not be anything
