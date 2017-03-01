@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright 2011-2017, SolidFire, Inc. All rights reserved.
 #
