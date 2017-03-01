@@ -52,6 +52,48 @@ epromptyn()
     eprompt_with_options "${msg}" "Yes,No"
 }
 
+opt_usage eprompt_dialog_read <<'END'
+Helper function for eprompt_dialog to try to read a character from stdin. Unfortunately some arrow keys and other
+control characters are represented as multi-byte characters (see KEY_UP, KEY_RIGHT, KEY_DOWN, KEY_RIGHT, KEY_DELETE,
+KEY_BASKSPACE). So this function helps by reading a character and checking if it looks like the start of a multi-byte
+control character. If so, it will read the next character and so on until it has read the required 4 characters to know
+if it is indeed a multi-byte control character or not.
+END
+eprompt_dialog_read()
+{
+    $(opt_parse output)
+
+    # Try to read the first character if this fails for any reason (usually due to EOF) then propagate the error.
+    local timeout=0.0001 c1="" c2="" c3="" c4=""
+    IFS= read -rsN1 c1 || return 1
+
+    # If that character was KEY_ESC, then that is a signal that there are more characters to be read as this is the
+    # start of a multi-byte control character. So try to read another character with infinitesimally small timeout.
+    # Don't fail if nothing is retrieved since user may not actually have pressed a mult-byte character. There is no
+    # danger of a race condition here since the multibyte characters are presented to the input stream atomically.
+    if [[ "${c1}" == ${KEY_ESC} ]]; then
+        IFS= read -rsN1 -t ${timeout} c2 || true
+
+        # If we just read a '[' then that is another signal that there is more to read. There may or may not be anything
+        # to read so don't fail the read if it times out.
+        if [[ "${c2}" == "[" ]]; then
+            IFS= read -rsN1 -t ${timeout} c3 || true
+        fi
+
+        # An arrow key will be done after seeing an 'A', 'B', 'C' or 'D'. If we read anything else, then we may be 
+        # reading in KEY_DELETE or KEY_BACKSPACE, so try to read one more character.
+        if [[ "${c3}" != @(|A|B|C|D) ]]; then
+            IFS= read -rsN1 -t ${timeout} c4 || true
+        fi
+    fi
+
+    # Assemble all the individual characters into one string and then copy that out to the caller's context.
+    local char="${c1}${c2}${c3}${c4}"
+    edebug "Read $(lval c1 c2 c3 char)"
+    echo "eval declare ${output}=$(printf "%q" "${char}");"
+    return 0
+}
+
 opt_usage eprompt_dialog <<'END'
 eprompt_dialog provides a very simple interface for the caller to prompt for one or more values from the user using
 the dialog(1) ncurses tool. Each named option passed into eprompt_dialog will be displayed as a field within dialog.
@@ -71,6 +113,9 @@ eprompt_dialog()
 {
     $(opt_parse \
         ":backtitle                                        | Text to display on backdrop at top left of the screen."   \
+        "+hide                                             | Hide ncurses output from screen (useful for testing)."    \
+        "+retry=1                                          | If all required fields are not provided retry. Otherwise 
+                                                             abort and return an error."                               \
         ":title t=Please provide the following information | String to display as the top of the dialog box."          \
         ":geometry geom g                                  | Geometry of the box (height width menu-height). "         \
         ":help_label                                       | Override label used for 'Help' button."                   \
@@ -161,14 +206,24 @@ eprompt_dialog()
     mkfifo "${input_file}"
     exec {input_fd}<>${input_file}
     exec {output_fd}<>${output_file}
+    local dialog_pid=
+
+    # Where should the ncurses output go to?
+    local ncurses_out="$(fd_path)/2"
+    if [[ ${hide} -eq 1 ]]; then 
+        ncurses_out="/dev/null"
+    fi
 
     # Bind TAB key to ENTER so we can use it to toggle between input and navigation keys
     echo "bindkey menu TAB ENTER" >> "${dlgrc}"
 
     # Enter loop to prompt for all required values.
     local default_button="extra"
-    local default_item=${keys[0]}
+    local default_item="$(pack_get fpack[${keys[0]}] display):"
     while true; do
+
+        edebug "[STARTING INPUT LOOP] $(lval default_button default_item dialog_pid)"
+
         local key="" fields_opt=()
         for key in "${keys[@]}"; do
             fields_opt+=( "$(pack_get fpack[$key] display):" "$(pack_get fpack[$key] value)" )
@@ -190,29 +245,24 @@ eprompt_dialog()
                 --default-button "${default_button}"\
                 --default-item "${default_item}"    \
                 --extra-label "Edit"                \
-                "${help_args[@]}"                   \
+                ${help_args[@]:-}                   \
                 --inputmenu "${title}"              \
                 ${geometry}                         \
                 "${fields_opt[@]}"
-        ) >&2 &
+        ) >${ncurses_out} &
 
         # While the above process is still running, read characters from stdin and essentially echo them into dialog
         # input file descriptor. But magically insert necessary ENTER keys so that focus will automatically enter the
         # input fiels and automatically exit the input fields when arrow keys or tab are pressed.
         dialog_pid=$!
+        edebug "Spawned $(lval dialog_pid)"
+        trap_add "ekilltree -s=SIGKILL ${dialog_pid}"
         local char="" focus=0
-        while process_running ${dialog_pid} && IFS= read -sN1 char; do
-            
-            # Catch multi-char special key sequences and build up a single character string for it.
-            local c1="" c2="" c3=""
-            read -sN1 -t 0.0001 c1 || true
-            read -sN1 -t 0.0001 c2 || true
-            read -sN1 -t 0.0001 c3 || true
-            char+="${c1}${c2}${c3}"
+        while process_running ${dialog_pid} && $(eprompt_dialog_read char); do
 
             # TAB. This key is used to transfer focus between the input fields and the control characters at the bottom
             # of the window. So here we essentially update the default_button.
-            if [[ ${char} == "	" ]]; then
+            if [[ "${char}" == "${KEY_TAB}" ]]; then
                 if [[ ${default_button} == "extra" ]]; then
                     default_button="ok"
                 elif [[ ${default_button} == "ok" ]]; then
@@ -229,9 +279,9 @@ eprompt_dialog()
             
             # ESCAPE KEY. No matter where we are in in dialog, if ESC is pressed we want to cancel out and return to
             # the prior menu.
-            elif [[ "${char}" == ${KEY_ESC} ]]; then
-                ekill "${dialog_pid}"
-                wait ${dialog_pid} || true
+            elif [[ "${char}" == "${KEY_ESC}" ]]; then
+                ekilltree -s=SIGKILL "${dialog_pid}"
+                wait ${dialog_pid} &>/dev/null || true
                 eerror "Operation cancelled"
                 echo "eval return ${DIALOG_CANCEL};"
                 return ${DIALOG_CANCEL}
@@ -243,16 +293,23 @@ eprompt_dialog()
 
                 # If we already have focus, and we just received an UP or DOWN or ENTER key, then lose focus. Also have
                 # to update our offset so that the right field will be highlighted on the next loop.
-                if [[ ${focus} -eq 1 && ( ${char} == ${KEY_UP} || ${char} == ${KEY_DOWN} || ${char} == ${KEY_NEWLINE} ) ]]; then
+                if [[ ${focus} -eq 1 && ( ${char} == ${KEY_UP} || ${char} == ${KEY_DOWN} || ${char} == ${KEY_ENTER} ) ]]; then
+                    edebug "Lost focus"
                     focus=0
                     echo "" > "${input_file}"
-                    [[ ${char} == ${KEY_DOWN} ]] && offset=1
-                    [[ ${char} == ${KEY_UP}   ]] && offset=-1
+
+                    if [[ ${char} == ${KEY_DOWN} || ${char} == ${KEY_ENTER} ]]; then
+                        offset=1
+                    elif [[ ${char} == ${KEY_UP} ]]; then
+                        offset=-1
+                    fi
+
                     break
 
                 # If we do NOT have focus, and pressed anything other than an UP or DOWN keys then transfer focus into
                 # the input field by echoing an ENTER key into the input field.
                 elif [[ ${focus} -eq 0 && ${char} != ${KEY_UP} && ${char} != ${KEY_DOWN} ]]; then
+                    edebug "Taking focus"
                     focus=1
                     echo "" > "${input_file}"
                 fi
@@ -264,17 +321,17 @@ eprompt_dialog()
             # If the default button is not "extra" then the button we just pressed may cause the program to exit. But if we loop
             # around too quickly we won't know that and we'll wait for additional input. So this adds in some delay to give the
             # process time to exit before we check if it's running.
-            if [[ ${default_button} != "extra" && "${char}" == ${KEY_NEWLINE} ]]; then
-                sleep 0.25
+            if [[ ${default_button} != "extra" && "${char}" == ${KEY_ENTER} ]]; then
+                edebug "Sleeping to give process a chance to exit."
+                sleep 0.5
             fi
         done
 
         # Wait for process to exit so we know it's return code.
-        wait ${dialog_pid} && dialog_rc=0 || dialog_rc=$?
-        echo "eval declare dialog_rc=${dialog_rc}; "
-
-        # Figure out what key was pressed last
+        wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
         local dialog_output="$(string_trim "$(cat "${output_file}")")"
+        edebug "Dialog exited $(lval dialog_pid dialog_rc dialog_output)"
+        echo "eval declare dialog_rc=${dialog_rc}; "
 
         # HELP
         local dialog_help="HELP "
@@ -289,48 +346,62 @@ eprompt_dialog()
             local value=$(echo "${dialog_output}" | grep -Po ": \K.*" || true) # May not have any value at all
             field=${field#\*}
             field=${field,,}
+            edebug "Assigning: $(print_value field) => $(print_value value)"
             pack_set fpack[$field] value="${value}"
+        fi
 
-            # Find index of the field that was just modified so we can set the default item to the next item in the list.
-            local idx
-            for idx in $(array_indexes keys); do
-                if [[ "${field}" == "${keys[$idx]}" ]]; then
-                    local next=$((idx+${offset}))
-                    if [[ ${next} -ge ${#keys[@]} ]]; then
-                        next=$(( ${#keys[@]} -1 ))
-                    elif [[ ${next} -lt 0 ]]; then
-                        next=0
-                    fi
-
-                    local next_field="${keys[$next]}"
-                    default_item="$(pack_get fpack[$next_field] display):"
-                    break
+        # Find index of the field that was just modified so we can set the default item to the next item in the list.
+        local idx
+        for idx in $(array_indexes keys); do
+            local key=${keys[$idx]}
+            if [[ "${default_item}" == "$(pack_get fpack[$key] display):" ]]; then
+                local next=$((idx+${offset}))
+                if [[ ${next} -ge ${#keys[@]} ]]; then
+                    next=$(( ${#keys[@]} -1 ))
+                elif [[ ${next} -lt 0 ]]; then
+                    next=0
                 fi
-            done
+                local next_field="${keys[$next]}"
+                default_item="$(pack_get fpack[$next_field] display):"
 
-        # Otherwise, if there are any required fields that have not been provided display an error and re-prompt
-        # them for the required fields.
-        else
-            for key in "${!fpack[@]}"; do
-                if [[ $(pack_get fpack[$key] required) -eq 1 && -z $(pack_get fpack[$key] value) ]]; then
-                    eerror "Required field (${key}) was not provided."
-                    default_button="extra"
-                    continue 2
+                break
+            fi
+        done
+
+        # Now check if we are done or not. If there are any required fields that have not been provided display an error
+        # and re-prompt them for the required fields.
+        for key in "${!fpack[@]}"; do
+            if [[ $(pack_get fpack[$key] required) -eq 1 && -z $(pack_get fpack[$key] value) ]]; then
+                local error_msg="Required field (${key}) was not provided."
+                if [[ ${retry} -eq 0 ]]; then
+                    die "${error_msg}"
+                else
+                    eerror "${error_msg}"
                 fi
-            done
 
-            # Everything looks great. Go ahead and break out of our input loop.
+                default_button="extra"
+                continue 2
+            fi
+        done
+
+        # Everything looks great. Go ahead and break out of our input loop.
+        if [[ ${dialog_rc} -eq 0 ]]; then
+            edebug "Finished prompting for required fields"
             break
         fi
     done
 
     # Export final values for caller
     for key in "${keys[@]}"; do
+        edebug "${key}=>$(pack_get fpack[$key] value)"
         echo "eval declare ${key}=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")");"
     done
 
-    # Remove temporary file
+    # Clean-up
     rm --recursive --force "${tmp}"
+    edebug "Killing $(lval dialog_pid)"
+    ekilltree -s=SIGKILL ${dialog_pid}
+    wait ${dialog_pid} &>/dev/null || true
 }
 
 opt_usage eprompt_dialog_username_password <<'END'

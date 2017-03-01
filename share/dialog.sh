@@ -11,13 +11,6 @@ DIALOG_EXTRA=3
 DIALOG_ITEM_HELP=4
 DIALOG_ESC=255
 
-# Constants used for various arrow keys
-DIALOG_KEY_UP=$'\e[A'
-DIALOG_KEY_DOWN=$'\e[B'
-DIALOG_KEY_TAB="	"
-DIALOG_KEY_ESC=$'\e'
-DIALOG_KEY_NEWLINE=$'\n'
-
 # Create an alias to wrap calls to dialog through our tryrc idiom. This is necessary for a couple of reasons. First
 # dialog returns non-zero for lots of not-fatal reasons. We don't want callers to throw fatal errors when that happens.
 # Intead they should inspect the error codes and output and take action accordingly. Secondly, we need to capture the
