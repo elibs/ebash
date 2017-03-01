@@ -1992,6 +1992,24 @@ string_collapse()
     echo -en "${output}"
 }
 
+opt_usage string_getline <<'END'
+Helper function to make it easy to grab a specific line from a provided string. This is done using sed with '${num}q;d'.
+What this does is advance to the requested line number, deleting everything it has seen in the buffer prior to the
+current line, then then quits. This is significantly faster than the typical head | tail approach. The requested line
+number must be > 0 or an error will be returned. Since we don't expect the caller to check the number of lines in the
+input string before calling this function, this function will return an empty string if a line number is requested
+beyond the length of the privided string.
+END
+string_getline()
+{
+    $(opt_parse \
+        "?input | Input string to parse for the requested line number." \
+        "num    | Line number to fetch from the provided input string.")
+
+    assert_num_gt "${num}" "0" "Line number must be > 0"
+    echo "${input}" | sed "${num}q;d"
+}
+
 opt_usage is_int <<'END'
 Returns true if the input string is an integer and false otherwise. May have a leading '-' or '+'
 to indicate the number is negative or positive. This does NOT handle floating point numbers. For
