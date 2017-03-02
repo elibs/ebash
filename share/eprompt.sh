@@ -123,6 +123,9 @@ eprompt_dialog()
         "@fields                                           | List of option fields to prompt for. May not contain
                                                              spaces, newlines or any special punctuation characters.")
 
+    # Ensure dialog is installed.
+    which dialog &>/dev/null || die "dialog must be installed"
+
     # We're creating an "eval command string" inside the command substitution the caller wraps around eprompt_dialog.
     #
     # Command substitution really can only run one big command.  In other words, everything after the first command
