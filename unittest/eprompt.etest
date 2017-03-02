@@ -207,7 +207,12 @@ ETEST_eprompt_dialog_escape()
     try
     {
         $(disable_die_parent; printf "${BU_KEY_ESC}" | ${EPROMPT_DIALOG} ?philo1 ?philo2 ?philo3)
-        die "Should have failed due to ESCAPE key being pressed"
+
+        # The above code should have exitted with DIALOG_CANCEL(1). We're going to check for that in the catch block
+        # specifically. If we got here, then something went wrong. So we'll exit with a different value (it doesn't
+        # matter what as long as it's not DIALOG_CANCEL(1).).
+        eerror "Should have failed due to ESCAPE key being pressed"
+        exit 100
     }
     catch
     {
@@ -222,7 +227,12 @@ ETEST_eprompt_dialog_escape_during_input()
     try
     {
         $(disable_die_parent; printf "${input}" | ${EPROMPT_DIALOG} ?philo1 ?philo2 ?philo3)
-        die "Should have failed due to ESCAPE key being pressed"
+
+        # The above code should have exitted with DIALOG_CANCEL(1). We're going to check for that in the catch block
+        # specifically. If we got here, then something went wrong. So we'll exit with a different value (it doesn't
+        # matter what as long as it's not DIALOG_CANCEL(1).).
+        eerror "Should have failed due to ESCAPE key being pressed"
+        exit 100
     }
     catch
     {
