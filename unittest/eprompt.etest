@@ -239,3 +239,21 @@ ETEST_eprompt_dialog_escape_during_input()
         assert_eq ${DIALOG_CANCEL} $?
     }
 }
+
+ETEST_eprompt_dialog_invalid_characters()
+{
+    local fields=(
+        "Field With Spaces"
+        $'Field\nWith\nNewlines\n'
+        $'Field:With+Punctuation!'
+        $'DoNotUse**'
+    )
+
+    etestmsg "Testing with invalid characters in prompt fields"
+    local field
+    for field in "${fields[@]}"; do
+        einfos "$(lval field)"
+        $(tryrc --stdout=ignore --stderr=ignore ${EPROMPT_DIALOG} "${field}")
+        assert_eq 1 ${rc}
+    done
+}
