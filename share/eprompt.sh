@@ -330,7 +330,7 @@ eprompt_dialog()
             # process time to exit before we check if it's running.
             if [[ ${default_button} != "extra" && "${char}" == ${KEY_ENTER} ]]; then
                 edebug "Sleeping to give process a chance to exit."
-                sleep 0.5
+                sleep 0.25
             fi
         done
 
