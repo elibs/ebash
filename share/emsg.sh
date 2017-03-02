@@ -18,15 +18,15 @@
 
 # Constants used for various arrow keys. Some of these are standard across all TERMs (TAB, ESC, ENTER, BACKSPACE and DELETE)
 # but the arrow keys are not. So we have to look those up dynamically.
-KEY_UP=$(tput kcuu1)
-KEY_DOWN=$(tput kcud1)
-KEY_RIGHT=$(tput kcuf1)
-KEY_LEFT=$(tput kcub1)
-KEY_TAB="	"
-KEY_ESC=$'\e'
-KEY_ENTER=$'\n'
-KEY_BACKSPACE=$'\b'
-KEY_DELETE=$'\e[3~'
+BU_KEY_UP=$(tput kcuu1)
+BU_KEY_DOWN=$(tput kcud1)
+BU_KEY_RIGHT=$(tput kcuf1)
+BU_KEY_LEFT=$(tput kcub1)
+BU_KEY_TAB=$'\t'
+BU_KEY_ESC=$'\e'
+BU_KEY_ENTER=$'\n'
+BU_KEY_BACKSPACE=$'\b'
+BU_KEY_DELETE=$'\e[3~'
 
 # Any functions whose names are "==" to this are exempt from ETRACE.  In other
 # words, even if ETRACE=1, these functions actions will not be displayed in the
@@ -840,19 +840,7 @@ print_value()
         fi
     fi
 
-    # Special handling for multi-character characters with pretty UTF8 unicode symbols
-    val="${val//${KEY_UP}/↑}"
-    val="${val//${KEY_DOWN}/↓}"
-    val="${val//${KEY_RIGHT}/→}"
-    val="${val//${KEY_LEFT}/←}"
-    val="${val//${KEY_TAB}/▷}"
-    val="${val//${KEY_ENTER}/↲}"
-    val="${val//${KEY_DELETE}/⌦}"
-    val="${val//${KEY_BACKSPACE}/⌫}"
-    val="${val//${KEY_ESC}/⎋}"
-
-    # Finally emit the formatted string
-    echo -en "${val}"
+    echo -n "${val}"
 }
 
 # Log a list of variable in tag="value" form similar to our C++ logging idiom.

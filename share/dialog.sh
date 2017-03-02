@@ -3,6 +3,13 @@
 # Copyright 2011-2017, SolidFire, Inc. All rights reserved.
 #
 
+# The version of dialog on Ubuntu 12.04 is too old and is unsupported. This check will exclude all the dialog code
+# from Ubuntu 12.04 since it simply won't work. This means we don't have to check for support in all the dialog
+# functions as they won't be emitted or callable at all.
+if os ubuntu && os_release 12.04; then
+    return 0
+fi
+
 # Constants used by dialog to communicate results via exit codes.
 DIALOG_OK=0
 DIALOG_CANCEL=1
@@ -27,9 +34,11 @@ END
 dialog_prgbox()
 {
     $(opt_parse \
-        ":geometry g=25 100   | Optional geometry in 'height width format." \
+        ":geometry g=25x100   | Optional geometry in 'HxW format." \
         "text                 | Text to display in the program box." \
         "command              | Command to execute and display the output from inside the program box.")
 
+    # Replace the "x" in geometry with a space before passing it through to dialog.
+    geometry=${geometry//x/ }
     $(dialog --prgbox "${text}" "stdbuf -o0 -e0 ${command}" ${geometry})
 }
