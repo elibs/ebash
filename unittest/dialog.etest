@@ -3,7 +3,7 @@
 # The version of dialog on Ubuntu 12.04 is too old and is unsupported. This check will exclude all the dialog code
 # from Ubuntu 12.04 since it simply won't work. This means we don't have to check for support in all the dialog
 # functions as they won't be emitted or callable at all.
-if os ubuntu && os_release 12.04; then
+if os_distro ubuntu && os_release 12.04; then
     return 0
 fi
 
