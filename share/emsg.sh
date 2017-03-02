@@ -3,9 +3,11 @@
 # Copyright 2011-2016, SolidFire, Inc. All rights reserved.
 #
 
+# Default values for EMSG_PREFIX
 : ${EMSG_PREFIX:=}
 : ${EMSG_COLOR:=all}
 
+# Default color codes for emsg related functions. These can be overridden in /etc/bashutils.conf or ~/.config/bashutils.conf.
 : ${COLOR_INFO:="bold green"}
 : ${COLOR_DEBUG:="blue"}
 : ${COLOR_TRACE:="yellow"}
@@ -13,6 +15,18 @@
 : ${COLOR_ERROR:="bold red"}
 : ${COLOR_BRACKET:="bold blue"}
 : ${COLOR_BANNER:="bold magenta"}
+
+# Constants used for various arrow keys. Some of these are standard across all TERMs (TAB, ESC, ENTER, BACKSPACE and DELETE)
+# but the arrow keys are not. So we have to look those up dynamically.
+BU_KEY_UP=$(tput kcuu1)
+BU_KEY_DOWN=$(tput kcud1)
+BU_KEY_RIGHT=$(tput kcuf1)
+BU_KEY_LEFT=$(tput kcub1)
+BU_KEY_TAB=$'\t'
+BU_KEY_ESC=$'\e'
+BU_KEY_ENTER=$'\n'
+BU_KEY_BACKSPACE=$'\b'
+BU_KEY_DELETE=$'\e[3~'
 
 # Any functions whose names are "==" to this are exempt from ETRACE.  In other
 # words, even if ETRACE=1, these functions actions will not be displayed in the
