@@ -124,7 +124,9 @@ eprompt_dialog()
                                                              spaces, newlines or any special punctuation characters.")
 
     # Ensure dialog is installed.
-    which dialog &>/dev/null || die "dialog must be installed"
+    if ! which dialog &>/dev/null; then
+        die "Please install dialog"
+    fi
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around eprompt_dialog.
     #
