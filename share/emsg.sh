@@ -16,11 +16,12 @@
 : ${COLOR_BRACKET:="bold blue"}
 : ${COLOR_BANNER:="bold magenta"}
 
-# Constants used for various arrow keys
-KEY_UP=$'\e[A'
-KEY_DOWN=$'\e[B'
-KEY_RIGHT=$'\e[C'
-KEY_LEFT=$'\e[D'
+# Constants used for various arrow keys. Some of these are standard across all TERMs (TAB, ESC, ENTER, BACKSPACE and DELETE)
+# but the arrow keys are not. So we have to look those up dynamically.
+KEY_UP=$(tput kcuu1)
+KEY_DOWN=$(tput kcud1)
+KEY_RIGHT=$(tput kcuf1)
+KEY_LEFT=$(tput kcub1)
 KEY_TAB="	"
 KEY_ESC=$'\e'
 KEY_ENTER=$'\n'
