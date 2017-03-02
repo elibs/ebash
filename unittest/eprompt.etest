@@ -217,7 +217,6 @@ ETEST_eprompt_dialog_escape()
 
 ETEST_eprompt_dialog_escape_during_input()
 {
-    etestmsg "Sending KEY_DELETE | Thomas Jefferson | KEY_DOWN | KEY_DOWN | KEY_DELETE | John $(print_value KEY_ESC)"
     local input="${KEY_DELETE}Thomas Jefferson${KEY_DOWN}${KEY_DELETE}${KEY_DELETE}John ${KEY_ESC}"
  
     try
