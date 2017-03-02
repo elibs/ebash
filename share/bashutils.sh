@@ -76,16 +76,20 @@ opt_usage()
 }
 
 
-# PLATFORM MUST BE FIRST.  It sets up aliases.  Those aliases won't be expanded
-# inside functions that are already declared, only inside those declared after
-# this.
+# PLATFORM MUST BE FIRST.  It sets up aliases.  Those aliases won't be expanded inside functions that are already
+# declared, only inside those declared after this.
 source "${BASHUTILS}/platform.sh"
 
-# Efuncs needs to be soon after to define a few critical aliases such as
-# try/catch before sourcing everything else 
+# Efuncs needs to be soon after to define a few critical aliases such as try/catch before sourcing everything else 
 source "${BASHUTILS}/efuncs.sh"
 
+# opt_parse and os modules are used extensively throughout some of the other modules we're going to source. We need
+# os in particular in all of these modules so that we can intelligently exclude certain modules from inclusion for
+# particular OSes or distros.
+source "${BASHUTILS}/opt.sh"
+source "${BASHUTILS}/os.sh"
 
+# Now we can source everything else.
 source "${BASHUTILS}/archive.sh"
 source "${BASHUTILS}/array.sh"
 source "${BASHUTILS}/assert.sh"
@@ -102,8 +106,6 @@ source "${BASHUTILS}/json.sh"
 source "${BASHUTILS}/mount.sh"
 source "${BASHUTILS}/netns.sh"
 source "${BASHUTILS}/network.sh"
-source "${BASHUTILS}/opt.sh"
-source "${BASHUTILS}/os.sh"
 source "${BASHUTILS}/overlayfs.sh"
 source "${BASHUTILS}/pack.sh"
 source "${BASHUTILS}/pkg.sh"

@@ -98,7 +98,7 @@ ETEST_eprompt_dialog_read()
     etestmsg "Verifying multi-byte special keys"
     local key val
     for key in UP DOWN RIGHT LEFT TAB ESC ENTER BACKSPACE DELETE; do
-        eval "val=\${KEY_${key}}"
+        eval "val=\${BU_KEY_${key}}"
         einfos "Verifying $(lval key val)"
         $(printf "${val}" | eprompt_dialog_read char)
         assert_eq "${val}" "${char}"
@@ -106,14 +106,14 @@ ETEST_eprompt_dialog_read()
 }
 
 # Key sequence when we're done with eprompt_dialog and want to hit "OK"
-KEY_DONE="${KEY_TAB}${KEY_LEFT}${KEY_ENTER}"
+BU_KEY_DONE="${BU_KEY_TAB}${BU_KEY_LEFT}${BU_KEY_ENTER}"
 
 # Setup flags we want to use for all these tests
 EPROMPT_DIALOG="eprompt_dialog --hide --trace"
 
 ETEST_eprompt_dialog_single()
 {
-    local input="Locke${KEY_DONE}"
+    local input="Locke${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} philo1)
     assert_eq "Locke" "${philo1}"
 }
@@ -122,7 +122,7 @@ ETEST_eprompt_dialog_single()
 # without having to press ENTER to exit the first field and enter the second field.
 ETEST_eprompt_dialog_multi()
 {
-    local input="Locke${KEY_DOWN}Hobbes${KEY_DONE}"
+    local input="Locke${BU_KEY_DOWN}Hobbes${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} philo1 philo2)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
@@ -130,7 +130,7 @@ ETEST_eprompt_dialog_multi()
 
 ETEST_eprompt_dialog_multi_spaces()
 {
-    local input="Locke${KEY_DOWN}Thomas Hobbes${KEY_DONE}"
+    local input="Locke${BU_KEY_DOWN}Thomas Hobbes${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} philo1 philo2)
     assert_eq "Locke"         "${philo1}"
     assert_eq "Thomas Hobbes" "${philo2}"
@@ -138,7 +138,7 @@ ETEST_eprompt_dialog_multi_spaces()
 
 ETEST_eprompt_dialog_optional()
 {
-    local input="${KEY_DONE}"
+    local input="${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} ?field1)
     assert_empty "${field1}"
 }
@@ -146,7 +146,7 @@ ETEST_eprompt_dialog_optional()
 ETEST_eprompt_dialog_optional_multi_first()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="${KEY_DOWN}Locke${KEY_DOWN}Hobbes${KEY_DONE}"
+    local input="${BU_KEY_DOWN}Locke${BU_KEY_DOWN}Hobbes${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} ?philo1 philo2 philo3)
     assert_empty       "${philo1}"
     assert_eq "Locke"  "${philo2}"
@@ -156,7 +156,7 @@ ETEST_eprompt_dialog_optional_multi_first()
 ETEST_eprompt_dialog_optional_multi_middle()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="Locke${KEY_DOWN}${KEY_DOWN}Hobbes${KEY_DONE}"
+    local input="Locke${BU_KEY_DOWN}${BU_KEY_DOWN}Hobbes${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} philo1 ?philo2 philo3)
     assert_eq "Locke"  "${philo1}"
     assert_empty       "${philo2}"
@@ -166,7 +166,7 @@ ETEST_eprompt_dialog_optional_multi_middle()
 ETEST_eprompt_dialog_optional_multi_last()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="Locke${KEY_DOWN}Hobbes${KEY_DONE}"
+    local input="Locke${BU_KEY_DOWN}Hobbes${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} philo1 philo2 ?philo3)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
@@ -175,7 +175,7 @@ ETEST_eprompt_dialog_optional_multi_last()
 
 ETEST_eprompt_dialog_move_without_edit()
 {
-    local input="${KEY_DOWN}${KEY_DOWN}${KEY_DOWN}${KEY_UP}${KEY_DONE}"
+    local input="${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_UP}${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} ?philo1 ?philo2 ?philo3)
     assert_empty "${philo1}"
     assert_empty "${philo2}"
@@ -184,7 +184,7 @@ ETEST_eprompt_dialog_move_without_edit()
 
 ETEST_eprompt_dialog_default_values()
 {
-    local input="${KEY_DONE}"
+    local input="${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} "?philo1=John Locke" "?philo2=Kant" "?philo3=John Stuart Mill")
     assert_eq "John Locke"       "${philo1}"
     assert_eq "Kant"             "${philo2}"
@@ -194,7 +194,7 @@ ETEST_eprompt_dialog_default_values()
 ETEST_eprompt_dialog_default_values_override()
 {
     # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${KEY_DELETE}Thomas Jefferson${KEY_DOWN}${KEY_DOWN}${KEY_DELETE}John Rawls${KEY_DONE}"
+    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DELETE}John Rawls${BU_KEY_DONE}"
     $(printf "${input}" | ${EPROMPT_DIALOG} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
@@ -206,7 +206,7 @@ ETEST_eprompt_dialog_escape()
 {
     try
     {
-        $(disable_die_parent; printf "${KEY_ESC}" | ${EPROMPT_DIALOG} ?philo1 ?philo2 ?philo3)
+        $(disable_die_parent; printf "${BU_KEY_ESC}" | ${EPROMPT_DIALOG} ?philo1 ?philo2 ?philo3)
         die "Should have failed due to ESCAPE key being pressed"
     }
     catch
@@ -217,7 +217,7 @@ ETEST_eprompt_dialog_escape()
 
 ETEST_eprompt_dialog_escape_during_input()
 {
-    local input="${KEY_DELETE}Thomas Jefferson${KEY_DOWN}${KEY_DELETE}${KEY_DELETE}John ${KEY_ESC}"
+    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DELETE}${BU_KEY_DELETE}John ${BU_KEY_ESC}"
  
     try
     {

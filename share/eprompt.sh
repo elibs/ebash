@@ -54,10 +54,10 @@ epromptyn()
 
 opt_usage eprompt_dialog_read <<'END'
 Helper function for eprompt_dialog to try to read a character from stdin. Unfortunately some arrow keys and other
-control characters are represented as multi-byte characters (see KEY_UP, KEY_RIGHT, KEY_DOWN, KEY_RIGHT, KEY_DELETE,
-KEY_BASKSPACE). So this function helps by reading a character and checking if it looks like the start of a multi-byte
-control character. If so, it will read the next character and so on until it has read the required 4 characters to know
-if it is indeed a multi-byte control character or not.
+control characters are represented as multi-byte characters (see BU_KEY_UP, BU_KEY_RIGHT, BU_KEY_DOWN, BU_KEY_RIGHT,
+BU_KEY_DELETE, BU_KEY_BACKSPACE). So this function helps by reading a character and checking if it looks like the start
+of a multi-byte control character. If so, it will read the next character and so on until it has read the required 4
+characters to know if it is indeed a multi-byte control character or not.
 END
 eprompt_dialog_read()
 {
@@ -67,11 +67,11 @@ eprompt_dialog_read()
     local c1="" c2="" c3="" c4=""
     IFS= read -rsN1 c1 || return 1
 
-    # If that character was KEY_ESC, then that is a signal that there are more characters to be read as this is the
+    # If that character was BU_KEY_ESC, then that is a signal that there are more characters to be read as this is the
     # start of a multi-byte control character. So try to read another character with infinitesimally small timeout.
     # Don't fail if nothing is retrieved since user may not actually have pressed a mult-byte character. There is no
     # danger of a race condition here since the multibyte characters are presented to the input stream atomically.
-    if [[ "${c1}" == ${KEY_ESC} ]]; then
+    if [[ "${c1}" == ${BU_KEY_ESC} ]]; then
         local timeout=0.0001
         IFS= read -rsN1 -t ${timeout} c2 || true
 
@@ -82,7 +82,7 @@ eprompt_dialog_read()
         fi
 
         # An arrow key will be done after seeing an 'A', 'B', 'C' or 'D'. If we read anything else, then we may be 
-        # reading in KEY_DELETE or KEY_BACKSPACE, so try to read one more character.
+        # reading in BU_KEY_DELETE or BU_KEY_BACKSPACE, so try to read one more character.
         if [[ "${c3}" != @(|A|B|C|D) ]]; then
             IFS= read -rsN1 -t ${timeout} c4 || true
         fi
@@ -90,7 +90,6 @@ eprompt_dialog_read()
 
     # Assemble all the individual characters into one string and then copy that out to the caller's context.
     local char="${c1}${c2}${c3}${c4}"
-    edebug "Read $(lval c1 c2 c3 c4 char)"
     echo "eval declare ${output}=$(printf "%q" "${char}");"
     return 0
 }
@@ -114,7 +113,7 @@ eprompt_dialog()
 {
     $(opt_parse \
         ":backtitle                                        | Text to display on backdrop at top left of the screen."   \
-        ":geometry geom g                                  | Geometry of the box (height width menu-height). "         \
+        ":geometry g                                       | Geometry of the box (HEIGHTxWIDTHxMENU-HEIGHT). "         \
         ":help_label                                       | Override label used for 'Help' button."                   \
         ":help_callback                                    | Callback to invoke when 'Help' button is pressed."        \
         "+hide                                             | Hide ncurses output from screen (useful for testing)."    \
@@ -122,11 +121,6 @@ eprompt_dialog()
         "+trace                                            | If enabled, enable extensive dialog debugging to stderr." \
         "@fields                                           | List of option fields to prompt for. May not contain
                                                              spaces, newlines or any special punctuation characters.")
-
-    # Ensure dialog is installed.
-    if ! which dialog &>/dev/null; then
-        die "Please install dialog"
-    fi
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around eprompt_dialog.
     #
@@ -139,6 +133,7 @@ eprompt_dialog()
     echo eval  
 
     # Compute reasonable geometry if one wasn't explicitly requested by the caller.
+    geometry=${geometry//x/ }
     if [[ -z ${geometry} ]]; then
         local width=50
         
@@ -263,13 +258,13 @@ eprompt_dialog()
         # input fiels and automatically exit the input fields when arrow keys or tab are pressed.
         dialog_pid=$!
         edebug "Spawned $(lval dialog_pid)"
-        trap_add "ekilltree -s=SIGKILL ${dialog_pid}"
+        trap_add "ekilltree -k=2s ${dialog_pid}"
         local char="" focus=0
         while process_running ${dialog_pid} && $(eprompt_dialog_read char); do
 
             # TAB. This key is used to transfer focus between the input fields and the control characters at the bottom
             # of the window. So here we essentially update the default_button.
-            if [[ "${char}" == "${KEY_TAB}" ]]; then
+            if [[ "${char}" == "${BU_KEY_TAB}" ]]; then
                 if [[ ${default_button} == "extra" ]]; then
                     default_button="ok"
                 elif [[ ${default_button} == "ok" ]]; then
@@ -286,8 +281,8 @@ eprompt_dialog()
             
             # ESCAPE KEY. No matter where we are in in dialog, if ESC is pressed we want to cancel out and return to
             # the prior menu.
-            elif [[ "${char}" == "${KEY_ESC}" ]]; then
-                ekilltree -s=SIGKILL "${dialog_pid}"
+            elif [[ "${char}" == "${BU_KEY_ESC}" ]]; then
+                ekilltree -k=2s "${dialog_pid}"
                 wait ${dialog_pid} &>/dev/null || true
                 eerror "Operation cancelled"
                 echo "eval return ${DIALOG_CANCEL};"
@@ -300,14 +295,14 @@ eprompt_dialog()
 
                 # If we already have focus, and we just received an UP or DOWN or ENTER key, then lose focus. Also have
                 # to update our offset so that the right field will be highlighted on the next loop.
-                if [[ ${focus} -eq 1 && ( ${char} == ${KEY_UP} || ${char} == ${KEY_DOWN} || ${char} == ${KEY_ENTER} ) ]]; then
+                if [[ ${focus} -eq 1 && "${char}" == @(${BU_KEY_UP}|${BU_KEY_DOWN}|${BU_KEY_ENTER}) ]]; then
                     edebug "Lost focus"
                     focus=0
                     echo "" > "${input_file}"
 
-                    if [[ ${char} == ${KEY_DOWN} || ${char} == ${KEY_ENTER} ]]; then
+                    if [[ "${char}" == @(${BU_KEY_DOWN}|${BU_KEY_ENTER}) ]]; then
                         offset=1
-                    elif [[ ${char} == ${KEY_UP} ]]; then
+                    elif [[ "${char}" == "${BU_KEY_UP}" ]]; then
                         offset=-1
                     fi
 
@@ -315,7 +310,7 @@ eprompt_dialog()
 
                 # If we do NOT have focus, and pressed anything other than an UP or DOWN keys then transfer focus into
                 # the input field by echoing an ENTER key into the input field.
-                elif [[ ${focus} -eq 0 && ${char} != ${KEY_UP} && ${char} != ${KEY_DOWN} ]]; then
+                elif [[ ${focus} -eq 0 && "${char}" != @(${BU_KEY_UP}|${BU_KEY_DOWN}) ]]; then
                     edebug "Taking focus"
                     focus=1
                     echo "" > "${input_file}"
@@ -328,7 +323,7 @@ eprompt_dialog()
             # If the default button is not "extra" then the button we just pressed may cause the program to exit. But if we loop
             # around too quickly we won't know that and we'll wait for additional input. So this adds in some delay to give the
             # process time to exit before we check if it's running.
-            if [[ ${default_button} != "extra" && "${char}" == ${KEY_ENTER} ]]; then
+            if [[ ${default_button} != "extra" && "${char}" == "${BU_KEY_ENTER}" ]]; then
                 edebug "Sleeping to give process a chance to exit."
                 sleep 0.25
             fi
@@ -402,7 +397,7 @@ eprompt_dialog()
     # Clean-up
     rm --recursive --force "${tmp}"
     edebug "Killing $(lval dialog_pid)"
-    ekilltree -s=SIGKILL ${dialog_pid}
+    ekilltree -k=2s ${dialog_pid}
     wait ${dialog_pid} &>/dev/null || true
 }
 
