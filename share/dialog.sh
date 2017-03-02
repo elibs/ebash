@@ -207,7 +207,7 @@ dialog_prompt()
     )
 
     # Optionally append trace and help arguments
-    [[ ${trace} -eq 1   ]] && dialog_args+=( --trace /tmp/dialog.log )
+    [[ ${trace} -eq 1   ]] && dialog_args+=( --trace "$(fd_path)/2" )
     [[ -n ${help_label} ]] && dialog_args+=( --help-button --help-label "${help_label}" )
 
     # Append final static flags
