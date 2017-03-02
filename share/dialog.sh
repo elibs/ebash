@@ -27,9 +27,9 @@ END
 dialog_prgbox()
 {
     $(opt_parse \
+        ":geometry g=25 100   | Optional geometry in 'height width format." \
         "text                 | Text to display in the program box." \
-        "command              | Command to execute and display the output from inside the program box." \
-        "?geometry=\"25 100\" | Optional geometry in 'height width' format.")
+        "command              | Command to execute and display the output from inside the program box.")
 
     $(dialog --prgbox "${text}" "stdbuf -o0 -e0 ${command}" ${geometry})
 }
