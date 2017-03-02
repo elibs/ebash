@@ -77,7 +77,7 @@ eprompt_dialog_read()
 
         # If we just read a '[' then that is another signal that there is more to read. There may or may not be anything
         # to read so don't fail the read if it times out.
-        if [[ "${c2}" == "[" ]]; then
+        if [[ "${c2}" == "[" || "${c2}" == "O" ]]; then
             IFS= read -rsN1 -t ${timeout} c3 || true
         fi
 
@@ -90,7 +90,7 @@ eprompt_dialog_read()
 
     # Assemble all the individual characters into one string and then copy that out to the caller's context.
     local char="${c1}${c2}${c3}${c4}"
-    edebug "Read $(lval c1 c2 c3 char)"
+    edebug "Read $(lval c1 c2 c3 c4 char)"
     echo "eval declare ${output}=$(printf "%q" "${char}");"
     return 0
 }
@@ -114,13 +114,12 @@ eprompt_dialog()
 {
     $(opt_parse \
         ":backtitle                                        | Text to display on backdrop at top left of the screen."   \
-        "+hide                                             | Hide ncurses output from screen (useful for testing)."    \
-        "+retry=1                                          | If all required fields are not provided retry. Otherwise 
-                                                             abort and return an error."                               \
-        ":title t=Please provide the following information | String to display as the top of the dialog box."          \
         ":geometry geom g                                  | Geometry of the box (height width menu-height). "         \
         ":help_label                                       | Override label used for 'Help' button."                   \
         ":help_callback                                    | Callback to invoke when 'Help' button is pressed."        \
+        "+hide                                             | Hide ncurses output from screen (useful for testing)."    \
+        ":title t=Please provide the following information | String to display as the top of the dialog box."          \
+        "+trace                                            | If enabled, enable extensive dialog debugging to stderr." \
         "@fields                                           | List of option fields to prompt for. May not contain
                                                              spaces, newlines or any special punctuation characters.")
 
@@ -183,12 +182,6 @@ eprompt_dialog()
         keys+=( "${field}" )
     done
 
-    # Determine whether help button should be shown
-    local help_args=()
-    if [[ -n ${help_label} && -n ${help_callback} ]]; then
-        help_args+=( --help-button --help-label "${help_label}" )
-    fi
-
     # Create a temporary directory to contain some temporary files for communication with dialog. The creates an input
     # file to feed input to dialog, and output file to read its output from and a temporary configuration file to alter
     # dialog keybindings. The mechanism we use in this function to drive dialog essentially spawns dialog as a separate
@@ -208,6 +201,22 @@ eprompt_dialog()
     exec {input_fd}<>${input_file}
     exec {output_fd}<>${output_file}
     local dialog_pid=
+
+    # Setup array of static arguments to pass through to dialog.
+    local dialog_args=(
+        --no-mouse
+        --input-fd ${input_fd}
+        --output-fd ${output_fd}
+        --backtitle "${backtitle}"
+        --extra-label "Edit"
+    )
+
+    # Optionally append trace and help arguments
+    [[ ${trace} -eq 1   ]] && dialog_args+=( --trace /tmp/dialog.log )
+    [[ -n ${help_label} ]] && dialog_args+=( --help-button --help-label "${help_label}" )
+
+    # Append final static flags
+    dialog_args+=( --inputmenu "${title}" ${geometry} )
 
     # Where should the ncurses output go to?
     local ncurses_out="$(fd_path)/2"
@@ -238,18 +247,10 @@ eprompt_dialog()
         (
             __BU_INSIDE_TRY=1
             disable_die_parent
-            DIALOGRC=${dlgrc} command dialog        \
-                --no-mouse                          \
-                --input-fd ${input_fd}              \
-                --output-fd ${output_fd}            \
-                --backtitle "${backtitle}"          \
-                --default-button "${default_button}"\
-                --default-item "${default_item}"    \
-                --extra-label "Edit"                \
-                ${help_args[@]:-}                   \
-                --inputmenu "${title}"              \
-                ${geometry}                         \
-                "${fields_opt[@]}"
+            DIALOGRC=${dlgrc} command dialog            \
+                --default-button    "${default_button}" \
+                --default-item      "${default_item}"   \
+                "${dialog_args[@]}" "${fields_opt[@]}"
         ) >${ncurses_out} &
 
         # While the above process is still running, read characters from stdin and essentially echo them into dialog
@@ -374,20 +375,14 @@ eprompt_dialog()
         # and re-prompt them for the required fields.
         for key in "${!fpack[@]}"; do
             if [[ $(pack_get fpack[$key] required) -eq 1 && -z $(pack_get fpack[$key] value) ]]; then
-                local error_msg="Required field (${key}) was not provided."
-                if [[ ${retry} -eq 0 ]]; then
-                    die "${error_msg}"
-                else
-                    eerror "${error_msg}"
-                fi
-
+                eerror "Required field (${key}) was not provided."
                 default_button="extra"
                 continue 2
             fi
         done
 
-        # Everything looks great. Go ahead and break out of our input loop.
-        if [[ ${dialog_rc} -eq 0 ]]; then
+        # At this point if the default button is on OK and all required fields have been provided we are done.
+        if [[ ${default_button} == "ok" || ${dialog_rc} -eq 0 ]]; then
             edebug "Finished prompting for required fields"
             break
         fi
