@@ -158,6 +158,10 @@ eprompt_dialog()
     local entry="" field="" value="" required=0 display= keys=()
     for entry in "${fields[@]}"; do
 
+        # Ensure entry doesn't have any unsupported characters. It may not contain spaces, newlines or any special
+        # punctuation characters.
+        assert_match "${entry}" "^[-_A-Za-z]+$" "Invalid characters in $(lval entry)"
+
         # Parse any provided initial default value for the option.
         if [[ ${entry} =~ = ]]; then
             field=${entry%%=*}
