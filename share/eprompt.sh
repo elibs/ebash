@@ -124,15 +124,15 @@ eprompt_dialog()
         "@fields                                           | List of option fields to prompt for. May not contain
                                                              spaces, newlines or any special punctuation characters.")
 
-	# We're creating an "eval command string" inside the command substitution the caller wraps around eprompt_dialog.
-	#
-	# Command substitution really can only run one big command.  In other words, everything after the first command
-	# inside it is passed as an argument to the first command.  But you can separate multiple commands by semicolons
-	# inside an eval, so we put an eval around the entire output of eprompt_dialog.
-	#
-	# Later we also put eval around the inside commands.  We basically quote everything twice and then make up for it by
-	# eval-ing twice in order to convince everything to keep whitespace as it is.
-	echo eval  
+    # We're creating an "eval command string" inside the command substitution the caller wraps around eprompt_dialog.
+    #
+    # Command substitution really can only run one big command.  In other words, everything after the first command
+    # inside it is passed as an argument to the first command.  But you can separate multiple commands by semicolons
+    # inside an eval, so we put an eval around the entire output of eprompt_dialog.
+    #
+    # Later we also put eval around the inside commands.  We basically quote everything twice and then make up for it by
+    # eval-ing twice in order to convince everything to keep whitespace as it is.
+    echo eval  
 
     # Compute reasonable geometry if one wasn't explicitly requested by the caller.
     if [[ -z ${geometry} ]]; then
@@ -349,6 +349,7 @@ eprompt_dialog()
             field=${field,,}
             edebug "Assigning: $(print_value field) => $(print_value value)"
             pack_set fpack[$field] value="${value}"
+            default_item="$(pack_get fpack[$field] display):"
         fi
 
         # Find index of the field that was just modified so we can set the default item to the next item in the list.
@@ -423,15 +424,15 @@ eprompt_dialog_username_password()
                                    it will sit in a loop until the user provides both values." \
         ":title=${default_title} | Title to put at the top of the dialog box.")
 
-	# We're creating an "eval command string" inside the command substitution the caller wraps around eprompt_dialog.
-	#
-	# Command substitution really can only run one big command.  In other words, everything after the first command
-	# inside it is passed as an argument to the first command.  But you can separate multiple commands by semicolons
-	# inside an eval, so we put an eval around the entire output of eprompt_dialog.
-	#
-	# Later we also put eval around the inside commands.  We basically quote everything twice and then make up for it by
-	# eval-ing twice in order to convince everything to keep whitespace as it is.
-	echo eval  
+    # We're creating an "eval command string" inside the command substitution the caller wraps around eprompt_dialog.
+    #
+    # Command substitution really can only run one big command.  In other words, everything after the first command
+    # inside it is passed as an argument to the first command.  But you can separate multiple commands by semicolons
+    # inside an eval, so we put an eval around the entire output of eprompt_dialog.
+    #
+    # Later we also put eval around the inside commands.  We basically quote everything twice and then make up for it by
+    # eval-ing twice in order to convince everything to keep whitespace as it is.
+    echo eval  
     local username=""
     local password=""
 
@@ -446,9 +447,9 @@ eprompt_dialog_username_password()
                 "Password"         2 1 "${password}" 2 20 20 0 1 \
                 "Confirm Password" 3 1 "${password}" 3 20 20 0 1)
 
-        username=$(dialog_output_line 1)
-        password=$(dialog_output_line 2)
-        password_confirm=$(dialog_output_line 3)
+        username=$(string_getline "${dialog_output}" 1)
+        password=$(string_getline "${dialog_output}" 2)
+        password_confirm=$(string_getline "${dialog_output}" 3)
 
         # If any are empty and values are required, show an error and loop again.
         if [[ ${optional} -ne 1 && ( -z "${username}" || -z "${password}" ) ]]; then
