@@ -6,13 +6,18 @@ source ${BASHUTILS_HOME}/unittest/daemon_expect.sh
 
 setup()
 {
-    CHROOT=${TEST_DIR_OUTPUT}/chroot
+    # NOTE: We create the CHROOT a directory above our normal output directory so that it survives a single test's
+    # normal setup/teardown infrastructure. This allows us to re-use the CHROOT within this file for each subsequent
+    # test to avoid the massive overhead of re-creating it every time.
+    CHROOT=$(readlink -m ${TEST_DIR_OUTPUT}/../chroot)
 
-    einfo "Making chroot in ${CHROOT}"
-    efreshdir ${CHROOT}
-    etestmsg "Cleaned ${CHROOT}"
-    mkchroot ${CHROOT} precise oxygen bdr-jenkins.den.solidfire.net amd64
-    etestmsg "Finished creating ${CHROOT}"
+    if [[ ! -e "${CHROOT}" ]]; then
+        einfo "Making chroot in ${CHROOT}"
+        efreshdir ${CHROOT}
+        etestmsg "Cleaned ${CHROOT}"
+        mkchroot ${CHROOT} precise oxygen bdr-jenkins.den.solidfire.net amd64
+        etestmsg "Finished creating ${CHROOT}"
+    fi
 }
 
 teardown()
@@ -27,10 +32,13 @@ teardown()
     # will hopefully improve the daemon code so that this workaround is no longer necessary.
     #
     if [[ ${BASH_VERSION} == 4.2* ]] ; then
-        eunmount -r -a ${CHROOT}
+        eunmount --recurisve --all ${CHROOT}
     fi
 
-    eunmount -r -d ${CHROOT}
+    # NOTE: We do not delete the CHROOT itself here because we want to be able to re-use it for each test to avoid
+    # the massive overhad of recreating it every time. It will get automatically claned up when etest cleans up for
+    # us.
+    eunmount --recursive ${CHROOT}
 }
 
 check_mounts()
