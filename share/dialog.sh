@@ -3,10 +3,12 @@
 # Copyright 2011-2017, SolidFire, Inc. All rights reserved.
 #
 
-# The version of dialog on Ubuntu 12.04 is too old and is unsupported. This check will exclude all the dialog code
-# from Ubuntu 12.04 since it simply won't work. This means we don't have to check for support in all the dialog
-# functions as they won't be emitted or callable at all.
-if os_distro ubuntu && os_release 12.04; then
+# DT-373: Dialog doesn't work properly on OSX and Ubuntu 12.04. The version of dialog on Darwin does not properly
+# handle BU_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
+# version of dialog and it is missing required flags --default-button and --default-item. This check will exclude these
+# two OSes completely so the code doesn't get included at all. This means we don't have to check for support in all the
+# dialog functions as they won't be emitted or callable at all.
+if os Darwin || (os_distro ubuntu && os_release 12.04); then
     return 0
 fi
 
