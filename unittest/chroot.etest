@@ -35,7 +35,7 @@ teardown()
     # will hopefully improve the daemon code so that this workaround is no longer necessary.
     #
     if [[ ${BASH_VERSION} == 4.2* ]] ; then
-        eunmount --recurisve --all ${CHROOT}
+        eunmount --recursive --all ${CHROOT}
     fi
 
     # NOTE: We do not delete the CHROOT itself here because we want to be able to re-use it for each test to avoid
