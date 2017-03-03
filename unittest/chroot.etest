@@ -17,6 +17,9 @@ setup()
         etestmsg "Cleaned ${CHROOT}"
         mkchroot ${CHROOT} precise oxygen bdr-jenkins.den.solidfire.net amd64
         etestmsg "Finished creating ${CHROOT}"
+    else
+        etestmsg "Chroot was previously created via setup routine -- verifying it looks minimally sane."
+        assert test -x ${CHROOT}/bin/bash
     fi
 }
 
@@ -57,13 +60,6 @@ check_mounts()
         assert_eq ${count} $(emount_count ${CHROOT}${path})
     done
 }
-
-ETEST_chroot_create()
-{
-    etestmsg "Chroot was created via setup routine -- verifying it looks minimally sane."
-    assert test -x ${CHROOT}/bin/bash
-}
-
 
 ETEST_chroot_readlink()
 {
