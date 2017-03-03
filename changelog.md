@@ -1,3 +1,24 @@
+# Bashutils 1.4
+
+    - Moved all the eprompt code out of emsg.sh into its own eprompt.sh
+      module. There were no unit tests for this code, so a new eprompt.etest
+      was created.
+
+    - Modified chroot unittests to only create a chroot once. The tests
+      then all re-use that single chroot instead of each test creating
+      its own copy. This shaves 20 minutes off of our test time.
+
+    - New dialog.sh module provides a simple interface for using dialog
+      ncurses interface (http://invisible-island.net/dialog/) within bash.
+      This module provides some convenience wrappers to make it easier to
+      obtain the output from dialog and its return code without without 
+      causing the ERR trap to be invoked via the "eval command invocation
+      string" idiom. Also provides convenience methods dialog_read,
+      dialog_prompt, dialog_prgbox, dialog_prompt_username_password and a 
+      very large set of unit tests around this new module. At this time
+      there are some bugs with dialog on older Ubuntu 12.04 and also on
+      OSX so the module is excluded from those OSes.
+
 # Bashutils 1.3
 
     - New configuration file reading and writing tools for INI-style
@@ -14,7 +35,7 @@
     - Added -n option to einfo, ewarn, edebug that prevents them from
       generating a newline at the end of the message.  Note that this must
       be held in the first argument to the einfo/ewarn/edebug function.
-    
+
     - Corrected substantial defects in the existing assert functions and
       added unit tests for them.
 
