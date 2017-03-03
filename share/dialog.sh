@@ -200,7 +200,7 @@ dialog_prompt()
     mkfifo "${input_file}"
     exec {input_fd}<>${input_file}
     exec {output_fd}<>${output_file}
-    local dialog_pid=
+    local dialog_pid=0 dialog_rc=0
 
     # Setup array of static arguments to pass through to dialog.
     local dialog_args=(
@@ -284,7 +284,7 @@ dialog_prompt()
             elif [[ "${char}" == "${BU_KEY_ESC}" ]]; then
                 ekilltree -k=2s "${dialog_pid}"
                 wait ${dialog_pid} &>/dev/null || true
-                eerror "Operation cancelled"
+                eerror "Operation canceled."
                 echo "eval return ${DIALOG_CANCEL};"
                 return ${DIALOG_CANCEL}
             fi
@@ -329,11 +329,16 @@ dialog_prompt()
             fi
         done
 
-        # Wait for process to exit so we know it's return code.
+        # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
+        # If it exited for any non-dialog reason then we need to abort as something unexpected happened.
         wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
+        if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
+            eerror "Dialog failed with an unknown exit code (${dialog_rc})"
+            return ${dialog_rc}
+        fi
+
         local dialog_output="$(string_trim "$(cat "${output_file}")")"
         edebug "Dialog exited $(lval dialog_pid dialog_rc dialog_output)"
-        echo "eval declare dialog_rc=${dialog_rc}; "
 
         # HELP
         local dialog_help="HELP "
@@ -373,13 +378,18 @@ dialog_prompt()
 
         # Now check if we are done or not. If there are any required fields that have not been provided display an error
         # and re-prompt them for the required fields.
-        for key in "${!fpack[@]}"; do
+        local missing=()
+        for key in "${keys[@]}"; do
             if [[ $(pack_get fpack[$key] required) -eq 1 && -z $(pack_get fpack[$key] value) ]]; then
-                eerror "Required field (${key}) was not provided."
-                default_button="extra"
-                continue 2
+                missing+=( $(pack_get fpack[$key] display | sed 's|^*||') )
             fi
         done
+
+        if array_not_empty missing; then
+            eerror "One or more required fields are $(lval missing)."
+            default_button="extra"
+            continue
+        fi
 
         # At this point if the default button is on OK and all required fields have been provided we are done.
         if [[ ${default_button} == "ok" || ${dialog_rc} -eq 0 ]]; then
@@ -389,6 +399,7 @@ dialog_prompt()
     done
 
     # Export final values for caller
+    echo "eval declare dialog_rc=${dialog_rc};"
     for key in "${keys[@]}"; do
         edebug "${key}=>$(pack_get fpack[$key] value)"
         echo "eval declare ${key}=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")");"
