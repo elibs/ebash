@@ -313,13 +313,16 @@ etimestamp_rfc3339()
     echo -en "$(date '+%FT%TZ')"
 }
 
-# Display a very prominent banner with a provided message which may be multi-line
-# and an optional timestamp as well as the ability to provide any number of extra
-# arguments which will be included in the banner in a pretty printed tag=value
-# format. All of this is implemented with print_value to give consistency in how
-# we log and present information.
+opt_usage ebanner<<'END'
+Display a very prominent banner with a provided message which may be multi-line as well as the ability to provide any
+number of extra arguments which will be included in the banner in a pretty printed tag=value optionally upercasing the
+keys if requested. All of this is implemented with print_value to give consistency in how we log and present information.
+END
 ebanner()
 {
+    $(opt_parse \
+        "+uppercase u | If enabled, keys will be all uppercased.")
+
     {
         local cols lines entries
 
@@ -337,9 +340,8 @@ ebanner()
             echo -e "| ${line}"
         done
 
-        # Iterate over all other arguments and stick them into an associative array
-        # If a custom key was requested via "key=value" format then use the provided
-        # key and lookup value via print_value.
+        # Iterate over all other arguments and stick them into an associative array optionally uppercasing the keys.
+        # If a custom key was requested via "key=value" format then use the provided key and lookup value via print_value.
         declare -A __details
 
         local entries=("${@}")
@@ -350,6 +352,12 @@ ebanner()
             : ${_ktag:=${k}}
             local _kval="${k#*=}";
             _ktag=${_ktag#%}
+
+            # Optionally uppercase the key if requested.
+            if [[ ${uppercase} -eq 1 ]]; then
+                _ktag="${_ktag^^}"
+            fi
+
             __details[${_ktag}]=$(print_value ${_kval})
 
         done
@@ -372,7 +380,14 @@ ebanner()
             # Iterate over the keys of the associative array and print out the values
             for key in ${keys[@]}; do
                 local pad=$((longest-${#key}+1))
-                printf "| • %s%${pad}s :: %s\n" ${key} " " "${__details[$key]}"
+                local ktag="${key}"
+
+                # Optionally uppercase the key if requested.
+                if [[ ${uppercase} -eq 1 ]]; then
+                    ktag="${ktag^^}"
+                fi
+
+                printf "| • %s%${pad}s :: %s\n" ${ktag} " " "${__details[$key]}"
             done
         fi
 
