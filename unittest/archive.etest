@@ -1226,9 +1226,10 @@ ETEST_archive_extract_strip_collisions()
 
         etestmsg "Validating src and dest"
         assert_directory_contents dest f f.~1~ f.~2~
-        assert_eq "s2" "$(cat dest/f)"
-        assert_eq "s1" "$(cat dest/f.~1~)"
-        assert_eq "s3" "$(cat dest/f.~2~)"
+        
+        # We can't guarantee the order the files are copied in b/c that's dependant on the inode structure and filesystem.
+        # So instead we just assert that we see all three files with the three different contents we expect to see.
+        assert_eq $'s1\ns2\ns3' "$(cat dest/f dest/f.~1~ dest/f.~2~ | sort)"
     done
 }
 
