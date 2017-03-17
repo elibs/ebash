@@ -593,7 +593,7 @@ archive_extract()
             -mindepth ${move_level}     \
             -maxdepth ${move_level}     \
             -print0 -exec mv --backup=numbered {} . \; \
-            | xargs --null --no-run-if-empty dirname | sort --unique)
+            | xargs --null --no-run-if-empty --max-lines=1 dirname | sort --unique)
         )
         
         # Now recursively delete the orhpans. There's no good way to do this inline so it's just easier and safer to
