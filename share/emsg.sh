@@ -321,7 +321,7 @@ END
 ebanner()
 {
     $(opt_parse \
-        "+uppercase u | If enabled, keys will be all uppercased.")
+        "+uppercase upper u | If enabled, keys will be all uppercased.")
 
     {
         local cols lines entries
