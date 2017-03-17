@@ -348,7 +348,7 @@ ETEST_eprogress_ticker_off()
     assert_eq --hexdump ">> Waiting [ ok ]" "$(cat ${OUTPUT})"
 }
 
-ETEST_eprogress_ticker_on()
+ETEST_eprogress_ticker_on_right()
 {
     etestmsg "Starting background process that writes to ${OUTPUT}"
     (
@@ -363,7 +363,41 @@ ETEST_eprogress_ticker_on()
         # Output stored in this test expects what it would look like if term
         # were screen-256color
         TERM=screen-256color
-        eprogress "Waiting"
+        eprogress --right "Waiting"
+        eprogress_kill
+    )
+
+    etestmsg "${OUTPUT} contents"
+    cat -evt ${OUTPUT}
+    etestmsg "End ${OUTPUT} contents"
+
+    # The ticker may actuall run for slightly longer than we requested due to
+    # how sleep works. Change instances of 00:00:0[1-9] to 00:00:00 in the output
+    # for easier validation.
+    sed -i "s|:01\]|:00\]|g" ${OUTPUT}
+
+    # Different terms have different codes.  Ignore the number in the ANSI code.
+    sed -i "s|\[[0-9]\+C||" ${OUTPUT}
+
+    assert_eq --hexdump ">> Waiting^[[K^[ [00:00:00]  ^H/^H-^H\\^H|^H/^H-^H\\^H| \$"$'\n'"^[M^[[ ok ]\$" "$(cat -evt ${OUTPUT})"
+}
+
+ETEST_eprogress_ticker_on_left()
+{
+    etestmsg "Starting background process that writes to ${OUTPUT}"
+    (
+        exec &> ${OUTPUT}
+
+        COLUMNS=28
+        EFUNCS_COLOR=0
+        EDEBUG=0
+        ETRACE=0
+        EINTERACTIVE=1
+        EMSG_PREFIX=""
+        # Output stored in this test expects what it would look like if term
+        # were screen-256color
+        TERM=screen-256color
+        eprogress --no-right "Waiting"
         eprogress_kill
     )
 
