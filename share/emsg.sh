@@ -659,6 +659,7 @@ eprogress()
                         start will be displayed next to the ticker." \
         ":style=einfo | Style used when displaying the message.  You might want to use, for
                         instance, einfos or ewarn or eerror instead." \
+        "+right=1     | If requested, right justify the ticker." \
         "@message     | A message to be displayed once prior to showing a time ticker.  This will
                         occur before the file contents if you also use --file.")
 
@@ -711,9 +712,11 @@ eprogress()
                 # Terminal magic that moves our cursor to the end of the line then backs it up enough to allow the 
                 # ticker to display such that it is right justified instead of lost on the far left of the screen
                 # intermingled with actions being performed.
-                local columns=$(tput cols)
-                local startcol=$(( columns - 24 ))
-                echo -en "$(tput el)$(tput cuf ${startcol} 2>/dev/null)" >&2
+                if [[ ${right} -eq 1 ]]; then
+                    local columns=$(tput cols)
+                    local startcol=$(( columns - 24 ))
+                    echo -en "$(tput el)$(tput cuf ${startcol} 2>/dev/null)" >&2
+                fi
 
                 ecolor bold
                 printf " [%02d:%02d:%02d] " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 ))
