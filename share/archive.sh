@@ -441,18 +441,22 @@ END
 archive_extract()
 {
     $(opt_parse \
-        "+ignore_missing i | Ignore missing files instead of failing and returning non-zero." \
-        "+nice n           | Be nice and use non-parallel compressors and only a single core." \
-        ":type t           | Override automatic type detection and use explicit archive type." \
-        "src               | Source archive to extract." \
-        "dest              | Location to place the files extracted from that archive.")
-    
+        "+ignore_missing i         | Ignore missing files instead of failing and returning non-zero." \
+        "+nice n                   | Be nice and use non-parallel compressors and only a single core." \
+        ":strip_components strip=0 | Strip this number of leading components from file names on extraction." \
+        ":type t                   | Override automatic type detection and use explicit archive type." \
+        "src                       | Source archive to extract." \
+        "dest                      | Location to place the files extracted from that archive.")
+   
+    assert_num_ge "${strip_components}" "0" "--strip-components must be >= 0"
+
     local files=( "${@}" )
     local src_type=$(archive_type --type "${type}" "${src}")
 
     mkdir -p "${dest}"
+    local dest_real=$(readlink -m "${dest}")
 
-    edebug "Extracting $(lval src dest src_type files ignore_missing)"
+    edebug "Extracting $(lval src dest dest_real src_type files ignore_missing)"
 
     # SQUASHFS + ISO
     # Neither of the tools for these archive formats support extracting a list
@@ -465,7 +469,6 @@ archive_extract()
             mount --read-only "${src}" "${mnt}"
             trap_add "eunmount --recursive --delete ${mnt}"
 
-            local dest_real=$(readlink -m "${dest}")
             cd "${mnt}"
 
             if array_empty files; then
@@ -570,6 +573,41 @@ archive_extract()
             eerror "${archive_extract_stderr}"
             return "${archive_extract_rc}"
         fi
+    fi
+
+    # If the caller requested us to strip leading components from extracted paths then we have to do so now. We cannot
+    # do this in a uniform way with the various archive formats because this is something only supported by tar. But it
+    # is super useful so we support it generically across all archive formats.
+    if [[ ${strip_components} -gt 0 ]]; then
+        pushd "${dest_real}"
+       
+        # First we need to delete any files or empty directories less than the strip components value.
+        find . -maxdepth ${strip_components} \( -type f -o -type d -empty \) -delete
+       
+        # The find command below will find all files and directories that are one path node below the strip component
+        # depth. These are the ones which need to be moved up to the current directory (which is the new dest_real that
+        # we extracted everything to). We add -print so that we can capture a list of the directories that we affected
+        # so we can do a second pass to remove the orphaned directories afterwards.
+        local move_level=$((strip_components+1))
+        local orphans=( $(find .        \
+            -mindepth ${move_level}     \
+            -maxdepth ${move_level}     \
+            -print0 -exec mv --backup=numbered {} . \; \
+            | xargs --null --no-run-if-empty dirname | sort --unique)
+        )
+        
+        # Now recursively delete the orhpans. There's no good way to do this inline so it's just easier and safer to
+        # do it separately.
+        edebug "Deleting $(lval orphans)"
+        if array_not_empty orphans; then
+            
+            # rmdir is noisy about being unable to delete "." but it's not a failure. So use tryrc to capture the 
+            # return code but only show stderr if the find failed.
+            $(tryrc -r=find_rc -o=find_out -e=find_err find ${orphans[@]} -depth -type d -exec rmdir --parents {} \;)
+            assert_zero "${find_rc}" "${find_err}"
+        fi
+
+        popd
     fi
 }
 
