@@ -33,6 +33,10 @@
       it easier to use in place of tar when you need to strip off leading
       path components.
 
+    - Add --align option to eprogress with valid values "left" and "right".
+      The new default is "right" to keep the progress tickers aligned with
+      where the "[ ok ]" shows up aftewards.
+
 # Bashutils 1.3
 
     - New configuration file reading and writing tools for INI-style

@@ -348,7 +348,25 @@ ETEST_eprogress_ticker_off()
     assert_eq --hexdump ">> Waiting [ ok ]" "$(cat ${OUTPUT})"
 }
 
-ETEST_eprogress_ticker_on_right()
+ETEST_eprogress_ticker_align_invalid()
+{
+    $(tryrc eprogress --align)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align top)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align middle)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align LEFT)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align RIGHT)
+    assert_eq 1 "${rc}"
+}
+ 
+ETEST_eprogress_ticker_align_right()
 {
     etestmsg "Starting background process that writes to ${OUTPUT}"
     (
@@ -363,7 +381,7 @@ ETEST_eprogress_ticker_on_right()
         # Output stored in this test expects what it would look like if term
         # were screen-256color
         TERM=screen-256color
-        eprogress --right "Waiting"
+        eprogress --align right "Waiting"
         eprogress_kill
     )
 
@@ -379,10 +397,14 @@ ETEST_eprogress_ticker_on_right()
     # Different terms have different codes.  Ignore the number in the ANSI code.
     sed -i "s|\[[0-9]\+C||" ${OUTPUT}
 
-    assert_eq --hexdump ">> Waiting^[[K^[ [00:00:00]  ^H/^H-^H\\^H|^H/^H-^H\\^H| \$"$'\n'"^[M^[[ ok ]\$" "$(cat -evt ${OUTPUT})"
+    # Different size screens will show different output based on the size of the display so replace it with something
+    # fixed.
+    sed -i "s|\[[0-9]\+;[0-9]\+H||" ${OUTPUT}
+
+    assert_eq --hexdump ">> Waiting"$'^[ [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H| $\x0a^[M^[[ ok ]$' "$(cat -evt ${OUTPUT})"
 }
 
-ETEST_eprogress_ticker_on_left()
+ETEST_eprogress_ticker_align_left()
 {
     etestmsg "Starting background process that writes to ${OUTPUT}"
     (
@@ -397,7 +419,7 @@ ETEST_eprogress_ticker_on_left()
         # Output stored in this test expects what it would look like if term
         # were screen-256color
         TERM=screen-256color
-        eprogress --no-right "Waiting"
+        eprogress --align left "Waiting"
         eprogress_kill
     )
 
