@@ -707,6 +707,14 @@ eprogress()
             fi
 
             if [[ ${time} -eq 1 ]] ; then
+
+                # Terminal magic that moves our cursor to the end of the line then backs it up enough to allow the 
+                # ticker to display such that it is right justified instead of lost on the far left of the screen
+                # intermingled with actions being performed.
+                local columns=$(tput cols)
+                local startcol=$(( columns - 24 ))
+                echo -en "$(tput el)$(tput cuf ${startcol} 2>/dev/null)" >&2
+
                 ecolor bold
                 printf " [%02d:%02d:%02d] " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 ))
                 ecolor none
