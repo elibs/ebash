@@ -1059,6 +1059,179 @@ ETEST_archive_extract_content()
     done
 }
 
+ETEST_archive_extract_strip_invalid()
+{
+    $(tryrc archive_extract --strip-components -1 src dest)
+    assert_eq 1 "${rc}"
+
+    $(tryrc archive_extract --strip-components  a  src dest)
+    assert_eq 1 "${rc}"
+
+    $(tryrc archive_extract --strip-components  "" src dest)
+    assert_eq 1 "${rc}"
+}
+
+ETEST_archive_extract_strip1()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1
+        mkdir -p src/s2
+        mkdir -p src/s3
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 1 src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest s1 s2 s3
+    done
+}
+
+ETEST_archive_extract_strip1_deep()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1/s1a src/s1/s1b; touch src/s1/s1f src/s1/s1a/s1af src/s1/s1a/s1bf1 src/s1/s1a/s1bf2
+        mkdir -p src/s2/s2a src/s2/s2b; touch src/s2/s2f src/s2/s2a/s2af src/s2/s2a/s2bf1 src/s2/s2a/s2bf2
+        mkdir -p src/s3/s3a src/s3/s3b; touch src/s3/s3f src/s3/s3a/s3af src/s3/s3a/s3bf1 src/s3/s3a/s3bf2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 1 src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest                                              \
+            s1 s1/s1a s1/s1b s1/s1f s1/s1a/s1af s1/s1a/s1bf1 s1/s1a/s1bf2           \
+            s2 s2/s2a s2/s2b s2/s2f s2/s2a s2/s2a/s2af s2/s2a/s2bf1 s2/s2a/s2bf2    \
+            s3 s3/s3a s3/s3b s3/s3f s3/s3a s3/s3a/s3af s3/s3a/s3bf1 s3/s3a/s3bf2 
+    done
+}
+
+ETEST_archive_extract_strip2()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1/s1a
+        mkdir -p src/s2/s2a
+        mkdir -p src/s3/s3a
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 2 src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest \
+            s1a \
+            s2a \
+            s3a
+    done
+}
+
+ETEST_archive_extract_strip2_deep()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1/s1a src/s1/s1b; touch src/s1/s1f src/s1/s1a/s1af src/s1/s1a/s1bf1 src/s1/s1a/s1bf2
+        mkdir -p src/s2/s2a src/s2/s2b; touch src/s2/s2f src/s2/s2a/s2af src/s2/s2a/s2bf1 src/s2/s2a/s2bf2
+        mkdir -p src/s3/s3a src/s3/s3b; touch src/s3/s3f src/s3/s3a/s3af src/s3/s3a/s3bf1 src/s3/s3a/s3bf2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 2 src.${ftype} dest
+        find dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest                  \
+            s1a s1b s1f s1a/s1af s1a/s1bf1 s1a/s1bf2    \
+            s2a s2b s2f s2a/s2af s2a/s2bf1 s2a/s2bf2    \
+            s3a s3b s3f s3a/s3af s3a/s3bf1 s3a/s3bf2
+    done
+}
+
+ETEST_archive_extract_strip_more_than_exists()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1/s1a src/s1/s1b; touch src/s1/s1f src/s1/s1a/s1af src/s1/s1a/s1bf1 src/s1/s1a/s1bf2
+        mkdir -p src/s2/s2a src/s2/s2b; touch src/s2/s2f src/s2/s2a/s2af src/s2/s2a/s2bf1 src/s2/s2a/s2bf2
+        mkdir -p src/s3/s3a src/s3/s3b; touch src/s3/s3f src/s3/s3a/s3af src/s3/s3a/s3bf1 src/s3/s3a/s3bf2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 10 src.${ftype} dest
+        find dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest
+    done
+}
+
+
+ETEST_archive_extract_strip_collisions()
+{
+    local idx=0
+    for idx in $(array_indexes ARCHIVE_TYPES); do
+        local ftype="${ARCHIVE_TYPES[$idx]}"
+        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/{s1,s2,s3}
+        touch    src/{s1,s2,s3}/f
+        echo "s1" > src/s1/f
+        echo "s2" > src/s2/f
+        echo "s3" > src/s3/f
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 2 src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest f f.~1~ f.~2~
+        assert_eq "s2" "$(cat dest/f)"
+        assert_eq "s1" "$(cat dest/f.~1~)"
+        assert_eq "s3" "$(cat dest/f.~2~)"
+    done
+}
+
 ETEST_archive_append()
 {
     local idx=0

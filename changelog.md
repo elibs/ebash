@@ -29,6 +29,10 @@
     - Added optional --upercase flag to ebanner to emit the keys in all
       uppercase for greater uniformity if the caller desires it.
 
+    - Add new --strip-components/--strip flag to archive_extract to make
+      it easier to use in place of tar when you need to strip off leading
+      path components.
+
 # Bashutils 1.3
 
     - New configuration file reading and writing tools for INI-style
