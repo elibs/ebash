@@ -19,14 +19,7 @@
       there are some bugs with dialog on older Ubuntu 12.04 and also on
       OSX so the module is excluded from those OSes.
 
-    - Added greater intelligence to archive_mount to look for external
-      archivemount tool. If it is found it will use that to natively 
-      mount the archive in userspace using FUSE instead of being forced
-      to extract the archive. If archivemount is not found then it will
-      fallback to the old behavior of extracting the archive to the 
-      destination path.
-
-    - Added optional --upercase flag to ebanner to emit the keys in all
+    - Added optional --uppercase flag to ebanner to emit the keys in all
       uppercase for greater uniformity if the caller desires it.
 
     - Add new --strip-components/--strip flag to archive_extract to make
