@@ -819,13 +819,7 @@ ETEST_archive_create_mount()
         archive_mount src.${ftype} dest
         local atype=$(archive_type .${ftype})
         if [[ ${atype} =~ tar|cpio ]]; then
-            
-            if which archivemount &> /dev/null ; then
-                assert_eq "fuse.archivemount" "$(emount_type dest)"
-            else
-                assert_false emount_type dest
-            fi
-
+            assert_false emount_type dest
         elif [[ ${atype} == iso ]]; then
             assert_eq "iso9660" "$(emount_type dest)"
         else

@@ -801,9 +801,8 @@ archive_diff()
 }
 
 opt_usage archive_mount <<'END'
-Directly mount a given archive type to a temporary directory read-only if the archive format is natively mountable such
-as an ISO or squashfs. If not, it will try to use the external tool "archivemount" to mount the archive using FUSE. If
-that tool is not available, then it will instead extract it to the destination directory.
+Mount a given archive type to a temporary directory read-only if mountable and if not extract it to the destination
+directory.
 END
 archive_mount()
 {
@@ -817,15 +816,9 @@ archive_mount()
     if [[ ${src_type} == @(squashfs|iso) ]]; then
         mount --read-only "${src}" "${dest}"
     
-    # TAR+CPIO files do not natively support mounting. We'll try to use "archivemount" if it is available to mount the
-    # archive using FUSE. If that's not available then we'll fallback to manual extraction.
+    # TAR+CPIO files need to be extracted manually :-[
     elif [[ ${src_type} == @(tar|cpio) ]]; then
-
-        if which archivemount &> /dev/null ; then
-            archivemount -o readonly -o nobackup -o nosave "${src}" "${dest}"
-        else
-            archive_extract "${src}" "${dest}"
-        fi
+        archive_extract "${src}" "${dest}"
     fi
 }
 
