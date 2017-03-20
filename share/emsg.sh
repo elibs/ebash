@@ -661,7 +661,7 @@ eprogress()
                         start will be displayed next to the ticker." \
         ":style=einfo | Style used when displaying the message.  You might want to use, for
                         instance, einfos or ewarn or eerror instead." \
-        ":align=right | Where to align the tickker to (valid options are 'left' and 'right')." \
+        ":align=left  | Where to align the tickker to (valid options are 'left' and 'right')." \
         "@message     | A message to be displayed once prior to showing a time ticker.  This will
                         occur before the file contents if you also use --file.")
 
