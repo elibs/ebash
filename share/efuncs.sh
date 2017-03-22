@@ -1040,6 +1040,13 @@ elogfile()
             disable_die_parent
             close_fds
             ( 
+                # Don't hold open a directory
+                local relative_files=( "${@}" ) files=( )
+                for file in "${relative_files[@]}" ; do
+                    files+=( "$(readlink -m "${file}")" )
+                done
+                cd /
+
                 # If we are in a cgroup, move the tee process out of that
                 # cgroup so that we do not kill the tee.  It will nicely
                 # terminate on its own once the process dies.
@@ -1065,9 +1072,9 @@ elogfile()
                 nodie_on_error
 
                 if [[ ${tail} -eq 1 ]]; then
-                    tee -a "${@}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
+                    tee -a "${files[@]}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
-                    tee -a "${@}" <${pipe} >/dev/null 2>&1
+                    tee -a "${files[@]}" <${pipe} >/dev/null 2>&1
                 fi
             ) &
         ) &
