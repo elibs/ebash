@@ -698,7 +698,6 @@ eprogress()
 
         # Save current position and start time
         ecolor save_cursor >&2
-        ecolor hide_cursor >&2
         local start=${SECONDS}
 
         # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out 
@@ -753,7 +752,7 @@ eprogress()
         done >&2
 
         # If we're terminating delete whatever character was lost displayed and print a blank space over it
-        { ecolor move_left ; echo -n " " ; ecolor show_cursor; } >&2
+        { ecolor move_left ; echo -n " " ; } >&2
 
         # Delete file if requested
         if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
