@@ -14,31 +14,49 @@ ETEST_dialog_read()
 {
     local char=""
 
-    # Basic sanity test of reading a single character
+    etestmsg "Sanity test of single character"
     $(printf "A" | dialog_read char)
+    einfos "Read $(lval char)"
     assert_eq "A" "${char}"
 
-    # Ensure it can deal with whitespace properly
+    etestmsg "Ensure it can deal with whitespace properly"
     $(printf " " | dialog_read char)
+    einfos "Read $(lval char)"
     assert_eq " " "${char}"
 
-    # If we feed it multiple characters that are not multi-byte arrow keys it should only read the first one
+    etestmsg "Mult characters should read only first char"
     $(printf "ABCD" | dialog_read char)
+    einfos "Read $(lval char)"
     assert_eq "A" "${char}"
 
     # Verify it handles all our mult-byte special keys properly
     etestmsg "Verifying multi-byte special keys"
     local key val
     for key in UP DOWN RIGHT LEFT TAB ESC ENTER BACKSPACE DELETE; do
+        einfos "Verifying $(lval key)"
+
         eval "val=\${BU_KEY_${key}}"
-        einfos "Verifying $(lval key val)"
         $(printf "${val}" | dialog_read char)
-        assert_eq "${val}" "${char}"
+        assert_eq --hexdump "${val}" "${char}"
     done
 }
 
-# Key sequence when we're done with dialog_prompt and want to hit "OK"
-BU_KEY_DONE="${BU_KEY_TAB}${BU_KEY_LEFT}${BU_KEY_ENTER}"
+ETEST_dialog_read_term()
+{
+    # NOTE: 'toe' command is used to enumerate all the supported terminfo types on the running machine. Our dialog
+    # code should work on all TERM values as it's implemented in a generic fashion. We also explicitly enumerate 
+    # 'xterm-256color' as that is our default BASHUTILS setting for TERM. We must exclude 'dumb' because, well it is 
+    # really dumb and ansi escape sequences just don't work there.
+    local term
+    for term in xterm-256color $(toe | awk '{print $1}' | grep -v dumb); do
+    (
+        export TERM=${term}
+        ebanner "Testing with $(lval TERM)"
+        dialog_load
+        ETEST_dialog_read
+    )
+    done
+}
 
 # Setup flags we want to use for all these tests
 DIALOG_PROMPT="dialog_prompt --hide --trace"
@@ -132,6 +150,20 @@ ETEST_dialog_prompt_default_values_override()
     assert_eq "Kant"             "${philo2}"
     assert_eq "John Rawls"       "${philo3}"
 }
+
+ETEST_dialog_prompt_default_values_override_term()
+{
+    export TERM=linux
+    dialog_load
+
+    # Since we intend to overwrite the existing values we need to delete the keys already present.
+    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DELETE}John Rawls${BU_KEY_DONE}"
+    $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
+    assert_eq "Thomas Jefferson" "${philo1}"
+    assert_eq "Kant"             "${philo2}"
+    assert_eq "John Rawls"       "${philo3}"
+}
+
 
 # Wherever we are in the dialog menu, escape key should take us out immediately.
 ETEST_dialog_prompt_escape()
