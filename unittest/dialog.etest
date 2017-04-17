@@ -46,9 +46,10 @@ ETEST_dialog_read_term()
     # NOTE: 'toe' command is used to enumerate all the supported terminfo types on the running machine. Our dialog
     # code should work on all TERM values as it's implemented in a generic fashion. We also explicitly enumerate 
     # 'xterm-256color' as that is our default BASHUTILS setting for TERM. We must exclude 'dumb' because, well it is 
-    # really dumb and ansi escape sequences just don't work there.
+    # really dumb and ansi escape sequences just don't work there. The "|| true" here is because 'dumb' is not included
+    # in toe output on some distros (fedora) and we don't want it to fail if it fails to exclude it.
     local term
-    for term in xterm-256color $(toe | awk '{print $1}' | grep -v dumb); do
+    for term in xterm-256color $(toe | awk '{print $1}' | grep -v dumb || true); do
     (
         export TERM=${term}
         ebanner "Testing with $(lval TERM)"
