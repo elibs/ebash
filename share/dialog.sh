@@ -20,12 +20,31 @@ DIALOG_EXTRA=3
 DIALOG_ITEM_HELP=4
 DIALOG_ESC=255
 
+dialog_load()
+{
+    # Constants used for various arrow keys. Some of these are standard across all TERMs (TAB, ESC, ENTER, BACKSPACE and DELETE)
+    # but the arrow keys are not. So we have to look those up dynamically.
+    BU_KEY_UP=$(tput kcuu1) 
+    BU_KEY_DOWN=$(tput kcud1)
+    BU_KEY_RIGHT=$(tput kcuf1)
+    BU_KEY_LEFT=$(tput kcub1)
+    BU_KEY_TAB=$'\t'
+    BU_KEY_ESC=$'\e'
+    BU_KEY_ENTER=$'\n'
+    BU_KEY_BACKSPACE=$'\b'
+    BU_KEY_DELETE=$'\e[3~'
+
+    # Key sequence when we're done with dialog_prompt and want to hit "OK"
+    BU_KEY_DONE="${BU_KEY_TAB}${BU_KEY_LEFT}${BU_KEY_ENTER}"
+}
+
 # Create an alias to wrap calls to dialog through our tryrc idiom. This is necessary for a couple of reasons. First
 # dialog returns non-zero for lots of not-fatal reasons. We don't want callers to throw fatal errors when that happens.
 # Intead they should inspect the error codes and output and take action accordingly. Secondly, we need to capture the
 # stdout from dialog and then parse it accordingly. Using the tryrc idiom addresses these issues by capturing the 
 # return code into 'dialog_rc' and the output into 'dialog_output' for subsequent inspection and parsing.
 alias dialog='tryrc --stdout=dialog_output --rc=dialog_rc command dialog --stdout --no-mouse'
+dialog_load
 
 opt_usage dialog_prgbox <<'END'
 Helper function to make it easier to use dialog --prgbox without buffering. This is done using stdbuf which can then
@@ -297,12 +316,12 @@ dialog_prompt()
 
                 # If we already have focus, and we just received an UP or DOWN or ENTER key, then lose focus. Also have
                 # to update our offset so that the right field will be highlighted on the next loop.
-                if [[ ${focus} -eq 1 && "${char}" == @(${BU_KEY_UP}|${BU_KEY_DOWN}|${BU_KEY_ENTER}) ]]; then
+                if [[ ${focus} -eq 1 && ( "${char}" == "${BU_KEY_UP}" || "${char}" == "${BU_KEY_DOWN}" || "${char}" == "${BU_KEY_ENTER}" ) ]]; then
                     edebug "Lost focus"
                     focus=0
                     echo "" > "${input_file}"
 
-                    if [[ "${char}" == @(${BU_KEY_DOWN}|${BU_KEY_ENTER}) ]]; then
+                    if [[ "${char}" == ${BU_KEY_DOWN} || "${char}" == ${BU_KEY_ENTER} ]]; then
                         offset=1
                     elif [[ "${char}" == "${BU_KEY_UP}" ]]; then
                         offset=-1
@@ -312,7 +331,7 @@ dialog_prompt()
 
                 # If we do NOT have focus, and pressed anything other than an UP or DOWN keys then transfer focus into
                 # the input field by echoing an ENTER key into the input field.
-                elif [[ ${focus} -eq 0 && "${char}" != @(${BU_KEY_UP}|${BU_KEY_DOWN}) ]]; then
+                elif [[ ${focus} -eq 0 && "${char}" != ${BU_KEY_UP} && "${char}" != ${BU_KEY_DOWN} ]]; then
                     edebug "Taking focus"
                     focus=1
                     echo "" > "${input_file}"
