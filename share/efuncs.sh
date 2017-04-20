@@ -1275,7 +1275,7 @@ emetadata_check()
             )
         fi &
 
-         pids+=( $! )
+        pids+=( $! )
     done
 
     # Wait for all pids
