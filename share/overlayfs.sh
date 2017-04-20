@@ -525,9 +525,10 @@ overlayfs_dedupe()
         
     done
 
+    # Wait for the backgrounded jobs to complete. Send stderr to edebug because this is very noisy running in docker.
     if array_not_empty pids; then
         edebug "Waiting for $(lval pids)"
-        wait ${pids[@]}
+        wait ${pids[@]} 2> >(edebug)
     fi
 
     # Now remove any empty orphaned directories in upper layer. Need to touch

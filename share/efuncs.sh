@@ -1153,15 +1153,17 @@ emetadata()
         ":private_key p | Also check the PGP signature based on this private key." \
         ":keyphrase k   | The keyphrase to use for the specified private key." \
         "path")
-    [[ -e ${path} ]] || die "${path} does not exist"
+    
+    local rpath=$(readlink -m "${path}")
+    assert_exists "${rpath}" "${path}"
 
     echo "Filename=$(basename ${path})"
-    echo "Size=$(stat --printf="%s" "${path}")"
+    echo "Size=$(stat --printf="%s" "${rpath}")"
 
     # Now output MD5, SHA256, SHA512
     local ctype
     for ctype in MD5 SHA256 SHA512; do
-        echo "${ctype}=$(eval ${ctype,,}sum "${path}" | awk '{print $1}')"
+        echo "${ctype}=$(eval ${ctype,,}sum "${rpath}" | awk '{print $1}')"
     done
 
     # If PGP signature is NOT requested we can simply return
@@ -1197,7 +1199,7 @@ emetadata()
 
     # Output PGPSignature encoded in base64
     echo "PGPKey=$(basename ${private_key})"
-    echo "PGPSignature=$(GPG_AGENT_INFO="" GNUPGHOME="${gpg_home}" gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${path} 2>/dev/null | base64 --wrap 0)"
+    echo "PGPSignature=$(GPG_AGENT_INFO="" GNUPGHOME="${gpg_home}" gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${rpath} 2>/dev/null | base64 --wrap 0)"
 }
 
 opt_usage emetadata_check <<'END'
@@ -1216,15 +1218,9 @@ emetadata_check()
         ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file."     \
         "path")
 
+    local rpath=$(readlink -m "${path}")
     local meta="${path}.meta"
-    [[ -e ${path} ]] || die "${path} does not exist"
-    [[ -e ${meta} ]] || die "${meta} does not exist"
-
-    fail()
-    {
-        emsg "${COLOR_ERROR}" "   -" "ERROR" "$@"
-        exit 1
-    }
+    assert_exists "${rpath}" "${path}" "${meta}"
 
     local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0
     pack_set metapack $(cat "${meta}")
@@ -1248,7 +1244,7 @@ emetadata_check()
 
     # Fail if there were no digest validation fields to check
     if array_empty digests; then
-        fail "No digest validation fields found: $(lval path)"
+        die "No digest validation fields found: $(lval path)"
     fi
 
     # Now validate all digests we found
@@ -1259,16 +1255,24 @@ emetadata_check()
         expect=$(pack_get metapack ${ctype})
 
         if [[ ${ctype} == "Size" ]]; then
-            actual=$(stat --printf="%s" "${path}")
-            [[ ${expect} == ${actual} ]] || fail "Size mismatch: $(lval path expect actual)"
+            actual=$(stat --printf="%s" "${rpath}")
+            assert_eq "${expect}" "${actual}" "Size mismatch: $(lval path expect actual)"
         elif [[ ${ctype} == @(MD5|SHA1|SHA256|SHA512) ]]; then
-            actual=$(eval ${ctype,,}sum ${path} | awk '{print $1}')
-            [[ ${expect} == ${actual} ]] || fail "${ctype} mismatch: $(lval path expect actual)"
+            actual=$(eval ${ctype,,}sum ${rpath} | awk '{print $1}')
+            assert_eq "${expect}" "${actual}" "${ctype} mismatch: $(lval path expect actual)"
         elif [[ ${ctype} == "PGP" && -n ${public_key} && -n ${pgpsignature} ]]; then
-            local keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
-            trap_add "rm --force ${keyring}"
-            GPG_AGENT_INFO="" gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} |& edebug
-            GPG_AGENT_INFO="" echo "${pgpsignature}" | gpg --verify - "${path}" |& edebug || fail "PGP verification failure: $(lval path)"
+
+            # Put this into a subshell so we can ensure the keyring is torn down in the trap and we can setup some
+            # necessary environment variables without polluting caller's environment.
+            (
+                local keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
+                trap_add "rm --force ${keyring}"
+                export GPG_AGENT_INFO=""
+                gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} |& edebug
+                if ! echo "${pgpsignature}" | gpg --verify - "${rpath}" |& edebug; then
+                    die "PGP verification failure: $(lval path)"
+                fi
+            )
         fi &
 
          pids+=( $! )
@@ -1431,7 +1435,7 @@ efetch_internal()
             # See: https://github.com/curl/curl/issues/183
             edebug "Working around old curl bug #183 wherein empty files are not properly created."
             touch "${dst}"
-	fi
+        fi
     elif [[ -e "${dst}.pending" ]]; then
         rm "${dst}.pending"
     fi
@@ -1812,7 +1816,7 @@ setvars()
                      then be used by setvars as the replacement value.")
 
     edebug "Setting variables $(lval filename callback)"
-    [[ -f ${filename} ]] || die "$(lval filename) does not exist"
+    assert_exists "${filename}"
 
     # If this file is a binary file skip it
     if file ${filename} | grep -q ELF ; then
