@@ -1247,6 +1247,12 @@ emetadata_check()
         die "No digest validation fields found: $(lval path)"
     fi
 
+    fail()
+    {
+        EMSG_PREFIX="" emsg "${COLOR_ERROR}" "   -" "ERROR" "$@"
+        exit 1
+    }
+
     # Now validate all digests we found
     local pids=()
     local ctype
@@ -1256,26 +1262,32 @@ emetadata_check()
 
         if [[ ${ctype} == "Size" ]]; then
             actual=$(stat --printf="%s" "${rpath}")
-            assert_eq "${expect}" "${actual}" "Size mismatch: $(lval path expect actual)"
+            if [[ "${expect}" != "${actual}" ]]; then
+                fail "Size mismatch: $(lval path expect actual)"
+            fi
         elif [[ ${ctype} == @(MD5|SHA1|SHA256|SHA512) ]]; then
             actual=$(eval ${ctype,,}sum ${rpath} | awk '{print $1}')
-            assert_eq "${expect}" "${actual}" "${ctype} mismatch: $(lval path expect actual)"
+            if [[ "${expect}" != "${actual}" ]]; then
+                fail "${ctype} mismatch: $(lval path expect actual)"
+            fi
         elif [[ ${ctype} == "PGP" && -n ${public_key} && -n ${pgpsignature} ]]; then
             local keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
             trap_add "rm --force ${keyring}"
-            GPG_AGENT_INFO="" gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} |& edebug
-            if ! GPG_AGENT_INFO="" echo "${pgpsignature}" | gpg --verify - "${rpath}" |& edebug; then
-                die "PGP verification failure: $(lval path)"
+            GPG_AGENT_INFO="" gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} &> /dev/null
+            if ! GPG_AGENT_INFO="" echo "${pgpsignature}" | gpg --verify - "${rpath}" &> /dev/null; then
+                fail "PGP verification failure: $(lval path)"
             fi
         fi &
 
         pids+=( $! )
     done
 
-    # Wait for all pids
+    # Wait for all pids and then assert the return code was zero.
     wait ${pids[@]} && rc=0 || rc=$?
-    [[ ${quiet} -eq 1 ]] || eprogress_kill -r=${rc}
-    return ${rc}
+    if [[ ${quiet} -ne 1 ]]; then
+        eprogress_kill -r=${rc}
+    fi
+    assert_eq 0 "${rc}"
 }
 
 # Check if a directory is empty
