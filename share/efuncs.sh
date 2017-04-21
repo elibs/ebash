@@ -1261,18 +1261,12 @@ emetadata_check()
             actual=$(eval ${ctype,,}sum ${rpath} | awk '{print $1}')
             assert_eq "${expect}" "${actual}" "${ctype} mismatch: $(lval path expect actual)"
         elif [[ ${ctype} == "PGP" && -n ${public_key} && -n ${pgpsignature} ]]; then
-
-            # Put this into a subshell so we can ensure the keyring is torn down in the trap and we can setup some
-            # necessary environment variables without polluting caller's environment.
-            (
-                local keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
-                trap_add "rm --force ${keyring}"
-                export GPG_AGENT_INFO=""
-                gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} |& edebug
-                if ! echo "${pgpsignature}" | gpg --verify - "${rpath}" |& edebug; then
-                    die "PGP verification failure: $(lval path)"
-                fi
-            )
+            local keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
+            trap_add "rm --force ${keyring}"
+            GPG_AGENT_INFO="" gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} |& edebug
+            if ! GPG_AGENT_INFO="" echo "${pgpsignature}" | gpg --verify - "${rpath}" |& edebug; then
+                die "PGP verification failure: $(lval path)"
+            fi
         fi &
 
         pids+=( $! )
