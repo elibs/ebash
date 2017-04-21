@@ -493,10 +493,9 @@ overlayfs_diff()
 }
 
 opt_usage overlayfs_dedupe <<'END'
-Dedupe files in overlayfs such that all files in the upper directory which are identical IN CONTENT
-to the original ones in the lower layer are removed from the upper layer. This uses 'cmp' in order
-to compare each file byte by byte. Thus even if the upper file has a newer timestamp it will be
-removed if its content is otherwise identical.
+Dedupe files in overlayfs such that all files in the upper directory which are identical IN CONTENT to the original
+ones in the lower layer are removed from the upper layer. This uses 'diff' to compare each file. Even if the upper file
+has a newer timestamp it will be removed if its content is otherwise identical.
 END
 overlayfs_dedupe()
 {
@@ -511,35 +510,22 @@ overlayfs_dedupe()
     local upper=$(pack_get layers upperdir)
 
     # Check each file in parallel and remove any identical files.
-    local pids=() path="" fname=""
+    local path="" fname=""
     for path in $(find ${upper} -type f); do
-
-        (
-            if cmp --quiet "${path}" "${lower}/${path#${upper}}"; then
-                edebug "Found duplicate $(lval path)"
-                rm --force "${path}"
-            fi
-        ) &
-
-        pids+=( $! )
-        
+        if diff -q "${path}" "${lower}/${path#${upper}}" &>/dev/null; then
+            edebug "Found duplicate $(lval path)"
+            rm --force "${path}"
+        fi
     done
 
-    # Wait for the backgrounded jobs to complete. Send stderr to edebug because this is very noisy running in docker.
-    if array_not_empty pids; then
-        edebug "Waiting for $(lval pids)"
-        wait ${pids[@]} 2> >(edebug)
-    fi
-
-    # Now remove any empty orphaned directories in upper layer. Need to touch
-    # a temporary file in upper to avoid find from also deleting that as well.
+    # Now remove any empty orphaned directories in upper layer. Need to touch a temporary file in upper to avoid find
+    # from also deleting that as well.
     local tmp=$(mktemp --tmpdir=${upper} .overlayfs_dedupe-XXXXXX)
     find "${upper}" -type d -empty -delete
     rm --force "${tmp}"
 
-    # Since we have removed files from overlayfs upper directory we need to
-    # remount the overlayfs mount so that the changes will be observed in
-    # the final mount point properly.
+    # Since we have removed files from overlayfs upper directory we need to remount the overlayfs mount so that the
+    # changes will be observed in the final mount point properly.
     emount -o remount "${mnt}"
 }
 
