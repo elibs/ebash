@@ -1247,6 +1247,9 @@ emetadata_check()
         die "No digest validation fields found: $(lval path)"
     fi
 
+    # Callback function for use in the below block of code. The reason we can't just call die() inline when one of
+    # the associated checks fail is because they are backgrounded processes. Calling die() in backgrounded processes
+    # sometimes causes glibc stack smashing corruption.
     fail()
     {
         EMSG_PREFIX="" emsg "${COLOR_ERROR}" "   -" "ERROR" "$@"
