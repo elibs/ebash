@@ -56,13 +56,13 @@ dialog_prgbox()
 {
     $(opt_parse \
         ":geometry g=25x100   | Optional geometry in 'HxW format." \
-        ":oklabel="OK"        | Optional override of the OK button text." \
+        ":ok_label="OK"       | Optional override of the OK button text." \
         "text                 | Text to display in the program box." \
         "command              | Command to execute and display the output from inside the program box.")
 
     # Replace the "x" in geometry with a space before passing it through to dialog.
     geometry=${geometry//x/ }
-    $(dialog --ok-label "${oklabel}" --prgbox "${text}" "stdbuf -o0 -e0 ${command}" ${geometry})
+    $(dialog --ok-label "${ok_label}" --prgbox "${text}" "stdbuf -o0 -e0 ${command}" ${geometry})
 }
 
 opt_usage dialog_read <<'END'
