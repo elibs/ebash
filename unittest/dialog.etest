@@ -9,6 +9,21 @@ if os Darwin || (os_distro ubuntu && os_release 12.04); then
     return 0
 fi
 
+override_function dialog_info '
+{
+    einfo "$@"
+}'
+
+override_function dialog_warn '
+{
+    ewarn "$@"
+}'
+
+override_function dialog_error '
+{
+    eerror "$@"
+}'
+
 # Verify internal behavior of dialog_read with regards to how it handles whitespace and multi-byte keys
 ETEST_dialog_read()
 {
