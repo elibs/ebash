@@ -1508,9 +1508,17 @@ ETEST_archive_bootable_iso_virtualbox()
     einfo "$(lval VBOX_IPC_SOCKETID)"
     einfo "$(lval VBOX_USER_HOME)"
 
+    # The syslinux files on Gentoo/Ember are in /usr/share/sylinux but on Ubuntu they are in /usr/lib/syslinux.
     etestmsg "Creating isolinux tree"
     mkdir -p work/isolinux
-    cp -a /usr/share/syslinux/. work/isolinux
+    if [[ -d /usr/share/syslinux ]]; then
+        cp -a /usr/share/syslinux/. work/isolinux
+    elif [[ -d /usr/lib/syslinux ]]; then
+        cp -a /usr/lib/syslinux/. work/isolinux
+    else
+        die "I don't know where syslinux files are."
+    fi
+
     find work | edebug
 
     {
