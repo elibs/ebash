@@ -1508,19 +1508,14 @@ ETEST_archive_bootable_iso_virtualbox()
     einfo "$(lval VBOX_IPC_SOCKETID)"
     einfo "$(lval VBOX_USER_HOME)"
 
-    # The syslinux files on various distros are in vastly different places. So try to find them in all known locations.
+    # The syslinux files on various distros are in vastly different places. So try to find them in all known locations
+    # but ignore errors as find returns non-zero if any of the requested paths don't exist.
     etestmsg "Creating isolinux tree"
     mkdir -p work/isolinux
-    local dname
-    for dname in /usr/share/syslinux /usr/share/syslinux/modules/bios /usr/lib/syslinux/mbr /usr/lib/syslinux /usr/lib/ISOLINUX; do
-        if [[ -d "${dname}" ]]; then
-            einfo "Found $(lval dname)"
-            cp -a "${dname}/." work/isolinux
-        fi
-    done
-
+    find /usr/share/syslinux /usr/lib/syslinux /usr/lib/ISOLINUX -type f -exec cp {} work/isolinux \; 2>/dev/null || true
+    
     # Make sure required files were found
-    find work | edebug
+    ls -C work/isolinux
     assert_exists work/isolinux/{isolinux.bin,mbr.bin,poweroff.c32}
 
     {
