@@ -1512,7 +1512,7 @@ ETEST_archive_bootable_iso_virtualbox()
     # but ignore errors as find returns non-zero if any of the requested paths don't exist.
     etestmsg "Creating isolinux tree"
     mkdir -p work/isolinux
-    find /usr/share/syslinux /usr/lib/syslinux /usr/lib/ISOLINUX -type f -exec cp {} work/isolinux \; 2>/dev/null || true
+    find /usr/share/syslinux /usr/lib/syslinux/{mbr,modules/bios} /usr/lib/ISOLINUX -type f -exec cp {} work/isolinux \; 2>/dev/null || true
     
     # Make sure required files were found
     ls -C work/isolinux
