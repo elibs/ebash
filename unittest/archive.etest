@@ -1513,15 +1513,15 @@ ETEST_archive_bootable_iso_virtualbox()
     cp -a /usr/share/syslinux/. work/isolinux
     find work | edebug
 
-	{
-		echo "DEFAULT poweroff"
+    {
+        echo "DEFAULT poweroff"
         echo "PROMPT 0"
         echo ""
         echo "LABEL poweroff"
         echo "    COM32 poweroff.c32"
         echo ""
 
-  	} > work/isolinux/isolinux.cfg   
+    } > work/isolinux/isolinux.cfg   
 
     etestmsg "Creating archive"
     archive_create --bootable "work.iso" "work/." 
