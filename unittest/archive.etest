@@ -1508,18 +1508,21 @@ ETEST_archive_bootable_iso_virtualbox()
     einfo "$(lval VBOX_IPC_SOCKETID)"
     einfo "$(lval VBOX_USER_HOME)"
 
-    # The syslinux files on Gentoo/Ember are in /usr/share/sylinux but on Ubuntu they are in /usr/lib/syslinux.
+    # The syslinux files on Gentoo/Ember are in /usr/share/sylinux but on Ubuntu they are in /usr/lib/syslinux. Worse
+    # the isolinux.bin is not part of legacy ubuntu 12.04 syslinux install. Instead it's in /usr/lib/ISOLINUX.
     etestmsg "Creating isolinux tree"
     mkdir -p work/isolinux
-    if [[ -d /usr/share/syslinux ]]; then
-        cp -a /usr/share/syslinux/. work/isolinux
-    elif [[ -d /usr/lib/syslinux ]]; then
-        cp -a /usr/lib/syslinux/. work/isolinux
-    else
-        die "I don't know where syslinux files are."
-    fi
+    local dname
+    for dname in /usr/share/syslinux /usr/lib/syslinux /usr/lib/ISOLINUX; do
+        if [[ -d "${dname}" ]]; then
+            einfo "Found $(lval dname)"
+            cp -a "${dname}/." work/isolinux
+        fi
+    done
 
+    # Make sure required files were found
     find work | edebug
+    assert_exists work/isolinux/{isolinux.bin,mbr.bin,poweroff.c32}
 
     {
         echo "DEFAULT poweroff"
