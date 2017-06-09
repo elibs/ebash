@@ -406,6 +406,17 @@ archive_create()
     edebug "$(lval cmd)"
     $(tryrc -r=archive_create_rc -o=archive_create_stdout -e=archive_create_stderr "eval ${cmd}")
 
+    # Bootable ISO: Postprocess ISO to put it into hybrid mode. isohybrid modifies the ISO in-place to give it a MBR.
+    # From http://www.syslinux.org/wiki/index.php?title=Isohybrid:
+    # ISO 9660 filesystems created by the mkisofs command as described in the ISOLINUX article will boot via BIOS firmware,
+    # but only from optical media like CD, DVD, or BD. The isohybrid feature enhances such filesystems by a Master Boot
+    # Record (MBR) for booting via BIOS from disk storage devices like USB flash drives.
+    if [[ ${archive_create_rc} -eq 0 && ${dest_type} == iso && ${bootable} -eq 1 ]]; then
+        $(tryrc -r=archive_create_rc -o=isohybrid_stdout -e=isohybrid_stderr isohybrid "${dest_real}")
+        archive_create_stdout+="${isohybrid_stdout}"
+        archive_create_stderr+="${isohybrid_stderr}"
+    fi
+
     # Pop out of the unified directory
     popd
 
