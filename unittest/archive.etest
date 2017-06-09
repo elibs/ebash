@@ -1482,3 +1482,78 @@ ETEST_archive_xdiff()
         done
     done
 }
+
+# Verify that a bootable ISO can be booted into properly using VirtualBox. If VirtualBox is not installed
+# then this test will simply log a warning and return success as we don't want to require VirtualBox to be
+# installed on all our test slaves.
+ETEST_archive_bootable_iso_virtualbox()
+{
+    if ! which VBoxManage &>/dev/null; then
+        ewarn "VirtualBox is not installed -- skipping"
+        return 0
+    fi
+
+    # Unique name for the VM
+    VM="${FUNCNAME}_$$"
+    
+    # Generate unique socket ID to make VirtualBox use a separate daemon.
+    # Set directory for VirtualBox config and log files (like VirtualBox.xml and VBoxSVC.log)
+    # And also set directory for VM files (.vbox, .vmdk, per-VM logs)
+    export VBOX_IPC_SOCKETID="${VM}"
+    export VBOX_USER_HOME="$(readlink -m ./VirtualBox/${VM})"
+    VBoxManage setproperty machinefolder "${VBOX_USER_HOME}"
+
+    etestmsg "VirtualBox configuration"
+    einfo "$(lval VM)"
+    einfo "$(lval VBOX_IPC_SOCKETID)"
+    einfo "$(lval VBOX_USER_HOME)"
+
+    etestmsg "Creating isolinux tree"
+    mkdir -p work/isolinux
+    cp -a /usr/share/syslinux/. work/isolinux
+    find work | edebug
+
+	{
+		echo "DEFAULT poweroff"
+        echo "PROMPT 0"
+        echo ""
+        echo "LABEL poweroff"
+        echo "    COM32 poweroff.c32"
+        echo ""
+
+  	} > work/isolinux/isolinux.cfg   
+
+    etestmsg "Creating archive"
+    archive_create --bootable "work.iso" "work/." 
+
+    etestmsg "Converting ISO into VDI"
+    VBoxManage convertfromraw "work.iso" "work.vdi"
+    
+    # Now create a VirtualBox VM and have it boot using the bootable ISO. The VM should immediately shutdown since we've
+    # setup a dummy extlinux menu which simply powers off the VM. If the VM does not power off immediately, then the call
+    # to VBoxHeadless will actually hang. To guard against that wrap it in an etimeout. If it doesn't complete within a 
+    # few seconds then something failed. But to avoid a flaky test set this to 60s to give it plenty of time.
+    etestmsg "Create VM"
+    VBoxManage createvm --name "${VM}" --ostype "Other" --register
+    VBoxManage storagectl "${VM}" --name "SATA Controller" --add sata --controller IntelAHCI
+    VBoxManage storageattach "${VM}" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "work.vdi"
+    etimeout --timeout=60s VBoxHeadless --startvm "${VM}"
+
+    # Wait for the VirtualBox processes spawned for this test to shutdown too. We know there are two processes launched
+    # 'VVboxSVC' and 'VBoxXPCOMIPCD'. But we don't want to wait for process we didn't spawn. So we look at any matching
+    # process and check if it has the env variables we set above. If so, wait for it to stop.
+    etestmsg "Looking for VirtualBox processes to wait on"
+    local pid="" pids=()
+    for pid in $(pgrep "VBoxSVC|VBoxXPCOMIPCD"); do
+        local socket=$(grep -z "VBOX_IPC_SOCKETID=.*" "/proc/${pid}/environ" | sed 's|VBOX_IPC_SOCKETID=||' || true)
+        edebug "$(lval socket VBOX_IPC_SOCKETID)"
+        if [[ "${socket}" == "${VBOX_IPC_SOCKETID}" ]]; then
+            einfos "${pid}"
+            pids+=( ${pid} )
+        fi
+    done
+
+    eprogress "Waiting for $(lval pids) to exit"
+    eretry --max-timeout=60s process_not_running "${pids[@]}"
+    eprogress_kill
+}
