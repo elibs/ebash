@@ -396,8 +396,17 @@ overlayfs_commit()
         # Get volume name and bootable flag.
         # NOTE: Suppress stderr because isoinfo spews messages to stderr that can't be turned
         # of such as 'Setting input-charset to 'UTF-8' from locale.'
+        #
+        # The "file" utility version 5.29 reports a bootable ISO image like this:
+        #     ember-element-0.23.iso: DOS/MBR boot sector; partition 1 : ID=0x17, active, start-CHS (0x0,0,1), end-CHS (0x3ff,63,32), startsector 0, 3620864 sectors
+        #
+        # file version 5.22 reports it like this:
+        #     ember-element-0.23.iso: DOS/MBR boot sector ISO 9660 CD-ROM filesystem data 'ember-element-0.23' (bootable); partition 1 : ID=0x17, active, start-CHS (0x0,0,1), end-CHS (0x3ff,63,32), startsector 0, 3620864 sectors
+        #
+        # The grep regex below tries to err on the side of "bootable"
+        # when guessing whether the source was a bootable image.
         flags+=' --volume="'$(isoinfo -d -i "${src}" 2>/dev/null | grep -oP "Volume id: (\K.*)")'"'
-        flags+=" --bootable=$(file "${src}" | grep --count "(bootable)" || true)"
+        flags+=" --bootable=$(file "${src}" | grep --count "(bootable)\|DOS/MBR boot sector" || true)"
     fi
 
     # Save the changes to a temporary archive of the same type then unmount
