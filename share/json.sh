@@ -162,7 +162,8 @@ json_import()
 
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
     # In either case read into a local variable so we can parse it repeatedly in this function.
-    local _json_import_data=$(cat ${file} | jq -r "${query}")
+    local _json_import_input=$(cat ${file} || true)
+    local _json_import_data=$(jq -r "${query}" <<< ${_json_import_input} || true)
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
     array_empty _json_import_keys && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
@@ -187,7 +188,7 @@ json_import()
             local has_field=$(jq --raw-output '. | has("'${key}'")' <<< "${_json_import_data}")
 
             if [[ ${has_field} != "true" ]] ; then
-                die "Data does not contain required $(lval key _json_import_data)"
+                die "Data does not contain required $(lval key _json_import_input _json_import_data)"
             fi
 
             val=$(jq -c -r '.'${key} <<< "${_json_import_data}")
