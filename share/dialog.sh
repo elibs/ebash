@@ -445,7 +445,7 @@ are 'username' and 'password'.
 END
 dialog_prompt_username_password()
 {
-    local default_title="\nPlese provide login information.\n"
+    local default_title="\nPlease provide login information.\n"
     $(opt_parse \
         "+optional               | If true, the username and password are optional. In this case the user will be
                                    allowed to exit the dialog menu without providing username and passwords. Otherwise
