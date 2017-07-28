@@ -244,6 +244,9 @@ archive_create()
 
     # Parse options
     local dest_real=$(readlink -m "${dest}")
+    local dest_dname=$(dirname "${dest_real}")
+    local dest_name=$(basename "${dest_real}")
+    local dest_tmp="${dest_dname}/.pending-${dest_name}"
     local dest_type=$(archive_type --type "${type}" "${dest}")
     local excludes=( ${exclude} )
     local cmd=""
@@ -260,11 +263,11 @@ archive_create()
         assert_eq "${dest_type}" "tar" "--dereference option only valid for tar archive format"
     fi
 
-    edebug "Creating archive $(lval directory srcs dest dest_real dest_type excludes ignore_missing nice level)"
+    edebug "Creating archive $(lval directory srcs dest dest_real dest_dname dest_name dest_tmp dest_type excludes ignore_missing nice level)"
     mkdir -p "$(dirname "${dest}")"
 
     # List of files to clean-up
-    local cleanup_files=()
+    local cleanup_files=( "${dest_tmp}" )
     trap_add "array_not_empty cleanup_files && eunmount --all --recursive --delete \${cleanup_files[@]}"
 
     # If requested change directory first
@@ -289,7 +292,7 @@ archive_create()
  
     # Always exclude the destination file. Need to canonicalize it and then remove
     # any illegal prefix characters (/, ./, ../)
-    echo "${dest_real#${PWD}/}" | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
+    echo "${dest_tmp#${PWD}/}" | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
 
     # Provide a common API around excludes, use find to pre-expand all excludes.
     local entry
@@ -302,8 +305,8 @@ archive_create()
         : ${mnt:=${src}}
         
         local src_norm=$(readlink -m "${src}")
-        if [[ ${dest_real} == ${src_norm}/* ]]; then
-            echo "${dest_real#${src_norm}/}" | sed "s%^\(/\|./\|../\)%%"
+        if [[ ${dest_tmp} == ${src_norm}/* ]]; then
+            echo "${dest_tmp#${src_norm}/}" | sed "s%^\(/\|./\|../\)%%"
         fi
 
         if array_not_empty excludes; then
@@ -351,7 +354,7 @@ archive_create()
             mksquashfs_flags+=" -processors 1"
         fi          
 
-        cmd="mksquashfs . ${dest_real} ${mksquashfs_flags} -ef ${exclude_file}"
+        cmd="mksquashfs . ${dest_tmp} ${mksquashfs_flags} -ef ${exclude_file}"
 
     # ISO
     elif [[ ${dest_type} == iso ]]; then
@@ -366,7 +369,7 @@ archive_create()
             return 1
         fi
 
-        cmd="${mkisofs} -r -V "${volume}" -cache-inodes -iso-level 3 -J -joliet-long -o "${dest_real}" -exclude-list ${exclude_file}"
+        cmd="${mkisofs} -r -V "${volume}" -cache-inodes -iso-level 3 -J -joliet-long -o "${dest_tmp}" -exclude-list ${exclude_file}"
         
         if [[ ${bootable} -eq 1 ]]; then
             cmd+=" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
@@ -383,22 +386,22 @@ archive_create()
             cmd+=" --dereference"
         fi
 
-        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_tmp}")
         if [[ -n "${prog}" ]]; then
-            cmd+=" --file - . | ${prog} -${level} > ${dest_real}"
+            cmd+=" --file - . | ${prog} -${level} > ${dest_tmp}"
         else
-            cmd+=" --file ${dest_real} ."
+            cmd+=" --file ${dest_tmp} ."
         fi
 
     # CPIO
     elif [[ ${dest_type} == cpio ]]; then
         
         cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
-        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_real}")
+        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_tmp}")
         if [[ -n "${prog}" ]]; then
-            cmd+=" | ${prog} -${level} > ${dest_real}"
+            cmd+=" | ${prog} -${level} > ${dest_tmp}"
         else
-            cmd+=" --file ${dest_real}"
+            cmd+=" --file ${dest_tmp}"
         fi
     fi
 
@@ -412,7 +415,7 @@ archive_create()
     # but only from optical media like CD, DVD, or BD. The isohybrid feature enhances such filesystems by a Master Boot
     # Record (MBR) for booting via BIOS from disk storage devices like USB flash drives.
     if [[ ${archive_create_rc} -eq 0 && ${dest_type} == iso && ${bootable} -eq 1 ]]; then
-        $(tryrc -r=archive_create_rc -o=isohybrid_stdout -e=isohybrid_stderr isohybrid "${dest_real}")
+        $(tryrc -r=archive_create_rc -o=isohybrid_stdout -e=isohybrid_stderr isohybrid "${dest_tmp}")
         archive_create_stdout+="${isohybrid_stdout}"
         archive_create_stderr+="${isohybrid_stderr}"
     fi
@@ -423,6 +426,12 @@ archive_create()
     # If requested change directory
     if [[ -n ${directory} ]]; then
         popd
+    fi
+
+    # If we successfully created the archive then atomically move the temporary version to the final version.
+    if [[ ${archive_create_rc} -eq 0 ]]; then
+        edebug "Atomically moving $(lval dest_tmp dest_real)"
+        mv "${dest_tmp}" "${dest_real}"
     fi
 
     # Execute clean-up and clear the list so it won't get called again on trap teardown
