@@ -46,6 +46,36 @@ dialog_load()
 alias dialog='tryrc --stdout=dialog_output --rc=dialog_rc command dialog --stdout --no-mouse'
 dialog_load
 
+opt_usage dialog_info <<'END'
+Helper function to make it easier to display simple information boxes inside dialog. This is similar in purpose and
+usage to einfo and will display a dialog msgbox with the provided text.
+END
+dialog_info()
+{
+    $(dialog --no-cancel --msgbox "$@" 10 50)
+    return 0
+}
+
+opt_usage dialog_warn <<'END'
+Helper function to make it easier to display simple warning boxes inside dialog. This is similar in purpose and
+usage to ewarn and will display a dialog msgbox with the provided text.
+END
+dialog_warn()
+{
+    $(dialog --no-cancel --colors --title "Warning" --msgbox "$@" 10 50)
+    return 0
+}
+
+opt_usage dialog_error <<'END'
+Helper function to make it easier to display simple error boxes inside dialog. This is similar in purpose and
+usage to eerror and will display a dialog msgbox with the provided text.
+END
+dialog_error()
+{
+    $(dialog --no-cancel --colors --title "Error" --msgbox "\Zb\Z1$@" 10 50)
+    return 0
+}
+
 opt_usage dialog_prgbox <<'END'
 Helper function to make it easier to use dialog --prgbox without buffering. This is done using stdbuf which can then
 disable buffering on stdout and stderr before invoking the command requested by the caller. This way we have a nice
@@ -306,7 +336,7 @@ dialog_prompt()
             elif [[ "${char}" == "${BU_KEY_ESC}" ]]; then
                 ekilltree -k=2s "${dialog_pid}"
                 wait ${dialog_pid} &>/dev/null || true
-                eerror "Operation canceled."
+                dialog_error "Operation canceled."
                 echo "eval return ${DIALOG_CANCEL};"
                 return ${DIALOG_CANCEL}
             fi
@@ -355,7 +385,7 @@ dialog_prompt()
         # If it exited for any non-dialog reason then we need to abort as something unexpected happened.
         wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
         if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
-            eerror "Dialog failed with an unknown exit code (${dialog_rc})"
+            dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
             return ${dialog_rc}
         fi
 
@@ -373,48 +403,49 @@ dialog_prompt()
         elif [[ "${dialog_output}" =~ ^${dialog_renamed} ]]; then
             local field=$(echo "${dialog_output}" | grep -Po "RENAMED \K[^:]*")
             local value=$(echo "${dialog_output}" | grep -Po ": \K.*" || true) # May not have any value at all
-            field=${field#\*}
-            field=${field,,}
-            edebug "Assigning: $(print_value field) => $(print_value value)"
-            pack_set fpack[$field] value="${value}"
-            default_item="$(pack_get fpack[$field] display):"
-        fi
 
-        # Find index of the field that was just modified so we can set the default item to the next item in the list.
-        local idx
-        for idx in $(array_indexes keys); do
-            local key=${keys[$idx]}
-            if [[ "${default_item}" == "$(pack_get fpack[$key] display):" ]]; then
-                local next=$((idx+${offset}))
-                if [[ ${next} -ge ${#keys[@]} ]]; then
-                    next=$(( ${#keys[@]} -1 ))
-                elif [[ ${next} -lt 0 ]]; then
-                    next=0
+            # The output from dialog is the *display* which may not match the actual variable passed in. So we have to
+            # lookup the correct pack entry from the display key.
+            local idx
+            for idx in $(array_indexes keys); do
+                local key=${keys[$idx]}
+                if [[ "${field}" == "$(pack_get fpack[$key] display)" ]]; then
+
+                    edebug "Assigning: $(print_value key) => $(print_value value)"
+                    pack_set fpack[$key] value="${value}"
+
+                    local next=$((idx+${offset}))
+                    if [[ ${next} -ge ${#keys[@]} ]]; then
+                        next=$(( ${#keys[@]} -1 ))
+                    elif [[ ${next} -lt 0 ]]; then
+                        next=0
+                    fi
+                    local next_field="${keys[$next]}"
+                    default_item="$(pack_get fpack[$next_field] display):"
+
+                    break
                 fi
-                local next_field="${keys[$next]}"
-                default_item="$(pack_get fpack[$next_field] display):"
-
-                break
-            fi
-        done
-
-        # Now check if we are done or not. If there are any required fields that have not been provided display an error
-        # and re-prompt them for the required fields.
-        local missing=()
-        for key in "${keys[@]}"; do
-            if [[ $(pack_get fpack[$key] required) -eq 1 && -z $(pack_get fpack[$key] value) ]]; then
-                missing+=( $(pack_get fpack[$key] display | sed 's|^*||') )
-            fi
-        done
-
-        if array_not_empty missing; then
-            eerror "One or more required fields are $(lval missing)."
-            default_button="extra"
-            continue
+            done
         fi
 
-        # At this point if the default button is on OK and all required fields have been provided we are done.
+        # Now check if we are done or not. We should only check this if the user hit the "OK" button. 
+        # If there are any required fields that have not been provided display an error
+        # and re-prompt them for the required fields.
         if [[ ${default_button} == "ok" || ${dialog_rc} -eq 0 ]]; then
+
+            local missing=()
+            for key in "${keys[@]}"; do
+                if [[ $(pack_get fpack[$key] required) -eq 1 && -z $(pack_get fpack[$key] value) ]]; then
+                    missing+=( $(pack_get fpack[$key] display | sed 's|^*||') )
+                fi
+            done
+
+            if array_not_empty missing; then
+                dialog_error "One or more required fields are $(lval missing)."
+                default_button="extra"
+                continue
+            fi
+
             edebug "Finished prompting for required fields"
             break
         fi
@@ -481,13 +512,13 @@ dialog_prompt_username_password()
 
         # If any are empty and values are required, show an error and loop again.
         if [[ ${optional} -ne 1 && ( -z "${username}" || -z "${password}" ) ]]; then
-            eerror "Please provide both a username and a password"
+            dialog_error "Please provide both a username and a password"
             continue
         fi
 
         # If passords don't match it's an error
         if [[ "${password}" != "${password_confirm}" ]]; then
-            eerror "Passwords do not match"
+            dialog_error "Passwords do not match"
             continue
         fi
 
