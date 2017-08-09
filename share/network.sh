@@ -104,9 +104,10 @@ getnetmask()
 netmask2cidr ()
 {
     # Assumes there's no "255." after a non-255 byte in the mask 
-    set -- 0^^^128^192^224^240^248^252^254^ ${#1} ${1##*255.} 
-    set -- $(( ($2 - ${#3})*2 )) ${1%%${3%%.*}*} 
-    echo $(( $1 + (${#2}/4) ))
+    set -- 0^^^128^192^224^240^248^252^254^ ${#1} ${1##*255.}
+    set -- $(( ($2 - ${#3})*2 )) ${1%%${3%%.*}*}
+    local rem="${2:-}"
+    echo $(( $1 + (${#rem}/4) ))
 }
 
 # Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0).
