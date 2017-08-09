@@ -75,7 +75,7 @@ DIALOG_PROMPT="dialog_prompt --hide --trace"
 
 ETEST_dialog_prompt_single()
 {
-    local input="Locke${BU_KEY_DONE}"
+    local input="Locke${BU_KEY_ENTER}${BU_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1)
     assert_eq "Locke" "${philo1}"
 }
@@ -84,7 +84,7 @@ ETEST_dialog_prompt_single()
 # without having to press ENTER to exit the first field and enter the second field.
 ETEST_dialog_prompt_multi()
 {
-    local input="Locke${BU_KEY_DOWN}Hobbes${BU_KEY_DONE}"
+    local input="Locke${BU_KEY_DOWN}Hobbes${BU_KEY_ENTER}${BU_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
@@ -92,7 +92,7 @@ ETEST_dialog_prompt_multi()
 
 ETEST_dialog_prompt_multi_spaces()
 {
-    local input="Locke${BU_KEY_DOWN}Thomas Hobbes${BU_KEY_DONE}"
+    local input="Locke${BU_KEY_DOWN}Thomas Hobbes${BU_KEY_ENTER}${BU_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2)
     assert_eq "Locke"         "${philo1}"
     assert_eq "Thomas Hobbes" "${philo2}"
@@ -108,7 +108,7 @@ ETEST_dialog_prompt_optional()
 ETEST_dialog_prompt_optional_multi_first()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="${BU_KEY_DOWN}Locke${BU_KEY_DOWN}Hobbes${BU_KEY_DONE}"
+    local input="${BU_KEY_DOWN}Locke${BU_KEY_DOWN}Hobbes${BU_KEY_ENTER}${BU_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} ?philo1 philo2 philo3)
     assert_empty       "${philo1}"
     assert_eq "Locke"  "${philo2}"
@@ -118,7 +118,7 @@ ETEST_dialog_prompt_optional_multi_first()
 ETEST_dialog_prompt_optional_multi_middle()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="Locke${BU_KEY_DOWN}${BU_KEY_DOWN}Hobbes${BU_KEY_DONE}"
+    local input="Locke${BU_KEY_DOWN}${BU_KEY_DOWN}Hobbes${BU_KEY_ENTER}${BU_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1 ?philo2 philo3)
     assert_eq "Locke"  "${philo1}"
     assert_empty       "${philo2}"
@@ -128,7 +128,7 @@ ETEST_dialog_prompt_optional_multi_middle()
 ETEST_dialog_prompt_optional_multi_last()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="Locke${BU_KEY_DOWN}Hobbes${BU_KEY_DONE}"
+    local input="Locke${BU_KEY_DOWN}Hobbes${BU_KEY_UP}${BU_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2 ?philo3)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
@@ -156,7 +156,7 @@ ETEST_dialog_prompt_default_values()
 ETEST_dialog_prompt_default_values_override()
 {
     # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DELETE}John Rawls${BU_KEY_DONE}"
+    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DELETE}John Rawls${BU_KEY_ENTER}${BU_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
@@ -169,7 +169,7 @@ ETEST_dialog_prompt_default_values_override_term()
     dialog_load
 
     # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DELETE}John Rawls${BU_KEY_DONE}"
+    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DELETE}John Rawls${BU_KEY_TAB}${BU_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"

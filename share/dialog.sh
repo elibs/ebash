@@ -35,7 +35,7 @@ dialog_load()
     BU_KEY_DELETE=$'\e[3~'
 
     # Key sequence when we're done with dialog_prompt and want to hit "OK"
-    BU_KEY_DONE="${BU_KEY_TAB}${BU_KEY_LEFT}${BU_KEY_ENTER}"
+    BU_KEY_DONE="${BU_KEY_TAB}${BU_KEY_ENTER}"
 }
 
 # Create an alias to wrap calls to dialog through our tryrc idiom. This is necessary for a couple of reasons. First
@@ -115,7 +115,7 @@ dialog_read()
     # Don't fail if nothing is retrieved since user may not actually have pressed a mult-byte character. There is no
     # danger of a race condition here since the multibyte characters are presented to the input stream atomically.
     if [[ "${c1}" == ${BU_KEY_ESC} ]]; then
-        local timeout=0.0001
+        local timeout=1
         IFS= read -rsN1 -t ${timeout} c2 || true
 
         # If we just read a '[' then that is another signal that there is more to read. There may or may not be anything
@@ -155,6 +155,7 @@ END
 dialog_prompt()
 {
     $(opt_parse \
+        "+instructions=1                                   | Include instructions on how to navigate dialog window."   \
         ":backtitle                                        | Text to display on backdrop at top left of the screen."   \
         ":geometry g                                       | Geometry of the box (HEIGHTxWIDTHxMENU-HEIGHT). "         \
         ":help_label                                       | Override label used for 'Help' button."                   \
@@ -182,8 +183,8 @@ dialog_prompt()
 
     # Compute reasonable geometry if one wasn't explicitly requested by the caller.
     geometry=${geometry//x/ }
+    local width=60
     if [[ -z ${geometry} ]]; then
-        local width=50
         
         # Inputmenu doesn't scale well. With only a few fields it needs more padding around the menus or they don't
         # fit on the canvas. But with larger number of fields they require less padding or else the canvas is too 
@@ -196,7 +197,15 @@ dialog_prompt()
 
         # Minimum height is 11
         [[ ${height} -lt 11 ]] && height=11
+
+        # If instructions were requested we have to increase the height proportionally.
+        if [[ ${instructions} -eq 1 ]]; then
+            (( height+=5 ))
+        fi
+
+        # Final geometry setting
         geometry="${height} ${width} ${menu_height}"
+    
     fi
 
     # Iterate over all the requested fields and create a pack for each of them to allow us to store and access various 
@@ -267,6 +276,14 @@ dialog_prompt()
     [[ ${trace} -eq 1   ]] && dialog_args+=( --trace "$(fd_path)/2" )
     [[ -n ${help_label} ]] && dialog_args+=( --help-button --help-label "${help_label}" )
 
+    # Optionally append navigation instructions into title
+    if [[ ${instructions} -eq 1 ]]; then
+        eval "local banner=\$(printf -- '-%.0s' {1..$((${width}-4))})"
+        title+="\n${banner}\n"
+        title+="Use ↑/↓ to navigate between fields. Start typing or hit ←/→ to enter the field to make changes. Press 'enter' to submit changes for that field. To save all pending changes hit 'tab' then 'enter'.\n\Zb\Z1* denotes required fields." 
+        title+=""
+    fi
+    
     # Append final static flags
     dialog_args+=( --inputmenu "${title}" ${geometry} )
 
@@ -276,15 +293,40 @@ dialog_prompt()
         ncurses_out="/dev/null"
     fi
 
-    # Bind TAB key to ENTER so we can use it to toggle between input and navigation keys
-    echo "bindkey menu TAB ENTER" >> "${dlgrc}"
-
     # Enter loop to prompt for all required values.
+    local offset=0
     local default_button="extra"
     local default_item="$(pack_get fpack[${keys[0]}] display):"
     while true; do
 
-        edebug "[STARTING INPUT LOOP] $(lval default_button default_item dialog_pid)"
+        edebug "[STARTING INPUT LOOP] $(lval default_button default_item dialog_pid offset)"
+
+        # In order to support a more seamless experience for the user we want to only have one of the windows in 
+        # focus. This refers to the top window where all the fields are and the bottom window where the control buttons
+        # such as 'OK', 'CANCEL', etc., are. Dialog doesn't natively support that but we can easily coerce it to do so
+        # by changing the colors so that only the one we want to be 'in focus' has color highlights enabled whereas
+        # the other one we set to the same colors as the background so that it blends in and does not look like it
+        # has focus. In this first block of code we setup the default color schemes for every iteration. Then we 
+        # essentially set the colors for the items and buttons in the unfocused window so that they blend into the
+        # background and then do not look like they have focus.
+        {
+            echo "bindkey menu TAB ENTER"
+            echo "tag_key_color = (BLUE,WHITE,ON)"
+            echo "tag_key_selected_color = (YELLOW,BLUE,ON)"
+            echo "tag_selected_color = (YELLOW,BLUE,ON)" 
+            echo "tag_key_selected_color = (YELLOW,BLUE,ON)"
+        } > "${dlgrc}"
+
+        if [[ ${default_button} == "ok" ]]; then
+            echo "item_selected_color = (BLACK,WHITE,OFF)"
+            echo "tag_selected_color = (BLUE,WHITE,ON)"
+            echo "tag_key_selected_color = (BLUE,WHITE,ON)"
+        else
+            echo "item_selected_color = (WHITE,BLUE,ON)"
+            echo "tag_selected_color = (YELLOW,BLUE,ON)"
+            echo "button_active_color = (BLACK,WHITE,OFF)"
+            echo "button_label_active_color = (BLACK,WHITE,OFF)"
+        fi >> "${dlgrc}"
 
         local key="" fields_opt=()
         for key in "${keys[@]}"; do
@@ -292,14 +334,13 @@ dialog_prompt()
         done
 
         echo "" > "${output_file}"
-        local offset=0
 
         # Spawn a background dialog process to react to the key presses and other metadata keys we'll feed it through
         # the input file descriptor.
         (
             __BU_INSIDE_TRY=1
             disable_die_parent
-            DIALOGRC=${dlgrc} command dialog            \
+            DIALOGRC=${dlgrc} command dialog --colors   \
                 --default-button    "${default_button}" \
                 --default-item      "${default_item}"   \
                 "${dialog_args[@]}" "${fields_opt[@]}"
@@ -310,35 +351,54 @@ dialog_prompt()
         # input fiels and automatically exit the input fields when arrow keys or tab are pressed.
         dialog_pid=$!
         edebug "Spawned $(lval dialog_pid)"
-        trap_add "ekilltree -k=2s ${dialog_pid}"
+        
+        # Helper function to provide a consistent and safe way to kill dialog subprocess that we spawn.
+        dialog_kill()
+        {
+            if [[ -n "${dialog_pid:-}" ]]; then
+                edebug "Killing $(lval dialog_pid)"
+                ekilltree -k=0.25s ${dialog_pid}
+                wait ${dialog_pid} &>/dev/null || true
+            fi
+        }
+        trap_add dialog_kill
+
+        # Helper function to cancel the dialog process that we spawned in a consistent reusable way.
+        dialog_cancel()
+        {
+            dialog_kill
+            dialog_error "Operation canceled."
+            echo "eval return ${DIALOG_CANCEL};"
+        }
+
         local char="" focus=0
         while process_running ${dialog_pid} && $(dialog_read char); do
 
             # TAB. This key is used to transfer focus between the input fields and the control characters at the bottom
             # of the window. So here we essentially update the default_button.
-            if [[ "${char}" == "${BU_KEY_TAB}" ]]; then
+            if [[ "${char}" == "${BU_KEY_TAB}" && ${focus} -ne 1 ]]; then
+
+                # Ignore TAB if we're in the middle of an input field as it's not clear if the expectation is to
+                # insert a literal tab character into the input field or to navigate down to the bottom menu. Doing
+                # any kind of automatic navigation is sloppy and confusing for the user.
+                if [[ ${focus} -eq 1 ]]; then
+                    continue
+                fi
+
                 if [[ ${default_button} == "extra" ]]; then
                     default_button="ok"
                 elif [[ ${default_button} == "ok" ]]; then
                     default_button="extra"
-
-                    # Echo two newlines to simulate ENTER key being pressed as follows:
-                    # (1) Select "Edit" button
-                    # (2) Enter next field for input
-                    echo "" > "${input_file}"
-                    echo "" > "${input_file}"
                 fi
 
-                continue
+                dialog_kill
+                continue 2
             
             # ESCAPE KEY. No matter where we are in in dialog, if ESC is pressed we want to cancel out and return to
             # the prior menu.
             elif [[ "${char}" == "${BU_KEY_ESC}" ]]; then
-                ekilltree -k=2s "${dialog_pid}"
-                wait ${dialog_pid} &>/dev/null || true
-                dialog_error "Operation canceled."
-                echo "eval return ${DIALOG_CANCEL};"
-                return ${DIALOG_CANCEL}
+                dialog_cancel
+                return 0
             fi
 
             # FOCUS. This is where all the magic happens to automatically transfer focus into the input fields when
@@ -347,12 +407,12 @@ dialog_prompt()
 
                 # If we already have focus, and we just received an UP or DOWN or ENTER key, then lose focus. Also have
                 # to update our offset so that the right field will be highlighted on the next loop.
-                if [[ ${focus} -eq 1 && ( "${char}" == "${BU_KEY_UP}" || "${char}" == "${BU_KEY_DOWN}" || "${char}" == "${BU_KEY_ENTER}" ) ]]; then
+                if [[ ${focus} -eq 1 && ( "${char}" == "${BU_KEY_UP}" || "${char}" == "${BU_KEY_DOWN}" || "${char}" == "${BU_KEY_ENTER}" || "${char}" == "${BU_KEY_TAB}" ) ]]; then
                     edebug "Lost focus"
                     focus=0
                     echo "" > "${input_file}"
 
-                    if [[ "${char}" == ${BU_KEY_DOWN} || "${char}" == ${BU_KEY_ENTER} ]]; then
+                    if [[ "${char}" == ${BU_KEY_DOWN} || "${char}" == ${BU_KEY_ENTER} || "${char}" == "${BU_KEY_TAB}" ]]; then
                         offset=1
                     elif [[ "${char}" == "${BU_KEY_UP}" ]]; then
                         offset=-1
@@ -372,10 +432,10 @@ dialog_prompt()
             # Send this character to dialog
             echo -n "${char}" > "${input_file}"
 
-            # If the default button is not "extra" then the button we just pressed may cause the program to exit. But if we loop
+            # If the button we just pressed was an 'enter' key that may cause the program to exit. But if we loop
             # around too quickly we won't know that and we'll wait for additional input. So this adds in some delay to give the
             # process time to exit before we check if it's running.
-            if [[ ${default_button} != "extra" && "${char}" == "${BU_KEY_ENTER}" ]]; then
+            if [[ "${char}" == "${BU_KEY_ENTER}" ]]; then
                 edebug "Sleeping to give process a chance to exit."
                 sleep 0.25
             fi
@@ -392,11 +452,16 @@ dialog_prompt()
         local dialog_output="$(string_trim "$(cat "${output_file}")")"
         edebug "Dialog exited $(lval dialog_pid dialog_rc dialog_output)"
 
+        if [[ ${dialog_rc} == ${DIALOG_CANCEL} ]]; then
+            dialog_cancel
+            return 0 #${DIALOG_CANCEL}
+        fi
+
         # HELP
         local dialog_help="HELP "
         local dialog_renamed="RENAMED "
         if [[ "${dialog_output}" =~ ^${dialog_help} && -n "${help_callback}" ]]; then
-            default_button="ok"
+            default_button="extra"
             ${help_callback}
 
         # EDIT
@@ -460,9 +525,7 @@ dialog_prompt()
 
     # Clean-up
     rm --recursive --force "${tmp}"
-    edebug "Killing $(lval dialog_pid)"
-    ekilltree -k=2s ${dialog_pid}
-    wait ${dialog_pid} &>/dev/null || true
+    dialog_kill
 }
 
 opt_usage dialog_prompt_username_password <<'END'
