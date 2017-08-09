@@ -454,7 +454,7 @@ dialog_prompt()
 
         if [[ ${dialog_rc} == ${DIALOG_CANCEL} ]]; then
             dialog_cancel
-            return 0 #${DIALOG_CANCEL}
+            return 0
         fi
 
         # HELP
