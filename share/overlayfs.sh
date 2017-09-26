@@ -380,7 +380,9 @@ overlayfs_commit()
     fi
 
     # Create a tmp file to store changed version
-    local tmp=$(mktemp --tmpdir overlayfs-commit-XXXXXX-${src_name})
+    # Note: if src_name contains any captiol X's, it will either cause mktemp to fail completely or put the randomness
+    # in the wrong place.  converting to lowercase solves this problem
+    local tmp=$(mktemp --tmpdir overlayfs-commit-XXXXXX-${src_name,,})
     trap_add "rm --force ${tmp}"
 
     # Optionally start eprogress ticker

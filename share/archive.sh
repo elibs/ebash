@@ -750,7 +750,10 @@ archive_append()
     # (1) Is created in the same directory as the final destination we will move it to in order to
     #     guarantee atomiciy.
     # (2) Ends in the same exact suffix as the original file so that we'll use the correct compression.
-    local appended=$(mktemp $(dirname ${dest_real})/archive-append-XXXXXX-${dest_name})
+    #
+    # Note: if src_name contains any captiol X's, it will either cause mktemp to fail completely or put the randomness
+    # in the wrong place.  converting to lowercase solves this problem
+    local appended=$(mktemp $(dirname ${dest_real})/archive-append-XXXXXX-${dest_name,,})
     opt_forward archive_create best bootable dereference fast ignore_missing level nice volume -- "${appended}" "${unified}/."
 
     # Now move the append archive over the original.
