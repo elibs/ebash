@@ -41,9 +41,6 @@ array_init_json()
         "__string      | String to be split" \
         "+keepquotes k | Keep quotes around array elements of string to be split")
 
-    [[ -z ${__array} ]] && die "array_init_json requires array name"
-    [[ -z ${__string} ]] && die "array_init_json requires values to assign array"
-
     if [[ ${keepquotes} -eq 1 ]]; then
         array_init "${__array}" "$(echo "${__string}" | sed -e 's|^\[\s*||' -e 's|\s*\]$||')" ","
     else
