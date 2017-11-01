@@ -33,12 +33,22 @@ array_init_nl()
 }
 
 # Initialize an array from a Json array. This will essentially just strip
-# of the brackets from around the Json array and then remove the internal
-# quotes on each value since they are unecessary in bash.
+# of the brackets from around the Json array.
 array_init_json()
 {
-    [[ $# -ne 2 ]] && die "array_init_json requires exactly two parameters but passed=($@)"
-    array_init "$1" "$(echo "${2}" | sed -e 's|^\[\s*||' -e 's|\s*\]$||' -e 's|",\s*"|","|g' -e 's|"||g')" ","
+    $(opt_parse \
+        "__array       | Name of array to assign to." \
+        "__string      | String to be split" \
+        "+keepquotes k | Keep quotes around array elements of string to be split")
+
+    [[ -z ${__array} ]] && die "array_init_json requires array name"
+    [[ -z ${__string} ]] && die "array_init_json requires values to assign array"
+
+    if [[ ${keepquotes} -eq 1 ]]; then
+        array_init "${__array}" "$(echo "${__string}" | sed -e 's|^\[\s*||' -e 's|\s*\]$||')" ","
+    else
+        array_init "${__array}" "$(echo "${__string}" | sed -e 's|^\[\s*||' -e 's|\s*\]$||' -e 's|",\s*"|","|g' -e 's|"||g')" ","
+    fi
 }
 
 opt_usage array_size <<'END'
