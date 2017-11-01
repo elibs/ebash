@@ -372,5 +372,25 @@ ETEST_json_import_array_spaces()
     local block_expect=( "/dev/slot1" "/dev/slot2" )
 
     assert_eq "${slice_expect[*]}" "${SLICE_DRIVES[*]}"
+    assert_eq "${#slice_expect[@]}" "${#SLICE_DRIVES[@]}"
     assert_eq "${block_expect[*]}" "${BLOCK_DRIVES[*]}"
+    assert_eq "${#block_expect[@]}" "${#BLOCK_DRIVES[@]}"
 }
+ETEST_json_import_array_space_and_hashtag()
+{
+    echo '{ "R620": { "SF3010": { "sliceDrives": [ "/dev/slot0", "/dev/slot #withHashtag" ], "blockDrives": [ "/dev/slot1", "/dev/slot2"] } } }' > file.json
+    cat file.json
+    $(json_import -u -q=".R620.SF3010" -f=file.json)
+
+    argcheck SLICE_DRIVES BLOCK_DRIVES
+    einfo "$(lval SLICE_DRIVES BLOCK_DRIVES)"
+
+    local slice_expect=( "/dev/slot0" "/dev/slot #withHashtag" )
+    local block_expect=( "/dev/slot1" "/dev/slot2" )
+
+    assert_eq "${slice_expect[*]}" "${SLICE_DRIVES[*]}"
+    assert_eq "${#slice_expect[@]}" "${#SLICE_DRIVES[@]}"
+    assert_eq "${block_expect[*]}" "${BLOCK_DRIVES[*]}"
+    assert_eq "${#block_expect[@]}" "${#BLOCK_DRIVES[@]}"
+}
+
