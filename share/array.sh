@@ -33,7 +33,7 @@ array_init_nl()
 }
 
 # Initialize an array from a Json array. This will essentially just strip
-# of the brackets from around the Json array.
+# off the brackets from around the Json array.
 array_init_json()
 {
     $(opt_parse \
