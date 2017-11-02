@@ -200,13 +200,14 @@ json_import()
         # If the value is an array implicitly convert it
         if [[ "${val:0:1}" == "[" && "${val: -1}" == "]" ]]; then
             local array_val=()
-            array_init_json array_val "${val}"
+            array_init_json -k array_val "${val}"
             cmd+="declare ${dflags} -a ${prefix}${key}=( "${array_val[@]:-}" );"
         else
             cmd+="$(printf "declare %s %s%s=%q ;" "${dflags}" "${prefix}" "${key}" "${val}")"
         fi
     done
 
+    edebug $(lval cmd)
     echo -n "eval ${cmd}"
 }
 
