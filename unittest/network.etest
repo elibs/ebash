@@ -120,14 +120,14 @@ ETEST_getvlans()
 
     # look for what $testnic is set to, should get $vlan back
     local output="$(getvlans Bond10G)"
-    assert_eq "${output}" "${vlan}"
     einfo "looking for a match [$(lval vlan output)]"
+    assert_eq "${output}" "${vlan}"
 
 
     # look for something other than what testnic is set to, should get back nothing.
     output="$(getvlans Bond1G)"
-    assert_eq "${output}" ""
     einfo "looking for an empty string [$(lval output)]"
+    assert_eq "${output}" ""
 }
 
 fi
