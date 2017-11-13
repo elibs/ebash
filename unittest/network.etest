@@ -101,4 +101,33 @@ ETEST_netmask2cidr()
     done
 }
 
+ETEST_getvlans()
+{
+
+# command: ip link show type vlan
+# output:
+# 14: Bond10G.2172@Bond10G: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+#     link/ether 36:81:9c:a0:10:be brd ff:ff:ff:ff:ff:ff
+#
+    ip()
+    {
+      echo " 14: ${testnic}.${vlan}@${testnic}: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000"
+      echo "     link/ether 36:81:9c:a0:10:be brd ff:ff:ff:ff:ff:ff"
+    }
+
+    local testnic=Bond10G
+    local vlan=2172
+
+    # look for what $testnic is set to, should get $vlan back
+    local output="$(getvlans Bond10G)"
+    einfo "looking for a match [$(lval vlan output)]"
+    assert_eq "${output}" "${vlan}"
+
+
+    # look for something other than what testnic is set to, should get back nothing.
+    output="$(getvlans Bond1G)"
+    einfo "looking for an empty string [$(lval output)]"
+    assert_eq "${output}" ""
+}
+
 fi

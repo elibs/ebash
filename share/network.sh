@@ -162,11 +162,19 @@ getsubnet()
     printf "%d.%d.%d.%d" "$((i1 & m1))" "$(($i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
 }
 
-opt_usage getmt "Get the MTU that is currently set on a given interface."
+opt_usage getmtu "Get the MTU that is currently set on a given interface."
 getmtu()
 {
     $(opt_parse iface)
     ip addr show "${iface}" 2>/dev/null | grep -Po 'mtu \K[\d.]+' || true
+}
+
+opt_usage getvlans "Get the vlans on a given interface."
+getvlans()
+{
+    $(opt_parse iface)
+
+    ip link show type vlan | grep "[0-9]\+: ${iface}\." | cut -d: -f2 | cut -d. -f2 | cut -d@ -f1 || true
 }
 
 # Get list of network interfaces
