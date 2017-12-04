@@ -175,7 +175,9 @@ close_fds()
     # Note grab file descriptors for the current process, not the one inside
     # the command substitution ls here.
     local pid=$BASHPID
-    local fds=( $(ls $(fd_path)/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ') )
+
+    # occasionally there are no file descriptors, therefore we need '|| true'
+    local fds=( $(ls $(fd_path)/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ' || true) )
 
     array_empty fds && return 0
 
