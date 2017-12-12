@@ -1522,8 +1522,11 @@ efetch()
     catch
     {
         local rc=$?
-        edebug "Removing $(lval dst md5_file meta_file rc)"
-        rm -rf "${dst}" "${md5_file}" "${meta_file}"
+        local remove_files=( "${dst}" )
+        [[ ${md5} -eq 1 ]] && remove_files+=( "${md5_file}" )
+        [[ ${meta} -eq 1 ]] && remove_files+=( "${meta_file}" )
+        edebug "Removing $(lval remove_files rc)"
+        rm -rf "${remove_files[@]}"
         return ${rc}
     }
 }

@@ -79,6 +79,26 @@ ETEST_efetch_meta_pgp()
     emetadata_check -p="public.asc" copy.txt
 }
 
+# efetch without --meta or --md5 shouldn't remove existing .meta or .md5 files when it fails.
+ETEST_efetch_fail_preserves_meta()
+{
+    local test_file="output.txt"
+    touch "${test_file}.meta"
+    touch "${test_file}.md5"
+    try
+    {
+        efetch "http://test" "${test_file}"
+    }
+    catch
+    {
+        assert_not_exists "${test_file}"
+        assert_exists "${test_file}.meta"
+        assert_exists "${test_file}.md5"
+        return 0
+    }
+    die "efetch should have failed"
+}
+
 # Older curl versions wrongly refused to create an empty file even if an empty file
 # was successfully fetched. This test verifies efetch works around this dumb bug.
 # See: https://github.com/curl/curl/issues/183
