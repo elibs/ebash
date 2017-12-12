@@ -190,16 +190,20 @@ get_network_interfaces()
 # Get list network interfaces with specified "Supported Ports" query.
 get_network_interfaces_with_port()
 {
-    local query="$1"
-    local ifname port
+    local query ifname port
     local results=()
 
     for ifname in $(get_network_interfaces); do
         port=$(ethtool ${ifname} | grep "Supported ports:" || true)
-        [[ ${port} =~ "${query}" ]] && results+=( ${ifname} )
+        for query in $@; do
+            if [[ ${port} =~ "${query}" ]]; then
+                results+=( "${ifname}" )
+                break
+            fi
+        done
     done
 
-    echo -n "${results[@]}"
+    echo -n "${results[@]:-}"
 }
 
 # Get list of 1G network interfaces
@@ -211,7 +215,7 @@ get_network_interfaces_1g()
 # Get list of 10G network interfaces
 get_network_interfaces_10g()
 {
-    get_network_interfaces_with_port "FIBRE"
+    get_network_interfaces_with_port "FIBRE" "Backplane"
 }
 
 opt_usage get_permanent_mac_address <<'END'
