@@ -3,34 +3,38 @@
 # Copyright 2015, SolidFire, Inc. All rights reserved.
 
 #-------------------------------------------------------------------------------------------------------------------------
-# Cgroups are a capability of the linux kernel designed for categorizing
-# processes.  They're most typically used in ways that not only categorize
-# processes, but also control them in some fasion.  A popular reason is to
-# limit the amount of resources a particular process can use.
+# Cgroups are a capability of the linux kernel designed for categorizing processes.  They're most typically used in ways
+# that not only categorize processes, but also control them in some fasion.  A popular reason is to limit the amount of
+# resources a particular process can use.
 #
-# Within each of many different _subsystems_ that are set up by code in the
-# kernel, a process may exist at one point in a hierarchy.  That is, within the
-# CPU subsystem, a process may only be owned by a single cgroup.  And in the
-# memory subsystem, it may be owned by a different cgroup.  For the purposes of
-# THIS bashutils code, though, we duplicate a similar tree of groups within
-# _all_ of the subsystems that we interact with.
+# Within each of many different _subsystems_ that are set up by code in the kernel, a process may exist at one point in
+# a hierarchy.  That is, within the CPU subsystem, a process may only be owned by a single cgroup.  And in the memory
+# subsystem, it may be owned by a different cgroup.  For the purposes of THIS bashutils code, though, we duplicate a
+# similar tree of groups within _all_ of the subsystems that we interact with.
 #
-# CGROUP_SUBSYSTEMS defines which subsystems those are. So when you use these
-# functions, the hierarchy that you create is created in parallel under all of
-# the subsystems defined by CGROUP_SUBSYSTEMS
+# CGROUP_SUBSYSTEMS defines which subsystems those are. So when you use these functions, the hierarchy that you create
+# is created in parallel under all of the subsystems defined by CGROUP_SUBSYSTEMS
 #
-# Positions within the cgroup hierarchy created here are identified by names
-# that look like relative directories.  This is no accident -- cgroups are
-# represented to the kernel by a directory structure created within a
-# filesystem of type cgroups.
+# Positions within the cgroup hierarchy created here are identified by names that look like relative directories.  This
+# is no accident -- cgroups are represented to the kernel by a directory structure created within a filesystem of type
+# cgroups.
 #
-# Hopefully these functions make accessing the cgroups filesystem a little bit
-# easier, and also help you to keep parallel hierarchies identical across the
-# various cgroups subsystems.
+# Hopefully these functions make accessing the cgroups filesystem a little bit easier, and also help you to keep
+# parallel hierarchies identical across the various cgroups subsystems.
+#
+# NOTE ON DOCKER SUPPORT: The cgroups functions work when run within docker containers, operating on a cgroup inside the
+# one that docker set up for them.  This requires said containers to be started with --privileged or suitable other
+# capabilities (which I have not investigated -- it could be done, though)
 #
 #-------------------------------------------------------------------------------------------------------------------------
 
-CGROUP_SUBSYSTEMS=(cpu memory freezer)
+CGROUP_SUBSYSTEMS=(cpu,cpuacct memory freezer)
+CGROUP_ROOT=/sys/fs/cgroup
+CGROUP_RELTO=""
+# If we're running inside docker, we constrain ourselves to only operate inside the cgroup that docker put us in.
+if grep -q ":/docker/" /proc/$$/cgroup ; then
+    CGROUP_RELTO=$(awk -F: '$2 == "'${CGROUP_SUBSYSTEMS[0]}'" {print $3}' /proc/$$/cgroup)
+fi
 
 #-------------------------------------------------------------------------------------------------------------------------
 # Detect whether the machine currently running this code is built with kernel
@@ -43,14 +47,9 @@ cgroup_supported()
         return 1
     fi
 
-    if grep -q docker /proc/1/cgroup ; then
-        edebug "Bashutils cgroup functions don't work under docker."
-        return 1
-    fi
-
     local subsystem missing_count=0
     for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
-        if ! grep -qw "^${subsystem}" /proc/cgroups ; then
+        if ! grep -q ":${subsystem}:" /proc/1/cgroup ; then
             edebug "Missing support for ${subsystem}"
             (( missing_count += 1 ))
         fi
@@ -60,6 +59,7 @@ cgroup_supported()
 }
 
 [[ ${__BU_OS} == Linux ]] || return 0
+
 
 #-------------------------------------------------------------------------------------------------------------------------
 # Prior to using a cgroup, you must create it.  It is safe to attempt to
@@ -71,7 +71,7 @@ cgroup_create()
     for cgroup in "${@}" ; do
 
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
-            local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
+            local subsys_path=${CGROUP_ROOT}/${subsystem}/${cgroup}
             mkdir -p ${subsys_path}
         done
 
@@ -99,7 +99,7 @@ cgroup_destroy()
 
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
 
-            local subsys_path=/sys/fs/cgroup/${subsystem}/${cgroup}
+            local subsys_path=${CGROUP_ROOT}/${subsystem}/${cgroup}
             [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys_path} that is already gone." ; continue ; }
 
             if [[ ${recursive} -eq 1 ]] ; then
@@ -127,7 +127,7 @@ cgroup_exists()
     for cgroup in "${all[@]}" ; do
 
         for subsys in "${CGROUP_SUBSYSTEMS[@]}" ; do
-            if [[ ! -d /sys/fs/cgroup/${subsys}/${cgroup} ]] ; then
+            if [[ ! -d ${CGROUP_ROOT}/${subsys}/${cgroup} ]] ; then
                 missing_cgroups+=("${subsys}:${cgroup}")
             fi
         done
@@ -171,7 +171,7 @@ cgroup_move()
     if array_not_empty pids ; then
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
             local tmp="$(array_join_nl pids)"
-            echo -e "${tmp}" > /sys/fs/cgroup/${subsystem}/${cgroup}/tasks
+            echo -e "${tmp}" > ${CGROUP_ROOT}/${subsystem}/${cgroup}/tasks
         done
     fi
 }
@@ -241,7 +241,7 @@ cgroup_pids()
     for cgroup in "${cgroups[@]}" ; do
         local subsystem_paths=()
         for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
-            subsystem_paths+=("$(readlink -m /sys/fs/cgroup/${subsystem}/${cgroup})")
+            subsystem_paths+=("$(readlink -m ${CGROUP_ROOT}/${subsystem}/${cgroup})")
         done
 
         local files file
@@ -368,7 +368,7 @@ cgroup_tree()
             # Pick out the paths to the subsystem and the cgroup within it --
             # and because we'll be text processing the result, be sure there
             # are not multiple sequential slashes in the output
-            local subsys_path=$(readlink -m /sys/fs/cgroup/${subsys}/)
+            local subsys_path=$(readlink -m ${CGROUP_ROOT}/${subsys}/)
             local cgroup_path=$(readlink -m ${subsys_path}/${cgroup}/)
 
             # Then find all the directories inside the cgroup path (while
@@ -424,7 +424,8 @@ cgroup_current()
     : ${pid:=${BASHPID}}
 
     local line=$(grep -w "${CGROUP_SUBSYSTEMS[0]}" /proc/${pid}/cgroup)
-    echo "${line##*:/}"
+    local value=$(echo "${line##*:}" | sed 's#^'"${CGROUP_RELTO}"'/##')
+    echo "${value}"
 }
 
 
@@ -533,7 +534,7 @@ cgroup_kill_and_wait()
 cgroup_find_setting_file()
 {
     $(opt_parse cgroup setting)
-    ls /sys/fs/cgroup/*/${cgroup}/${setting}
+    ls ${CGROUP_ROOT}/*/${cgroup}/${setting}
 }
 
 return 0
