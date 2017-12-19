@@ -46,7 +46,12 @@ $(opt_parse \
                                  which case etest will recursively find executables and .etest files and treat them in
                                  similar fashion.")
 
-if [[ ${mount_ns} -eq 1 ]] && os linux; then
+# Use mount namespaces as long as:
+#   1) they weren't forcibly turned off
+#   2) we're on linux
+#   3) we're not inside docker (because docker requires us to be privileged, and because the benefit is no longer there
+#      -- docker already protects us inside a mount namespace)
+if [[ ${mount_ns} -eq 1 ]] && os linux && ! grep -qw docker /proc/$$/cgroup ; then
     reexec --mount-ns
 fi
 
@@ -440,9 +445,9 @@ for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
 done
 
 changeset_info=""
-if [[ -d ".hg" ]] ; then
+if [[ -d ".hg" ]] && which hg 2>/dev/null ; then
     changeset_info=" $(hg id --id)"
-elif [[ -d ".git" ]] ; then
+elif [[ -d ".git" ]] && which git 2>/dev/null ; then
     changeset_info=" $(git rev-parse --short HEAD)"
 fi
 
