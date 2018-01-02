@@ -560,17 +560,11 @@ dialog_prompt_username_password()
 
     while true; do
         
-        # Reset the password on each attempt.
+        # Reset password on each iteration to avoid auto-filling the password field.
         password=""
 
-        $(dialog \
-            --title "Authentication"            \
-            --insecure                          \
-            --mixedform "${title}"              \
-            12 50 3                             \
-                "Username"         1 1 "${username}" 1 20 20 0 0 \
-                "Password"         2 1 "${password}" 2 20 20 0 1 \
-                "Confirm Password" 3 1 "${password}" 3 20 20 0 1)
+        # Wrapper around call to dialog to allow separating the UI from the business logic.
+        $(dialog_prompt_username_password_UI "${title}" "${username}" "${password}")
 
         username=$(string_getline "${dialog_output}" 1)
         password=$(string_getline "${dialog_output}" 2)
@@ -592,4 +586,23 @@ dialog_prompt_username_password()
         echo "eval declare password=$(printf %q "${password}"); "
         return 0
     done
+}
+
+# This function separates the UI from the business logic of the username/password function.
+# This allows us to unit test the business logic without user interaction.
+dialog_prompt_username_password_UI()
+{
+    local title="$1"
+    local username="$2"
+    local password="$3"
+
+    $(dialog \
+        --title "Authentication"            \
+        --insecure                          \
+        --mixedform "${title}"              \
+        12 50 3                             \
+            "Username"         1 1 "${username}" 1 20 20 0 0 \
+            "Password"         2 1 "${password}" 2 20 20 0 1 \
+            "Confirm Password" 3 1 "${password}" 3 20 20 0 1)
+    echo "eval declare dialog_output=$(printf %q "${dialog_output}"); "
 }

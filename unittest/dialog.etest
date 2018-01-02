@@ -233,3 +233,95 @@ ETEST_dialog_prompt_invalid_characters()
         assert_eq 1 ${rc}
     done
 }
+
+# Initialize the password dialog test.
+fake_password_dialog_state=0
+fake_password_dialog_test_id=1
+
+# Create an override function for the password dialog UI.  This allows us to feed fake data
+# into the business logic of the username/password prompt dialog.
+fake_password_dialog_ui='
+{
+    local num_args=$#
+    local test_id=$(( ${fake_password_dialog_test_id} - 1 ))
+
+    # The fake data required for various password dialog tests.
+    local test_data_collection=(
+        "solidfire blah blah"
+        "solidfire blah"
+    )
+
+    # Choose the test data we want based on the test id.
+    local test_data=( ${test_data_collection[${test_id}]} )
+    [[ ${#test_data[@]} -lt 2 ]] && test_data[1]=""
+    [[ ${#test_data[@]} -lt 3 ]] && test_data[2]=""
+
+    # First time through we set up the test.
+    if [[ ${fake_password_dialog_state} -eq 0 ]]; then
+
+        echo "eval declare fake_password_dialog_state=1"
+        dialog_output=$(cat << EOFA
+${test_data[0]}
+${test_data[1]}
+${test_data[2]}
+EOFA
+)
+
+    else
+
+        # Second time through we validate the test results based on the test ID.
+        # We overload the username with the test status because that is the only way we have to return
+        # data from this function call sequence.
+        case ${fake_password_dialog_test_id} in
+
+            # Username/password was valid.  We should not get here if the data was valid.
+            1) username="ValidInputWasRejected";;
+
+            # Test that the 3rd argument is not set.  That would be the password field.
+            2) case ${num_args} in
+               1) username="ShortArgs";;
+               2) username="MissingEmptyPassword";;
+               3) if [[ "$3" == "" ]]; then
+                      username="Ok"
+                  else
+                      username="PasswordIsCached"
+                  fi
+                  ;;
+               esac
+               ;;
+        esac
+
+        # Reset so we can gracefully end the test.  This allows us to drop out of the call to
+        # dialog_prompt_username_password and check the test status passed in the username.
+        echo "eval declare fake_password_dialog_state=2"
+        dialog_output=$(cat << EOFB
+${username}
+blah2
+blah2
+EOFB
+)
+    fi
+
+    echo "eval declare dialog_output=$(printf %q "${dialog_output}")"
+    return 0
+}'
+
+# Test that valid input to password dialog works as expected.
+ETEST_dialog_prompt_username_password_001_valid()
+{
+    local username=""
+    fake_password_dialog_test_id=1
+    override_function dialog_prompt_username_password_UI "${fake_password_dialog_ui}"
+    $(dialog_prompt_username_password)
+    assert_eq "solidfire" "${username}" "Password state test returned \"${username}\""
+}
+
+# Test that we are not caching the password on failed login creation attempts.
+ETEST_dialog_prompt_username_password_002_cached()
+{
+    local username=""
+    fake_password_dialog_test_id=2
+    override_function dialog_prompt_username_password_UI "${fake_password_dialog_ui}"
+    $(dialog_prompt_username_password)
+    assert_eq "Ok" "${username}" "Password state test returned \"${username}\""
+}
