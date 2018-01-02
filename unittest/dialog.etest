@@ -242,6 +242,12 @@ fake_password_dialog_test_id=1
 # into the business logic of the username/password prompt dialog.
 fake_password_dialog_ui='
 {
+    # Accept the same arguments as the real UI, but ignore them.
+    $(opt_parse \
+        ":title     | Text for title bar of dialog" \
+        ":username  | Username to display, if any" \
+        ":password  | Password to display (obscured), if any")
+
     local num_args=$#
     local test_id=$(( ${fake_password_dialog_test_id} - 1 ))
 
@@ -277,17 +283,12 @@ EOFA
             # Username/password was valid.  We should not get here if the data was valid.
             1) username="ValidInputWasRejected";;
 
-            # Test that the 3rd argument is not set.  That would be the password field.
-            2) case ${num_args} in
-               1) username="ShortArgs";;
-               2) username="MissingEmptyPassword";;
-               3) if [[ "$3" == "" ]]; then
-                      username="Ok"
-                  else
-                      username="PasswordIsCached"
-                  fi
-                  ;;
-               esac
+            # Test that the password argument is not set.
+            2) if [[ "${password}" != "" ]]; then
+                  username="PasswordIsCached"
+               else
+                  username="Ok"
+               fi
                ;;
         esac
 
