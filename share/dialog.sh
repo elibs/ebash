@@ -560,6 +560,9 @@ dialog_prompt_username_password()
 
     while true; do
         
+        # Reset the password on each attempt.
+        password=""
+
         $(dialog \
             --title "Authentication"            \
             --insecure                          \
@@ -579,7 +582,7 @@ dialog_prompt_username_password()
             continue
         fi
 
-        # If passords don't match it's an error
+        # If passwords don't match it's an error
         if [[ "${password}" != "${password_confirm}" ]]; then
             dialog_error "Passwords do not match"
             continue
