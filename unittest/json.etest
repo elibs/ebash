@@ -394,3 +394,44 @@ ETEST_json_import_array_space_and_hashtag()
     assert_eq "${#block_expect[@]}" "${#BLOCK_DRIVES[@]}"
 }
 
+ETEST_json_compare_and_json_compare_files()
+{
+    local json1='{"one":1}'
+    local json1_again='{"one":1}'
+    local json1_sp='{  "one"  : 1}'
+    local json2='{"one":1,"two":2}'
+    local bad_json='{one:1}'
+
+    # a more complicated example
+    local comp1='{"num":1,"letter":"a","obj":{"field2":2,"newobj":"yes"},"arrayofnum":[1,2,3],"arrayofobj":[{"data":"foo","objnum":1},{"data":"bar","objnum":2},{"data":"baz","objnum":3}]}'
+
+    # comp1 with the key order changed (keys are unordered, so this shoudln't matter)
+    local comp2='{"arrayofnum":[1,2,3],"arrayofobj":[{"data":"foo","objnum":1},{"data":"bar","objnum":2},{"data":"baz","objnum":3}],"letter":"a","num":1,"obj":{"field2":2,"newobj":"yes"}}'
+
+    # comp1 with the list order changed (lists are ordered, this should matter)
+    local comp3='{"num":1,"letter":"a","obj":{"field2":2,"newobj":"yes"},"arrayofnum":[2,1,3],"arrayofobj":[{"data":"foo","objnum":1},{"data":"bar","objnum":2},{"data":"baz","objnum":3}]}'
+
+    local empty='{}'
+
+    assert_true  json_compare "${json1}"    "${json1_again}"
+    assert_true  json_compare "${json1}"    "${json1_sp}"
+    assert_false json_compare "${json1}"    "${json2}"
+    assert_false json_compare "${bad_json}" "${bad_json}"
+    assert_true  json_compare "${comp1}"    "${comp2}"
+    assert_false json_compare "${comp1}"    "${comp3}"
+    assert_true  json_compare "${empty}"    "${empty}"
+    assert_false json_compare "${comp1}"    "${empty}"
+
+    echo "${json1}"       > 1.json
+    echo "${json1_again}" > 1_again.json
+    echo "${json1_sp}"    > 1_sp.json
+    echo "${json2}"       > 2.json
+    echo "${bad_json}"    > badness.json
+
+    assert_true json_compare_files 1.json 1_again.json
+    assert_true json_compare_files 1.json 1_sp.json
+    assert_false json_compare_files 1.json 2.json
+    assert_false json_compare_files badness.json badness.json
+
+}
+
