@@ -236,4 +236,36 @@ file_to_json()
     fi
 }
 
+opt_usage json_compare <<'END'
+Compare two json strings. This function returns diff's return code and if the json strings don't compare the diff
+will be printed to stdout.
+END
+json_compare()
+{
+    $(opt_parse first second)
+
+    if ! echo "${first}" | jq . &>/dev/null ; then
+        die "ERROR: invalid json $(lval first)"
+    fi
+    if ! echo "${second}" | jq . &>/dev/null ; then
+        die "ERROR: invalid json $(lval second)"
+    fi
+
+    # Using diff rather than cmp, you get a hint if what didn't compare.  Otherwise, they are both silent.
+    diff <(echo "${first}" | jq --compact-output --sort-keys .) \
+         <(echo "${second}" | jq --compact-output --sort-keys .)
+}
+
+opt_usage json_compare_files <<'END'
+Compare two json files.  The files can only contain a single json object.
+END
+json_compare_files()
+{
+    $(opt_parse left right)
+
+    assert_exists "${left}" "${right}"
+
+    json_compare "$( < "${left}")" "$( < "${right}")"
+}
+
 return 0
