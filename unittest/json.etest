@@ -394,3 +394,29 @@ ETEST_json_import_array_space_and_hashtag()
     assert_eq "${#block_expect[@]}" "${#BLOCK_DRIVES[@]}"
 }
 
+ETEST_json_compare_and_json_compare_files()
+{
+    local json1='{"one":1}'
+    local json1_again='{"one":1}'
+    local json1_sp='{  "one"  : 1}'
+    local json2='{"one":1,"two":2}'
+    local bad_json='{one:1}'
+
+    assert_true json_compare "${json1}" "${json1_again}"
+    assert_true json_compare "${json1}" "${json1_sp}"
+    assert_false json_compare "${json1}" "${json2}"
+    assert_false json_compare "${bad_json}" "${bad_json}"
+
+    echo "${json1}"       > 1.json
+    echo "${json1_again}" > 1_again.json
+    echo "${json1_sp}"    > 1_sp.json
+    echo "${json2}"       > 2.json
+    echo "${bad_json}"    > badness.json
+
+    assert_true json_compare_files 1.json 1_again.json
+    assert_true json_compare_files 1.json 1_sp.json
+    assert_false json_compare_files 1.json 2.json
+    assert_false json_compare_files badness.json badness.json
+
+}
+

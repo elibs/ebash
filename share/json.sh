@@ -236,4 +236,39 @@ file_to_json()
     fi
 }
 
+opt_usage json_compare <<'END'
+Compare two json strings.
+END
+json_compare()
+{
+    $(opt_parse first second)
+
+    if ! echo "${first}" | jq . &>/dev/null ; then
+        die "ERROR: invalid json $(lval first)"
+    fi
+    if ! echo "${second}" | jq . &>/dev/null ; then
+        die "ERROR: invalid json $(lval second)"
+    fi
+
+    # Using diff rather than cmp, you get a hint if what didn't compare.  Otherwise, they are both silent.
+    if diff <(echo "${first}" | jq --compact-output --sort-keys .) \
+            <(echo "${second}" | jq --compact-output --sort-keys .) ; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+opt_usage json_compare_files <<'END'
+Compare two json files.  The files can only contain a single json object.
+END
+json_compare_files()
+{
+    $(opt_parse left right)
+
+    assert_exists "${left}" "${right}"
+
+    json_compare "$(cat ${left})" "$(cat ${right})"
+}
+
 return 0
