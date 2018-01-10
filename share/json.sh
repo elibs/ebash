@@ -237,7 +237,8 @@ file_to_json()
 }
 
 opt_usage json_compare <<'END'
-Compare two json strings.
+Compare two json strings. This function returns diff's return code and if the json strings don't compare the diff
+will be printed to stdout.
 END
 json_compare()
 {
@@ -251,12 +252,8 @@ json_compare()
     fi
 
     # Using diff rather than cmp, you get a hint if what didn't compare.  Otherwise, they are both silent.
-    if diff <(echo "${first}" | jq --compact-output --sort-keys .) \
-            <(echo "${second}" | jq --compact-output --sort-keys .) ; then
-        return 0
-    else
-        return 1
-    fi
+    diff <(echo "${first}" | jq --compact-output --sort-keys .) \
+         <(echo "${second}" | jq --compact-output --sort-keys .)
 }
 
 opt_usage json_compare_files <<'END'
@@ -268,7 +265,7 @@ json_compare_files()
 
     assert_exists "${left}" "${right}"
 
-    json_compare "$(cat ${left})" "$(cat ${right})"
+    json_compare "$( < "${left}")" "$( < "${right}")"
 }
 
 return 0
