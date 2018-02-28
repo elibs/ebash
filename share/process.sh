@@ -125,8 +125,7 @@ process_parent_tree()
     ':toppid t=1        | pid to run to' \
     "?pid               | pid to check")
 
-  # you can't say "?pid=$$" in opt_parse, I don't know why.  So we do it here
-  : ${pid:=$$}
+  : ${pid:=${BASHPID}}
 
   local chain=( ${pid} )
   local parent
