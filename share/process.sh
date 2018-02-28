@@ -115,6 +115,37 @@ process_parent()
     ps -eo ppid,pid | awk '$2 == '${child}' {print $1}'
 }
 
+opt_usage process_parent_tree <<'END'
+Print a tree of the process's parents, including pids and commandlines, up to init
+END
+process_parent_tree()
+{
+  $(opt_parse \
+    ':format f=-o args= | ps format'     \
+    ':toppid t=1        | pid to run to' \
+    "?pid               | pid to check")
+
+  # you can't say "?pid=$$" in opt_parse, I don't know why.  So we do it here
+  : ${pid:=$$}
+
+  local chain=( ${pid} )
+  local parent
+
+  while [[ ${pid} -ne 1 && ${pid} -ne ${toppid} ]] ; do
+    parent=$(ps -o ppid= ${pid})
+    pid=${parent}
+    chain=( ${pid} ${chain[@]} )
+  done
+
+  local indent=""
+  local link
+
+  for link in ${chain[@]} ; do
+    echo "$(printf "(%5d)" ${link})${indent}* $(ps ${format} ${link})"
+    indent+=" "
+  done
+}
+
 
 opt_usage process_ancestors <<'END'
 Print pids of all ancestores of the specified list of processes, up to and including init (pid 1).
