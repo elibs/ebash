@@ -116,7 +116,8 @@ process_parent()
 }
 
 opt_usage process_parent_tree <<'END'
-Print a tree of the process's parents, including pids and commandlines, up to init
+Similar to process_ancessors (which gives a list of pids), this prints a tree of the process's parents, including pids
+and commandlines, from the pid specified (BASHPID by default) to toppid (1 or init by default)
 END
 process_parent_tree()
 {
