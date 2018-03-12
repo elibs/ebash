@@ -212,3 +212,68 @@ ETEST_ekilltree_exclude_abritrary()
 
     ekill -s=KILL $(cat safe_pid)
 }
+
+ETEST_process_parent_tree()
+{
+
+local json=$(echo "$(cat << EOM
+[
+    {
+        "pid": 1,
+        "ppid": 0,
+        "cmd": "/sbin/init splash"
+    },
+    {
+        "pid": 25473,
+        "ppid": 1,
+        "cmd": "tmux -u -2 -f /usr/share/byobu/profiles/tmuxrc new-session"
+    },
+    {
+        "pid": 2895,
+        "ppid": 25473,
+        "cmd": "/bin/bash"
+    },
+    {
+        "pid": 17389,
+        "ppid": 2895,
+        "cmd": "bash bin/ibu"
+    }
+]
+EOM
+)" | jq -c .)
+
+local correct_output=$(cat << EOM
+(    1)* /sbin/init splash
+(25473) * tmux -u -2 -f /usr/share/byobu/profiles/tmuxrc new-session
+( 2895)  * /bin/bash
+(17389)   * bash bin/ibu
+EOM
+)
+    ps()
+    {
+        assert_eq "$#" "3"
+
+        #assert_eq can't handle a leading dash
+        if ! [[ "$1" == "-o" ]] ; then
+            die "invalid parameter"
+        fi
+
+        local pid=${3}
+
+        case $2 in
+            ppid=)
+                echo "${json}" | jq -r ".[] | select(.pid==${pid})|.ppid"
+                ;;
+            args=)
+                echo "${json}" | jq -r ".[] | select(.pid==${pid})|.cmd"
+                ;;
+            *)
+                die "invalid commandline passed to ps"
+                ;;
+        esac
+    }
+
+    export -f ps
+
+    assert_eq "$(process_parent_tree 17389)" "${correct_output}"
+}
