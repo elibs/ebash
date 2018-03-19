@@ -1,3 +1,5 @@
+[TOC]
+
 # Bashutils Guide
 
 ## Why Bashutils?
