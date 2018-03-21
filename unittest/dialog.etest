@@ -335,4 +335,5 @@ ETEST_dialog_prompt_username_password_003_special_characters()
     override_function dialog_prompt_username_password_UI "${fake_password_dialog_ui}"
     $(dialog_prompt_username_password)
     assert_eq "solidfir3" "${username}" "Password state test returned \"${username}\""
+    assert_eq "\$pswd" "${password}" "Got invalid password \"${password}\""
 }
