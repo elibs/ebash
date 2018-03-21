@@ -582,6 +582,10 @@ dialog_prompt_username_password()
             continue
         fi
 
+        # Note that the password is quoted to properly handle special characters - in particular,
+        # PE-1482 identified a problem with passwords that begin with '$' which caused bash to
+        # evaluate the password as a variable name (and it would usually fail with a complaint
+        # that the varialbe was unbound).
         echo "eval declare username=$(printf %q "${username}"); "
         echo "eval declare password=$(printf \'%q\' "${password}"); "
         return 0
