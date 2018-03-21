@@ -583,7 +583,7 @@ dialog_prompt_username_password()
         fi
 
         echo "eval declare username=$(printf %q "${username}"); "
-        echo "eval declare password=$(printf %q "${password}"); "
+        echo "eval declare password=$(printf \'%q\' "${password}"); "
         return 0
     done
 }
