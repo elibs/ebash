@@ -255,6 +255,7 @@ fake_password_dialog_ui='
     local test_data_collection=(
         "solidfire blah blah"
         "solidfire blah"
+        "solidfir3 \$pswd \$pswd"
     )
 
     # Choose the test data we want based on the test id.
@@ -325,4 +326,13 @@ ETEST_dialog_prompt_username_password_002_cached()
     override_function dialog_prompt_username_password_UI "${fake_password_dialog_ui}"
     $(dialog_prompt_username_password)
     assert_eq "Ok" "${username}" "Password state test returned \"${username}\""
+}
+
+ETEST_dialog_prompt_username_password_003_special_characters()
+{
+    fake_password_dialog_state=0
+    fake_password_dialog_test_id=3
+    override_function dialog_prompt_username_password_UI "${fake_password_dialog_ui}"
+    $(dialog_prompt_username_password)
+    assert_eq "solidfir3" "${username}" "Password state test returned \"${username}\""
 }
