@@ -135,5 +135,18 @@ run_etest --desc "Exclude and get just the failing etests" -- --exclude "(A[1234
 assert_test_count 0 7
 assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
 
+(
+    export FILTER='(A[1234]|B[23]|pass)'
+    run_etest --desc "Make sure filter can be passed as an environment variable (PE-2332)" -- pass_many.etest fail_many.etest
+    assert_test_count 7 7
+    assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
+)
+
+(
+    export EXCLUDE='(A[1234]|B[23]|pass)'
+    run_etest --desc "Make sure exclude can be passed as an environment variable (PE-2332)" -- pass_many.etest fail_many.etest
+    assert_test_count 0 7
+    assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+)
 
 ebanner "Etest passed all self tests."
