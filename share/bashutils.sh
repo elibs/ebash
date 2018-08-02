@@ -26,9 +26,9 @@ if [[ -e ${XDG_CONFIG_HOME:-${HOME:-}/.config}/bashutils.conf ]]; then
 fi
 
 # If TERM is unset, bash C code actually sets it to "dumb" so that it has a
-# value.  But dumb terminals don't like tput, so we'll default to something
+# value. But dumb terminals don't like tput, so we'll default to something
 # better.
-if [[ -z ${TERM:-} || ${TERM} == "dumb" || ${TERM} == "vt102" ]] ; then
+if [[ -z ${TERM:-} || ${TERM} == @(dumb|vt102|unknown) ]] ; then
     export TERM=xterm-256color
 fi
 
