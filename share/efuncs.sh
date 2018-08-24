@@ -1572,7 +1572,6 @@ etimeout()
     (
         disable_die_parent
         quote_eval "${cmd[@]}"
-        local rc=$?
     ) &
     local pid=$!
     edebug "Executing $(lval cmd timeout signal pid)"
