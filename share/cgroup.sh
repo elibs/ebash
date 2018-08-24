@@ -328,7 +328,7 @@ cgroup_ps()
 
     edebug "$(lval awk_regex)"
 
-    ps -e --format pid,start,nlwp,nice,command ${COLUMNS+--columns ${COLUMNS}} --forest | awk 'NR == 1 ; match($1,/'${awk_regex}'/) { print }'
+    ps -e --format pid,ppid,start,nlwp,nice,stat,command ${COLUMNS+--columns ${COLUMNS}} --forest | awk 'NR == 1 ; match($1,/'${awk_regex}'/) { print }'
 }
 
 
