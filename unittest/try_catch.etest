@@ -614,3 +614,39 @@ ETEST_tryrc_hang_recreate()
 {
     $(tryrc eretry -T=.1s sleep 1)
 }
+
+never_pass()
+{
+    return 7
+}
+
+setup_die_environment()
+{
+    nodie_on_error
+    disable_die_parent
+    override_function die '{ true; }'
+    set +u
+}
+
+ETEST_tryrc_eretry_error_never_pass()
+{
+    $(tryrc eretry --delay=5 --max-timeout=10s --warn-every=3 never_pass)
+    # This combination of bashutils functions is unique, normally tryrc
+    # should return the code of the command, but in this case eretry is
+    # the command being executed so if the command that eretry is executing
+    # is not successful eretry will return 124 to tryrc.
+    assert_eq "124" "${rc}"
+}
+
+ETEST_tryrc_eretry_error_die_env_never_pass()
+{
+    setup_die_environment
+    $(tryrc eretry --delay=5 --max-timeout=10s --warn-every=3 never_pass)
+
+    if [[ ${rc} -ne "124" ]]; then
+        # Restore the environment and die
+        die_on_error
+        set -u
+        die_real "Expected return code 124 but got ${rc}"
+    fi
+}
