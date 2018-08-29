@@ -445,8 +445,10 @@ emsg()
                             echo -n "${level}"
                             ;;
                         caller)
+                            # BASH_SOURCE can be unbound if sourced code calls back to a caller's function
+                            local source_file=${BASH_SOURCE[2]:-unknown}
                             # First field is filename with path info stripped off
-                            echo -n "${BASH_SOURCE[2]##*/}:${BASH_LINENO[1]}:${FUNCNAME[2]:-}"
+                            echo -n "${source_file##*/}:${BASH_LINENO[1]:-0}:${FUNCNAME[2]:-unknown}"
                             ;;
                         pid)
                             echo -n "${BASHPID}"
