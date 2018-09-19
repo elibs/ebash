@@ -234,6 +234,30 @@ ETEST_dialog_prompt_invalid_characters()
     done
 }
 
+ETEST_dialog_prompt_invalid_input()
+{
+    local inputs=(
+        ";bad;stuff;"
+        "|bad|stuff|"
+        "&bad&stuff&"
+        "\`bad\`stuff\`"
+        "{bad{stuff{"
+        "}bad}stuff}"
+        "(bad(stuff("
+        ")bad)stuff)"
+        ">bad>stuff>"
+        "<bad<stuff<"
+        "\$bad\$stuff\$"
+    )
+
+    etestmsg "Testing with invalid characters in user input (these characters should not show up in final values)"
+    local input
+    for input in "${inputs[@]}"; do
+        $(printf "${input}${BU_KEY_ENTER}${BU_KEY_DONE}" | ${DIALOG_PROMPT} badstuff)
+        assert_eq "badstuff" "${badstuff}"
+    done
+}
+
 # Initialize the password dialog test.
 fake_password_dialog_state=0
 fake_password_dialog_test_id=1
