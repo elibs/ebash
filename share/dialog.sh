@@ -399,6 +399,13 @@ dialog_prompt()
             elif [[ "${char}" == "${BU_KEY_ESC}" ]]; then
                 dialog_cancel
                 return 0
+
+            # PE-3865 - Don't allow certain characters in user input, as they can be used for security
+            # exploits if interpreted by bash.
+            elif [[ "${char}" =~ [\;\|\&\`{}()\<\>\$] ]]; then
+                edebug "Invalid Character: $(lval char)"
+                dialog_error "Invalid Character: '${char}'"
+                continue
             fi
 
             # FOCUS. This is where all the magic happens to automatically transfer focus into the input fields when
