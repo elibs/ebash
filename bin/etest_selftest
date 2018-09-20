@@ -3,8 +3,14 @@
 # Source bashutils from the same directory as this script
 $( $(dirname $0)/bashutils --source )
 
-# FILTER variable interfers with functionality of the selftests so we need to unset it.
+# Some bashutils recognized environment variables interfer with functionality of the selftests so we need to unset them.
 unset FILTER
+unset REPEAT
+unset BREAK
+unset EDEBUG
+unset FAILURES
+unset REPEAT
+unset VERBOSE
 
 # All of the asserts below depend on etest having been run by this function, which sets up the values of ETEST_OUTPUT,
 # ETEST_LOG, and ETEST_RC.
