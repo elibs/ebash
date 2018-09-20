@@ -3,6 +3,9 @@
 # Source bashutils from the same directory as this script
 $( $(dirname $0)/bashutils --source )
 
+# FILTER variable interfers with functionality of this test so we need to unset i
+unset FILTER
+
 # All of the asserts below depend on etest having been run by this function, which sets up the values of ETEST_OUTPUT,
 # ETEST_LOG, and ETEST_RC.
 #
