@@ -9,12 +9,7 @@ $( $(dirname $0)/bashutils --source )
 declare ETEST_OUTPUT="" ETEST_LOG="" ETEST_RC=255
 run_etest()
 {
-    $(opt_parse ":desc d | Optional human-readable description for this set of tests .")
-    if [[ -n ${desc} ]] ; then
-        ebanner "${desc}"
-    else
-        ebanner "Running etest $*"
-    fi
+    ebanner "Running SELFTEST $(caller 0 | awk '{print $2}')"
 
     local rc=0
     EDEBUG="" ${ETEST} "${@}" |& tee output.log && rc=0 || rc=1
@@ -170,9 +165,10 @@ ETEST=${BASHUTILS_HOME}/bin/etest
 
 cd ${BASHUTILS_HOME}/etest_selftest
 
+# Just passing standalone tests
 SELFTEST_simple()
 {
-    run_etest --desc "Just passing standalone tests" -- plain_script sources_bashutils noisy
+    run_etest plain_script sources_bashutils noisy
     assert_test_count --pass 3 --fail 0 --flaky 0 --total 3
     assert_test_pass plain_script sources_bashutils noisy
     assert_not_match "${ETEST_OUTPUT}" "!!"
@@ -180,92 +176,104 @@ SELFTEST_simple()
     assert_match "${ETEST_LOG}" VERY_NOISY_STDERR
 }
 
+# Passing and failing standalone tests
 SELFTEST_passing_failing_standalone()
 {
-    run_etest --desc "Passing and failing standalone tests" -- fail_standalone plain_script sources_bashutils noisy
+    run_etest fail_standalone plain_script sources_bashutils noisy
     assert_test_count --pass 3 --fail 1 --flaky 0 --total 4
     assert_test_pass plain_script sources_bashutils noisy
     assert_test_fail fail_standalone
 }
 
+# Mixed passing and failing etests
 SELFTEST_passing_and_failing_etests()
 {
-    run_etest --desc "Passing and failing etests" -- pass_many.etest fail_many.etest
+    run_etest pass_many.etest fail_many.etest
     assert_test_count --pass 7 --fail 7 --flaky 0 --total 14
     assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
     assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
 }
 
+# Filter to get just the passing etests
 SELFTEST_filter_passing()
 {
-    run_etest --desc "Filter to get just the passing etests" -- --filter "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
+    run_etest --filter "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
     assert_test_count --pass 7 --fail 0 --flaky 0 --total 7
     assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
 }
 
+# Exclude and get just the failing etests
 SELFTEST_exclude_passing()
 {
-    run_etest --desc "Exclude and get just the failing etests" -- --exclude "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
+    run_etest --exclude "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
     assert_test_count --pass 0 --fail 7 --flaky 0 --total 7
     assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
 }
 
+# Make sure filter can be passed as an environment variable (PE-2332)
 SELFTEST_filter_env_variable()
 {
     export FILTER='(A[1234]|B[23]|pass)'
-    run_etest --desc "Make sure filter can be passed as an environment variable (PE-2332)" -- pass_many.etest fail_many.etest
+    run_etest pass_many.etest fail_many.etest
     assert_test_count --pass 7 --fail 0 --flaky 0 --total 7
     assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
 }
 
+# Make sure exclude can be passed as an environment variable (PE-2332)
 SELFTEST_exclude_env_variable()
 {
     export EXCLUDE='(A[1234]|B[23]|pass)'
-    run_etest --desc "Make sure exclude can be passed as an environment variable (PE-2332)" -- pass_many.etest fail_many.etest
+    run_etest pass_many.etest fail_many.etest
     assert_test_count --pass 0 --fail 7 --flaky 0 --total 7
     assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
 }
 
+# Test passes second time failures not allowed (default)
 SELFTEST_flaky_failures_default()
 {
-    run_etest --desc "Test passes second time failures not allowed (default)" -- --filter flaky_fails_once flaky.etest
+    run_etest --filter flaky_fails_once flaky.etest
     assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
     assert_test_fail ETEST_flaky_fails_once
 }
 
+# Test passes second time with failures=0
 SELFTEST_flaky_failures_0()
 {
-    run_etest --desc "Test passes second time failures=0" -- --filter flaky_fails_once --failures 0 flaky.etest
+    run_etest --filter flaky_fails_once --failures 0 flaky.etest
     assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
     assert_test_fail ETEST_flaky_fails_once
 }
 
+# Test passes second time with failures=1
 SELFTEST_flaky_failures_1()
 {
-    run_etest --desc "Test passes second time failures=1" -- --filter flaky_fails_once --failures 1 flaky.etest
+    run_etest --filter flaky_fails_once --failures 1 flaky.etest
     assert_test_count --pass 1 --fail 0 --flaky 1 --total 1
     assert_test_pass ETEST_flaky_fails_once
     assert_test_flaky ETEST_flaky_fails_once
 }
 
+# Test passes third time failures=1 
 SELFTEST_flaky_failures_2()
 {
-    run_etest --desc "Test passes third time failures=1" -- --filter flaky_fails_twice --failures 1 flaky.etest
+    run_etest --filter flaky_fails_twice --failures 1 flaky.etest
     assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
     assert_test_fail ETEST_flaky_fails_twice
 }
 
+# Flkay test with a test that passes third time and failures=3
 SELFTEST_flaky_failures_3()
 {
-    run_etest --desc "Test passes third time failures=3" -- --filter flaky_fails_twice --failures 3 flaky.etest
+    run_etest --filter flaky_fails_twice --failures 3 flaky.etest
     assert_test_count --pass 1 --fail 0 --flaky 1 --total 1
     assert_test_pass ETEST_flaky_fails_twice
     assert_test_flaky ETEST_flaky_fails_twice
 }
 
+# Flaky test. Passing, failing and flaky tests with failures=1
 SELFTEST_flaky_failures_mixed()
 {
-    run_etest --desc "Passing, failing and flaky tests with failures=1" -- --failures 1 pass_many.etest fail_many.etest flaky.etest
+    run_etest --failures 1 pass_many.etest fail_many.etest flaky.etest
     assert_test_count --pass 8 --fail 8 --flaky 1 --total 16
     assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy flaky_fails_once
     assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy flaky_fails_twice
@@ -282,15 +290,15 @@ array_sort SELFTESTS
 # outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a 
 # test to have a persistent place to store things. This is necessary for our flaky tests where we need to keep track
 # of how many times the test has been executed so we need a persistent place to store that information.
+export SELFTEST_DIR_OUTPUT="$(reaklink -f etest_selftest_output)"
 for selftest in ${SELFTESTS[@]}; do
-(
-    export SELFTEST_DIR_OUTPUT="${PWD}/etest_selftest_output}"
+
     efreshdir "${SELFTEST_DIR_OUTPUT}"
 
     "${selftest}"
 
     rm -rf "${SELFTEST_DIR_OUTPUT}"
-)
+
 done
 
 ebanner "Etest passed all self tests."
