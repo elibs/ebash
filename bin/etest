@@ -470,18 +470,31 @@ for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
     done
 done
 
-changeset_info=""
+vcs_pack=""
 if [[ -d ".hg" ]] && which hg 2>/dev/null ; then
-    changeset_info=" $(hg id --id)"
+    pack_set vcs_pack \
+        type="hg" \
+        info="$(hg id)" \
+        url="$(hg paths default)" \
+        branch="$(hg branch)" \
+        bookmark="$(hg book | awk '/ * / {print $2}')" \
+        commit="$(hg id --id)"
+    
 elif [[ -d ".git" ]] && which git 2>/dev/null ; then
-    changeset_info=" $(git describe --abbrev=7 --always --tags --dirty)"
+    pack_set vcs_pack \
+        type="git"    \
+        info="$(git describe --abbrev=7 --always --tags --dirty)" \
+        url="$(git config --get remote.origin.url)" \
+        branch="$(git rev-parse --abbrev-ref HEAD)" \
+        bookmark="" \
+        commit="$(git rev-parse --short=12 HEAD)"
 fi
 
 RUNTIME=$(( SECONDS - START_TIME ))
 
 {
     echo
-    message="Finished testing${changeset_info}."
+    message="Finished testing $(pack_get vcs_pack info)."
     message+=" $(( ${#TESTS_PASSED[@]} ))/${NUM_TESTS_EXECUTED} tests passed"
     message+=" in ${RUNTIME} seconds."
 
@@ -519,6 +532,7 @@ jq . << EOF > ${ETEST_JSON}
     "testsFailed": $(array_to_json TESTS_FAILED),
     "testsFlaky": $(array_to_json TESTS_FLAKY),
     "runtime": "${RUNTIME} seconds",
+    "datetime": "$(etimestamp_rfc3339)",
     "options": {
         "break": "${break}",
         "clean": "${clean}",
@@ -534,7 +548,8 @@ jq . << EOF > ${ETEST_JSON}
         "test_list": $(array_to_json test_list),
         "tests": $(array_to_json tests),
         "verbose": "${verbose}"
-    }
+    },
+    "vcs": $(pack_to_json vcs_pack)
 }
 EOF
 
