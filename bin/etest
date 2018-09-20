@@ -453,7 +453,7 @@ declare -ag TESTS_FLAKY=()
 declare -g  NUM_TESTS_EXECUTED=0
 
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
-    [[ ${repeat} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${repeat})" || REPEAT_STRING=""
+    REPEAT_STRING="(${ITERATION}/${repeat})"
 
     for test_location in "${tests[@]}" ; do
 
