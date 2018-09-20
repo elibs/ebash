@@ -21,10 +21,6 @@ run_etest()
     ETEST_LOG=$(< etest.log)
     ETEST_JSON="etest.json"
     rm -f output.log etest.log
-
-    if edebug_enabled; then
-        echo "${ETEST_OUTPUT}"
-    fi
 }
 
 # Accepts a list of test names and asserts that the test was properly reported as a failing test. Requires that you run
