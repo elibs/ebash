@@ -474,7 +474,7 @@ vcs_pack=""
 if [[ -d ".hg" ]] && which hg 2>/dev/null ; then
     pack_set vcs_pack \
         type="hg" \
-        info="$(hg id)" \
+        info="$(hg id --id)" \
         url="$(hg paths default)" \
         branch="$(hg branch)" \
         bookmark="$(hg book | awk '/ * / {print $2}')" \
