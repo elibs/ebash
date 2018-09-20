@@ -12,7 +12,7 @@ run_etest()
     ebanner "$(caller 0 | awk '{print $2}')"
 
     local rc=0
-    ${ETEST} --debug=0 "${@}" |& tee output.log && rc=0 || rc=1
+    ${ETEST} --debug=0 --verbose "${@}" |& tee output.log && rc=0 || rc=1
     ETEST_RC=${rc}
     ETEST_OUTPUT=$(< output.log)
     ETEST_LOG=$(< etest.log)
@@ -20,7 +20,11 @@ run_etest()
     rm -f output.log etest.log
 
     if edebug_enabled; then
+        ewarn "ETEST_OUTPUT"
         echo "${ETEST_OUTPUT}"
+
+        ewarn "ETEST_LOG"
+        echo "${ETEST_LOG}"
     fi
 }
 
