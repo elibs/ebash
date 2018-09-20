@@ -12,7 +12,7 @@ run_etest()
     ebanner "$(caller 0 | awk '{print $2}')"
 
     local rc=0
-    ${ETEST} --debug=0 --verbose "${@}" |& tee output.log && rc=0 || rc=1
+    EDEBUG="" ${ETEST} "${@}" |& tee output.log && rc=0 || rc=1
     ETEST_RC=${rc}
     ETEST_OUTPUT=$(< output.log)
     ETEST_LOG=$(< etest.log)
@@ -20,11 +20,7 @@ run_etest()
     rm -f output.log etest.log
 
     if edebug_enabled; then
-        ewarn "ETEST_OUTPUT"
         echo "${ETEST_OUTPUT}"
-
-        ewarn "ETEST_LOG"
-        echo "${ETEST_LOG}"
     fi
 }
 
@@ -227,9 +223,7 @@ SELFTEST_filter_env_variable()
 }
 
 # Make sure exclude can be passed as an environment variable (PE-2332)
-# Marshall: This is disabled because although it passes locally, it fails on Jenkins. And a bug in the Jenkins job
-# was preventing us from detecting this before.
-DISABLED_SELFTEST_exclude_env_variable()
+SELFTEST_exclude_env_variable()
 {
     export EXCLUDE='(A[1234]|B[23]|pass)'
     run_etest pass_many.etest fail_many.etest
@@ -299,15 +293,15 @@ array_sort SELFTESTS
 # outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a 
 # test to have a persistent place to store things. This is necessary for our flaky tests where we need to keep track
 # of how many times the test has been executed so we need a persistent place to store that information.
-export SELFTEST_DIR_OUTPUT="$(readlink -f etest_selftest_output)"
 for selftest in ${SELFTESTS[@]}; do
-
+(
+    declare -xg SELFTEST_DIR_OUTPUT="$(readlink -f etest_selftest_output)"
     efreshdir "${SELFTEST_DIR_OUTPUT}"
 
     "${selftest}"
 
     rm -rf "${SELFTEST_DIR_OUTPUT}"
-
+)
 done
 
 ebanner "Etest passed all self tests."
