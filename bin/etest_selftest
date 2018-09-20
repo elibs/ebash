@@ -284,7 +284,7 @@ array_sort SELFTESTS
 # of how many times the test has been executed so we need a persistent place to store that information.
 for selftest in ${SELFTESTS[@]}; do
 (
-    declare -xg SELFTEST_DIR_OUTPUT="$(readlink -f etest_selftest_output)"
+    export SELFTEST_DIR_OUTPUT="${PWD}/etest_selftest_output}"
     efreshdir "${SELFTEST_DIR_OUTPUT}"
 
     "${selftest}"
