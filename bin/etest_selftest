@@ -12,13 +12,16 @@ run_etest()
     ebanner "$(caller 0 | awk '{print $2}')"
 
     local rc=0
-    EDEBUG="" ${ETEST} "${@}" |& tee output.log && rc=0 || rc=1
+    ${ETEST} --debug=0 "${@}" |& tee output.log && rc=0 || rc=1
     ETEST_RC=${rc}
     ETEST_OUTPUT=$(< output.log)
     ETEST_LOG=$(< etest.log)
     ETEST_JSON="etest.json"
-
     rm -f output.log etest.log
+
+    if edebug_enabled; then
+        echo "${ETEST_OUTPUT}"
+    fi
 }
 
 # Accepts a list of test names and asserts that the test was properly reported as a failing test. Requires that you run
@@ -292,7 +295,7 @@ array_sort SELFTESTS
 # outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a 
 # test to have a persistent place to store things. This is necessary for our flaky tests where we need to keep track
 # of how many times the test has been executed so we need a persistent place to store that information.
-export SELFTEST_DIR_OUTPUT="$(reaklink -f etest_selftest_output)"
+export SELFTEST_DIR_OUTPUT="$(readlink -f etest_selftest_output)"
 for selftest in ${SELFTESTS[@]}; do
 
     efreshdir "${SELFTEST_DIR_OUTPUT}"
