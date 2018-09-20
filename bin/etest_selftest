@@ -228,9 +228,6 @@ SELFTEST_exclude_env_variable()
 
 SELFTEST_flaky_failures_default()
 {
-    declare -xg FLAKY_COUNT_FILE=${TEST_DIR_OUTPUT}/flaky.ticks
-    trap_add "rm -f ${FLAKY_COUNT_FILE}"
-
     run_etest --desc "Test passes second time failures not allowed (default)" -- --filter flaky_fails_once flaky.etest
     assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
     assert_test_fail ETEST_flaky_fails_once
