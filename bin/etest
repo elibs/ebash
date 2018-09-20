@@ -471,22 +471,22 @@ for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
 done
 
 vcs_pack=""
-if [[ -d ".hg" ]] && which hg 2>/dev/null ; then
+if [[ -d ".hg" ]] && which hg &>/dev/null ; then
     pack_set vcs_pack \
-        type="hg" \
-        info="$(hg id --id)" \
-        url="$(hg paths default)" \
-        branch="$(hg branch)" \
-        bookmark="$(hg book | awk '/ * / {print $2}')" \
+        type="hg"                                       \
+        info="$(hg id --id)"                            \
+        url="$(hg paths default)"                       \
+        branch="$(hg branch)"                           \
+        bookmark="$(hg book | awk '/ * / {print $2}')"  \
         commit="$(hg id --id)"
     
-elif [[ -d ".git" ]] && which git 2>/dev/null ; then
+elif [[ -d ".git" ]] && which git &>/dev/null ; then
     pack_set vcs_pack \
-        type="git"    \
+        type="git"                                                \
         info="$(git describe --abbrev=7 --always --tags --dirty)" \
-        url="$(git config --get remote.origin.url)" \
-        branch="$(git rev-parse --abbrev-ref HEAD)" \
-        bookmark="" \
+        url="$(git config --get remote.origin.url)"               \
+        branch="$(git rev-parse --abbrev-ref HEAD)"               \
+        bookmark=""                                               \
         commit="$(git rev-parse --short=12 HEAD)"
 fi
 
