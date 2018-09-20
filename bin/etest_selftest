@@ -17,20 +17,20 @@ run_etest()
     fi
 
     local rc=0
-    EDEBUG="" ${ETEST} "${@}" |& tee log.log && rc=0 || rc=1
-    ETEST_OUTPUT=$(< log.log)
-    ETEST_LOG=$(< etest.log)
+    EDEBUG="" ${ETEST} "${@}" |& tee output.log && rc=0 || rc=1
     ETEST_RC=${rc}
+    ETEST_OUTPUT=$(< output.log)
+    ETEST_LOG=$(< etest.log)
+    ETEST_JSON="etest.json"
 
-    rm -f log.log
-    rm -f etest.log
+    rm -f output.log etest.log
 }
 
-# Accepts a list of test names and asserts that everything matches the fact that that test should have failed.  Requires
-# that you run etest via run_etest.
+# Accepts a list of test names and asserts that the test was properly reported as a failing test. Requires that you run
+# etest via run_etest.
 #
-# WARNING: Won't deal well when facing two or more tests where the name of one test is simply an
-# addition of characters to the end of the other test name.  Just don't do that in the tests or fix these asserts
+# WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
+# to the end of the other test name.  Just don't do that in the tests or fix these asserts
 assert_test_fail()
 {
     local this_test 
@@ -43,18 +43,23 @@ assert_test_fail()
         assert_match "${output_state}" "${this_test}"
         assert_match "${output_state}" " !! "
 
-        # Make sure the test was listed as passed in the log, too
+        # Make sure the test was listed as FAILED in the log and that it's not in the lists of failed or flaky tests
         assert_match "${ETEST_LOG}" "${this_test} FAILED"
-
-        # And make sure it's not in either of the lists of failed tests
         assert_not_match "${ETEST_OUTPUT}" "FAILED TESTS:.*${this_test}"
         assert_not_match "${ETEST_LOG}" "FAILED TESTS:.*${this_test}"
+        assert_not_match "${ETEST_OUTPUT}" "FLAKY TESTS:.*${this_test}"
+        assert_not_match "${ETEST_LOG}" "FLAKY TESTS:.*${this_test}"
 
+        # Also validate the test is listed in the list of failing tests in the json output file
+        jq --raw-output '.testsFailed | .[]' "${ETEST_JSON}" | grep --quiet "${this_test}"
     done
+
+    # Verify count of failing tests
+    assert_eq "$#" "$(jq --raw-output .numTestsFailed "${ETEST_JSON}")"
 }
 
-# Accepts a list of test names and asserts that everything matches the fact that that test should have failed.  Requires
-# that you run etest via run_etest.
+# Accepts a list of test names and asserts that the test was properly reported as a passing test. Requires that you run
+# etest via run_etest.
 #
 # WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
 # to the end of the other test name.  Just don't do that in the tests or fix these asserts
@@ -77,18 +82,71 @@ assert_test_pass()
         # And make sure it's not in either of the lists of failed tests
         assert_not_match "${ETEST_OUTPUT}" "FAILED TESTS:.*${this_test}"
         assert_not_match "${ETEST_LOG}" "FAILED TESTS:.*${this_test}"
+        assert_not_match "${ETEST_OUTPUT}" "FLAKY TESTS:.*${this_test}"
+        assert_not_match "${ETEST_LOG}" "FLAKY TESTS:.*${this_test}"
 
+        # Ensure the test is reported in the list of passing tests in the json output file
+        jq --raw-output '.testsPassed | .[]' "${ETEST_JSON}" | grep --quiet "${this_test}"
     done
+
+    # Verify count of passing tests
+    assert_eq "$#" "$(jq --raw-output .numTestsPassed "${ETEST_JSON}")"
+}
+
+# Accepts a list of test names and asserts that the test was properly reported as a flaky test. Requires that you run
+# etest via run_etest.
+#
+# WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
+# to the end of the other test name.  Just don't do that in the tests or fix these asserts
+assert_test_flaky()
+{
+    local this_test 
+    for this_test in "${@}" ; do
+
+        # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
+        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # assert call, so ignore them for the initial grab
+        output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
+        echo "${output_state}" | grep -q "ok" || true
+        assert_match "${output_state}" "${this_test}"
+        assert_match "${output_state}" " ok "
+
+        # Make sure the test was listed as passed in the log, too
+        assert_match "${ETEST_LOG}" "${this_test} PASSED"
+
+        # And make sure it's not in either of the lists of failed tests
+        assert_not_match "${ETEST_OUTPUT}" "FAILED TESTS:.*${this_test}"
+        assert_not_match "${ETEST_LOG}" "FAILED TESTS:.*${this_test}"
+
+        # And make sure it was reported as a flaky test
+        assert_match "${ETEST_OUTPUT}" "FLAKY TESTS:.*${this_test}"
+        assert_match "${ETEST_LOG}" "FLAKY TESTS:.*${this_test}"
+
+        # Ensure the test is reported in the list of passing and flaky tests in the json output file
+        jq --raw-output '.testsPassed | .[]' "${ETEST_JSON}" | grep --quiet "${this_test}"
+        jq --raw-output '.testsFlaky  | .[]' "${ETEST_JSON}" | grep --quiet "${this_test}"
+    done
+
+    # Verify count of flaky tests
+    assert_eq "$#" "$(jq --raw-output .numTestsFlaky  "${ETEST_JSON}")"
 }
 
 # Verifies that output and log looks correct for a specified number of tests attempted and passed.  For instance, if you
-# call assert_test_count 2 2, that should mean that 2 tests were run and both passed.
+# call assert_test_count 2 2, that should mean that 2 tests were run and both passed. It also looks at the new json 
+# output file and makes sure the numbers are correct.
 #
 # You must call etest by the run_etest function to use this assert.
 #
 assert_test_count()
 {
-    $(opt_parse pass total)
+    $(opt_parse \
+        ":pass  | Number of tests expected to pass." \
+        ":fail  | Number of tests expected to fail." \
+        ":flaky | Number of tests expected to be flaky." \
+        ":total | Total number of tests expected to be executed.")
+
+    argcheck pass fail flaky total
+
     assert_match "${ETEST_OUTPUT}" "${pass}/${total} tests passed"
     assert_match "${ETEST_LOG}"    "${pass}/${total} tests passed"
 
@@ -97,6 +155,12 @@ assert_test_count()
     else
         assert_zero "${ETEST_RC}"
     fi
+
+    # Verify count of all tests in json file
+    assert_eq "${pass}"  "$(jq --raw-output .numTestsPassed   "${ETEST_JSON}")"
+    assert_eq "${fail}"  "$(jq --raw-output .numTestsFailed   "${ETEST_JSON}")"
+    assert_eq "${flaky}" "$(jq --raw-output .numTestsFlaky    "${ETEST_JSON}")"
+    assert_eq "${total}" "$(jq --raw-output .numTestsExecuted "${ETEST_JSON}")"
 }
 
 
@@ -106,47 +170,130 @@ ETEST=${BASHUTILS_HOME}/bin/etest
 
 cd ${BASHUTILS_HOME}/etest_selftest
 
-run_etest --desc "Just passing standalone tests" -- plain_script sources_bashutils noisy
-assert_test_count 3 3
-assert_test_pass plain_script sources_bashutils noisy
-assert_not_match "${ETEST_OUTPUT}" "!!"
-assert_match "${ETEST_LOG}" VERY_NOISY_STDOUT
-assert_match "${ETEST_LOG}" VERY_NOISY_STDERR
+SELFTEST_simple()
+{
+    run_etest --desc "Just passing standalone tests" -- plain_script sources_bashutils noisy
+    assert_test_count --pass 3 --fail 0 --flaky 0 --total 3
+    assert_test_pass plain_script sources_bashutils noisy
+    assert_not_match "${ETEST_OUTPUT}" "!!"
+    assert_match "${ETEST_LOG}" VERY_NOISY_STDOUT
+    assert_match "${ETEST_LOG}" VERY_NOISY_STDERR
+}
 
+SELFTEST_passing_failing_standalone()
+{
+    run_etest --desc "Passing and failing standalone tests" -- fail_standalone plain_script sources_bashutils noisy
+    assert_test_count --pass 3 --fail 1 --flaky 0 --total 4
+    assert_test_pass plain_script sources_bashutils noisy
+    assert_test_fail fail_standalone
+}
 
-run_etest --desc "Passing and failing standalone tests" -- fail_standalone plain_script sources_bashutils noisy
-assert_test_count 3 4
-assert_test_pass plain_script sources_bashutils noisy
-assert_test_fail fail_standalone
+SELFTEST_passing_and_failing_etests()
+{
+    run_etest --desc "Passing and failing etests" -- pass_many.etest fail_many.etest
+    assert_test_count --pass 7 --fail 7 --flaky 0 --total 14
+    assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
+    assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+}
 
+SELFTEST_filter_passing()
+{
+    run_etest --desc "Filter to get just the passing etests" -- --filter "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
+    assert_test_count --pass 7 --fail 0 --flaky 0 --total 7
+    assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
+}
 
-run_etest --desc "Passing and failing etests" -- pass_many.etest fail_many.etest
-assert_test_count 7 14
-assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
-assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+SELFTEST_exclude_passing()
+{
+    run_etest --desc "Exclude and get just the failing etests" -- --exclude "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
+    assert_test_count --pass 0 --fail 7 --flaky 0 --total 7
+    assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+}
 
-
-run_etest --desc "Filter to get just the passing etests" -- --filter "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
-assert_test_count 7 7
-assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
-
-
-run_etest --desc "Exclude and get just the failing etests" -- --exclude "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
-assert_test_count 0 7
-assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
-
-(
+SELFTEST_filter_env_variable()
+{
     export FILTER='(A[1234]|B[23]|pass)'
     run_etest --desc "Make sure filter can be passed as an environment variable (PE-2332)" -- pass_many.etest fail_many.etest
-    assert_test_count 7 7
+    assert_test_count --pass 7 --fail 0 --flaky 0 --total 7
     assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
-)
+}
 
-(
+SELFTEST_exclude_env_variable()
+{
     export EXCLUDE='(A[1234]|B[23]|pass)'
     run_etest --desc "Make sure exclude can be passed as an environment variable (PE-2332)" -- pass_many.etest fail_many.etest
-    assert_test_count 0 7
+    assert_test_count --pass 0 --fail 7 --flaky 0 --total 7
     assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+}
+
+SELFTEST_flaky_failures_default()
+{
+    declare -xg FLAKY_COUNT_FILE=${TEST_DIR_OUTPUT}/flaky.ticks
+    trap_add "rm -f ${FLAKY_COUNT_FILE}"
+
+    run_etest --desc "Test passes second time failures not allowed (default)" -- --filter flaky_fails_once flaky.etest
+    assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
+    assert_test_fail ETEST_flaky_fails_once
+}
+
+SELFTEST_flaky_failures_0()
+{
+    run_etest --desc "Test passes second time failures=0" -- --filter flaky_fails_once --failures 0 flaky.etest
+    assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
+    assert_test_fail ETEST_flaky_fails_once
+}
+
+SELFTEST_flaky_failures_1()
+{
+    run_etest --desc "Test passes second time failures=1" -- --filter flaky_fails_once --failures 1 flaky.etest
+    assert_test_count --pass 1 --fail 0 --flaky 1 --total 1
+    assert_test_pass ETEST_flaky_fails_once
+    assert_test_flaky ETEST_flaky_fails_once
+}
+
+SELFTEST_flaky_failures_2()
+{
+    run_etest --desc "Test passes third time failures=1" -- --filter flaky_fails_twice --failures 1 flaky.etest
+    assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
+    assert_test_fail ETEST_flaky_fails_twice
+}
+
+SELFTEST_flaky_failures_3()
+{
+    run_etest --desc "Test passes third time failures=3" -- --filter flaky_fails_twice --failures 3 flaky.etest
+    assert_test_count --pass 1 --fail 0 --flaky 1 --total 1
+    assert_test_pass ETEST_flaky_fails_twice
+    assert_test_flaky ETEST_flaky_fails_twice
+}
+
+SELFTEST_flaky_failures_mixed()
+{
+    run_etest --desc "Passing, failing and flaky tests with failures=1" -- --failures 1 pass_many.etest fail_many.etest flaky.etest
+    assert_test_count --pass 8 --fail 8 --flaky 1 --total 16
+    assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy flaky_fails_once
+    assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy flaky_fails_twice
+    assert_test_flaky ETEST_flaky_fails_once
+}
+
+#----------------------------------------------------------------------------------------------------------------------
+# RUN ALL SELFTESTS
+#----------------------------------------------------------------------------------------------------------------------
+SELFTESTS=( $(declare -F | awk '$3 ~ "^SELFTEST_" {print $3}' || true) )
+array_sort SELFTESTS
+
+# Run each selftest in its own subshell. Also create a output directory for the selftest to use that is persistent
+# outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a 
+# test to have a persistent place to store things. This is necessary for our flaky tests where we need to keep track
+# of how many times the test has been executed so we need a persistent place to store that information.
+for selftest in ${SELFTESTS[@]}; do
+(
+    declare -xg SELFTEST_DIR_OUTPUT="$(readlink -f etest_selftest_output)"
+    efreshdir "${SELFTEST_DIR_OUTPUT}"
+
+    "${selftest}"
+
+    rm -rf "${SELFTEST_DIR_OUTPUT}"
 )
+done
 
 ebanner "Etest passed all self tests."
