@@ -474,7 +474,7 @@ changeset_info=""
 if [[ -d ".hg" ]] && which hg 2>/dev/null ; then
     changeset_info=" $(hg id --id)"
 elif [[ -d ".git" ]] && which git 2>/dev/null ; then
-    changeset_info=" $(git rev-parse --short HEAD)"
+    changeset_info=" $(git describe --abbrev=7 --always --tags --dirty)"
 fi
 
 RUNTIME=$(( SECONDS - START_TIME ))
