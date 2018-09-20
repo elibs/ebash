@@ -22,29 +22,35 @@ BASHUTILS=$(readlink -f "${BASHUTILS}")
 #-------------------------------------------------------------------------------------------------------------------------
 
 $(opt_parse \
-    ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
-    ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
-    ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
-    "+verbose v=${VERBOSE:-0}  | Verbose output." \
-    ":debug   D=${EDEBUG:-}    | EDEBUG output." \
     "+break   b=${BREAK:-0}    | Stop immediately on first failure." \
-    "+delete  d=1              | Delete all output files when tests complete." \
     "+clean   c=0              | Clean only and then exit." \
+    ":debug   D=${EDEBUG:-}    | EDEBUG output." \
+    "+delete  d=1              | Delete all output files when tests complete." \
+    ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
+    ":failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
+                                 test fails at all. However, in certain circumstances where flaky tests exist it may
+                                 be desireable to allow each test to retried a specified number of times and only
+                                 classify it as a failure if that test fails more than the requested threshold." \
+    ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
-    "+mount_ns=1               | Run tests inside a mount namespace." \
     ":log_dir                  | Directory to place logs in.  Defaults to the current directory." \
-    ":work_dir                 | Temporary location where etest can place temporary files.  This location will be both
-                                 created and deleted by etest." \
+    "+mount_ns=1               | Run tests inside a mount namespace." \
+    ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
+    "+summary s=0              | Display final summary to terminal in addition to logging it to etest.json." \
     "&test_list l              | File that contains a list of tests to run.  This file may contain comments on lines
                                  that begin with the # character.  All other nonblank lines will be interpreted as
                                  things that could be passed as @tests -- directories, executable scripts, or .etest
                                  files.  Relative paths will be interpreted against the current directory.  This option
                                  may be specified multiple times." \
+    "+verbose v=${VERBOSE:-0}  | Verbose output." \
+    ":work_dir                 | Temporary location where etest can place temporary files.  This location will be both
+                                 created and deleted by etest." \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
                                  and any test functions found will be executed.  You may also specify directories in
                                  which case etest will recursively find executables and .etest files and treat them in
                                  similar fashion.")
+
 # Default settings for filter an exclude.  Note that we can't use the opt_parse "default value" feature for this,
 # because our values are regular expressions.  That is, they're fairly likely to contain pipe characters and that would
 # cause opt_parse to do crazy things.
@@ -111,6 +117,7 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${log_dir}/etest.log
+ETEST_JSON=${log_dir}/etest.json
 elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
@@ -281,64 +288,74 @@ run_single_test()
         display_testname="${source}:${testname}"
     fi
 
-    ebanner "${display_testname}" REPEAT=REPEAT_STRING
+    ebanner --uppercase "${display_testname}" REPEAT=REPEAT_STRING failures
  
     einfos ${display_testname} &>${ETEST_OUT}
 
-    (( TEST_EXECUTED_COUNT += 1 ))
+    (( NUM_TESTS_EXECUTED += 1 ))
    
-    # We want to make sure that any traps from the tests
-    # execute _before_ we run teardown, and also we don't
-    # want the teardown to run inside the test-specific
-    # cgroup.  This subshell solves both issues.
-    try
-    {
-        export BASHUTILS BASHUTILS_HOME TEST_DIR_OUTPUT=${work_dir}
-        if [[ -n ${source} ]] ; then
-            source "${source}"
-        fi
-
-        # Pretend that the test _not_ executing inside a try/catch so that the
-        # error stack will get printed if part of the test fails, as if etest
-        # weren't running it inside a try/catch
-        __BU_INSIDE_TRY=0
-
-        # Create our temporary workspace in the directory specified by the caller
-        efreshdir "${work_dir}"
-        mkdir "${work_dir}/tmp"
-        export TMPDIR="$(readlink -m ${work_dir}/tmp)"
- 
-        if cgroup_supported ; then
-            cgroup_create ${ETEST_CGROUP}
-            cgroup_move ${ETEST_CGROUP} ${BASHPID}
-        fi
-
-        # Unit test provided setup
-        if is_function setup ; then
-            etestmsg "Calling setup"
-            setup
-        fi
-
-        local command="${testname}"
-        if ! is_function "${testname}" ; then
-            command=$(readlink -f "${testname}")
-        fi
+    local tries=0
+    for (( tries=0; tries <= ${failures}; tries++ )); do
         
-        cd "${work_dir}"
+        rc=0
 
-        etestmsg "Calling test"
-        "${command}"
+        # We want to make sure that any traps from the tests
+        # execute _before_ we run teardown, and also we don't
+        # want the teardown to run inside the test-specific
+        # cgroup.  This subshell solves both issues.
+        try
+        {
+            export BASHUTILS BASHUTILS_HOME TEST_DIR_OUTPUT=${work_dir}
+            if [[ -n ${source} ]] ; then
+                source "${source}"
+            fi
 
-        if is_function teardown ; then
-            etestmsg "Calling teardown"
-            teardown
+            # Pretend that the test _not_ executing inside a try/catch so that the
+            # error stack will get printed if part of the test fails, as if etest
+            # weren't running it inside a try/catch
+            __BU_INSIDE_TRY=0
+
+            # Create our temporary workspace in the directory specified by the caller
+            efreshdir "${work_dir}"
+            mkdir "${work_dir}/tmp"
+            export TMPDIR="$(readlink -m ${work_dir}/tmp)"
+     
+            if cgroup_supported ; then
+                cgroup_create ${ETEST_CGROUP}
+                cgroup_move ${ETEST_CGROUP} ${BASHPID}
+            fi
+
+            # Unit test provided setup
+            if is_function setup ; then
+                etestmsg "Calling setup"
+                setup
+            fi
+
+            local command="${testname}"
+            if ! is_function "${testname}" ; then
+                command=$(readlink -f "${testname}")
+            fi
+            
+            cd "${work_dir}"
+
+            etestmsg "Calling test (${tries}/${failures})"
+            "${command}"
+
+            if is_function teardown ; then
+                etestmsg "Calling teardown"
+                teardown
+            fi
+        }
+        catch
+        {
+            rc=$?
+        }
+        edebug "Finished $(lval testname display_testname rc tries FAILURES)"
+    
+        if [[ ${rc} -eq 0 ]]; then
+            break
         fi
-    }
-    catch
-    {
-        rc=$?
-    }
-    edebug "Finished $(lval testname display_testname rc)"
+    done
 
     local process_leak_rc=0
     if cgroup_supported ; then
@@ -348,25 +365,29 @@ run_single_test()
     local mount_leak_rc=0
     $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${work_dir}")
 
+    # If the test eventually passed (rc==0) but we had to try more than one time (tries > 0) then by definition
+    # this is a flaky test.
+    if [[ ${rc} -eq 0 && ${tries} -gt 0 ]]; then
+        TESTS_FLAKY+=( "${display_testname}" )
+    fi
+
     if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 && ${mount_leak_rc} -eq 0 ]]; then
         einfo "$(ecolor green)${display_testname} PASSED."
+        TESTS_PASSED+=( "${display_testname}" )
 
     elif [[ ${rc} -eq 0 && ${process_leak_rc} -ne 0 ]] ; then
         eerror "${display_testname} FAILED due to process leak."
-        (( TEST_FAILED_COUNT += 1 ))
-        FAILURES+=( "${display_testname}" )
+        TESTS_FAILED+=( "${display_testname}" )
         rc=1
 
     elif [[ ${rc} -eq 0 && ${mount_leak_rc} -ne 0 ]] ; then
         eerror "${display_testname} FAILED due to mount leak."
-        (( TEST_FAILED_COUNT += 1 ))
-        FAILURES+=( "${display_testname}" )
+        TESTS_FAILED+=( "${display_testname}" )
         rc=1
 
     else
         eerror "${display_testname} FAILED."
-        (( TEST_FAILED_COUNT += 1 ))
-        FAILURES+=( "${display_testname}" )
+        TESTS_FAILED+=( "${display_testname}" )
     fi
 
     eend ${rc} &>${ETEST_OUT}
@@ -416,7 +437,6 @@ run_etest_file()
 # GLOBAL SETUP
 #-------------------------------------------------------------------------------------------------------------------------
 
-declare -ag FAILURES
 global_setup
 trap_add global_teardown
 
@@ -427,12 +447,13 @@ trap_add global_teardown
 # MAIN
 #-------------------------------------------------------------------------------------------------------------------------
 
-TEST_EXECUTED_COUNT=0
-TEST_FAILED_COUNT=0
-
+declare -ag TESTS_PASSED=()
+declare -ag TESTS_FAILED=()
+declare -ag TESTS_FLAKY=()
+declare -g  NUM_TESTS_EXECUTED=0
 
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
-    [[ ${repeat} -gt 1 ]] && REPEAT_STRING="(${ITERATION}/${repeat})" || REPEAT_STRING=""
+    REPEAT_STRING="(${ITERATION}/${repeat})"
 
     for test_location in "${tests[@]}" ; do
 
@@ -449,33 +470,95 @@ for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
     done
 done
 
-changeset_info=""
-if [[ -d ".hg" ]] && which hg 2>/dev/null ; then
-    changeset_info=" $(hg id --id)"
-elif [[ -d ".git" ]] && which git 2>/dev/null ; then
-    changeset_info=" $(git rev-parse --short HEAD)"
+vcs_pack=""
+if [[ -d ".hg" ]] && which hg &>/dev/null ; then
+    pack_set vcs_pack \
+        type="hg"                                       \
+        info="$(hg id --id)"                            \
+        url="$(hg paths default)"                       \
+        branch="$(hg branch)"                           \
+        bookmark="$(hg book | awk '/ * / {print $2}')"  \
+        commit="$(hg id --id)"
+    
+elif [[ -d ".git" ]] && which git &>/dev/null ; then
+    pack_set vcs_pack \
+        type="git"                                                \
+        info="$(git describe --abbrev=7 --always --tags --dirty)" \
+        url="$(git config --get remote.origin.url)"               \
+        branch="$(git rev-parse --abbrev-ref HEAD)"               \
+        bookmark=""                                               \
+        commit="$(git rev-parse --short=12 HEAD)"
 fi
+
+RUNTIME=$(( SECONDS - START_TIME ))
 
 {
     echo
-    message="Finished testing${changeset_info}."
-    message+=" $(( TEST_EXECUTED_COUNT - TEST_FAILED_COUNT))/${TEST_EXECUTED_COUNT} tests passed"
-    message+=" in $(( SECONDS - START_TIME )) seconds."
+    message="Finished testing $(pack_get vcs_pack info)."
+    message+=" $(( ${#TESTS_PASSED[@]} ))/${NUM_TESTS_EXECUTED} tests passed"
+    message+=" in ${RUNTIME} seconds."
 
-    if [[ ${TEST_FAILED_COUNT} -gt 0 ]] ; then
+    if [[ ${#TESTS_FAILED[@]} -gt 0 ]]; then
         eerror "${message}"
     else
         einfo "${message}"
     fi
     echo
 
-    if array_not_empty FAILURES; then
+    if array_not_empty TESTS_FAILED; then
         eerror "FAILED TESTS:"
-        for failed_test in "${FAILURES[@]}" ; do
+        for failed_test in "${TESTS_FAILED[@]}" ; do
             echo "$(ecolor "red")      ${failed_test}" >&2
         done
         ecolor off >&2
     fi
+
+    if array_not_empty TESTS_FLAKY; then
+        ewarn "FLAKY TESTS:"
+        for flaky_test in "${TESTS_FLAKY[@]}" ; do
+            echo "$(ecolor "yellow")      ${flaky_test}" >&2
+        done
+        ecolor off >&2
+    fi
+
+# Create a summary file with relevant statistics
+jq . << EOF > ${ETEST_JSON}
+{
+    "numTestsExecuted": "${NUM_TESTS_EXECUTED}",
+    "numTestsPassed": "${#TESTS_PASSED[@]}",
+    "numTestsFailed": "${#TESTS_FAILED[@]}",
+    "numTestsFlaky": "${#TESTS_FLAKY[@]}",
+    "testsPassed": $(array_to_json TESTS_PASSED),
+    "testsFailed": $(array_to_json TESTS_FAILED),
+    "testsFlaky": $(array_to_json TESTS_FLAKY),
+    "runtime": "${RUNTIME} seconds",
+    "datetime": "$(etimestamp_rfc3339)",
+    "options": {
+        "break": "${break}",
+        "clean": "${clean}",
+        "debug": "${debug}",
+        "delete": "${delete}",
+        "exclude": "${exclude}",
+        "failures": "${failures}",
+        "filter": "${filter}",
+        "html": "${html}",
+        "log_dir": "${log_dir}",
+        "mount_ns": "${mount_ns}",
+        "repeat": "${repeat}",
+        "test_list": $(array_to_json test_list),
+        "tests": $(array_to_json tests),
+        "verbose": "${verbose}"
+    },
+    "vcs": $(pack_to_json vcs_pack)
+}
+EOF
+
+# Additionally display summary output to the terminal if requested
+if [[ "${summary}" -eq 1 ]]; then
+    einfo "Summary"
+    jq --color-output . ${ETEST_JSON}
+fi
+
 } |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
 
-exit ${TEST_FAILED_COUNT}
+exit ${#TESTS_FAILED[@]}
