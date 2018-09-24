@@ -13,7 +13,7 @@ If only one argument is provided it is the name of the remote URL which will be 
 to '/tmp'. If two arguments are provided the first is ${url} and the second is ${destination}. In this case, the 
 ${destination} can be an existing directory or the name of the local file to save the remote URL to inside the existing
 ${destination} directory. If more than two arguments are given, the final argument is required to be an existing local
-directory to download the files to. In the newer multi-argument mode
+directory to download the files to.
 
 You can silence all the output from efetch using `--quiet`. Or, more usefully, you can redirect all the output to
 an alternative output file via `--output <filename>`. In this case the ebanner and the per-file detailed progress
