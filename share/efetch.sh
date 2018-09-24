@@ -33,6 +33,7 @@ efetch()
         ":output o      | Redirect all STDOUT and STDERR to the requested file." \
         "+quiet q       | Quiet mode. (Disable ebanner, progress and other info messages from going to STDOUT and STDERR)." \
         ":public_key p  | Path to a PGP public key that can be used to validate PGPSignature in .meta file." \
+        ":style=ebanner | Style used when displaying the message. You might want to use einfo, ewarn or eerror instead." \
         "@urls          | URLs to fetch. The last one in this array will be considered as the destionation directory.")
 
     # Optionally send all STDOUT and STDERR to an output file for caller's use
@@ -47,7 +48,14 @@ efetch()
         exec &>/dev/null
     fi
 
-    ebanner --uppercase "Downloading requested URLs" md5 meta output quiet public_key urls
+    if [[ "${style}" != @(ebanner|einfo|infos|ewarn|ewarns|eerror|etestmsg) ]]; then
+        die "Unsupported $(lval style)"
+    fi
+    if [[ "${style}" == ebanner ]]; then
+        ebanner --uppercase "Downloading requested URLs" md5 meta output quiet public_key urls
+    else
+        "${style}" "Downloading requested URLs"
+    fi
 
     local pad=0 pad_max=60
     local errors=0
@@ -116,8 +124,9 @@ __efetch_load_info()
         # Keep track of the longest file name that doesn't exist our maximum desired pad to allow us to format the
         # output nicely. The '+5' here is to account for the '.meta' suffix that we'll fetch in addition to the actual
         # file.
-        if [[ $(( "${#fname}" + 5 )) -gt "${pad}" && "${#fname}" -lt "${pad_max}" ]]; then
-            pad="$(( ${#fname} + 5 ))"
+        local fname_pad=$(( ${#fname} + 5 ))
+        if [[ "${fname_pad}" -gt "${pad}" && "${#fname}" -lt "${pad_max}" ]]; then
+            pad="${fname_pad}"
         fi
 
         # Set the pack info for this URL.
