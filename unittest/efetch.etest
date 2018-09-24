@@ -6,7 +6,7 @@ ETEST_efetch_md5_bogus()
     touch ${tmpfile}.md5
 
     # efetch should fail b/c this isn't a valid MD5 file
-    ! efetch -m file://${tmpfile}
+    assert_false efetch -m file://${tmpfile}
 }
 
 ETEST_efetch_md5()
@@ -16,9 +16,14 @@ ETEST_efetch_md5()
     emd5sum ${tmpfile} > ${tmpfile}.md5
 
     efetch -m file://${tmpfile} copy.txt
-    [[ -e copy.txt ]]
-    [[ -e copy.txt.md5 ]]
+    assert_exists copy.txt copy.txt.md5
     diff ${tmpfile} copy.txt
+
+    # The md5 file we downloaded should NOT equal the original since the file name was updated in-place
+    # But if we strip out the file name, they should be the same.
+    assert_false diff "${tmpfile}.md5" copy.txt.md5
+    diff <( echo "$(awk '{print $1}' ${tmpfile}.md5)" ) <( echo "$(awk '{print $1}' copy.txt.md5)" )
+    emd5sum_check copy.txt
 }
 
 ETEST_efetch_md5_missing_md5()
@@ -27,9 +32,8 @@ ETEST_efetch_md5_missing_md5()
     dd if=/dev/urandom of=${tmpfile} bs=1M count=2
 
     # efetch should fail and both files should get removed
-    ! efetch -m file://${tmpfile} copy.txt
-    [[ ! -e copy.txt ]]
-    [[ ! -e copy.txt.md5 ]]
+    assert_false efetch -m file://${tmpfile} copy.txt
+    assert_not_exists copy.txt copy.txt.md5
 }
 
 ETEST_efetch_md5_missing_file()
@@ -37,9 +41,8 @@ ETEST_efetch_md5_missing_file()
     local tmpfile=$(mktemp --tmpdir etest-efetch-md5-XXXXXX)
 
     # efetch should fail and both files should get removed
-    ! efetch -m file://${tmpfile%%.md5} copy.txt
-    [[ ! -e copy.txt ]]
-    [[ ! -e copy.txt.md5 ]]
+    assert_false efetch -m file://${tmpfile%%.md5} copy.txt
+    assert_not_exists copy.txt copy.txt.md5
 }
 
 ETEST_efetch_meta()
@@ -50,8 +53,7 @@ ETEST_efetch_meta()
     emetadata_check ${tmpfile}
 
     efetch -M file://${tmpfile} copy.txt
-    [[ -e copy.txt ]]
-    [[ -e copy.txt.meta ]]
+    assert_exists copy.txt copy.txt.meta
     diff ${tmpfile} copy.txt
 
     emetadata_check copy.txt
@@ -72,8 +74,7 @@ ETEST_efetch_meta_pgp()
     emetadata_check ${tmpfile}
 
     efetch --meta --public-key "public.asc" file://${tmpfile} copy.txt
-    [[ -e copy.txt ]]
-    [[ -e copy.txt.meta ]]
+    assert_exists copy.txt copy.txt.meta
     diff ${tmpfile} copy.txt
 
     emetadata_check -p="public.asc" copy.txt
@@ -120,10 +121,10 @@ ETEST_efetch_missing_dir()
     dd if=/dev/urandom of=${tmpfile} bs=1M count=2
     assert_not_exists "dest"
 
-    # Try to fetch it to a non-existant directory. It should create it for us.
-    efetch file://${tmpfile} "dest/sub1/sub2/file1.txt"
-    assert_exists "dest/sub1/sub2/file1.txt"
-    assert_directory_contents "dest" "sub1" "sub1/sub2" "sub1/sub2/file1.txt"
+    # Try to fetch it to a non-existent directory. Unlike before, it should blow up if the directory doesn't exist 
+    # otherwise we can't easily implement fetching multiple files.
+    assert_false efetch file://${tmpfile} "dest/sub1/sub2/file1.txt"
+    assert_not_exists "dest"
 }
 
 ETEST_efetch_fail_curl()
@@ -132,17 +133,141 @@ ETEST_efetch_fail_curl()
     curl()
     {
         # Grab the destination parameter from the curl command in efetch
-	local dst=$(echo $* | grep -Po -- '--output \K\S+')
-	touch "${dst}"
-	return 1
+	    local dst=$(echo $* | grep -Po -- '--output \K\S+')
+	    touch "${dst}"
+	    return 1
     }
 
-    try {
+    try 
+    {
         efetch "http://test" output.txt
         die "We should have caught an exception here"
     }
-    catch {
+    catch
+    {
         assert_not_exists output.txt
-	assert_not_exists output.txt.pending
+	    assert_not_exists output.txt.pending
     }
+}
+
+ETEST_efetch_none()
+{
+    assert_false efetch
+}
+
+ETEST_efetch_single_file_no_dest()
+{
+    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
+    mkdir output
+    TMPDIR=output
+
+    efetch "file://${tmpfile}"
+    assert_exists output/$(basename ${tmpfile})
+}
+
+ETEST_efetch_multiple_urls()
+{
+    dd if=/dev/urandom of=file1 bs=1M count=2
+    dd if=/dev/urandom of=file2 bs=1M count=2
+    dd if=/dev/urandom of=file3 bs=1M count=2
+    mkdir output
+
+    efetch "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output"
+    assert_exists output/file1 output/file2 output/file3
+    diff file1 output/file1
+    diff file2 output/file2
+    diff file3 output/file3
+}
+
+# Do not allow fetching multiple files to a file
+ETEST_efetch_multiple_to_file_fails()
+{
+    assert_not_exists output
+    touch output
+    [[ -f output ]]
+
+    assert_false efetch "file://file1" "file://file2" "file://file3" output
+}
+
+# Verify we can background efetch and send all output to a file and then use efetch_wait to wait for it to complete
+ETEST_efetch_wait()
+{
+    dd if=/dev/urandom of=file1 bs=1M count=2
+    dd if=/dev/urandom of=file2 bs=1M count=2
+    dd if=/dev/urandom of=file3 bs=1M count=2
+    mkdir output
+
+    local stdout=$(
+        efetch --output output.txt "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
+        efetch_wait $!
+    )
+
+    assert_empty "${stdout}"
+    assert_exists output/file1 output/file2 output/file3
+    diff file1 output/file1
+    diff file2 output/file2
+    diff file3 output/file3
+
+    # Verify output.txt file has what we expect.
+    grep "file1.*#* 100.0%" output.txt
+    grep "file2.*#* 100.0%" output.txt
+    grep "file3.*#* 100.0%" output.txt
+}
+
+# Verify we can background efetch and send all output to a file and tail the output when we wait.
+ETEST_efetch_wait_tail()
+{
+    dd if=/dev/urandom of=file1 bs=1M count=2
+    dd if=/dev/urandom of=file2 bs=1M count=2
+    dd if=/dev/urandom of=file3 bs=1M count=2
+    mkdir output
+
+    efetch --output output.txt "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
+    local pid=$!
+
+    local stdout=$(efetch_wait --tail output.txt ${pid})
+    assert process_not_running "${pid}"
+
+    assert_exists output/file1 output/file2 output/file3
+    diff file1 output/file1
+    diff file2 output/file2
+    diff file3 output/file3
+
+    assert_match "${stdout}" "file1.*#* 100.0%"
+    assert_match "${stdout}" "file2.*#* 100.0%"
+    assert_match "${stdout}" "file3.*#* 100.0%"
+}
+
+ETEST_efetch_wait_quiet()
+{
+    dd if=/dev/urandom of=file1 bs=1M count=2
+    dd if=/dev/urandom of=file2 bs=1M count=2
+    dd if=/dev/urandom of=file3 bs=1M count=2
+    mkdir output
+
+    local stdout=$(
+        efetch --quiet "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
+        efetch_wait $!
+    )
+
+    assert_empty "${stdout}"
+ 
+    assert_exists output/file1 output/file2 output/file3
+    diff file1 output/file1
+    diff file2 output/file2
+    diff file3 output/file3
+}
+
+ETEST_efetch_wait_quiet_progress()
+{
+    dd if=/dev/urandom of=file1 bs=1M count=2
+    dd if=/dev/urandom of=file2 bs=1M count=2
+    dd if=/dev/urandom of=file3 bs=1M count=2
+    mkdir output
+
+    efetch --quiet "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
+    local pid=$!
+    local output=$(efetch_wait --progress ${pid} 2>&1)
+    assert_match "${output}" "Waiting for efetch $(lval pid) to complete"
 }
