@@ -99,10 +99,12 @@ __efetch_load_info()
 
     # Process each URL and store information about it into the provided associative array of packs.
     for url in "${urls[@]}"; do
-        local fname="$(basename ${url})" dest=""
+        local fname="" dest=""
         if [[ ${destination_is_file} -eq 1 ]]; then
+            fname="$(basename "${destination}")"
             dest="${destination}"
         else
+            fname="$(basename ${url})"
             dest="${destination}/${fname}"
         fi
 
@@ -280,7 +282,12 @@ __efetch_digest_validation()
         try
         {
             if [[ "${md5}" -eq 1 ]]; then
-                opt_forward emd5sum_check quiet -- "${dest}"
+
+                # If the requested destination was different than what was originally in the MD5 it will fail.
+                # Or if the md5sum file was generated with a different path in it it will fail. This just
+                # sanititizes it to have the current working directory and the name of the file we downloaded to.
+                sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${fname}|" "${dest}.md5"
+                emd5sum_check "${dest}"
             fi
             
             if [[ "${meta}" -eq 1 ]]; then

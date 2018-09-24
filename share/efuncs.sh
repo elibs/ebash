@@ -1129,35 +1129,14 @@ next to the source file with the suffix 'md5'. This method will die on failure.
 END
 emd5sum_check()
 {
-    $(opt_parse \
-        "+quiet q         | If specified, produce no output.  Return code reflects whether check was good or bad." \
-        "+sanitize_path=1 | Sanitize the path in the MD5 file so that it matches the name of the file. This is useful
-                            if the filename we downloaded it to is different than the original filename. Or if it was
-                            originally generated with a different path. Either of these conditions can cause md5sum
-                            check to erroneously fail." \
-        "path             | Path of the filename to perform an md5sum check. Assumes the companion file is \${path}.md5")
+    $(opt_parse path)
 
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
 
-    # Do this in a subshell so that our directory change isn't persistent
-    (
-        cd "${dname}" > /dev/null
- 
-        if [[ ${quiet} -eq 0 ]]; then
-            eprogress "Verifying MD5 of ${fname}"
-        fi
-   
-        if [[ -e "${fname}" && "${sanitize_path}" -eq 1 ]]; then
-            sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${fname}|" "${fname}.md5"
-        fi
-
-        md5sum -c "${fname}.md5" | edebug
-
-        if [[ ${quiet} -eq 0 ]]; then
-            eprogress_kill 
-        fi
-    )
+    pushd "${dname}"
+    md5sum -c "${fname}.md5" | edebug
+    popd
 }
 
 opt_usage emetadata <<'END'
