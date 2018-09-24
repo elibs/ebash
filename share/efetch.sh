@@ -334,13 +334,6 @@ efetch_wait()
             sleep 1
         done
 
-        echo ">> DONE" >> foo.txt
-
-        #{
-        #ekill ${pid} #&>/dev/null
-        #wait ${pid} #&> /dev/null || true
-        #} >> foo.txt 
-
         if [[ "${progress}" -eq 1 ]]; then
             eprogress_kill
         fi
