@@ -1129,14 +1129,35 @@ next to the source file with the suffix 'md5'. This method will die on failure.
 END
 emd5sum_check()
 {
-    $(opt_parse path)
+    $(opt_parse \
+        "+quiet q         | If specified, produce no output.  Return code reflects whether check was good or bad." \
+        "+sanitize_path=1 | Sanitize the path in the MD5 file so that it matches the name of the file. This is useful
+                            if the filename we downloaded it to is different than the original filename. Or if it was
+                            originally generated with a different path. Either of these conditions can cause md5sum
+                            check to erroneously fail." \
+        "path             | Path of the filename to perform an md5sum check. Assumes the companion file is \${path}.md5")
 
     local fname=$(basename "${path}")
     local dname=$(dirname  "${path}")
 
-    pushd "${dname}"
-    md5sum -c "${fname}.md5" | edebug
-    popd
+    # Do this in a subshell so that our directory change isn't persistent
+    (
+        cd "${dname}" > /dev/null
+ 
+        if [[ ${quiet} -eq 0 ]]; then
+            eprogress "Verifying MD5 of ${fname}"
+        fi
+   
+        if [[ -e "${fname}" && "${sanitize_path}" -eq 1 ]]; then
+            sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${fname}|" "${fname}.md5"
+        fi
+
+        md5sum -c "${fname}.md5" | edebug
+
+        if [[ ${quiet} -eq 0 ]]; then
+            eprogress_kill 
+        fi
+    )
 }
 
 opt_usage emetadata <<'END'
@@ -1419,116 +1440,6 @@ numcores()
     [[ -e /proc/cpuinfo ]] || die "/proc/cpuinfo does not exist"
 
     echo $(cat /proc/cpuinfo | grep "processor" | wc -l)
-}
-
-opt_usage efetch_internal <<'END'
-Internal only efetch function which fetches an individual file using curl. This will show an
-eprogress ticker and then kill the ticker with either success or failure indicated. The return value
-is then returned to the caller for handling.
-END
-efetch_internal()
-{
-    $(opt_parse url dst)
-    local timecond=""
-    [[ -f ${dst} ]] && timecond="--time-cond ${dst}"
-    
-    eprogress "Fetching $(lval url dst)"
-    $(tryrc curl "${url}" ${timecond} --create-dirs --output "${dst}.pending" --location --fail --silent --show-error --insecure)
-    eprogress_kill -r=${rc}
-
-    if [[ ${rc} -eq 0 ]]; then
-        if [[ -e "${dst}.pending" ]]; then
-            mv "${dst}.pending" "${dst}"
-        else
-            # If curl succeeded, but the file wasn't created, then the remote file was an empty file. This was a bug in older
-            # versions of curl that was fixed in newer versions. To make the old curl match the new curl behavior, simply
-            # touch an empty file if one doesn't exist.
-            # See: https://github.com/curl/curl/issues/183
-            edebug "Working around old curl bug #183 wherein empty files are not properly created."
-            touch "${dst}"
-        fi
-    elif [[ -e "${dst}.pending" ]]; then
-        rm "${dst}.pending"
-    fi
-
-    return ${rc}
-}
-
-opt_usage efetch <<'END'
-Fetch a provided URL to an optional destination path via efetch_internal. This function can also
-optionally validate the fetched data against various companion files which contain metadata for file
-fetching. If validation is requested and the validation fails then all temporary files fetched are
-removed.
-END
-efetch()
-{
-    $(opt_parse \
-        "+md5 m        | Fetch companion .md5 file and validate fetched file's MD5 matches." \
-        "+meta M       | Fetch companion .meta file and validate metadata fields using emetadata_check." \
-        "+quiet q      | Quiet mode.  (Disable eprogress and other info messages)" \
-        ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file."     \
-        "url           | URL from which efetch should pull data." \
-        "dst=/tmp      | Destination directory.")
-
-    [[ -d ${dst} ]] && dst+="/$(basename ${url})"
-    
-    # Companion files we may fetch
-    local md5_file="${dst}.md5"
-    local meta_file="${dst}.meta"
-
-    try
-    {
-        # Optionally suppress all output from this subshell
-        [[ ${quiet} -eq 1 ]] && exec &>/dev/null
-
-        ## If requested, fetch MD5 file
-        if [[ ${md5} -eq 1 ]] ; then
-
-            efetch_internal "${url}.md5" "${md5_file}"
-            efetch_internal "${url}"     "${dst}"
-
-            # Verify MD5
-            einfos "Verifying MD5 $(lval dst md5_file)"
-
-            local dst_dname=$(dirname  "${dst}")
-            local dst_fname=$(basename "${dst}")
-            local md5_dname=$(dirname  "${md5_file}")
-            local md5_fname=$(basename "${md5_file}")
-
-            cd "${dst_dname}"
-
-            # If the requested destination was different than what was originally in the MD5 it will fail.
-            # Or if the md5sum file was generated with a different path in it it will fail. This just
-            # sanititizes it to have the current working directory and the name of the file we downloaded to.
-            sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${dst_fname}|" "${md5_fname}"
-
-            # Now we can perform the check
-            md5sum --check "${md5_fname}" >/dev/null
-
-        ## If requested fetch *.meta file and validate using contained fields
-        elif [[ ${meta} -eq 1 ]]; then
-
-            efetch_internal "${url}.meta" "${meta_file}"
-            efetch_internal "${url}"      "${dst}"
-            opt_forward emetadata_check quiet public_key -- "${dst}"
-        
-        ## BASIC file fetching only
-        else
-            efetch_internal "${url}" "${dst}"
-        fi
-    
-        einfos "Successfully fetched $(lval url dst)"
-    }
-    catch
-    {
-        local rc=$?
-        local remove_files=( "${dst}" )
-        [[ ${md5} -eq 1 ]] && remove_files+=( "${md5_file}" )
-        [[ ${meta} -eq 1 ]] && remove_files+=( "${meta_file}" )
-        edebug "Removing $(lval remove_files rc)"
-        rm -rf "${remove_files[@]}"
-        return ${rc}
-    }
 }
 
 opt_usage etimeout <<'END'
