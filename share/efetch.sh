@@ -121,7 +121,7 @@ __efetch_load_info()
             timecond="--time-cond ${dest}"
         fi
 
-        # Keep track of the longest file name that doesn't exist our maximum desired pad to allow us to format the
+        # Keep track of the longest file name that doesn't exceed our maximum desired pad to allow us to format the
         # output nicely. The '+5' here is to account for the '.meta' suffix that we'll fetch in addition to the actual
         # file.
         local fname_pad=$(( ${#fname} + 5 ))
