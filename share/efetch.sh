@@ -18,7 +18,7 @@ directory to download the files to.
 You can silence all the output from efetch using `--quiet`. Or, more usefully, you can redirect all the output to
 an alternative output file via `--output <filename>`. In this case the ebanner and the per-file detailed progress
 status will be sent to that output file instead. You can then background the efetch process and then tail the output
-file and wait for the fetching to complete. To mke this simpler, you can use `efetch_wait --tail <pid>`. For example:
+file and wait for the fetching to complete. To make this simpler, you can use `efetch_wait --tail <pid>`. For example:
 
 efetch --output efetch.output <url1> <url2> ... <destination> & 
 efetch_pid=$!
@@ -248,6 +248,7 @@ __efetch_check_incomplete_or_failed()
 
         if [[ "${result}" == "failed" ]]; then
             eend 1
+            eerror "Removing incomplete or failed files"
             rm --verbose --force ${dest}{,.md5,meta}.pending
             (( errors += 1 ))
         else
