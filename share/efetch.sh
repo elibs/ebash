@@ -16,7 +16,7 @@ ${destination} directory. If more than two arguments are given, the final argume
 directory to download the files to.
 
 Just like `eprogress` the caller can set EPROGRESS=0 to disable the progress bar emitted by efetch. Alternatively, 
-the caller can siilence all the output from efetch using `--quiet`. Or, more usefully, you can redirect all the output
+the caller can silence all the output from efetch using `--quiet`. Or, more usefully, you can redirect all the output
 to an alternative output file via `--output <filename>`. In this case the ebanner and the per-file detailed progress
 status will be sent to that output file instead. You can then background the efetch process and then tail the output
 file and wait for the fetching to complete. To make this simpler, you can use `efetch_wait --tail <pid>`. For example:
