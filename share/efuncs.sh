@@ -932,8 +932,15 @@ elogrotate()
                       kilobytes, m -- Megabytes, G -- gigabytes" \
         "name       | Base name to use for the logfile.")
 
+    # If the file doesn't exist, there is nothing to do.
+    if [[ ! -e "$(readlink -f "${name}")" ]]; then
+        return 0
+    fi
+
     # Ensure we don't try to rotate non-files
-    [[ -f $(readlink -f "${name}") ]] 
+    if [[ ! -f $(readlink -f "${name}") ]]; then
+        die "Cannot rotate non-file $(lval name)"
+    fi
 
     # Find log files by exactly this name that are of the size that should be rotated
     local files="$(find "$(dirname "${name}")" -maxdepth 1          \
