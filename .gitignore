@@ -1,7 +1,7 @@
 .bash_history
 etest.log*
 etest.html
-etest.json
+etest.json*
 results
 output
 results
