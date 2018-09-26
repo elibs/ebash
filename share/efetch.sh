@@ -193,7 +193,8 @@ __efetch_download_wait()
     
     # Put list of arrays into sorted array so that we can display them in sorted order which makes it easier for the
     # caller to find the file they want to monitor download progress for.
-    local urls=( "$(echo "${!data[@]}" | tr ' ' '\n' | sort --version-sort)" )
+    local urls=( "${!data[@]}" )
+    array_sort --unique --version urls
 
     # Caller can globally disable progress ticker with EPROGRESS=0. In that case just print the list of files that we
     # will be downloading but don't show any pretty output formatting.
