@@ -15,8 +15,9 @@ ${destination} can be an existing directory or the name of the local file to sav
 ${destination} directory. If more than two arguments are given, the final argument is required to be an existing local
 directory to download the files to.
 
-You can silence all the output from efetch using `--quiet`. Or, more usefully, you can redirect all the output to
-an alternative output file via `--output <filename>`. In this case the ebanner and the per-file detailed progress
+Just like `eprogress` the caller can set EPROGRESS=0 to disable the progress bar emitted by efetch. Alternatively, 
+the caller can siilence all the output from efetch using `--quiet`. Or, more usefully, you can redirect all the output
+to an alternative output file via `--output <filename>`. In this case the ebanner and the per-file detailed progress
 status will be sent to that output file instead. You can then background the efetch process and then tail the output
 file and wait for the fetching to complete. To make this simpler, you can use `efetch_wait --tail <pid>`. For example:
 
@@ -188,15 +189,23 @@ __efetch_download()
 #       avoid the overhead of needlessly calling opt_parse again.
 __efetch_download_wait()
 {
-    ecolor hide_cursor
-    trap_add "ecolor clear_to_eol" 
-    trap_add "ecolor show_cursor"
+    local finished=() url=""
+    
+    # Put list of arrays into sorted array so that we can display them in sorted order which makes it easier for the
+    # caller to find the file they want to monitor download progress for.
+    local urls=( "$(echo "${!data[@]}" | tr ' ' '\n' | sort --version-sort)" )
 
-    local finished=()
+    # Caller can globally disable progress ticker with EPROGRESS=0. In that case just print the list of files that we
+    # will be downloading but don't show any pretty output formatting.
+    if [[ "${EPROGRESS}" -ne 0 ]]; then
+        ecolor hide_cursor
+        trap_add "ecolor clear_to_eol" 
+        trap_add "ecolor show_cursor"
+    fi
+
     while [[ ${#finished[@]} -lt ${#data[@]} ]]; do
-        
-        local url
-        for url in ${!data[@]}; do
+    
+        for url in ${urls[@]}; do
             $(pack_import data[$url])
 
             # This is where all the pretty output formatting happens. We basically move the cursor to the start of the
@@ -204,10 +213,12 @@ __efetch_download_wait()
             # file has a bunch of control characters in it to move the cursor around. We don't want to display all of 
             # that as it messes up our output since we are already in a loop. So we just grab the very last line from
             # the progress file and display that as that is the current status line for that file.
-            ecolor start_of_line
-            local status=$(cat ${progress} | sed 's|[[:cntrl:]]|\n|g' | tail -1)
-            printf "%-${pad}s %s\n" "$(string_truncate -e ${pad} ${fname})" "${status}"
-        
+            if [[ "${EPROGRESS}" -ne 0 ]]; then 
+                ecolor start_of_line
+                local status=$(cat ${progress} | sed 's|[[:cntrl:]]|\n|g' | tail -1)
+                printf "%-${pad}s %s\n" "$(string_truncate -e ${pad} ${fname})" "${status}"
+            fi
+
             # update the result of this fetch to either "failed" or "passed"
             if ! array_contains finished ${pid} && process_not_running ${pid}; then
                 if ! wait "${pid}"; then
@@ -217,17 +228,23 @@ __efetch_download_wait()
                 fi
 
                 finished+=( ${pid} )
+
+                if [[ "${EPROGRESS}" -eq 0 ]]; then
+                    echo "${fname}"
+                fi
             fi
         done
 
         # If we aren't done, move the cursor back up to prepare for the next iteration.
-        if [[ ${#finished[@]} -lt ${#data[@]} ]]; then
+        if [[ "${EPROGRESS}" -eq 1 && ${#finished[@]} -lt ${#data[@]} ]]; then
             tput cuu ${#data[@]}
         fi
 
     done
 
-    ecolor show_cursor
+    if [[ "${EPROGRESS}" -ne 0 ]]; then 
+        ecolor show_cursor
+    fi
 }
 
 # Internel helper method to check if any of the fetch jobs were incomplete or failed. If they were successful then it
@@ -248,8 +265,8 @@ __efetch_check_incomplete_or_failed()
 
         if [[ "${result}" == "failed" ]]; then
             eend 1
-            eerror "Removing incomplete or failed files"
-            rm --verbose --force ${dest}{,.md5,meta}.pending
+            eerror "Removing incomplete or failed files: ($(echo \"${dest}{,.md5,.meta}.pending\"))"
+            rm --force ${dest}{,.md5,.meta}.pending
             (( errors += 1 ))
         else
             eend 0
@@ -307,8 +324,8 @@ __efetch_digest_validation()
         catch
         {
             (( errors +=1 ))
-            eerror "Removing corrupt files"
-            rm --verbose --force ${dest}{,.md5,.meta}
+            eerror "Removing corrupt files: ($(echo \"${dest}{,.md5,.meta}\"))"
+            rm --force ${dest}{,.md5,.meta}
         }
     done
 }
@@ -325,11 +342,19 @@ END
 efetch_wait()
 {
     $(opt_parse \
+        "+delete_output=1  | If enabled, delete the output file being tailed to avoid caller having to do it." \
         ":output_file tail | Tail the output in the specified file." \
         "+progress         | Display an eprogress ticker while waiting for efetch to complete (not available with --tail)." \
         "pid               | The efetch pid to wait for.")
 
+    # Setup trap to kill the efetch pid.
     trap_add "ekill ${pid}"
+
+    # Setup trap to remove the output file if requested.
+    if [[ "${delete_output}" -eq 1 && -f "${output_file}" ]]; then
+        trap_add "rm --force ${output_file}"
+    fi
+
     local tail_pid=""
     if [[ -n "${output_file}" ]]; then
         tail --lines +1 --follow --pid "${pid}" "${output_file}" &

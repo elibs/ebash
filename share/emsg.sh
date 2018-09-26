@@ -16,6 +16,9 @@
 : ${COLOR_BRACKET:="bold blue"}
 : ${COLOR_BANNER:="bold magenta"}
 
+# By default enable eprogress style tickers
+: ${EPROGRESS:=1}
+
 # Any functions whose names are "==" to this are exempt from ETRACE.  In other
 # words, even if ETRACE=1, these functions actions will not be displayed in the
 # output.
@@ -658,7 +661,7 @@ eprogress()
     assert_match "${align}" "(left|right)"
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0. Simply display static message and then return.
-    if [[ ${EPROGRESS:-1} -eq 0 ]]; then
+    if [[ ${EPROGRESS} -eq 0 ]]; then
         
         "${style}" -n "$* "
         
@@ -769,7 +772,7 @@ eprogress_kill()
         "+all a               | If set, kill ALL known eprogress processes, not just the current one")
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
-    if [[ ${EPROGRESS:-1} -eq 0 ]] ; then
+    if [[ ${EPROGRESS} -eq 0 ]] ; then
         eend ${rc}
         return 0
     fi
