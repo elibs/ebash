@@ -12,7 +12,7 @@ ETEST_efetch_md5_bogus()
 ETEST_efetch_md5()
 {
     local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
-    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
+    dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     emd5sum ${tmpfile} > ${tmpfile}.md5
 
     efetch -m file://${tmpfile} copy.txt
@@ -29,7 +29,7 @@ ETEST_efetch_md5()
 ETEST_efetch_md5_missing_md5()
 {
     local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
-    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
+    dd if=/dev/urandom of=${tmpfile} bs=1K count=1
 
     # efetch should fail and both files should get removed
     assert_false efetch -m file://${tmpfile} copy.txt
@@ -48,7 +48,7 @@ ETEST_efetch_md5_missing_file()
 ETEST_efetch_meta()
 {
     local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
-    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
+    dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     emetadata ${tmpfile} > ${tmpfile}.meta
     emetadata_check ${tmpfile}
 
@@ -69,7 +69,7 @@ ETEST_efetch_meta_pgp()
     efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging.phrase      phrase.txt
     
     local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
-    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
+    dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     emetadata -p="private.asc" -k="$(cat phrase.txt)" ${tmpfile} > ${tmpfile}.meta
     emetadata_check ${tmpfile}
 
@@ -118,7 +118,7 @@ ETEST_efetch_empty_file()
 ETEST_efetch_missing_dir()
 {
     local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
-    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
+    dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     assert_not_exists "dest"
 
     # Try to fetch it to a non-existent directory. Unlike before, it should blow up if the directory doesn't exist 
@@ -158,7 +158,7 @@ ETEST_efetch_none()
 ETEST_efetch_single_file_no_dest()
 {
     local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
-    dd if=/dev/urandom of=${tmpfile} bs=1M count=2
+    dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     mkdir output
     TMPDIR=output
 
@@ -168,9 +168,9 @@ ETEST_efetch_single_file_no_dest()
 
 ETEST_efetch_multiple_urls()
 {
-    dd if=/dev/urandom of=file1 bs=1M count=2
-    dd if=/dev/urandom of=file2 bs=1M count=2
-    dd if=/dev/urandom of=file3 bs=1M count=2
+    dd if=/dev/urandom of=file1 bs=1K count=1
+    dd if=/dev/urandom of=file2 bs=1K count=1
+    dd if=/dev/urandom of=file3 bs=1K count=1
     mkdir output
 
     efetch "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output"
@@ -193,9 +193,9 @@ ETEST_efetch_multiple_to_file_fails()
 # Verify we can background efetch and send all output to a file and then use efetch_wait to wait for it to complete
 ETEST_efetch_wait()
 {
-    dd if=/dev/urandom of=file1 bs=1M count=2
-    dd if=/dev/urandom of=file2 bs=1M count=2
-    dd if=/dev/urandom of=file3 bs=1M count=2
+    dd if=/dev/urandom of=file1 bs=1K count=1
+    dd if=/dev/urandom of=file2 bs=1K count=1
+    dd if=/dev/urandom of=file3 bs=1K count=1
     mkdir output
 
     local stdout=$(
@@ -203,6 +203,7 @@ ETEST_efetch_wait()
         efetch_wait $!
     )
 
+    assert_exists output.txt
     assert_empty "${stdout}"
     assert_exists output/file1 output/file2 output/file3
     diff file1 output/file1
@@ -216,19 +217,21 @@ ETEST_efetch_wait()
 }
 
 # Verify we can background efetch and send all output to a file and tail the output when we wait.
-ETEST_efetch_wait_tail()
+ETEST_efetch_wait_tail_no_delete()
 {
-    dd if=/dev/urandom of=file1 bs=1M count=2
-    dd if=/dev/urandom of=file2 bs=1M count=2
-    dd if=/dev/urandom of=file3 bs=1M count=2
+    dd if=/dev/urandom of=file1 bs=1K count=1
+    dd if=/dev/urandom of=file2 bs=1K count=1
+    dd if=/dev/urandom of=file3 bs=1K count=1
     mkdir output
 
     efetch --output output.txt "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
     local pid=$!
 
-    local stdout=$(efetch_wait --tail output.txt ${pid})
+    local stdout=$(efetch_wait --tail output.txt --no-delete-output ${pid})
+    echo "${stdout}"
     assert process_not_running "${pid}"
 
+    assert_exists output.txt
     assert_exists output/file1 output/file2 output/file3
     diff file1 output/file1
     diff file2 output/file2
@@ -239,11 +242,32 @@ ETEST_efetch_wait_tail()
     assert_match "${stdout}" "file3.*#* 100.0%"
 }
 
+ETEST_efetch_wait_tail_delete()
+{
+    dd if=/dev/urandom of=file1 bs=1K count=1
+    dd if=/dev/urandom of=file2 bs=1K count=1
+    dd if=/dev/urandom of=file3 bs=1K count=1
+    mkdir output
+
+    efetch --output output.txt "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
+    local pid=$!
+
+    local stdout=$(efetch_wait --tail output.txt ${pid})
+    echo "${stdout}"
+    assert process_not_running "${pid}"
+    
+    assert_not_exists output.txt
+    assert_exists output/file1 output/file2 output/file3
+    diff file1 output/file1
+    diff file2 output/file2
+    diff file3 output/file3
+}
+
 ETEST_efetch_wait_quiet()
 {
-    dd if=/dev/urandom of=file1 bs=1M count=2
-    dd if=/dev/urandom of=file2 bs=1M count=2
-    dd if=/dev/urandom of=file3 bs=1M count=2
+    dd if=/dev/urandom of=file1 bs=1K count=1
+    dd if=/dev/urandom of=file2 bs=1K count=1
+    dd if=/dev/urandom of=file3 bs=1K count=1
     mkdir output
 
     local stdout=$(
@@ -261,13 +285,29 @@ ETEST_efetch_wait_quiet()
 
 ETEST_efetch_wait_quiet_progress()
 {
-    dd if=/dev/urandom of=file1 bs=1M count=2
-    dd if=/dev/urandom of=file2 bs=1M count=2
-    dd if=/dev/urandom of=file3 bs=1M count=2
+    dd if=/dev/urandom of=file1 bs=1K count=1
+    dd if=/dev/urandom of=file2 bs=1K count=1
+    dd if=/dev/urandom of=file3 bs=1K count=1
     mkdir output
 
     efetch --quiet "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
     local pid=$!
     local output=$(efetch_wait --progress ${pid} 2>&1)
+    echo "${output}"
+    assert_match "${output}" "Waiting for efetch $(lval pid) to complete.*00:00:"
+}
+
+ETEST_efetch_wait_quiet_progress_disabled()
+{
+    dd if=/dev/urandom of=file1 bs=1K count=1
+    dd if=/dev/urandom of=file2 bs=1K count=1
+    dd if=/dev/urandom of=file3 bs=1K count=1
+    mkdir output
+
+    efetch --quiet "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
+    local pid=$!
+    local output=$(EPROGRESS=0 efetch_wait --progress ${pid} 2>&1)
+    echo "${output}"
     assert_match "${output}" "Waiting for efetch $(lval pid) to complete"
+    assert_not_match "${output}" "Waiting for efetch $(lval pid) to complete.*00:00:"
 }

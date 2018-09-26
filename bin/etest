@@ -118,6 +118,7 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${log_dir}/etest.log
 ETEST_JSON=${log_dir}/etest.json
+elogrotate "${ETEST_JSON}"
 elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
