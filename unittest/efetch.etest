@@ -17,6 +17,7 @@ ETEST_efetch_md5()
 
     efetch -m file://${tmpfile} copy.txt
     assert_exists copy.txt copy.txt.md5
+    assert_not_exists copy.txt.progress copy.txt.md5.progress
     diff ${tmpfile} copy.txt
 
     # The md5 file we downloaded should NOT equal the original since the file name was updated in-place
@@ -54,6 +55,7 @@ ETEST_efetch_meta()
 
     efetch -M file://${tmpfile} copy.txt
     assert_exists copy.txt copy.txt.meta
+    assert_not_exists copy.txt.progress copy.txt.meta.progress
     diff ${tmpfile} copy.txt
 
     emetadata_check copy.txt
@@ -75,6 +77,7 @@ ETEST_efetch_meta_pgp()
 
     efetch --meta --public-key "public.asc" file://${tmpfile} copy.txt
     assert_exists copy.txt copy.txt.meta
+    assert_not_exists copy.txt.progress copy.txt.meta.progress
     diff ${tmpfile} copy.txt
 
     emetadata_check -p="public.asc" copy.txt
@@ -92,7 +95,7 @@ ETEST_efetch_fail_preserves_meta()
     }
     catch
     {
-        assert_not_exists "${test_file}"
+        assert_not_exists "${test_file}" "${test_file}.progress"
         assert_exists "${test_file}.meta"
         assert_exists "${test_file}.md5"
         return 0
@@ -112,6 +115,7 @@ ETEST_efetch_empty_file()
     # Try to fetch empty file. It should be created and be empty.
     efetch file://${tmpfile} "output.txt"
     assert_exists "output.txt"
+    assert_not_exists "output.txt.progress"
     [[ ! -s "output.txt" ]] || die "output.txt should be an empty file."
 }
 
@@ -164,6 +168,7 @@ ETEST_efetch_single_file_no_dest()
 
     efetch "file://${tmpfile}"
     assert_exists output/$(basename ${tmpfile})
+    assert_not_exists output/$(basename ${tmpfile}).progress
 }
 
 ETEST_efetch_multiple_urls()
@@ -175,6 +180,8 @@ ETEST_efetch_multiple_urls()
 
     efetch "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output"
     assert_exists output/file1 output/file2 output/file3
+    assert_not_exists output/file1.progress output/file2.progress output/file3.progress
+
     diff file1 output/file1
     diff file2 output/file2
     diff file3 output/file3
@@ -204,8 +211,10 @@ ETEST_efetch_wait()
     )
 
     assert_exists output.txt
+    assert_not_exists output.txt.progress
     assert_empty "${stdout}"
     assert_exists output/file1 output/file2 output/file3
+    assert_not_exists output/file1.progress output/file2.progress output/file3.progress
     diff file1 output/file1
     diff file2 output/file2
     diff file3 output/file3
@@ -231,8 +240,8 @@ ETEST_efetch_wait_tail_no_delete()
     echo "${stdout}"
     assert process_not_running "${pid}"
 
-    assert_exists output.txt
-    assert_exists output/file1 output/file2 output/file3
+    assert_exists output.txt output/file1 output/file2 output/file3
+    assert_not_exists output.txt.progress output/file1.progress output/file2.progress output/file3.progress
     diff file1 output/file1
     diff file2 output/file2
     diff file3 output/file3
@@ -258,6 +267,8 @@ ETEST_efetch_wait_tail_delete()
     
     assert_not_exists output.txt
     assert_exists output/file1 output/file2 output/file3
+    assert_not_exists output/file1.progress output/file2.progress output/file3.progress
+    
     diff file1 output/file1
     diff file2 output/file2
     diff file3 output/file3
@@ -278,6 +289,8 @@ ETEST_efetch_wait_quiet()
     assert_empty "${stdout}"
  
     assert_exists output/file1 output/file2 output/file3
+    assert_not_exists output/file1.progress output/file2.progress output/file3.progress
+    
     diff file1 output/file1
     diff file2 output/file2
     diff file3 output/file3
