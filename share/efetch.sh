@@ -257,13 +257,15 @@ __efetch_download_wait()
 __efetch_check_incomplete_or_failed()
 {
     # Move files to their final destinations or remove pending files for failed downloads
+    echo
     einfo "Checking for incomplete or failed downloads"
     local url
     for url in ${!data[@]}; do
         $(pack_import data[$url])
 
         einfos "${fname}"
-
+        rm --force "${progress}"
+        
         if [[ "${result}" == "failed" ]]; then
             eend 1
             eerror "Removing incomplete or failed files: ($(echo \"${dest}{,.md5,.meta}.pending\"))"
