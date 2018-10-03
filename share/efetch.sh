@@ -37,6 +37,10 @@ efetch()
         ":style=ebanner | Style used when displaying the message. You might want to use einfo, ewarn or eerror instead." \
         "@urls          | URLs to fetch. The last one in this array will be considered as the destionation directory.")
 
+    if einteractive; then
+        EINTERACTIVE=1
+    fi
+
     # Optionally send all STDOUT and STDERR to an output file for caller's use
     if [[ -n "${output}" ]]; then
         mkdir -p "$(dirname "${output}")"
@@ -46,6 +50,7 @@ efetch()
         fi
         exec &> "${output}"
     elif [[ ${quiet} -eq 1 ]]; then
+        EINTERACTIVE=0
         exec &>/dev/null
     fi
 
@@ -172,8 +177,9 @@ __efetch_download()
         $(pack_import data[$url])
 
         # Call curl with explicit COLUMNS so that the progress bar will fit into the amount of room left on the
-        # console after we print the filename.
-        COLUMNS=$(( ${COLUMNS}-${pad}-1)) curl --location --fail --show-error --insecure --progress ${timecond} \
+        # console after we print the filename.  default COLUMNS to 80 for the case of no tty.  in that case, it doesn't
+        # matter what the value is.
+        COLUMNS=$(( ${COLUMNS:-80}-${pad}-1)) curl --location --fail --show-error --insecure --progress ${timecond} \
             --output "${dest}.pending" "${url}" &> "${progress}" &
 
         pack_set data[$url] pid=$!
@@ -195,6 +201,11 @@ __efetch_download_wait()
     # caller to find the file they want to monitor download progress for.
     local urls=( "${!data[@]}" )
     array_sort --unique --version urls
+
+    # if EINTERACTIVE is 0, then set EPROGRESS to 0 to disable all printing.
+    if [[ "${EINTERACTIVE}" -eq 0 ]] ; then
+        EPROGRESS=0
+    fi
 
     # Caller can globally disable progress ticker with EPROGRESS=0. In that case just print the list of files that we
     # will be downloading but don't show any pretty output formatting.
