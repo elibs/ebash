@@ -232,6 +232,10 @@ ETEST_efetch_wait()
 # Verify we can background efetch and send all output to a file and tail the output when we wait.
 ETEST_efetch_wait_tail_no_delete()
 {
+    # we set EINTERACTIVE to 1 here because if we just detect it, it will be 0 because of the etest redirection
+    # and this test will fail because there will be no output
+    local EINTERACTIVE=1
+
     dd if=/dev/urandom of=file1 bs=1K count=1
     dd if=/dev/urandom of=file2 bs=1K count=1
     dd if=/dev/urandom of=file3 bs=1K count=1
