@@ -36,49 +36,52 @@ efetch()
         ":public_key p  | Path to a PGP public key that can be used to validate PGPSignature in .meta file." \
         ":style=ebanner | Style used when displaying the message. You might want to use einfo, ewarn or eerror instead." \
         "@urls          | URLs to fetch. The last one in this array will be considered as the destionation directory.")
+    (
+        # This needs to be in a subshell because we could end up redirecting our stdout and stderr file descriptors to
+        # /dev/null.  if we aren't in a subshell, we'll change our callers descriptors.
 
-    if einteractive; then
-        EINTERACTIVE=1
-    fi
-
-    # Optionally send all STDOUT and STDERR to an output file for caller's use
-    if [[ -n "${output}" ]]; then
-        mkdir -p "$(dirname "${output}")"
-        > "${output}"
         if einteractive; then
             EINTERACTIVE=1
         fi
-        exec &> "${output}"
-    elif [[ ${quiet} -eq 1 ]]; then
-        EINTERACTIVE=0
-        exec &>/dev/null
-    fi
 
-    if [[ "${style}" != @(ebanner|einfo|infos|ewarn|ewarns|eerror|etestmsg) ]]; then
-        die "Unsupported $(lval style)"
-    fi
-    if [[ "${style}" == ebanner ]]; then
-        ebanner --uppercase "Downloading requested URLs" md5 meta output quiet public_key urls
-    else
-        "${style}" "Downloading requested URLs"
-    fi
+        # Optionally send all STDOUT and STDERR to an output file for caller's use
+        if [[ -n "${output}" ]]; then
+            mkdir -p "$(dirname "${output}")"
+            > "${output}"
+            if einteractive; then
+                EINTERACTIVE=1
+            fi
+            exec &> "${output}"
+        elif [[ ${quiet} -eq 1 ]]; then
+            EINTERACTIVE=0
+            exec &>/dev/null
+        fi
 
-    local pad=0 pad_max=60
-    local errors=0
-    declare -A data=()
-    __efetch_load_info
-    __efetch_download
-    __efetch_download_wait
-    __efetch_check_incomplete_or_failed
-    __efetch_digest_validation
+        if [[ "${style}" != @(ebanner|einfo|infos|ewarn|ewarns|eerror|etestmsg) ]]; then
+            die "Unsupported $(lval style)"
+        fi
+        if [[ "${style}" == ebanner ]]; then
+            ebanner --uppercase "Downloading requested URLs" md5 meta output quiet public_key urls
+        else
+            "${style}" "Downloading requested URLs"
+        fi
 
-    if [[ "${errors}" -eq 0 ]]; then
-        einfo "Successfully fetched all files."
-    else
-        eerror "Failure fetching all files."
-    fi
+        local pad=0 pad_max=60
+        local errors=0
+        declare -A data=()
+        __efetch_load_info
+        __efetch_download
+        __efetch_download_wait
+        __efetch_check_incomplete_or_failed
+        __efetch_digest_validation
 
-    return "${errors}"
+        if [[ "${errors}" -eq 0 ]]; then
+            einfo "Successfully fetched all files."
+        else
+            eerror "Failure fetching all files."
+        fi
+        return "${errors}"
+    )
 }
 
 # Internal helper method to load all the metadata for all the requested URLs in efetch() into an associative array of
