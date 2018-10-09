@@ -37,6 +37,9 @@ efetch()
         ":style=ebanner | Style used when displaying the message. You might want to use einfo, ewarn or eerror instead." \
         "@urls          | URLs to fetch. The last one in this array will be considered as the destionation directory.")
     (
+        # This needs to be in a subshell because we could end up redirecting our stdout and stderr file descriptors to
+        # /dev/null.  if we aren't in a subshell, we'll change our callers descriptors.
+
         if einteractive; then
             EINTERACTIVE=1
         fi
