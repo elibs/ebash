@@ -332,3 +332,18 @@ ETEST_efetch_wait_quiet_progress_disabled()
     assert_match "${output}" "Waiting for efetch $(lval pid) to complete"
     assert_not_match "${output}" "Waiting for efetch $(lval pid) to complete.*00:00:"
 }
+
+ETEST_efetch_wait_quiet_tty_restored()
+{
+    # PE-4147 - efetch --quiet was redirecting stdout/stderr to /dev/null and not restoring it after the call was done.
+
+    dd if=/dev/urandom of=file1 bs=1K count=1
+    dd if=/dev/urandom of=file2 bs=1K count=1
+    dd if=/dev/urandom of=file3 bs=1K count=1
+    mkdir output
+
+    local output
+    output="$(efetch --quiet "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output"; echo "text")"
+
+    assert_eq "text" "${output}"
+}
