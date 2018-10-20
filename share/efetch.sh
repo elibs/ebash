@@ -206,7 +206,7 @@ __efetch_download_wait()
     array_sort --unique --version urls
 
     # if EINTERACTIVE is 0, then set EPROGRESS to 0 to disable all printing.
-    if [[ "${EINTERACTIVE}" -eq 0 ]] ; then
+    if [[ "${EINTERACTIVE:-0}" -eq 0 ]] ; then
         EPROGRESS=0
     fi
 
