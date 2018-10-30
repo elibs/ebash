@@ -279,7 +279,8 @@ fake_password_dialog_ui='
         ":password  | Password to display (obscured), if any")
 
     local num_args=$#
-    local test_id=$(( ${fake_password_dialog_test_id} - 1 ))
+    local test_id
+    test_id=$(( ${fake_password_dialog_test_id} - 1 ))
 
     # The fake data required for various password dialog tests.
     local test_data_collection=(

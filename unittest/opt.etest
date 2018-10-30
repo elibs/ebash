@@ -292,7 +292,8 @@ ETEST_opt_parse_dump()
     assert_eq 10 "${alpha}"
     assert_eq 20 "${beta}"
 
-    local dump=$(opt_dump)
+    local dump=""
+    dump=$(opt_dump)
     [[ "${dump}" =~ alpha ]]
     [[ "${dump}" =~ 10 ]]
     [[ "${dump}" =~ beta ]]
@@ -593,7 +594,8 @@ ETEST_opt_parse_help()
     }
 
     etestmsg "Run with usage and make sure the function didn't perform its normal operation"
-    local usage=$(COLUMNS=80 foo --help 2>&1)
+    local usage=""
+    usage=$(COLUMNS=80 foo --help 2>&1)
     echo "${usage}"
     assert_not_exists ${tmpfile}
 
@@ -616,7 +618,8 @@ ETEST_opt_parse_help()
     # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right
     # info (because it was displayed above in the log).  Not sure what happened there, but the
     # following statements will still catch errors even if we ignore the failure in head.
-    local firstline=$(echo "${usage}" | head -n 1 || true)
+    local firstline=""
+    firstline=$(echo "${usage}" | head -n 1 || true)
     etestmsg "$(lval firstline)"
 
     assert_match "${firstline}" "Usage"

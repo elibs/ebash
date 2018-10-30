@@ -176,8 +176,9 @@ ETEST_overlayfs_commit_nochanges()
     assert_false overlayfs_changed dest
 
     etestmsg "Committing unchanged overlayfs"
-    local md5=$(md5sum src.squashfs)
-    local mod=$(stat -c %y src.squashfs)
+    local md5 mod
+    md5=$(md5sum src.squashfs)
+    mod=$(stat -c %y src.squashfs)
     assert_true emounted dest
     assert_false overlayfs_changed dest
     overlayfs_commit --list --diff dest
@@ -207,8 +208,9 @@ ETEST_overlayfs_commit_dedupe()
     cp src/file2 dest/file2
 
     etestmsg "Committing unchanged overlayfs"
-    local md5=$(md5sum src.squashfs)
-    local mod=$(stat -c %y src.squashfs)
+    local md5 mod
+    md5=$(md5sum src.squashfs)
+    mod=$(stat -c %y src.squashfs)
     assert_true emounted dest
 
     # Note: although we only copied files effectively over themselves, we should see them as changes
@@ -329,8 +331,9 @@ ETEST_overlayfs_commit_bootable_iso_virtualbox()
     # Generate unique socket ID to make VirtualBox use a separate daemon.
     # Set directory for VirtualBox config and log files (like VirtualBox.xml and VBoxSVC.log)
     # And also set directory for VM files (.vbox, .vmdk, per-VM logs)
-    export VBOX_IPC_SOCKETID="${VM}"
-    export VBOX_USER_HOME="$(readlink -m ./VirtualBox/${VM})"
+    VBOX_IPC_SOCKETID="${VM}"
+    VBOX_USER_HOME="$(readlink -m ./VirtualBox/${VM})"
+    export VBOX_IPC_SOCKETID VBOX_USER_HOME
     VBoxManage setproperty machinefolder "${VBOX_USER_HOME}"
 
     etestmsg "VirtualBox configuration"
@@ -384,9 +387,9 @@ ETEST_overlayfs_commit_bootable_iso_virtualbox()
     # 'VVboxSVC' and 'VBoxXPCOMIPCD'. But we don't want to wait for process we didn't spawn. So we look at any matching
     # process and check if it has the env variables we set above. If so, wait for it to stop.
     etestmsg "Looking for VirtualBox processes to wait on"
-    local pid="" pids=()
+    local pid="" pids=() socket=""
     for pid in $(pgrep "VBoxSVC|VBoxXPCOMIPCD"); do
-        local socket=$(grep -z "VBOX_IPC_SOCKETID=.*" "/proc/${pid}/environ" | sed 's|VBOX_IPC_SOCKETID=||' || true)
+        socket=$(grep -z "VBOX_IPC_SOCKETID=.*" "/proc/${pid}/environ" | sed 's|VBOX_IPC_SOCKETID=||' || true)
         edebug "$(lval socket VBOX_IPC_SOCKETID)"
         if [[ "${socket}" == "${VBOX_IPC_SOCKETID}" ]]; then
             einfos "${pid}"

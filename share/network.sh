@@ -26,7 +26,8 @@ hostname_to_ip()
 {
     $(opt_parse hostname)
 
-    local output="$(host ${hostname} | grep ' has address ' || true)"
+    local output=""
+    output="$(host ${hostname} | grep ' has address ' || true)"
 
     [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
 
@@ -44,10 +45,12 @@ fully_qualify_hostname()
 
     try
     {
-        local output=$(host ${hostname})
+        local output
+        output=$(host ${hostname})
 
         [[ ${output} =~ " has address " ]]
-        local fqhostname=$(echo ${output} | awk '{print $1}')
+        local fqhostname
+        fqhstname=$(echo ${output} | awk '{print $1}')
         echo "${fqhostname,,}"
     }
     catch
@@ -84,7 +87,8 @@ END
 getnetmask()
 {
     $(opt_parse iface)
-    local cidr=$(ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global (dynamic )*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
+    local cidr
+    cidr=$(ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global (dynamic )*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
     cidr2netmask "${cidr}"
@@ -250,7 +254,8 @@ get_network_pci_device()
     $(opt_parse ifname)
 
     # Try with ethtool first (works on physical platforms and VMware, KVM, VirtualBox)
-    local pci_addr=$(ethtool -i ${ifname} | grep -Po "bus-info: \K.*" || true)
+    local pci_addr
+    pci_addr=$(ethtool -i ${ifname} | grep -Po "bus-info: \K.*" || true)
 
     # If that did not give a result (HyperV), fall back to looking at the device path in sysfs
     if [[ -z ${pci_addr} ]]; then
@@ -389,9 +394,10 @@ netselect()
     [[ $# -eq 1 ]] && : ${count:=1} || : ${count:=10}
 
     declare -a results sorted rows
+    local entry
 
     for h in ${hosts}; do
-        local entry=$(ping -c${count} -w5 -q $h 2>/dev/null | \
+        entry=$(ping -c${count} -w5 -q $h 2>/dev/null | \
             awk '/packet loss/ {loss=$6}
                  /min\/avg\/max/ {
                     split($4,stats,"/")
@@ -409,7 +415,8 @@ netselect()
         array_add_nl rows "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${parts[4]}"
     done
 
-    local best=$(echo "${sorted[0]}" | cut -d\| -f1)
+    local best
+    best=$(echo "${sorted[0]}" | cut -d\| -f1)
 
     if [[ ${quiet} -ne 1 ]] ; then
         eprogress_kill

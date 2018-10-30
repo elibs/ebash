@@ -24,9 +24,7 @@ ETEST_get_listening_network_ports()
 
 ETEST_netselect()
 {
-    local output=$(netselect --quiet localhost)
-
-    assert_eq "localhost" "${output}"
+    assert_eq "localhost" "$(netselect --quiet localhost)"
 }
 
 ETEST_get_network_pci_device_sanity()
@@ -82,14 +80,15 @@ ETEST_get_network_pci_device_hyperv()
     # Mock out basename to return a HyperV looking address
     basename(){ echo "${addr_expected}"; }
 
+    local ifaces=() addr_result=""
     ifaces=( $(get_network_interfaces) )
-    local addr_result=$(get_network_pci_device ${ifaces[0]})
+    addr_result=$(get_network_pci_device ${ifaces[0]})
     [[ ${addr_result} == ${addr_expected} ]] || die "$(lval test_addr) does not equal expected $(lval addr_expected)"
 }
 
 ETEST_netmask2cidr()
 {
-    local entry=""
+    local entry="" netmask="" expect="" actual=""
     for entry in "255.255.255.255:32" "255.255.255.254:31" "255.255.255.252:30" "255.255.255.248:29" \
                  "255.255.255.240:28" "255.255.255.224:27" "255.255.255.192:26" "255.255.255.128:25" \
                  "255.255.255.0:24"   "255.255.254.0:23"   "255.255.252.0:22"   "255.255.248.0:21"   \
@@ -99,9 +98,9 @@ ETEST_netmask2cidr()
                  "255.0.0.0:8"        "254.0.0.0:7"        "252.0.0.0:6"        "248.0.0.0:5"        \
                  "240.0.0.0:4"        "224.0.0.0:3"        "192.0.0.0:2"        "128.0.0.0:1"; do
 
-        local netmask=${entry%%:*}
-        local expect=${entry#*:}
-        local actual=$(netmask2cidr "${netmask}")
+        netmask=${entry%%:*}
+        expect=${entry#*:}
+        actual=$(netmask2cidr "${netmask}")
         einfo "$(lval netmask expect actual)"
         assert_eq "${expect}" "${actual}"
     done
@@ -125,7 +124,8 @@ ETEST_getvlans()
     local vlan=2172
 
     # look for what $testnic is set to, should get $vlan back
-    local output="$(getvlans Bond10G)"
+    local output
+    output="$(getvlans Bond10G)"
     einfo "looking for a match [$(lval vlan output)]"
     assert_eq "${output}" "${vlan}"
 

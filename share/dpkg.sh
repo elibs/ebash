@@ -49,8 +49,9 @@ dpkg_depends()
         "?tag=Depends | Package control field to read")
 
     [[ -f ${input} ]] || die "${input} does not exist"
-    local deb=$(basename ${input}) || die "basename ${intput} failed"
-    local dir=$(dirname  ${input}) || die "dirname  ${intput} failed"
+    local deb="" dir=""
+    deb=$(basename ${input}) || die "basename ${intput} failed"
+    dir=$(dirname  ${input}) || die "dirname  ${intput} failed"
     [[ -f ${dir}/${deb} && -d ${dir} ]]   || die "${dir} not a directory or ${dir}/${deb} not a file"
 
     for p in $(dpkg_parsedeps ${dir}/${deb} ${tag}); do
@@ -72,8 +73,9 @@ dpkg_depends()
         if [[ -e ${fname} ]]; then
 
             # Correct version?
-            local apn=$(dpkg -I "${fname}" | grep "^ Package:"); apn=${apn#*: }
-            local apv=$(dpkg -I "${fname}" | grep "^ Version:"); apv=${apv#*: }
+            local apn="" apv=""
+            apn=$(dpkg -I "${fname}" | grep "^ Package:"); apn=${apn#*: }
+            apv=$(dpkg -I "${fname}" | grep "^ Version:"); apv=${apv#*: }
 
             [[ ${pn} == ${apn} ]] || die "Mismatched package name wanted=[${pn}] actual=[${apn}]"
             dpkg_compare_versions "${apv}" "==" "${pv}" || die "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"

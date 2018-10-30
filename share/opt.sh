@@ -506,7 +506,8 @@ opt_parse_options()
                 # with underscores, which is how we treat it throughout the
                 # opt_parse code rather than with hyphens which is how it
                 # should be specified on the command line)
-                local canonical=$(opt_parse_find_canonical ${long_opt//-/_})
+                local canonical=""
+                canonical=$(opt_parse_find_canonical ${long_opt//-/_})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
                 if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
@@ -568,10 +569,10 @@ opt_parse_options()
 
                 # Iterate over the single character options except the last,
                 # handling each in turn
-                local index
+                local index char canonical
                 for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
-                    local char=${short_opts:$index:1}
-                    local canonical=$(opt_parse_find_canonical ${char})
+                    char=${short_opts:$index:1}
+                    canonical=$(opt_parse_find_canonical ${char})
                     [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
                     if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
@@ -582,8 +583,8 @@ opt_parse_options()
                 done
 
                 # Handle the last one separately, because it might have an argument.
-                local char=${short_opts:$index}
-                local canonical=$(opt_parse_find_canonical ${char})
+                char=${short_opts:$index}
+                canonical=$(opt_parse_find_canonical ${char})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.

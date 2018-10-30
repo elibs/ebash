@@ -61,8 +61,9 @@ pkg_gentoo_canonicalize()
     else
 
         pushd /usr/portage
-        local found=( */${name} )
-        local size=$(array_size found)
+        local found=() size=0
+        found=( */${name} )
+        size=$(array_size found)
         popd
 
         if [[ ${size} -eq 0 ]] ; then
@@ -86,9 +87,10 @@ pkg_installed()
     $(opt_parse \
         "name | Name of package to look for.")
 
+    local pkg_status=""
     case $(pkg_manager) in
         dpkg)
-            local pkg_status="$(dpkg -s "${name}" 2>/dev/null | grep '^Status:')"
+            pkg_status="$(dpkg -s "${name}" 2>/dev/null | grep '^Status:')"
             [[ "${pkg_status}" == 'Status: install ok installed' ]]
             ;;
 
@@ -123,7 +125,8 @@ pkg_install()
 {
     $(opt_parse "@names | Names of package to install.")
 
-    local pkg_manager=$(pkg_manager)
+    local pkg_manager
+    pkg_manager=$(pkg_manager)
 
     if ! pkg_known "${@}" ; then
         pkg_sync

@@ -20,8 +20,9 @@ make_testfile()
 
 ETEST_emetadata_basic()
 {
-    local src="$(make_testfile)"
-    local meta="${src}.meta"
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
 
     emetadata ${src} > ${meta}
     cat ${meta}
@@ -40,10 +41,11 @@ ETEST_emetadata_basic()
 
 ETEST_emetadata_symlink()
 {
-    local src="$(make_testfile)"
+    local src lnk meta
+    src="$(make_testfile)"
     ln -s "${src}" "${src}.lnk"
-    local lnk="${src}.lnk"
-    local meta="${lnk}.meta"
+    lnk="${src}.lnk"
+    meta="${lnk}.meta"
 
     emetadata ${lnk} > ${meta}
     cat ${meta}
@@ -64,8 +66,9 @@ ETEST_emetadata_symlink()
 # Verify emetadata_check still validates SHA1 field if present even if we don't use it anymore
 ETEST_emetadata_sha1_backwards_compatible()
 {
-    local src="$(make_testfile)"
-    local meta="${src}.meta"
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
     emetadata ${src} > ${meta}
     
     # Insert legacy SHA1 field by hand since emetadata doesn't do it anymore. This way we can validate
@@ -94,8 +97,9 @@ ETEST_emetadata_pgp()
     efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_private.asc private.asc
     efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging.phrase      phrase.txt
 
-    local src="$(make_testfile)"
-    local meta="${src}.meta"
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
     emetadata -p="private.asc" -k="$(cat phrase.txt)" ${src} > ${meta}
     cat ${meta}
     pack_set MPACK $(cat ${meta})
@@ -107,8 +111,9 @@ ETEST_emetadata_pgp()
 
 ETEST_emetadata_failure()
 {
-    local src="$(make_testfile)"
-    local meta="${src}.meta"
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
 
     emetadata ${src} > ${meta}
     cat ${meta}

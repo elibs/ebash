@@ -67,9 +67,10 @@ pack_set_internal()
     [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
     [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
 
-    local _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=' || true)"
-    local _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
-    local _packed=$(echo "${_addNew}" | _pack)
+    local _removeOld _addNew _packed
+    _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=' || true)"
+    _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
+    _packed=$(echo "${_addNew}" | _pack)
 
     printf -v "${1}" "${_packed}"
 }
@@ -84,8 +85,9 @@ pack_get()
 
     argcheck _pack_pack_get _tag
 
-    local _unpacked="$(echo -n "${!_pack_pack_get:-}" | _unpack)"
-    local _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=" || true)"
+    local _unpacked _found
+    _unpacked="$(echo -n "${!_pack_pack_get:-}" | _unpack)"
+    _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=" || true)"
     echo "${_found#*=}"
 }
 
@@ -120,8 +122,9 @@ pack_iterate()
     local _pack_pack_iterate=$2
     argcheck _func _pack_pack_iterate
 
-    local _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
-    local _lines ; array_init_nl _lines "${_unpacked}"
+    local _unpacked _lines
+    _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
+    array_init_nl _lines "${_unpacked}"
 
     for _line in "${_lines[@]}" ; do
 
@@ -165,9 +168,9 @@ pack_import()
     [[ ${global} -eq 1 ]] && _pack_import_scope=""
     [[ ${export} -eq 1 ]] && _pack_import_scope="export"
 
-    local _pack_import_cmd=""
+    local _pack_import_cmd="" _pack_import_val=""
     for _pack_import_key in "${_pack_import_keys[@]}" ; do
-        local _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
+        _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
         _pack_import_cmd+="$_pack_import_scope $_pack_import_key=\"${_pack_import_val}\"; "
     done
 

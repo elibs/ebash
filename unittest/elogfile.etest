@@ -283,7 +283,8 @@ ETEST_elogfile_hang_kill_tee()
 
         local pid=${BASHPID}
 
-        local processes=$(pstree -lp ${pid} | grep tee | grep -o "([[:digit:]]*)" | grep -o "[[:digit:]]*" || true)
+        local processes
+        processes=$(pstree -lp ${pid} | grep tee | grep -o "([[:digit:]]*)" | grep -o "[[:digit:]]*" || true)
         etestmsg "Killing tee processes $(lval processes)"
         ekilltree -s=SIGKILL ${processes}
         etestmsg "After killing tee"

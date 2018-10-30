@@ -54,7 +54,8 @@ elock()
     # don't fail immediately but check if that file is actually locked. If so
     # return an error to avoid causing deadlock. If it's not locked, purge the
     # stale entry with a warning.
-    local fd=$(elock_get_fd "${fname}" || true)
+    local fd
+    fd=$(elock_get_fd "${fname}" || true)
     if [[ -n ${fd} ]]; then
 
         if elock_locked "${fname}"; then
@@ -92,7 +93,8 @@ eunlock()
 {
     $(opt_parse fname)
  
-    local fd=$(elock_get_fd "${fname}" || true)
+    local fd
+    fd=$(elock_get_fd "${fname}" || true)
     if [[ -z ${fd} ]]; then
         eerror "$(lval fname) not locked"
         return 1

@@ -8,11 +8,12 @@
 
 ETEST_process_hierarchy()
 {
-    local my_processes_file=$(mktemp --tmpdir pids_XXXXX)
-    local ancestors_file=$(mktemp --tmpdir ancestors_XXXXX)
-    local ancestors_noarg_file=$(mktemp --tmpdir ancestors_noarg_XXXXX)
-    local children_file=$(mktemp --tmpdir children_XXXXX)
-    local tree_file=$(mktemp --tmpdir tree_XXXXX)
+    local my_processes_file ancessors_file ancestors_noarg_file children_file tree_file
+    my_processes_file=$(mktemp --tmpdir pids_XXXXX)
+    ancestors_file=$(mktemp --tmpdir ancestors_XXXXX)
+    ancestors_noarg_file=$(mktemp --tmpdir ancestors_noarg_XXXXX)
+    children_file=$(mktemp --tmpdir children_XXXXX)
+    tree_file=$(mktemp --tmpdir tree_XXXXX)
 
     local first=$BASHPID
     echo $BASHPID >> ${my_processes_file}
@@ -36,7 +37,8 @@ ETEST_process_hierarchy()
         )
     )
 
-    local last=$(tail -n 1 ${my_processes_file})
+    local last
+    last=$(tail -n 1 ${my_processes_file})
 
     etestmsg "my_processes"
     cat ${my_processes_file}
@@ -47,11 +49,12 @@ ETEST_process_hierarchy()
     etestmsg "children of ${first}"
     cat ${children_file}
 
-    local my_processes=( $(cat ${my_processes_file}) )
-    local ancestors=( $(cat ${ancestors_file}) )
-    local ancestors_noarg=( $(cat ${ancestors_noarg_file}) )
-    local children=( $(cat ${children_file}) )
-    local tree=( $(cat ${tree_file}) )
+    local my_processes ancestors ancestors_noarg children tree
+    my_processes=( $(cat ${my_processes_file}) )
+    ancestors=( $(cat ${ancestors_file}) )
+    ancestors_noarg=( $(cat ${ancestors_noarg_file}) )
+    children=( $(cat ${children_file}) )
+    tree=( $(cat ${tree_file}) )
 
     etestmsg "Verifying children $(lval my_processes children first)"
     etestmsg "$(declare -p my_processes)"
@@ -115,7 +118,8 @@ ETEST_ekill_elevate()
     local pid=$!
 
     assert process_running ${pid}
-    local tree=$(process_tree ${pid})
+    local tree
+    tree=$(process_tree ${pid})
     etestmsg "Background processes running $(lval tree pid)."
 
     etestmsg "Sending SIGTERM which will be ignored, but ekill will elevate to SIGKILL a second later."
@@ -136,7 +140,8 @@ ETEST_ekill_multiple()
         echo "$!" >> pids
     done
 
-    local pids=( $(cat pids) )
+    local pids
+    pids=( $(cat pids) )
     etestmsg "Killing all $(lval pids)"
     ekill ${pids[@]}
 
@@ -162,7 +167,8 @@ ETEST_ekilltree()
     local main_pid=$!
     echo "${main_pid}" >> pids
 
-    local pids=( $(cat pids) )
+    local pids
+    pids=( $(cat pids) )
     einfo "Killing $(lval main_pid) -- Expecting death from $(lval pids)"
     ekilltree ${main_pid}
 
@@ -222,7 +228,8 @@ ETEST_ekilltree_exclude_abritrary()
 ETEST_process_parent_tree()
 {
 
-local json=$(echo "$(cat << EOM
+    local json correct_output
+    json=$(echo "$(cat << EOM
 [
     {
         "pid": 1,
@@ -248,7 +255,7 @@ local json=$(echo "$(cat << EOM
 EOM
 )" | jq -c .)
 
-local correct_output=$(cat << EOM
+    correct_output=$(cat << EOM
 (    1)* /sbin/init splash
 (25473) * tmux -u -2 -f /usr/share/byobu/profiles/tmuxrc new-session
 ( 2895)  * /bin/bash
