@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2015, SolidFire, Inc. All rights reserved.
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
 
 if [[ ${__BU_OS} == Linux ]] ; then
     BU_WORD_BEGIN='\<'
