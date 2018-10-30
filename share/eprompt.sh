@@ -30,7 +30,9 @@ END
 eprompt_with_options()
 {
     $(opt_parse "msg" "opt" "?secret")
-    local valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
+    
+    local valid
+    valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"
 
     ## Keep reading input until a valid response is given

@@ -62,7 +62,8 @@ ETEST_cgroup_pstree()
         sleep2=$!
         cgroup_move ${CGROUP}/b ${sleep2}
 
-        local output="$(EDEBUG=0 ETRACE=0 EFUNCS_COLOR=0 cgroup_pstree ${CGROUP} 2>&1 )"
+        local output
+        output="$(EDEBUG=0 ETRACE=0 EFUNCS_COLOR=0 cgroup_pstree ${CGROUP} 2>&1 )"
 
         etestmsg "Actual pstree output $(lval sleep1 sleep2 CGROUP)"
         echo "${output}"
@@ -370,6 +371,7 @@ END
 
 ETEST_cgroup_current()
 {
-    local current=$(cgroup_current)
+    local current
+    current=$(cgroup_current)
     assert_eq "${ETEST_CGROUP}" "${current}" "cgroup"
 }

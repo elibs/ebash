@@ -180,8 +180,8 @@ close_fds()
     local pid=$BASHPID
 
     # occasionally there are no file descriptors, therefore we need '|| true'
-    local fds=( $(ls $(fd_path)/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ' || true) )
-
+    local fds=()
+    fds=( $(ls $(fd_path)/ | grep -vP '^(0|1|2|255)$' | tr '\n' ' ' || true) )
     array_empty fds && return 0
 
     local fd
@@ -232,7 +232,8 @@ END
 pipe_read_quote()
 {
     $(opt_parse "pipe")
-    local output=$(pipe_read ${pipe})
+    local output
+    output=$(pipe_read ${pipe})
     if [[ -n ${output} ]]; then
         printf %q "$(printf "%q" "${output}")"
     else
@@ -290,7 +291,8 @@ tryrc()
     [[ ${global} -eq 1 ]] && dflags="-g"
 
     # Temporary directory to hold stdout and stderr
-    local tmpdir=$(mktemp --tmpdir --directory tryrc-XXXXXX)
+    local tmpdir
+    tmpdir=$(mktemp --tmpdir --directory tryrc-XXXXXX)
     trap_add "rm --recursive --force ${tmpdir}"
 
     # Create temporary file for stdout and stderr
@@ -347,7 +349,8 @@ tryrc()
     # to fail if the command didn't write any stdout. This is also SAFE because we
     # initialize stdout and stderr above to empty strings.
     if [[ -s ${stdout_file} ]]; then
-        local actual_stdout="$(pipe_read_quote ${stdout_file})"
+        local actual_stdout
+        actual_stdout="$(pipe_read_quote ${stdout_file})"
         if [[ -n ${stdout} ]]; then
             echo eval "declare ${dflags} ${stdout}=${actual_stdout};"
         else
@@ -357,7 +360,8 @@ tryrc()
 
     # Emit commands to assign stderr
     if [[ -n ${stderr} && -s ${stderr_file} ]]; then
-        local actual_stderr="$(pipe_read_quote ${stderr_file})"
+        local actual_stderr
+        actual_stderr="$(pipe_read_quote ${stderr_file})"
         echo eval "declare ${dflags} ${stderr}=${actual_stderr};"
     fi
 
@@ -410,7 +414,8 @@ trap_get()
     # the form trap produces
     sig="$(signame -s "${sig}")"
 
-    local existing=$(trap -p "${sig}")
+    local existing
+    existing=$(trap -p "${sig}")
     existing=${existing##trap -- \'}
     existing=${existing%%\' ${sig}}
 
@@ -464,7 +469,8 @@ die()
     # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
     #          parent of $$ not necessarily the parent of ${BASHPID}!
     local pid=${BASHPID}
-    local parent=$(process_parent ${pid})
+    local parent
+    parent=$(process_parent ${pid})
 
     # Disable traps for any signal during most of die.  We'll reset the traps
     # to existing state prior to exiting so that the exit trap will honor them.
@@ -632,7 +638,8 @@ trap()
         # At the top level, that is 0
         if [[ ${__BU_TRAP_LEVEL:=0} -lt ${BASH_SUBSHELL} ]] ; then
 
-            local trapsToSave="$(builtin trap -p ERR DEBUG)"
+            local trapsToSave
+            trapsToSave="$(builtin trap -p ERR DEBUG)"
 
             # Call "builtin trap" rather than "trap" because we don't want to
             # recurse infinitely.  Note, the backslashes before the hyphens in
@@ -946,9 +953,10 @@ elogrotate()
     fi
 
     # Find log files by exactly this name that are of the size that should be rotated
-    local files="$(find "$(dirname "${name}")" -maxdepth 1          \
-                   -type f                                          \
-                   -a -name "$(basename "${name}")"                 \
+    local files
+    files="$(find "$(dirname "${name}")" -maxdepth 1          \
+                   -type f                                    \
+                   -a -name "$(basename "${name}")"           \
                    -a \( -size ${size} -o -size +${size} \) )"
 
     edebug "$(lval name files count size)"
@@ -1018,11 +1026,13 @@ elogfile()
     # Export COLUMNS properly so that eend and eprogress output properly
     # even though stderr won't be connected to a console anymore.
     if [[ ! -v COLUMNS ]]; then
-        export COLUMNS=$(tput cols)
+        COLUMNS=$(tput cols)
+        export COLUMNS
     fi
 
     # Temporary directory to hold our FIFOs
-    local tmpdir=$(mktemp --tmpdir --directory elogfile-XXXXXX)
+    local tmpdir
+    tmpdir=$(mktemp --tmpdir --directory elogfile-XXXXXX)
     trap_add "rm --recursive --force ${tmpdir}"
     local pid_pipe="${tmpdir}/pids"
     mkfifo "${pid_pipe}"
@@ -1093,7 +1103,8 @@ elogfile()
 
         # Grab the pid of the backgrounded pipe process and setup a trap to ensure
         # we kill it when we exit for any reason.
-        local pid=$(cat ${pid_pipe})
+        local pid
+        pid=$(cat ${pid_pipe})
         trap_add "kill -9 ${pid} 2>/dev/null || true"
 
         # Finally re-exec so that our output stream(s) are redirected to the pipe.
@@ -1124,8 +1135,9 @@ emd5sum()
 {
     $(opt_parse path)
 
-    local dname=$(dirname  "${path}")
-    local fname=$(basename "${path}")
+    local dname="" fname=""
+    dname=$(dirname  "${path}")
+    fname=$(basename "${path}")
 
     pushd "${dname}"
     md5sum "${fname}"
@@ -1141,8 +1153,9 @@ emd5sum_check()
 {
     $(opt_parse path)
 
-    local fname=$(basename "${path}")
-    local dname=$(dirname  "${path}")
+    local fname="" dname=""
+    fname=$(basename "${path}")
+    dname=$(dirname  "${path}")
 
     pushd "${dname}"
     md5sum -c "${fname}.md5" | edebug
@@ -1166,7 +1179,8 @@ emetadata()
         ":keyphrase k   | The keyphrase to use for the specified private key." \
         "path")
     
-    local rpath=$(readlink -m "${path}")
+    local rpath
+    rpath=$(readlink -m "${path}")
     assert_exists "${rpath}" "${path}"
 
     echo "Filename=$(basename ${path})"
@@ -1183,11 +1197,13 @@ emetadata()
 
     # Needs to be in /tmp rather than using $TMPDIR because gpg creates a socket in this directory and the complete
     # path can't be longer than 108 characters. gpg also expands relative paths, so no getting around it that way.
-    local gpg_home=$(mktemp --directory /tmp/gpghome-XXXXXX)
+    local gpg_home
+    gpg_home=$(mktemp --directory /tmp/gpghome-XXXXXX)
     trap_add "rm -rf ${gpg_home}"
 
     # If using GPG 2.1 or higher, start our own gpg-agent. Otherwise, GPG will start one and leave it running.
-    local gpg_version=$(gpg --version 2>/dev/null | awk 'NR==1{print $NF}')
+    local gpg_version
+    gpg_version=$(gpg --version 2>/dev/null | awk 'NR==1{print $NF}')
     if compare_version "${gpg_version}" ">=" "2.1"; then
         local agent_command="gpg-agent --homedir ${gpg_home} --quiet --daemon --allow-loopback-pinentry"
         ${agent_command}
@@ -1230,13 +1246,14 @@ emetadata_check()
         ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file."     \
         "path")
 
-    local rpath=$(readlink -m "${path}")
-    local meta="${path}.meta"
+    local rpath="" meta=""
+    rpath=$(readlink -m "${path}")
+    meta="${path}.meta"
     assert_exists "${rpath}" "${path}" "${meta}"
 
-    local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0
+    local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0 pgpsignature=""
     pack_set metapack $(cat "${meta}")
-    local pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
+    pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
 
     # Figure out what digests we're going to validate
     for ctype in Size MD5 SHA1 SHA256 SHA512; do
@@ -1286,7 +1303,8 @@ emetadata_check()
                 fail "${ctype} mismatch: $(lval path expect actual)"
             fi
         elif [[ ${ctype} == "PGP" && -n ${public_key} && -n ${pgpsignature} ]]; then
-            local keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
+            local keyring
+            keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
             trap_add "rm --force ${keyring}"
             GPG_AGENT_INFO="" gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} &> /dev/null
             if ! GPG_AGENT_INFO="" echo "${pgpsignature}" | gpg --verify - "${rpath}" &> /dev/null; then
@@ -1391,8 +1409,9 @@ argcheck()
 # it's behavior.
 save_function()
 {
-    local orig=$(declare -f $1)
-    local new="${1}_real${orig#$1}"
+    local orig="" new=""
+    orig=$(declare -f $1)
+    new="${1}_real${orig#$1}"
     eval "${new}" &>/dev/null
 }
 
@@ -1417,7 +1436,8 @@ override_function()
     # be identical. Normally the eval below would produce an error with set -e
     # enabled.
     local expected="${func} () ${body}"$'\n'"declare -rf ${func}"
-    local actual="$(declare -pf ${func} 2>/dev/null || true)"
+    local actual
+    actual="$(declare -pf ${func} 2>/dev/null || true)"
     [[ ${expected} == ${actual} ]] && return 0 || true
 
     eval "${expected}" &>/dev/null
@@ -1468,12 +1488,12 @@ etimeout()
 
     #-------------------------------------------------------------------------
     # COMMAND TO EVAL
-    local rc=""
+    local rc="" pid=""
     (
         disable_die_parent
         quote_eval "${cmd[@]}"
     ) &
-    local pid=$!
+    pid=$!
     edebug "Executing $(lval cmd timeout signal pid)"
  
     #-------------------------------------------------------------------------
@@ -1494,7 +1514,8 @@ etimeout()
         # We can check to see if anything is still running, though, because we
         # know the command's PID.  If it's gone, it must've finished and we can exit
         #
-        local pre_pids=( $(process_tree ${pid}) )
+        local pre_pids=()
+        pre_pids=( $(process_tree ${pid}) )
         if array_empty pre_pids ; then
             exit 0
         else
@@ -1532,8 +1553,9 @@ etimeout()
         # original command returned on its own.
         wait ${watcher} && watcher_rc=0 || watcher_rc=$?
 
-        local stop=${SECONDS}
-        local seconds=$(( ${stop} - ${start} ))
+        local stop seconds
+        stop=${SECONDS}
+        seconds=$(( ${stop} - ${start} ))
 
     } &>/dev/null
     
@@ -1912,8 +1934,7 @@ string_truncate()
 # Collapse grouped whitespace in the specified string to single spaces.
 string_collapse()
 {
-    local output=$(echo -en "$@" | tr -s "[:space:]" " ")
-    echo -en "${output}"
+    echo -en "$@" | tr -s "[:space:]" " "
 }
 
 opt_usage string_getline <<'END'

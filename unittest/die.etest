@@ -26,7 +26,8 @@ ETEST_die_subprocesses()
         true
     }
 
-    local pids=$(cat pids)
+    local pids
+    pids=$(cat pids)
     etestmsg "Ensuring processes died $(lval pids)"
     eretry --timeout 2s process_not_running $(cat pids)
 }
@@ -157,11 +158,10 @@ source "${BASHUTILS}/bashutils.sh" || exit 1
 EOF
     chmod +x "${script}"
 
-    local rc=0
+    local rc=0 stdout="" stderr=""
     ${script} 1>stdout 2>stderr || rc=$?
-
-    local stdout=$(cat stdout)
-    local stderr=$(cat stderr)
+    stdout=$(cat stdout)
+    stderr=$(cat stderr)
 
     etestmsg 'Foo ended with $(lval rc) and had stdout:'
     echo "${stdout}"
@@ -205,11 +205,10 @@ echo "B"
 EOF
     chmod +x "${script}"
 
-    local rc=0
+    local rc=0 stdout="" stderr=""
     ${script} 1>stdout 2>stderr || rc=$?
-
-    local stdout=$(cat stdout)
-    local stderr=$(cat stderr)
+    stdout=$(cat stdout)
+    stderr=$(cat stderr)
 
     etestmsg "${script} ended with $(lval rc) and had stdout:"
     echo "${stdout}"

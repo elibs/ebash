@@ -12,7 +12,10 @@ source ${BASHUTILS}/bashutils.sh || { echo "Unable to source ${BASHUTILS}/bashut
 
 # Options:
 # -q Quiet mode
-$(opt_parse "+quiet q | Make bashlint produce no output.")
+$(opt_parse \
+    "+break b | Break on first failure." \
+    "+quiet q | Make bashlint produce no output.")
+
 [[ ${quiet} -eq 1 ]] && exec &> >(edebug)
 
 # Paths to recursively parse
@@ -87,7 +90,14 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | grep -P '(assert|assert_true|assert_false)\s+\[\[' \
         && fail "Assert commands cannot be followed by a double bracket expression"
 
+    echo "${CONTENTS}" | egrep '(local|export).*=.*\$\(' \
+        && fail "Combined local variable declaration and assignment masks fatal errors"
+
     [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }
+
+    if [[ "${break}" -eq 1 && ${RC} -ne 0 ]]; then
+        break
+    fi
 done
 
 # Display any errors to STDERR regardless if we've redirected output

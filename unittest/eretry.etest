@@ -156,7 +156,8 @@ ETEST_eretry_alternate_exit_code()
 
 do_sleep()
 {
-    local ticks=$(cat child.ticks || true)
+    local ticks
+    ticks=$(cat child.ticks || true)
     (( ticks += 1 ))
     
     echo ${BASHPID}  > child.pid
@@ -171,7 +172,8 @@ ETEST_eretry_partial_output()
     callback()
     {
         # On first call return partial json output and fail
-        local calls=$(cat calls.txt)
+        local calls
+        calls=$(cat calls.txt)
         einfo "Callback called: $(lval calls)"
         echo "$(( calls + 1 ))" > calls.txt
 
@@ -184,7 +186,8 @@ ETEST_eretry_partial_output()
         return 0
     }
 
-    local output=$(eretry -r=2 callback)
+    local output
+    output=$(eretry -r=2 callback)
     einfo "$(lval output)"
     echo "${output}" | jq .
     assert_eq '{"key":"value"}' "${output}"
@@ -197,7 +200,8 @@ ETEST_eretry_partial_output_timeout()
     callback()
     {
         # On first call return partial json output and fail
-        local calls=$(cat calls.txt)
+        local calls
+        calls=$(cat calls.txt)
         einfo "Callback called: $(lval calls)"
         echo "$(( calls + 1 ))" > calls.txt
 
@@ -210,7 +214,8 @@ ETEST_eretry_partial_output_timeout()
         return 0
     }
 
-    local output=$(eretry -r=2 -t=3s callback)
+    local output
+    output=$(eretry -r=2 -t=3s callback)
     einfo "$(lval output)"
     echo "${output}" | jq .
     assert_eq '{"key":"value"}' "${output}"
@@ -228,7 +233,8 @@ ETEST_eretry_default_count()
 
     callback()
     {
-        local calls=$(cat calls.txt)
+        local calls
+        calls=$(cat calls.txt)
         einfo "Callback called: $(lval calls)"
         echo "$(( calls + 1 ))" > calls.txt
 
@@ -304,6 +310,7 @@ DISABLED_ETEST_eretry_dead_stdout_stderr_symlink()
         exit 0
     }
     
-    local output=$(eretry callback)
+    local output
+    output=$(eretry callback)
     assert_eq "Output" "${output}"
 }

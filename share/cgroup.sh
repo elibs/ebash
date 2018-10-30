@@ -173,8 +173,9 @@ cgroup_move()
 
     edebug "$(lval pids cgroup)"
     if array_not_empty pids ; then
+        local tmp
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
-            local tmp="$(array_join_nl pids)"
+            tmp="$(array_join_nl pids)"
             echo -e "${tmp}" > ${CGROUP_ROOT}/${subsystem}/${cgroup}/tasks
         done
     fi
@@ -296,8 +297,8 @@ cgroup_pids()
     # containing 2k processes, while the following command is nearly
     # instantaneous.
     #
-    local found_pids=()
-    local ignore_regex="($(echo "${ignorepids[@]:-}" | tr ' ' '\n' | paste -sd\|))"
+    local found_pids=() ignore_regex=""
+    ignore_regex=="($(echo "${ignorepids[@]:-}" | tr ' ' '\n' | paste -sd\|))"
     if [[ -n "${all_pids:-}" ]]; then
         found_pids=( $(echo "${all_pids}" | tr ' ' '\n' | sort -u | egrep -vw "${ignore_regex}") )
     fi
@@ -328,7 +329,8 @@ cgroup_ps()
 
     # Put together an awk regex that will match any of those pids as long as
     # it's the whole string
-    local awk_regex='^('$(array_join cgroup_pids '|')')$'
+    local awk_regex
+    awk_regex='^('$(array_join cgroup_pids '|')')$'
 
     edebug "$(lval awk_regex)"
 
@@ -366,14 +368,14 @@ cgroup_tree()
     local cgroup found_cgroups=()
     for cgroup in "${cgroups[@]}" ; do
 
-        local subsys
+        local subsys subsys_path cgroup_path
         for subsys in "${CGROUP_SUBSYSTEMS[@]}" ; do
 
             # Pick out the paths to the subsystem and the cgroup within it --
             # and because we'll be text processing the result, be sure there
             # are not multiple sequential slashes in the output
-            local subsys_path=$(readlink -m ${CGROUP_ROOT}/${subsys}/)
-            local cgroup_path=$(readlink -m ${subsys_path}/${cgroup}/)
+            subsys_path=$(readlink -m ${CGROUP_ROOT}/${subsys}/)
+            cgroup_path=$(readlink -m ${subsys_path}/${cgroup}/)
 
             # Then find all the directories inside the cgroup path (while
             # stripping off the part contributed by the subsystem) and again
@@ -400,14 +402,14 @@ cgroup_tree()
 #
 cgroup_pstree()
 {
-    local cgroup
+    local cgroup cols ps_output count
     for cgroup in $(cgroup_tree "${@}") ; do
 
         # Note: must subtract 3 from columns here to account for the three
         # characters added to the string below (i.e. "|  ")
-        local cols=$(( ${COLUMNS:-120} - 3 ))
-        local ps_output=$(COLUMNS=${cols} cgroup_ps ${cgroup})
-        local count=$(( $(echo "${ps_output}" | wc -l) - 1 ))
+        cols=$(( ${COLUMNS:-120} - 3 ))
+        ps_output=$(COLUMNS=${cols} cgroup_ps ${cgroup})
+        count=$(( $(echo "${ps_output}" | wc -l) - 1 ))
 
         echo "$(ecolor green)+--${cgroup} [${count}]$(ecolor off)"
 
@@ -427,8 +429,9 @@ cgroup_current()
     $(opt_parse "?pid | Process whose cgroup should be listed.  Default is the current process.")
     : ${pid:=${BASHPID}}
 
-    local line=$(grep -w "${CGROUP_SUBSYSTEMS[0]}" /proc/${pid}/cgroup)
-    local value=$(echo "${line##*:}" | sed 's#^'"${CGROUP_RELTO}"'/##')
+    local line="" value=""
+    line=$(grep -w "${CGROUP_SUBSYSTEMS[0]}" /proc/${pid}/cgroup)
+    value=$(echo "${line##*:}" | sed 's#^'"${CGROUP_RELTO}"'/##')
     echo "${value}"
 }
 
@@ -502,11 +505,11 @@ cgroup_kill_and_wait()
 
     edebug "Ensuring that there are no processes in $(lval cgroups ignorepids signal)."
 
-    local times=0
+    local times=0 remaining_pids=""
     while true ; do
         cgroup_kill -x="${ignorepids} ${BASHPID}" -s=${signal} "${cgroups[@]}"
 
-        local remaining_pids=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
+        remaining_pids=$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)
         if [[ -z ${remaining_pids} ]] ; then
             edebug "Done.  All processes in cgroup are gone.  $(lval cgroups ignorepids)"
             break
@@ -515,12 +518,15 @@ cgroup_kill_and_wait()
                 eerror "Tried to kill all processes in cgroup, but some remain.  Giving up after ${timeout} seconds.  $(lval cgroup remaining_pids)"
                 return 1
             fi
-
-            edebug_disabled || 
+            
+            if edebug_enabled; then
+                local pid="" ps_output=""
                 for pid in ${remaining_pids} ; do
-                    local ps_output="$(ps hp ${pid} 2>/dev/null || true)"
+                    ps_output="$(ps hp ${pid} 2>/dev/null || true)"
                     [[ -z ${ps_output} ]] || edebug "   ${ps_output}"
                 done
+            fi
+
             sleep .1
         fi
 

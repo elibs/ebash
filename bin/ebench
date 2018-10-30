@@ -82,7 +82,7 @@ BENCH_subshell_with_die_on_abort()
 
 BENCH_local_variable_assign()
 {
-    local VAR=a
+    local var=a
     return 0
 }
 
@@ -93,7 +93,8 @@ BENCH_call_true_binary()
 
 BENCH_command_subst()
 {
-    local VAR=$(echo hi)
+    local var=""
+    var=$(echo hi)
 }
 
 BENCH_echo()
@@ -194,14 +195,18 @@ BENCH_edebug_pipe_disabled_massive_output()
 
 BENCH_array_join()
 {
-    local suffixes=( ".squashfs" ".iso" ".tar" ".tar.gz" ".tgz" ".taz" ".tar.bz2" ".tz2" ".tbz2" ".tbz" ".tar.xz" ".txz" ".tar.lz" ".tlz" ".cpio" ".cpio.gz" ".cgz" ".caz" ".cpio.bz2" ".cz2" ".cbz2" ".cbz" ".cpio.xz" ".cxz" ".cpio.lz" ".clz" )
-    local output=$(array_join suffixes "|")
+    local suffixes=() output=""
+
+    suffixes=( ".squashfs" ".iso" ".tar" ".tar.gz" ".tgz" ".taz" ".tar.bz2" ".tz2" ".tbz2" ".tbz" ".tar.xz" ".txz" ".tar.lz" ".tlz" ".cpio" ".cpio.gz" ".cgz" ".caz" ".cpio.bz2" ".cz2" ".cbz2" ".cbz" ".cpio.xz" ".cxz" ".cpio.lz" ".clz" )
+    output=$(array_join suffixes "|")
 }
 
 BENCH_array_join_sed()
 {
-    local suffixes=( ".squashfs" ".iso" ".tar" ".tar.gz" ".tgz" ".taz" ".tar.bz2" ".tz2" ".tbz2" ".tbz" ".tar.xz" ".txz" ".tar.lz" ".tlz" ".cpio" ".cpio.gz" ".cgz" ".caz" ".cpio.bz2" ".cz2" ".cbz2" ".cbz" ".cpio.xz" ".cxz" ".cpio.lz" ".clz" )
-    local output=$(echo "${suffixes[@]}" | sed -e 's/ /|/g')
+    local suffixes=() output=""
+
+    suffixes=( ".squashfs" ".iso" ".tar" ".tar.gz" ".tgz" ".taz" ".tar.bz2" ".tz2" ".tbz2" ".tbz" ".tar.xz" ".txz" ".tar.lz" ".tlz" ".cpio" ".cpio.gz" ".cgz" ".caz" ".cpio.bz2" ".cz2" ".cbz2" ".cbz" ".cpio.xz" ".cxz" ".cpio.lz" ".clz" )
+    output=$(echo "${suffixes[@]}" | sed -e 's/ /|/g')
 }
 
 #-----------------------------------------------------------------------------

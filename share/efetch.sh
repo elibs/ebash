@@ -136,7 +136,8 @@ __efetch_load_info()
         # Keep track of the longest file name that doesn't exceed our maximum desired pad to allow us to format the
         # output nicely. The '+5' here is to account for the '.meta' suffix that we'll fetch in addition to the actual
         # file.
-        local fname_pad=$(( ${#fname} + 5 ))
+        local fname_pad
+        fname_pad=$(( ${#fname} + 5 ))
         if [[ "${fname_pad}" -gt "${pad}" && "${#fname}" -lt "${pad_max}" ]]; then
             pad="${fname_pad}"
         fi
@@ -233,7 +234,8 @@ __efetch_download_wait()
             # the progress file and display that as that is the current status line for that file.
             if [[ "${EPROGRESS}" -ne 0 ]]; then 
                 ecolor start_of_line
-                local status=$(cat ${progress} | sed 's|[[:cntrl:]]|\n|g' | tail -1)
+                local status=""
+                status=$(cat ${progress} | sed 's|[[:cntrl:]]|\n|g' | tail -1)
                 printf "%-${pad}s %s\n" "$(string_truncate -e ${pad} ${fname})" "${status}"
             fi
 

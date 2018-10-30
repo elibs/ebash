@@ -8,9 +8,10 @@
 
 ETEST_json_escape()
 {
-    local string=$'escape " these \n chars'
-    local actual=$(json_escape "${string}")
-    local expect='"escape \" these \n chars"'
+    local string actual expect
+    string=$'escape " these \n chars'
+    actual=$(json_escape "${string}")
+    expect='"escape \" these \n chars"'
     assert_eq "${expect}" "${actual}"
 }
 
@@ -80,8 +81,9 @@ ETEST_all_to_json()
     assert_eq "${AA[beta]}"  "$(echo ${json} | jq .AA.beta --raw-output)"
 
     # Verify entire json string encoding
-    local actual=$(to_json AA A ARRAY %P)
-    local expect=$'{"AA":{"alpha":"10 20 30","beta":"100 200 300"},"A":"1","ARRAY":["a","b c","d"],"P":{"A":"1","B":"2 3 4","C":"alpha beta"}}'
+    local actual expect
+    actual=$(to_json AA A ARRAY %P)
+    expect=$'{"AA":{"alpha":"10 20 30","beta":"100 200 300"},"A":"1","ARRAY":["a","b c","d"],"P":{"A":"1","B":"2 3 4","C":"alpha beta"}}'
     assert_eq "${expect}" "${actual}"
 }
 
@@ -110,7 +112,8 @@ ETEST_file_to_json()
 	Spaces=Some Data With Spaces
 	EOF
 
-    local raw=$(file_to_json --exports data.txt)
+    local raw
+    raw=$(file_to_json --exports data.txt)
     $(json_import <<< "${raw}")
     assert_eq "platformconfig-9.1.0.48.tbz2"     "${Filename}"
     assert_eq "5423"                             "${Size}"
