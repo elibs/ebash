@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+#
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
 
 # DT-373: Dialog doesn't work properly on OSX and Ubuntu 12.04. The version of dialog on Darwin does not properly
 # handle BU_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
