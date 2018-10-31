@@ -50,7 +50,7 @@ fully_qualify_hostname()
 
         [[ ${output} =~ " has address " ]]
         local fqhostname
-        fqhstname=$(echo ${output} | awk '{print $1}')
+        fqhostname=$(echo ${output} | awk '{print $1}')
         echo "${fqhostname,,}"
     }
     catch
