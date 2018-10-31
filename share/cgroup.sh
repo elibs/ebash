@@ -298,12 +298,12 @@ cgroup_pids()
     # instantaneous.
     #
     local found_pids=() ignore_regex=""
-    ignore_regex=="($(echo "${ignorepids[@]:-}" | tr ' ' '\n' | paste -sd\|))"
+    ignore_regex="($(echo "${ignorepids[@]:-}" | tr ' ' '\n' | paste -sd\|))"
     if [[ -n "${all_pids:-}" ]]; then
         found_pids=( $(echo "${all_pids}" | tr ' ' '\n' | sort -u | egrep -vw "${ignore_regex}") )
     fi
 
-    edebug "$(lval found_pids ignorepids ignore_regex )"
+    edebug "$(lval found_pids ignorepids ignore_regex)"
     echo "${found_pids[@]:-}"
     return "${rc}"
 }
