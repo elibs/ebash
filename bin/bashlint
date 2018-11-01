@@ -90,7 +90,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | grep -P '(assert|assert_true|assert_false)\s+\[\[' \
         && fail "Assert commands cannot be followed by a double bracket expression"
 
-    echo "${CONTENTS}" | egrep '(local|export).*=.*\$\(' \
+    echo "${CONTENTS}" | egrep '(local|export|declare|readonly).*=.*\$\(' \
         && fail "Combined local variable declaration and assignment masks fatal errors"
 
     [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }

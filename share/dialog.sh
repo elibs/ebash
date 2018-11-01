@@ -136,7 +136,8 @@ dialog_read()
 
     # Assemble all the individual characters into one string and then copy that out to the caller's context.
     local char="${c1}${c2}${c3}${c4}"
-    echo "eval declare ${output}=$(printf "%q" "${char}");"
+    echo "eval declare ${output};"
+    echo "eval ${output}=$(printf "%q" "${char}");"
     return 0
 }
 
@@ -532,7 +533,8 @@ dialog_prompt()
     echo "eval declare dialog_rc=${dialog_rc};"
     for key in "${keys[@]}"; do
         edebug "${key}=>$(pack_get fpack[$key] value)"
-        echo "eval declare ${key}=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")");"
+        echo "eval declare ${key};"
+        echo "${key}=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")");"
     done
 
     # Clean-up
@@ -598,8 +600,9 @@ dialog_prompt_username_password()
         # PE-1482 identified a problem with passwords that begin with '$' which caused bash to
         # evaluate the password as a variable name (and it would usually fail with a complaint
         # that the varialbe was unbound).
-        echo "eval declare username=$(printf %q "${username}"); "
-        echo "eval declare password=$(printf \'%q\' "${password}"); "
+        echo "eval declare username password; "
+        echo "eval username=$(printf %q "${username}"); "
+        echo "eval password=$(printf \'%q\' "${password}"); "
         return 0
     done
 }

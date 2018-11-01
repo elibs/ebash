@@ -335,7 +335,8 @@ EOFB
 )
     fi
 
-    echo "eval declare dialog_output=$(printf %q "${dialog_output}")"
+    echo "eval declare dialog_output;"
+    echo "dialog_output=$(printf %q "${dialog_output}")"
     return 0
 }'
 
