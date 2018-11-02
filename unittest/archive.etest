@@ -494,21 +494,21 @@ ETEST_archive_create_exclude()
 
 ETEST_archive_create_exclude_illegal_prefix()
 {
-    local idx=0
+    local idx ftype src dest
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
         # path to be used (which is an illegal prefix to the archive formats).
         etestmsg "Populating source directory"
-        local src=$(mktemp --tmpdir=/tmp --directory archive-XXXXXX)
+        src=$(mktemp --tmpdir=/tmp --directory archive-XXXXXX)
         touch ${src}/{file1,file2}
 
         # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
         # path to be used (which is an illegal prefix to the archive formats).
         etestmsg "Creating src/dest.${ftype}"
-        local dest=$(mktemp --tmpdir=/tmp archive-XXXXXX.${ftype})
+        dest=$(mktemp --tmpdir=/tmp archive-XXXXXX.${ftype})
         archive_create ${dest} ${src}
         assert_archive_contents ${dest} $(dirname ${src##/}) ${src##/} ${src##/}/file1 ${src##/}/file2
     done
@@ -516,9 +516,9 @@ ETEST_archive_create_exclude_illegal_prefix()
 
 ETEST_archive_create_exclude_glob()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -543,9 +543,9 @@ ETEST_archive_create_exclude_glob()
 
 ETEST_archive_create_exclude_self()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -561,9 +561,9 @@ ETEST_archive_create_exclude_self()
 # Ensure extra slashes in destination path doesn't cause archive_create to fail.
 ETEST_archive_create_exclude_self_canonicalize()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -579,14 +579,14 @@ ETEST_archive_create_exclude_self_canonicalize()
 # Realistic test of archiving pivot rooted rootfs
 ETEST_archive_create_pivot_root()
 {
-    local idx=0
+    local idx ftype oldroot
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
         # path to be used (which is an illegal prefix to the archive formats).
-        local oldroot=$(mktemp --tmpdir=/tmp --directory oldroot-XXXXXX)
+        oldroot=$(mktemp --tmpdir=/tmp --directory oldroot-XXXXXX)
         
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
@@ -620,12 +620,12 @@ ETEST_archive_create_pivot_root()
 # Realistic test of archiving pivot rooted rootfs
 ETEST_archive_create_pivot_root_cd_manual()
 {
-    local idx=0
+    local idx ftype oldroot
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -661,12 +661,12 @@ ETEST_archive_create_pivot_root_cd_manual()
 # Realistic test of archiving pivot rooted rootfs
 ETEST_archive_create_pivot_root_cd()
 {
-    local idx=0
+    local idx ftype oldroot
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -698,12 +698,12 @@ ETEST_archive_create_pivot_root_cd()
 # Realistic test of archiving pivot rooted rootfs with multiple paths specified
 ETEST_archive_create_pivot_root_multi()
 {
-    local idx=0
+    local idx ftype oldroot
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -736,12 +736,12 @@ ETEST_archive_create_pivot_root_multi()
 # Realistic test of archiving pivot rooted rootfs with multiple paths specified
 ETEST_archive_create_pivot_root_multi_cd_manual()
 {
-    local idx=0
+    local idx ftype oldroot
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -776,9 +776,9 @@ ETEST_archive_create_pivot_root_multi_cd_manual()
 
 ETEST_archive_create_exclude_self_multi()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -793,9 +793,9 @@ ETEST_archive_create_exclude_self_multi()
 
 ETEST_archive_create_exclude_files()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Creating files"
@@ -810,9 +810,9 @@ ETEST_archive_create_exclude_files()
 
 ETEST_archive_create_mount()
 {
-    local idx=0
+    local idx ftype atype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Creating files"
@@ -823,7 +823,7 @@ ETEST_archive_create_mount()
         
         # Mount it and verify mount type
         archive_mount src.${ftype} dest
-        local atype=$(archive_type .${ftype})
+        atype=$(archive_type .${ftype})
         if [[ ${atype} =~ tar|cpio ]]; then
             assert_false emount_type dest
         elif [[ ${atype} == iso ]]; then
@@ -838,9 +838,9 @@ ETEST_archive_create_mount()
 
 ETEST_archive_extract()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -876,9 +876,9 @@ ETEST_archive_extract_type()
 
 ETEST_archive_extract_files_same()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Creating files"
@@ -898,12 +898,12 @@ ETEST_archive_extract_files_same()
 
 ETEST_archive_extract_pivot_root_multi_deep()
 {
-    local idx=0
+    local idx ftype oldroot expect
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        local oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -913,7 +913,7 @@ ETEST_archive_extract_pivot_root_multi_deep()
                      /var/log/sf-master-{1..10}.info
                     )
 
-        local expect=(                              \
+        expect=(                                    \
             boot                                    \
             boot/initramfs-x86_64-3.12.13-gentoo    \
             boot/kernel-x86_64-3.12.13-gentoo       \
@@ -948,9 +948,9 @@ ETEST_archive_extract_pivot_root_multi_deep()
 
 ETEST_archive_extract_specific_files()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -968,9 +968,9 @@ ETEST_archive_extract_specific_files()
 
 ETEST_archive_extract_missing_required_files()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -985,9 +985,9 @@ ETEST_archive_extract_missing_required_files()
 
 ETEST_archive_extract_ignore_missing()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1016,9 +1016,9 @@ ETEST_archive_extract_ignore_missing()
 
 ETEST_archive_extract_glob()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1037,9 +1037,9 @@ ETEST_archive_extract_glob()
 
 ETEST_archive_extract_content()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1073,9 +1073,9 @@ ETEST_archive_extract_strip_invalid()
 
 ETEST_archive_extract_strip1()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1097,9 +1097,9 @@ ETEST_archive_extract_strip1()
 
 ETEST_archive_extract_strip1_deep()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1124,9 +1124,9 @@ ETEST_archive_extract_strip1_deep()
 
 ETEST_archive_extract_strip2()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1151,9 +1151,9 @@ ETEST_archive_extract_strip2()
 
 ETEST_archive_extract_strip2_deep()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1179,9 +1179,9 @@ ETEST_archive_extract_strip2_deep()
 
 ETEST_archive_extract_strip_more_than_exists()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1205,9 +1205,9 @@ ETEST_archive_extract_strip_more_than_exists()
 
 ETEST_archive_extract_strip_collisions()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1235,9 +1235,9 @@ ETEST_archive_extract_strip_collisions()
 
 ETEST_archive_append()
 {
-    local idx=0
+    local idx type
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1260,9 +1260,9 @@ ETEST_archive_append()
 
 ETEST_archive_append_delete()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1288,9 +1288,9 @@ ETEST_archive_append_delete()
 
 ETEST_archive_append_overwrite()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1320,9 +1320,9 @@ ETEST_archive_append_overwrite()
 
 ETEST_archive_append_no_shadow_mount_files()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1346,9 +1346,9 @@ ETEST_archive_append_no_shadow_mount_files()
 
 ETEST_archive_append_no_shadow_mount_directory()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1372,9 +1372,9 @@ ETEST_archive_append_no_shadow_mount_directory()
 
 ETEST_archive_append_nonexisting()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1393,9 +1393,9 @@ ETEST_archive_append_nonexisting()
 
 ETEST_archive_xnice()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1415,9 +1415,9 @@ ETEST_archive_xnice()
 
 ETEST_archive_xconvert()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1427,21 +1427,21 @@ ETEST_archive_xconvert()
         etestmsg "Creating src.${ftype}"
         archive_create src.${ftype} src
 
-        local other
+        local other src_contents cpy_contents src_contents_join cpy_contents_join
         for other in ${ARCHIVE_TYPES[@]}; do
             
             etestmsg "Converting src.${ftype} to cpy.${other}"
             archive_convert src.${ftype} cpy.${other}
 
             etestmsg "Validating contents of cpy.${other}"
-            local src_contents=( $(archive_list src.${ftype}) )
-            local cpy_contents=( $(archive_list cpy.${other}) )
+            src_contents=( $(archive_list src.${ftype}) )
+            cpy_contents=( $(archive_list cpy.${other}) )
             etestmsg "$(lval src_contents cpy_contents)"
             assert_eq $(array_size src_contents) $(array_size cpy_contents)
 
             # Also compare and diff as arrays
-            local src_contents_join=$(array_join src_contents :)
-            local cpy_contents_join=$(array_join cpy_contents :)
+            src_contents_join=$(array_join src_contents :)
+            cpy_contents_join=$(array_join cpy_contents :)
             assert_eq "${src_contents_join}" "${cpy_contents_join}"
         done
 
@@ -1450,9 +1450,9 @@ ETEST_archive_xconvert()
 
 ETEST_archive_xdiff()
 {
-    local idx=0
+    local idx ftype
     for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
+        ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
         etestmsg "Populating source directory"
@@ -1505,8 +1505,9 @@ ETEST_archive_bootable_iso_virtualbox()
     # Generate unique socket ID to make VirtualBox use a separate daemon.
     # Set directory for VirtualBox config and log files (like VirtualBox.xml and VBoxSVC.log)
     # And also set directory for VM files (.vbox, .vmdk, per-VM logs)
-    export VBOX_IPC_SOCKETID="${VM}"
-    export VBOX_USER_HOME="$(readlink -m ./VirtualBox/${VM})"
+    VBOX_IPC_SOCKETID="${VM}"
+    VBOX_USER_HOME="$(readlink -m ./VirtualBox/${VM})"
+    export VBOX_IPC_SOCKETID VBOX_USER_HOME
     VBoxManage setproperty machinefolder "${VBOX_USER_HOME}"
 
     etestmsg "VirtualBox configuration"
@@ -1554,9 +1555,9 @@ ETEST_archive_bootable_iso_virtualbox()
     # 'VVboxSVC' and 'VBoxXPCOMIPCD'. But we don't want to wait for process we didn't spawn. So we look at any matching
     # process and check if it has the env variables we set above. If so, wait for it to stop.
     etestmsg "Looking for VirtualBox processes to wait on"
-    local pid="" pids=()
+    local pid="" pids=() socket=""
     for pid in $(pgrep "VBoxSVC|VBoxXPCOMIPCD"); do
-        local socket=$(grep -z "VBOX_IPC_SOCKETID=.*" "/proc/${pid}/environ" | sed 's|VBOX_IPC_SOCKETID=||' || true)
+        socket=$(grep -z "VBOX_IPC_SOCKETID=.*" "/proc/${pid}/environ" | sed 's|VBOX_IPC_SOCKETID=||' || true)
         edebug "$(lval socket VBOX_IPC_SOCKETID)"
         if [[ "${socket}" == "${VBOX_IPC_SOCKETID}" ]]; then
             einfos "${pid}"

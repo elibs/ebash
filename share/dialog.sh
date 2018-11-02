@@ -136,7 +136,9 @@ dialog_read()
 
     # Assemble all the individual characters into one string and then copy that out to the caller's context.
     local char="${c1}${c2}${c3}${c4}"
-    echo "eval declare ${output}=$(printf "%q" "${char}");"
+    local value=""
+    value="$(printf "%q" "${char}")"
+    echo "eval declare ${output}=${value}; "
     return 0
 }
 
@@ -192,11 +194,11 @@ dialog_prompt()
         # Inputmenu doesn't scale well. With only a few fields it needs more padding around the menus or they don't
         # fit on the canvas. But with larger number of fields they require less padding or else the canvas is too 
         # large. So set some explicit values for the scale to use to give it good appearance in all these cases.
-        local scale=5
+        local scale=5 height=0 menu_height=0
         [[ ${#fields[@]} -le 2 ]] && scale=8
         [[ ${#fields[@]} -eq 3 ]] && scale=6
-        local height=$(( ${#fields[@]} * ${scale} ))
-        local menu_height=$(( ${#fields[@]} * ${scale} ))
+        height=$(( ${#fields[@]} * ${scale} ))
+        menu_height=$(( ${#fields[@]} * ${scale} ))
 
         # Minimum height is 11
         [[ ${height} -lt 11 ]] && height=11
@@ -255,8 +257,8 @@ dialog_prompt()
     # clunky for users. So we improve the usabilty by essentially pressing the ENTER key for the user whenever they are
     # on an input field and start typing. Similarly, we automatically exit the input field when the user tries to arrow
     # up or down or tab out of the field.
-    local input_fd=0 output_fd=0
-    local tmp=$(mktemp --tmpdir --directory eprompt-dialog-XXXXXX)
+    local input_fd=0 output_fd=0 tmp=""
+    tmp=$(mktemp --tmpdir --directory eprompt-dialog-XXXXXX)
     trap_add "rm --recursive --force \"${tmp}\""
     local input_file="${tmp}/input"
     local output_file="${tmp}/output"
@@ -281,7 +283,7 @@ dialog_prompt()
 
     # Optionally append navigation instructions into title
     if [[ ${instructions} -eq 1 ]]; then
-        eval "local banner=\$(printf -- '-%.0s' {1..$((${width}-4))})"
+        eval "banner=\$(printf -- '-%.0s' {1..$((${width}-4))})"
         title+="\n${banner}\n"
         title+="Use ↑/↓ to navigate between fields. Start typing or hit ←/→ to enter the field to make changes. Press 'enter' to submit changes for that field. To save all pending changes hit 'tab' then 'enter'.\n\Zb\Z1* denotes required fields." 
         title+=""
@@ -291,15 +293,15 @@ dialog_prompt()
     dialog_args+=( --inputmenu "${title}" ${geometry} )
 
     # Where should the ncurses output go to?
-    local ncurses_out="$(fd_path)/2"
+    local ncurses_out
+    ncurses_out="$(fd_path)/2"
     if [[ ${hide} -eq 1 ]]; then 
         ncurses_out="/dev/null"
     fi
 
     # Enter loop to prompt for all required values.
-    local offset=0
-    local default_button="extra"
-    local default_item="$(pack_get fpack[${keys[0]}] display):"
+    local offset=0 default_button="extra" default_item=""
+    default_item="$(pack_get fpack[${keys[0]}] display):"
     while true; do
 
         edebug "[STARTING INPUT LOOP] $(lval default_button default_item dialog_pid offset)"
@@ -459,7 +461,8 @@ dialog_prompt()
             return ${dialog_rc}
         fi
 
-        local dialog_output="$(string_trim "$(cat "${output_file}")")"
+        local dialog_output=""
+        dialog_output="$(string_trim "$(cat "${output_file}")")"
         edebug "Dialog exited $(lval dialog_pid dialog_rc dialog_output)"
 
         if [[ ${dialog_rc} == ${DIALOG_CANCEL} ]]; then
@@ -476,12 +479,13 @@ dialog_prompt()
 
         # EDIT
         elif [[ "${dialog_output}" =~ ^${dialog_renamed} ]]; then
-            local field=$(echo "${dialog_output}" | grep -Po "RENAMED \K[^:]*")
-            local value=$(echo "${dialog_output}" | grep -Po ": \K.*" || true) # May not have any value at all
+            local field="" value=""
+            field=$(echo "${dialog_output}" | grep -Po "RENAMED \K[^:]*")
+            value=$(echo "${dialog_output}" | grep -Po ": \K.*" || true) # May not have any value at all
 
             # The output from dialog is the *display* which may not match the actual variable passed in. So we have to
             # lookup the correct pack entry from the display key.
-            local idx
+            local idx next
             for idx in $(array_indexes keys); do
                 local key=${keys[$idx]}
                 if [[ "${field}" == "$(pack_get fpack[$key] display)" ]]; then
@@ -489,7 +493,7 @@ dialog_prompt()
                     edebug "Assigning: $(print_value key) => $(print_value value)"
                     pack_set fpack[$key] value="${value}"
 
-                    local next=$((idx+${offset}))
+                    next=$((idx+${offset}))
                     if [[ ${next} -ge ${#keys[@]} ]]; then
                         next=$(( ${#keys[@]} -1 ))
                     elif [[ ${next} -lt 0 ]]; then
@@ -530,7 +534,9 @@ dialog_prompt()
     echo "eval declare dialog_rc=${dialog_rc};"
     for key in "${keys[@]}"; do
         edebug "${key}=>$(pack_get fpack[$key] value)"
-        echo "eval declare ${key}=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")");"
+        local value=""
+        value=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")")
+        echo "eval declare ${key}=${value};"
     done
 
     # Clean-up
@@ -596,8 +602,9 @@ dialog_prompt_username_password()
         # PE-1482 identified a problem with passwords that begin with '$' which caused bash to
         # evaluate the password as a variable name (and it would usually fail with a complaint
         # that the varialbe was unbound).
-        echo "eval declare username=$(printf %q "${username}"); "
-        echo "eval declare password=$(printf \'%q\' "${password}"); "
+        echo "eval declare username password; "
+        echo "eval username=$(printf %q "${username}"); "
+        echo "eval password=$(printf \'%q\' "${password}"); "
         return 0
     done
 }

@@ -28,7 +28,9 @@ opt_usage emount_regex "Echo the emount regex for a given path"
 emount_regex()
 {
     $(opt_parse path)
-    local rpath=$(emount_realpath "${path}")
+    
+    local rpath
+    rpath=$(emount_realpath "${path}")
 
     echo -n "(^| )(${path}|${rpath})(\\\\040\\(deleted\\))* "
 }
@@ -37,8 +39,7 @@ opt_usage emount_count "Echo the number of times a given directory is mounted."
 emount_count()
 {
     $(opt_parse path)
-    local num_mounts=$(list_mounts | grep --count --perl-regexp "$(emount_regex ${path})" || true)
-    echo -n ${num_mounts}
+    list_mounts | grep --count --perl-regexp "$(emount_regex ${path})" || true
 }
 
 opt_usage emount_type "Get the mount type of a given mount point."
@@ -81,11 +82,13 @@ ebindmount()
     # own, but that action won't actually affect the others.
     #
     # stat --format %m <file> lists the mount point that a particular file is on.
-    local source_mountpoint="$(stat -c %m "${src}")"
+    local source_mountpoint
+    source_mountpoint="$(stat -c %m "${src}")"
 
     # Then we look in the mount table to make sure we can access the mount point.  We might not be
     # able to see it if we're in a chroot, for instance.
-    local mountinfo_entry=$(awk '$5 == "'${source_mountpoint}'"' /proc/self/mountinfo)
+    local mountinfo_entry
+    mountinfo_entry=$(awk '$5 == "'${source_mountpoint}'"' /proc/self/mountinfo)
 
     # Assuming we can see the mountpoint, make it private
     if [[ -n "${mountinfo_entry}" ]] ; then
@@ -148,7 +151,8 @@ ebindmount_into()
 
     # Create destination directory if it doesn't exist.
     mkdir -p "${dest}"
-    local dest_real=$(readlink -m "${dest}")
+    local dest_real
+    dest_real=$(readlink -m "${dest}")
 
     # Iterate over each entry and parse optional ':' in the entry and then bind mount
     # the source path into the specified destination path.
@@ -174,7 +178,8 @@ ebindmount_into()
         # mount the contents of the directory rather than the directory itself.
         if [[ -d "${src}" && "${src: -2}" == "/." ]]; then
 
-            local parent="$(readlink -m ${dest_real}/${src}/..)"
+            local parent
+            parent="$(readlink -m ${dest_real}/${src}/..)"
             pushd "${src}"
 
             # If the destination parent directory has already been created then we have to be
@@ -182,7 +187,8 @@ ebindmount_into()
             # bind mount the contents of the src directory into the parent directory. 
             # Otherwise we can simply bind mount the directory into thd destination directory.
             if [[ -d "${parent}" ]]; then
-                local contents=$(find . -maxdepth 1 -printf '%P\n')
+                local contents
+                contents=$(find . -maxdepth 1 -printf '%P\n')
                 if [[ -n "${contents}" ]]; then
                     opt_forward ebindmount_into ignore_missing -- "${parent}" ${contents}
                 fi
@@ -198,7 +204,8 @@ ebindmount_into()
         elif [[ -d "${dest_real}/${mnt}" ]]; then
             pushd "${src}"
 
-            local contents=$(find . -maxdepth 1 -printf '%P\n')
+            local contents
+            contents=$(find . -maxdepth 1 -printf '%P\n')
             if [[ -n "${contents}" ]]; then
                 opt_forward ebindmount_into ignore_missing -- "$(readlink -m ${dest_real}/${src})" ${contents}
             fi
@@ -250,13 +257,13 @@ eunmount_internal()
     $(opt_parse \
         "+verbose v | Verbose output.")
 
-    local mnt
+    local mnt mnt_type
     for mnt in $@; do
 
         # Skip if not mounted.
         emounted "${mnt}" || continue
 
-        local mnt_type=$(emount_type ${mnt})
+        mnt_type=$(emount_type ${mnt})
         [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt} (${mnt_type})"
         
         # OVERLAYFS: Redirect unmount operation to overlayfs_unmount so all layers unmounted
@@ -312,11 +319,13 @@ eunmount()
             else
 
                 # If this path is directly mounted or anything BENEATH it is mounted then proceed
-                local matches=( $(efindmnt "${mnt}" | sort --unique --reverse) )
+                local matches=()
+                matches=( $(efindmnt "${mnt}" | sort --unique --reverse) )
                 array_empty matches && break
                 
                 # Optionally log what is being unmounted
-                local nmatches=$(echo "${matches[@]}" | wc -l)
+                local nmatches=0
+                nmatches=$(echo "${matches[@]}" | wc -l)
                 [[ ${verbose} -eq 1 ]] && einfo "Recursively unmounting ${mnt} (${nmatches})"
                 edebug "$(lval matches nmatches)"
 
@@ -338,7 +347,8 @@ eunmount()
             [[ ${verbose} -eq 1 ]] && einfo "Deleting $(lval mnt recursive)"
 
             # Verify there are no mounts beneath this directory
-            local mounts=( $(efindmnt "${mnt}") )
+            local mounts
+            mounts=( $(efindmnt "${mnt}") )
             if ! array_empty mounts; then
                 die "Cannot remove $(lval directory=mnt) with mounted filesystems:"$'\n'"$(array_join_nl mounts)"
             fi
@@ -382,7 +392,8 @@ efindmnt()
     fi
 
     # Now look for anything beneath that directory
-    local rpath=$(emount_realpath "${path}")
+    local rpath
+    rpath=$(emount_realpath "${path}")
     list_mounts | grep --perl-regexp "(^| )(${path}|${rpath})[/ ]" | awk '{print $2}' | sed '/^$/d' || true
 }
 

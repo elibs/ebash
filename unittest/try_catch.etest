@@ -376,9 +376,13 @@ ETEST_tryrc_declare()
     $(EDEBUG=0 tryrc -o=stdout -e=stderr echo "foo")
     einfo "$(lval rc stdout stderr)"
 
-    assert_eq 'declare -- rc="0"'       "$(declare -p rc)"
-    assert_eq 'declare -- stdout="foo"' "$(declare -p stdout)"
-    assert_eq 'declare -- stderr=""'    "$(declare -p stderr)"
+    local actual
+    actual="$(declare -p rc)"
+    assert_eq 'declare -- rc="0"'       "${actual}"
+    actual="$(declare -p stdout)"
+    assert_eq 'declare -- stdout="foo"' "${actual}"
+    actual="$(declare -p stderr)"
+    assert_eq 'declare -- stderr=""'    "${actual}"
 }
 
 ETEST_tryrc_declare_global()
@@ -395,9 +399,13 @@ ETEST_tryrc_declare_global()
 
     call_tryrc
 
-    assert_eq 'declare -- rc="0"'       "$(declare -p rc)"
-    assert_eq 'declare -- stdout="foo"' "$(declare -p stdout)"
-    assert_eq 'declare -- stderr="bar"' "$(declare -p stderr)"
+    local actual
+    actual="$(declare -p rc)"
+    assert_eq 'declare -- rc="0"'       "${actual}"
+    actual="$(declare -p stdout)"
+    assert_eq 'declare -- stdout="foo"' "${actual}"
+    actual="$(declare -p stderr)"
+    assert_eq 'declare -- stderr="bar"' "${actual}"
 }
 
 ETEST_tryrc_declare_local()
@@ -414,16 +422,22 @@ ETEST_tryrc_declare_local()
 
     call_tryrc
 
-    assert_eq 'declare -- rc="1"'        "$(declare -p rc)"
-    assert_eq 'declare -- stdout="ORIG"' "$(declare -p stdout)"
-    assert_eq 'declare -- stderr="ORIG"' "$(declare -p stderr)"
+    local actual
+    actual="$(declare -p rc)"
+    assert_eq 'declare -- rc="1"'        "${actual}"
+    actual="$(declare -p stdout)"
+    assert_eq 'declare -- stdout="ORIG"' "${actual}"
+    actual="$(declare -p stderr)"
+    assert_eq 'declare -- stderr="ORIG"' "${actual}"
 }
 
 ETEST_tryrc_rc_only()
 {
     $(tryrc echo "foo") 1>stdout.log 2>stderr.log
-    local stdout=$(cat stdout.log)
-    local stderr=$(cat stderr.log)
+    
+    local stdout="" stderr=""
+    stdout=$(cat stdout.log)
+    stderr=$(cat stderr.log)
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 0     "${rc}"
@@ -466,8 +480,10 @@ ETEST_tryrc_failure()
 ETEST_tryrc_no_output()
 {
     $(tryrc false) 1>stdout.log 2>stderr.log
-    local stdout=$(cat stdout.log)
-    local stderr=$(cat stderr.log)
+    
+    local stdout="" stderr=""
+    stdout=$(cat stdout.log)
+    stderr=$(cat stderr.log)
     einfo "$(lval rc stdout stderr)"
 
     assert_eq 1 "${rc}"
@@ -504,7 +520,8 @@ ETEST_tryrc_deep_error()
 ETEST_tryrc_deep_error_redirect()
 {
     $(tryrc etest_deep_error) 1>stdout.log
-    local stdout=$(cat stdout.log)
+    local stdout
+    stdout=$(cat stdout.log)
     einfo "$(lval rc stdout)"
 
     assert_eq 1 ${rc}

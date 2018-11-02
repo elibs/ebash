@@ -80,7 +80,8 @@ ETEST_local_variables_masking_errors()
 {
     try
     {
-        local foo=$(false)
+        local foo
+        foo=$(false)
         die "local variable assignment should have thrown"
     }
     catch
@@ -152,7 +153,8 @@ ETEST_err_and_debug_traps_are_inherited()
 
     trap on_error ERR
     trap on_debug DEBUG
-    local expected=$(trap -p ERR DEBUG)
+    local expected
+    expected=$(trap -p ERR DEBUG)
 
     etestmsg "Error trap is $(lval expected)"
 

@@ -163,8 +163,7 @@ archive_compress_program()
     # the first matching program. If progs is empty, this will call 'which ""'
     # which is an error. which returns the number of failed arguments so we have
     # to look at the output and not rely on the return code.
-    local prog=$(which ${progs[@]:-} 2>/dev/null | head -1 || true)
-    echo -n "${prog}"
+    which ${progs[@]:-} 2>/dev/null | head -1 || true
 }
 
 # Tar has a pecularity with return codes that is inconsistent with the other archive formats.
@@ -247,13 +246,13 @@ archive_create()
         "@srcs             | Source paths to archive.")
 
     # Parse options
-    local dest_real=$(readlink -m "${dest}")
-    local dest_dname=$(dirname "${dest_real}")
-    local dest_name=$(basename "${dest_real}")
-    local dest_tmp="${dest_dname}/.pending-${dest_name}"
-    local dest_type=$(archive_type --type "${type}" "${dest}")
-    local excludes=( ${exclude} )
-    local cmd=""
+    local dest_real="" dest_dname="" dest_name="" dtest_tmp="" dest_type="" excludes=() cmd=""
+    dest_real=$(readlink -m "${dest}")
+    dest_dname=$(dirname "${dest_real}")
+    dest_name=$(basename "${dest_real}")
+    dest_tmp="${dest_dname}/.pending-${dest_name}"
+    dest_type=$(archive_type --type "${type}" "${dest}")
+    excludes=( ${exclude} )
    
     # Set the compression level
     if [[ ${best} -eq 1 ]]; then
@@ -280,7 +279,8 @@ archive_create()
     fi
 
     # Create excludes file
-    local exclude_file=$(mktemp --tmpdir archive-create-exclude-XXXXXX)
+    local exclude_file=""
+    exclude_file=$(mktemp --tmpdir archive-create-exclude-XXXXXX)
     cleanup_files+=( "${exclude_file}" )
     
     # Also exclude any of our sources which would incorrectly contain the destination
@@ -299,16 +299,16 @@ archive_create()
     echo "${dest_tmp#${PWD}/}" | sed "s%^\(/\|./\|../\)%%" > ${exclude_file}
 
     # Provide a common API around excludes, use find to pre-expand all excludes.
-    local entry
+    local entry="" src="" mnt="" src_norm=""
     for entry in "${srcs[@]}"; do
 
         # Parse optional ':' in the entry to be able to bind mount at alternative path. If not
         # present default to full path.
-        local src="${entry%%:*}"
-        local mnt="${entry#*:}"
+        src="${entry%%:*}"
+        mnt="${entry#*:}"
         : ${mnt:=${src}}
         
-        local src_norm=$(readlink -m "${src}")
+        src_norm=$(readlink -m "${src}")
         if [[ ${dest_tmp} == ${src_norm}/* ]]; then
             echo "${dest_tmp#${src_norm}/}" | sed "s%^\(/\|./\|../\)%%"
         fi
@@ -330,7 +330,8 @@ archive_create()
     # directory. This isn't strictly necessary if a single source path is given
     # but it drastically simplifies the code to treat it the same and the overhead
     # of a bind mount is so small that it is justified by the simpler code path.
-    local unified=$(mktemp --tmpdir --directory archive-create-unified-XXXXXX)
+    local unified
+    unified=$(mktemp --tmpdir --directory archive-create-unified-XXXXXX)
     cleanup_files+=( "${unified}" )
     opt_forward ebindmount_into ignore_missing -- "${unified}" "${srcs[@]}"
 
@@ -390,7 +391,8 @@ archive_create()
             cmd+=" --dereference"
         fi
 
-        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_tmp}")
+        local prog
+        prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_tmp}")
         if [[ -n "${prog}" ]]; then
             cmd+=" --file - . | ${prog} -${level} > ${dest_tmp}"
         else
@@ -401,7 +403,8 @@ archive_create()
     elif [[ ${dest_type} == cpio ]]; then
         
         cmd="find . | grep --invert-match --word-regexp --file ${exclude_file} | cpio --quiet -o -H newc"
-        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_tmp}")
+        local prog
+        prog=$(archive_compress_program --nice=${nice} --type "${type}" "${dest_tmp}")
         if [[ -n "${prog}" ]]; then
             cmd+=" | ${prog} -${level} > ${dest_tmp}"
         else
@@ -474,11 +477,10 @@ archive_extract()
    
     assert_num_ge "${strip_components}" "0" "--strip-components must be >= 0"
 
-    local files=( "${@}" )
-    local src_type=$(archive_type --type "${type}" "${src}")
-
+    local files=( "${@}" ) src_type="" dest_real=""
+    src_type=$(archive_type --type "${type}" "${src}")
     mkdir -p "${dest}"
-    local dest_real=$(readlink -m "${dest}")
+    dest_real=$(readlink -m "${dest}")
 
     edebug "Extracting $(lval src dest dest_real src_type files ignore_missing)"
 
@@ -489,7 +491,8 @@ archive_extract()
 
         # NOTE: Do this in a subshell to ensure traps perform clean-up.
         (
-            local mnt=$(mktemp --tmpdir --directory archive-extract-XXXXXX)
+            local mnt=""
+            mnt=$(mktemp --tmpdir --directory archive-extract-XXXXXX)
             mount --read-only "${src}" "${mnt}"
             trap_add "eunmount --recursive --delete ${mnt}"
 
@@ -530,7 +533,8 @@ archive_extract()
         # By default the files to extract from the archive is all the files requested.
         # If files is an empty array this will evaluate to an empty string and all files
         # will be extracted.
-        local includes=$(array_join files)
+        local includes=""
+        includes=$(array_join files)
 
         # If ignore_missing flag was enabled filter out list of files in the archive to
         # only those which the caller requested. This will ensure we are essentially 
@@ -553,11 +557,12 @@ archive_extract()
         fi
 
         # Do the actual extracting.
-        local src_real=$(readlink -m "${src}")
+        local src_real=""
+        src_real=$(readlink -m "${src}")
         pushd "${dest}"
         
-        local cmd=""
-        local prog=$(archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
+        local cmd="" prog=""
+        prog=$(archive_compress_program --nice=${nice} --type "${type}" "${src_real}")
         if [[ -n "${prog}" ]]; then
             cmd="${prog} --decompress --stdout < ${src_real} | "
         fi 
@@ -612,8 +617,9 @@ archive_extract()
         # depth. These are the ones which need to be moved up to the current directory (which is the new dest_real that
         # we extracted everything to). We add -print so that we can capture a list of the directories that we affected
         # so we can do a second pass to remove the orphaned directories afterwards.
-        local move_level=$((strip_components+1))
-        local orphans=( $(find .        \
+        local move_level=0 orphans=()
+        move_level=$((strip_components+1))
+        orphans=( $(find .              \
             -mindepth ${move_level}     \
             -maxdepth ${move_level}     \
             -print0 -exec mv --backup=numbered {} . \; \
@@ -642,7 +648,8 @@ archive_list()
         ":type t | Override automatic type detection and use explicit archive type." \
         "src     | Archive whose contents should be listed.")
 
-    local src_type=$(archive_type --type "${type}" "${src}")
+    local src_type
+    src_type=$(archive_type --type "${type}" "${src}")
     edebug "File: $(file "${src}") $(lval type src_type)"
 
     # The code below calls out to the various archive format specific tools to dump
@@ -660,8 +667,8 @@ archive_list()
     elif [[ ${src_type} == tar ]]; then
 
         # Do decompression first
-        local cmd=""
-        local prog=$(archive_compress_program --type "${type}" "${src}")
+        local cmd="" prog=""
+        prog=$(archive_compress_program --type "${type}" "${src}")
         if [[ -n "${prog}" ]]; then
             cmd="${prog} --decompress --stdout < ${src} | "
         fi
@@ -677,8 +684,8 @@ archive_list()
     elif [[ ${src_type} == cpio ]]; then
 
         # Do decompression first
-        local cmd=""
-        local prog=$(archive_compress_program --type "${type}" "${src}")
+        local cmd="" prog=""
+        prog=$(archive_compress_program --type "${type}" "${src}")
         if [[ -n "${prog}" ]]; then
             cmd="${prog} --decompress --stdout < ${src} | "
         fi
@@ -729,8 +736,9 @@ archive_append()
         "@srcs             | Source paths to append to the archive.")
 
     # Parse options
-    local dest_name=$(basename "${dest}")
-    local dest_real=$(readlink -m "${dest}")
+    local dest_name="" dest_real=""
+    dest_name=$(basename "${dest}")
+    dest_real=$(readlink -m "${dest}")
  
     # If the destination to append to doesn't exist reroute this call to archive_append instead
     # of blowing up.
@@ -743,7 +751,8 @@ archive_append()
     edebug "Appending to archive $(lval dest srcs ignore_missing)"
 
     # Extract the archive into tmpfs directory
-    local unified=$(mktemp --tmpdir --directory archive-append-unified-XXXXXX)
+    local unified
+    unified=$(mktemp --tmpdir --directory archive-append-unified-XXXXXX)
     opt_forward archive_extract nice -- "${dest}" "${unified}"
 
     # Bind mount all src paths being appended to the archive into unified directory.
@@ -757,7 +766,8 @@ archive_append()
     #
     # Note: if src_name contains any captiol X's, it will either cause mktemp to fail completely or put the randomness
     # in the wrong place.  converting to lowercase solves this problem
-    local appended=$(mktemp $(dirname ${dest_real})/archive-append-XXXXXX-${dest_name,,})
+    local appended
+    appended=$(mktemp $(dirname ${dest_real})/archive-append-XXXXXX-${dest_name,,})
     opt_forward archive_create best bootable dereference fast ignore_missing level nice volume -- "${appended}" "${unified}/."
 
     # Now move the append archive over the original.
@@ -783,13 +793,16 @@ END
 archive_convert()
 {
     $(opt_parse src dest)
-    local src_type=$(archive_type "${src}")
-    local dest_real=$(readlink -m "${dest}")
+    
+    local src_type="" dest_real=""
+    src_type=$(archive_type "${src}")
+    dest_real=$(readlink -m "${dest}")
     edebug "Converting $(lval src src_type dest dest_real)"
 
     # Temporary directory for mounting
     (
-        local mnt="$(mktemp --tmpdir --directory archive-convert-XXXXXX)"
+        local mnt=""
+        mnt="$(mktemp --tmpdir --directory archive-convert-XXXXXX)"
         trap_add "eunmount --recursive --delete ${mnt}"
 
         # Mount (if possible) or extract the archive image if mounting is not supported.
@@ -810,13 +823,12 @@ archive_diff()
 {
     # Put body in a subshell to ensure traps perform clean-up.
     (
-        local mnts=()
-        local src
+        local mnts=() src="" mnt="" src_type=""
         for src in "${@}"; do
             
-            local mnt="$(mktemp --tmpdir --directory archive-diff-XXXXXX)"
+            mnt="$(mktemp --tmpdir --directory archive-diff-XXXXXX)"
             trap_add "eunmount --recursive --delete ${mnt}"
-            local src_type=$(archive_type "${src}")
+            src_type=$(archive_type "${src}")
             mnts+=( "${mnt}" )
 
             # Mount (if possible) or extract the archive if mounting is not supported.
@@ -834,7 +846,9 @@ END
 archive_mount()
 {
     $(opt_parse src dest)
-    local src_type=$(archive_type "${src}")
+    
+    local src_type=""
+    src_type=$(archive_type "${src}")
 
     # Create destination directory in case it doesn't exist
     mkdir -p "${dest}"

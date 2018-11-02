@@ -81,7 +81,8 @@ array_size()
     #     a.  The [[ -v ]] option now understands array references (foo[1]) and returns success if the referenced
     #         element has a value.
     #
-    local value=$(eval "echo \${${__array}[*]:-}")
+    local value
+    value=$(eval "echo \${${__array}[*]:-}")
     if [[ -z "${value}" ]]; then
         echo 0
     else
@@ -233,8 +234,9 @@ array_join()
     # Iterate over each element of the array and echo that element with the
     # delimiter following it. Special case the last element in the array because
     # we only want to emit the trailing delimiter if requested.
-    local indexes=( $(array_indexes ${__array}) )
-    local idx_last=$(echo "${indexes[@]}" | awk '{print $NF}')
+    local indexes=() idx_last=0
+    indexes=( $(array_indexes ${__array}) )
+    idx_last=$(echo "${indexes[@]}" | awk '{print $NF}')
 
     local idx
     for idx in ${indexes[@]}; do

@@ -12,11 +12,11 @@
 to_json()
 {
     echo -n "{"
-    local _notfirst="" _arg
+    local _notfirst="" _arg="" _arg_noqual=""
     for _arg in "${@}" ; do
         [[ -n ${_notfirst} ]] && echo -n ","
 
-        local _arg_noqual=$(discard_qualifiers ${_arg})
+        _arg_noqual=$(discard_qualifiers ${_arg})
         echo -n "$(json_escape ${_arg_noqual}):"
         if is_pack ${_arg} ; then
             pack_to_json ${_arg}
@@ -165,8 +165,9 @@ json_import()
 
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
     # In either case read into a local variable so we can parse it repeatedly in this function.
-    local _json_import_input=$(cat ${file} || true)
-    local _json_import_data=$(jq -r "${query}" <<< ${_json_import_input} || true)
+    local _json_import_input _json_import_data
+    _json_import_input=$(cat ${file} || true)
+    _json_import_data=$(jq -r "${query}" <<< ${_json_import_input} || true)
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
     array_empty _json_import_keys && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
@@ -178,7 +179,7 @@ json_import()
     # Debugging
     edebug $(lval prefix query file _json_import_data _json_import_keys excluded)
 
-    local cmd key val
+    local cmd key val has_field
     for key in "${_json_import_keys[@]}"; do
         array_contains excluded ${key} && continue
 
@@ -188,7 +189,7 @@ json_import()
             val=$(jq -c -r ".${key}//empty" <<< ${_json_import_data})
         else
 
-            local has_field=$(jq --raw-output '. | has("'${key}'")' <<< "${_json_import_data}")
+            has_field=$(jq --raw-output '. | has("'${key}'")' <<< "${_json_import_data}")
 
             if [[ ${has_field} != "true" ]] ; then
                 die "Data does not contain required $(lval key _json_import_input _json_import_data)"

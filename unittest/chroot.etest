@@ -69,8 +69,7 @@ check_mounts()
 
 ETEST_chroot_readlink()
 {
-    local real=$(chroot_readlink /var/run)
-    assert_eq "${CHROOT}/run" "${real}"
+    assert_eq "${CHROOT}/run" "$(chroot_readlink /var/run)"
 }
 
 ETEST_chroot_create_mount()
@@ -233,7 +232,8 @@ ETEST_chroot_daemon_start_stop()
     
     # Now stop it and verify proper shutdown
     etestmsg "Stopping chroot daemon"
-    local pid=$(cat ${pidfile})
+    local pid
+    pid=$(cat ${pidfile})
     daemon_stop sleep_daemon &
     daemon_expect pre_stop
     daemon_expect post_stop
@@ -248,8 +248,9 @@ ETEST_chroot_daemon_bindmount()
     trap_add "chroot_exit"
 
     etestmsg "Creating temporary directories"
-    local tmpdir1=$(mktemp --tmpdir --directory ${FUNCNAME}1-XXXXXX)
-    local tmpdir2=$(mktemp --tmpdir --directory ${FUNCNAME}2-XXXXXX)
+    local tmpdir1 tmpdir2
+    tmpdir1=$(mktemp --tmpdir --directory ${FUNCNAME}1-XXXXXX)
+    tmpdir2=$(mktemp --tmpdir --directory ${FUNCNAME}2-XXXXXX)
     trap_add "eunmount -r -d ${tmpdir1} ${tmpdir2}"
     touch ${tmpdir1}/{1,2,3,4,5} ${tmpdir2}/{1,2,3,4,5}
 
@@ -301,11 +302,13 @@ ETEST_chroot_daemon_bindmount_file()
     trap_add "chroot_exit"
 
     etestmsg "Creating temporary directories"
-    local tmpdir1=$(mktemp --tmpdir --directory ${FUNCNAME}1-XXXXXX)
-    local tmpdir2=$(mktemp --tmpdir --directory ${FUNCNAME}2-XXXXXX)
+    local tmpdir1 tmpdir2
+    tmpdir1=$(mktemp --tmpdir --directory ${FUNCNAME}1-XXXXXX)
+    tmpdir2=$(mktemp --tmpdir --directory ${FUNCNAME}2-XXXXXX)
     trap_add "eunmount -r -d ${tmpdir1} ${tmpdir2}"
     touch ${tmpdir1}/{1,2,3,4,5} ${tmpdir2}/{1,2,3,4,5}
-    local bindmounts=( $(find ${tmpdir1} ${tmpdir2} -type f) )
+    local bindmounts=()
+    bindmounts=( $(find ${tmpdir1} ${tmpdir2} -type f) )
     local logfile=logfile.log
     touch ${tmpdir1}/XXX
 

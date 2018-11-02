@@ -43,19 +43,22 @@ ETEST_edebug_and_etrace()
 
 ETEST_edebug_enabled_skips_edebug_in_stack_frame()
 {
-    local output=$(EDEBUG=${FUNCNAME}; edebug "hello" 2>&1)
+    local output
+    output=$(EDEBUG=${FUNCNAME}; edebug "hello" 2>&1)
     assert_match "${output}" "hello"
 }
 
 ETEST_edebug_pipe_input()
 {
-    local output=$(EDEBUG=${FUNCNAME}; echo "foo" | edebug 2>&1)
+    local output
+    output=$(EDEBUG=${FUNCNAME}; echo "foo" | edebug 2>&1)
     assert_match "${output}" "foo"
 }
 
 ETEST_edebug_pipe_empty()
 {
-    local output=$(EMSG_PREFIX="" ; EDEBUG=${FUNCNAME}; true | edebug 2>&1)
+    local output
+    output=$(EMSG_PREFIX="" ; EDEBUG=${FUNCNAME}; true | edebug 2>&1)
     assert_empty "${output}"
 }
 
@@ -86,8 +89,9 @@ fi
 
 ETEST_edebug_pipe_multiple_lines()
 {
-    local input="$(dmesg)"
-    local output="$(EMSG_PREFIX=""; EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")"
+    local intput output
+    input="$(dmesg)"
+    output="$(EMSG_PREFIX=""; EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")"
 
     diff --unified <(echo -en "${input}") <(echo -en "${output}")
 }

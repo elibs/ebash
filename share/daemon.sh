@@ -133,7 +133,8 @@ daemon_init()
         "${@}"
 
     # Set name if missing
-    local base=$(basename $(pack_get ${optpack} "cmdline" | awk '{print $1}'))
+    local base
+    base=$(basename $(pack_get ${optpack} "cmdline" | awk '{print $1}'))
     if ! pack_contains ${optpack} "name"; then
         pack_set ${optpack} name=${base}
     fi
@@ -162,7 +163,8 @@ daemon_start()
 
     # Don't restart the daemon if it is already running.
     if daemon_running ${optpack}; then
-        local pid=$(cat ${pidfile} 2>/dev/null || true)
+        local pid
+        pid=$(cat ${pidfile} 2>/dev/null || true)
         einfo "${name} is already running"
         edebug "${name} is already running $(lval pid %${optpack})"
         eend 0
@@ -378,7 +380,8 @@ daemon_stop()
     # If it is remove the pidfile then stop the process with provided signal.
     # NOTE: It's important we remove the pidfile BEFORE we kill the process so that
     # it won't try to respawn!
-    local pid=$(cat ${pidfile} 2>/dev/null || true)
+    local pid
+    pid=$(cat ${pidfile} 2>/dev/null || true)
     rm --force ${pidfile}
     if [[ -n ${pid} ]]; then
         # kill the process with requested signal
@@ -429,7 +432,8 @@ daemon_status()
 
         # Check pidfile
         [[ -e ${pidfile} ]] || { eend 1; edebug "Not Running (no pidfile)"; return 1; }
-        local pid=$(cat ${pidfile} 2>/dev/null || true)
+        local pid
+        pid=$(cat ${pidfile} 2>/dev/null || true)
         [[ -n ${pid}     ]] || { eend 1; edebug "Not Running (no pid)"; return 1; }
 
         # Check if it's running

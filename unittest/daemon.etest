@@ -53,7 +53,8 @@ ETEST_daemon_start_stop()
     assert daemon_status  sleep_daemon
 
     # Now stop it and verify proper shutdown
-    local pid=$(cat "${pidfile}")
+    local pid
+    pid=$(cat "${pidfile}")
     daemon_stop sleep_daemon &
     daemon_expect pre_stop
     daemon_expect post_stop
@@ -152,10 +153,10 @@ netns_remove_network()
 
     $(pack_import ${netns_args_packname} ns_name connected_nic)
 
-    local device
+    local device basename_device
     for device in /sys/class/net/${ns_name}* ; do
       if [[ -L ${device} ]] ; then
-          local basename_device=$(basename ${device})
+          basename_device=$(basename ${device})
           ip link set ${basename_device} down
           ip link delete ${basename_device}
       fi
@@ -319,7 +320,8 @@ END
     assert daemon_status  sleep_daemon
 
     # Now stop it and verify proper shutdown
-    local pid=$(cat "${pidfile}")
+    local pid
+    pid=$(cat "${pidfile}")
     daemon_stop sleep_daemon &
     daemon_expect pre_stop
     daemon_expect post_stop
@@ -356,7 +358,8 @@ ETEST_daemon_cgroup()
     assert_true daemon_running sleep_daemon
     assert test -s ${pidfile}
 
-    local running_pids=$(cgroup_pids ${CGROUP})
+    local running_pids stopped_pids
+    running_pids=$(cgroup_pids ${CGROUP})
     etestmsg "Daemon running $(lval CGROUP running_pids)"
     cgroup_pstree ${CGROUP}
 
@@ -364,7 +367,7 @@ ETEST_daemon_cgroup()
     daemon_expect pre_stop
     daemon_expect post_stop
     wait
-    local stopped_pids=$(cgroup_pids ${CGROUP})
+    stopped_pids=$(cgroup_pids ${CGROUP})
     assert_empty "${stopped_pids}"
 }
 
@@ -563,7 +566,8 @@ ETEST_daemon_respawn_reset()
     for (( iter=1; iter<=${respawns}; iter++ )); do
 
         # Kill underlying pid
-        local pid=$(cat "${pidfile}")
+        local pid
+        pid=$(cat "${pidfile}")
         etestmsg "Killing daemon $(lval pid iter respawns)"
         ekilltree -s=KILL ${pid}
 
@@ -609,7 +613,8 @@ EOF
     chmod +x ${script}
     script=$(readlink -m ${script})
 
-    local logfile=$(readlink -m logfile)
+    local logfile
+    logfile=$(readlink -m logfile)
 
     daemon_init noisy_daemon    \
         "${DAEMON_EXPECT[@]}"   \
@@ -630,10 +635,12 @@ EOF
     daemon_expect post_stop
     wait
 
-    local stdout="$(cat stdout)"
-    local stderr="$(cat stderr)"
+    local stdout stderr
+    stdout="$(cat stdout)"
+    stderr="$(cat stderr)"
 
-    local log_contents="$(cat ${logfile})"
+    local log_contents
+    log_contents="$(cat ${logfile})"
     etestmsg stdout
     cat stdout
     etestmsg stderr
@@ -665,8 +672,9 @@ EOF
     daemon_expect post_stop
     wait
 
-    local stdout="$(cat stdout)"
-    local stderr="$(cat stderr)"
+    local stdout stderr
+    stdout="$(cat stdout)"
+    stderr="$(cat stderr)"
 
     etestmsg stdout
     cat stdout
