@@ -218,7 +218,7 @@ ETEST_emsg_reset_at_end_when_needed()
 ETEST_emsg_reset_not_at_end_when_unnecessary()
 {
     local output output_short
-    output==$(EMSG_PREFIX="" emsg "red" "XX" "INFO" "message" 2>&1)
+    output=$(EMSG_PREFIX="" emsg "red" "XX" "INFO" "message" 2>&1)
     output_short=$(echo "${output}" | sed 's/^.*XX.*mess//')
 
     echo "output: ${output}" | cat -evt
