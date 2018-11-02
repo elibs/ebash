@@ -278,8 +278,7 @@ fake_password_dialog_ui='
         ":username  | Username to display, if any" \
         ":password  | Password to display (obscured), if any")
 
-    local num_args=$#
-    local test_id
+    local num_args=$# test_id=""
     test_id=$(( ${fake_password_dialog_test_id} - 1 ))
 
     # The fake data required for various password dialog tests.
@@ -335,8 +334,9 @@ EOFB
 )
     fi
 
-    echo "eval declare dialog_output;"
-    echo "dialog_output=$(printf %q "${dialog_output}")"
+    local value
+    value=$(printf %q "${dialog_output}")
+    echo "eval declare dialog_output=${value}"
     return 0
 }'
 

@@ -136,8 +136,9 @@ dialog_read()
 
     # Assemble all the individual characters into one string and then copy that out to the caller's context.
     local char="${c1}${c2}${c3}${c4}"
-    echo "eval declare ${output};"
-    echo "eval ${output}=$(printf "%q" "${char}");"
+    local value=""
+    value="$(printf "%q" "${char}")"
+    echo "eval declare ${output}=${value}; "
     return 0
 }
 
@@ -533,8 +534,9 @@ dialog_prompt()
     echo "eval declare dialog_rc=${dialog_rc};"
     for key in "${keys[@]}"; do
         edebug "${key}=>$(pack_get fpack[$key] value)"
-        echo "eval declare ${key};"
-        echo "${key}=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")");"
+        local value=""
+        value=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")")
+        echo "eval declare ${key}=${value};"
     done
 
     # Clean-up
