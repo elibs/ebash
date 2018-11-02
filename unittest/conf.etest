@@ -123,7 +123,8 @@ END
     etestmsg "Initial file"
     cat file
 
-    local line_count=$(wc -l < file)
+    local line_count
+    line_count=$(wc -l < file)
 
     declare -A CONF
     conf_read CONF file
@@ -197,7 +198,8 @@ ETEST_conf_empty_file()
 
     etestmsg "Setting value in an empty file."
     conf_set --file file a.b 1
-    local contents="$(cat file)"
+    local contents
+    contents="$(cat file)"
     assert_eq "[a]"$'\n'"b = 1" "${contents}"
 
     conf_read CONF file

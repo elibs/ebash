@@ -8,7 +8,8 @@
 
 ETEST_efetch_md5_bogus()
 {
-    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     touch ${tmpfile}.md5
 
     # efetch should fail b/c this isn't a valid MD5 file
@@ -17,7 +18,8 @@ ETEST_efetch_md5_bogus()
 
 ETEST_efetch_md5()
 {
-    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     emd5sum ${tmpfile} > ${tmpfile}.md5
 
@@ -35,7 +37,8 @@ ETEST_efetch_md5()
 
 ETEST_efetch_md5_missing_md5()
 {
-    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1K count=1
 
     # efetch should fail and both files should get removed
@@ -45,7 +48,8 @@ ETEST_efetch_md5_missing_md5()
 
 ETEST_efetch_md5_missing_file()
 {
-    local tmpfile=$(mktemp --tmpdir etest-efetch-md5-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-md5-XXXXXX)
 
     # efetch should fail and both files should get removed
     assert_false efetch -m file://${tmpfile%%.md5} copy.txt
@@ -54,7 +58,8 @@ ETEST_efetch_md5_missing_file()
 
 ETEST_efetch_meta()
 {
-    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     emetadata ${tmpfile} > ${tmpfile}.meta
     emetadata_check ${tmpfile}
@@ -76,7 +81,8 @@ ETEST_efetch_meta_pgp()
     efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_private.asc private.asc
     efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging.phrase      phrase.txt
     
-    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     emetadata -p="private.asc" -k="$(cat phrase.txt)" ${tmpfile} > ${tmpfile}.meta
     emetadata_check ${tmpfile}
@@ -114,7 +120,8 @@ ETEST_efetch_fail_preserves_meta()
 # See: https://github.com/curl/curl/issues/183
 ETEST_efetch_empty_file()
 {
-    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     assert_not_exists "dest"
     [[ ! -s "${tmpfile}" ]] || die "$(lval tmpfile) should be an empty file"
 
@@ -127,7 +134,8 @@ ETEST_efetch_empty_file()
 
 ETEST_efetch_missing_dir()
 {
-    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     assert_not_exists "dest"
 
@@ -143,7 +151,8 @@ ETEST_efetch_fail_curl()
     curl()
     {
         # Grab the destination parameter from the curl command in efetch
-	    local dst=$(echo $* | grep -Po -- '--output \K\S+')
+	    local dst
+        dst=$(echo $* | grep -Po -- '--output \K\S+')
 	    touch "${dst}"
 	    return 1
     }
@@ -167,7 +176,8 @@ ETEST_efetch_none()
 
 ETEST_efetch_single_file_no_dest()
 {
-    local tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
+    local tmpfile
+    tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1K count=1
     mkdir output
     TMPDIR=output
@@ -215,7 +225,8 @@ ETEST_efetch_wait()
     dd if=/dev/urandom of=file3 bs=1K count=1
     mkdir output
 
-    local stdout=$(
+    local stdout
+    stdout=$(
         efetch --output output.txt "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
         efetch_wait $!
     )
@@ -250,7 +261,8 @@ ETEST_efetch_wait_tail_no_delete()
     efetch --output output.txt "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
     local pid=$!
 
-    local stdout=$(efetch_wait --tail output.txt --no-delete-output ${pid})
+    local stdout
+    stdout=$(efetch_wait --tail output.txt --no-delete-output ${pid})
     echo "${stdout}"
     assert process_not_running "${pid}"
 
@@ -275,7 +287,8 @@ ETEST_efetch_wait_tail_delete()
     efetch --output output.txt "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
     local pid=$!
 
-    local stdout=$(efetch_wait --tail output.txt ${pid})
+    local stdout
+    stdout=$(efetch_wait --tail output.txt ${pid})
     echo "${stdout}"
     assert process_not_running "${pid}"
     
@@ -295,7 +308,8 @@ ETEST_efetch_wait_quiet()
     dd if=/dev/urandom of=file3 bs=1K count=1
     mkdir output
 
-    local stdout=$(
+    local stdout
+    stdout=$(
         efetch --quiet "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
         efetch_wait $!
     )
@@ -319,7 +333,8 @@ ETEST_efetch_wait_quiet_progress()
 
     efetch --quiet "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
     local pid=$!
-    local output=$(efetch_wait --progress ${pid} 2>&1)
+    local output
+    output=$(efetch_wait --progress ${pid} 2>&1)
     echo "${output}"
     assert_match "${output}" "Waiting for efetch $(lval pid) to complete.*00:00:"
 }
@@ -333,7 +348,8 @@ ETEST_efetch_wait_quiet_progress_disabled()
 
     efetch --quiet "file://${PWD}/file1" "file://${PWD}/file2" "file://${PWD}/file3" "output" &
     local pid=$!
-    local output=$(EPROGRESS=0 efetch_wait --progress ${pid} 2>&1)
+    local output
+    output=$(EPROGRESS=0 efetch_wait --progress ${pid} 2>&1)
     echo "${output}"
     assert_match "${output}" "Waiting for efetch $(lval pid) to complete"
     assert_not_match "${output}" "Waiting for efetch $(lval pid) to complete.*00:00:"

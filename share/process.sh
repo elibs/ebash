@@ -64,13 +64,12 @@ process_tree()
         set -- ${BASHPID}
     fi
 
-    local parent
+    local parent children child
     for parent in ${@} ; do
 
         echo ${parent}
 
-        local children=$(process_children --ps-all "${ps_all}" ${parent})
-        local child
+        children=$(process_children --ps-all "${ps_all}" ${parent})
         for child in ${children} ; do
             process_tree --ps-all "${ps_all}" "${child}"
         done
@@ -140,9 +139,7 @@ process_parent_tree()
     chain=( ${pid} ${chain[@]} )
   done
 
-  local indent=""
-  local link
-
+  local indent="" link=""
   for link in ${chain[@]} ; do
     echo "$(printf "(%5d)" ${link})${indent}* $(ps ${format} ${link})"
     indent+=" "
@@ -161,7 +158,8 @@ process_ancestors()
 
     [[ -z ${child} ]] && child=${BASHPID}
 
-    local ps_all=$(ps -eo ppid,pid)
+    local ps_all=""
+    ps_all=$(ps -eo ppid,pid)
 
     local parent=${child}
     local ancestors=()
@@ -246,9 +244,10 @@ ekilltree()
                                  will receive the specified signal.")
 
     # Determine what signal to send to the processes
-    local excluded="$(process_ancestors ${BASHPID}) ${exclude}"
+    local excluded="" processes=()
 
-    local processes=( $(process_tree ${pids[@]:-}) )
+    excluded="$(process_ancestors ${BASHPID}) ${exclude}"
+    processes=( $(process_tree ${pids[@]:-}) )
     array_remove -a processes ${excluded}
 
     edebug "Killing $(lval processes signal kill_after excluded)"

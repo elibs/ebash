@@ -176,7 +176,8 @@ no_process_leaks_remain()
 
         # As long as it existed just now, we can assume cgroup_pids will exist,
         # because nothing else will destroy the cgroup except for us.
-        local remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
+        local remaining_pids=""
+        remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
         edebug "$(lval remaining_pids exists_rc ETEST_CGROUP)"
         [[ -z ${remaining_pids} ]]
     fi
@@ -198,7 +199,8 @@ assert_no_process_leaks()
     # there are leaked processes. So KILL anything that's left, but only DIE
     # if there were actually processes leaked.
     if [[ ${rc} -ne 0 ]] && cgroup_supported ; then
-        local leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
+        local leaked_processes=""
+        leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
         if [[ -n ${leaked_processes} ]]; then
             cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
 
@@ -214,7 +216,8 @@ assert_no_mount_leaks()
     $(opt_parse path)
     edebug "Checking for stale mounts under $(lval path)"
  
-    local mounts=( $(efindmnt "${path}" ) )
+    local mounts=()
+    mounts=( $(efindmnt "${path}" ) )
     
     if ! array_empty mounts; then
         eunmount -a -r -d=${delete} "${path}"
@@ -325,8 +328,9 @@ run_single_test()
             # Create our temporary workspace in the directory specified by the caller
             efreshdir "${work_dir}"
             mkdir "${work_dir}/tmp"
-            export TMPDIR="$(readlink -m ${work_dir}/tmp)"
-     
+            TMPDIR="$(readlink -m ${work_dir}/tmp)"
+            export TMPDIR
+
             if cgroup_supported ; then
                 cgroup_create ${ETEST_CGROUP}
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
@@ -411,7 +415,8 @@ run_single_test()
 run_etest_file()
 {
     $(opt_parse testfile)
-    local testfilename=$(basename ${testfile})
+    local testfilename
+    testfilename=$(basename ${testfile})
 
     # If the test file name does match a specified exclude, we're done
     if [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] ; then

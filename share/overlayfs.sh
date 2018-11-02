@@ -107,14 +107,16 @@ overlayfs_mount()
     # Parse positional arguments into a bashutils array. Then grab final mount
     # point from args.
     local args=( "$@" )
-    local dest=$(readlink -m ${args[${#args[@]}-1]})
+    local dest
+    dest=$(readlink -m ${args[${#args[@]}-1]})
     unset args[${#args[@]}-1]
     
     # Mount layered mounts at requested destination, creating if it doesn't exist.
     mkdir -p "${dest}"
     
     # Top-level matadata directory
-    local metadir=$(mktemp --tmpdir --directory overlayfs-meta-XXXXXX)
+    local metadir
+    metadir=$(mktemp --tmpdir --directory overlayfs-meta-XXXXXX)
     stacktrace > "${metadir}/stacktrace"
     mkdir -p ${metadir}/{sources,lowerdirs,upperdir,workdir,merged}
     ebindmount "${dest}" "${metadir}/merged"
@@ -232,7 +234,8 @@ overlayfs_unmount()
 
     # Now we can eunmount all the other layers to ensure everything is cleaned up.
     # This is necessary on older kernels which would leak the lower layer mounts.
-    local metadir=$(pack_get layers metadir)
+    local metadir
+    metadir=$(pack_get layers metadir)
     if [[ -n ${metadir} ]] ; then
         eunmount --all --recursive --delete "${metadir}"
     fi
@@ -263,13 +266,15 @@ overlayfs_layers()
 
     # Look for an overlayfs mount point matching provided mount point. It may NOT be
     # mounted (hence the || true) in which case we should just return.
-    local entry=$(list_mounts | grep "^${__BU_OVERLAYFS} ${mnt} " | grep -Po "upperdir=\K[^, ]*" || true)
+    local entry
+    entry=$(list_mounts | grep "^${__BU_OVERLAYFS} ${mnt} " | grep -Po "upperdir=\K[^, ]*" || true)
     if [[ -z ${entry} ]]; then
         return 0
     fi
 
     # Read in contents of the pack if present. If not populate the pack with empty values.
-    local metadir=$(dirname $(readlink -m "${entry}"))
+    local metadir
+    metadir=$(dirname $(readlink -m "${entry}"))
     if [[ -e ${metadir}/layer.pack ]]; then
         eval "${layers_var}=\$(<"\${metadir}/layer.pack")"
     else
@@ -296,8 +301,9 @@ overlayfs_tree()
     # For display purposes want to display the sources of the mount points instead. So construct a
     # second array for that. This relies on the fact that the entries are in the same order inside
     # the layer map.
-    local lowerdirs=( $(pack_get layers lowerdirs) $(pack_get layers upperdir) )
-    local sources=( $(pack_get layers sources)  $(pack_get layers upperdir) )
+    local lowerdirs=() sources=()
+    lowerdirs=( $(pack_get layers lowerdirs) $(pack_get layers upperdir) )
+    sources=( $(pack_get layers sources)  $(pack_get layers upperdir) )
 
     local idx
     for idx in $(array_rindexes lowerdirs); do
@@ -305,7 +311,8 @@ overlayfs_tree()
         local src=${sources[$idx]}
 
         # Pretty print the contents
-        local find_output=$(find ${layer} -ls           \
+        local find_output=""
+        find_output=$(find ${layer} -ls                 \
             | awk '{ $1=""; print}'                     \
             | sed -e "\|${layer}$|d" -e "s|${layer}/||" \
             | column -t | sort -k10)
@@ -364,11 +371,11 @@ overlayfs_commit()
     fi
 
     # Load the layer map for this overlayfs mount
-    local layers=""
+    local layers="" src="" src_name="" src_type=""
     overlayfs_layers "${mnt}" layers
-    local src=$(pack_get layers src)
-    local src_name=$(basename "${src}")
-    local src_type=$(archive_type "${src}")
+    src=$(pack_get layers src)
+    src_name=$(basename "${src}")
+    src_type=$(archive_type "${src}")
 
     # Optionally list the changes
     if [[ ${list} -eq 1 ]]; then
@@ -386,7 +393,8 @@ overlayfs_commit()
     # Create a tmp file to store changed version
     # Note: if src_name contains any captiol X's, it will either cause mktemp to fail completely or put the randomness
     # in the wrong place.  converting to lowercase solves this problem
-    local tmp=$(mktemp --tmpdir overlayfs-commit-XXXXXX-${src_name,,})
+    local tmp
+    tmp=$(mktemp --tmpdir overlayfs-commit-XXXXXX-${src_name,,})
     trap_add "rm --force ${tmp}"
 
     # Optionally start eprogress ticker
@@ -470,9 +478,9 @@ overlayfs_list_changes()
         "mnt       | The mountpoint to list changes for.")
  
     # Load the layer map for this overlayfs mount
-    local layers=""
+    local layers="" upperdir=""
     overlayfs_layers "${mnt}" layers
-    local upperdir="$(pack_get layers upperdir)"
+    upperdir="$(pack_get layers upperdir)"
 
     # Pretty print the list of changes
     if [[ ${long} -eq 1 ]]; then
@@ -521,8 +529,9 @@ overlayfs_dedupe()
     overlayfs_layers "${mnt}" layers
 
     # Get the upperdir and bottom-most lowerdir
-    local lower=$(pack_get layers lowest)
-    local upper=$(pack_get layers upperdir)
+    local lower="" upper=""
+    lower=$(pack_get layers lowest)
+    upper=$(pack_get layers upperdir)
 
     # Check each file in parallel and remove any identical files.
     local path="" fname=""
@@ -535,7 +544,8 @@ overlayfs_dedupe()
 
     # Now remove any empty orphaned directories in upper layer. Need to touch a temporary file in upper to avoid find
     # from also deleting that as well.
-    local tmp=$(mktemp --tmpdir=${upper} .overlayfs_dedupe-XXXXXX)
+    local tmp
+    tmp=$(mktemp --tmpdir=${upper} .overlayfs_dedupe-XXXXXX)
     find "${upper}" -type d -empty -delete
     rm --force "${tmp}"
 

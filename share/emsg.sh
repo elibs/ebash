@@ -325,7 +325,8 @@ ebanner()
         echo ""
         cols=${COLUMNS:-80}
         cols=$((cols-2))
-        eval "local str=\$(printf -- '-%.0s' {1..${cols}})"
+        local str=""
+        eval "str=\$(printf -- '-%.0s' {1..${cols}})"
         ecolor ${COLOR_BANNER}
         echo -e "+${str}+"
         echo -e "|"
@@ -374,9 +375,10 @@ ebanner()
             done
 
             # Iterate over the keys of the associative array and print out the values
+            local pad="" ktag=""
             for key in ${keys[@]}; do
-                local pad=$((longest-${#key}+1))
-                local ktag="${key}"
+                pad=$((longest-${#key}+1))
+                ktag="${key}"
 
                 # Optionally uppercase the key if requested.
                 if [[ ${uppercase} -eq 1 ]]; then
@@ -556,11 +558,15 @@ eerror_stacktrace()
     local frames=() frame
     stacktrace_array -f=${frame} frames
 
-    array_empty frames ||
+    if array_empty frames; then
+        return 0
+    fi
+
+    local line="" func="" file=""
     for frame in "${frames[@]}"; do
-        local line=$(echo ${frame} | awk '{print $1}')
-        local func=$(echo ${frame} | awk '{print $2}')
-        local file=$(basename $(echo ${frame} | awk '{print $3}'))
+        line=$(echo ${frame} | awk '{print $1}')
+        func=$(echo ${frame} | awk '{print $2}')
+        file=$(basename $(echo ${frame} | awk '{print $3}'))
 
         [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
 
@@ -628,8 +634,9 @@ eend()
         #       how many we're about to output
         #    2) Moves up a line
         #    3) Moves right the number of columns from #1
-        local columns=$(tput cols)
-        local startcol=$(( columns - 6 ))
+        local colums=0 startcol=0
+        columns=$(tput cols)
+        startcol=$(( columns - 6 ))
         [[ ${startcol} -gt 0 ]] && echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
     fi
 
@@ -698,9 +705,10 @@ eprogress()
 
         # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out 
         # gracefully at the right point in the loop.
+        local new="" diff="" lines=0 columns=0 offset=0
         while true; do
-            local now="${SECONDS}"
-            local diff=$(( ${now} - ${start} ))
+            now="${SECONDS}"
+            diff=$(( ${now} - ${start} ))
 
             # Display file contents if appropriate (minus final newline)
             if [[ -n ${file} && -r ${file} ]] ; then
@@ -713,9 +721,9 @@ eprogress()
                 # enough to allow the ticker to display such that it is right justified instead of lost on the far left
                 # of the screen intermingled with actions being performed.
                 if [[ "${align}" == "right" ]]; then
-                    local lines=$(tput lines)
-                    local columns=$(tput cols)
-                    local offset=$(( columns - 18 ))
+                    lines=$(tput lines)
+                    columns=$(tput cols)
+                    offset=$(( columns - 18 ))
                     tput cup "${lines}" "${offset}" 2>/dev/null
                 fi
 
@@ -848,8 +856,9 @@ print_value()
         return 0
     fi
 
-    local decl=$(declare -p ${__input} 2>/dev/null || true)
-    local val=$(echo "${decl}")
+    local decl val
+    decl=$(declare -p ${__input} 2>/dev/null || true)
+    val=$(echo "${decl}")
     val=${val#*=}
 
     # Deal with properly declared variables which are empty

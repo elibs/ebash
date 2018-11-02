@@ -122,8 +122,9 @@ chroot_kill()
     [[ -n ${regex} ]] && pids=$(pgrep "${regex}" || return 0) || pids=$(ps -eo "%p")
     edebug $(lval regex signal pids)
 
+    local pid link
     for pid in ${pids}; do
-        local link=$(readlink "/proc/${pid}/root" || true)
+        link=$(readlink "/proc/${pid}/root" || true)
 
         # Skip processes started in NO chroot or ANOTHER chroot
         [[ -z ${link} || ${link} != ${CHROOT} ]] && continue
@@ -222,9 +223,10 @@ chroot_install()
         fi
 
         # Actually installed
-        local actual=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
-        local apn="${actual%|*}"
-        local apv="${actual#*|}"
+        local actual apn apv
+        actual=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W -f='\${Package}|\${Version}' ${pn}")
+        apn="${actual%|*}"
+        apv="${actual#*|}"
 
         [[ ${pn} == ${apn} ]] || { eerror "Mismatched package name $(lval wanted=pn actual=apn)"; return 1; }
 
@@ -265,15 +267,14 @@ chroot_apt()
 chroot_listpkgs()
 {
     argcheck CHROOT
-    local output=$(chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W")
-    echo -en "${output}"
+    chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg-query -W"
 }
 
 chroot_uninstall_filter()
 {
     argcheck CHROOT
-    local filter=$@
-    local pkgs=$(chroot_listpkgs)
+    local filter=$@ pkgs=""
+    pkgs=$(chroot_listpkgs)
     chroot_uninstall $(eval "echo \"${pkgs}\" | ${filter} | awk '{print \$1}'")
 }
 

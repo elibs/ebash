@@ -204,25 +204,27 @@ ETEST_etrace()
 
 ETEST_emsg_reset_at_end_when_needed()
 {
-    local output=$(EMSG_PREFIX="" emsg "red" "XX" "WARN" "message" 2>&1)
-    local without_prefix_or_start_of_message=$(echo "${output}" | sed 's/^.*XX.*mess//')
+    local output output_short
+    output=$(EMSG_PREFIX="" emsg "red" "XX" "WARN" "message" 2>&1)
+    output_short=$(echo "${output}" | sed 's/^.*XX.*mess//')
 
     echo "output: ${output}" | cat -evt
-    echo "without_prefix_or_start_of_message: ${without_prefix_or_start_of_message}" | cat -evt
+    echo "output_short: ${output_short}" | cat -evt
 
-    assert_ne "${without_prefix_or_start_of_message}" "age"
-    assert_eq "age" "$(echo "${without_prefix_or_start_of_message}" | noansi)"
+    assert_ne "${output_short}" "age"
+    assert_eq "age" "$(echo "${output_short}" | noansi)"
 }
 
 ETEST_emsg_reset_not_at_end_when_unnecessary()
 {
-    local output=$(EMSG_PREFIX="" emsg "red" "XX" "INFO" "message" 2>&1)
-    local without_prefix_or_start_of_message=$(echo "${output}" | sed 's/^.*XX.*mess//')
+    local output output_short
+    output=$(EMSG_PREFIX="" emsg "red" "XX" "INFO" "message" 2>&1)
+    output_short=$(echo "${output}" | sed 's/^.*XX.*mess//')
 
     echo "output: ${output}" | cat -evt
-    echo "without_prefix_or_start_of_message: ${without_prefix_or_start_of_message}" | cat -evt
+    echo "output_short: ${output_short}" | cat -evt
 
-    assert_eq "${without_prefix_or_start_of_message}" "age"
+    assert_eq "${output_short}" "age"
 }
 
 ETEST_emsg_final_newline()
@@ -238,8 +240,9 @@ ETEST_noansi_pipe()
 {
     etestmsg "This line shouldn't be colored." |& noansi
 
-    declare without_color=$(EFUNCS_COLOR=1 ewarn "HELLO" |& noansi)
-    declare with_color=$(EFUNCS_COLOR=1 ewarn "HELLO" 2>&1 )
+    declare without_color wit_color
+    without_color=$(EFUNCS_COLOR=1 ewarn "HELLO" |& noansi)
+    with_color=$(EFUNCS_COLOR=1 ewarn "HELLO" 2>&1 )
 
     declare -p without_color with_color
 
@@ -253,8 +256,9 @@ ETEST_noansi_files()
     EFUNCS_COLOR=1 EMSG_PREFIX="" ewarn "A" 2> file_a
     EFUNCS_COLOR=1 EMSG_PREFIX="" ewarn "B" 2> file_b
 
-    declare a_contents="$(cat file_a)"
-    declare b_contents="$(cat file_b)"
+    declare a_contents b_contents
+    a_contents="$(cat file_a)"
+    b_contents="$(cat file_b)"
     
     assert_ne "A" "${a_contents}"
     assert_ne "B" "${b_contents}"
@@ -304,8 +308,9 @@ wait_for_ticks()
 {
     $(opt_parse expected)
 
+    local actual
     while true; do
-        local actual=$(tail -1 ${OUTPUT} || true)
+        actual=$(tail -1 ${OUTPUT} || true)
         [[ ${actual} -ge ${expected} ]] && return 0
 
         echo "Ticks: ${actual}/${expected}"
@@ -544,7 +549,8 @@ ETEST_no_stdout_contamination()
         eprogress_kill --rc 0
     }
 
-    local capture=$(EFUNCS_COLOR=1 EINTERACTIVE=1 ETRACE=foo EDEBUG=foo foo)
+    local capture
+    capture=$(EFUNCS_COLOR=1 EINTERACTIVE=1 ETRACE=foo EDEBUG=foo foo)
 
     assert_eq "EXPECTED" "${capture}"
 }
