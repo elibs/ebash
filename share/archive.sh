@@ -752,7 +752,7 @@ archive_append()
 
     # Extract the archive into tmpfs directory
     local unified
-    unified==$(mktemp --tmpdir --directory archive-append-unified-XXXXXX)
+    unified=$(mktemp --tmpdir --directory archive-append-unified-XXXXXX)
     opt_forward archive_extract nice -- "${dest}" "${unified}"
 
     # Bind mount all src paths being appended to the archive into unified directory.
