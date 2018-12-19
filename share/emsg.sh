@@ -10,7 +10,7 @@
 : ${EMSG_PREFIX:=}
 : ${EMSG_COLOR:=all}
 
-# Default color codes for emsg related functions. These can be overridden in /etc/bashutils.conf or ~/.config/bashutils.conf.
+# Default color codes for emsg related functions. These can be overridden in /etc/ebash.conf or ~/.config/ebash.conf.
 : ${COLOR_INFO:="bold green"}
 : ${COLOR_DEBUG:="blue"}
 : ${COLOR_TRACE:="yellow"}
@@ -245,13 +245,13 @@ ecolor()
     fi
     [[ ${efuncs_color} -eq 1 ]] || return 0
 
-    declare -Ag __BU_COLOR_CACHE
+    declare -Ag __EBASH_COLOR_CACHE
     local index=$*
-    if [[ ! -v "__BU_COLOR_CACHE[$index]" ]] ; then
-        __BU_COLOR_CACHE[$index]=$(ecolor_internal "${index}")
+    if [[ ! -v "__EBASH_COLOR_CACHE[$index]" ]] ; then
+        __EBASH_COLOR_CACHE[$index]=$(ecolor_internal "${index}")
     fi
 
-    echo -n "${__BU_COLOR_CACHE[$index]}"
+    echo -n "${__EBASH_COLOR_CACHE[$index]}"
 }
 
 ecolor_internal()
@@ -768,7 +768,7 @@ eprogress()
 
     ) &
     
-    __BU_EPROGRESS_PIDS+=( $! )
+    __EBASH_EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
 
@@ -793,11 +793,11 @@ eprogress_kill()
     local pids=()
     if [[ $# -gt 0 ]]; then
         pids=( ${@} )
-    elif array_not_empty __BU_EPROGRESS_PIDS; then 
+    elif array_not_empty __EBASH_EPROGRESS_PIDS; then 
         if [[ ${all} -eq 1 ]] ; then
-            pids=( "${__BU_EPROGRESS_PIDS[@]}" )
+            pids=( "${__EBASH_EPROGRESS_PIDS[@]}" )
         else
-            pids=( "${__BU_EPROGRESS_PIDS[-1]}" )
+            pids=( "${__EBASH_EPROGRESS_PIDS[-1]}" )
         fi
     else
         return 0
@@ -810,14 +810,14 @@ eprogress_kill()
         # Don't kill the pid if it's not running or it's not an eprogress pid.
         # This catches potentially disasterous errors where someone would do
         # "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
-        if process_not_running ${pid} || ! array_contains __BU_EPROGRESS_PIDS ${pid}; then
+        if process_not_running ${pid} || ! array_contains __EBASH_EPROGRESS_PIDS ${pid}; then
             continue
         fi
 
         # Kill process and wait for it to complete
         ekill ${pid} &>/dev/null
         wait ${pid} &>/dev/null || true
-        array_remove __BU_EPROGRESS_PIDS ${pid}
+        array_remove __EBASH_EPROGRESS_PIDS ${pid}
 
         # Output
         einteractive && echo "" >&2

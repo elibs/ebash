@@ -6,9 +6,9 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-: ${BASHUTILS_HOME:=$(dirname $0)/..}
-: ${BASHUTILS:=${BASHUTILS_HOME}/share}
-source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
 #-------------------------------------------------------------------------------
 # ebench
@@ -17,7 +17,7 @@ source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bash
 #   operations in bash and helping you to understand the time spent on each.
 #
 #   This should at least help us determine what sort of performance effects we
-#   have as we change things in bashutils.  Or at least, it would do that once
+#   have as we change things in ebash.  Or at least, it would do that once
 #   we actually test useful things in here.  For now, it's mostly useful when
 #   you're willing to edit the script and add the timing of things you're
 #   curious about.
@@ -129,11 +129,11 @@ BENCH_simple_opt_parse()
 
 PREBENCH_debug_trap()
 {
-    BASHUTILS_LEVEL=0
-    #trap "[[ ${BASH_SUBSHELL} != ${BASHUTILS_LEVEL} ]] && { BASHUTILS_LEVEL=${BASH_SUBSHELL} ; edebug spawned new \$BASHPID ; }" DEBUG
-    #trap "[[ ${BASH_SUBSHELL} != ${BASHUTILS_LEVEL} ]] && { BASHUTILS_LEVEL=${BASH_SUBSHELL} ; :  ; }" DEBUG
-    trap "if [[ ${BASH_SUBSHELL} != ${BASHUTILS_LEVEL:-} ]] ; then
-            BASHUTILS_LEVEL=${BASH_SUBSHELL}
+    EBASH_LEVEL=0
+    #trap "[[ ${BASH_SUBSHELL} != ${EBASH_LEVEL} ]] && { EBASH_LEVEL=${BASH_SUBSHELL} ; edebug spawned new \$BASHPID ; }" DEBUG
+    #trap "[[ ${BASH_SUBSHELL} != ${EBASH_LEVEL} ]] && { EBASH_LEVEL=${BASH_SUBSHELL} ; :  ; }" DEBUG
+    trap "if [[ ${BASH_SUBSHELL} != ${EBASH_LEVEL:-} ]] ; then
+            EBASH_LEVEL=${BASH_SUBSHELL}
           fi " DEBUG
 }
 
@@ -162,8 +162,8 @@ BENCH_no_debug_trap()
 
 BENCH_no_debug_trap_plus_comparison()
 {
-    if [[ ${BASH_SUBSHELL} != ${BASHUTILS_LEVEL:-} ]] ; then
-        BASHUTILS_LEVEL=${BASH_SUBSHELL}
+    if [[ ${BASH_SUBSHELL} != ${EBASH_LEVEL:-} ]] ; then
+        EBASH_LEVEL=${BASH_SUBSHELL}
     fi
     debug_trap_shared
 }

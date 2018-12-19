@@ -37,7 +37,7 @@ os_distro()
                  simply be printed")
 
     local actual_distro=""
-    if [[ ${__BU_OS,,} == "linux" ]] ; then
+    if [[ ${__EBASH_OS,,} == "linux" ]] ; then
         actual_distro=$(lsb_release --id --short)
     fi
 
@@ -79,7 +79,7 @@ os_release()
         actual_release=$(sw_vers -productVersion)
 
     else
-        die "os_release supports only linux and darwin, not ${__BU_OS}"
+        die "os_release supports only linux and darwin, not ${__EBASH_OS}"
     fi
 
     
@@ -119,13 +119,13 @@ os()
 
         local os
         for os in "${@}" ; do
-            if [[ ${os,,} == ${__BU_OS,,} ]] ; then
+            if [[ ${os,,} == ${__EBASH_OS,,} ]] ; then
                 return 0
             fi
         done
         return 1
 
     else
-        echo "${__BU_OS}"
+        echo "${__EBASH_OS}"
     fi
 }

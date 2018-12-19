@@ -13,7 +13,7 @@
 #
 # Within each of many different _subsystems_ that are set up by code in the kernel, a process may exist at one point in
 # a hierarchy.  That is, within the CPU subsystem, a process may only be owned by a single cgroup.  And in the memory
-# subsystem, it may be owned by a different cgroup.  For the purposes of THIS bashutils code, though, we duplicate a
+# subsystem, it may be owned by a different cgroup.  For the purposes of THIS ebash code, though, we duplicate a
 # similar tree of groups within _all_ of the subsystems that we interact with.
 #
 # CGROUP_SUBSYSTEMS defines which subsystems those are. So when you use these functions, the hierarchy that you create
@@ -41,8 +41,8 @@ if grep -q ":/docker/" /proc/$$/cgroup 2>/dev/null; then
 fi
 
 #-------------------------------------------------------------------------------------------------------------------------
-# Detect whether the machine currently running this code is built with kernel
-# support for all of the cgroups subsystems that bashutils depends on.
+# Detect whether the machine currently running this code is built with kernel support for all of the cgroups subsystems
+# that ebash depends on.
 #
 cgroup_supported()
 {
@@ -62,7 +62,7 @@ cgroup_supported()
     return ${missing_count}
 }
 
-[[ ${__BU_OS} == Linux ]] || return 0
+[[ ${__EBASH_OS} == Linux ]] || return 0
 
 
 #-------------------------------------------------------------------------------------------------------------------------

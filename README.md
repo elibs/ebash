@@ -1,8 +1,6 @@
-[TOC]
+# ebash Guide
 
-# Bashutils Guide
-
-## Why Bashutils?
+## Why ebash?
 ### Implicit Error Detection
 Bash is a strange beast.  It can be an interactive shell, in which case you’d
 like to be notified of failures but not for them to be catastrophic.  And when
@@ -17,16 +15,16 @@ that could never happen, right?  Or perhaps you have taken extreme care to
 check for errors in all possible cases.  Now your code is wordy and more
 difficult to follow.
 
-With bashutils, we have decided to make scripts detect errors implicitly.  If
+With ebash, we have decided to make scripts detect errors implicitly.  If
 an error occurs, you’ll detect it and your script will blow up.  You can
 specifically ignore such failures when you know it’s safe, but the default is
 to make the failure as obvious as possible.
 
 This is in opposition to all bash defaults.  And, frankly, it’s a bit difficult
 to force bash into really blowing up on all failures.  But we do our best with
-a multi-layered approach.  As long as you use the typical bashutils idioms and
+a multi-layered approach.  As long as you use the typical ebash idioms and
 follow a small set of styles we prescribe, we believe that any time an error
-occurs in your bashutils code, you’ll hear about it.
+occurs in your ebash code, you’ll hear about it.
 
 First, we use bash’s error trap functionality.  This behaves just like `set
 -e`, except that we get to choose what runs when an error occurs.  Basically,
@@ -42,13 +40,13 @@ the following lines of code, bash will ignore any return code of `cmd`.
     echo "$(cmd)"
     local var=$(cmd)
 
-But bashutils enhances bash’s error detection to catch this case.  The error
+But ebash enhances bash’s error detection to catch this case.  The error
 trap is inherited by the shell inside the command substitution, and when it
 calls die, it will actually send a signal to its parent shell.  When the parent
 shell receives that signal, it generates a stack trace and blows up, which is
 exactly what we were looking for.
 
-However, despite the best efforts of bashutils, bash allows you to shoot
+However, despite the best efforts of ebash, bash allows you to shoot
 yourself in the foot in subtle ways that mask error handling.  The final
 component of our efforts to make errors implicitly detected are some styles to
 avoid.
@@ -58,7 +56,7 @@ avoid.
 Typically, you can count on bash’s built in error detection (i.e. `set -e`,
 which we enable by default) to blow up if a command you run exits with a
 non-zero exit code.  Sometimes that’s not what you want.  For one example, see
-`grep` returns a bad exit code if it has no matches.  
+`grep` returns a bad exit code if it has no matches.
 
 But using `||` has a more insidious effect when used around a bash function
 call, and for that reason we avoid it whenever possible on bash functions.
@@ -73,7 +71,7 @@ Consider:
 
 
 When this code is executed, if `command1` fails, then the script will blow up
-immediately and will not execute `command2`.  In bashutils, this is what we
+immediately and will not execute `command2`.  In ebash, this is what we
 want and expect.  But, given the same `func`, the following command works
 differently:
 
@@ -89,7 +87,7 @@ the overall result of `func` is success.
 As you can see, this can dramatically affect the way code runs, and we’ve come
 across large issues that were masked by this behavior.  So our standard on
 these is to only use `||` or `&&` on simple statements including only bash
-builtins or executables.  
+builtins or executables.
 
 If you need to ignore errors in bash functions that you call, instead use
 `tryrc` or `try` / `catch`. They make sure that error detection is enabled for
@@ -102,7 +100,7 @@ same `func` as in that item, issues called in `func` will also be masked by
 either of the following types of code:
 
     if func; then ; something ; fi
-    
+
     while func; do ; something ; done
 
 That is to say, any errors in anything `func` calls will be suppressed, so it
@@ -118,7 +116,7 @@ properly.
 
 ### Use try / catch to handle errors
 
-Since bashutils forces you to be explicit about when you’d like to ignore
+Since ebash forces you to be explicit about when you’d like to ignore
 errors in your bash script, it also gives you ways to do that.  First off is
 the `try` / `catch` construct.  This looks frighteningly like the C++
 construct.
@@ -144,7 +142,7 @@ So if either `cmd1` or `cmd2` fail, the catch block will be executed.  At the
 beginning of the catch block, the value of `$?` will be the return code of the
 failing command.
 
-The most difficult caveat of using `try` and `catch` in bashutils is that the
+The most difficult caveat of using `try` and `catch` in ebash is that the
 code in the `try` block is its own subshell.  This means that variable
 assignments that you make inside this block will not be seen outside.  It’s
 impossible to set a variable in a parent shell from its subshell.  Note that
@@ -161,7 +159,7 @@ behavior depending on its return code.  For external commands, the bash if
 statement or shortcutting logical operators (`||` and `&&`) handle this nicely,
 but if you’re calling functions it is a bad idea to use them in this way.
 
-`Tryrc` is the bashutils solution to this issue.  It runs a function (or
+`Tryrc` is the ebash solution to this issue.  It runs a function (or
 external command, basically any single statement bash can execute) and captures
 its return code for later examination.  Its simplest usage looks like this:
 
@@ -203,7 +201,7 @@ change the ordering of the output.
 
 ### Handling commands that fail or hang
 
-The bashutils `eretry` function can be used to run other commands that you
+The ebash `eretry` function can be used to run other commands that you
 expect to sometimes fail, but from which you eventually expect a positive
 response.  Suppose I have a tool named `foo` that frequently fails in flaky
 ways.  When I call it with no options, `eretry` will run `foo` until it passes,
@@ -235,7 +233,7 @@ will be killed and an error code will be returned.
 ### `grep` returns a bad exit code if it has no matches
 
 When you use `grep`, be aware that it will return a bad exit code if it finds
-no matches.  And when it does, the bashutils error detection code will blow
+no matches.  And when it does, the ebash error detection code will blow
 your script up to let you know that there was an error.  But sometimes that
 isn’t what you want.
 
@@ -259,7 +257,7 @@ does by default, it’ll be fine.
 ## Common Logging and Output Styles
 ### A standard, styleable output format
 
-Bashutils provides a few standard functions intended for logging output to the
+ebash provides a few standard functions intended for logging output to the
 screen.  `Einfo` is intended for standard flow information in the typical case.
 `Ewarn` indicate non-fatal things that might warrant user attention.  `Eerror`
 are typically used for failure cases.  All of these produce their output on
@@ -269,38 +267,38 @@ These commands are invoked in the same way as you might call `echo`.  Here’s a
 script that uses them.
 
     #!/usr/bin/env bash
-    
-    : ${BASHUTILS:=/home/modell/sf/bashutils}
-    source ${BASHUTILS}/bashutils.sh || exit 1
-    
+
+    : ${EBASH:=/home/modell/sf/ebash}
+    source ${EBASH}/ebash.sh || exit 1
+
     einfo "einfo"
     ewarn "ewarn"
     eerror "eerror"
 
 I’m not going to try to reproduce color in this guide, but by default the
 output looks like this, with green color for info-level messages, yellow for
-warning, and red for errors.  
+warning, and red for errors.
 
     >> einfo
     >> ewarn
     >> eerror
 
 But the output can be modified in a few ways.  One way to customize it is to
-set `EFUNCS_COLOR=0`, which turns of color for this and all bashutils tools.
+set `EFUNCS_COLOR=0`, which turns of color for this and all ebash tools.
 Another is that you can request timestamps.
 
-    > EMSG_PREFIX=time ~/bashutils_guide
+    > EMSG_PREFIX=time ~/ebash_guide
     [Nov 12 13:31:16] einfo
     [Nov 12 13:31:16] ewarn
     [Nov 12 13:31:16] eerror
 
-Or, to request all information that bashutils will produce, you can set
+Or, to request all information that ebash will produce, you can set
 `EMSG_PREFIX` to all.
 
-    > EMSG_PREFIX=all ./bashutils_guide
-    [Nov 12 13:24:19|INFO|bashutils_guide:6:main] einfo
-    [Nov 12 13:24:19|WARN|bashutils_guide:7:main] ewarn
-    [Nov 12 13:24:19|ERROR|bashutils_guide:8:main] eerror
+    > EMSG_PREFIX=all ./ebash_guide
+    [Nov 12 13:24:19|INFO|ebash_guide:6:main] einfo
+    [Nov 12 13:24:19|WARN|ebash_guide:7:main] ewarn
+    [Nov 12 13:24:19|ERROR|ebash_guide:8:main] eerror
 
 Here you can see the timestamp, log level, function name, line number, and
 filename of the code that generated the message.  There’s more information on
@@ -321,7 +319,7 @@ span the entire width of the terminal.
 
 Despite the best of intentions, everyone writing bash code eventually needs to
 starting printing things out to figure out what on earth is happening.  For
-user-level logging, bashutils includes `einfo`, `ewarn`, and `eerror` commands
+user-level logging, ebash includes `einfo`, `ewarn`, and `eerror` commands
 that present messages of varying importance in a consistent manner.
 
 But back to debugging, we also have an `edebug` (which we pronounce "ee-debug")
@@ -365,7 +363,7 @@ string.
     array[0]=alpha
     array[1]=beta
     echo "$(lval aa var array)"
-    # Produces: 
+    # Produces:
     # aa=([bar]="2" [foo]="1" ) var="hello world" array=("alpha" "beta")
 
 ### Debugging beyond logging: `ETRACE`
@@ -373,16 +371,16 @@ string.
 But maybe you’ve looked at all the debugging output you can find and you still
 need more information about what is going on.  You may be aware that you can
 get bash to print each command before it executes it by turning on the `set -x`
-option. Bashutils takes this a little further by using selective controls for
+option. ebash takes this a little further by using selective controls for
 command tracing rather than blanket turning on `set -x` for the entire script.
 For instance, I have the following script that on my machine is named
 `etrace_test`.
 
     #!/usr/bin/env bash
-    
-    : ${BASHUTILS:=/usr/local/share/bashutils-1.1.8}
-    source ${BASHUTILS}/bashutils.sh
-    
+
+    : ${EBASH:=/usr/local/share/ebash-1.1.8}
+    source ${EBASH}/ebash.sh
+
     echo "Hi"
     a=alpha
     b=beta
@@ -407,7 +405,7 @@ functionality has a much higher overhead than does running with edebug enabled,
 but it can be immensely helpful when you really need it.
 
 One caveat: you can’t change the value of `ETRACE` on the fly.  The value it
-had when you sourced bashutils is the one that will affect the entire runtime
+had when you sourced ebash is the one that will affect the entire runtime
 of the script.
 
 ## Data Structures
@@ -499,12 +497,12 @@ with a percent sign.
 
 ## Other Common Tasks
 
-There are several other utilities in bashutils that help with the plumbing you
+There are several other utilities in ebash that help with the plumbing you
 need as you write bash code day to day.
 
 ### Use `opt_parse` to read parameters
 
-Early in the life of bashutils, we found ourselves writing the same pattern
+Early in the life of ebash, we found ourselves writing the same pattern
 over and over in our functions.
 
     foo()
@@ -513,7 +511,7 @@ over and over in our functions.
         local arg2=$2
         shift 2
         argcheck arg1 arg2
-    
+
         # Do some stuff here with arg1 and arg2
     }
 
@@ -529,7 +527,7 @@ neither is empty by calling `argcheck` against them.
     foo()
     {
         $(opt_parse arg1 arg2)
-    
+
         # Do stuff here with arg1 and arg2
     }
 
@@ -553,7 +551,7 @@ appetite:
         ":long_option l | Option that is called -l or --long-option" \
         ":file=file.txt | Option whose value has a default" \
         "+bool b        | Boolean option (value of 1 or 0)" \
-        "arg            | Positional argument") 
+        "arg            | Positional argument")
 
 
 ### Clean up after yourself
@@ -563,7 +561,7 @@ of some sort.  (We don’t just write these things to make the CPU hot, right?)
 Some are important, but often we generate temporary files or directories or
 processes or whatever that should be taken care of when we’re done running.
 
-But recall that bashutils will cause scripts to generate a stack trace and
+But recall that ebash will cause scripts to generate a stack trace and
 terminate if they encounter an error.  You still want to be sure that those
 things got cleaned up.  The right way to handle this is to use traps.  But
 please don’t use bash’s built in `trap` command to set the traps, because then
@@ -600,17 +598,17 @@ everything honors `sigterm` anyway.
 
 ## Unit Tests
 
-As bashutils grew, we found that it was sometimes difficult to keep everything
+As ebash grew, we found that it was sometimes difficult to keep everything
 working the way we expected and realized that we needed a way to automatically
 test it.  In a few hours, `etest` was born.
 
-Bashutils has a fairly extensive test suite at this point, containing over 300
+ebash has a fairly extensive test suite at this point, containing over 300
 tests that cover pretty much all of the important functionality, and we try to
 add more any time we discover a problem so that it doesn’t return.  It’s run on
 every commit.
 
 You can run this test suite easily on your machine, too.  Just hop into the
-bashutils directory and run:
+ebash directory and run:
 
     ./etest
 
@@ -618,16 +616,16 @@ bashutils directory and run:
 
 Over time, `etest` has become a fairly robust way to run unit tests for
 anything that you can call from bash.  Today, we have `etest` suites for
-several tools outside of bashutils, too.  It’s designed so that it’s easy to
+several tools outside of ebash, too.  It’s designed so that it’s easy to
 create your own by creating one or more test files.  Here’s an entire (simple)
-test file.  We expect the filenames to end in `.etest`.  
+test file.  We expect the filenames to end in `.etest`.
 
     #!/usr/bin/env bash
     ETEST_will_pass()
     {
         true
     }
-    
+
     ETEST_will_fail()
     {
         false
@@ -639,12 +637,12 @@ directly, it needs a shebang line at the top that includes the word "bash"
 because that’s one of the ways etest determines whether it can execute a file.
 
     > ./etest -f=mytest.sh
-    >> Starting tests in /home/modell/sf/bashutils/mytest.sh
+    >> Starting tests in /home/modell/sf/ebash/mytest.sh
        - ETEST_will_fail                                             [ !! ]
        - ETEST_will_pass                                             [ ok ]
 
-    >> Finished testing bashutils b8ceaa772b6a+. 1/2 tests passed in 7 seconds.
-    
+    >> Finished testing ebash b8ceaa772b6a+. 1/2 tests passed in 7 seconds.
+
     >> FAILED TESTS:
           will_fail
 
@@ -691,10 +689,10 @@ Non-verbose mode would look the same, so we’ll run it in verbose mode:
     ## Step 2
     hi from step 2
     ## Step 3
-    
+
     >> ETEST_will_pass PASSED.
-    
-    >> Finished testing bashutils b8ceaa772b6a+. 1/1 tests passed in 5 seconds.
+
+    >> Finished testing ebash b8ceaa772b6a+. 1/1 tests passed in 5 seconds.
 
 Even when your individual steps write more to the screen than a simple echo,
 the messages produced by `etestmsg` are colored so as to stand out against all
@@ -722,10 +720,10 @@ leeway), the test will fail.  For example:
 (24783), and blows up as a result.
 
     > ./etest -f=leak_process
-    >> Starting tests in /home/modell/sf/bashutils/mytest.sh
+    >> Starting tests in /home/modell/sf/ebash/mytest.sh
        - ETEST_leak_process                                  [ ok ]
-    
-    >> Leaked processes in etest/bashutils/14954:
+
+    >> Leaked processes in etest/ebash/14954:
       PID  STARTED NLWP  NI COMMAND
     24783 11:49:05    1   0 sleep 15
        :: etest:122            | assert_no_process_leaks
@@ -737,7 +735,7 @@ using `ekilltree` and `trap_add`
 
 ## And there’s more...
 
-There’s far more in bashutils than I can enumerate in this guide.  Bashutils
+There’s far more in ebash than I can enumerate in this guide.  ebash
 has many functions intended to help with other needs.  Most of the ones that
 are useful at a high-level have documentation as comments above them in the
 file they’re defined in.  Don’t be afraid to poke around and see if there’s
@@ -747,7 +745,7 @@ anything else that can help you.
 - Create and maintain ubuntu 12.04-based chroot environments (`chroot.sh`)
 - Assert statements to blow up if a condition you expect isn’t true
   (`efuncs.sh`)
-- Create, track, and move processes between cgroups (`cgroup.sh`) 
+- Create, track, and move processes between cgroups (`cgroup.sh`)
 - Linux network namespaces (`netns.sh`)
 - Interacting with Jenkins (`jenkins.sh`)
 
@@ -763,7 +761,7 @@ For instance:
 
     > ARRAY=(A B C D) declare -p ARRAY
     declare -a ARRAY='([0]="A" [1]="B" [2]="C" [3]="D")'
-    
+
     > unset ARRAY[B]
     > unset ARRAY[D]
     > declare -p ARRAY
@@ -781,7 +779,7 @@ You can do this the same way you would with an associative array, with
 
     for index in "${!ARRAY[@]}" ; do echo "${ARRAY[$index]}" done
 
-Or, there is a bashutils function that does the same thing to help you:
+Or, there is a ebash function that does the same thing to help you:
 
     for index in "$(array_indexes ARRAY)" ; do echo "${ARRAY[$index]}" done
 
@@ -809,10 +807,10 @@ the contents of your file system:
 At the end of the day, it’s usually easier to just quote everything than to try
 to guess when it will matter or when it won’t.
 
-# Bashutils Style
+# ebash Style
 
-These are the styles we use when writing code in bashutils, and frequently in
-related code using bashutils.
+These are the styles we use when writing code in ebash, and frequently in
+related code using ebash.
 
 ## General Formatting
 
@@ -849,7 +847,7 @@ and avoid collisions.  For that first word, we do occasionally use
 abbreviations as we don’t want them to cause the names to increase to
 ridiculous lengths.
 
-For instance, you’ll find functions with these names in bashutils:
+For instance, you’ll find functions with these names in ebash:
 
 - `cgroup_create`
 - `cgroup_destroy`
@@ -885,7 +883,7 @@ and
 
 Bash provides `[[` because it’s easier to deal with, has more functionality
 such as regular expression matching, and reduces the amount of quoting you must
-do to use it correctly.  
+do to use it correctly.
 
 `[` is a posix-standard external binary.  `[[` is a bash builtin, so it’s
 cheaper to run.  The builtin is also able to give you syntactic niceties.  For
@@ -895,7 +893,7 @@ the same thing with the `[` command would not be.
     [[ -z ${A} ]]
 
 Aside from posix shell compatibility (which is not a concern when using
-bashutils), there is no downside.
+ebash), there is no downside.
 
 ## Every variable that can be declared local must be declared local
 
@@ -903,11 +901,11 @@ If you don’t tell bash to use local variables, it assumes that all of the
 variables you create are global.  If someone else happens to use the same name
 for something, one of you is likely to stomp on the value that the other set.
 
-Note that both local and declare create local variables.  Bashutils helpers
+Note that both local and declare create local variables.  ebash helpers
 such as `opt_parse` and `tryrc` create local variables for you, too.
 
 One place that it’s really easy to accidentally not use a local variable is
-with a bash for loop. 
+with a bash for loop.
 
     # Note: index here is NOT LOCAL
     for index in "${array[@]}" ; do
@@ -920,9 +918,9 @@ You must specifically declare for loop index variables as local.
 
 ## Do not change `IFS`
 
-Like most other bash code, bashutils is written under the assumption that `IFS`
+Like most other bash code, ebash is written under the assumption that `IFS`
 is at its default value.  If you change the value of `IFS` and call any
-bashutils code, expect things to break most likely in subtle ways.
+ebash code, expect things to break most likely in subtle ways.
 
 # Other Bash Resources
 

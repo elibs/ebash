@@ -131,7 +131,7 @@ imported. If any of the explicitly requested keys are not present this will be i
 error and json_import will return non-zero. Keys can be marked optional via the '?' prefix before
 the key name in which case they will be set to an empty string if the key is missing. 
 
-Similar to a lot of other  methods inside bashutils, this uses the "eval command invocation string"
+Similar to a lot of other  methods inside ebash, this uses the "eval command invocation string"
 idom. So, the proper calling convention for this is:
 
     $(json_import)

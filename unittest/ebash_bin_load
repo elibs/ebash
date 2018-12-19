@@ -8,9 +8,9 @@
 
 set -eu
 
-$(${BASHUTILS_HOME}/bin/bashutils --source)
+$(${EBASH_HOME}/bin/ebash --source)
 
-# If bashutils was able to be sourced, this should pass.  If not, einfo won't be a recognized command and the set -eu
+# If ebash was able to be sourced, this should pass.  If not, einfo won't be a recognized command and the set -eu
 # above will ensure that it fails
 einfo hi
 

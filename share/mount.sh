@@ -365,14 +365,14 @@ eunmount()
 # Platform agnostic mechanism for listing mounts.
 list_mounts()
 {
-    if [[ ${__BU_OS} == Linux ]] ; then
+    if [[ ${__EBASH_OS} == Linux ]] ; then
         cat /proc/self/mounts
 
-    elif [[ ${__BU_OS} == Darwin ]] ; then
+    elif [[ ${__EBASH_OS} == Darwin ]] ; then
         mount
 
     else
-        die "Cannot list mounts for unsupported OS $(lval __BU_OS)"
+        die "Cannot list mounts for unsupported OS $(lval __EBASH_OS)"
     fi
 }
 

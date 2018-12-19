@@ -343,7 +343,7 @@ dialog_prompt()
         # Spawn a background dialog process to react to the key presses and other metadata keys we'll feed it through
         # the input file descriptor.
         (
-            __BU_INSIDE_TRY=1
+            __EBASH_INSIDE_TRY=1
             disable_die_parent
             DIALOGRC=${dlgrc} command dialog --colors   \
                 --default-button    "${default_button}" \

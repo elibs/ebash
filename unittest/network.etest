@@ -6,7 +6,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if [[ ${__BU_OS} == Linux ]] ; then
+if [[ ${__EBASH_OS} == Linux ]] ; then
 
 ETEST_get_listening_network_ports()
 {

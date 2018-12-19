@@ -7,20 +7,20 @@
 # version.
 
 # Allow calling function documentation in ibu.  This must happen before
-# sourcing bashutils.
-__BU_SAVE_DOC=1
+# sourcing ebash.
+__EBASH_SAVE_DOC=1
 
 reload()
 {
-    : ${BASHUTILS_HOME:=$(dirname $0)/..}
-    : ${BASHUTILS:=${BASHUTILS_HOME}/share}
-    source ${BASHUTILS}/bashutils.sh || { echo "Failed to source ${BASHUTILS}/bashutils.sh" ; exit 1 ; }
-    BASHUTILS=$(readlink -f ${BASHUTILS})
-    BASHUTILS_HOME=$(readlink -f ${BASHUTILS_HOME})
+    : ${EBASH_HOME:=$(dirname $0)/..}
+    : ${EBASH:=${EBASH_HOME}/share}
+    source ${EBASH}/ebash.sh || { echo "Failed to source ${EBASH}/ebash.sh" ; exit 1 ; }
+    EBASH=$(readlink -f ${EBASH})
+    EBASH_HOME=$(readlink -f ${EBASH_HOME})
 }
 reload
 
-HISTFILE=$(mktemp --tmpdir ibashutils_$$_XXXXXX)
+HISTFILE=$(mktemp --tmpdir iebash_$$_XXXXXX)
 trap_add "rm --force \"${HISTFILE}\""
 
 : ${IBU_PROMPT:=$(ecolor green)$'IBU>\n'$(ecolor none)}
@@ -45,7 +45,7 @@ protected_read()
 repl()
 {
     while true ; do
-        # Note: In typical bashutils style, I would probably use tryrc here,
+        # Note: In typical ebash style, I would probably use tryrc here,
         # but I want to make sure that all commands are executed in the same
         # shell.
         protected_read -e -r -p "${IBU_PROMPT}" cmd && rc=0 || rc=$?
@@ -86,7 +86,7 @@ if [[ -n "${load}" ]] ; then
     source "${load}"
 fi
 
-einfo "Bashutils $(lval BASHUTILS)"
+einfo "ebash $(lval EBASH)"
 
 repl
 

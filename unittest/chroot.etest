@@ -6,9 +6,9 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${__BU_OS} == Linux ]] || return 0
+[[ ${__EBASH_OS} == Linux ]] || return 0
 
-source ${BASHUTILS_HOME}/unittest/daemon_expect.sh
+source ${EBASH_HOME}/unittest/daemon_expect.sh
 
 setup()
 {
@@ -166,8 +166,8 @@ ETEST_chroot_install()
     chroot_mount
     trap_add "chroot_exit"
 
-    chroot_install "bashutils-sfdev-precise-1.0.1>=5"
-    chroot_uninstall "bashutils-sfdev-precise-1.0.1"
+    chroot_install "ebash-sfdev-precise-1.0.1>=5"
+    chroot_uninstall "ebash-sfdev-precise-1.0.1"
 
     # Empty
     chroot_install
@@ -191,14 +191,14 @@ ETEST_chroot_ebindmount()
     chroot_cmd 'mkdir /'"${dirname}"
     chroot_cmd 'mkdir /'"${dirname}-bound"
 
-    # Bind mount bashutils into the chroot so we can call ebindmount from that
-    ebindmount "${BASHUTILS_HOME}" "${CHROOT}/${dirname}"
+    # Bind mount ebash into the chroot so we can call ebindmount from that
+    ebindmount "${EBASH_HOME}" "${CHROOT}/${dirname}"
 
     # Bind a local directory to another at the top of the hierarchy so we can be sure the filesystem
     # source of the first is a filesystem whose root we cannot see in this chroot
-    chroot_cmd "BASHUTILS_HOME=/${dirname} BASHUTILS=${dirname}/share /${dirname}/bin/bashutils ebindmount /${dirname} /${dirname}-bound"
+    chroot_cmd "EBASH_HOME=/${dirname} EBASH=${dirname}/share /${dirname}/bin/ebash ebindmount /${dirname} /${dirname}-bound"
 
-    assert_exists "${CHROOT}/${dirname}-bound/share/bashutils.sh"
+    assert_exists "${CHROOT}/${dirname}-bound/share/ebash.sh"
 
     # Clean up
     eunmount -r "${CHROOT}/${dirname}"

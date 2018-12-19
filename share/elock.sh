@@ -6,14 +6,14 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${__BU_OS} == "Linux" ]] || return 0
+[[ ${__EBASH_OS} == "Linux" ]] || return 0
 
 
 #---------------------------------------------------------------------------------------------------
 # LOCKFILES
 #---------------------------------------------------------------------------------------------------
 
-declare -A __BU_ELOCK_FDMAP
+declare -A __EBASH_ELOCK_FDMAP
 
 opt_usage elock <<'END'
 elock is a wrapper around flock(1) to create a file-system level lockfile associated with a given
@@ -35,7 +35,7 @@ in a subshell and it will automatically be closed and freed up when the subshell
 Lockfiles are inherited by subshells. Specifically, a subshell will see the file locked and has the
 ability to unlock that file. This may seem odd since subshells normally cannot modify parent's
 state. But in this case it is in-kernel state being modified for the process which the parent and
-subshell share. The one catch here is that our internal state variable __BU_ELOCK_FDMAP will become
+subshell share. The one catch here is that our internal state variable __EBASH_ELOCK_FDMAP will become
 out of sync when this happens because a call to unlock inside a subshell will unlock it but cannot
 remove from our parent's FDMAP. All of these functions deal with this possibility properly by not
 considering the FDMAP authoritative. Instead, rely on flock for error handling where possible and
@@ -74,7 +74,7 @@ elock()
 
     if flock --exclusive ${fd}; then
         edebug "Successfully locked $(lval fname fd)"
-        __BU_ELOCK_FDMAP[$fname]=${fd}
+        __EBASH_ELOCK_FDMAP[$fname]=${fd}
         return 0
     else
         edebug "Failed to lock $(lval fname fd)"
@@ -103,7 +103,7 @@ eunlock()
     edebug "Unlocking $(lval fname fd)"
     flock --unlock ${fd}
     eval "exec ${fd}>&-"
-    unset __BU_ELOCK_FDMAP[$fname]
+    unset __EBASH_ELOCK_FDMAP[$fname]
 }
 
 opt_usage elock_get_fd <<'END'
@@ -114,7 +114,7 @@ END
 elock_get_fd()
 {
     $(opt_parse fname)
-    local fd="${__BU_ELOCK_FDMAP[$fname]:-}"
+    local fd="${__EBASH_ELOCK_FDMAP[$fname]:-}"
     if [[ -z "${fd}" ]]; then
         return 1
     else

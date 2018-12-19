@@ -13,9 +13,9 @@ opt_parse
 Terminology
 -----------
 
-First a quick bit of background on the terminology used for bashutils parameter
+First a quick bit of background on the terminology used for ebash parameter
 parsing.  Different well-meaning folks use different terms for the same things,
-but these are the definitions as they apply within bashutils documentation.
+but these are the definitions as they apply within ebash documentation.
 
 First, here's an example command line you might use to search for lines that do
 not contain "alpha" within a file named "somefile".
@@ -52,7 +52,7 @@ Arguments
 ---------
 
 The simplest functions frequently just take an argument or two.  We discovered
-early in the life of bashutils a frequent pattern:
+early in the life of ebash a frequent pattern:
 
     foo()
     {
@@ -142,7 +142,7 @@ words are separated with hyphens in option names, but hyphens are not allowed
 to be characters in bash variables, so we use underscores in the variable name
 and automatically translate that to a hyphen in the option name.
 
-At present, bashutils supports two different types of options: boolean and
+At present, ebash supports two different types of options: boolean and
 string.
 
 
@@ -243,7 +243,7 @@ opt_parse()
 {
     # An interesting but non-obvious trick is being played here.
     # Opt_parse_setup is called during the opt_parse call, and it sets up some
-    # variables (such as __BU_OPT and __BU_ARG).  Since they're already
+    # variables (such as __EBASH_OPT and __EBASH_ARG).  Since they're already
     # created, when we eval the calls to opt_parse_options and
     # opt_parse_arguments, we can modify those variables and pass them amongst
     # the internals of opt_parse.  This makes it easier to write the more
@@ -254,69 +254,69 @@ opt_parse()
     echo "eval "
     opt_parse_setup "${@}"
 
-    # __BU_FULL_ARGS is the list of arguments as initially passed to
-    # opt_parse. Opt_parse_options will modifiy __BU_ARGS to be whatever was
+    # __EBASH_FULL_ARGS is the list of arguments as initially passed to
+    # opt_parse. Opt_parse_options will modifiy __EBASH_ARGS to be whatever was
     # left to be processed after it is finished. Note: here $@ is quoted so it
     # refers to the caller's arguments
-    echo 'declare -a __BU_FULL_ARGS=("$@") ; '
-    echo 'declare -a __BU_ARGS=("$@") ; '
-    echo 'declare __BU_OPT_USAGE_REQUESTED=0 ; '
+    echo 'declare -a __EBASH_FULL_ARGS=("$@") ; '
+    echo 'declare -a __EBASH_ARGS=("$@") ; '
+    echo 'declare __EBASH_OPT_USAGE_REQUESTED=0 ; '
     echo "opt_parse_options ; "
 
     # If usage was requsted, print it and return success without doing anything
     # else
-    echo 'if [[ ${__BU_OPT_USAGE_REQUESTED:-0} -eq 1 ]] ; then '
+    echo 'if [[ ${__EBASH_OPT_USAGE_REQUESTED:-0} -eq 1 ]] ; then '
     echo '   opt_display_usage ; '
     echo '   [[ -n ${FUNCNAME:-} ]] && return 0 || exit 0 ; '
     echo 'fi ; '
 
     # Process options
     echo 'declare opt ; '
-    echo 'if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then '
-    echo '    for opt in "${!__BU_OPT[@]}" ; do'
-    echo '        if [[ ${__BU_OPT_TYPE[$opt]} == "accumulator" ]] ; then '
-    echo '            array_init_nl "${opt//-/_}" "${__BU_OPT[$opt]}" ; '
+    echo 'if [[ ${#__EBASH_OPT[@]} -gt 0 ]] ; then '
+    echo '    for opt in "${!__EBASH_OPT[@]}" ; do'
+    echo '        if [[ ${__EBASH_OPT_TYPE[$opt]} == "accumulator" ]] ; then '
+    echo '            array_init_nl "${opt//-/_}" "${__EBASH_OPT[$opt]}" ; '
     echo '        else '
-    echo '            declare "${opt//-/_}=${__BU_OPT[$opt]}" ; '
+    echo '            declare "${opt//-/_}=${__EBASH_OPT[$opt]}" ; '
     echo '        fi ; '
     echo '    done ; '
     echo 'fi ; '
 
     # Process arguments
     echo 'opt_parse_arguments ; '
-    echo 'if [[ ${#__BU_ARG[@]} -gt 0 ]] ; then '
-    echo '    for index in "${!__BU_ARG[@]}" ; do '
+    echo 'if [[ ${#__EBASH_ARG[@]} -gt 0 ]] ; then '
+    echo '    for index in "${!__EBASH_ARG[@]}" ; do '
     echo '        [[ -n ${index} ]] || continue ; '
-    echo '        [[ ${__BU_ARG_NAMES[$index]} != _ ]] && declare "${__BU_ARG_NAMES[$index]}=${__BU_ARG[$index]}" ; '
+    echo '        [[ ${__EBASH_ARG_NAMES[$index]} != _ ]] && declare "${__EBASH_ARG_NAMES[$index]}=${__EBASH_ARG[$index]}" ; '
     echo '    done ; '
     echo 'fi ; '
-    echo 'argcheck "${__BU_ARG_REQUIRED[@]:-}" ; '
+    echo 'argcheck "${__EBASH_ARG_REQUIRED[@]:-}" ; '
 
     # Make sure $@ is filled with args that weren't already consumed
-    echo 'if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 && ${#__BU_ARGS[@]:-} -gt 0 || -v __BU_ARGS[@] ]] ; then'
-    echo '    set -- "${__BU_ARGS[@]}" ; '
+    echo 'if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then'
+    echo '    set -- "${__EBASH_ARGS[@]}" ; '
     echo 'else '
     echo '    set -- ; '
     echo 'fi ; '
 
     # And also put them in the "rest" array of arguments, if one was requested
-    echo 'if [[ -n ${__BU_ARG_REST} ]] ; then '
-    echo '    eval "declare -a ${__BU_ARG_REST}=(\"\$@\")" ; '
+    echo 'if [[ -n ${__EBASH_ARG_REST} ]] ; then '
+    echo '    eval "declare -a ${__EBASH_ARG_REST}=(\"\$@\")" ; '
     echo 'fi ; '
 }
 
 opt_parse_setup()
 {
-    local opt_cmd="__BU_OPT=( "
-    local opt_regex_cmd="__BU_OPT_REGEX=( "
-    local opt_synonyms_cmd="__BU_OPT_SYNONYMS=( "
-    local opt_type_cmd="__BU_OPT_TYPE=( "
-    local opt_docstring_cmd="__BU_OPT_DOCSTRING=( "
+    local opt_cmd="__EBASH_OPT=( "
+    local opt_regex_cmd="__EBASH_OPT_REGEX=( "
+    local opt_synonyms_cmd="__EBASH_OPT_SYNONYMS=( "
+    local opt_type_cmd="__EBASH_OPT_TYPE=( "
+    local opt_docstring_cmd="__EBASH_OPT_DOCSTRING=( "
 
-    local arg_cmd="__BU_ARG=( "
-    local arg_names_cmd="__BU_ARG_NAMES=( "
-    local arg_required_cmd="__BU_ARG_REQUIRED=( "
-    local arg_docstring_cmd="__BU_ARG_DOCSTRING=( "
+    local arg_cmd="__EBASH_ARG=( "
+    local arg_names_cmd="__EBASH_ARG_NAMES=( "
+    local arg_required_cmd="__EBASH_ARG_REQUIRED=( "
+    local arg_docstring_cmd="__EBASH_ARG_DOCSTRING=( "
 
     local arg_rest_var=""
     local arg_rest_docstring=""
@@ -335,7 +335,7 @@ opt_parse_setup()
         # which is used only for documentation purposes.
         #
         # IMPLEMENTATION NOTE: This is a BIG FAT PERFORMANCE HOTSPOT inside
-        # bashutils.  Think of how many functions use opt_parse.  And this
+        # ebash.  Think of how many functions use opt_parse.  And this
         # splitting into opt_definition and docstring must process all of the
         # code lines that are passed in to opt_parse.  Every time.  Later lines
         # in this function typically just handle bits and pieces of the
@@ -433,7 +433,7 @@ opt_parse_setup()
             arg_cmd+="'${default}' "
             arg_names_cmd+="'${canonical}' "
 
-            # Keep __BU_ARG_REQUIRED array indexed the same, but only put in
+            # Keep __EBASH_ARG_REQUIRED array indexed the same, but only put in
             # names for items that are required
             if [[ ${opt_type_char} == "?" ]] ; then
                 arg_required_cmd+="'' "
@@ -460,7 +460,7 @@ opt_parse_setup()
 
     printf "declare -A %s %s %s %s %s ; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_synonyms_cmd}" "${opt_type_cmd}" "${opt_docstring_cmd}"
     printf "declare -a %s %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}" "${arg_docstring_cmd}"
-    printf "declare __BU_ARG_REST=%s __BU_ARG_REST_DOCSTRING=%s ; " "${arg_rest_var}" "${arg_rest_docstring}"
+    printf "declare __EBASH_ARG_REST=%s __EBASH_ARG_REST_DOCSTRING=%s ; " "${arg_rest_var}" "${arg_rest_docstring}"
 }
 
 opt_parse_options()
@@ -469,18 +469,18 @@ opt_parse_options()
     # in array.sh for more info.
     if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 ]] ; then
 
-        if [[ ${#__BU_FULL_ARGS[@]:-} -eq 0 ]] ; then
+        if [[ ${#__EBASH_FULL_ARGS[@]:-} -eq 0 ]] ; then
             return 0
         fi
     else
 
-        if [[ ! -v __BU_FULL_ARGS[@] ]] ; then
+        if [[ ! -v __EBASH_FULL_ARGS[@] ]] ; then
             return 0
         fi
 
     fi
 
-    set -- "${__BU_FULL_ARGS[@]}"
+    set -- "${__EBASH_FULL_ARGS[@]}"
 
     local shift_count=0
     while (( $# )) ; do
@@ -490,7 +490,7 @@ opt_parse_options()
                 break
                 ;;
             --help)
-                __BU_OPT_USAGE_REQUESTED=1
+                __EBASH_OPT_USAGE_REQUESTED=1
                 return 0
                 ;;
 
@@ -510,7 +510,7 @@ opt_parse_options()
                 canonical=$(opt_parse_find_canonical ${long_opt//-/_})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
+                if [[ ${__EBASH_OPT_TYPE[$canonical]} == "string" ]] ; then
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
@@ -519,9 +519,9 @@ opt_parse_options()
                         shift && (( shift_count += 1 ))
                     fi
 
-                    __BU_OPT[$canonical]=${opt_arg}
+                    __EBASH_OPT[$canonical]=${opt_arg}
 
-                elif [[ ${__BU_OPT_TYPE[$canonical]} == "accumulator" ]]; then
+                elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "accumulator" ]]; then
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
@@ -534,9 +534,9 @@ opt_parse_options()
                     # failures in array_init_nl later.
                     [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
 
-                    __BU_OPT[$canonical]+=${opt_arg}$'\n'
+                    __EBASH_OPT[$canonical]+=${opt_arg}$'\n'
 
-                elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+                elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 
                     # The value that will get assigned to this boolean option
                     local value=1
@@ -553,9 +553,9 @@ opt_parse_options()
                         fi
                     fi
 
-                    __BU_OPT[$canonical]=${value}
+                    __EBASH_OPT[$canonical]=${value}
                 else
-                    die "${FUNCNAME[1]}: option --${long_opt} has an invalid type ${__BU_OPT_TYPE[$canonical]}"
+                    die "${FUNCNAME[1]}: option --${long_opt} has an invalid type ${__EBASH_OPT_TYPE[$canonical]}"
                 fi
                 ;;
 
@@ -575,11 +575,11 @@ opt_parse_options()
                     canonical=$(opt_parse_find_canonical ${char})
                     [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                    if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
+                    if [[ ${__EBASH_OPT_TYPE[$canonical]} == "string" ]] ; then
                         die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
                     fi
 
-                    __BU_OPT[$canonical]=1
+                    __EBASH_OPT[$canonical]=1
                 done
 
                 # Handle the last one separately, because it might have an argument.
@@ -588,7 +588,7 @@ opt_parse_options()
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.
-                if [[ ${__BU_OPT_TYPE[$canonical]} == "string" ]] ; then
+                if [[ ${__EBASH_OPT_TYPE[$canonical]} == "string" ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
@@ -599,9 +599,9 @@ opt_parse_options()
                         shift && (( shift_count += 1 ))
                     fi
 
-                    __BU_OPT[$canonical]=${opt_arg}
+                    __EBASH_OPT[$canonical]=${opt_arg}
                 
-                elif [[ ${__BU_OPT_TYPE[$canonical]} == "accumulator" ]] ; then
+                elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "accumulator" ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab
                     # the next argument off the command line
@@ -616,20 +616,20 @@ opt_parse_options()
                     # failures in array_init_nl later.
                     [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
                     
-                    __BU_OPT[$canonical]+=${opt_arg}$'\n'
+                    __EBASH_OPT[$canonical]+=${opt_arg}$'\n'
 
-                elif [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+                elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 
                     # Boolean options may optionally be specified a value via
                     # -b=(0|1).  Take it if it's there.
                     if [[ -n ${has_arg} ]] ; then
-                        __BU_OPT[$canonical]=${opt_arg}
+                        __EBASH_OPT[$canonical]=${opt_arg}
                     else
-                        __BU_OPT[$canonical]=1
+                        __EBASH_OPT[$canonical]=1
                     fi
 
                 else
-                    die "${FUNCNAME[1]}: option -${char} has an invalid type ${__BU_OPT_TYPE[$canonical]}"
+                    die "${FUNCNAME[1]}: option -${char} has an invalid type ${__EBASH_OPT_TYPE[$canonical]}"
                 fi
                 ;;
             *)
@@ -638,29 +638,29 @@ opt_parse_options()
         esac
 
         # Make sure that the value chosen for boolean options is either 0 or 1
-        if [[ ${__BU_OPT_TYPE[$canonical]} == "boolean" \
-            && ${__BU_OPT[$canonical]} != 1 && ${__BU_OPT[$canonical]} != 0 ]] ; then
-                die "${FUNCNAME[1]}: option $canonical can only be 0 or 1 but was ${__BU_OPT[$canonical]}."
+        if [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" \
+            && ${__EBASH_OPT[$canonical]} != 1 && ${__EBASH_OPT[$canonical]} != 0 ]] ; then
+                die "${FUNCNAME[1]}: option $canonical can only be 0 or 1 but was ${__EBASH_OPT[$canonical]}."
         fi
 
         # Move on to the next item, recognizing that an option may have consumed the last one
         shift && (( shift_count += 1 )) || break
     done
 
-    # Assign to the __BU_ARGS array so that the opt_parse macro can make its contents the remaining set of arguments in
+    # Assign to the __EBASH_ARGS array so that the opt_parse macro can make its contents the remaining set of arguments in
     # the calling function.
     #
     # Odd idiom here to determine if this array contains anything because of bash 4.2/4.3/4.4 changing behavior.  See
     # array_size in array.sh for more info.
-    if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 && ${#__BU_ARGS[@]:-} -gt 0 || -v __BU_ARGS[@] ]] ; then
-        __BU_ARGS=( "${__BU_ARGS[@]:$shift_count}" )
+    if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then
+        __EBASH_ARGS=( "${__EBASH_ARGS[@]:$shift_count}" )
     fi
 }
 
 opt_parse_find_canonical()
 {
-    for option in "${!__BU_OPT[@]}" ; do
-        if [[ ${1} =~ ${__BU_OPT_REGEX[$option]} ]] ; then
+    for option in "${!__EBASH_OPT[@]}" ; do
+        if [[ ${1} =~ ${__EBASH_OPT_REGEX[$option]} ]] ; then
             echo "${option}"
             return 0
         fi
@@ -669,26 +669,26 @@ opt_parse_find_canonical()
 
 opt_parse_arguments()
 {
-    if [[ ${#__BU_ARGS[@]} -gt 0 ]] ; then
+    if [[ ${#__EBASH_ARGS[@]} -gt 0 ]] ; then
 
         # Take the arguments that already have options stripped out of them and
         # treat them as parameters to this function.
-        set -- "${__BU_ARGS[@]}"
+        set -- "${__EBASH_ARGS[@]}"
 
         # Iterate over the (indexes of the) positional arguments
         local index arg_name shift_count=0
-        for index in "${!__BU_ARG_NAMES[@]}" ; do
+        for index in "${!__EBASH_ARG_NAMES[@]}" ; do
 
             # If there are no more arguments to process, stop
             [[ $# -gt 0 ]] || break
 
             #  Put the next argument from the command line into the next argument
             #  value slot
-            __BU_ARG[$index]=$1
+            __EBASH_ARG[$index]=$1
             shift && (( shift_count += 1 ))
         done
 
-        __BU_ARGS=( "${__BU_ARGS[@]:$shift_count}" )
+        __EBASH_ARGS=( "${__EBASH_ARGS[@]:$shift_count}" )
     fi
 }
 
@@ -697,45 +697,45 @@ opt_display_usage()
     {
         # Function name and <option> specification if there are any options
         echo -n "Usage: ${FUNCNAME[1]} "
-        [[ ${#__BU_OPT[@]} -gt 0 ]] && echo -n "[option]... "
+        [[ ${#__EBASH_OPT[@]} -gt 0 ]] && echo -n "[option]... "
 
         # List arguments on the first line
         local i
-        for i in ${!__BU_ARG_NAMES[@]} ; do
+        for i in ${!__EBASH_ARG_NAMES[@]} ; do
 
             # Display name of the argument with brackets around it if it is
             # optional
-            [[ -n ${__BU_ARG_REQUIRED[$i]} ]] || echo -n "["
-            echo -n "${__BU_ARG_NAMES[$i]}"
-            [[ -n ${__BU_ARG_REQUIRED[$i]} ]] || echo -n "]"
+            [[ -n ${__EBASH_ARG_REQUIRED[$i]} ]] || echo -n "["
+            echo -n "${__EBASH_ARG_NAMES[$i]}"
+            [[ -n ${__EBASH_ARG_REQUIRED[$i]} ]] || echo -n "]"
 
             echo -n " "
         done
 
         # "Rest" argument if there is one
-        [[ -n "${__BU_ARG_REST}" ]] && echo -n "[${__BU_ARG_REST}]..."
+        [[ -n "${__EBASH_ARG_REST}" ]] && echo -n "[${__EBASH_ARG_REST}]..."
 
         # Finish the first line
         echo
 
         # If there's a documentation block in memory for this function, display
-        # it.  (Note: these only get saved when __BU_SAVE_DOC is set to 1 --
-        # see bashutils.sh)
-        if [[ -n "${__BU_DOC[${FUNCNAME[1]:-}]:-}" ]] ; then
-            printf -- "\n%s\n" "${__BU_DOC[${FUNCNAME[1]}]}"
+        # it.  (Note: these only get saved when __EBASH_SAVE_DOC is set to 1 --
+        # see ebash.sh)
+        if [[ -n "${__EBASH_DOC[${FUNCNAME[1]:-}]:-}" ]] ; then
+            printf -- "\n%s\n" "${__EBASH_DOC[${FUNCNAME[1]}]}"
         fi
 
         # Display block of documentation for options if there are any
-        if [[ ${#__BU_OPT[@]} -gt 0 ]] ; then
+        if [[ ${#__EBASH_OPT[@]} -gt 0 ]] ; then
             echo
             echo "Options:"
             local opt
-            for opt in ${!__BU_OPT[@]} ; do
+            for opt in ${!__EBASH_OPT[@]} ; do
 
                 # Print the names of all option "synonyms" next to each other
                 printf "   "
                 local synonym="" first=1
-                for synonym in ${__BU_OPT_SYNONYMS[$opt]} ; do
+                for synonym in ${__EBASH_OPT_SYNONYMS[$opt]} ; do
 
                     if [[ ${first} -ne 1 ]] ; then
                         printf ", "
@@ -752,13 +752,13 @@ opt_display_usage()
                 done
 
                 # If the option accepts arguments, say that
-                [[ ${__BU_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
+                [[ ${__EBASH_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
                 echo
 
                 # Print the docstring, constrained to current terminal width,
                 # indented another level past the option names, and compress
                 # whitespace to look like normal english prose.
-                printf "%s" "${__BU_OPT_DOCSTRING[$opt]}" \
+                printf "%s" "${__EBASH_OPT_DOCSTRING[$opt]}" \
                     | tr '\n' ' ' \
                     | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
@@ -769,28 +769,28 @@ opt_display_usage()
         fi
 
         # Display block of documentation for arguments if there are any
-        if [[ ${#__BU_ARG_NAMES[@]} -gt 0 || -n ${__BU_ARG_REST} ]] ; then
+        if [[ ${#__EBASH_ARG_NAMES[@]} -gt 0 || -n ${__EBASH_ARG_REST} ]] ; then
             echo "Arguments:"
 
-            for i in "${!__BU_ARG_NAMES[@]}" ; do
-                printf  "   %s\n" "${__BU_ARG_NAMES[$i]}"
+            for i in "${!__EBASH_ARG_NAMES[@]}" ; do
+                printf  "   %s\n" "${__EBASH_ARG_NAMES[$i]}"
 
                 # Print the docstring, constrained to current terminal width,
                 # indented another level past the argument name, and compress
                 # whitespace to look like normal english prose.
-                printf "%s" "${__BU_ARG_DOCSTRING[$i]:-}" \
+                printf "%s" "${__EBASH_ARG_DOCSTRING[$i]:-}" \
                     | tr '\n' ' ' \
                     | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
             done
 
-            if [[ -n ${__BU_ARG_REST} ]] ; then
-                printf  "   %s\n" "${__BU_ARG_REST}"
+            if [[ -n ${__EBASH_ARG_REST} ]] ; then
+                printf  "   %s\n" "${__EBASH_ARG_REST}"
 
                 # Print the docstring, constrained to current terminal width,
                 # indented another level past the argument name, and compress
                 # whitespace to look like normal english prose.
-                printf "%s" "${__BU_ARG_REST_DOCSTRING:-}" \
+                printf "%s" "${__EBASH_ARG_REST_DOCSTRING:-}" \
                     | tr '\n' ' ' \
                     | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
@@ -802,8 +802,8 @@ opt_display_usage()
 
 opt_dump()
 {
-    for option in "${!__BU_OPT[@]}" ; do
-        echo -n "${option}=\"${__BU_OPT[$option]}\" "
+    for option in "${!__EBASH_OPT[@]}" ; do
+        echo -n "${option}=\"${__EBASH_OPT[$option]}\" "
     done
     echo
 }
@@ -899,7 +899,7 @@ opt_forward()
     quote_eval ${cmd} "${args[@]}"
 }
 
-# The opt_usage function is in bashutils.sh because it must be there before
-# anything else is sourced to have documentation work for files in bashutils.
+# The opt_usage function is in ebash.sh because it must be there before
+# anything else is sourced to have documentation work for files in ebash.
 
 return 0

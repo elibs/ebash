@@ -291,7 +291,7 @@ FAKE_EPROGRESS='
         done
     ) &
 
-    __BU_EPROGRESS_PIDS+=( $! )
+    __EBASH_EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
 '
@@ -470,7 +470,7 @@ ETEST_eprogress_killall()
     eprogress "Processing" &> /dev/null
     eprogress "More Stuff" &> /dev/null
 
-    local pids=( "${__BU_EPROGRESS_PIDS[@]}" )
+    local pids=( "${__EBASH_EPROGRESS_PIDS[@]}" )
     assert_eq 2 $(array_size pids)
 
     local pid=

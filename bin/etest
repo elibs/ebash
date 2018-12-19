@@ -8,20 +8,20 @@
 
 : ${EMSG_PREFIX:=time}
 
-: ${BASHUTILS_HOME:=$(dirname $0)/..}
-: ${BASHUTILS:=${BASHUTILS_HOME}/share}
-source ${BASHUTILS}/bashutils.sh || { echo "Unable to source bashutils." ; exit 1 ; }
-export BASHUTILS
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source ${EBASH}/ebash.sh || { echo "Unable to source ebash." ; exit 1 ; }
+export EBASH
 
-if [[ ${__BU_OS} == "Linux" ]] ; then
+if [[ ${__EBASH_OS} == "Linux" ]] ; then
     reexec --sudo
 fi
 
-# Normalize BASHUTILS path in case any tests depend on it looking... normal.
-# Note: wait until after sourcing so that we can let bashutils make sure we get
+# Normalize EBASH path in case any tests depend on it looking... normal.
+# Note: wait until after sourcing so that we can let ebash make sure we get
 # GNU readlink rater than BSD readlink.
-BASHUTILS_HOME=$(readlink -f "${BASHUTILS_HOME}")
-BASHUTILS=$(readlink -f "${BASHUTILS}")
+EBASH_HOME=$(readlink -f "${EBASH_HOME}")
+EBASH=$(readlink -f "${EBASH}")
 
 #-------------------------------------------------------------------------------------------------------------------------
 # GLOBAL SETUP
@@ -73,8 +73,8 @@ if [[ ${mount_ns} -eq 1 ]] && os linux && ! grep -qw docker /proc/$$/cgroup ; th
 fi
 
 declare -A _BU_CONF
-if [[ -r .bashutils ]] ; then
-    conf_read _BU_CONF .bashutils
+if [[ -r .ebash ]] ; then
+    conf_read _BU_CONF .ebash
 fi
 
 START_TIME=$SECONDS
@@ -187,7 +187,7 @@ assert_no_process_leaks()
 {
     # Error stacks generated here should produce output, even though etest has
     # them wrapped in a try.
-    __BU_INSIDE_TRY=0
+    __EBASH_INSIDE_TRY=0
 
     edebug "Waiting..."
     
@@ -315,7 +315,7 @@ run_single_test()
         # cgroup.  This subshell solves both issues.
         try
         {
-            export BASHUTILS BASHUTILS_HOME TEST_DIR_OUTPUT=${work_dir}
+            export EBASH EBASH_HOME TEST_DIR_OUTPUT=${work_dir}
             if [[ -n ${source} ]] ; then
                 source "${source}"
             fi
@@ -323,7 +323,7 @@ run_single_test()
             # Pretend that the test _not_ executing inside a try/catch so that the
             # error stack will get printed if part of the test fails, as if etest
             # weren't running it inside a try/catch
-            __BU_INSIDE_TRY=0
+            __EBASH_INSIDE_TRY=0
 
             # Create our temporary workspace in the directory specified by the caller
             efreshdir "${work_dir}"

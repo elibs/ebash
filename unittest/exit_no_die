@@ -6,7 +6,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-$(${BASHUTILS_HOME}/bin/bashutils --source)
+$(${EBASH_HOME}/bin/ebash --source)
 
 #-------------------------------------------------------------------------------------------------------------------------
 # SANITY TEST EXPLICITLY CALLING EXIT TO ENSURE DIE IS NOT CALLED
@@ -22,7 +22,7 @@ trap_add "rm --force ${OUTPUT} ${SCRIPT}"
 
 cat <<EOF >${SCRIPT}
 
-source "${BASHUTILS}/bashutils.sh" || { echo "Unable to source ${BASHUTILS}/bashutils.sh" >&2 ; exit 1 ; }
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" >&2 ; exit 1 ; }
 
 die_handler()
 {
