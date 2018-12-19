@@ -6,10 +6,10 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# Source bashutils from the same directory as this script
-$( $(dirname $0)/bashutils --source )
+# Source ebash from the same directory as this script
+$( $(dirname $0)/ebash --source )
 
-# Some bashutils recognized environment variables interfer with functionality of the selftests so we need to unset them.
+# Some ebash recognized environment variables interfer with functionality of the selftests so we need to unset them.
 unset FILTER
 unset REPEAT
 unset BREAK
@@ -173,18 +173,18 @@ assert_test_count()
 }
 
 
-ETEST=${BASHUTILS_HOME}/bin/etest
+ETEST=${EBASH_HOME}/bin/etest
 
-[[ -x ${ETEST} ]] || die "Unable to find etest $(lval ETEST BASHUTILS BASHUTILS_HOME)"
+[[ -x ${ETEST} ]] || die "Unable to find etest $(lval ETEST EBASH EBASH_HOME)"
 
-cd ${BASHUTILS_HOME}/etest_selftest
+cd ${EBASH_HOME}/etest_selftest
 
 # Just passing standalone tests
 SELFTEST_simple()
 {
-    run_etest plain_script sources_bashutils noisy
+    run_etest plain_script sources_ebash noisy
     assert_test_count --pass 3 --fail 0 --flaky 0 --total 3
-    assert_test_pass plain_script sources_bashutils noisy
+    assert_test_pass plain_script sources_ebash noisy
     assert_not_match "${ETEST_OUTPUT}" "!!"
     assert_match "${ETEST_LOG}" VERY_NOISY_STDOUT
     assert_match "${ETEST_LOG}" VERY_NOISY_STDERR
@@ -193,9 +193,9 @@ SELFTEST_simple()
 # Passing and failing standalone tests
 SELFTEST_passing_failing_standalone()
 {
-    run_etest fail_standalone plain_script sources_bashutils noisy
+    run_etest fail_standalone plain_script sources_ebash noisy
     assert_test_count --pass 3 --fail 1 --flaky 0 --total 4
-    assert_test_pass plain_script sources_bashutils noisy
+    assert_test_pass plain_script sources_ebash noisy
     assert_test_fail fail_standalone
 }
 

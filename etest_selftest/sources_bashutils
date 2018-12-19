@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-
-$( ${BASHUTILS_HOME}/bin/bashutils --source )
-
-assert_eq "A" "A"

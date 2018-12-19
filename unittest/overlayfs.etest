@@ -6,7 +6,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${__BU_OS} == Linux ]] || return 0
+[[ ${__EBASH_OS} == Linux ]] || return 0
 
 BANNER_WIDTH=50
 ARCHIVE_TYPES=(
@@ -32,7 +32,7 @@ ETEST_overlayfs_mount()
 
         etestmsg "Mounting src.${ftype} at dest"
         overlayfs_mount src.${ftype} dest
-        assert_eq "${__BU_OVERLAYFS}" "$(emount_type dest)"
+        assert_eq "${__EBASH_OVERLAYFS}" "$(emount_type dest)"
         overlayfs_tree dest
         assert_directory_contents dest file1 file2
         diff --recursive src dest

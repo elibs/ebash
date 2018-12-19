@@ -19,7 +19,7 @@ ETEST_os()
 
 ETEST_os_distro()
 {
-    if [[ ${__BU_OS} == "Linux" ]] ; then
+    if [[ ${__EBASH_OS} == "Linux" ]] ; then
         local distro
         distro=$(os_distro)
 

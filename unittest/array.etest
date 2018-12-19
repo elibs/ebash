@@ -463,7 +463,7 @@ ETEST_array_sort_version()
     assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
 }
 
-if [[ ${__BU_OS} == Linux ]] ; then
+if [[ ${__EBASH_OS} == Linux ]] ; then
 
     # Verify sort isn't insane. It uses LANG and LC_ALL to decide sort order.
     # see 'man sort' and read WARNING around locale settings. We set these at the

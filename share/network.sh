@@ -62,7 +62,7 @@ fully_qualify_hostname()
     return 0
 }
 
-[[ ${__BU_OS} == Linux ]] || return 0
+[[ ${__EBASH_OS} == Linux ]] || return 0
 
 #---------------------------------------------------------------------------------------------------
 # Linux-specific networking functions

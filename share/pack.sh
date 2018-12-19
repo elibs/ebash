@@ -64,7 +64,7 @@ pack_set_internal()
     local _val="$3"
 
     argcheck _tag
-    [[ ${_tag} =~ = ]] && die "bashutils internal error: tag ${_tag} cannot contain equal sign"
+    [[ ${_tag} =~ = ]] && die "ebash internal error: tag ${_tag} cannot contain equal sign"
     [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
 
     local _removeOld _addNew _packed

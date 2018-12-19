@@ -162,8 +162,8 @@ ETEST_err_and_debug_traps_are_inherited()
         etestmsg "Inside subshell you can see it."
         assert_eq "${expected}" "$(trap -p ERR DEBUG)"
 
-        # Without bashutils shenanigans, bash will reset your inherited error
-        # trap after you set any other trap including SIGUSR1.  But bashutils
+        # Without ebash shenanigans, bash will reset your inherited error
+        # trap after you set any other trap including SIGUSR1.  But ebash
         # overrides this and restores the ERR trap.
         etestmsg "Verifying that it remains after a call to trap."
         trap on_usr1 SIGUSR1

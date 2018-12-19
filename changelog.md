@@ -1,4 +1,4 @@
-# Bashutils 1.4
+# ebash 1.4
 
     - Moved all the eprompt code out of emsg.sh into its own eprompt.sh
       module. There were no unit tests for this code, so a new eprompt.etest
@@ -30,7 +30,7 @@
       The new default is "right" to keep the progress tickers aligned with
       where the "[ ok ]" shows up aftewards.
 
-# Bashutils 1.3
+# ebash 1.3
 
     - New configuration file reading and writing tools for INI-style
       configuration files.  (see share/conf.sh for more info)
@@ -97,7 +97,7 @@
     - The daemon utilities no longer support a post_start hook but do support a
       post_mount hook.  That ability exists mostly to aid in testing the daemon
       utilities, but perhaps it is also useful elsewhere.  Better logging
-      should be produced by the daemon bashutils functions into the daemon's
+      should be produced by the daemon ebash functions into the daemon's
       log file if you request one.
 
     - Chroot_kill now defaults to sigterm rather than sigkill.
@@ -120,7 +120,7 @@
 
     - Ecolor caches its output so that it doesn't have to spawn tput processes
       repeatedly to get codes.  This approximately halves the time each einfo
-      takes vs bashutils 1.2.
+      takes vs ebash 1.2.
 
     - lval: Changed leading character to indicate that a variable is a pack
       from + to % to be more similar to perl's hashes and to avoid using the
@@ -138,14 +138,14 @@
       those hosts specified when ping output looks different (for instance,
       when it has an aliased name in DNS).
 
-    - New "bashutils" binary that can run bashutils functions as an external
-      command as well as many other binaries designed for calling bashutils
+    - New "ebash" binary that can run ebash functions as an external
+      command as well as many other binaries designed for calling ebash
       functions (e.g. daemon, cgroup, chroot, eunmount, ewarn)
 
     - Move .sh files into a share directory and binaries into a bin directory.
-      Typical expectations are that BASHUTILS points to the share directory so
-      that you can source ${BASHUTILS}/share as you always did.  BASHUTILS_HOME
-      should point to the parent directory that holds all of the bashutils
+      Typical expectations are that EBASH points to the share directory so
+      that you can source ${EBASH}/share as you always did.  EBASH_HOME
+      should point to the parent directory that holds all of the ebash
       stuff.
 
     - Readme and unit tests are now included in the package.
@@ -168,7 +168,7 @@
     - Pulled a lot of code out of efuncs in favor of keeping the files
       small and focused.  For instance, messaging code moved to emsg.sh,
       array code to array.sh, etc.  The proper thing to do is to continue
-      to source only bashutils.sh.  The rest are really just internals.
+      to source only ebash.sh.  The rest are really just internals.
 
     - New reexec function that can re-execute the current script with the
       same arguments under sudo, in a mount namespace, or both.
@@ -182,7 +182,7 @@
       allows you to specify an option multiple times and they will all get
       accumulated into a single array.
 
-# Bashutils 1.2
+# ebash 1.2
 
     - Created new general purpose abstract archive module. This provides common
       functions for creating, extracting, listing, mounting, unmounting and
@@ -210,9 +210,9 @@
     - Prompts and progress tickers are now shown in bold using the default
       terminal foreground color.
 
-    - Added configuration to allow forge to package bashutils.
+    - Added configuration to allow forge to package ebash.
 
-# Bashutils 1.1
+# ebash 1.1
 
     - Added tryrc function to aid in running code that you expect might fail,
       but for which you don't want to use a whole try/catch block.
@@ -222,7 +222,7 @@
       you don't specify which signal when you call trap_add, this will continue
       to "just work"
 
-    - Substantially reduced the number of cases where code inside bashutils
+    - Substantially reduced the number of cases where code inside ebash
       would accidentally ignore errors.
 
     - Block signals during critical portions of die and the exit trap so that
@@ -256,7 +256,7 @@
       smaller improvements.
 
     - Added ibu tool that provides an interactive prompt in a bash shell that
-      has pre-loaded all of bashutils.
+      has pre-loaded all of ebash.
 
     - Added functions in daemon.sh that can help manage processes that are
       intended to be daemons.  Particularly useful for keeping daemons running
@@ -264,12 +264,12 @@
 
     - Substantial hardening and new tests in jenkins.sh.
 
-    - Bashutils now explicitly chooses a locale (en_US.utf8)
+    - ebash now explicitly chooses a locale (en_US.utf8)
 
     - Fixed bug on calling exit without specifying an exit code.
 
 
-# Bashutils 1.0
+# ebash 1.0
 
     - Start using bash's built-in functionality to detect errors and explode if
       one occurs.  (Note: this is implemented via error traps, which work

@@ -6,7 +6,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${__BU_OS} == Linux ]] || return 0
+[[ ${__EBASH_OS} == Linux ]] || return 0
 
 opt_usage daemon_init <<'END'
 daemon_init is used to initialize the options pack that all of the various daemon_* functions will
@@ -102,7 +102,7 @@ respawn_interval
 
 netns_name
   Network namespce to run the daemon in.  The namespace must be created and properly configured
-  before use.  if you use this, you need to source netns.sh from bashutils prior to calling
+  before use.  if you use this, you need to source netns.sh from ebash prior to calling
   daemon_start
 END
 

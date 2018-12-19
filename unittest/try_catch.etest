@@ -170,13 +170,13 @@ ERR_TRAP_NONE="-"
 
 assert_stack_eq()
 {
-    einfo "Asserting stack is $* -- $(lval __BU_DIE_ON_ERROR_TRAP_STACK)"
-    assert_eq $# $(array_size __BU_DIE_ON_ERROR_TRAP_STACK)
+    einfo "Asserting stack is $* -- $(lval __EBASH_DIE_ON_ERROR_TRAP_STACK)"
+    assert_eq $# $(array_size __EBASH_DIE_ON_ERROR_TRAP_STACK)
 
     local frame=0
     for code in "${@}"; do
         eval "local expect="\${ERR_TRAP_${code}}""
-        local actual="${__BU_DIE_ON_ERROR_TRAP_STACK[$frame]}"
+        local actual="${__EBASH_DIE_ON_ERROR_TRAP_STACK[$frame]}"
 
         einfo "$(lval frame expect actual)"
         assert_eq "${expect}" "${actual}"
@@ -653,7 +653,7 @@ setup_die_environment()
 ETEST_tryrc_eretry_error_never_pass()
 {
     $(tryrc eretry --delay=5 --max-timeout=10s --warn-every=3 never_pass)
-    # This combination of bashutils functions is unique, normally tryrc
+    # This combination of ebash functions is unique, normally tryrc
     # should return the code of the command, but in this case eretry is
     # the command being executed so if the command that eretry is executing
     # is not successful eretry will return 124 to tryrc.

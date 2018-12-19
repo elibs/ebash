@@ -90,7 +90,7 @@ ETEST_emetadata_sha1_backwards_compatible()
 
 ETEST_emetadata_pgp()
 {
-    [[ ${__BU_OS} == "Darwin" ]] && { ewarn "Test is disabled on Darwin per DT-188." ; return 0 ; }
+    [[ ${__EBASH_OS} == "Darwin" ]] && { ewarn "Test is disabled on Darwin per DT-188." ; return 0 ; }
 
     # Grab public and private keys as well as passphrase
     efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_public.asc  public.asc

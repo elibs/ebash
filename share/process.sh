@@ -11,7 +11,7 @@
 # command is that it likes to segfault.  It's buggy.  So here, we simply ignore
 # the error codes that would come from it.
 #
-if [[ ${__BU_OS} == Linux ]] ; then
+if [[ ${__EBASH_OS} == Linux ]] ; then
     pstree()
     {
         (

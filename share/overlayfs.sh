@@ -6,12 +6,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${__BU_OS} == Linux ]] || return 0
+[[ ${__EBASH_OS} == Linux ]] || return 0
 
 #-----------------------------------------------------------------------------------------------------
 # OVERLAYFS
 # 
-# The overlayfs module is the bashutils interface around OverlayFS mounts. This
+# The overlayfs module is the ebash interface around OverlayFS mounts. This
 # is a really useful filesystem that allows layering mounts into a single
 # unified mount point with read-through semantics. This is the first official
 # kernel filesystem providing this functionality which replaces prior similar
@@ -29,12 +29,12 @@
 # use just 'overlay' so dynamically detected the correct type to use here. Some
 # kernels also support BOTH in which case we need to only take the first one we
 # find (hence the use of head -1).
-__BU_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null | sort | head -1 || true)
+__EBASH_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null | sort | head -1 || true)
 
 # Detect whether overlayfs is supported or not.
 overlayfs_supported()
 {
-    [[ -n "${__BU_OVERLAYFS}" ]]
+    [[ -n "${__EBASH_OVERLAYFS}" ]]
 }
 
 # Try to enable overlayfs by modprobing the kernel module.
@@ -57,7 +57,7 @@ overlayfs_enable()
         # Break as we only need one of the modules available.
         if modprobe -q ${module}; then
             edebug "Successfully loaded $(lval module)"
-            __BU_OVERLAYFS=${module}
+            __EBASH_OVERLAYFS=${module}
             break
         fi
 
@@ -104,7 +104,7 @@ overlayfs_mount()
         return 1
     fi
 
-    # Parse positional arguments into a bashutils array. Then grab final mount
+    # Parse positional arguments into a ebash array. Then grab final mount
     # point from args.
     local args=( "$@" )
     local dest
@@ -127,9 +127,9 @@ overlayfs_mount()
     local lowerdirs=()
 
     # NEWER KERNEL VERSIONS (>= 3.20)
-    if [[ ${__BU_KERNEL_MAJOR} -ge 4 || ( ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 20 ) ]]; then
+    if [[ ${__EBASH_KERNEL_MAJOR} -ge 4 || ( ${__EBASH_KERNEL_MAJOR} -eq 3 && ${__EBASH_KERNEL_MINOR} -ge 20 ) ]]; then
 
-        edebug "Using Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
+        edebug "Using Multi-Layer OverlayFS $(lval __EBASH_KERNEL_MAJOR __EBASH_KERNEL_MINOR)"
 
         # Iterate through all the images and mount each one into a temporary directory
         local idx
@@ -144,7 +144,7 @@ overlayfs_mount()
             archive_mount "${src}" "${lower}"
         done
 
-        mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="$(array_join lowerdirs :)",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
+        mount --types ${__EBASH_OVERLAYFS} ${__EBASH_OVERLAYFS} --options lowerdir="$(array_join lowerdirs :)",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
  
     # OLDER KERNEL VERSIONS (<3.20)
     # NOTE: Older OverlayFS is really annoying because you can only stack 2 overlayfs
@@ -155,7 +155,7 @@ overlayfs_mount()
     # NOTE: Versions >= 3.18 require the "workdir" option but older versions do not.
     else
        
-        edebug "Using legacy non-Multi-Layer OverlayFS $(lval __BU_KERNEL_MAJOR __BU_KERNEL_MINOR)"
+        edebug "Using legacy non-Multi-Layer OverlayFS $(lval __EBASH_KERNEL_MAJOR __EBASH_KERNEL_MINOR)"
 
         # Grab bottom most layer
         src=$(readlink -m "${args[0]}")
@@ -179,19 +179,19 @@ overlayfs_mount()
                 archive_extract "${arg}" "${middle}"
             done
  
-            if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
-                mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${metadir}/workdir" "${middle}"
+            if [[ ${__EBASH_KERNEL_MAJOR} -eq 3 && ${__EBASH_KERNEL_MINOR} -ge 18 ]]; then
+                mount --types ${__EBASH_OVERLAYFS} ${__EBASH_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}",workdir="${metadir}/workdir" "${middle}"
             else
-                mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
+                mount --types ${__EBASH_OVERLAYFS} ${__EBASH_OVERLAYFS} --options lowerdir="${lower}",upperdir="${middle}" "${middle}"
             fi
             
             lower=${middle}
         fi
 
-        if [[ ${__BU_KERNEL_MAJOR} -eq 3 && ${__BU_KERNEL_MINOR} -ge 18 ]]; then
-            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
+        if [[ ${__EBASH_KERNEL_MAJOR} -eq 3 && ${__EBASH_KERNEL_MINOR} -ge 18 ]]; then
+            mount --types ${__EBASH_OVERLAYFS} ${__EBASH_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
         else
-            mount --types ${__BU_OVERLAYFS} ${__BU_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir" "${dest}"
+            mount --types ${__EBASH_OVERLAYFS} ${__EBASH_OVERLAYFS} --options lowerdir="${lower}",upperdir="${metadir}/upperdir" "${dest}"
         fi
     fi
 
@@ -267,7 +267,7 @@ overlayfs_layers()
     # Look for an overlayfs mount point matching provided mount point. It may NOT be
     # mounted (hence the || true) in which case we should just return.
     local entry
-    entry=$(list_mounts | grep "^${__BU_OVERLAYFS} ${mnt} " | grep -Po "upperdir=\K[^, ]*" || true)
+    entry=$(list_mounts | grep "^${__EBASH_OVERLAYFS} ${mnt} " | grep -Po "upperdir=\K[^, ]*" || true)
     if [[ -z ${entry} ]]; then
         return 0
     fi

@@ -6,18 +6,18 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if [[ ${__BU_OS} == Linux ]] ; then
+if [[ ${__EBASH_OS} == Linux ]] ; then
     BU_WORD_BEGIN='\<'
     BU_WORD_END='\>'
-elif [[ ${__BU_OS} == Darwin ]] ; then
+elif [[ ${__EBASH_OS} == Darwin ]] ; then
     BU_WORD_BEGIN='[[:<:]]'
     BU_WORD_END='[[:>:]]'
 fi
 
-if [[ "${__BU_OS}" == Linux ]] ; then
+if [[ "${__EBASH_OS}" == Linux ]] ; then
     export LC_ALL="en_US.utf8"
     export LANG="en_US.utf8"
-elif [[ "${__BU_OS}" == Darwin ]] ; then
+elif [[ "${__EBASH_OS}" == Darwin ]] ; then
     export LC_ALL="en_US.UTF-8"
     export LANG="en_US.UTF-8"
 fi
@@ -26,12 +26,12 @@ fi
 # LINUX
 #---------------------------------------------------------------------------------------------------
 
-if [[ ${__BU_OS} == "Linux" ]]; then
+if [[ ${__EBASH_OS} == "Linux" ]]; then
 
     # Detect what version of the kernel is running for code which requires it.
-    __BU_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
-    __BU_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
-    __BU_KERNEL_MICRO=$(uname -r | awk -F . '{print $3}' | sed 's|-\S*||')
+    __EBASH_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
+    __EBASH_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
+    __EBASH_KERNEL_MICRO=$(uname -r | awk -F . '{print $3}' | sed 's|-\S*||')
 
     # Replace rm to ensure we always pass in --one-file-system flag.
     rm()
@@ -57,7 +57,7 @@ fi
 # that is not Linux.  (GNU/Linux? ;-)
 #
 #
-__BU_GNU_TOOLS=(
+__EBASH_GNU_TOOLS=(
     # GNU Coreutils
     \[
     base64
@@ -180,7 +180,7 @@ __BU_GNU_TOOLS=(
 redirect_gnu_tools()
 {
     local tool
-    for tool in "${__BU_GNU_TOOLS[@]}" ; do
+    for tool in "${__EBASH_GNU_TOOLS[@]}" ; do
         alias "${tool}=g${tool}"
     done
 }

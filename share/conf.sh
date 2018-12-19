@@ -6,7 +6,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# General doc on bashutils' interpretation of what it means to be an INI file.
+# General doc on ebash interpretation of what it means to be an INI file.
 declare _bu_conf_ini_doc="These typically look something like the following:
 
     [section]

@@ -1,4 +1,0 @@
-[package]
-release_branch = master
-name = bashutils
-path = bin

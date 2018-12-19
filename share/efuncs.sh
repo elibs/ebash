@@ -41,15 +41,15 @@ DIE_MSG_UNHERR='[UnhandledError pid=$BASHPID cmd=$(string_truncate -e 60 ${BASH_
 # stack we are in so that the parent's ERR trap won't get triggered and cause
 # the process to exit. Because we WANT the try subshell to exit and allow the
 # failure to be handled inside the catch block.
-__BU_DIE_ON_ERROR_TRAP_STACK=()
+__EBASH_DIE_ON_ERROR_TRAP_STACK=()
 alias try="
-    __BU_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
-    : \${__BU_DIE_ON_ERROR_TRAP:=-}
-    __BU_DIE_ON_ERROR_TRAP_STACK+=( \"\${__BU_DIE_ON_ERROR_TRAP}\" )
+    __EBASH_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
+    : \${__EBASH_DIE_ON_ERROR_TRAP:=-}
+    __EBASH_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EBASH_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
     (
-        __BU_INSIDE_TRY=1
-        declare __BU_DISABLE_DIE_PARENT_PID=\${BASHPID}
+        __EBASH_INSIDE_TRY=1
+        declare __EBASH_DISABLE_DIE_PARENT_PID=\${BASHPID}
         enable_trace
         die_on_abort
         trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
@@ -83,11 +83,11 @@ alias try="
 #     catch block which sufficiently handles the error or the code won't be
 #     valid.
 alias catch=" );
-    __BU_TRY_CATCH_RC=\$?
-    __BU_DIE_ON_ERROR_TRAP=\"\${__BU_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
-    unset __BU_DIE_ON_ERROR_TRAP_STACK[\${#__BU_DIE_ON_ERROR_TRAP_STACK[@]}-1]
-    trap \"\${__BU_DIE_ON_ERROR_TRAP}\" ERR
-    ( exit \${__BU_TRY_CATCH_RC} ) || "
+    __EBASH_TRY_CATCH_RC=\$?
+    __EBASH_DIE_ON_ERROR_TRAP=\"\${__EBASH_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
+    unset __EBASH_DIE_ON_ERROR_TRAP_STACK[\${#__EBASH_DIE_ON_ERROR_TRAP_STACK[@]}-1]
+    trap \"\${__EBASH_DIE_ON_ERROR_TRAP}\" ERR
+    ( exit \${__EBASH_TRY_CATCH_RC} ) || "
 
 # Throw is just a simple wrapper around exit but it looks a little nicer inside
 # a 'try' block to see 'throw' instead of 'exit'.
@@ -101,7 +101,7 @@ throw()
 #
 inside_try()
 {
-    [[ ${__BU_INSIDE_TRY:-0} -eq 1 ]]
+    [[ ${__EBASH_INSIDE_TRY:-0} -eq 1 ]]
 }
 
 # die_on_error registers a trap handler for ERR. It is extremely important that
@@ -117,8 +117,8 @@ die_on_error()
     trap "die ${DIE_MSG_UNHERR}" ERR
 }
 
-# disable the bashutils ERR trap handler.  Calling this is akin to calling 'set
-# +e'.  Bashutils will no longer detect errors for you in this shell.
+# disable the ebash ERR trap handler.  Calling this is akin to calling 'set
+# +e'.  ebash will no longer detect errors for you in this shell.
 #
 nodie_on_error()
 {
@@ -126,13 +126,13 @@ nodie_on_error()
 }
 
 # Prevent an error or other die call in the _current_ shell from killing its
-# parent.  By default with bashutils, errors propagate to the parent by sending
+# parent.  By default with ebash, errors propagate to the parent by sending
 # the parent a sigterm.
 #
 # You might want to use this in shells that you put in the background if you
 # don't want an error in them to cause you to be notified via sigterm.
 #
-alias disable_die_parent="declare __BU_DISABLE_DIE_PARENT_PID=\${BASHPID}"
+alias disable_die_parent="declare __EBASH_DISABLE_DIE_PARENT_PID=\${BASHPID}"
 
 # Convert stream names (e.g. 'stdout') to cannonical file descriptor numbers:
 #
@@ -192,14 +192,14 @@ close_fds()
 
 fd_path()
 {
-    if [[ ${__BU_OS} == Linux ]] ; then
+    if [[ ${__EBASH_OS} == Linux ]] ; then
         echo /proc/self/fd
 
-    elif [[ ${__BU_OS} == Darwin ]] ; then
+    elif [[ ${__EBASH_OS} == Darwin ]] ; then
         echo /dev/fd
 
     else
-        die "Unsupported OS $(lval __BU_OS)"
+        die "Unsupported OS $(lval __EBASH_OS)"
     fi
 }
 
@@ -435,7 +435,7 @@ trap_get()
 # was invoked outside of our internal exit function.
 #
 # The other advantage to this approach is that if someone calls exit directly
-# inside bash code sourcing bashutils in order to gracefully exit they probably
+# inside bash code sourcing ebash in order to gracefully exit they probably
 # do NOT want to see a stacktrace and have die() get invoked. This mechanism
 # will ensure that works properly b/c they will go through our internal exit
 # function and that will bypass die().
@@ -445,12 +445,12 @@ exit()
     local exit_code=$?
     # Mark that this was an internal exit so that in our die mechanism we
     # won't call die if it already went through our internal exit function.
-    __BU_INTERNAL_EXIT=1
+    __EBASH_INTERNAL_EXIT=1
     builtin exit ${1:-${exit_code}}
 }
 
 opt_usage die <<'END'
-die is our central error handling function for all bashutils code which is called on any unhandled
+die is our central error handling function for all ebash code which is called on any unhandled
 error or via the ERR trap. It is responsible for printing a stacktrace to STDERR indicating the
 source of the fatal error and then killing our process tree and finally signalling our parent
 process that we died via SIGTERM. With this careful setup, we do not need to do any error checking
@@ -476,8 +476,8 @@ die()
     # to existing state prior to exiting so that the exit trap will honor them.
     disable_signals
 
-    if [[ ${__BU_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
-        exit ${__BU_DIE_IN_PROGRESS}
+    if [[ ${__EBASH_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
+        exit ${__EBASH_DIE_IN_PROGRESS}
     fi
     
     $(opt_parse \
@@ -487,8 +487,8 @@ die()
         ":frames f=3         | Number of stack frames to skip." \
         "@message            | Message to display.")
 
-    __BU_DIE_IN_PROGRESS=${return_code}
-    : ${__BU_DIE_BY_SIGNAL:=${signal}}
+    __EBASH_DIE_IN_PROGRESS=${return_code}
+    : ${__EBASH_DIE_BY_SIGNAL:=${signal}}
 
     if inside_try ; then
         # Don't print a stack trace for errors that were caught
@@ -515,8 +515,8 @@ die()
         # special.  We don't want to kill the try, we want to let the catch
         # handle things.
         #
-        if [[ ${__BU_DISABLE_DIE_PARENT_PID:-0} != ${pid} ]] ; then
-            edebug "Sending kill to parent $(lval parent pid __BU_DISABLE_DIE_PARENT_PID)"
+        if [[ ${__EBASH_DISABLE_DIE_PARENT_PID:-0} != ${pid} ]] ; then
+            edebug "Sending kill to parent $(lval parent pid __EBASH_DISABLE_DIE_PARENT_PID)"
             ekill -s=SIGTERM ${parent}
         fi
 
@@ -525,7 +525,7 @@ die()
         ekilltree -s=SIGTERM -k=2s -x=${pid} ${pid}
 
         # Last, finish up the current process. 
-        if [[ -n "${__BU_DIE_BY_SIGNAL}" ]] ; then
+        if [[ -n "${__EBASH_DIE_BY_SIGNAL}" ]] ; then
             # When a process dies as the result of a SIGINT or other tty
             # signals, the proper thing to do is not to exit but to kill self
             # with that same signal.
@@ -533,22 +533,22 @@ die()
             # See http://www.cons.org/cracauer/sigint.html and
             # http://mywiki.wooledge.org/SignalTrap
             #
-            if array_contains TTY_SIGNALS "${__BU_DIE_BY_SIGNAL}" ; then
-                trap - ${__BU_DIE_BY_SIGNAL}
-                ekill -s=${__BU_DIE_BY_SIGNAL} ${BASHPID}
+            if array_contains TTY_SIGNALS "${__EBASH_DIE_BY_SIGNAL}" ; then
+                trap - ${__EBASH_DIE_BY_SIGNAL}
+                ekill -s=${__EBASH_DIE_BY_SIGNAL} ${BASHPID}
             else
-                exit $(sigexitcode "${__BU_DIE_BY_SIGNAL}")
+                exit $(sigexitcode "${__EBASH_DIE_BY_SIGNAL}")
             fi
         else
-            exit ${__BU_DIE_IN_PROGRESS}
+            exit ${__EBASH_DIE_IN_PROGRESS}
         fi
     else
         if declare -f die_handler &>/dev/null; then
-            die_handler -r=${__BU_DIE_IN_PROGRESS} "${@}"
-            __BU_DIE_IN_PROGRESS=0
+            die_handler -r=${__EBASH_DIE_IN_PROGRESS} "${@}"
+            __EBASH_DIE_IN_PROGRESS=0
         else
             ekilltree -s=SIGTERM -k=2s $$
-            exit ${__BU_DIE_IN_PROGRESS}
+            exit ${__EBASH_DIE_IN_PROGRESS}
         fi
     fi
 }
@@ -560,14 +560,14 @@ die()
 #
 disable_signals()
 {
-    declare -Ag _BASHUTILS_SAVED_TRAPS
-    _BASHUTILS_SAVED_TRAPS[$BASHPID]=$(trap -p "${DIE_SIGNALS[@]}")
+    declare -Ag _EBASH_SAVED_TRAPS
+    _EBASH_SAVED_TRAPS[$BASHPID]=$(trap -p "${DIE_SIGNALS[@]}")
     trap "" "${DIE_SIGNALS[@]}"
 }
 
 reenable_signals()
 {
-    eval "${_BASHUTILS_SAVED_TRAPS[$BASHPID]}"
+    eval "${_EBASH_SAVED_TRAPS[$BASHPID]}"
 }
 
 opt_usage trap_add <<'END'
@@ -593,35 +593,35 @@ trap_add()
         # in this shell level, bash will show us the parent shell's traps
         # instead and we don't want to copy those into this shell.
         local existing=""
-        if [[ ${__BU_TRAP_LEVEL:-0} -eq ${BASH_SUBSHELL} ]]; then
+        if [[ ${__EBASH_TRAP_LEVEL:-0} -eq ${BASH_SUBSHELL} ]]; then
             existing="$(trap_get ${sig})"
 
-            # Strip off our bashutils internal cleanup from the trap, because
+            # Strip off our ebash internal cleanup from the trap, because
             # we'll add it back in later.
-            existing=${existing%%; _bashutils_on_exit_end}
-            existing=${existing##_bashutils_on_exit_start; }
+            existing=${existing%%; _ebash_on_exit_end}
+            existing=${existing##_ebash_on_exit_start; }
 
-            # __BU_TRAP_LEVEL is owned and updated by our trap() function.
+            # __EBASH_TRAP_LEVEL is owned and updated by our trap() function.
             # It'll update it soon.
         fi
 
         local complete_trap
-        [[ ${sig} == "EXIT" ]] && complete_trap+="_bashutils_on_exit_start; "
+        [[ ${sig} == "EXIT" ]] && complete_trap+="_ebash_on_exit_start; "
         [[ -n "${cmd}"      ]] && complete_trap+="${cmd}; "
         [[ -n "${existing}" ]] && complete_trap+="${existing}; "
-        [[ ${sig} == "EXIT" ]] && complete_trap+="_bashutils_on_exit_end"
+        [[ ${sig} == "EXIT" ]] && complete_trap+="_ebash_on_exit_end"
         trap -- "${complete_trap}" "${sig}"
 
     done
 }
 
 
-# Bashutils asks bash to let the ERR and DEBUG traps be inherited from shell to
+# ebash asks bash to let the ERR and DEBUG traps be inherited from shell to
 # subshell by setting appropriate shell options.  Unfortunately, its method of
 # enforcing that inheritance is somewhat limited.  It only lasts until someone
 # sets any other trap.  At that point, the inhertied trap is erased.
 #
-# To workaround this behavior, bashutils overrides "trap" such that it will do
+# To workaround this behavior, ebash overrides "trap" such that it will do
 # the normal work that you expect trap to do, but it will also make sure that
 # the ERR and DEBUG traps are truly inherited from shell to shell and persist
 # regardless of whether other traps are created.
@@ -633,10 +633,10 @@ trap()
     # traps.
     if [[ "$1" == "--" || "$1" != -* ]] ; then
 
-        # __BU_TRAP_LEVEL is the ${BASH_SUBSHELL} value that was used the last time
+        # __EBASH_TRAP_LEVEL is the ${BASH_SUBSHELL} value that was used the last time
         # trap was called.  BASH_SUBSHELL is incremented for each nested subshell.
         # At the top level, that is 0
-        if [[ ${__BU_TRAP_LEVEL:=0} -lt ${BASH_SUBSHELL} ]] ; then
+        if [[ ${__EBASH_TRAP_LEVEL:=0} -lt ${BASH_SUBSHELL} ]] ; then
 
             local trapsToSave
             trapsToSave="$(builtin trap -p ERR DEBUG)"
@@ -650,7 +650,7 @@ trap()
             # Call the trap builtin to set those ERR and DEBUG traps first
             eval "${trapsToSave}"
 
-            __BU_TRAP_LEVEL=${BASH_SUBSHELL}
+            __EBASH_TRAP_LEVEL=${BASH_SUBSHELL}
         fi
 
     fi
@@ -659,20 +659,20 @@ trap()
 }
 
 
-_bashutils_on_exit_start()
+_ebash_on_exit_start()
 {
     # Save off the exit code the fist time the exit trap is called -- it can be
     # reinvoked multiple times in the process of the shell going down.
     #
     local exit_code=$?
-    if [[ ! -v __BU_EXIT_CODE ]] ; then
-        # Store off the exit code. This is used at the end of the exit trap inside _bashutils_on_exit_end.
-        __BU_EXIT_CODE=${exit_code}
+    if [[ ! -v __EBASH_EXIT_CODE ]] ; then
+        # Store off the exit code. This is used at the end of the exit trap inside _ebash_on_exit_end.
+        __EBASH_EXIT_CODE=${exit_code}
         disable_signals
     fi
 }
 
-_bashutils_on_exit_end()
+_ebash_on_exit_end()
 {
     reenable_signals
 
@@ -682,7 +682,7 @@ _bashutils_on_exit_end()
     # variable.
     #
     # Then we execute die to try to make it more clear where things went crazy.
-    if [[ ${__BU_INTERNAL_EXIT:-0} != "1" && ${__BU_EXIT_CODE:-} != "0" ]]; then
+    if [[ ${__EBASH_INTERNAL_EXIT:-0} != "1" && ${__EBASH_EXIT_CODE:-} != "0" ]]; then
         eval "die ${DIE_MSG_UNHERR}"
     fi
 }
@@ -722,7 +722,7 @@ TTY_SIGNALS=( SIGINT SIGQUIT SIGTSTP )
 # Enable default traps for all DIE_SIGNALS to call die().
 die_on_abort()
 {
-    export __BU_DIE_ON_ABORT_ENABLED=1
+    export __EBASH_DIE_ON_ABORT_ENABLED=1
 
     local signal
     for signal in "${DIE_SIGNALS[@]}" ; do
@@ -733,7 +733,7 @@ die_on_abort()
 # Disable default traps for all DIE_SIGNALS.
 nodie_on_abort()
 {
-    export __BU_DIE_ON_ABORT_ENABLED=0
+    export __EBASH_DIE_ON_ABORT_ENABLED=0
 
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
@@ -743,40 +743,40 @@ nodie_on_abort()
 reexec()
 {
     # If opt_parse has already been called in the main script, we want to preserve the options that it removed from $@
-    # as it worked. Luckily, it saves those off and we can read them from __BU_FULL_ARGS.
+    # as it worked. Luckily, it saves those off and we can read them from __EBASH_FULL_ARGS.
     #
-    # Determining if __BU_FULL_ARGS contains anything is difficult for a couple reasons.  One is that we want to be
+    # Determining if __EBASH_FULL_ARGS contains anything is difficult for a couple reasons.  One is that we want to be
     # compatible with bash 4.2, 4.3, and 4.4 and each behaves differently with respect to emtpy arrays and set -u.  See
     # array_size in array.sh for more info on that.  We'd normally use array_size, but it calls opt_parse which
-    # helpfullly overwrites __BU_FULL_ARGS for us. Here, we sidestep the issue by presuming that opt_parse will have
-    # done nothing to $@ unless it contains at least one characters, so we'll only do anything if __BU_FULL_ARGS
+    # helpfullly overwrites __EBASH_FULL_ARGS for us. Here, we sidestep the issue by presuming that opt_parse will have
+    # done nothing to $@ unless it contains at least one characters, so we'll only do anything if __EBASH_FULL_ARGS
     # contains at least one character in any one slot in the array.
     #
-    if [[ -n "${__BU_FULL_ARGS[*]:-}" ]] ; then
-        __BU_REEXEC_CMD=( "${__BU_REEXEC_CMD[0]}" "${__BU_FULL_ARGS[@]}" )
+    if [[ -n "${__EBASH_FULL_ARGS[*]:-}" ]] ; then
+        __EBASH_REEXEC_CMD=( "${__EBASH_REEXEC_CMD[0]}" "${__EBASH_FULL_ARGS[@]}" )
     fi
 
     $(opt_parse \
         "+sudo     | Ensure this process is root, and use sudo to become root if not." \
         "+mount_ns | Create a new mount namespace to run in.")
 
-    array_not_empty __BU_REEXEC_CMD || die "reexec must be called via its eponymous alias."
+    array_not_empty __EBASH_REEXEC_CMD || die "reexec must be called via its eponymous alias."
 
     # If sudo was requested and the caller is not already root then exec sudo. Take special care to
     # pass through the TMPDIR variable since glibc silently deletes it from the environment of any
     # suid binary such as sudo. If TMPDIR isn't set, then set it to /tmp which is what would normally
     # happen if the variable wasn't set.
     if [[ ${sudo} -eq 1 && $(id -u) != 0 ]] ; then
-        exec sudo TMPDIR=${TMPDIR:-/tmp} -E -- "${__BU_REEXEC_CMD[@]}"
+        exec sudo TMPDIR=${TMPDIR:-/tmp} -E -- "${__EBASH_REEXEC_CMD[@]}"
     fi
 
-    if [[ ${mount_ns} -eq 1 && ${__BU_REEXEC_MOUNT_NS:-} != ${BASHPID} ]] ; then
-        export __BU_REEXEC_MOUNT_NS=${BASHPID}
-        exec unshare -m -- "${__BU_REEXEC_CMD[@]}"
+    if [[ ${mount_ns} -eq 1 && ${__EBASH_REEXEC_MOUNT_NS:-} != ${BASHPID} ]] ; then
+        export __EBASH_REEXEC_MOUNT_NS=${BASHPID}
+        exec unshare -m -- "${__EBASH_REEXEC_CMD[@]}"
     fi
-    unset __BU_REEXEC_CMD
+    unset __EBASH_REEXEC_CMD
 }
-alias reexec='declare -a __BU_REEXEC_CMD=("$0" "$@") ; reexec'
+alias reexec='declare -a __EBASH_REEXEC_CMD=("$0" "$@") ; reexec'
 
 #---------------------------------------------------------------------------------------------------
 # SIGNAL FUNCTIONS
@@ -1986,7 +1986,7 @@ is_num()
 # These functions take a parameter that is a variable NAME and allow you to
 # determine information about that variable name.
 #
-# Detecting packs relies on the bashutils convention of "if the first character
+# Detecting packs relies on the ebash convention of "if the first character
 # of the name is a +, consider it a pack)
 is_array()
 {
