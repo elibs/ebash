@@ -225,3 +225,20 @@ ETEST_string_truncate()
     assert_eq "${string:0:15}"    "$(string_truncate     15 "${string}")"
     assert_eq "${string:0:12}..." "$(string_truncate -e  15 "${string}")"
 }
+
+ETEST_relative_path()
+{
+  local base=$(mktemp --directory relpath.XXXXX)
+  trap_add "rm -rf ${base}"
+
+  mkdir -p ${base}/{dir1,dir2}
+
+  touch ${base}/dir1/file1
+  touch ${base}/dir2/file2
+
+  assert_eq "$(relative_path ${base}/dir1/file1 ${base}/dir2/file2)" "../dir2/file2"
+  assert_eq "$(relative_path ${base}/dir1/ ${base}/dir2/file2)"      "../dir2/file2"
+  assert_eq "$(relative_path ${base}/dir1 ${base}/dir2/file2)"       "../dir2/file2"
+  assert_eq "$(relative_path ${base}/dir1/file1 ${base}/dir2/)"      "../dir2"
+  assert_eq "$(relative_path ${base}/dir1 ${base}/dir2/)"            "../dir2"
+}

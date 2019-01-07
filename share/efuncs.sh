@@ -1338,6 +1338,76 @@ directory_not_empty()
     find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
 
+opt_usage relative_path<<'END'
+# relative_path takes two paths and figures out the relative path between the two.
+# ex: the relative_path between /home/user/foo/bar and /home/user/baz/buz is
+# ../../baz/buz
+END
+relative_path()
+{
+  $(opt_parse \
+    "start  | Starting directory" \
+    "target | Target directory")
+
+  edebug "${LINENO}: $(lval start target)"
+
+  # strip trailing / unless that's all that's there
+  if [[ ${#start} -gt 1 && ${start} =~ /$ ]] ; then
+    start=${start%?}
+  fi
+  if [[ ${#target} -gt 1 && ${target} =~ /$ ]] ; then
+    target=${target%?}
+  fi
+
+  # we only want directories in start
+  if [[ ! -d "${start}" ]] ; then
+    start=$(dirname "${start}")
+  fi
+
+  edebug "${LINENO}: $(lval start target)"
+
+  start=$(readlink -m ${start})
+  target=$(readlink -m ${target})
+
+  edebug "${LINENO}: $(lval start target)"
+
+  local arr_start=()
+  local arr_target=()
+
+  array_init arr_start "${start}" /
+  array_init arr_target "${target}" /
+
+  # the arrays will have blank entries for any leading slashes, as well as
+  # multiples (i.e. foo///bar), so we need to remove them
+  array_remove arr_start ""
+  array_remove arr_target ""
+
+  # reindex the arrays after removing any blanks
+  arr_start=( ${arr_start[@]} )
+  arr_target=( ${arr_target[@]} )
+
+  edebug "${LINENO}: $(lval arr_start arr_target)"
+
+  while [[ ${#arr_start[@]} -gt 0  && \
+           ${#arr_target[@]} -gt 0 && \
+           "${arr_start[0]}" == "${arr_target[0]}" ]] ; do
+    arr_start=( ${arr_start[@]:1} )
+    arr_target=( ${arr_target[@]:1} )
+  done
+
+  # now build up the relative path
+  local path
+  local cnt
+
+  for (( cnt = 0; cnt < ${#arr_start[@]} ; cnt++ )); do
+    path+="../"
+  done
+
+  path+="$(array_join arr_target /)"
+
+  echo "${path}"
+}
+
 #---------------------------------------------------------------------------------------------------
 # COMPARISON FUNCTIONS
 #---------------------------------------------------------------------------------------------------
