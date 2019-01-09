@@ -33,7 +33,7 @@
 #
 #-------------------------------------------------------------------------------------------------------------------------
 
-CGROUP_SUBSYSTEMS=(cpu,cpuacct memory freezer)
+CGROUP_SUBSYSTEMS=(cpu cpuacct memory freezer)
 CGROUP_ROOT=/sys/fs/cgroup
 CGROUP_RELTO=""
 # If we're running inside docker, we constrain ourselves to only operate inside the cgroup that docker put us in.
