@@ -7,6 +7,11 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+# Test-only PGP files
+ETEST_PGP_PUBLIC="${EBASH_HOME}/unittest/etest_pgp_public.asc"
+ETEST_PGP_PRIVATE="${EBASH_HOME}/unittest/etest_pgp_private.asc"
+ETEST_PGP_PHRASE="${EBASH_HOME}/unittest/etest_pgp_phrase.txt"
+
 make_testfile()
 {
     # Generate some data into a file that we can checksum and such
@@ -91,23 +96,16 @@ ETEST_emetadata_sha1_backwards_compatible()
 
 ETEST_emetadata_pgp()
 {
-    [[ ${__EBASH_OS} == "Darwin" ]] && { ewarn "Test is disabled on Darwin per DT-188." ; return 0 ; }
-
-    # Grab public and private keys as well as passphrase
-    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_public.asc  public.asc
-    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_private.asc private.asc
-    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging.phrase      phrase.txt
-
     local src meta
     src="$(make_testfile)"
     meta="${src}.meta"
-    emetadata -p="private.asc" -k="$(cat phrase.txt)" ${src} > ${meta}
+    emetadata -p="${ETEST_PGP_PRIVATE}" -k="$(cat ${ETEST_PGP_PHRASE})" ${src} > ${meta}
     cat ${meta}
     pack_set MPACK $(cat ${meta})
     $(pack_import MPACK)
 
     # Now validate what we just signed using public key
-    emetadata_check -p="public.asc" ${src}
+    emetadata_check -p="${ETEST_PGP_PUBLIC}" ${src}
 }
 
 ETEST_emetadata_failure()
