@@ -105,12 +105,7 @@ __efetch_load_info()
         destination="${TMPDIR:-/tmp}"
     else
         destination=${urls[-1]}
-        
-        if [[ ${BASH_VERSION} == 4.2* ]]; then
-            unset urls[${#urls[@]}-1]
-        else
-            unset urls[-1]
-        fi
+        unset urls[${#urls[@]}-1]
 
         # Figure out if the destination path is a directory or a filename.
         if [[ -d "${destination}" ]]; then 
