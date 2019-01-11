@@ -33,9 +33,16 @@
 #
 #-------------------------------------------------------------------------------------------------------------------------
 
-CGROUP_SUBSYSTEMS=(cpu,cpuacct memory freezer)
 CGROUP_ROOT=/sys/fs/cgroup
 CGROUP_RELTO=""
+
+# systemd altered how it mounts the default cgroup subsystems. So explicitly look for old and new naming conventions.
+if [[ -e "${CGROUP_ROOT}/cpu,cpuacct" ]]; then
+    CGROUP_SUBSYSTEMS=(cpu,cpuacct memory freezer)
+else
+    CGROUP_SUBSYSTEMS=(cpu cpuacct memory freezer)
+fi
+
 # If we're running inside docker, we constrain ourselves to only operate inside the cgroup that docker put us in.
 if grep -q ":/docker/" /proc/$$/cgroup 2>/dev/null; then
     CGROUP_RELTO=$(awk -F: '$2 == "'${CGROUP_SUBSYSTEMS[0]}'" {print $3}' /proc/$$/cgroup)

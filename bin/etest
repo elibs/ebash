@@ -43,6 +43,10 @@ $(opt_parse \
     ":log_dir                  | Directory to place logs in.  Defaults to the current directory." \
     "+mount_ns=1               | Run tests inside a mount namespace." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
+    ":shard_index=0            | Shard index of tests to run. This allows splitting up our tests into chunks to help
+                                 splitting our large tests into smaller chunks and run them concurrently as
+                                 separate jobs." \
+    ":total_shards=1           | Total number of test shards to run. By default all run in a single shard." \
     "+summary s=0              | Display final summary to terminal in addition to logging it to etest.json." \
     "&test_list l              | File that contains a list of tests to run.  This file may contain comments on lines
                                  that begin with the # character.  All other nonblank lines will be interpreted as
@@ -463,23 +467,57 @@ trap_add global_teardown
 declare -ag TESTS_PASSED=()
 declare -ag TESTS_FAILED=()
 declare -ag TESTS_FLAKY=()
+declare -ag TESTS_SHARD=()
 declare -g  NUM_TESTS_EXECUTED=0
+
+# Expand tests to find all standalone executable scripts as well as any *.etest files.
+TESTS_SHARD=(
+    $(find "${tests[@]}" -type f -executable     | sort || true)
+    $(find "${tests[@]}" -type f -name "*.etest" | sort || true)
+)
+
+# Split tests into shards if requested
+if [[ "${total_shards}" -gt 1 ]]; then
+    assert_num "${shard_index}"
+
+    num_tests_expanded="${#TESTS_SHARD[@]}"
+
+    # If number of shards is greater than total number of tests then the caller has made a mistake
+    # in how they carved up the tests. We cannot just adjust it for them here as all the other shards
+    # would also be similarly invalid. THis could lead to the same tests running multiple times in
+    # each shard. So instead we just fail immediately.
+    assert_le "${total_shards}" "${num_tests_expanded}" "Total shards cannot exceed number of tests."   
+    num_tests_per_shard=$(( ${#TESTS_SHARD[@]} / ${total_shards} ))
+    assert_gt "${num_tests_per_shard}" 0
+    shard_offset_start=$(( ${num_tests_per_shard} * ${shard_index} ))
+    shard_offset_end=$(( ${shard_offset_start} + ${num_tests_per_shard} ))
+    assert_num_le "${shard_offset_end}" "${#TESTS_SHARD[@]}"
+   
+    # Always ensure the last shard goes to the very end of the array
+    if [[ $(( ${shard_index} + 1 )) -eq ${total_shards} ]]; then
+        shard_offset_end="${#TESTS_SHARD[@]}"
+    fi
+
+    edebug "Sharding $(lval shard_index total_shards num_tests_expanded num_tests_per_shard shard_offset_start shard_offset_end)"
+    TESTS_SHARD=("${TESTS_SHARD[@]:${shard_offset_start}:${shard_offset_end}}")
+fi
+
+SHARD="($((${shard_index}+1))/${total_shards})"
+if [[ "${verbose}" -eq 1 ]]; then
+    ebanner --uppercase "ETEST" break failures filter REPEAT SHARD
+else
+    ebanner --uppercase "ETEST" break failures filter REPEAT SHARD &>${ETEST_OUT}
+fi
 
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
     REPEAT_STRING="(${ITERATION}/${repeat})"
 
-    for test_location in "${tests[@]}" ; do
-
-        # Run all standalone *.etest scripts directly outside of etest framework
-        for filename in $(find "${test_location}" -type f -executable | sort || true); do
-            run_single_test --work-dir "${work_dir}/standalone" "${filename}"
-        done
-
-        # Run *.etest files which are not executable and need to be sourced and run inside etest
-        for filename in $(find "${test_location}" -type f -name "*.etest" | sort || true); do
+    for filename in "${TESTS_SHARD[@]}"; do
+        if [[ "${filename}" =~ \.etest$ ]]; then
             run_etest_file "${filename}"
-        done
-
+        else
+            run_single_test --work-dir "${work_dir}/standalone" "${filename}"
+        fi
     done
 done
 
@@ -541,10 +579,15 @@ jq . << EOF > ${ETEST_JSON}
     "numTestsPassed": "${#TESTS_PASSED[@]}",
     "numTestsFailed": "${#TESTS_FAILED[@]}",
     "numTestsFlaky": "${#TESTS_FLAKY[@]}",
+    "numTestsShard": "${#TESTS_SHARD[@]}",
     "testsPassed": $(array_to_json TESTS_PASSED),
     "testsFailed": $(array_to_json TESTS_FAILED),
     "testsFlaky": $(array_to_json TESTS_FLAKY),
+    "testsShard": $(array_to_json TESTS_SHARD),
     "runtime": "${RUNTIME} seconds",
+    "shard": "${shard_index}/${total_shards}",
+    "shardIndex": "${shard_index}",
+    "totalShards": "${total_shards}",
     "datetime": "$(etimestamp_rfc3339)",
     "options": {
         "break": "${break}",
