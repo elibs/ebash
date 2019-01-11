@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/marshallmcmullen/ebash.svg?branch=master)](https://travis-ci.org/marshallmcmullen/ebash)
+
 # ebash Guide
 
 ## Why ebash?

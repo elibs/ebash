@@ -100,7 +100,8 @@ EOF
 
 ETEST_ebash_bin_no_args()
 {
-    local output=$(EMSG_PREFIX="" EFUNCS_COLOR=1 ewarn hi |& ${EBASH_HOME}/bin/noansi)
+    local output
+    output=$(EMSG_PREFIX="" EFUNCS_COLOR=1 ewarn hi |& ${EBASH_HOME}/bin/noansi)
     etestmsg "$(lval output)"
 
     assert_eq ">> hi" "${output}"
@@ -108,7 +109,8 @@ ETEST_ebash_bin_no_args()
 
 ETEST_ebash_bin_printenv()
 {
-    local output=$( ${EBASH_HOME}/bin/ebash --printenv )
+    local output
+    output=$(${EBASH_HOME}/bin/ebash --printenv)
 
     (
         ACTUAL_EBASH_HOME=${EBASH_HOME}
