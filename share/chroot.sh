@@ -281,7 +281,7 @@ chroot_uninstall_filter()
 
 chroot_apt_setup()
 {
-    $(opt_parse CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
+    $(opt_parse CHROOT UBUNTU_RELEASE UBUNTU_ARCH)
 
     ## Set up DPKG options so we don't get prompted for anything
     einfo "Setting up dpkg.cfg"
@@ -289,13 +289,6 @@ chroot_apt_setup()
     echo 'force-confold'         >> ${CHROOT}/etc/dpkg/dpkg.cfg
     echo 'no-debsig'             >> ${CHROOT}/etc/dpkg/dpkg.cfg
     echo 'log /var/log/dpkg.log' >> ${CHROOT}/etc/dpkg/dpkg.cfg
-
-    einfo "Setting up sources.list"
-	cat > "${CHROOT}/etc/apt/sources.list" <<-EOF
-	deb [arch=${UBUNTU_ARCH}] http://${HOST}/${RELEASE}/ubuntu/ ${UBUNTU_RELEASE} main restricted universe multiverse
-	deb [arch=${UBUNTU_ARCH}] http://${HOST}/${RELEASE}/ubuntu/ ${UBUNTU_RELEASE}-updates main restricted universe multiverse
-	deb [arch=${UBUNTU_ARCH}] http://${HOST}/${RELEASE}/security-ubuntu ${UBUNTU_RELEASE}-security main restricted universe multiverse
-	EOF
 
     ## APT Update
     ## In case a prior run failed let's clean up any prior dpkg and apt-get failures
@@ -309,23 +302,6 @@ chroot_apt_setup()
     chroot_install_with_apt_get apt aptitude
     chroot_install curl vim wget
 
-    # Install keys
-    einfo "Adding trusted keys"
-    for keyname in solidfire_signing_key.pub dell_openmanage_key.pub gcc_ppa_repo.pub; do
-        einfos ${keyname}
-
-        chroot_cmd wget -q http://${HOST}/${keyname} -O /tmp/${keyname} &>/dev/null
-        chroot_cmd apt-key add /tmp/${keyname}                          &>/dev/null
-        chroot_cmd rm --force  /tmp/${keyname}                          &>/dev/null
-    done
-
-    # Add SolidFire entries after adding SolidFire APT public keys then
-    einfo "Updating sources.list"
-	cat >> "${CHROOT}/etc/apt/sources.list" <<-EOF
-	deb [arch=${UBUNTU_ARCH}] http://${HOST}/solidfire ${UBUNTU_RELEASE} main
-	deb [arch=${UBUNTU_ARCH}] http://${HOST}/omsa/repo/ /
-	EOF
-
     # In case any packages didn't fully install (APT...)
     einfo "Final configure/update"
     chroot_dpkg --configure -a
@@ -335,7 +311,7 @@ chroot_apt_setup()
 
 chroot_setup()
 {
-    $(opt_parse CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
+    $(opt_parse CHROOT UBUNTU_RELEASE UBUNTU_ARCH)
     einfo "Setting up $(lval CHROOT)"
 
     # Put this into a subshell to ensure error handling is done correctly on shell teardown
@@ -369,7 +345,7 @@ chroot_setup()
         chroot_cmd dpkg-reconfigure tzdata
 
         ## SETUP
-        chroot_apt_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
+        chroot_apt_setup ${CHROOT} ${UBUNTU_RELEASE} ${UBUNTU_ARCH}
 
         ## CLEANUP
         chroot_apt_clean
@@ -377,42 +353,23 @@ chroot_setup()
 }
 
 opt_usage mkchroot <<'END'
-Create an UBUNTU based CHROOT using debootstrap. It will first try to fetch a pre-built CHROOT
-tarball and unpack it. If this fails internal validation or is unavailable, then it will fallback to
-creating a fresh CHROOT via debootstrap. 
+Create an UBUNTU based CHROOT using debootstrap.
 END
 mkchroot()
 {
-    $(opt_parse CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)
-    edebug "$(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
+    $(opt_parse CHROOT UBUNTU_RELEASE UBUNTU_ARCH)
+    edebug "$(lval CHROOT UBUNTU_RELEASE UBUNTU_ARCH)"
 
     ## Make sure that debootstrap is installed
     which debootstrap > /dev/null
 
     # Debootstrap image
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
-    einfo "Creating $(lval CHROOT UBUNTU_RELEASE RELEASE HOST UBUNTU_ARCH)"
+    einfo "Creating $(lval CHROOT UBUNTU_RELEASE UBUNTU_ARCH)"
+    efreshdir ${CHROOT}
+    debootstrap --no-check-gpg --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT}
 
-    local GPG_FLAG="--no-check-gpg"
-
-    # Try to download to /var/distbox/downloads if it exists. If not fallback to /tmp
-    local dst="/tmp"
-    [[ -d "/var/distbox" ]] && dst="/var/distbox/downloads"
-    mkdir -p "${dst}"
-
-    try
-    {
-        efetch -m "http://${HOST}/images/${CHROOT_IMAGE}" "${dst}/${CHROOT_IMAGE}"
-        efreshdir ${CHROOT}
-        debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} --unpack-tarball="${dst}/${CHROOT_IMAGE}" ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
-    }
-    catch
-    {
-        efreshdir ${CHROOT}
-        debootstrap ${GPG_FLAG} --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT} http://${HOST}/${RELEASE}-ubuntu
-    }
-
-    chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${RELEASE} ${HOST} ${UBUNTU_ARCH}
+    chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${UBUNTU_ARCH}
 }
 
 #---------------------------------------------------------------------------------------------------

@@ -7,6 +7,11 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+# Test-only PGP files
+ETEST_PGP_PUBLIC="${EBASH_HOME}/unittest/etest_pgp_public.asc"
+ETEST_PGP_PRIVATE="${EBASH_HOME}/unittest/etest_pgp_private.asc"
+ETEST_PGP_PHRASE="${EBASH_HOME}/unittest/etest_pgp_phrase.txt"
+
 ETEST_efetch_md5_bogus()
 {
     local tmpfile
@@ -75,25 +80,18 @@ ETEST_efetch_meta()
 
 ETEST_efetch_meta_pgp()
 {
-    [[ ${__EBASH_OS} == "Darwin" ]] && { ewarn "Test is disabled on Darwin per DT-188." ; return 0 ; }
-
-    # Grab public and private keys as well as passphrase
-    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_public.asc  public.asc
-    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging_private.asc private.asc
-    efetch http://bdr-jenkins.den.solidfire.net:/keys/solidfire_packaging.phrase      phrase.txt
-    
     local tmpfile
     tmpfile=$(mktemp --tmpdir etest-efetch-XXXXXX)
     dd if=/dev/urandom of=${tmpfile} bs=1K count=1
-    emetadata -p="private.asc" -k="$(cat phrase.txt)" ${tmpfile} > ${tmpfile}.meta
+    emetadata -p="${ETEST_PGP_PRIVATE}" -k="$(cat ${ETEST_PGP_PHRASE})" ${tmpfile} > ${tmpfile}.meta
     emetadata_check ${tmpfile}
 
-    efetch --meta --public-key "public.asc" file://${tmpfile} copy.txt
+    efetch --meta --public-key "${ETEST_PGP_PUBLIC}" file://${tmpfile} copy.txt
     assert_exists copy.txt copy.txt.meta
     assert_not_exists copy.txt.progress copy.txt.meta.progress
     diff ${tmpfile} copy.txt
 
-    emetadata_check -p="public.asc" copy.txt
+    emetadata_check -p="${ETEST_PGP_PUBLIC}" copy.txt
 }
 
 # efetch without --meta or --md5 shouldn't remove existing .meta or .md5 files when it fails.

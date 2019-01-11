@@ -105,7 +105,7 @@ __efetch_load_info()
         destination="${TMPDIR:-/tmp}"
     else
         destination=${urls[-1]}
-        unset urls[-1]
+        unset urls[${#urls[@]}-1]
 
         # Figure out if the destination path is a directory or a filename.
         if [[ -d "${destination}" ]]; then 

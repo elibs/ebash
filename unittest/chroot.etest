@@ -22,7 +22,7 @@ setup()
         einfo "Making chroot in ${CHROOT}"
         efreshdir ${CHROOT}
         etestmsg "Cleaned ${CHROOT}"
-        mkchroot ${CHROOT} precise oxygen bdr-jenkins.den.solidfire.net amd64
+        mkchroot ${CHROOT} precise amd64
         etestmsg "Finished creating ${CHROOT}"
     else
         etestmsg "Chroot was previously created via setup routine -- verifying it looks minimally sane."
@@ -167,8 +167,8 @@ ETEST_chroot_install()
     chroot_mount
     trap_add "chroot_exit"
 
-    chroot_install "ebash-sfdev-precise-1.0.1>=5"
-    chroot_uninstall "ebash-sfdev-precise-1.0.1"
+    chroot_install "hello>=2.7-2"
+    chroot_uninstall "hello"
 
     # Empty
     chroot_install
