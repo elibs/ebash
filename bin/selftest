@@ -178,7 +178,7 @@ ETEST=${EBASH_HOME}/bin/etest
 
 [[ -x ${ETEST} ]] || die "Unable to find etest $(lval ETEST EBASH EBASH_HOME)"
 
-cd ${EBASH_HOME}/etest_selftest
+cd ${EBASH_HOME}/selftest
 
 # Just passing standalone tests
 SELFTEST_simple()
@@ -308,7 +308,7 @@ array_sort SELFTESTS
 for selftest in ${SELFTESTS[@]}; do
 (
     declare -xg SELFTEST_DIR_OUTPUT
-    SELFTEST_DIR_OUTPUT="$(readlink -f etest_selftest_output)"
+    SELFTEST_DIR_OUTPUT="$(readlink -f selftest_output)"
     efreshdir "${SELFTEST_DIR_OUTPUT}"
 
     "${selftest}"

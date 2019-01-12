@@ -43,5 +43,8 @@ addons:
 # Run the test suite
 script:
     - set -e
-    - if [[ ${SHARD} -eq 0 ]]; then bin/bashlint; fi
+    - if [[ ${SHARD} -eq 0 ]]; then
+          bin/bashlint;
+          bin/selftest;
+      fi
     - bin/etest --total-shards 10 --shard-index ${SHARD} --break --verbose --summary 
