@@ -486,6 +486,7 @@ die()
         ":signal s           | Signal that caused this die to occur." \
         ":color c            | DEPRECATED OPTION -- no longer has any effect." \
         ":frames f=3         | Number of stack frames to skip." \
+        "+nostack n          | Do not print a stacktrace." \
         "@message            | Message to display.")
 
     __EBASH_DIE_IN_PROGRESS=${return_code}
@@ -498,7 +499,9 @@ die()
     else
         echo "" >&2
         eerror_internal   -c="${COLOR_ERROR}" "${message[*]:-}"
-        eerror_stacktrace -c="${COLOR_ERROR}" -f=${frames} -s
+        if [[ ${nostack} -eq 0 ]] ; then
+            eerror_stacktrace -c="${COLOR_ERROR}" -f=${frames} -s
+        fi
     fi
 
     reenable_signals
