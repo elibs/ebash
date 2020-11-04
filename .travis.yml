@@ -29,6 +29,7 @@ addons:
       - mkisofs
       - squashfs-tools
   homebrew:
+    update: true
     packages:
       - bash
       - curl
@@ -39,13 +40,9 @@ addons:
       - grep
       - jq
       - pstree
-    update: true
 
 # Run the test suite
 script:
-    - echo "${PATH}"
-    - ls -l /usr/local/bin/bash
-    - set -e
     - if [[ ${SHARD} -eq 0 ]]; then
           bin/bashlint;
           bin/selftest;
