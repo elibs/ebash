@@ -39,6 +39,7 @@ addons:
       - grep
       - jq
       - pstree
+    update: true
 
 # Run the test suite
 script:
