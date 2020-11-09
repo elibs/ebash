@@ -124,7 +124,7 @@ else
             export EBASH EBASH_HOME
 
             SOURCE="${1}"
-            SCRIPT=$(mktemp --tmpdir etest-script-sh-XXXXXX)
+            SCRIPT=$(mktemp --tmpdir ebash-script-XXXXXX)
             trap_add "rm ${SCRIPT}"
 
             cp "${SOURCE}" "${SCRIPT}"
