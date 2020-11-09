@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -21,7 +21,7 @@
 # to run ebash functions intead.  First, it looks to see if the symlink
 # name is the name of a "namespace" of ebash commands.  For instance, the
 # string commands can be used in this way.  Assuming a "string" symlink, then
-#    
+#
 #     string trim " a string to trim "
 #
 # will call the string_trim function, passing it that string as an argument.
@@ -79,7 +79,7 @@ if [[ ${name} == "ebash" ]] ; then
     $(opt_parse \
         ":load l          | ebash should source the specified file before attempting to run the specified command." \
         "+source s        | Print commands that would load ebash from its existing location on disk into the current
-                            shell and then exit.  You'd use this in a script like this: \$(ebash --load)" \
+                            shell and then exit.  You'd use this in a script like this: \$(ebash --source)" \
         "+print_environment printenv p | Dump environment variables that ebash would like to use in a format bash
                             can interpret" \
         ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend ebash is running
@@ -90,7 +90,7 @@ if [[ ${name} == "ebash" ]] ; then
     fi
 
     if [[ ${source} -eq 1 ]] ; then
-        echo "eval export EBASH=${EBASH} EBASH_HOME=${EBASH_HOME} ; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/bashtuils.sh\" ; exit 1 ; }"
+        echo "eval export EBASH=${EBASH} EBASH_HOME=${EBASH_HOME} ; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }"
         exit 0
     elif [[ ${print_environment} -eq 1 ]] ; then
         printf "export EBASH=%q\n" "${EBASH}"
@@ -102,14 +102,12 @@ fi
 # If not called as ebash...
 if [[ "${name}" != "ebash" ]] ; then
 
-    # If there's a function in the group with the specified command name call
-    # it
+    # If there's a function in the group with the specified command name call it
     if [[ -n ${1:-} ]] && declare -f "${name}_${1}" &>/dev/null ; then
 
         quote_eval "${name}_${1}" "${@:2}"
 
-    # Otherwise assume the called name is also the name of a ebash function
-    # and pass everything as arguments to it.
+    # Otherwise assume the called name is also the name of a ebash function and pass everything as arguments to it.
     else
         quote_eval "${name}" "${@:1}"
     fi
@@ -119,13 +117,29 @@ else
 
     # Use all arguments to ebash as a command to execute
     if [[ ${#@} -gt 0 ]] ; then
-        # Run the command, but pretend to be inside a try so that die doesn't
-        # print an ugly stack trace.
+
+        # If we were given the path to another script run it inside ebash environment
+        if [[ ${#@} -eq 1 && -e "${1}" ]]; then
+
+            export EBASH EBASH_HOME
+
+            SOURCE="${1}"
+            SCRIPT=$(mktemp --tmpdir etest-script-sh-XXXXXX)
+            trap_add "rm ${SCRIPT}"
+
+            cp "${SOURCE}" "${SCRIPT}"
+            sed -i -e "s%^#!.*%source ${EBASH}/ebash.sh || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }%" "${SCRIPT}"
+            chmod +x "${SCRIPT}"
+
+            exec "${SCRIPT}"
+        fi
+
+        # Run the command, but pretend to be inside a try so that die doesn't print an ugly stack trace.
         quote_eval "${@}"
 
-    # Or run ibu if nothing was specified
+    # Or run iebash if nothing was specified
     else
-        exec ${EBASH_HOME}/bin/ibu --load "${load}"
+        exec ${EBASH_HOME}/bin/iebash --load "${load}"
     fi
 
 fi

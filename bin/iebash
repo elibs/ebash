@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# Allow calling function documentation in ibu.  This must happen before
-# sourcing ebash.
+# Allow calling function documentation in ebash. This must happen before sourcing ebash.
 __EBASH_SAVE_DOC=1
 
 reload()
@@ -24,7 +23,7 @@ reload
 HISTFILE=$(mktemp --tmpdir iebash_$$_XXXXXX)
 trap_add "rm --force \"${HISTFILE}\""
 
-: ${IBU_PROMPT:=$(ecolor green)$'IBU>\n'$(ecolor none)}
+: ${EBASH_PROMPT:=$(ecolor bold green)$'EBASH> '$(ecolor none)}
 
 # Trap SIGINT during read in such a way that Ctrl-C
 #    1) doesn't blow us up
@@ -49,7 +48,7 @@ repl()
         # Note: In typical ebash style, I would probably use tryrc here,
         # but I want to make sure that all commands are executed in the same
         # shell.
-        protected_read -e -r -p "${IBU_PROMPT}" cmd && rc=0 || rc=$?
+        protected_read -e -r -p "${EBASH_PROMPT}" cmd && rc=0 || rc=$?
 
         edebug "$(lval rc cmd)"
         if [[ ${rc} -eq 1 ]] ; then
