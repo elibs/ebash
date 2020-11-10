@@ -20,6 +20,15 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      # Install necessary software
+      - name: Prepare
+        run: sudo apt-get install -y
+              cgroup-light
+              debootstrap
+              dialog
+              mkisofs
+              squashfs-tools
+
       # Runs a single command using the runners shell
       - name: Test
         run: bin/etest --break --verbose --summary
