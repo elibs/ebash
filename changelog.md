@@ -11,10 +11,10 @@
     - New dialog.sh module provides a simple interface for using dialog
       ncurses interface (http://invisible-island.net/dialog/) within bash.
       This module provides some convenience wrappers to make it easier to
-      obtain the output from dialog and its return code without without 
+      obtain the output from dialog and its return code without without
       causing the ERR trap to be invoked via the "eval command invocation
       string" idiom. Also provides convenience methods dialog_read,
-      dialog_prompt, dialog_prgbox, dialog_prompt_username_password and a 
+      dialog_prompt, dialog_prgbox, dialog_prompt_username_password and a
       very large set of unit tests around this new module. At this time
       there are some bugs with dialog on older Ubuntu 12.04 and also on
       OSX so the module is excluded from those OSes.
@@ -150,7 +150,7 @@
 
     - Readme and unit tests are now included in the package.
 
-    - Revamp overlayfs module to to perform all parsing of the various mount 
+    - Revamp overlayfs module to to perform all parsing of the various mount
       layers into a single overlayfs_layers function. This uses a pack to more
       easily and consistently access various mount points and sources of the
       mount points throughout overlayfs code.
@@ -193,7 +193,7 @@
       Provides great tools for mounting, unmounting, listing, saving and
       printing out tree representation.
 
-    - Consolidated eunmount_recursive, eunmount_rm and eunmount into a 
+    - Consolidated eunmount_recursive, eunmount_rm and eunmount into a
       single function with flags to control its behavior. This single function
       can now optionally unmount recursively and also optionally remove the
       mount point (recursively) if desired. It also has the ability to continue

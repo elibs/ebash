@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -250,7 +250,7 @@ ETEST_process_parent_tree()
     {
         "pid": 17389,
         "ppid": 2895,
-        "cmd": "bash bin/ibu"
+        "cmd": "bash bin/iebash"
     }
 ]
 EOM
@@ -260,7 +260,7 @@ EOM
 (    1)* /sbin/init splash
 (25473) * tmux -u -2 -f /usr/share/byobu/profiles/tmuxrc new-session
 ( 2895)  * /bin/bash
-(17389)   * bash bin/ibu
+(17389)   * bash bin/iebash
 EOM
 )
     ps()
