@@ -22,7 +22,7 @@ jobs:
 
       # Install necessary software
       - name: Prepare
-        run: sudo apt-get install -y
+        run: sudo apt-get install -y --fix-missing
               cgroup-lite
               debootstrap
               dialog
