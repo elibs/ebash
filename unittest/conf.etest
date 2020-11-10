@@ -251,10 +251,6 @@ END
     conf_read MYCONF file
     declare -p MYCONF
 
-    for key in ${!MYCONF[@]}; do
-        einfo "$(lval key)"
-    done
-
     conf_dump MYCONF > other_file
 
     assert_eq --hexdump "$(cat file)" "$(cat other_file)"
