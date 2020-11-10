@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -64,8 +64,8 @@ array_size()
     # bash to create an empty array it doesn't really allow you to
     # distinguish that from an unset variable.  (i.e. it doesn't show you
     # the variable until you put something in it)
-    # 
-    # NOTE: The mechanism we use here is to stringify the contents of an 
+    #
+    # NOTE: The mechanism we use here is to stringify the contents of an
     # array and see if that's an empty string or not. If it is, then we'll
     # consider the array itself to have no elements. That's not actually
     # true of course because you could have an array with empty strings
@@ -148,7 +148,7 @@ array_remove()
     if array_empty ${__array} || [[ $# -eq 0 ]]; then
         return 0
     fi
-    
+
     local value
     for value in "${@}"; do
 
@@ -180,6 +180,13 @@ array_indexes()
     eval "echo \${!${__array_indexes_array}[@]}"
 }
 
+opt_usage array_indexes_SORT "Same as array_indexes only iterate in sorted order."
+array_indexes_sort()
+{
+    $(opt_parse "__array_indexes_array | Name of array to produce indexes from.")
+    eval "printf \"%s\0\" \${!${__array_indexes_array}[@]} | sort -z | xargs -0"
+}
+
 opt_usage array_rindexes "Same as array_indexes only this enumerates them in reverse order."
 array_rindexes()
 {
@@ -188,9 +195,9 @@ array_rindexes()
 }
 
 opt_usage array_contains<<'END'
-# array_contains will check if an array contains a given value or not. This
-# will return success (0) if it contains the requested element and failure (1)
-# if it does not.
+array_contains will check if an array contains a given value or not. This
+will return success (0) if it contains the requested element and failure (1)
+if it does not.
 END
 array_contains()
 {
@@ -243,7 +250,7 @@ array_join()
     for idx in ${indexes[@]}; do
         eval "echo -n \"\${${__array}[$idx]}\""
 
-        # If this is not the last element then always echo the delimiter. 
+        # If this is not the last element then always echo the delimiter.
         # If this is the last element only echo the delimiter if after==1.
         if [[ ${idx} -lt ${idx_last} || ${after} -eq 1 ]]; then
             echo -n "${delim}"
@@ -295,7 +302,7 @@ array_sort()
 
         [[ ${unique} -eq 1 ]]  && flags+=("--unique")
         [[ ${version} -eq 1 ]] && flags+=("--version-sort")
-        
+
         readarray -t ${__array} < <(
             local idx
             for idx in $(array_indexes ${__array}); do
