@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -464,21 +464,6 @@ ETEST_array_sort_version()
     assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
 }
 
-if [[ ${__EBASH_OS} == Linux ]] ; then
-
-    # Verify sort isn't insane. It uses LANG and LC_ALL to decide sort order.
-    # see 'man sort' and read WARNING around locale settings. We set these at the
-    # top of efuncs.sh.
-    ETEST_array_sort_locale()
-    {
-        local keep_paths=( "/sf/etc/origin.json" "bar" "foo" )
-        array_sort -u keep_paths
-        export SF_KEEP_PATHS="${keep_paths[@]}"
-        assert_eq "bar foo /sf/etc/origin.json" "${SF_KEEP_PATHS}"
-    }
-
-fi
-
 ETEST_array_indexes()
 {
     A=(1 2 3 4)
@@ -488,8 +473,52 @@ ETEST_array_indexes()
     local indexes
     indexes=$(array_indexes A)
     assert_eq "1 3" "${indexes}"
-
-    local rindexes
-    rindexes=$(array_rindexes A)
-    assert_eq "3 1" "${rindexes}"
 }
+
+ETEST_array_rindexes()
+{
+    A=(1 2 3 4)
+    unset A[0]
+    unset A[2]
+
+    local indexes
+    indexes=$(array_rindexes A)
+    assert_eq "3 1" "${indexes}"
+}
+
+ETEST_array_associative_indexes_sort()
+{
+    declare -A values=(
+        [b]="1"
+        [z]="2"
+        [a]="3"
+        [d]="4"
+        [m]="5"
+        [c]="6"
+    )
+
+    local indexes
+    indexes=$(array_indexes_sort values)
+    assert_eq "a b c d m z" "${indexes}"
+}
+
+#-----------------------------------------------------------------------------
+#
+# Linux only tests
+#
+#-----------------------------------------------------------------------------
+
+if [[ ${__EBASH_OS} == Linux ]]; then
+
+# It uses LANG and LC_ALL to decide sort order.
+# see 'man sort' and read WARNING around locale settings. We set these at the
+# top of efuncs.sh.
+ETEST_array_sort_locale()
+{
+    local keep_paths=( "/sf/etc/origin.json" "bar" "foo" )
+    array_sort -u keep_paths
+    export SF_KEEP_PATHS="${keep_paths[@]}"
+    assert_eq "bar foo /sf/etc/origin.json" "${SF_KEEP_PATHS}"
+}
+
+fi

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -8,7 +8,7 @@
 # version.
 
 # General doc on ebash interpretation of what it means to be an INI file.
-declare _bu_conf_ini_doc="These typically look something like the following:
+declare _ebash_conf_ini_doc="These typically look something like the following:
 
     [section]
     property=value
@@ -67,7 +67,7 @@ Reads one or more "INI"-style configuration file into an associative array that 
 advance. Keys in the associative array will be named for the sections of your INI file, and the
 entry will be a pack containing all configuration values from inside that section.
 
-${_bu_conf_ini_doc}
+${_ebash_conf_ini_doc}
 END
 conf_read()
 {
@@ -174,7 +174,7 @@ conf_contains()
 opt_usage conf_set<<END
 Set a value in an INI-style configuration file.
 
-${_bu_conf_ini_doc}
+${_ebash_conf_ini_doc}
 END
 conf_set()
 {
@@ -292,7 +292,7 @@ conf_dump()
 {
     $(opt_parse "__conf_store | Variable containing the configuration data.")
 
-    for key in $(array_indexes ${__conf_store}) ; do
+    for key in $(array_indexes_sort ${__conf_store}) ; do
         echo "[$key]"
         pack_iterate _conf_dump_helper "${__conf_store}[$key]"
         echo ""
@@ -304,4 +304,4 @@ _conf_dump_helper()
     printf "%s = %s\n" "$1" "$2"
 }
 
-unset _bu_conf_ini_doc
+unset _ebash_conf_ini_doc
