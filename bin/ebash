@@ -125,7 +125,7 @@ else
 
             SOURCE="${1}"
             SCRIPT=$(mktemp --tmpdir ebash-script-XXXXXX)
-            trap_add "rm ${SCRIPT}"
+            trap_add "rm -f ${SCRIPT}"
 
             cp "${SOURCE}" "${SCRIPT}"
             sed -i -e "s%^#!.*%source ${EBASH}/ebash.sh || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }%" "${SCRIPT}"
