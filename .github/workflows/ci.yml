@@ -6,10 +6,6 @@ on:
   push:
     branches: '**'
 
-# Environment variables
-env:
-  TERM: "xterm-256color"
-
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -34,4 +30,4 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Test
-        run: bin/etest --break --verbose --summary
+        run: TERM="xterm-256color" bin/etest --break --verbose --summary
