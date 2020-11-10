@@ -23,7 +23,7 @@ jobs:
       # Install necessary software
       - name: Prepare
         run: sudo apt-get install -y
-              cgroup-light
+              cgroup-lite
               debootstrap
               dialog
               mkisofs
