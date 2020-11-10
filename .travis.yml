@@ -18,6 +18,16 @@ env:
   - SHARD=7
   - SHARD=8
   - SHARD=9
+  - SHARD=10
+  - SHARD=11
+  - SHARD=12
+  - SHARD=13
+  - SHARD=14
+  - SHARD=15
+  - SHARD=16
+  - SHARD=17
+  - SHARD=18
+  - SHARD=19
 
 # Install dependencies for running the test suite.
 addons:
