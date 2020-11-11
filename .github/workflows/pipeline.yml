@@ -1,0 +1,52 @@
+name: Pipeline
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  push:
+    branches: '**'
+
+env:
+  TERM: "xterm-256color"
+  COLUMNS: "120"
+  EFUNCS_COLOR: "1"
+  EINTERACTIVE: "1"
+  UBUNTU_PACKAGES: "aptitude cgroup-lite debootstrap dialog mkisofs squashfs-tools"
+  MACOS_PACKAGES: "bash curl coreutils findutils gnu-sed gnupg grep jq pstree"
+
+jobs:
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare
+        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
+      - name: Lint
+        run: bin/bashlint
+
+  selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare
+        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
+      - name: Test
+        run: bin/selftest
+
+  shard:
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-16.04, macos-11.0, macos-10.15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare Ubuntu
+        if: startsWith(matrix.os, 'ubuntu-')
+        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
+      - name: Prepare MacOS
+        if: startsWith(matrix.os, 'macos-')
+        run: brew update && brew install ${MACOS_PACKAGES}
+      - name: Test
+        run: bin/etest --break --verbose --summary --shard-index ${{ matrix.shard }} --total-shards 10

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -209,7 +209,7 @@ pipe_read()
 {
     $(opt_parse "pipe")
     local line
-    
+
     # Read returns an error when it reaches EOF. But we still want to emit that
     # last line. So if we failed to read due to EOF but saw a partial line we
     # still want to echo it.
@@ -342,7 +342,7 @@ tryrc()
         actual_rc=$?
     }
 
-    # Emit commands to assign return code 
+    # Emit commands to assign return code
     echo eval "declare ${dflags} ${rc}=${actual_rc};"
 
     # Emit commands to assign stdout but ONLY if a stdout file was actually created.
@@ -426,11 +426,11 @@ trap_get()
 # Replace normal exit function with our own internal exit function so we can
 # detect abnormal exit conditions through an EXIT trap which we setup to ensure
 # die() is called on exit if it didn't go through our own internal exit mechanism.
-# 
+#
 # The primary use case for this trickery is to detect and catch unset variables.
 # With "set -u" turned on, bash immediately exits the program -- NOT by calling
-# bash exit function but by calling the C exit(2) function. The problem is that 
-# even though it exits, it does NOT call the ERR trap. Thus die() doesn't get 
+# bash exit function but by calling the C exit(2) function. The problem is that
+# even though it exits, it does NOT call the ERR trap. Thus die() doesn't get
 # invoked even though there was a fatal error causing abnormal termination. We
 # can catch this scenario by setting up an EXIT trap and invoking die() if exit
 # was invoked outside of our internal exit function.
@@ -466,7 +466,7 @@ die()
 {
     # Capture off our BASHPID into a local variable so we can use it in subsequent
     # commands which cannot use BASHPID directly because they are in subshells and
-    # the value of BASHPID would be altered by their context. 
+    # the value of BASHPID would be altered by their context.
     # WARNING: Do NOT use PPID instead of the $(ps) command because PPID is the
     #          parent of $$ not necessarily the parent of ${BASHPID}!
     local pid=${BASHPID}
@@ -480,7 +480,7 @@ die()
     if [[ ${__EBASH_DIE_IN_PROGRESS:=0} -ne 0 ]] ; then
         exit ${__EBASH_DIE_IN_PROGRESS}
     fi
-    
+
     $(opt_parse \
         ":return_code rc r=1 | Return code that die will eventually exit with." \
         ":signal s           | Signal that caused this die to occur." \
@@ -510,7 +510,7 @@ die()
     # allow the parent process to gracefully perform any cleanup before the
     # process ultimately exits.
     if [[ $$ != ${BASHPID} ]]; then
-        
+
         # Kill the parent shell.  This is how we detect failures inside command
         # substituion shells.  Bash would typically ignore them, but this
         # causes the shell calling the command substitution to fail and call die.
@@ -528,12 +528,12 @@ die()
         edebug "Killing children of ${pid}"
         ekilltree -s=SIGTERM -k=2s -x=${pid} ${pid}
 
-        # Last, finish up the current process. 
+        # Last, finish up the current process.
         if [[ -n "${__EBASH_DIE_BY_SIGNAL}" ]] ; then
             # When a process dies as the result of a SIGINT or other tty
             # signals, the proper thing to do is not to exit but to kill self
             # with that same signal.
-            # 
+            #
             # See http://www.cons.org/cracauer/sigint.html and
             # http://mywiki.wooledge.org/SignalTrap
             #
@@ -863,8 +863,8 @@ PATH_MAPPING_SYNTAX_DOC="This function uses the 'path mapping syntax' idiom. Pat
 map one path to another using a colon to delimit source and destination paths. This is a convenient
 idiom often used by functions which need to have a source file and use it in an alternative location
 inside the function. For example, '/var/log/kern.log:kern.log' specifies a source file of
-'/var/log/kern.log' and a destination file of 'kern.log'. 
-    
+'/var/log/kern.log' and a destination file of 'kern.log'.
+
 The path mapping syntax also supports referring to the contents of a directory rather than the
 directory itself using scp like syntax. For example, if you wanted to refer to the contents of
 /var/log instead of the directory /var/log, you would say '/var/log/.'. The trailing '/.' indicates
@@ -899,12 +899,12 @@ efreshdir()
 {
     local mnt
     for mnt in "${@}"; do
-        
+
         [[ -z "${mnt}" ]] && continue
 
         eunmount -a -r -d "${mnt}"
         mkdir -p ${mnt}
-    
+
     done
 }
 
@@ -1040,7 +1040,7 @@ elogfile()
     trap_add "rm --recursive --force ${tmpdir}"
     local pid_pipe="${tmpdir}/pids"
     mkfifo "${pid_pipe}"
- 
+
     # Internal function to avoid code duplication in setting up the pipes
     # and redirection for stdout and stderr.
     elogfile_redirect()
@@ -1065,7 +1065,7 @@ elogfile()
         (
             disable_die_parent
             close_fds
-            ( 
+            (
                 # Don't hold open a directory
                 local relative_files=( "${@}" ) files=( )
                 for file in "${relative_files[@]}" ; do
@@ -1182,7 +1182,7 @@ emetadata()
         ":private_key p | Also check the PGP signature based on this private key." \
         ":keyphrase k   | The keyphrase to use for the specified private key." \
         "path")
-    
+
     local rpath
     rpath=$(readlink -m "${path}")
     assert_exists "${rpath}" "${path}"
@@ -1307,13 +1307,34 @@ emetadata_check()
                 fail "${ctype} mismatch: $(lval path expect actual)"
             fi
         elif [[ ${ctype} == "PGP" && -n ${public_key} && -n ${pgpsignature} ]]; then
-            local keyring
-            keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
-            trap_add "rm --force ${keyring}"
-            GPG_AGENT_INFO="" gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} &> /dev/null
-            if ! GPG_AGENT_INFO="" echo "${pgpsignature}" | gpg --verify - "${rpath}" &> /dev/null; then
-                fail "PGP verification failure: $(lval path)"
+
+            # Setup a cgroup to track the gpg agent that we're going to spawn so we can ensure it gets killed.
+            # If cgroups are not supported, then we'll fallback to using ekill below.
+            local cgroup=""
+            if cgroup_supported ; then
+                cgroup="ebash/$$"
+                trap_add "cgroup_kill_and_wait ${cgroup} ; cgroup_destroy -r ${cgroup}"
+                cgroup_create ${cgroup}
             fi
+
+            (
+                # Move this subshell into the cgroup that we're going to kill so that the gpg agent we start gets
+                # killed. If cgroups are not supported then use simpler ekilltree as a fallback.
+                if [[ -n "${cgroup}" ]]; then
+                    cgroup_move ${cgroup} ${BASHPID}
+                else
+                    trap_add "ekilltree ${BASHPID}"
+                fi
+
+                local keyring
+                keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
+                trap_add "rm --force ${keyring}"
+                GPG_AGENT_INFO="" gpg --no-default-keyring --secret-keyring ${keyring} --import ${public_key} &> /dev/null
+                if ! GPG_AGENT_INFO="" echo "${pgpsignature}" | gpg --verify - "${rpath}" &> /dev/null; then
+                    fail "PGP verification failure: $(lval path)"
+                fi
+            )
+
         fi &
 
         pids+=( $! )
@@ -1499,7 +1520,7 @@ etimeout()
     ) &
     pid=$!
     edebug "Executing $(lval cmd timeout signal pid)"
- 
+
     #-------------------------------------------------------------------------
     # WATCHER
     #
@@ -1562,7 +1583,7 @@ etimeout()
         seconds=$(( ${stop} - ${start} ))
 
     } &>/dev/null
-    
+
     # Now if we got that sentinel 124 value, we can report the timeout
     if [[ ${watcher_rc} -eq 124 ]] ; then
         edebug "Timeout $(lval cmd rc seconds timeout signal pid)"
@@ -1668,17 +1689,17 @@ eretry_internal()
 
     while true; do
         [[ ${retries} != "infinity" && ${attempt} -ge ${retries} ]] && break || (( attempt+=1 ))
-        
+
         edebug "Executing $(lval cmd timeout max_timeout) retries=(${attempt}/${retries})"
 
-        # Run the command through timeout wrapped in tryrc so we can throw away the stdout 
+        # Run the command through timeout wrapped in tryrc so we can throw away the stdout
         # on any errors. The reason for this is any caller who cares about the output of
         # eretry might see part of the output if the process times out. If we just keep
         # emitting that output they'd be getting repeated output from failed attempts
         # which could be completely invalid output (e.g. truncated XML, Json, etc).
         stdout=""
         $(tryrc -o=stdout etimeout -t=${timeout} -s=${signal} "${cmd[@]}")
-        
+
         # Append list of exit codes we've seen
         exit_codes+=(${rc})
 
@@ -1690,18 +1711,18 @@ eretry_internal()
 
         # Show warning if requested
         if [[ -n ${warn_every} ]] && (( SECONDS - warn_seconds > warn_every )); then
-            ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})" 
+            ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})"
             warn_seconds=${SECONDS}
         fi
 
         # Don't use "-ne" here since delay can have embedded units
         if [[ ${delay} != "0" ]] ; then
-            edebug "Sleeping $(lval delay)" 
+            edebug "Sleeping $(lval delay)"
             sleep ${delay}
         fi
     done
 
-    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})" 
+    [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})"
 
     # Emit stdout
     echo -n "${stdout}"

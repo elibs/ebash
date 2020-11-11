@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -154,14 +154,14 @@ die_handler()
     if [[ ${verbose} -eq 0 ]]; then
         echo "" >&2
         eerror "${@}"
-        
+
         # Call eerror_stacktrace but skip top three frames to skip over the frames
         # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
         # over the initial error message since we already displayed it.
         eerror_stacktrace -f=4 -s
 
     fi &>${ETEST_OUT}
-    
+
     exit ${rc}
 }
 
@@ -195,7 +195,7 @@ assert_no_process_leaks()
     __EBASH_INSIDE_TRY=0
 
     edebug "Waiting..."
-    
+
     # Wait for up to 5 seconds for leaked processes to die off.  If anything
     # lasts beyond that, we'll call it a test failure.
     $(tryrc eretry -T=5s no_process_leaks_remain)
@@ -220,10 +220,10 @@ assert_no_mount_leaks()
 {
     $(opt_parse path)
     edebug "Checking for stale mounts under $(lval path)"
- 
+
     local mounts=()
     mounts=( $(efindmnt "${path}" ) )
-    
+
     if ! array_empty mounts; then
         eunmount -a -r -d=${delete} "${path}"
         eerror "Leaked under $(lval mounts path)"$'\n'"$(array_join_nl mounts)"
@@ -235,7 +235,7 @@ assert_no_mount_leaks()
     fi
 
     edebug "Finished"
-} 
+}
 
 global_setup()
 {
@@ -304,14 +304,14 @@ run_single_test()
     fi
 
     ebanner --uppercase "${display_testname}" REPEAT=REPEAT_STRING failures
- 
+
     einfos ${display_testname} &>${ETEST_OUT}
 
     (( NUM_TESTS_EXECUTED += 1 ))
-   
+
     local tries=0
     for (( tries=0; tries <= ${failures}; tries++ )); do
-        
+
         rc=0
 
         # We want to make sure that any traps from the tests
@@ -351,7 +351,7 @@ run_single_test()
             if ! is_function "${testname}" ; then
                 command=$(readlink -f "${testname}")
             fi
-            
+
             cd "${work_dir}"
 
             etestmsg "Calling test (${tries}/${failures})"
@@ -367,7 +367,7 @@ run_single_test()
             rc=$?
         }
         edebug "Finished $(lval testname display_testname rc tries FAILURES)"
-    
+
         if [[ ${rc} -eq 0 ]]; then
             break
         fi
@@ -407,7 +407,7 @@ run_single_test()
     fi
 
     eend ${rc} &>${ETEST_OUT}
-    
+
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
         etestmsg "Calling test_teardown"
@@ -486,13 +486,13 @@ if [[ "${total_shards}" -gt 1 ]]; then
     # in how they carved up the tests. We cannot just adjust it for them here as all the other shards
     # would also be similarly invalid. THis could lead to the same tests running multiple times in
     # each shard. So instead we just fail immediately.
-    assert_le "${total_shards}" "${num_tests_expanded}" "Total shards cannot exceed number of tests."   
+    assert_le "${total_shards}" "${num_tests_expanded}" "Total shards cannot exceed number of tests."
     num_tests_per_shard=$(( ${#TESTS_SHARD[@]} / ${total_shards} ))
     assert_gt "${num_tests_per_shard}" 0
     shard_offset_start=$(( ${num_tests_per_shard} * ${shard_index} ))
     shard_offset_end=$(( ${shard_offset_start} + ${num_tests_per_shard} ))
     assert_num_le "${shard_offset_end}" "${#TESTS_SHARD[@]}"
-   
+
     # Always ensure the last shard goes to the very end of the array
     if [[ $(( ${shard_index} + 1 )) -eq ${total_shards} ]]; then
         shard_offset_end="${#TESTS_SHARD[@]}"
@@ -530,7 +530,7 @@ if [[ -d ".hg" ]] && which hg &>/dev/null ; then
         branch="$(hg branch)"                           \
         bookmark="$(hg book | awk '/ * / {print $2}')"  \
         commit="$(hg id --id)"
-    
+
 elif [[ -d ".git" ]] && which git &>/dev/null ; then
     pack_set vcs_pack \
         type="git"                                                \

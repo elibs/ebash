@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -123,7 +123,7 @@ edebug()
         msg="$(cat)"
         [[ -z ${msg} ]] && return 0
     fi
-    
+
     # If debugging isn't enabled then simply return without writing anything.
     # NOTE: We can't return at the top of this function in the event the caller has
     # piped output into edebug. We have to consume their output so that they don't
@@ -330,11 +330,13 @@ ebanner()
         eval "str=\$(printf -- '-%.0s' {1..${cols}})"
         ecolor ${COLOR_BANNER}
         echo -e "+${str}+"
+        ecolor ${COLOR_BANNER}
         echo -e "|"
 
         # Print the first message honoring any newlines
         array_init_nl lines "${1}"; shift
         for line in "${lines[@]}"; do
+            ecolor ${COLOR_BANNER}
             echo -e "| ${line}"
         done
 
@@ -362,6 +364,7 @@ ebanner()
 
         # Now output all the details (if any)
         if [[ -n ${__details[@]:-} ]]; then
+            ecolor ${COLOR_BANNER}
             echo -e "|"
 
             # Sort the keys and store into an array
@@ -386,12 +389,15 @@ ebanner()
                     ktag="${ktag^^}"
                 fi
 
+                ecolor ${COLOR_BANNER}
                 printf "| • %s%${pad}s :: %s\n" ${ktag} " " "${__details[$key]}"
             done
         fi
 
         # Close the banner
+        ecolor ${COLOR_BANNER}
         echo -e "|"
+        ecolor ${COLOR_BANNER}
         echo -en "+${str}+"
         ecolor none
         echo ""
@@ -470,7 +476,7 @@ emsg()
                     first_printed=1
                     ecolor reset
                 fi
-        
+
             done
 
             ecolor $color
@@ -533,7 +539,7 @@ eerror()
 
 etestmsg()
 {
-    EMSG_COLOR="all" emsg "magenta" "##" "WARN" "$@"
+    EMSG_COLOR="all" emsg "wheat" "##" "WARN" "$@"
 }
 
 opt_usage eerror_stacktrace <<'END'
@@ -551,7 +557,7 @@ eerror_stacktrace()
         "+skip s                 | Skip the initial error message.  Useful if the caller already displayed it." \
         ":color c=${COLOR_ERROR} | Use the specified color for output messages.")
 
-    if [[ ${skip} -eq 0 ]]; then 
+    if [[ ${skip} -eq 0 ]]; then
         echo "" >&2
         eerror_internal -c="${color}" "$@"
     fi
@@ -673,14 +679,14 @@ eprogress()
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0. Simply display static message and then return.
     if [[ ${EPROGRESS} -eq 0 ]]; then
-        
+
         "${style}" -n "$* "
-        
+
         # Delete file if requested
         if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
             rm --force "${file}"
         fi
-        
+
         return 0
     fi
 
@@ -704,7 +710,7 @@ eprogress()
         ecolor save_cursor >&2
         local start=${SECONDS}
 
-        # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out 
+        # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out
         # gracefully at the right point in the loop.
         local new="" diff="" lines=0 columns=0 offset=0
         while true; do
@@ -718,7 +724,7 @@ eprogress()
 
             if [[ ${time} -eq 1 ]] ; then
 
-                # Terminal magic that moves our cursor to the bottom right corner of the screen then backs it up just 
+                # Terminal magic that moves our cursor to the bottom right corner of the screen then backs it up just
                 # enough to allow the ticker to display such that it is right justified instead of lost on the far left
                 # of the screen intermingled with actions being performed.
                 if [[ "${align}" == "right" ]]; then
@@ -745,7 +751,7 @@ eprogress()
             spinout "-"
             spinout "\\"
             spinout "|"
-       
+
             # If we are done then break out of the loop and perform necessary clean-up. Otherwise prepare for next
             # iteration.
             if [[ ${done} -eq 1 ]]; then
@@ -768,7 +774,7 @@ eprogress()
         exit 0
 
     ) &
-    
+
     __EBASH_EPROGRESS_PIDS+=( $! )
     trap_add "eprogress_kill -r=1 $!"
 }
@@ -794,7 +800,7 @@ eprogress_kill()
     local pids=()
     if [[ $# -gt 0 ]]; then
         pids=( ${@} )
-    elif array_not_empty __EBASH_EPROGRESS_PIDS; then 
+    elif array_not_empty __EBASH_EPROGRESS_PIDS; then
         if [[ ${all} -eq 1 ]] ; then
             pids=( "${__EBASH_EPROGRESS_PIDS[@]}" )
         else
@@ -866,15 +872,23 @@ print_value()
     [[ -z ${val} ]] && val='""'
 
     # Special handling for arrays and associative arrays
-    regex="declare -[aA]"
-    if [[ ${decl} =~ ${regex} ]] ; then
-        if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -gt 3 ]] ; then
+    local array_regex="declare -a"
+    local assoc_regex="declare -A"
+    if [[ ${decl} =~ ${array_regex} ]] ; then
+        if [[ BASH_VERSINFO[0] -ge 5 || ( BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -gt 3 ) ]] ; then
             # BASH 4.4 and beyond -- no single quote
             val=$(declare -p ${__input} | sed -e "s/[^=]*=(\(.*\))/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         else
             # BASH 4.2 and 4.3
             val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         fi
+    elif [[ ${decl} =~ ${assoc_regex} ]]; then
+    	val="("
+	local key
+	for key in $(array_indexes_sort ${__input}); do
+	    eval 'val+="['${key}']=\"${'${__input}'['$key']}\" "'
+	done
+	val+=")"
     fi
 
     echo -n "${val}"
