@@ -187,7 +187,7 @@ __efetch_download()
         # Call curl with explicit COLUMNS so that the progress bar will fit into the amount of room left on the
         # console after we print the filename.  default COLUMNS to 80 for the case of no tty.  in that case, it doesn't
         # matter what the value is.
-        COLUMNS=$(( ${COLUMNS:-80}-${pad}-1)) curl --location --fail --show-error --insecure ${timecond} \
+        COLUMNS=$(( ${COLUMNS:-80}-${pad}-1)) curl --location --fail --show-error --insecure --progress-bar ${timecond} \
             --output "${dest}.pending" "${url}" &> "${progress}" &
 
         pack_set data[$url] pid=$!
