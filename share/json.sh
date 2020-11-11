@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -80,7 +80,7 @@ associative_array_to_json()
     echo -n "{"
     local _notfirst="" _key
     edebug "1=$1"
-    for _key in $(eval echo -n "\${!$1[@]}") ; do
+    for _key in $(array_indexes_sort $1); do
         edebug $(lval _key)
         [[ -n ${_notfirst} ]] && echo -n ","
 
@@ -112,7 +112,7 @@ pack_to_json()
 }
 
 # Escape an arbitrary string (specified as $1) so that it is quoted and safe to
-# put inside json. This is done via a call to jq with --raw-input which will 
+# put inside json. This is done via a call to jq with --raw-input which will
 # cause it to emit a properly quoted and escaped string that is safe to use
 # inside json.
 #
@@ -130,7 +130,7 @@ environment as proper bash variables. By default this will import all the keys a
 caller's environment. Alternatively you can provide an optional list of keys to restrict what is
 imported. If any of the explicitly requested keys are not present this will be interpreted as an
 error and json_import will return non-zero. Keys can be marked optional via the '?' prefix before
-the key name in which case they will be set to an empty string if the key is missing. 
+the key name in which case they will be set to an empty string if the key is missing.
 
 Similar to a lot of other  methods inside ebash, this uses the "eval command invocation string"
 idom. So, the proper calling convention for this is:
@@ -231,7 +231,7 @@ file_to_json()
     (
         # Parse the file and strip out any ansi escape codes and then replace newlines with spaces. This gives a bunch
         # of separate, quoted items that we can safely insert into a pack. We can then pass that pack through eval so
-        # that bash can safely interpret those quotes and make them separate arguments passed into pack_set. 
+        # that bash can safely interpret those quotes and make them separate arguments passed into pack_set.
         array_init_nl parts "$(cat "${file}" | noansi)"
         pack_set pack "${parts[@]}"
         pack_to_json pack
