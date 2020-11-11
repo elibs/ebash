@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -9,23 +9,23 @@
 
 opt_usage efetch <<'END'
 Fetch one or more URLs to an optional destination path with progress monitor and metadata validation. Older versions
-of this function took either one ${url} argument or two arguments: ${url} and ${destination}. Now, this is much more 
+of this function took either one ${url} argument or two arguments: ${url} and ${destination}. Now, this is much more
 powerful as it can take any abitrary number of arguments and show a detailed progress bar with percent complete for
-each file instead of just an eprogress ticker. 
+each file instead of just an eprogress ticker.
 
 If only one argument is provided it is the name of the remote URL which will be downloaded to ${TMPDIR} which defaults
-to '/tmp'. If two arguments are provided the first is ${url} and the second is ${destination}. In this case, the 
+to '/tmp'. If two arguments are provided the first is ${url} and the second is ${destination}. In this case, the
 ${destination} can be an existing directory or the name of the local file to save the remote URL to inside the existing
 ${destination} directory. If more than two arguments are given, the final argument is required to be an existing local
 directory to download the files to.
 
-Just like `eprogress` the caller can set EPROGRESS=0 to disable the progress bar emitted by efetch. Alternatively, 
+Just like `eprogress` the caller can set EPROGRESS=0 to disable the progress bar emitted by efetch. Alternatively,
 the caller can silence all the output from efetch using `--quiet`. Or, more usefully, you can redirect all the output
 to an alternative output file via `--output <filename>`. In this case the ebanner and the per-file detailed progress
 status will be sent to that output file instead. You can then background the efetch process and then tail the output
 file and wait for the fetching to complete. To make this simpler, you can use `efetch_wait --tail <pid>`. For example:
 
-efetch --output efetch.output <url1> <url2> ... <destination> & 
+efetch --output efetch.output <url1> <url2> ... <destination> &
 efetch_pid=$!
 <do other stuff>
 efetch_wait --tail ${efetch_pid}
@@ -108,7 +108,7 @@ __efetch_load_info()
         unset urls[${#urls[@]}-1]
 
         # Figure out if the destination path is a directory or a filename.
-        if [[ -d "${destination}" ]]; then 
+        if [[ -d "${destination}" ]]; then
             destination_is_file=0
         elif [[ -d $(dirname ${destination}) ]]; then
             destination_is_file=1
@@ -149,7 +149,7 @@ __efetch_load_info()
             fname="${fname}"            \
             dest="${dest}"              \
             progress="${dest}.progress" \
-            timecond="${timecond}" 
+            timecond="${timecond}"
 
         # Also load info for the associated *.md5 and *.meta file for this URL if requested.
         for opt in md5 meta; do
@@ -171,10 +171,10 @@ __efetch_load_info()
     fi
 }
 
-# Internal helper method to call out to curl to download all of the URLs requested in efetch. It will background a 
-# call to curl for each URL requested in efetch along with `--progress` flag so that we get a nice ticker showing
-# percent complete of each file. This is all redirected to the progress file for each URL. We store the PID off of the
-# backgrounded process so we can wait on them in __efetch_download_wait.
+# Internal helper method to call out to curl to download all of the URLs requested in efetch. It will background a call
+# to curl for each URL requested in efetch with a progress ticker showing percent complete of each file. This is all
+# redirected to the progress file for each URL. We store the PID off of the backgrounded process so we can wait on them
+# in __efetch_download_wait.
 #
 # NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
 #       avoid the overhead of needlessly calling opt_parse again.
@@ -187,10 +187,11 @@ __efetch_download()
         # Call curl with explicit COLUMNS so that the progress bar will fit into the amount of room left on the
         # console after we print the filename.  default COLUMNS to 80 for the case of no tty.  in that case, it doesn't
         # matter what the value is.
-        COLUMNS=$(( ${COLUMNS:-80}-${pad}-1)) curl --location --fail --show-error --insecure --progress ${timecond} \
+        COLUMNS=$(( ${COLUMNS:-80}-${pad}-1)) curl --location --fail --show-error --insecure ${timecond} \
             --output "${dest}.pending" "${url}" &> "${progress}" &
 
         pack_set data[$url] pid=$!
+
     done
 }
 
@@ -204,7 +205,7 @@ __efetch_download()
 __efetch_download_wait()
 {
     local finished=() url=""
-    
+
     # Put list of arrays into sorted array so that we can display them in sorted order which makes it easier for the
     # caller to find the file they want to monitor download progress for.
     local urls=( "${!data[@]}" )
@@ -219,21 +220,21 @@ __efetch_download_wait()
     # will be downloading but don't show any pretty output formatting.
     if [[ "${EPROGRESS}" -ne 0 ]]; then
         ecolor hide_cursor
-        trap_add "ecolor clear_to_eol" 
+        trap_add "ecolor clear_to_eol"
         trap_add "ecolor show_cursor"
     fi
 
     while [[ ${#finished[@]} -lt ${#data[@]} ]]; do
-    
+
         for url in ${urls[@]}; do
             $(pack_import data[$url])
 
             # This is where all the pretty output formatting happens. We basically move the cursor to the start of the
             # line, then print the filename followed by the progress bar curl is writing out to the progress file. That
-            # file has a bunch of control characters in it to move the cursor around. We don't want to display all of 
+            # file has a bunch of control characters in it to move the cursor around. We don't want to display all of
             # that as it messes up our output since we are already in a loop. So we just grab the very last line from
             # the progress file and display that as that is the current status line for that file.
-            if [[ "${EPROGRESS}" -ne 0 ]]; then 
+            if [[ "${EPROGRESS}" -ne 0 ]]; then
                 ecolor start_of_line
                 local status=""
                 status=$(cat ${progress} | sed 's|[[:cntrl:]]|\n|g' | tail -1)
@@ -263,7 +264,7 @@ __efetch_download_wait()
 
     done
 
-    if [[ "${EPROGRESS}" -ne 0 ]]; then 
+    if [[ "${EPROGRESS}" -ne 0 ]]; then
         ecolor show_cursor
     fi
 }
@@ -285,7 +286,7 @@ __efetch_check_incomplete_or_failed()
 
         einfos "${fname}"
         rm --force "${progress}"
-        
+
         if [[ "${result}" == "failed" ]]; then
             eend 1
             eerror "Removing incomplete or failed files: ($(echo \"${dest}{,.md5,.meta}.pending\"))"
@@ -293,7 +294,7 @@ __efetch_check_incomplete_or_failed()
             (( errors += 1 ))
         else
             eend 0
-            
+
             if [[ -e "${dest}.pending" ]]; then
                 mv "${dest}.pending" "${dest}"
             else
@@ -310,8 +311,8 @@ __efetch_check_incomplete_or_failed()
     done
 }
 
-# Internel helper method to validate the files we downloaded against companion md5 or our newer more powerful *.meta 
-# files which includes optional PGP signature validation. If any files we downloaded are corrupt then they are deleted. 
+# Internel helper method to validate the files we downloaded against companion md5 or our newer more powerful *.meta
+# files which includes optional PGP signature validation. If any files we downloaded are corrupt then they are deleted.
 #
 # NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
 #       avoid the overhead of needlessly calling opt_parse again.
@@ -339,7 +340,7 @@ __efetch_digest_validation()
                 sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${fname}|" "${dest}.md5"
                 emd5sum_check "${dest}"
             fi
-            
+
             if [[ "${meta}" -eq 1 ]]; then
                 opt_forward emetadata_check quiet public_key -- "${dest}"
             fi
@@ -357,7 +358,7 @@ opt_usage efetch_wait <<'END'
 Wait for previously backgrounded efetch process to complete and optionally tail its output on the console.
 See also `efetch`. The basic usage of these two would be:
 
-efetch --output efetch.output <url1> <url2> ... <destination> & 
+efetch --output efetch.output <url1> <url2> ... <destination> &
 efetch_pid=$!
 <do other stuff>
 efetch_wait --tail efetch.output ${efetch_pid}
