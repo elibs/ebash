@@ -37,7 +37,7 @@ jobs:
   shard:
     strategy:
       matrix:
-        os: [ubuntu-16.04, ubuntu-18.04]
+        os: [ubuntu-16.04, ubuntu-18.04, macos-11.0]
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     runs-on: ${{ matrix.os }}
     steps:
