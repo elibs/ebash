@@ -1,6 +1,6 @@
-![Build Status](https://github.com/marshallmcmullen/ebash/workflows/pipeline/badge.svg?branch=master)
+![Build Status](https://github.com/marshallmcmullen/ebash/workflows/Pipeline/badge.svg?branch=master)
 
-───────────────────────────────────────────────────────────────────────
+---
 ```
 ███████╗██████╗  █████╗ ███████╗██╗  ██╗
 ██╔════╝██╔══██╗██╔══██╗██╔════╝██║  ██║
@@ -9,7 +9,7 @@
 ███████╗██████╔╝██║  ██║███████║██║  ██║
 ╚══════╝╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 ```
-───────────────────────────────────────────────────────────────────────
+---
 
 # ebash Guide
 
