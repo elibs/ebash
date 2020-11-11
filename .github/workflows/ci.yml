@@ -11,7 +11,7 @@ env:
   COLUMNS: "120"
   EFUNCS_COLOR: "1"
   EINTERACTIVE: "1"
-  UBUNTU_PACKAGES: "cgroup-lite debootstrap dialog mkisofs squashfs-tools"
+  UBUNTU_PACKAGES: "aptitude cgroup-lite debootstrap dialog mkisofs squashfs-tools"
 
 jobs:
 
