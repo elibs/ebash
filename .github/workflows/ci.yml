@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Prepare
-        run: sudo apt-get update && sudo apt-get install -y "${UBUNTU_PACKAGES}"
+        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
       - name: Lint
         run: bin/bashlint
 
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Prepare
-        run: sudo apt-get update && sudo apt-get install -y "${UBUNTU_PACKAGES}"
+        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
       - name: Test
         run: bin/selftest
 
@@ -41,6 +41,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Prepare
-        run: sudo apt-get update && sudo apt-get install -y "${UBUNTU_PACKAGES}"
+        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
       - name: Test
         run: bin/etest --break --verbose --summary --shard-index ${{ matrix.shard }} --total-shards 10
