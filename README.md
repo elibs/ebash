@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/marshallmcmullen/ebash/workflows/CI/badge.svg?branch=master)]
+![Build Status](https://github.com/marshallmcmullen/ebash/workflows/CI/badge.svg?branch=master)
 
 ───────────────────────────────────────────────────────────────────────
 ```
