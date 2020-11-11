@@ -80,7 +80,7 @@ associative_array_to_json()
     echo -n "{"
     local _notfirst="" _key
     edebug "1=$1"
-    for _key in $(eval echo -n "\${!$1[@]}") ; do
+    for _key in $(array_indexes_sort $1); do
         edebug $(lval _key)
         [[ -n ${_notfirst} ]] && echo -n ","
 

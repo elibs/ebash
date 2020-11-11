@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2015-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2015-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2015-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -274,7 +274,7 @@ cgroup_pids()
             edebug "looking for processes $(lval cgroup)"
         fi
 
-        local subsystem_file 
+        local subsystem_file
         for subsystem_file in "${files[@]}" ; do
             local subsystem_pids
 
@@ -357,7 +357,7 @@ cgroup_ps()
 #
 # Cgroup_tree will produce output as follows:
 #
-#    % cgroup_tree 
+#    % cgroup_tree
 #    a/1 a/2 a/3 b/10 b/20 c
 #
 #    % cgroup_tree a
@@ -526,7 +526,7 @@ cgroup_kill_and_wait()
                 eerror "Tried to kill all processes in cgroup, but some remain.  Giving up after ${timeout} seconds.  $(lval cgroup remaining_pids)"
                 return 1
             fi
-            
+
             if edebug_enabled; then
                 local pid="" ps_output=""
                 for pid in ${remaining_pids} ; do
