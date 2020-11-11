@@ -43,10 +43,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Prepare Ubuntu
-        if: startsWith(${{ matrix.os }}, "ubuntu")
+        if: startsWith(matrix.os, 'ubuntu-')
         run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
       - name: Prepare MacOS
-        if: startsWith(${{ matrix.os }}, "macos")
+        if: startsWith(matrix.os, 'macos-')
         run: brew update && brew install ${MACOS_PACKAGES}
       - name: Test
         run: bin/etest --break --verbose --summary --shard-index ${{ matrix.shard }} --total-shards 10
