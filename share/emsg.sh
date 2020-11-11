@@ -872,15 +872,23 @@ print_value()
     [[ -z ${val} ]] && val='""'
 
     # Special handling for arrays and associative arrays
-    regex="declare -[aA]"
-    if [[ ${decl} =~ ${regex} ]] ; then
-        if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -gt 3 ]] ; then
+    local array_regex="declare -a"
+    local assoc_regex="declare -A"
+    if [[ ${decl} =~ ${array_regex} ]] ; then
+        if [[ BASH_VERSINFO[0] -ge 5 || ( BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -gt 3 ) ]] ; then
             # BASH 4.4 and beyond -- no single quote
             val=$(declare -p ${__input} | sed -e "s/[^=]*=(\(.*\))/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         else
             # BASH 4.2 and 4.3
             val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         fi
+    elif [[ ${decl} =~ ${assoc_regex} ]]; then
+    	val="("
+	local key
+	for key in $(array_indexes_sort ${__input}); do
+	    eval 'val+="['${key}']=\"${'${__input}'['$key']}\" "'
+	done
+	val+=")"
     fi
 
     echo -n "${val}"
