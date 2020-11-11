@@ -12,6 +12,7 @@ env:
   EFUNCS_COLOR: "1"
   EINTERACTIVE: "1"
   UBUNTU_PACKAGES: "aptitude cgroup-lite debootstrap dialog mkisofs squashfs-tools"
+  MACOS_PACKAGES: "bash curl coreutils findutils gnu-sed gnupg grep jq pstree"
 
 jobs:
 
@@ -34,13 +35,18 @@ jobs:
         run: bin/selftest
 
   shard:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        os: [ubuntu-16.04, ubuntu-18.04, macos-10.5, macos-11.0]
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - name: Prepare
+      - name: Prepare Ubuntu
+        if: startsWith(${{ matrix.os }}, "ubuntu")
         run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
+      - name: Prepare MacOS
+        if: startsWith(${{ matrix.os }}, "macos")
+        run: brew update && brew install ${MACOS_PACKAGES}
       - name: Test
         run: bin/etest --break --verbose --summary --shard-index ${{ matrix.shard }} --total-shards 10
