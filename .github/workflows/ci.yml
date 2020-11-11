@@ -11,28 +11,36 @@ env:
   COLUMNS: "120"
   EFUNCS_COLOR: "1"
   EINTERACTIVE: "1"
+  UBUNTU_PACKAGES: "cgroup-lite debootstrap dialog mkisofs squashfs-tools"
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare
+        run: sudo apt-get update && sudo apt-get install -y "${UBUNTU_PACKAGES}"
+      - name: Lint
+        run: bin/bashlint
+
+  selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare
+        run: sudo apt-get update && sudo apt-get install -y "${UBUNTU_PACKAGES}"
+      - name: Test
+        run: bin/selftest
+
+  shard:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
     steps:
       - uses: actions/checkout@v2
-
-      # Install necessary software
       - name: Prepare
-        run: sudo apt-get update &&
-             sudo apt-get install -y
-              cgroup-lite
-              debootstrap
-              dialog
-              mkisofs
-              squashfs-tools
-
-      # Runs a single command using the runners shell
-      - name: "Test Shard ${{ matrix.shard }}"
+        run: sudo apt-get update && sudo apt-get install -y "${UBUNTU_PACKAGES}"
+      - name: Test
         run: bin/etest --break --verbose --summary --shard-index ${{ matrix.shard }} --total-shards 10
