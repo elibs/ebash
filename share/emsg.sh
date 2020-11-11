@@ -539,7 +539,7 @@ eerror()
 
 etestmsg()
 {
-    EMSG_COLOR="all" emsg "magenta" "##" "WARN" "$@"
+    EMSG_COLOR="all" emsg "wheat" "##" "WARN" "$@"
 }
 
 opt_usage eerror_stacktrace <<'END'
