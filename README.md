@@ -1,4 +1,4 @@
-![Build Status](https://github.com/marshallmcmullen/ebash/workflows/Pipeline/badge.svg?branch=master)
+[![Build Status](https://github.com/marshallmcmullen/ebash/workflows/Pipeline/badge.svg?branch=master)](https://github.com/marshallmcmullen/ebash/actions?query=workflow%3APipeline+branch%3Amaster)
 
 ---
 ```
