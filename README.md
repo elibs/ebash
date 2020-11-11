@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/marshallmcmullen/ebash.svg?branch=master)](https://travis-ci.org/marshallmcmullen/ebash)
+[![Build Status](https://github.com/marshallmcmullen/ebash/workflows/CI/badge.svg?branch=master)]
 
 ───────────────────────────────────────────────────────────────────────
 ```
