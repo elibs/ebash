@@ -337,11 +337,13 @@ __efetch_digest_validation()
                 # If the requested destination was different than what was originally in the MD5 it will fail.
                 # Or if the md5sum file was generated with a different path in it it will fail. This just
                 # sanititizes it to have the current working directory and the name of the file we downloaded to.
+                assert_exists "${dest}.md5"
                 sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${fname}|" "${dest}.md5"
                 emd5sum_check "${dest}"
             fi
 
             if [[ "${meta}" -eq 1 ]]; then
+                assert_exists "${dest}.meta"
                 opt_forward emetadata_check quiet public_key -- "${dest}"
             fi
         }
