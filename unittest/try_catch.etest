@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -35,7 +35,7 @@ ETEST_try_catch()
         mkdir a
         touch a/3
     }
-    catch 
+    catch
     {
         true
     }
@@ -56,7 +56,7 @@ ETEST_try_catch_rethrow()
             mkdir a
             mkdir a
         }
-        catch 
+        catch
         {
             # Rethrow the error
             throw $?
@@ -127,7 +127,7 @@ ETEST_nodie_on_error()
 
     einfo "Verifying ERR trap is unset"
     ! err_trap_exists || die "ERR trap should be disabled"
-   
+
     einfo "Intentionally causing an error..."
     false
     return 0
@@ -148,7 +148,7 @@ ETEST_nodie_on_error_with_try_catch()
     # Verify die on error is not enabled
     einfo "Verifying ERR trap is unset"
     ! err_trap_exists || die "ERR trap should be disabled"
-    
+
     try
     {
         throw 100
@@ -158,7 +158,7 @@ ETEST_nodie_on_error_with_try_catch()
     {
         assert_eq 100 $?
     }
-   
+
     # die_on_error should still be disabled
     einfo "Verifying ERR trap is unset after try/catch"
     ! err_trap_exists || die "ERR trap should be disabled"
@@ -203,12 +203,12 @@ ETEST_try_catch_stack()
         {
             err_trap_exists || die "ERR trap should be enabled"
             assert_stack_eq DIE CATCH NONE CATCH
-           
+
             try
             {
                 err_trap_exists || die "ERR trap should be enabled"
                 assert_stack_eq DIE CATCH NONE CATCH CATCH
-           
+
                 # Disable
                 nodie_on_error
                 ! err_trap_exists || die "ERR trap should be disabled"
@@ -216,7 +216,7 @@ ETEST_try_catch_stack()
                 {
                     err_trap_exists || die "ERR trap should be enabled"
                     assert_stack_eq DIE CATCH NONE CATCH CATCH NONE
-           
+
                     false
                     die "try block should have thrown"
                 }
@@ -225,10 +225,10 @@ ETEST_try_catch_stack()
                     ! err_trap_exists || die "ERR trap should be disabled"
                     assert_stack_eq DIE CATCH NONE CATCH CATCH
                 }
-                
+
                 ! err_trap_exists || die "ERR trap should be disabled"
                 assert_stack_eq DIE CATCH NONE CATCH CATCH
-                
+
                 false
                 true
             }
@@ -236,7 +236,7 @@ ETEST_try_catch_stack()
             {
                 die "try block should not have thrown"
             }
-     
+
             err_trap_exists || die "ERR trap should be enabled"
             assert_stack_eq DIE CATCH NONE CATCH
             false
@@ -246,17 +246,17 @@ ETEST_try_catch_stack()
         {
             assert_stack_eq DIE CATCH NONE
         }
-        
+
         err_trap_exists || die "ERR trap should be enabled"
         assert_stack_eq DIE CATCH NONE
         false
         die "try block should have thrown"
     }
     catch
-    { 
+    {
         assert_stack_eq DIE
     }
-            
+
     ! err_trap_exists || die "ERR trap should be disabled"
     assert_stack_eq DIE
 }
@@ -296,7 +296,7 @@ ETEST_try_catch_deep_error()
 }
 
 # Verify die_on_error **IS** inherited into subshell since we are now using
-# 'set -o errtrace' to ensure our trap is inherited by functions, command 
+# 'set -o errtrace' to ensure our trap is inherited by functions, command
 # substitutions, and commands executed inside subshells.
 ETEST_errtrap_inherited_in_subshell()
 {
@@ -326,7 +326,7 @@ ETEST_throw()
         assert_eq 100 $?
         return 0
     }
-    
+
     die "Catch block should have returned"
 }
 
@@ -435,7 +435,7 @@ ETEST_tryrc_declare_local()
 ETEST_tryrc_rc_only()
 {
     $(tryrc echo "foo") 1>stdout.log 2>stderr.log
-    
+
     local stdout="" stderr=""
     stdout=$(cat stdout.log)
     stderr=$(cat stderr.log)
@@ -481,7 +481,7 @@ ETEST_tryrc_failure()
 ETEST_tryrc_no_output()
 {
     $(tryrc false) 1>stdout.log 2>stderr.log
-    
+
     local stdout="" stderr=""
     stdout=$(cat stdout.log)
     stderr=$(cat stderr.log)
@@ -542,7 +542,7 @@ ETEST_tryrc_multiline_output()
     einfo "Generating input"
     printf "line 1\nline 2\nline 3\n" > input.txt
     cat input.txt
-    
+
     $(EDEBUG=0 tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stdout stderr)"
 
@@ -572,13 +572,13 @@ ETEST_tryrc_stderr_unbuffered()
     local pipe="${FUNCNAME}.pipe"
     rm --force ${pipe}
     mkfifo "${pipe}"
-    
+
     # Background parent to start reading from the pipe
     (
         einfo "Reading from ${pipe}"
         local stderr=""
         read -r stderr < ${pipe}
-        
+
         einfo "$(lval stderr)"
         assert_eq "MESSAGE" "${stderr}"
     ) &
@@ -617,21 +617,22 @@ ETEST_tryrc_no_eol()
     assert_eq "" "${stderr}"
 }
 
-if [[ $(id -u) == 0 ]] ; then
 ETEST_tryrc_multiline_monster_output()
 {
-    einfo "Generating input"
-    dmesg > input.txt
-    einfo "Num lines=$(cat input.txt | wc -l)"
+    etestmsg "Generating input"
+    cat ${EBASH}/* | shuf -n 2000 > input.txt
+    etestmsg "Num lines input=$(wc -l input.txt | awk '{print $1}')"
 
     $(EDEBUG=0 tryrc -o=stdout -e=stderr cat input.txt)
     einfo "$(lval rc stderr)"
-
-    diff --unified <(cat input.txt) <(echo "${stdout}")
     assert_eq 0  "${rc}"
     assert_eq "" "${stderr}"
+
+    echo "${stdout}" > output.txt
+    etestmsg "Num lines output=$(wc -l output.txt | awk '{print $1}')"
+
+    diff --unified --ignore-blank-lines input.txt output.txt
 }
-fi
 
 ETEST_tryrc_hang_recreate()
 {

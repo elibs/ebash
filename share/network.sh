@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
+
+# Set root of sysfs tree for easier mockability in unit tests
+SYSFS="/sys"
 
 #---------------------------------------------------------------------------------------------------
 # NETWORKING FUNCTIONS
@@ -111,7 +114,7 @@ getnetmask()
 # From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
 netmask2cidr ()
 {
-    # Assumes there's no "255." after a non-255 byte in the mask 
+    # Assumes there's no "255." after a non-255 byte in the mask
     set -- 0^^^128^192^224^240^248^252^254^ ${#1} ${1##*255.}
     set -- $(( ($2 - ${#3})*2 )) ${1%%${3%%.*}*}
     local rem="${2:-}"
@@ -188,9 +191,9 @@ getvlans()
 # Get list of network interfaces
 get_network_interfaces()
 {
-    for iface in $(ls -1 /sys/class/net); do
+    for iface in $(ls -1 ${SYSFS}/class/net); do
         # Skip virtual devices, we only want physical
-        [[ ! -e /sys/class/net/${iface}/device ]] && continue
+        [[ ! -e ${SYSFS}/class/net/${iface}/device ]] && continue
         echo "${iface}"
     done | tr '\n' ' ' || true
 }
@@ -236,12 +239,12 @@ get_permanent_mac_address()
 {
     $(opt_parse ifname)
 
-    if [[ -e /sys/class/net/${ifname}/master ]]; then
-        sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f /sys/class/net/${ifname}/master)) \
+    if [[ -e ${SYSFS}/class/net/${ifname}/master ]]; then
+        sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f ${SYSFS}/class/net/${ifname}/master)) \
             | grep "Permanent HW addr" \
             | sed -e "s/Permanent HW addr: //"
     else
-        cat /sys/class/net/${ifname}/address
+        cat ${SYSFS}/class/net/${ifname}/address
     fi
 }
 
@@ -260,7 +263,7 @@ get_network_pci_device()
 
     # If that did not give a result (HyperV), fall back to looking at the device path in sysfs
     if [[ -z ${pci_addr} ]]; then
-        pci_addr=$(cd /sys/class/net/${ifname}/device; basename $(pwd -P))
+        pci_addr=$(cd ${SYSFS}/class/net/${ifname}/device; basename $(pwd -P))
     fi
 
     echo ${pci_addr}

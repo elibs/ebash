@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -39,7 +39,6 @@ ETEST_daemon_start_stop()
         "${DAEMON_EXPECT[@]}"           \
         name="Test Daemon"              \
         cmdline="sleep infinity"        \
-        cgroup="${ETEST_CGROUP}/daemon" \
         pidfile="${pidfile}"
 
     daemon_start sleep_daemon
@@ -143,7 +142,6 @@ netns_setup_connected_network()
     #DNS is taken care of by the filesystem (either in a chroot or outside)
 }
 
-
 netns_remove_network()
 {
     $(opt_parse \
@@ -226,21 +224,23 @@ netns_iptables_rule_exists()
       grep -q ${devname}
 }
 
+# This test is different.  12.04 doesn't have a way to ask the system what netns a program is running in, and it's
+# difficult to tell when you are in a namespace that you are there, and if you are there, which one you are in.
+#
+# So, I'm naming the internal nic something unique that I can look for.  Then I I run a script in the namespace that
+# will return 1 if the nic doesn't exist and sleep forever (like a daemon) if it does find it.
 ETEST_daemon_netns()
 {
-# This test is different.  12.04 doesn't have a way to ask the system what netns
-# a program is running in, and it's difficult to tell when you are in a namespace
-# that you are there, and if you are there, which one you are in.
-#
-# So, I'm naming the internal nic something unique that I can look for.  Then I
-# I run a script in the namespace that will return 1 if the nic doesn't exist and
-# sleep forever (like a daemon) if it does find it.
+    if ! cgroup_supported; then
+        ewarn "Cgroups not supported"
+        return 0
+    fi
 
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
     local testns_args
 
-    local local_ns_name="etest$$"
+    local local_ns_name="$$"
 
     if [[ $(id -u) -ne 0 ]] ; then
       etestmsg "Must be uid 0 (root) to manipulate namespaces"
@@ -291,7 +291,7 @@ END
     chmod +x netns_runner
 
 
-    # This script is run from the directory output/daemon.sh/ETEST_daemon.sh/, 
+    # This script is run from the directory output/daemon.sh/ETEST_daemon.sh/,
     # which is a transient directory that only exists during the test run and
     # is cleaned up immediately after.  Regardless, that is why the cmdline
     # specifies the script to run the way it does.
@@ -301,7 +301,6 @@ END
         name="Netns test daemon"                                    \
         cmdline="./netns_runner ${peer_devname}"                    \
         netns_name=${ns_name}                                       \
-        cgroup="${ETEST_CGROUP}/daemon"                             \
         pidfile="${pidfile}"
 
     echo $(lval %sleep_daemon)
@@ -339,6 +338,11 @@ END
 
 ETEST_daemon_cgroup()
 {
+    if ! cgroup_supported; then
+        ewarn "Cgroups not supported"
+        return 0
+    fi
+
     CGROUP=${ETEST_CGROUP}/daemon
     cgroup_create ${CGROUP}
 
@@ -651,8 +655,8 @@ EOF
 
     assert_not_match "${stdout}"       "${FUNCNAME}"
     assert_not_match "${stderr}"       "${FUNCNAME}"
-    assert_match     "${log_contents}" "${FUNCNAME}:stdout" 
-    assert_match     "${log_contents}" "${FUNCNAME}:stderr" 
+    assert_match     "${log_contents}" "${FUNCNAME}:stdout"
+    assert_match     "${log_contents}" "${FUNCNAME}:stderr"
 
     ebanner "Running noisy daemon without logfile, so we should see output"
 

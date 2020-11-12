@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -52,9 +52,10 @@ pack_update()
         local _pack_update_key="${_pack_update_arg%%=*}"
         local _pack_update_val="${_pack_update_arg#*=}"
 
-        pack_keys ${_pack_update_pack} | grep -aPq "\b${_pack_update_key}\b" \
-            && pack_set_internal "${_pack_update_pack}" "${_pack_update_key}" "${_pack_update_val}" \
-            || true
+        if pack_contains ${_pack_update_pack} "${_pack_update_key}"; then
+            pack_set_internal "${_pack_update_pack}" "${_pack_update_key}" "${_pack_update_val}"
+        fi
+
     done
 }
 

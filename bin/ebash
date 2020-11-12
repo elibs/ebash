@@ -137,9 +137,9 @@ else
         # Run the command, but pretend to be inside a try so that die doesn't print an ugly stack trace.
         quote_eval "${@}"
 
-    # Or run iebash if nothing was specified
+    # Or run ebash-repl if nothing was specified
     else
-        exec ${EBASH_HOME}/bin/iebash --load "${load}"
+        exec ${EBASH_HOME}/bin/ebash-repl --load "${load}"
     fi
 
 fi

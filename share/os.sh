@@ -1,30 +1,33 @@
 #!/bin/bash
 #
-# Copyright 2014-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2014-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2014-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+# edistro is a generic way to figure out what "distro" we are running on. This is largely only a Linux concept so on
+# MacOS this returns "darwin" as per `uname` output. Otherwise, Linux generically supports getting the Distro by
+# looking in `/etc/os-release`. This is lighter weight than having to ensure that lsb_release is installed on all
+# clients. If we have to, we'll fall back to lsb_release and finally just use raw `uname` output if nothing is
+# available.
 edistro()
 {
-    lsb_release -is
-}
+    local name="" result=""
+    name="$(uname -s)"
 
-isubuntu()
-{
-    [[ "Ubuntu" == $(edistro) ]]
-}
+    if [[ "${name}" == "Darwin" ]]; then
+        result="darwin"
+    elif [[ -e "/etc/os-release" ]]; then
+        result=$(awk -F'[="]*' '/^ID=/ {print $2}' /etc/os-release)
+    elif command_exists lsb_release; then
+        result=$(lsb_release -is)
+    else
+        result="${name}"
+    fi
 
-isgentoo()
-{
-    [[ "Gentoo" == $(edistro) ]]
-}
-
-isfedora()
-{
-    [[ "Fedora" == $(edistro) ]]
+    echo "${result,,}"
 }
 
 opt_usage os_distro<<'EOF'
@@ -39,7 +42,7 @@ os_distro()
 
     local actual_distro=""
     if [[ ${__EBASH_OS,,} == "linux" ]] ; then
-        actual_distro=$(lsb_release --id --short)
+        actual_distro=$(edistro)
     fi
 
     if [[ -n ${actual_distro} && ${#@} -gt 0 ]] ; then
@@ -74,7 +77,11 @@ os_release()
                  will simply be printed.")
 
     if os linux ; then
-        actual_release=$(lsb_release --release --short)
+        if command_exists lsb_release; then
+            actual_release=$(lsb_release --release --short)
+        else
+            actual_release=$(awk -F'[="]*' '/^VERSION_ID=/ {print $2}' /etc/os-release)
+        fi
 
     elif os darwin ; then
         actual_release=$(sw_vers -productVersion)
@@ -83,7 +90,7 @@ os_release()
         die "os_release supports only linux and darwin, not ${__EBASH_OS}"
     fi
 
-    
+
     if [[ ${#@} -gt 0 ]] ; then
 
         local release
@@ -128,5 +135,27 @@ os()
 
     else
         echo "${__EBASH_OS}"
+    fi
+}
+
+opt_usage os_pretty_name <<'EOF'
+Get a prety name for this OS in the form of:
+
+${DISTRO} ${OS} ${RELEASE}
+
+For example:
+
+Gentoo Linux 2.7
+Alpine Linux 3.11
+Darwin 10.15.7
+EOF
+os_pretty_name()
+{
+    if os darwin; then
+        echo "Darwin $(os_release)"
+    else
+        local distro
+        distro="$(edistro)"
+        echo "${distro^} $(os) $(os_release)"
     fi
 }

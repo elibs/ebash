@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -10,6 +10,10 @@
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
 source ${EBASH_HOME}/unittest/daemon_expect.sh
+
+# Enable chroot debugging for this module. This doesn't affect the caller's environment just our local process that is
+# running etest for this test suite.
+EDEBUG+="= chroot"
 
 setup()
 {
@@ -34,19 +38,8 @@ teardown()
 {
     chroot_kill
 
-    # A known bug in bash (fixed in 4.3) causes exit traps not to be executed sometimes.  This seems
-    # to manifest itself when using our daemon functions in chroots, and the exit trap not executing
-    # leaks a mount.
-    #
-    # This only seems to affect bash 4.2.  DT-250 (https://solidfire.atlassian.net/browse/DT-250)
-    # will hopefully improve the daemon code so that this workaround is no longer necessary.
-    #
-    if [[ ${BASH_VERSION} == 4.2* ]] ; then
-        eunmount --recursive --all ${CHROOT}
-    fi
-
     # NOTE: We do not delete the CHROOT itself here because we want to be able to re-use it for each test to avoid
-    # the massive overhad of recreating it every time. It will get automatically claned up when etest cleans up for
+    # the massive overhad of recreating it every time. It will get automatically cleaned up when etest cleans up for
     # us.
     eunmount --recursive ${CHROOT}
 }
@@ -57,7 +50,7 @@ check_mounts()
 
     # Verify chroot paths not mounted
     for path in ${CHROOT_MOUNTS[@]}; do
-        
+
         if [[ ${count} -eq 0 ]]; then
             assert_false emounted ${CHROOT}${path}
         else
@@ -144,15 +137,26 @@ ETEST_chroot_kill()
     chroot_mount
     trap_add "chroot_exit"
 
-    etestmsg "Starting some chroot processes"
-    chroot_cmd "cat&            echo \$! >> /tmp/pids"
-    chroot_cmd "sleep infinity& echo \$! >> /tmp/pids"
+    etestmsg "Starting chroot processes"
+    ( chroot_cmd "sleep 1h" || true ) &
+    ( chroot_cmd "sleep 1d" || true ) &
+
+    # The above backgrounded processes may not have started yet so sleep for a couple seconds to give them a chance to
+    # start.
+    check_pids()
+    {
+        local pids
+        pids=( $(chroot_pids) )
+        [[ $(array_size pids) -eq 2 ]]
+    }
+    eretry -T=15s check_pids
     local pids=()
-    array_init pids "$(cat ${CHROOT}/tmp/pids)"
+    pids[0]=$(chroot_pids --regex "sleep 1h")
+    pids[1]=$(chroot_pids --regex "sleep 1d")
     etestmsg "$(lval pids)"
 
-    etestmsg "Killing cat"
-    chroot_kill "cat"
+    etestmsg "Killing [sleep 1h]"
+    chroot_kill "sleep 1h"
     eretry -t=2s -T=30s process_not_running ${pids[0]}
     process_running ${pids[1]}
 
@@ -216,7 +220,7 @@ ETEST_chroot_daemon_start_stop()
 
     local pidfile="${FUNCNAME}.pid"
     local sleep_daemon
-   
+
     daemon_init sleep_daemon     \
         "${DAEMON_EXPECT[@]}"    \
         chroot="${CHROOT}"       \
@@ -230,7 +234,7 @@ ETEST_chroot_daemon_start_stop()
     daemon_expect pre_start
     daemon_expect post_mount
     etestmsg "Started successfully"
-    
+
     # Now stop it and verify proper shutdown
     etestmsg "Stopping chroot daemon"
     local pid

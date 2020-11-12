@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -72,7 +72,7 @@ ETEST_overlayfs_modify()
     for idx in $(array_indexes ARCHIVE_TYPES); do
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
-        
+
         etestmsg "Populating source directory"
         efreshdir src dest
         touch src/{file0,file1,file2}
@@ -109,7 +109,7 @@ ETEST_overlayfs_modify()
         overlayfs_unmount dest
 
         # RW layer should only have the MODIFIED files in it (we never modifvied file0)
-        assert_archive_contents rw.${ftype} file1 file2 
+        assert_archive_contents rw.${ftype} file1 file2
 
         # Mount the RW layer and ensure contents are as expected
         etestmsg "Mounting RW layer to validate its contents"
@@ -128,7 +128,7 @@ ETEST_overlayfs_commit()
     for idx in $(array_indexes ARCHIVE_TYPES); do
         local ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
-        
+
         etestmsg "Populating source directory"
         efreshdir src dest
         touch src/{file0,file1,file2}
@@ -321,14 +321,14 @@ ETEST_overlayfs_dedupe()
 # VirtualBox to be installed on all our test slaves.
 ETEST_overlayfs_commit_bootable_iso_virtualbox()
 {
-    if ! which VBoxManage &>/dev/null; then
+    if ! command_exists VBoxManage; then
         ewarn "VirtualBox is not installed -- skipping"
         return 0
     fi
 
     # Unique name for the VM
     VM="${FUNCNAME}_$$"
-    
+
     # Generate unique socket ID to make VirtualBox use a separate daemon.
     # Set directory for VirtualBox config and log files (like VirtualBox.xml and VBoxSVC.log)
     # And also set directory for VM files (.vbox, .vmdk, per-VM logs)
@@ -347,7 +347,7 @@ ETEST_overlayfs_commit_bootable_iso_virtualbox()
     etestmsg "Creating isolinux tree"
     mkdir -p work/isolinux
     find /usr/share/syslinux /usr/lib/syslinux/{mbr,modules/bios} /usr/lib/ISOLINUX -type f -exec cp {} work/isolinux \; 2>/dev/null || true
-    
+
     # Make sure required files were found
     ls -C work/isolinux
     assert_exists work/isolinux/{isolinux.bin,mbr.bin,poweroff.c32}
@@ -360,10 +360,10 @@ ETEST_overlayfs_commit_bootable_iso_virtualbox()
         echo "    COM32 poweroff.c32"
         echo ""
 
-    } > work/isolinux/isolinux.cfg   
+    } > work/isolinux/isolinux.cfg
 
     etestmsg "Creating bootable ISO"
-    archive_create --bootable "work.iso" "work/." 
+    archive_create --bootable "work.iso" "work/."
 
     etestmsg "Modifying ISO using overlayfs"
     mkdir "modified"
@@ -376,7 +376,7 @@ ETEST_overlayfs_commit_bootable_iso_virtualbox()
 
     # Now create a VirtualBox VM and have it boot using the bootable ISO. The VM should immediately shutdown since we've
     # setup a dummy extlinux menu which simply powers off the VM. If the VM does not power off immediately, then the call
-    # to VBoxHeadless will actually hang. To guard against that wrap it in an etimeout. If it doesn't complete within a 
+    # to VBoxHeadless will actually hang. To guard against that wrap it in an etimeout. If it doesn't complete within a
     # few seconds then something failed. But to avoid a flaky test set this to 60s to give it plenty of time.
     etestmsg "Create VM"
     VBoxManage createvm --name "${VM}" --ostype "Other" --register

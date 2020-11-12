@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -59,7 +59,6 @@ process_tree()
 
     : ${ps_all:=$(ps -eo ppid,pid)}
 
-
     # Assume current process if none is specified
     if [[ ! $# -gt 0 ]] ; then
         set -- ${BASHPID}
@@ -68,12 +67,14 @@ process_tree()
     local parent children child
     for parent in ${@} ; do
 
-        echo ${parent}
-
         children=$(process_children --ps-all "${ps_all}" ${parent})
         for child in ${children} ; do
             process_tree --ps-all "${ps_all}" "${child}"
         done
+
+	# NOTE: It's vital that we echo the parent AFTER the above code rather than before otherwise
+	# this would not yield the desired depth first ordering.
+        echo ${parent}
 
     done
 }
@@ -115,38 +116,37 @@ process_parent()
 
     : ${child:=${BASHPID}}
 
-    ps -eo ppid,pid | awk '$2 == '${child}' {print $1}'
+    ps -p "${child}" -o ppid=
 }
 
 opt_usage process_parent_tree <<'END'
-Similar to process_ancessors (which gives a list of pids), this prints a tree of the process's parents, including pids
+Similar to process_ancestors (which gives a list of pids), this prints a tree of the process's parents, including pids
 and commandlines, from the pid specified (BASHPID by default) to toppid (1 or init by default)
 END
 process_parent_tree()
 {
-  $(opt_parse \
-    ':format f=-o args= | ps format'     \
-    ':toppid t=1        | pid to run to' \
-    "?pid               | pid to check")
+    $(opt_parse \
+        ':format f=-o args= | ps format'     \
+        ':toppid t=1        | pid to run to' \
+        "?pid               | pid to check")
 
-  : ${pid:=${BASHPID}}
+    : ${pid:=${BASHPID}}
 
-  local chain=( ${pid} )
-  local parent
+    local chain=( ${pid} )
+    local parent
 
-  while [[ ${pid} -ne 1 && ${pid} -ne ${toppid} ]] ; do
-    parent=$(ps -o ppid= ${pid})
-    pid=${parent}
-    chain=( ${pid} ${chain[@]} )
-  done
+    while [[ ${pid} -gt 1 && ${pid} -gt ${toppid} ]] ; do
+        parent=$(ps -o ppid= ${pid})
+        pid=${parent}
+        chain=( ${pid} ${chain[@]} )
+    done
 
-  local indent="" link=""
-  for link in ${chain[@]} ; do
-    echo "$(printf "(%5d)" ${link})${indent}* $(ps ${format} ${link})"
-    indent+=" "
-  done
+    local indent="" link=""
+    for link in ${chain[@]} ; do
+        echo "$(printf "(%5d)" ${link})${indent}* $(ps ${format} ${link})"
+        indent+=" "
+    done
 }
-
 
 opt_usage process_ancestors <<'END'
 Print pids of all ancestores of the specified list of processes, up to and including init (pid 1).
@@ -164,7 +164,7 @@ process_ancestors()
 
     local parent=${child}
     local ancestors=()
-    while [[ ${parent} != 1 ]] ; do
+    while [[ ${parent} -gt 1 ]] ; do
         parent=$(echo "${ps_all}" | awk '$2 == '${parent}' {print $1}')
         ancestors+=( ${parent} )
     done
@@ -190,7 +190,7 @@ ekill()
 
     # Don't kill init, unless init has been replaced by our parent bash script
     # in which case we really do want to kill it.
-    if [[ $$ != "1" ]] ; then
+    if [[ $$ -ne 1 ]] ; then
         array_remove processes 1
         array_empty processes && { edebug "nothing besides init to kill." ; return 0 ; }
     fi
@@ -217,6 +217,7 @@ ekill()
                 disable_die_parent
 
                 sleep ${kill_after}
+
                 kill -SIGKILL ${processes[@]} &>/dev/null || true
             ) &
         ) &
@@ -252,9 +253,19 @@ ekilltree()
     array_remove -a processes ${excluded}
 
     edebug "Killing $(lval processes signal kill_after excluded)"
-    if array_not_empty processes ; then
-        ekill -s=${signal} -k=${kill_after} "${processes[@]}"
+    if array_empty processes; then
+        return 0
     fi
+
+    # Kill all requested PIDs using requested signal.
+    # WARNING: Do not just blindly use `kill` here on all the processes as that is non-deterministic
+    #          in the order the processes get killed and we need to honor the tree ordering of the
+    #          processes so that we kill the leaf nodes first and walk up the tree.
+    local pid
+    for pid in ${processes[@]}; do
+        edebug "Killing $(lval pid) of $(lval processes)"
+        ekill -s=${signal} -k=${kill_after} ${pid}
+    done
 
     return 0
 }
