@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -77,7 +77,7 @@ opt_usage()
 # declared, only inside those declared after this.
 source "${EBASH}/platform.sh"
 
-# Efuncs needs to be soon after to define a few critical aliases such as try/catch before sourcing everything else 
+# Efuncs needs to be soon after to define a few critical aliases such as try/catch before sourcing everything else
 source "${EBASH}/efuncs.sh"
 
 # opt_parse and os modules are used extensively throughout some of the other modules we're going to source. We need
@@ -96,6 +96,7 @@ source "${EBASH}/conf.sh"
 source "${EBASH}/daemon.sh"
 source "${EBASH}/dialog.sh"
 source "${EBASH}/dpkg.sh"
+source "${EBASH}/docker.sh"
 source "${EBASH}/efetch.sh"
 source "${EBASH}/elock.sh"
 source "${EBASH}/emsg.sh"

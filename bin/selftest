@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -11,11 +11,13 @@
 $( $(dirname $0)/ebash --source )
 
 # Some ebash recognized environment variables interfer with functionality of the selftests so we need to unset them.
-unset FILTER
-unset REPEAT
 unset BREAK
 unset EDEBUG
+unset EFUNCS_COLOR
+unset EINTERACTIVE
 unset FAILURES
+unset FILTER
+unset REPEAT
 unset REPEAT
 unset VERBOSE
 
@@ -43,7 +45,7 @@ run_etest()
 # to the end of the other test name.  Just don't do that in the tests or fix these asserts
 assert_test_fail()
 {
-    local this_test 
+    local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
@@ -75,7 +77,7 @@ assert_test_fail()
 # to the end of the other test name.  Just don't do that in the tests or fix these asserts
 assert_test_pass()
 {
-    local this_test 
+    local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
@@ -110,7 +112,7 @@ assert_test_pass()
 # to the end of the other test name.  Just don't do that in the tests or fix these asserts
 assert_test_flaky()
 {
-    local this_test 
+    local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
@@ -142,7 +144,7 @@ assert_test_flaky()
 }
 
 # Verifies that output and log looks correct for a specified number of tests attempted and passed.  For instance, if you
-# call assert_test_count 2 2, that should mean that 2 tests were run and both passed. It also looks at the new json 
+# call assert_test_count 2 2, that should mean that 2 tests were run and both passed. It also looks at the new json
 # output file and makes sure the numbers are correct.
 #
 # You must call etest by the run_etest function to use this assert.
@@ -268,7 +270,7 @@ SELFTEST_flaky_failures_1()
     assert_test_flaky ETEST_flaky_fails_once
 }
 
-# Test passes third time failures=1 
+# Test passes third time failures=1
 SELFTEST_flaky_failures_2()
 {
     run_etest --filter flaky_fails_twice --failures 1 flaky.etest
@@ -302,7 +304,7 @@ SELFTESTS=( $(declare -F | awk '$3 ~ "^SELFTEST_" {print $3}' || true) )
 array_sort SELFTESTS
 
 # Run each selftest in its own subshell. Also create a output directory for the selftest to use that is persistent
-# outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a 
+# outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a
 # test to have a persistent place to store things. This is necessary for our flaky tests where we need to keep track
 # of how many times the test has been executed so we need a persistent place to store that information.
 for selftest in ${SELFTESTS[@]}; do

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -8,11 +8,11 @@
 # version.
 
 if [[ ${__EBASH_OS} == Linux ]] ; then
-    BU_WORD_BEGIN='\<'
-    BU_WORD_END='\>'
+    EBASH_WORD_BEGIN='\<'
+    EBASH_WORD_END='\>'
 elif [[ ${__EBASH_OS} == Darwin ]] ; then
-    BU_WORD_BEGIN='[[:<:]]'
-    BU_WORD_END='[[:>:]]'
+    EBASH_WORD_BEGIN='[[:<:]]'
+    EBASH_WORD_END='[[:>:]]'
 fi
 
 if [[ "${__EBASH_OS}" == Linux ]] ; then
@@ -37,7 +37,7 @@ if [[ ${__EBASH_OS} == "Linux" ]]; then
     # Replace rm to ensure we always pass in --one-file-system flag.
     rm()
     {
-        command rm --one-file-system "${@}" 
+        command rm --one-file-system "${@}"
     }
 
     # We presently assume that linux boxes will have a proper gnu toolchain in
@@ -192,7 +192,7 @@ redirect_gnu_tools
 # Replace rm to ensure we always pass in --one-file-system flag.
 rm()
 {
-    command grm --one-file-system "${@}" 
+    command grm --one-file-system "${@}"
 }
 
 return 0

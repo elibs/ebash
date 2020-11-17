@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -29,9 +29,9 @@ ETEST_archive_compress_program()
     assert_empty "$(archive_compress_program foo.tar)"
     assert_empty "$(archive_compress_program foo.iso)"
     assert_empty "$(archive_compress_program foo.cpio)"
-    assert_match "$(archive_compress_program foo.tbz2)"       "lbzip2|pbzip2|bzip2"
-    assert_match "$(archive_compress_program foo.tar.gz)"     "pigz|gzip"
-    assert_match "$(archive_compress_program foo.cgz)"        "pigz|gzip"
+    assert_match "$(archive_compress_program foo.tbz2)"       "bzip2|lbzip2|pbzip2"
+    assert_match "$(archive_compress_program foo.tar.gz)"     "gzip|pigz"
+    assert_match "$(archive_compress_program foo.cgz)"        "gzip|pigz"
     assert_match "$(archive_compress_program foo.cxz)"        "lzma|xz"
     assert_match "$(archive_compress_program foo.tar.xz)"     "lzma|xz"
     assert_match "$(archive_compress_program foo.tar.lz)"     "lzma|xz"
@@ -44,14 +44,14 @@ ETEST_archive_suffixes()
 
     assert_eq ".tar .tar.gz .tgz .taz .tar.bz2 .tz2 .tbz2 .tbz .tar.xz .txz .tar.lz .tlz" \
         "$(archive_suffixes tar)"
-    
+
     assert_eq ".cpio .cpio.gz .cgz .caz .cpio.bz2 .cz2 .cbz2 .cbz .cpio.xz .cxz .cpio.lz .clz" \
         "$(archive_suffixes cpio)"
 
     assert_eq ".squashfs .iso .tar .tar.gz .tgz .taz .tar.bz2 .tz2 .tbz2 .tbz .tar.xz .txz .tar.lz .tlz .cpio .cpio.gz .cgz .caz .cpio.bz2 .cz2 .cbz2 .cbz .cpio.xz .cxz .cpio.lz .clz" \
-        "$(archive_suffixes squashfs iso tar cpio)" 
+        "$(archive_suffixes squashfs iso tar cpio)"
 
-    assert_false archive_suffixes invalid 
+    assert_false archive_suffixes invalid
 }
 
 ETEST_archive_suffixes_wildcard()
@@ -61,12 +61,12 @@ ETEST_archive_suffixes_wildcard()
 
     assert_eq "*.tar *.tar.gz *.tgz *.taz *.tar.bz2 *.tz2 *.tbz2 *.tbz *.tar.xz *.txz *.tar.lz *.tlz" \
         "$(archive_suffixes --wildcard tar)"
-    
+
     assert_eq "*.cpio *.cpio.gz *.cgz *.caz *.cpio.bz2 *.cz2 *.cbz2 *.cbz *.cpio.xz *.cxz *.cpio.lz *.clz" \
         "$(archive_suffixes --wildcard cpio)"
 
     assert_eq "*.squashfs *.iso *.tar *.tar.gz *.tgz *.taz *.tar.bz2 *.tz2 *.tbz2 *.tbz *.tar.xz *.txz *.tar.lz *.tlz *.cpio *.cpio.gz *.cgz *.caz *.cpio.bz2 *.cz2 *.cbz2 *.cbz *.cpio.xz *.cxz *.cpio.lz *.clz" \
-        "$(archive_suffixes --wildcard squashfs iso tar cpio)" 
+        "$(archive_suffixes --wildcard squashfs iso tar cpio)"
 }
 
 ETEST_archive_suffixes_pattern_list()
@@ -76,12 +76,12 @@ ETEST_archive_suffixes_pattern_list()
 
     assert_eq ".tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.tar.xz|.txz|.tar.lz|.tlz" \
         "$(archive_suffixes --pattern tar)"
-    
+
     assert_eq ".cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cpio.xz|.cxz|.cpio.lz|.clz" \
         "$(archive_suffixes --pattern cpio)"
 
     assert_eq ".squashfs|.iso|.tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.tar.xz|.txz|.tar.lz|.tlz|.cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cpio.xz|.cxz|.cpio.lz|.clz" \
-        "$(archive_suffixes --pattern squashfs iso tar cpio)" 
+        "$(archive_suffixes --pattern squashfs iso tar cpio)"
 }
 
 ETEST_archive_suffixes_pattern_list_wildcard()
@@ -91,12 +91,12 @@ ETEST_archive_suffixes_pattern_list_wildcard()
 
     assert_eq "*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz" \
         "$(archive_suffixes --pattern --wildcard tar)"
-    
+
     assert_eq "*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cpio.xz|*.cxz|*.cpio.lz|*.clz" \
         "$(archive_suffixes --pattern --wildcard cpio)"
 
     assert_eq "*.squashfs|*.iso|*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz|*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cpio.xz|*.cxz|*.cpio.lz|*.clz" \
-        "$(archive_suffixes --pattern --wildcard squashfs iso tar cpio)" 
+        "$(archive_suffixes --pattern --wildcard squashfs iso tar cpio)"
 }
 
 ETEST_archive_create()
@@ -292,11 +292,11 @@ ETEST_archive_create_level()
         archive_create --level 9 dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
         rm dest.${ftype}
- 
+
         archive_create --fast dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
         rm dest.${ftype}
- 
+
         archive_create --best dest.${ftype} src
         assert_archive_contents dest.${ftype} src src/file1 src/file2
         rm dest.${ftype}
@@ -384,7 +384,7 @@ ETEST_archive_create_files()
 
         etestmsg "Creating files"
         touch {file1,file2,file3,file4}
-        
+
         etestmsg "Creating src.${ftype}"
         archive_create src.${ftype} file1 file2 file3 file4
         assert_archive_contents src.${ftype} file1 file2 file3 file4
@@ -402,11 +402,11 @@ ETEST_archive_create_missing_files()
 
         etestmsg "Creating files"
         touch {file1,file2,file3,file4}
- 
+
         etestmsg "Creating src.${ftype} (should do nothing)"
         archive_create -i src.${ftype} NOT1 NOT2
         assert_not_exists src.${ftype}
-        
+
         etestmsg "Creating src.${ftype} (should fail)"
         assert_false archive_create src.${ftype} NOT1 file1 file2 file3 file4 NOT2
         #BUG: assert_not_exists src.${ftype}
@@ -414,7 +414,7 @@ ETEST_archive_create_missing_files()
         etestmsg "Creating src.${ftype} (ignoring missing files -- should pass)"
         archive_create -i src.${ftype} NOT1 file1 file2 file3 file4 NOT2
         assert_archive_contents src.${ftype} file1 file2 file3 file4
-        
+
         rm src.${ftype}
     done
 }
@@ -486,7 +486,7 @@ ETEST_archive_create_exclude()
         etestmsg "Populating source directory"
         efreshdir src
         touch src/{file1,file2,XXX,YYY}
-        
+
         etestmsg "Creating src.${ftype}"
         archive_create -x="src/XXX src/YYY" src.${ftype} src
         assert_archive_contents src.${ftype} src src/file1 src/file2
@@ -588,7 +588,7 @@ ETEST_archive_create_pivot_root()
         # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
         # path to be used (which is an illegal prefix to the archive formats).
         oldroot=$(mktemp --tmpdir=/tmp --directory oldroot-XXXXXX)
-        
+
         etestmsg "Populating oldroot directory"
         mkdir -p ${oldroot}/{boot,var/log}
         touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
@@ -712,7 +712,7 @@ ETEST_archive_create_pivot_root_multi()
 
         KEEP_PATHS=( /boot /var )
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
-        archive_create -d="${oldroot}" ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/} 
+        archive_create -d="${oldroot}" ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
             boot                                    \
@@ -752,7 +752,7 @@ ETEST_archive_create_pivot_root_multi_cd_manual()
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
         (
             cd ${oldroot}
-            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/} 
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
         )
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
@@ -801,10 +801,10 @@ ETEST_archive_create_exclude_files()
 
         etestmsg "Creating files"
         touch {file1,file2,file3,file4,XXX,YYY}
-        
+
         etestmsg "Creating dest.${ftype}"
         archive_create -x="XXX YYY" src.${ftype} file1 file2 file3 file4 XXX YYY
-        assert_archive_contents src.${ftype} file1 file2 file3 file4 
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
         rm src.${ftype}
    done
 }
@@ -818,10 +818,10 @@ ETEST_archive_create_mount()
 
         etestmsg "Creating files"
         touch {file1,file2,file3,file4,XXX,YYY}
-        
+
         etestmsg "Creating dest.${ftype}"
         archive_create -x="XXX YYY" src.${ftype} file1 file2 file3 file4 XXX YYY
-        
+
         # Mount it and verify mount type
         archive_mount src.${ftype} dest
         atype=$(archive_type .${ftype})
@@ -884,7 +884,7 @@ ETEST_archive_extract_files_same()
 
         etestmsg "Creating files"
         touch {file1,file2,file3,file4}
-        
+
         etestmsg "Creating src.${ftype}"
         archive_create src.${ftype} file1 file2 file3 file4
         assert_archive_contents src.${ftype} file1 file2 file3 file4
@@ -937,7 +937,7 @@ ETEST_archive_extract_pivot_root_multi_deep()
         (
             cd ${oldroot}
             find . -printf '%P\n'
-            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/} 
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
         )
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} ${expect[@]}
 
@@ -1119,7 +1119,7 @@ ETEST_archive_extract_strip1_deep()
         assert_directory_contents dest                                              \
             s1 s1/s1a s1/s1b s1/s1f s1/s1a/s1af s1/s1a/s1bf1 s1/s1a/s1bf2           \
             s2 s2/s2a s2/s2b s2/s2f s2/s2a s2/s2a/s2af s2/s2a/s2bf1 s2/s2a/s2bf2    \
-            s3 s3/s3a s3/s3b s3/s3f s3/s3a s3/s3a/s3af s3/s3a/s3bf1 s3/s3a/s3bf2 
+            s3 s3/s3a s3/s3b s3/s3f s3/s3a s3/s3a/s3af s3/s3a/s3bf1 s3/s3a/s3bf2
     done
 }
 
@@ -1227,7 +1227,7 @@ ETEST_archive_extract_strip_collisions()
 
         etestmsg "Validating src and dest"
         assert_directory_contents dest f f.~1~ f.~2~
-        
+
         # We can't guarantee the order the files are copied in b/c that's dependant on the inode structure and filesystem.
         # So instead we just assert that we see all three files with the three different contents we expect to see.
         assert_eq $'s1\ns2\ns3' "$(cat dest/f dest/f.~1~ dest/f.~2~ | sort)"
@@ -1430,7 +1430,7 @@ ETEST_archive_xconvert()
 
         local other src_contents cpy_contents src_contents_join cpy_contents_join
         for other in ${ARCHIVE_TYPES[@]}; do
-            
+
             etestmsg "Converting src.${ftype} to cpy.${other}"
             archive_convert src.${ftype} cpy.${other}
 
@@ -1465,7 +1465,7 @@ ETEST_archive_xdiff()
 
         # Iterate over all types and create copy -- diff should match
         for other in ${ARCHIVE_TYPES[@]}; do
-           
+
             etestmsg "Creating cpy.${other}"
             archive_create cpy.${other} src
 
@@ -1476,7 +1476,7 @@ ETEST_archive_xdiff()
         # Iterate over all types and create a different copy with extra file
         # diff should not match.
         for other in ${ARCHIVE_TYPES[@]}; do
-           
+
             etestmsg "Creating diff.${other}"
             efreshdir diff
             cp src/* diff
@@ -1495,14 +1495,14 @@ ETEST_archive_xdiff()
 # installed on all our test slaves.
 ETEST_archive_bootable_iso_virtualbox()
 {
-    if ! which VBoxManage &>/dev/null; then
+    if ! command_exists VBoxManage; then
         ewarn "VirtualBox is not installed -- skipping"
         return 0
     fi
 
     # Unique name for the VM
     VM="${FUNCNAME}_$$"
-    
+
     # Generate unique socket ID to make VirtualBox use a separate daemon.
     # Set directory for VirtualBox config and log files (like VirtualBox.xml and VBoxSVC.log)
     # And also set directory for VM files (.vbox, .vmdk, per-VM logs)
@@ -1521,7 +1521,7 @@ ETEST_archive_bootable_iso_virtualbox()
     etestmsg "Creating isolinux tree"
     mkdir -p work/isolinux
     find /usr/share/syslinux /usr/lib/syslinux/{mbr,modules/bios} /usr/lib/ISOLINUX -type f -exec cp {} work/isolinux \; 2>/dev/null || true
-    
+
     # Make sure required files were found
     ls -C work/isolinux
     assert_exists work/isolinux/{isolinux.bin,mbr.bin,poweroff.c32}
@@ -1534,17 +1534,17 @@ ETEST_archive_bootable_iso_virtualbox()
         echo "    COM32 poweroff.c32"
         echo ""
 
-    } > work/isolinux/isolinux.cfg   
+    } > work/isolinux/isolinux.cfg
 
     etestmsg "Creating archive"
-    archive_create --bootable "work.iso" "work/." 
+    archive_create --bootable "work.iso" "work/."
 
     etestmsg "Converting ISO into VDI"
     VBoxManage convertfromraw "work.iso" "work.vdi"
-    
+
     # Now create a VirtualBox VM and have it boot using the bootable ISO. The VM should immediately shutdown since we've
     # setup a dummy extlinux menu which simply powers off the VM. If the VM does not power off immediately, then the call
-    # to VBoxHeadless will actually hang. To guard against that wrap it in an etimeout. If it doesn't complete within a 
+    # to VBoxHeadless will actually hang. To guard against that wrap it in an etimeout. If it doesn't complete within a
     # few seconds then something failed. But to avoid a flaky test set this to 60s to give it plenty of time.
     etestmsg "Create VM"
     VBoxManage createvm --name "${VM}" --ostype "Other" --register

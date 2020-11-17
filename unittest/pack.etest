@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -49,11 +49,11 @@ ETEST_pack_sequential()
 {
     pack_set P a=alpha
     assert_eq "alpha" $(pack_get P a)
-    
+
     pack_set P b=2
     assert_eq "alpha" $(pack_get P a)
     assert_eq "2"     $(pack_get P b)
-    
+
     pack_set P c=300
     assert_eq "alpha" $(pack_get P a)
     assert_eq "2"     $(pack_get P b)
@@ -162,6 +162,9 @@ ETEST_pack_update_empty_stays_empty()
 ETEST_pack_update_updates_values()
 {
     pack_set P a=1 b=2 c=3
+    pack_contains P a
+    pack_contains P b
+    pack_contains P c
 
     pack_update P a=10 b=20 d=40
 
@@ -192,7 +195,7 @@ ETEST_pack_no_newlines()
     try
     {
         output=$(pack_set P "a=$(printf "\na\nb\n")" 2>&1)
-        
+
         # Should never get here
         die "pack_set should have failed due to newlines: $(lval output)"
     }

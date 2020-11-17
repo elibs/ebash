@@ -70,18 +70,13 @@ ETEST_process_hierarchy()
 
 
     etestmsg "Verifying ancestors $(lval ancestors process)"
-    # Note: there will be ancestors in the list that I don't know about
-    # (for instance, the etest processes), but I know that the processes I
-    # created and added to pids should be in there.  And so should init -- it's
-    # the parent of everything.
+    # Note: there will be ancestors in the list that I don't know about (for instance, the etest processes), but I know
+    # that the processes I created and added to pids should be in there.
     local process
-    for process in 1 ${my_processes[@]} ; do
+    for process in ${my_processes[@]} ; do
         assert array_contains ancestors ${process}
         assert array_contains ancestors_noarg ${process}
     done
-
-    assert_false array_contains ancestors 0
-    assert_false array_contains ancestors_noarg 0
 
     etestmsg "Verifying tree contains my processes $(lval tree my_processes)"
     for process in ${my_processes[@]} ; do
@@ -94,11 +89,11 @@ ETEST_ekill()
     # Start a simple process and ensure we can kill it
     yes >/dev/null &
     local pid=$!
-    eretry --max-timeout 5s process_running ${pid}
+    eretry -t=2s -T=20s process_running ${pid}
 
     ekill ${pid}
     wait ${pid} || true
-    eretry --max-timeout 5s process_not_running ${pid}
+    eretry -t=2s -T=20s process_not_running ${pid}
 }
 
 ETEST_ekill_elevate()
@@ -127,7 +122,7 @@ ETEST_ekill_elevate()
     ekilltree -s=TERM -k=1s ${pid}
 
     etestmsg "Waiting for processes to get killed."
-    eretry -t=2s -T=10s process_not_running ${tree}
+    eretry -t=2s -T=20s process_not_running ${tree}
 }
 
 ETEST_ekill_multiple()
@@ -147,7 +142,7 @@ ETEST_ekill_multiple()
     ekill ${pids[@]}
 
     etestmsg "Waiting for $(lval pid pids SECONDS)"
-    eretry --max-timeout 5s process_not_running ${pids[@]}
+    eretry -t=2s -T=20s process_not_running ${pids[@]}
 }
 
 ETEST_ekilltree()
@@ -160,9 +155,14 @@ ETEST_ekilltree()
         yes >/dev/null&        echo "$!" >> pids
         bash -c 'sleep 1000'&  echo "$!" >> pids
 
-        # Keep the entire subshell from exiting and having above processes get
-        # reparented to init.
-        sleep infinity || true
+        # Wait on all our backgrounded processes. This ensures two important things:
+        # (1) The entire subshell won't exit
+        # (2) Processes we kill get reaped and don't show up in process list output anymore
+        for pid in $(cat pids); do
+            etestmsg "[main] Waiting for ${pid}"
+            wait "${pid}" || true
+            etestmsg "[main] ${pid} killed"
+        done
     ) &
 
     local main_pid=$!
@@ -170,9 +170,12 @@ ETEST_ekilltree()
 
     local pids
     pids=( $(cat pids) )
-    einfo "Killing $(lval main_pid) -- Expecting death from $(lval pids)"
+    etestmsg "Killing $(lval main_pid) -- Expecting death from $(lval pids) -- My $(lval BASHPID)"
+    pstree -c $$
     ekilltree ${main_pid}
 
+    etestmsg "After killing $(lval main_pid) -- Expected death from $(lval pids) -- My $(lval BASHPID)"
+    pstree -c $$
     eretry --timeout 5s process_not_running ${pids[@]}
 }
 
@@ -220,7 +223,7 @@ ETEST_ekilltree_exclude_abritrary()
     assert process_running $(cat safe_pid)
     etestmsg "And that other process is not $(cat kill_pid)"
     ewarn $(ps -ef | grep $(cat kill_pid) || true)
-    eretry --timeout 5s process_not_running $(cat kill_pid)
+    eretry -t=2s -T=20s process_not_running $(cat kill_pid)
     ewarn $(ps -ef | grep $(cat kill_pid) || true)
 
     ekill -s=KILL $(cat safe_pid)
@@ -250,7 +253,7 @@ ETEST_process_parent_tree()
     {
         "pid": 17389,
         "ppid": 2895,
-        "cmd": "bash bin/iebash"
+        "cmd": "bash bin/ebash-repl"
     }
 ]
 EOM
@@ -260,7 +263,7 @@ EOM
 (    1)* /sbin/init splash
 (25473) * tmux -u -2 -f /usr/share/byobu/profiles/tmuxrc new-session
 ( 2895)  * /bin/bash
-(17389)   * bash bin/iebash
+(17389)   * bash bin/ebash-repl
 EOM
 )
     ps()

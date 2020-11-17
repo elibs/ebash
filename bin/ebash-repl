@@ -20,7 +20,7 @@ reload()
 }
 reload
 
-HISTFILE=$(mktemp --tmpdir iebash_$$_XXXXXX)
+HISTFILE=$(mktemp --tmpdir ebash-repl-$$-XXXXXX)
 trap_add "rm --force \"${HISTFILE}\""
 
 : ${EBASH_PROMPT:=$(ecolor bold green)$'EBASH> '$(ecolor none)}

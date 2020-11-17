@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2012-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2012-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2012-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -82,7 +82,7 @@ chroot_shell()
     # Setup CHROOT prompt
     chroot_prompt ${name}
 
-    # Mount then enter chroot. Ensure we setup a trap so that we'll unmount the chroot 
+    # Mount then enter chroot. Ensure we setup a trap so that we'll unmount the chroot
     # regardless of how we leave this function.
     chroot_mount
     trap_add "chroot_unmount"
@@ -94,7 +94,7 @@ chroot_cmd()
 {
     argcheck CHROOT
 
-    einfos $@
+    edebug "[${CHROOT}] $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
 }
 
@@ -118,24 +118,21 @@ chroot_kill()
 
     argcheck CHROOT
 
-    local pids=""
-    local errors=0
-    [[ -n ${regex} ]] && pids=$(pgrep "${regex}" || return 0) || pids=$(ps -eo "%p")
-    edebug $(lval regex signal pids)
+    # Get a list of all pids running in the chroot with optional regex provided.
+    local pids
+    pids=( $(opt_forward chroot_pids regex) )
 
-    local pid link
-    for pid in ${pids}; do
-        link=$(readlink "/proc/${pid}/root" || true)
+    edebug $(lval CHROOT signal regex pids)
+    if array_empty pids; then
+        edebug "No processes selected to kill in $(lval CHROOT)"
+        return 0
+    fi
 
-        # Skip processes started in NO chroot or ANOTHER chroot
-        [[ -z ${link} || ${link} != ${CHROOT} ]] && continue
-
-        # Kill this process
+    local pid
+    for pid in ${pids[@]}; do
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        ekilltree -s=${signal} --kill-after=${kill_after} ${pid} || (( errors+=1 ))
+        ekilltree --signal=${signal} --kill-after=${kill_after} ${pid}
     done
-
-    [[ ${errors} -eq 0 ]]
 }
 
 # Cleanly exit a chroot by:
@@ -143,8 +140,43 @@ chroot_kill()
 # (2) Recursively unmount the chroot and anything mounted underneath it
 chroot_exit()
 {
-    chroot_kill
+    chroot_kill --signal SIGKILL
     eunmount -r ${CHROOT}
+}
+
+opt_usage chroot_pids <<'END'
+Get a listing of all the pids running inside a chroot (if any). It is not an error for there to be no pids running in
+a chroot so this will not return an error in that scenario.
+END
+chroot_pids()
+{
+    $(opt_parse \
+        ":regex | Pgrep regex that should match processes you'd like returned. If none
+                  is specified, all processes in the chroot will be listed.")
+
+    argcheck CHROOT
+
+    # Instead of having to iterate over every file in /proc we can just have a one-liner `find` command here and look
+    # for ones whose root link points to the specified CHROOT then parse out the PID from the path.
+    local all_pids pids
+    all_pids=( $(find -L /proc/*/root -maxdepth 1 -samefile "${CHROOT}" 2>/dev/null | awk -F/ '{print $3}' || true) )
+    if array_empty all_pids; then
+        return 0
+    fi
+
+    # If a regex was given, filter out any PIDs that do not match
+    if [[ -n "${regex}" ]]; then
+        local pid
+        for pid in $(pgrep -f "${regex}"); do
+            if array_contains all_pids "${pid}"; then
+                pids+=( ${pid} )
+            fi
+        done
+    else
+        pids=( "${all_pids[@]}" )
+    fi
+
+    echo "${pids[@]}"
 }
 
 opt_usage chroot_readlink <<'END'
@@ -183,7 +215,7 @@ chroot_install_with_apt_get()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    einfos "Installing $@"
+    edebug "[${CHROOT}] Installing $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "apt-get -f -qq -y --force-yes install $*"
 }
 
@@ -252,7 +284,7 @@ chroot_dpkg()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    einfos "dpkg $@"
+    edebug "[${CHROOT}] dpkg $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*"
 }
 
@@ -261,7 +293,7 @@ chroot_apt()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    einfos "${CHROOT_APT} $@"
+    edebug "[${CHROOT}] ${CHROOT_APT} $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*"
 }
 
@@ -359,9 +391,6 @@ mkchroot()
 {
     $(opt_parse CHROOT UBUNTU_RELEASE UBUNTU_ARCH)
     edebug "$(lval CHROOT UBUNTU_RELEASE UBUNTU_ARCH)"
-
-    ## Make sure that debootstrap is installed
-    which debootstrap > /dev/null
 
     # Debootstrap image
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"

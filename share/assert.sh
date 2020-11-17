@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2016-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2016-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2016-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -24,7 +24,7 @@
 #   b=2
 #   assert test "${a}" -eq "${b}"
 #
-# because assert will tell you that the command that it executed was 
+# because assert will tell you that the command that it executed was
 #
 #     test 1 -eq 2
 #
@@ -68,7 +68,7 @@ assert_true()
 assert_false()
 {
     local cmd=( "${@}" )
-    
+
     local rc=0
     try
     {
@@ -221,7 +221,7 @@ assert_archive_contents()
 {
     $(opt_parse archive)
     edebug "Validating $(lval archive)"
-   
+
     local expect=() actual=() expect_tmp="" actual_tmp=""
 
     expect=( "${@}" )
@@ -232,7 +232,7 @@ assert_archive_contents()
 
     expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
     echo "$(array_join_nl expect)" | sort --unique > "${expect_tmp}"
-    
+
     actual_tmp=$(mktemp --tmpdir assert_directory_contents-actual-XXXXXX)
     echo "$(array_join_nl actual)" | sort --unique > "${actual_tmp}"
 
@@ -248,13 +248,13 @@ assert_directory_contents()
 
     expect=( "${@}" )
     array_sort expect
-    
+
     assert_exists "${directory}"
     actual=( $(find "${directory}" -printf '%P\n' | sort) )
 
     expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
     echo "$(array_join_nl expect)" | sort --unique > "${expect_tmp}"
-    
+
     actual_tmp=$(mktemp --tmpdir assert_directory_contents-actual-XXXXXX)
     echo "$(array_join_nl actual)" | sort --unique > "${actual_tmp}"
 

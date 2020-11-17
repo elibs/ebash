@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2016-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2016-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2016-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -22,22 +22,28 @@ pkg_known()
         "name | Name of package to look for.")
 
     case $(pkg_manager) in
-        dpkg)
+        apk)
+            [[ -n "$(apk list ${name} 2>/dev/null)" ]]
+            ;;
+
+        apt)
             apt-cache show ${name} &>/dev/null
+            ;;
+
+        pacman)
+            pacman -Ss ${name} &>/dev/null
             ;;
 
         portage)
 
             name=$(pkg_gentoo_canonicalize ${name})
-            [[ -d /usr/portage/${name} ]]
+            local portdir
+            portdir=$(portageq get_repo_path / gentoo)
+            [[ -d "${portdir}/${name}" ]]
             ;;
 
-        dnf)
-            dnf list ${name} &>/dev/null
-            ;;
-
-        pacman)
-            pacman -Ss ${name} &>/dev/null
+        yum)
+            yum list ${name} &>/dev/null
             ;;
 
         *)
@@ -61,7 +67,10 @@ pkg_gentoo_canonicalize()
 
     else
 
-        pushd /usr/portage
+        local portdir
+        portdir=$(portageq get_repo_path / gentoo)
+        pushd "${portdir}"
+
         local found=() size=0
         found=( */${name} )
         size=$(array_size found)
@@ -90,13 +99,20 @@ pkg_installed()
 
     local pkg_status=""
     case $(pkg_manager) in
-        dpkg)
-            pkg_status="$(dpkg -s "${name}" 2>/dev/null | grep '^Status:')"
-            [[ "${pkg_status}" == 'Status: install ok installed' ]]
+
+        apk)
+            apk -e info "${name}" &>/dev/null
+            ;;
+
+        apt)
+            dpkg -s "${name}" &>/dev/null
+            ;;
+
+        pacman)
+            pacman -Q ${name} &>/dev/null
             ;;
 
         portage)
-
             name=$(pkg_gentoo_canonicalize ${name})
             pushd /var/db/pkg
             local all_versions=( ${name}* )
@@ -104,12 +120,8 @@ pkg_installed()
             [[ ${#all_versions[@]} -gt 0 && -d /var/db/pkg/${all_versions[0]} ]]
             ;;
 
-        dnf)
-            dnf list installed ${name} &>/dev/null
-            ;;
-
-        pacman)
-            pacman -Q ${name} &>/dev/null
+        yum)
+            yum list installed ${name} &>/dev/null
             ;;
 
         *)
@@ -134,32 +146,31 @@ pkg_install()
     fi
 
     case ${pkg_manager} in
-        dpkg)
-            $(tryrc DEBIAN_FRONTEND=noninteractive aptitude -y install "${@}")
 
-            # If it fails the first time...
+        apk)
+            apk add "${@}"
+            ;;
+
+        apt)
+            $(tryrc DEBIAN_FRONTEND=noninteractive apt install -y "${@}")
+
             if [[ ${rc} -ne 0 ]] ; then
-                # Try a bit of cleanup
                 DEBIAN_FRONTEND=noninteractive dpkg --force-confdef --force-confold --configure -a
-                DEBIAN_FRONTEND=noninteractive aptitude -f -y --force-yes install
-
-                # And then give it one more chance
-                DEBIAN_FRONTEND=noninteractive aptitude -y install "${@}"
+                DEBIAN_FRONTEND=noninteractive apt -f -y --force-yes install
+                DEBIAN_FRONTEND=noninteractive apt install -y "${@}"
             fi
+            ;;
+
+        pacman)
+            pacman -S --noconfirm "${@}"
             ;;
 
         portage)
             emerge --ask=n "${@}"
             ;;
 
-
-        dnf)
-            dnf install --cacheonly -y "${@}"
-            ;;
-
-
-        pacman)
-            pacman -S --noconfirm "${@}"
+        yum)
+            yum install -y "${@}"
             ;;
 
         *)
@@ -176,22 +187,24 @@ pkg_uninstall()
     $(opt_parse "@names | Names of package to install.")
 
     case $(pkg_manager) in
-        dpkg)
-            DEBIAN_FRONTEND=noninteractive aptitude purge -y "${@}"
+        apk)
+            apk del "${@}"
+            ;;
+
+        apt)
+            DEBIAN_FRONTEND=noninteractive apt remove --purge -y "${@}"
+            ;;
+
+        pacman)
+            pacman -R --noconfirm "${@}"
             ;;
 
         portage)
             emerge --ask=n --unmerge "${@}"
             ;;
 
-
-        dnf)
-            dnf remove -y "${@}"
-            ;;
-
-
-        pacman)
-            pacman -R --noconfirm "${@}"
+        yum)
+            yum remove -y "${@}"
             ;;
 
         *)
@@ -207,20 +220,24 @@ END
 pkg_sync()
 {
     case $(pkg_manager) in
-        dpkg)
-            aptitude update
+        apk)
+            apk update
+            ;;
+
+        apt)
+            apt update
+            ;;
+
+        pacman)
+            pacman -Sy
             ;;
 
         portage)
             emerge --sync
             ;;
 
-        dnf)
-            dnf makecache
-            ;;
-
-        pacman)
-            pacman -Sy
+        yum)
+            yum makecache
             ;;
 
         *)
@@ -236,8 +253,16 @@ END
 pkg_clean()
 {
     case $(pkg_manager) in
-        dpkg)
+        apk)
+            apk cache --purge
+            ;;
+
+        apt)
             find /var/lib/apt/lists -type f -a ! -name lock -a ! -name partial -delete
+            ;;
+
+        pacman)
+            pacman -Sc --noconfirm
             ;;
 
         portage)
@@ -245,12 +270,8 @@ pkg_clean()
             # and so cleaning is typically unnecessary
             ;;
 
-        dnf)
-            dnf clean expire-cache
-            ;;
-
-        pacman)
-            pacman -Sc --noconfirm
+        yum)
+            yum clean expire-cache
             ;;
 
         *)
@@ -272,20 +293,24 @@ pkg_upgrade()
     pkg_installed ${name}
 
     case $(pkg_manager) in
-        dpkg)
-            DEBIAN_FRONTEND=noninteractive aptitude install -y "${name}"
+        apk)
+            apk upgrade "${name}"
+            ;;
+
+        apt)
+            DEBIAN_FRONTEND=noninteractive apt install -y "${name}"
+            ;;
+
+        pacman)
+            pacman -S --noconfirm "${name}"
             ;;
 
         portage)
             emerge --update "${name}"
             ;;
 
-        dnf)
-            dnf update -y "${name}"
-            ;;
-
-        pacman)
-            pacman -S --noconfirm "${name}"
+        yum)
+            yum update -y "${name}"
             ;;
 
         *)
@@ -296,17 +321,20 @@ pkg_upgrade()
 
 pkg_manager()
 {
-    if os_distro ubuntu mint debian ; then
-        echo "dpkg"
+    if os_distro alpine; then
+        echo "apk"
 
-    elif os_distro fedora; then
-        echo "dnf"
+    elif os_distro debian mint ubuntu; then
+        echo "apt"
 
-    elif os_distro gentoo ember ; then
+    elif os_distro arch; then
+        echo "pacman"
+
+    elif os_distro gentoo ember; then
         echo "portage"
 
-    elif os_distro arch ; then
-        echo "pacman"
+    elif os_distro centos fedora; then
+        echo "yum"
 
     else
         echo "unknown"

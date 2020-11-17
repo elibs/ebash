@@ -10,13 +10,16 @@
 #---------------------------------------------------------------------------------------------------
 # GLOBAL EFUNCS SETTINGS
 #---------------------------------------------------------------------------------------------------
-set -o pipefail
-set -o nounset
-set -o functrace
-set -o errtrace
-shopt -s expand_aliases
-shopt -s checkwinsize
-shopt -s extglob
+set \
+    -o errtrace  \
+    -o functrace \
+    -o nounset   \
+    -o pipefail  \
+
+shopt -s           \
+    checkwinsize   \
+    expand_aliases \
+    extglob        \
 
 alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DEBUG || trap - DEBUG'
 
@@ -883,6 +886,28 @@ popd()
     builtin popd "${@}" >/dev/null
 }
 
+# Helper function to check if a command exists. The actual implementation could be a function in
+# our environment or an external program.
+command_exists()
+{
+    { declare -f "${1}" || which "${1}"; } &>/dev/null
+}
+
+# Helper function to validate that a list of commands are all installed in our PATH.
+require()
+{
+    local missing=0
+    local cmd
+    for cmd in "${@}"; do
+        if ! command_exists "${cmd}"; then
+            eerror "Command ${cmd} not found in ${PATH}"
+            (( missing += 1 ))
+        fi
+    done
+
+    assert_zero "${missing}"
+}
+
 # chmod + chown
 echmodown()
 {
@@ -1577,6 +1602,7 @@ etimeout()
         # it determined there was a timeout.  Otherwise, we know that the
         # original command returned on its own.
         wait ${watcher} && watcher_rc=0 || watcher_rc=$?
+
 
         local stop seconds
         stop=${SECONDS}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -8,7 +8,7 @@
 # version.
 
 # DT-373: Dialog doesn't work properly on OSX and Ubuntu 12.04. The version of dialog on Darwin does not properly
-# handle BU_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
+# handle EBASH_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
 # version of dialog and it is missing required flags --default-button and --default-item. This check will exclude these
 # two OSes completely so the code doesn't get included at all. This means we don't have to check for support in all the
 # dialog functions as they won't be emitted or callable at all.
@@ -57,7 +57,7 @@ ETEST_dialog_read()
     for key in UP DOWN RIGHT LEFT TAB ESC ENTER BACKSPACE DELETE; do
         einfos "Verifying $(lval key)"
 
-        eval "val=\${BU_KEY_${key}}"
+        eval "val=\${EBASH_KEY_${key}}"
         $(printf "${val}" | dialog_read char)
         assert_eq --hexdump "${val}" "${char}"
     done
@@ -82,7 +82,7 @@ DIALOG_PROMPT="dialog_prompt --hide --trace"
 
 ETEST_dialog_prompt_single()
 {
-    local input="Locke${BU_KEY_ENTER}${BU_KEY_DONE}"
+    local input="Locke${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1)
     assert_eq "Locke" "${philo1}"
 }
@@ -91,7 +91,7 @@ ETEST_dialog_prompt_single()
 # without having to press ENTER to exit the first field and enter the second field.
 ETEST_dialog_prompt_multi()
 {
-    local input="Locke${BU_KEY_DOWN}Hobbes${BU_KEY_ENTER}${BU_KEY_DONE}"
+    local input="Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
@@ -99,7 +99,7 @@ ETEST_dialog_prompt_multi()
 
 ETEST_dialog_prompt_multi_spaces()
 {
-    local input="Locke${BU_KEY_DOWN}Thomas Hobbes${BU_KEY_ENTER}${BU_KEY_DONE}"
+    local input="Locke${EBASH_KEY_DOWN}Thomas Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2)
     assert_eq "Locke"         "${philo1}"
     assert_eq "Thomas Hobbes" "${philo2}"
@@ -107,7 +107,7 @@ ETEST_dialog_prompt_multi_spaces()
 
 ETEST_dialog_prompt_optional()
 {
-    local input="${BU_KEY_DONE}"
+    local input="${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} ?field1)
     assert_empty "${field1}"
 }
@@ -115,7 +115,7 @@ ETEST_dialog_prompt_optional()
 ETEST_dialog_prompt_optional_multi_first()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="${BU_KEY_DOWN}Locke${BU_KEY_DOWN}Hobbes${BU_KEY_ENTER}${BU_KEY_DONE}"
+    local input="${EBASH_KEY_DOWN}Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} ?philo1 philo2 philo3)
     assert_empty       "${philo1}"
     assert_eq "Locke"  "${philo2}"
@@ -125,7 +125,7 @@ ETEST_dialog_prompt_optional_multi_first()
 ETEST_dialog_prompt_optional_multi_middle()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="Locke${BU_KEY_DOWN}${BU_KEY_DOWN}Hobbes${BU_KEY_ENTER}${BU_KEY_DONE}"
+    local input="Locke${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1 ?philo2 philo3)
     assert_eq "Locke"  "${philo1}"
     assert_empty       "${philo2}"
@@ -135,7 +135,7 @@ ETEST_dialog_prompt_optional_multi_middle()
 ETEST_dialog_prompt_optional_multi_last()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="Locke${BU_KEY_DOWN}Hobbes${BU_KEY_UP}${BU_KEY_DONE}"
+    local input="Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_UP}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2 ?philo3)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
@@ -144,7 +144,7 @@ ETEST_dialog_prompt_optional_multi_last()
 
 ETEST_dialog_prompt_move_without_edit()
 {
-    local input="${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_UP}${BU_KEY_DONE}"
+    local input="${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_UP}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} ?philo1 ?philo2 ?philo3)
     assert_empty "${philo1}"
     assert_empty "${philo2}"
@@ -153,7 +153,7 @@ ETEST_dialog_prompt_move_without_edit()
 
 ETEST_dialog_prompt_default_values()
 {
-    local input="${BU_KEY_DONE}"
+    local input="${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=John Locke" "?philo2=Kant" "?philo3=John Stuart Mill")
     assert_eq "John Locke"       "${philo1}"
     assert_eq "Kant"             "${philo2}"
@@ -163,7 +163,7 @@ ETEST_dialog_prompt_default_values()
 ETEST_dialog_prompt_default_values_override()
 {
     # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DELETE}John Rawls${BU_KEY_ENTER}${BU_KEY_DONE}"
+    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
@@ -176,7 +176,7 @@ ETEST_dialog_prompt_default_values_override_term()
     dialog_load
 
     # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DOWN}${BU_KEY_DELETE}John Rawls${BU_KEY_TAB}${BU_KEY_DONE}"
+    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
@@ -189,7 +189,7 @@ ETEST_dialog_prompt_escape()
 {
     try
     {
-        $(disable_die_parent; printf "${BU_KEY_ESC}" | ${DIALOG_PROMPT} ?philo1 ?philo2 ?philo3)
+        $(disable_die_parent; printf "${EBASH_KEY_ESC}" | ${DIALOG_PROMPT} ?philo1 ?philo2 ?philo3)
 
         # The above code should have exitted with DIALOG_CANCEL(1). We're going to check for that in the catch block
         # specifically. If we got here, then something went wrong. So we'll exit with a different value (it doesn't
@@ -205,8 +205,8 @@ ETEST_dialog_prompt_escape()
 
 ETEST_dialog_prompt_escape_during_input()
 {
-    local input="${BU_KEY_DELETE}Thomas Jefferson${BU_KEY_DOWN}${BU_KEY_DELETE}${BU_KEY_DELETE}John ${BU_KEY_ESC}"
- 
+    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}${EBASH_KEY_DELETE}John ${EBASH_KEY_ESC}"
+
     try
     {
         $(disable_die_parent; printf "${input}" | ${DIALOG_PROMPT} ?philo1 ?philo2 ?philo3)
@@ -260,7 +260,7 @@ ETEST_dialog_prompt_invalid_input()
     etestmsg "Testing with invalid characters in user input (these characters should not show up in final values)"
     local input
     for input in "${inputs[@]}"; do
-        $(printf "${input}${BU_KEY_ENTER}${BU_KEY_DONE}" | ${DIALOG_PROMPT} badstuff)
+        $(printf "${input}${EBASH_KEY_ENTER}${EBASH_KEY_DONE}" | ${DIALOG_PROMPT} badstuff)
         assert_eq "badstuff" "${badstuff}"
     done
 }
