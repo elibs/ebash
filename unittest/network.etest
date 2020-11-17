@@ -1,26 +1,83 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if [[ ${__EBASH_OS} == Linux ]] ; then
+os linux || return 0
 
-ETEST_get_listening_network_ports()
+# Setup code mocks out some fake paths beneath a fake SYSFS tree for consistent testing even in Docker where we may
+# not have actual sysfs tree.
+setup()
 {
-    [[ "$(edistro)" == "Arch" ]] && { ewarn "Test disabled on arch per DT-190." ; return 0 ; }
+    SYSFS="${TEST_DIR_OUTPUT}/sys"
+
+    etestmsg "Creating mock network interfaces in ${SYSFS}"
+
+    for ifname in eth0 eth1; do
+        local ifdir
+        ifdir="${SYSFS}/class/net/${ifname}"
+        mkdir -p "${ifdir}/device"
+        echo "a8:7e:ea:5d:e4:bd" > "${ifdir}/address"
+    done
+
+    find "${SYSFS}"
+}
+
+ETEST_get_network_ports()
+{
+    # Mock out netstat for consistent testability across all distros even in Docker where we may have no network ports
+    netstat() {
+		cat <<- "END"
+			Active Internet connections (servers and established)
+			Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+			tcp        0      0 0.0.0.0:5355            0.0.0.0:*               LISTEN      -
+			tcp        0      0 192.168.122.1:53        0.0.0.0:*               LISTEN      -
+			tcp        0      0 127.0.0.53:53           0.0.0.0:*               LISTEN      -
+			tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      -
+			tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN      -
+			tcp        0      0 192.168.86.52:35698     142.250.112.188:5228    ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:43182     192.168.86.81:8009      ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:41706     54.149.94.178:443       ESTABLISHED 1530185/slack --typ
+			tcp        0      0 192.168.86.52:60274     52.114.158.191:443      ESTABLISHED 2087/teams
+			tcp        0      0 192.168.86.52:42570     192.168.86.249:8008     ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:53148     54.203.112.76:443       ESTABLISHED 1530185/slack --typ
+			tcp        0      0 192.168.86.52:51432     192.168.86.82:8009      ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:35351     52.114.159.142:443      ESTABLISHED 4036/537.36 --node-
+			tcp        0      0 192.168.86.52:60332     52.96.79.82:993         ESTABLISHED 538231/mailsync.bin
+			tcp        0      0 192.168.86.52:39016     52.114.128.85:443       ESTABLISHED 2087/teams
+			tcp        0      0 192.168.86.52:40530     192.168.86.92:8009      ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:33772     192.168.86.182:8009     ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:35712     192.168.86.227:8009     ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:33104     52.96.164.130:993       ESTABLISHED 538231/mailsync.bin
+			tcp        0      0 192.168.86.52:56336     192.168.86.81:8008      ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:41710     54.149.94.178:443       ESTABLISHED 1530185/slack --typ
+			tcp        0      0 192.168.86.52:60596     140.82.113.25:443       ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:36786     192.168.86.248:8009     ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:34306     142.250.111.109:993     ESTABLISHED 3135/mailsync.bin
+			tcp        0      0 192.168.86.52:50094     192.168.86.182:32085    ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:53154     54.203.112.76:443       ESTABLISHED 1530185/slack --typ
+			tcp        0      0 192.168.86.52:50440     142.250.111.108:993     ESTABLISHED 3135/mailsync.bin
+			tcp        0      0 192.168.86.52:46150     192.168.86.249:8009     ESTABLISHED 2355/chrome --type=
+			tcp        0      0 192.168.86.52:36596     192.168.86.182:32159    ESTABLISHED 2355/chrome --type=
+			udp        0      0 224.0.0.251:5353        0.0.0.0:*                           2093/chrome --new-w
+			udp        0      0 0.0.0.0:5355            0.0.0.0:*                           -
+			udp        0      0 192.168.122.1:53        0.0.0.0:*                           -
+			udp        0      0 127.0.0.53:53           0.0.0.0:*                           -
+			udp        0      0 0.0.0.0:67              0.0.0.0:*                           -
+			udp        0      0 192.168.86.52:68        192.168.86.1:67         ESTABLISHED -
+		END
+    }
 
     local ports
     get_network_ports -l ports
 
-    # We should always be able to find a listening port on 22
     for key in $(array_indexes ports); do
-        [[ $(pack_get ports[$key] local_port) == 22 ]] && return 0
+        etestmsg $(lval key %ports[$key])
     done
-    die "Could not find port 22"
 }
 
 ETEST_netselect()
@@ -78,12 +135,14 @@ ETEST_get_network_pci_device_hyperv()
 
     # Mock out ethtool to not return the requested info, as it behaves on HyperV VMs
     ethtool(){ echo ""; }
+
     # Mock out basename to return a HyperV looking address
     basename(){ echo "${addr_expected}"; }
 
     local ifaces=() addr_result=""
     ifaces=( $(get_network_interfaces) )
     addr_result=$(get_network_pci_device ${ifaces[0]})
+
     [[ ${addr_result} == ${addr_expected} ]] || die "$(lval test_addr) does not equal expected $(lval addr_expected)"
 }
 
@@ -102,7 +161,7 @@ ETEST_netmask2cidr()
         netmask=${entry%%:*}
         expect=${entry#*:}
         actual=$(netmask2cidr "${netmask}")
-        einfo "$(lval netmask expect actual)"
+        etestmsg "$(lval netmask expect actual)"
         assert_eq "${expect}" "${actual}"
     done
 }
@@ -127,14 +186,12 @@ ETEST_getvlans()
     # look for what $testnic is set to, should get $vlan back
     local output
     output="$(getvlans Bond10G)"
-    einfo "looking for a match [$(lval vlan output)]"
+    etestmsg "looking for a match [$(lval vlan output)]"
     assert_eq "${output}" "${vlan}"
 
 
     # look for something other than what testnic is set to, should get back nothing.
     output="$(getvlans Bond1G)"
-    einfo "looking for an empty string [$(lval output)]"
+    etestmsg "looking for an empty string [$(lval output)]"
     assert_eq "${output}" ""
 }
-
-fi

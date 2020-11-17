@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -26,7 +26,7 @@
 MAKEVERBOSE ?= 0
 V ?= ${MAKEVERBOSE}
 
-# Helper template for setting up debugging of the Makefile itself by appending to MAKEFLAGS with --debug=$1 (e.g. 
+# Helper template for setting up debugging of the Makefile itself by appending to MAKEFLAGS with --debug=$1 (e.g.
 # --debug=b -- see 'man make') and also disabling '@' operator so that the Makefile executes everything it's doing.
 # Also modifies shell to use 'bash $2' to allow turning on debugging information for what the shell is doing.
 define DEBUGMAKE
@@ -69,5 +69,55 @@ clean:
 
 clobber: clean
 
+lint:
+	bin/bashlint
+
 test:
-	bin/etest unittest
+	bin/etest --verbose=${V} --filter=${FILTER}
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Docker Tests
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+# Template for running tests inside a Linux distro container
+DRUN = docker run --init --tty --interactive --privileged --mount type=bind,source=${PWD},target=/ebash --workdir /ebash --rm
+define DOCKER_TEST_TEMPLATE
+
+.PHONY: dselftest-$1
+dselftest-$1:
+	bin/ebanner "$2 Dependencies"
+	${DRUN} $2 sh -c "bin/ebash-install-deps && bin/selftest"
+
+.PHONY: dtest-$1
+dtest-$1:
+	bin/ebanner "$2 Dependencies"
+	${DRUN} $2 sh -c "bin/ebash-install-deps && bin/etest --break --verbose=${V} --filter=${FILTER}"
+
+.PHONY: dshell-$1
+dshell-$1:
+	bin/ebanner "$2 Dependencies"
+	${DRUN} $2 sh -c "bin/ebash-install-deps && /bin/bash"
+
+endef
+
+DISTROS =			\
+	alpine:3.11		\
+	alpine:3.12		\
+	archlinux		\
+	centos:8		\
+	centos:7		\
+	debian:10		\
+	debian:9		\
+	fedora:33		\
+	fedora:32		\
+	gentoo/stage3	\
+	ubuntu:18.04	\
+	ubuntu:16.04	\
+
+$(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t})))
+
+PHONY: dtest
+dtest:	    $(foreach d, $(subst :,-,${DISTROS}), dtest-${d})
+dselftest:  $(foreach d, $(subst :,-,${DISTROS}), dselftest-${d})

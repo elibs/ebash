@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -17,33 +17,43 @@ ETEST_elogfile()
 
     etestmsg "LOG file contents"
     eretry cat ${FUNCNAME}.log
-    
+
     # Ensure both stdout and stderr
     grep -q "stdout" ${FUNCNAME}.log
     grep -q "stderr" ${FUNCNAME}.log
 }
 
-# Create a log running process writing to a file then kill it and ensure it
-# properly shuts down.
 ETEST_elogfile_term()
 {
+    # Parent 'main' process
     (
-        elogfile ${FUNCNAME}.log
-       
-        SECONDS=0
-        while true; do
-            echo ${SECONDS}
-            sleep 1
-        done
+        # Child process running long-running process writing to a logfile
+        (
+            nodie_on_error
 
-    ) &>/dev/null &
+            elogfile ${FUNCNAME}.log
+
+            SECONDS=0
+            while true; do
+                echo ${SECONDS}
+                sleep 1
+            done
+
+        ) &>/dev/null &
+
+        # Wait on our background process above. This ensures two important things:
+        # (1) Entire subshell won't exit
+        # (2) Process we kill will get reaped properly and not appear to still be running
+        wait || true
+
+    ) &
 
     local pid=$!
 
     eprogress "Running background process for 3 seconds"
     sleep 3
     eprogress_kill
-    
+
     etestmsg "Killing backgrounded process BASHPID=${BASHPID}"
     ekilltree -s=SIGTERM ${pid}
 
@@ -58,7 +68,7 @@ ETEST_elogfile_nostderr()
 {
     (
         elogfile -e=0 ${FUNCNAME}.log
-        
+
         echo "stdout" >&1
         echo "stderr" >&2
     )
@@ -73,7 +83,7 @@ ETEST_elogfile_nostdout()
     (
         EDEBUG=0
         elogfile -o=0 ${FUNCNAME}.log
-        
+
         echo "stdout" >&1
         echo "stderr" >&2
     )
@@ -89,7 +99,7 @@ ETEST_elogfile_none()
 
     (
         elogfile -o=0 -e=0 ${FUNCNAME}.log
-        
+
         echo "stdout" >&1
         echo "stderr" >&2
     )
@@ -167,10 +177,10 @@ ETEST_elogfile_path()
 ETEST_elogfile_truncate()
 {
     > ${FUNCNAME}.log
-    
+
     (
         elogfile ${FUNCNAME}.log
-        EDEBUG=1 
+        EDEBUG=1
 
         echo "/dev/stdout" >/dev/stdout
         echo "/dev/stderr" >/dev/stderr
@@ -273,7 +283,7 @@ ETEST_elogfile_hang_ekilltree()
 ETEST_elogfile_hang_kill_tee()
 {
     (
-        EDEBUG=ekill 
+        EDEBUG=ekill
 
         local mlog="${FUNCNAME}.log"
         trap_add "ewarn AIEEEEE"
@@ -304,7 +314,7 @@ ETEST_elogfile_merge_off()
             EFUNCS_COLOR=0
 
             elogfile -m=0 ${FUNCNAME}.log
-            
+
             echo "stdout" >&1
             echo "stderr" >&2
 
@@ -330,7 +340,7 @@ ETEST_elogfile_merge_on()
             EFUNCS_COLOR=0
 
             elogfile -m=1 ${FUNCNAME}.log
-            
+
             echo "stdout" >&1
             echo "stderr" >&2
 

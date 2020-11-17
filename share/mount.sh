@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -29,7 +29,7 @@ opt_usage emount_regex "Echo the emount regex for a given path"
 emount_regex()
 {
     $(opt_parse path)
-    
+
     local rpath
     rpath=$(emount_realpath "${path}")
 
@@ -88,6 +88,10 @@ ebindmount()
 
     # Then we look in the mount table to make sure we can access the mount point.  We might not be
     # able to see it if we're in a chroot, for instance.
+    # NOTE: If /proc/self/mountinfo is not present then we need to mount it.
+    if ! emounted /proc; then
+        mount -t proc proc /proc
+    fi
     local mountinfo_entry
     mountinfo_entry=$(awk '$5 == "'${source_mountpoint}'"' /proc/self/mountinfo)
 
@@ -103,7 +107,7 @@ ebindmount()
 }
 
 opt_usage ebindmount_into <<END
-Bind mount a list of paths into the specified directory. This function will iterate over 
+Bind mount a list of paths into the specified directory. This function will iterate over
 all the source paths provided and bind mount each source path into the provided destination
 directory. This function will merge the contents all into the final destination path much like
 cp or rsync would but without the overhead of actually copying the files. To fully cleanup the
@@ -139,7 +143,7 @@ contents are still MERGED but files shadow over one another. Consider the follow
 Again, notice that since 'file1' existed in both src1/foo and src2/foo and we bindmount src2
 after src1, we see 'src2' in the file instead of 'src1'. Also, notice that the bindmount of
 the directory src2/foo did not hide the contents of the existing src1/foo directory that we
-already bind mounted into dest. 
+already bind mounted into dest.
 
 ${PATH_MAPPING_SYNTAX_DOC}
 END
@@ -159,7 +163,7 @@ ebindmount_into()
     # the source path into the specified destination path.
     local entry
     for entry in "${srcs[@]}"; do
-        
+
         local src="${entry%%:*}"
         local mnt="${entry#*:}"
         [[ -z ${mnt} ]] && mnt="${src}"
@@ -185,7 +189,7 @@ ebindmount_into()
 
             # If the destination parent directory has already been created then we have to be
             # careful not to shadow mount over as we'd mask it's contents. So if it is there
-            # bind mount the contents of the src directory into the parent directory. 
+            # bind mount the contents of the src directory into the parent directory.
             # Otherwise we can simply bind mount the directory into thd destination directory.
             if [[ -d "${parent}" ]]; then
                 local contents
@@ -217,9 +221,9 @@ ebindmount_into()
         # tree since we do not follow symlinks. If it's not a symlink, then simply bindmount the source path
         # into the destination path. Taking care to create the proper tree structure inside destination path.
         else
-        
+
             # If the source path is a symlink, just copy the symlink directly since we do not follow symlinks.
-            # There is a 'continue' if it's a symlink because we do not want to do the ebindmount that is 
+            # There is a 'continue' if it's a symlink because we do not want to do the ebindmount that is
             # outside the if/else statement that we normally do for non-symlinks.
             if [[ -L "${src}" ]]; then
                 cp --no-dereference "${src}" "${dest_real}/${mnt}"
@@ -249,7 +253,7 @@ emount()
     if edebug_enabled || [[ "${@}" =~ (^| )(-v|--verbose)( |$) ]]; then
         einfos "Mounting $@"
     fi
-    
+
     mount "${@}"
 }
 
@@ -266,7 +270,7 @@ eunmount_internal()
 
         mnt_type=$(emount_type ${mnt})
         [[ ${verbose} -eq 1 ]] && einfo "Unmounting ${mnt} (${mnt_type})"
-        
+
         # OVERLAYFS: Redirect unmount operation to overlayfs_unmount so all layers unmounted
         if [[ ${mnt_type} =~ overlay ]]; then
             overlayfs_unmount "${mnt}"
@@ -280,7 +284,7 @@ opt_usage eunmount <<'END'
 Recursively unmount a list of mount points. This function iterates over the provided argument list
 and will unmount each provided mount point if it is mounted. It is not an error to try to unmount
 something which is already unmounted as we're already in the desired state and this is more useful
-in cleanup code. 
+in cleanup code.
 END
 eunmount()
 {
@@ -301,9 +305,9 @@ eunmount()
         [[ -z "${mnt}" ]] && continue
 
         edebug "Unmounting $(lval mnt recursive delete all)"
-        
+
         # WHILE loop to **optionally** continue unmounting until no more matching
-        # mounts are detected. The body of the while loop will break out when 
+        # mounts are detected. The body of the while loop will break out when
         # there are no more mounts to unmount. If -a=0 was passed in, then this
         # will always break after only a single iteration.
         while true; do
@@ -315,15 +319,15 @@ eunmount()
                 emounted "${mnt}" || break
 
                 opt_forward eunmount_internal verbose -- "${mnt}"
-        
-            # RECURSIVE 
+
+            # RECURSIVE
             else
 
                 # If this path is directly mounted or anything BENEATH it is mounted then proceed
                 local matches=()
                 matches=( $(efindmnt "${mnt}" | sort --unique --reverse) )
                 array_empty matches && break
-                
+
                 # Optionally log what is being unmounted
                 local nmatches=0
                 nmatches=$(echo "${matches[@]}" | wc -l)

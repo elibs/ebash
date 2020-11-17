@@ -1,0 +1,270 @@
+#!/bin/sh
+
+#######################################################################################################################
+####
+#### WARNING: This script is meant to be runnable in any Linux OS including older ones which do not have bash installed.
+####
+#### DO NOT change the she-bang at the top to bash.
+####
+#######################################################################################################################
+
+set -e
+
+UNAME="$(uname -s)"
+
+if [ "${UNAME}" = "Darwin" ]; then
+    DISTRO="darwin"
+elif [ -e "/etc/os-release" ]; then
+    DISTRO=$(awk -F'=' '/^ID=/ {print $2}' /etc/os-release | tr -d '"')
+elif which lsb_release &>/dev/null; then
+    DISTRO=$(lsb_release -is)
+else
+    DISTRO="${UNAME}"
+fi
+
+DISTRO=$(echo "${DISTRO}" | tr "[A-Z]" "[a-z]")
+
+echo ">> Installing dependencies for ${DISTRO}"
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Alpine Linux
+#
+#----------------------------------------------------------------------------------------------------------------------
+if [ "${DISTRO}" = "alpine" ]; then
+
+    apk add              \
+        bash             \
+        bzip2            \
+        cdrkit           \
+        coreutils        \
+        cpio             \
+        curl             \
+        debootstrap      \
+        dialog           \
+        diffutils        \
+        file             \
+        findutils        \
+        gawk             \
+        gnupg            \
+        grep             \
+        gzip             \
+        iproute2         \
+        iputils          \
+        jq               \
+        ncurses          \
+        ncurses-terminfo \
+        net-tools        \
+        perl             \
+        procps           \
+        pstree           \
+        squashfs-tools   \
+        util-linux       \
+        xz
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Arch Linux
+#
+#----------------------------------------------------------------------------------------------------------------------
+elif [ "${DISTRO}" = "arch" ]; then
+
+    pacman -Sy --noconfirm  \
+        cdrkit              \
+        cpio                \
+        debootstrap         \
+        dialog              \
+        diffutils           \
+        jq                  \
+        net-tools           \
+        squashfs-tools      \
+        which
+
+    localedef -i en_US -f UTF-8 en_US.UTF-8
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# CentOS
+#
+#----------------------------------------------------------------------------------------------------------------------
+elif [ "${DISTRO}" = "centos" ]; then
+
+    VERSION=$(awk -F'[="]*' '/^VERSION_ID=/ {print $2}' /etc/os-release)
+
+    yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-${VERSION}.noarch.rpm
+
+    yum install -y          \
+        bzip2               \
+        cpio                \
+        debootstrap         \
+        dialog              \
+        diffutils           \
+        file                \
+        genisoimage         \
+        glibc               \
+        glibc-langpack-en   \
+        glibc-locale-source \
+        gzip                \
+        iproute             \
+        iptables            \
+        jq                  \
+        ncurses             \
+        net-tools           \
+        perl                \
+        psmisc              \
+        squashfs-tools      \
+        which               \
+        xz
+
+    localedef -i en_US -f UTF-8 en_US.UTF-8
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Debian
+#
+#----------------------------------------------------------------------------------------------------------------------
+elif [ "${DISTRO}" = "debian" ]; then
+
+    apt update
+
+    apt install -y      \
+        bsdmainutils    \
+        bzip2           \
+        cpio            \
+        curl            \
+        debootstrap     \
+        dialog          \
+        file            \
+        genisoimage     \
+        iptables        \
+        jq              \
+        iproute2        \
+        locales         \
+        net-tools       \
+        procps          \
+        psmisc          \
+        squashfs-tools  \
+        xz-utils
+
+    localedef -i en_US -f UTF-8 en_US.UTF-8
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Fedora
+#
+#----------------------------------------------------------------------------------------------------------------------
+elif [ "${DISTRO}" = "fedora" ]; then
+
+    dnf install -y          \
+        bzip2               \
+        cpio                \
+        debootstrap         \
+        dialog              \
+        diffutils           \
+        file                \
+        findutils           \
+        genisoimage         \
+        glibc               \
+        glibc-langpack-en   \
+        glibc-locale-source \
+        iproute             \
+        iptables            \
+        iputils             \
+        jq                  \
+        ncurses             \
+        net-tools           \
+        perl-core           \
+        procps              \
+        psmisc              \
+        squashfs-tools      \
+        which               \
+        xz
+
+    localedef -i en_US -f UTF-8 en_US.UTF-8
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Gentoo
+#
+#----------------------------------------------------------------------------------------------------------------------
+elif [ "${DISTRO}" = "gentoo" ]; then
+
+    emerge-webrsync
+
+    emerge --autounmask-write --autounmask-continue --noreplace --quiet \
+        cdrtools        \
+        cpio            \
+        debootstrap     \
+        dialog          \
+        jq              \
+        net-tools       \
+        squashfs-tools
+
+    localedef -i en_US -f UTF-8 en_US.UTF-8
+
+    eselect locale set en_US.UTF-8
+
+    env-update
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Ubuntu
+#
+#----------------------------------------------------------------------------------------------------------------------
+elif [ "${DISTRO}" = "ubuntu" ]; then
+
+    apt update
+
+    apt install -y      \
+        bsdmainutils    \
+        bzip2           \
+        cgroup-lite     \
+        cpio            \
+        curl            \
+        debootstrap     \
+        dialog          \
+        file            \
+        jq              \
+        iproute2        \
+        iptables        \
+        iputils-ping    \
+        locales         \
+        mkisofs         \
+        net-tools       \
+        psmisc          \
+        squashfs-tools  \
+        xz-utils
+
+    localedef -i en_US -f UTF-8 en_US.UTF-8
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# MacOS
+#
+#----------------------------------------------------------------------------------------------------------------------
+elif [ "${DISTRO}" = "darwin" ]; then
+
+    brew update
+
+    brew install    \
+        bash        \
+        curl        \
+        coreutils   \
+        findutils   \
+        gnu-sed     \
+        gnupg       \
+        grep        \
+        jq          \
+        pstree
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# UNKNOWN
+#
+#----------------------------------------------------------------------------------------------------------------------
+else
+    echo "Unknown OS: ${DISTRO}"
+    exit 1
+fi
+
+exit 0

@@ -73,25 +73,25 @@ $(opt_parse \
 #   2) we're on linux
 #   3) we're not inside docker (because docker requires us to be privileged, and because the benefit is no longer there
 #      -- docker already protects us inside a mount namespace)
-if [[ ${mount_ns} -eq 1 ]] && os linux && ! grep -qw docker /proc/$$/cgroup ; then
+if [[ ${mount_ns} -eq 1 ]] && os linux && ! running_in_docker; then
     reexec --mount-ns
 fi
 
-declare -A _BU_CONF
+declare -A _EBASH_CONF
 if [[ -r .ebash ]] ; then
-    conf_read _BU_CONF .ebash
+    conf_read _EBASH_CONF .ebash
 fi
 
 START_TIME=$SECONDS
 
 # Default log directory from conf file if unspecified on the command line
-: ${log_dir:=$(conf_get _BU_CONF etest.log_dir)}
+: ${log_dir:=$(conf_get _EBASH_CONF etest.log_dir)}
 : ${log_dir:=.}
 log_dir=$(readlink -f ${log_dir})
 
 # Default set of tests from conf file if unspecified on the command line
 if array_empty tests && array_empty test_list ; then
-    tests=( $(conf_get _BU_CONF etest.tests) )
+    tests=( $(conf_get _EBASH_CONF etest.tests) )
 fi
 
 if array_not_empty test_list ; then
@@ -107,7 +107,7 @@ if array_not_empty test_list ; then
 fi
 
 # Default working directory from conf file if unspecified, or ./output if not in either place
-: ${work_dir:=$(conf_get _BU_CONF etest.work_dir)}
+: ${work_dir:=$(conf_get _EBASH_CONF etest.work_dir)}
 : ${work_dir:=./output}
 work_dir=$(readlink -f ${work_dir})
 
@@ -129,6 +129,7 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${log_dir}/etest.log
 ETEST_JSON=${log_dir}/etest.json
+
 elogrotate "${ETEST_JSON}"
 elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 
@@ -170,22 +171,23 @@ die_handler()
 #
 no_process_leaks_remain()
 {
-    if cgroup_supported ; then
-        $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
-
-        # If the cgroup no longer exists, we're in good shape because you can't
-        # destroy a cgroup until all its processes are dead.
-        if [[ ${exists_rc} -ne 0 ]] ; then
-            return 0
-        fi
-
-        # As long as it existed just now, we can assume cgroup_pids will exist,
-        # because nothing else will destroy the cgroup except for us.
-        local remaining_pids=""
-        remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
-        edebug "$(lval remaining_pids exists_rc ETEST_CGROUP)"
-        [[ -z ${remaining_pids} ]]
+    if ! cgroup_supported; then
+        return 0
     fi
+
+    # If the cgroup no longer exists, we're in good shape because you can't
+    # destroy a cgroup until all its processes are dead.
+    $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
+    if [[ ${exists_rc} -ne 0 ]] ; then
+        return 0
+    fi
+
+    # As long as it existed just now, we can assume cgroup_pids will exist,
+    # because nothing else will destroy the cgroup except for us.
+    local remaining_pids=""
+    remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
+    etestmsg "$(lval remaining_pids exists_rc ETEST_CGROUP)"
+    [[ -z ${remaining_pids} ]]
 }
 
 assert_no_process_leaks()
@@ -257,7 +259,11 @@ global_setup()
 
 global_teardown()
 {
-    [[ ${delete} -eq 0 ]] && edebug "Skipping global_teardown" && return 0
+    if [[ ${delete} -eq 0 ]]; then
+        edebug "Skipping global_teardown"
+        return 0
+    fi
+
     edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
     assert_no_process_leaks
@@ -354,7 +360,7 @@ run_single_test()
 
             cd "${work_dir}"
 
-            etestmsg "Calling test (${tries}/${failures})"
+            etestmsg "Calling test $(lval tries failures)"
             "${command}"
 
             if is_function teardown ; then
@@ -502,11 +508,12 @@ if [[ "${total_shards}" -gt 1 ]]; then
     TESTS_SHARD=("${TESTS_SHARD[@]:${shard_offset_start}:${shard_offset_end}}")
 fi
 
+OS="$(os_pretty_name)"
 SHARD="($((${shard_index}+1))/${total_shards})"
 if [[ "${verbose}" -eq 1 ]]; then
-    ebanner --uppercase "ETEST" break failures filter REPEAT SHARD
+    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD
 else
-    ebanner --uppercase "ETEST" break failures filter REPEAT SHARD &>${ETEST_OUT}
+    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD &>${ETEST_OUT}
 fi
 
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
@@ -573,6 +580,8 @@ RUNTIME=$(( SECONDS - START_TIME ))
     fi
 
 # Create a summary file with relevant statistics
+if command_exists jq; then
+
 jq . << EOF > ${ETEST_JSON}
 {
     "numTestsExecuted": "${NUM_TESTS_EXECUTED}",
@@ -609,10 +618,11 @@ jq . << EOF > ${ETEST_JSON}
 }
 EOF
 
-# Additionally display summary output to the terminal if requested
-if [[ "${summary}" -eq 1 ]]; then
-    einfo "Summary"
-    jq --color-output . ${ETEST_JSON}
+    # Additionally display summary output to the terminal if requested
+    if [[ "${summary}" -eq 1 ]]; then
+        einfo "Summary"
+        jq --color-output . ${ETEST_JSON}
+    fi
 fi
 
 } |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}

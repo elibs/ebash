@@ -424,7 +424,7 @@ emsg()
         local msg="$*"
 
         local informative_header=0
-        if [[ ${EMSG_PREFIX} =~ ${BU_WORD_BEGIN}(time|times|time_rfc3339|level|caller|pid|all)${BU_WORD_END} ]] ; then
+        if [[ ${EMSG_PREFIX} =~ ${EBASH_WORD_BEGIN}(time|times|time_rfc3339|level|caller|pid|all)${EBASH_WORD_END} ]] ; then
             informative_header=1
         fi
 
@@ -440,13 +440,13 @@ emsg()
             for field in time time_rfc3339 level caller pid ; do
 
                 # If the field is one selected by EMSG_PREFIX...
-                if [[ ${EMSG_PREFIX} =~ ${BU_WORD_BEGIN}(all|${field})${BU_WORD_END} ]] ; then
+                if [[ ${EMSG_PREFIX} =~ ${EBASH_WORD_BEGIN}(all|${field})${EBASH_WORD_END} ]] ; then
 
                     # Separator if this isn't the first field to print
                     [[ ${first_printed} -eq 1 ]] && { ecolor reset ; echo -n "|" ; }
 
                     # Start color if appropriate
-                    [[ ${EMSG_COLOR} =~ ${BU_WORD_BEGIN}(all|${field})${BU_WORD_END} ]] && ecolor $color
+                    [[ ${EMSG_COLOR} =~ ${EBASH_WORD_BEGIN}(all|${field})${EBASH_WORD_END} ]] && ecolor $color
 
                     # Print the individual field
                     case ${field} in
@@ -492,7 +492,7 @@ emsg()
         declare msg_color=1
         # If EMSG_COLOR doesn't say to color the message turn off color before
         # we start printing it
-        [[ ! ${EMSG_COLOR} =~ ${BU_WORD_BEGIN}(all|msg)${BU_WORD_END} ]] && { msg_color=0 ; ecolor reset ; }
+        [[ ! ${EMSG_COLOR} =~ ${EBASH_WORD_BEGIN}(all|msg)${EBASH_WORD_END} ]] && { msg_color=0 ; ecolor reset ; }
 
         # Also, only print colored messages for certain levels
         [[ ${level} != @(DEBUG|WARN|WARNS|ERROR) ]] && { msg_color=0 ; ecolor reset ; }
@@ -504,6 +504,13 @@ emsg()
             echo ""
         fi
     } >&2
+}
+
+# Wrapper around tput to suppress and swallow errors. This is because tput is used only for formatting for console
+# output and should never cause an actual failure.
+tput()
+{
+    command tput $@ 2>/dev/null || true
 }
 
 einfo()

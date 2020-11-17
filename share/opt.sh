@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2015-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2015-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2015-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -61,7 +61,7 @@ early in the life of ebash a frequent pattern:
         local arg2=$2
         shift 2
         argcheck arg1 arg2
-    
+
         # Do some stuff here with ${arg1} and ${arg2}
     }
 
@@ -133,7 +133,7 @@ supported.
     [[ ${word_regex} -eq 1 ]] && # do stuff for words
     [[ ${invert}     -eq 1 ]] && # do stuff for inverting
 
- 
+
 As with arguments, `opt_parse` creates a local variable for each option.  The
 name of that variable is always the _first_ name given.
 
@@ -601,7 +601,7 @@ opt_parse_options()
                     fi
 
                     __EBASH_OPT[$canonical]=${opt_arg}
-                
+
                 elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "accumulator" ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab
@@ -616,7 +616,7 @@ opt_parse_options()
                     # Do not allow the value to contain a newline in an accumulator since this would cause
                     # failures in array_init_nl later.
                     [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
-                    
+
                     __EBASH_OPT[$canonical]+=${opt_arg}$'\n'
 
                 elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" ]] ; then
@@ -761,7 +761,7 @@ opt_display_usage()
                 # whitespace to look like normal english prose.
                 printf "%s" "${__EBASH_OPT_DOCSTRING[$opt]}" \
                     | tr '\n' ' ' \
-                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
+                    | fmt --uniform-spacing --width=$(( ${EBASH_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
 
                 echo
@@ -781,7 +781,7 @@ opt_display_usage()
                 # whitespace to look like normal english prose.
                 printf "%s" "${__EBASH_ARG_DOCSTRING[$i]:-}" \
                     | tr '\n' ' ' \
-                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
+                    | fmt --uniform-spacing --width=$(( ${EBASH_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
             done
 
@@ -793,7 +793,7 @@ opt_display_usage()
                 # whitespace to look like normal english prose.
                 printf "%s" "${__EBASH_ARG_REST_DOCSTRING:-}" \
                     | tr '\n' ' ' \
-                    | fmt --uniform-spacing --width=$(( ${BU_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
+                    | fmt --uniform-spacing --width=$(( ${EBASH_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
             fi
         fi

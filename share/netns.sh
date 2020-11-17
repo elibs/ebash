@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2015-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2015-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2015-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -9,7 +9,7 @@
 
 [[ ${__EBASH_OS} != Linux ]] && return 0
 
-BU_NETNS_DIR="/run/netns"
+EBASH_NETNS_DIR="/run/netns"
 
 #-----------------------------------------------------------------------------------------------------
 opt_usage netns_supported "check which network namespace features are supported"
@@ -45,7 +45,7 @@ netns_create()
     $(opt_parse ns_name)
 
     # Do not create if it already exists
-    [[ -e "${BU_NETNS_DIR}/${ns_name}" ]] && return 0
+    [[ -e "${EBASH_NETNS_DIR}/${ns_name}" ]] && return 0
 
     ip netns add "${ns_name}"
     netns_exec "${ns_name}" ip link set dev lo up
@@ -58,7 +58,7 @@ netns_delete()
     $(opt_parse ns_name)
 
     # Do not delete if it does not exist
-    [[ ! -e "${BU_NETNS_DIR}/${ns_name}" ]] && return 0
+    [[ ! -e "${EBASH_NETNS_DIR}/${ns_name}" ]] && return 0
 
     netns_exec "${ns_name}" ip link set dev lo down
     ip netns delete "${ns_name}"
@@ -84,7 +84,7 @@ opt_usage netns_exists "Check if a network namespace exists"
 netns_exists()
 {
     $(opt_parse ns_name)
-    [[ -e "${BU_NETNS_DIR}/${ns_name}" ]] && return 0 || return 1
+    [[ -e "${EBASH_NETNS_DIR}/${ns_name}" ]] && return 0 || return 1
 }
 
 #-----------------------------------------------------------------------------------------------------
@@ -149,7 +149,7 @@ netns_check_pack()
     [[ ${#peer_devname} -le 16 ]] || die "ERROR: peer_devname too long (Max: 16 chars)"
     [[ ${#connected_nic} -le 16 ]] || die "ERROR: connected_nic too long (Max: 16 chars)"
 
-    # a cidr is an ip address with the number of static (or network) bits 
+    # a cidr is an ip address with the number of static (or network) bits
     # added to the end.  It is typically of the form "A.B.C.D/##".  the "ip"
     # utility uses cidr addresses rather than netmasks, as they serve the same
     # purpose.  This regex ensures that the address is a cidr address.

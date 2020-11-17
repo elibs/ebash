@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -42,7 +42,7 @@ ETEST_die_traps()
     try
     {
         trap_add "rm ${fname}"
-        die "Aborting subshell" 
+        die "Aborting subshell"
     }
     catch
     {
@@ -54,7 +54,7 @@ ETEST_die_traps()
 
 # Ensure if we have traps registered in our parent process that those are executed before death.
 ETEST_die_traps_parent()
-{ 
+{
     local fname1="die_traps_parent.txt"
     local fname2="die_traps_child.txt"
 
@@ -107,7 +107,7 @@ ETEST_die_trap_add()
 
         assert_eq "echo t2; echo t1; " "$(trap_get SIGUSR1)"
     }
-    
+
     foo
     assert_eq "echo t1; " "$(trap_get SIGUSR2)"
 }
@@ -118,7 +118,6 @@ ETEST_die_from_command_subst()
     {
         die_on_abort
         einfo "foo BASHPID=${BASHPID}"
-        assert die_on_error_enabled
         echo eval
         $(bar)
         echo " ; echo hi_from_foo=$BASHPID ;"
@@ -128,7 +127,6 @@ ETEST_die_from_command_subst()
     {
         die_on_abort
         einfo "bar BASHPID=${BASHPID}"
-        assert die_on_error_enabled
         echo "echo echo hi_from_bar=$BASHPID"
         die "Called die from bar"
     }

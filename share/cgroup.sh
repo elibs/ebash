@@ -33,20 +33,18 @@
 #
 #-------------------------------------------------------------------------------------------------------------------------
 
-CGROUP_ROOT=/sys/fs/cgroup
-CGROUP_RELTO=""
-
 # systemd altered how it mounts the default cgroup subsystems. So explicitly look for old and new naming conventions.
-if [[ -e "${CGROUP_ROOT}/cpu,cpuacct" ]]; then
+CGROUP_SYSFS=/sys/fs/cgroup
+if [[ -e "${CGROUP_SYSFS}/cpu,cpuacct" ]]; then
     CGROUP_SUBSYSTEMS=(cpu,cpuacct memory freezer)
 else
     CGROUP_SUBSYSTEMS=(cpu cpuacct memory freezer)
 fi
 
-# If we're running inside docker, we constrain ourselves to only operate inside the cgroup that docker put us in.
-if grep -q ":/docker/" /proc/$$/cgroup 2>/dev/null; then
-    CGROUP_RELTO=$(awk -F: '$2 == "'${CGROUP_SUBSYSTEMS[0]}'" {print $3}' /proc/$$/cgroup)
-fi
+# We may already be in a cgroup and if so we need to constrain ourselves to only operate within that root cgroup. If we
+# are not in a cgroup at all, this will be just '/'. We filter out user.slice as that's not an actual cgroup we want
+# to stay within.
+CGROUP_ROOT="$(awk -F: '$2 == "'${CGROUP_SUBSYSTEMS[0]}'" {print $3}' /proc/$$/cgroup | sed 's|user.slice||')"
 
 #-------------------------------------------------------------------------------------------------------------------------
 # Detect whether the machine currently running this code is built with kernel support for all of the cgroups subsystems
@@ -55,7 +53,17 @@ fi
 cgroup_supported()
 {
     if [[ ! -e /proc/cgroups ]] ; then
-        edebug "No support for cgroups."
+        edebug "No support for cgroups"
+        return 1
+    fi
+
+    # Blacklist cgroup support on Alpine
+    #
+    # Cgroups are fundamentally broken on archive. Even though they are present and pass our other criteria
+    # we are unable to create new cgroups on Alpine only as it fails with:
+    # ./bin/../share/cgroup.sh: line 191: echo: write error: Invalid argument
+    if os_distro alpine; then
+        edebug "Cgroups do not work properly on alpine"
         return 1
     fi
 
@@ -63,6 +71,12 @@ cgroup_supported()
     for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
         if ! grep -q ":${subsystem}:" /proc/1/cgroup ; then
             edebug "Missing support for ${subsystem}"
+            (( missing_count += 1 ))
+        fi
+
+        # If the subsystem is present but read-only then it's not useable.
+        if [[ ! -w "/sys/fs/cgroup/${subsystem}" ]]; then
+            edebug "Missing writeable support for ${subsystem}"
             (( missing_count += 1 ))
         fi
     done
@@ -83,7 +97,7 @@ cgroup_create()
     for cgroup in "${@}" ; do
 
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
-            local subsys_path=${CGROUP_ROOT}/${subsystem}/${cgroup}
+            local subsys_path=${CGROUP_SYSFS}/${subsystem}/${cgroup}
             mkdir -p ${subsys_path}
         done
 
@@ -111,7 +125,7 @@ cgroup_destroy()
 
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
 
-            local subsys_path=${CGROUP_ROOT}/${subsystem}/${cgroup}
+            local subsys_path=${CGROUP_SYSFS}/${subsystem}/${cgroup}
             [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys_path} that is already gone." ; continue ; }
 
             if [[ ${recursive} -eq 1 ]] ; then
@@ -139,7 +153,7 @@ cgroup_exists()
     for cgroup in "${all[@]}" ; do
 
         for subsys in "${CGROUP_SUBSYSTEMS[@]}" ; do
-            if [[ ! -d ${CGROUP_ROOT}/${subsys}/${cgroup} ]] ; then
+            if [[ ! -d ${CGROUP_SYSFS}/${subsys}/${cgroup} ]] ; then
                 missing_cgroups+=("${subsys}:${cgroup}")
             fi
         done
@@ -184,7 +198,7 @@ cgroup_move()
         local tmp
         for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
             tmp="$(array_join_nl pids)"
-            echo -e "${tmp}" > ${CGROUP_ROOT}/${subsystem}/${cgroup}/tasks
+            echo -e "${tmp}" > ${CGROUP_SYSFS}/${subsystem}/${cgroup}/tasks
         done
     fi
 }
@@ -254,7 +268,7 @@ cgroup_pids()
     for cgroup in "${cgroups[@]}" ; do
         local subsystem_paths=()
         for subsystem in "${CGROUP_SUBSYSTEMS[@]}" ; do
-            subsystem_paths+=("$(readlink -m ${CGROUP_ROOT}/${subsystem}/${cgroup})")
+            subsystem_paths+=("$(readlink -m ${CGROUP_SYSFS}/${subsystem}/${cgroup})")
         done
 
         local files file
@@ -382,7 +396,7 @@ cgroup_tree()
             # Pick out the paths to the subsystem and the cgroup within it --
             # and because we'll be text processing the result, be sure there
             # are not multiple sequential slashes in the output
-            subsys_path=$(readlink -m ${CGROUP_ROOT}/${subsys}/)
+            subsys_path=$(readlink -m ${CGROUP_SYSFS}/${subsys}/)
             cgroup_path=$(readlink -m ${subsys_path}/${cgroup}/)
 
             # Then find all the directories inside the cgroup path (while
@@ -437,10 +451,9 @@ cgroup_current()
     $(opt_parse "?pid | Process whose cgroup should be listed.  Default is the current process.")
     : ${pid:=${BASHPID}}
 
-    local line="" value=""
+    local line=""
     line=$(grep -w "${CGROUP_SUBSYSTEMS[0]}" /proc/${pid}/cgroup)
-    value=$(echo "${line##*:}" | sed 's#^'"${CGROUP_RELTO}"'/##')
-    echo "${value}"
+    echo "${line##*:}" | sed 's#^'"${CGROUP_ROOT}"'/*##'
 }
 
 
@@ -552,7 +565,7 @@ cgroup_kill_and_wait()
 cgroup_find_setting_file()
 {
     $(opt_parse cgroup setting)
-    ls ${CGROUP_ROOT}/*/${cgroup}/${setting}
+    ls ${CGROUP_SYSFS}/*/${cgroup}/${setting}
 }
 
 return 0
