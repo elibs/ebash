@@ -119,19 +119,31 @@ else
     if [[ ${#@} -gt 0 ]] ; then
 
         # If we were given the path to another script run it inside ebash environment
-        if [[ ${#@} -eq 1 && -e "${1}" ]]; then
+        if [[ ${#@} -gt 1 && -e "${1}" ]]; then
 
-            export EBASH EBASH_HOME
-
-            SOURCE="${1}"
+            # Copy provided script over to a temporary file that we'll set a trap to delete later
+            SOURCE="${1}"; shift
             SCRIPT=$(mktemp --tmpdir ebash-script-XXXXXX)
             trap_add "rm -f ${SCRIPT}"
-
             cp "${SOURCE}" "${SCRIPT}"
-            sed -i -e "s%^#!.*%source ${EBASH}/ebash.sh || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }%" "${SCRIPT}"
-            chmod +x "${SCRIPT}"
 
-            exec "${SCRIPT}"
+            # Disable fatal error handling as that will be handled by the actual script we invoke which
+            # will run in ebash environment. It's not our responsibility at this point.
+            nodie_on_abort
+            nodie_on_error
+
+            # Replace shebang with EBASH environment.
+			read -r -d '' EBASH_PREAMBLE <<-EOF
+			#!/usr/bin/env bash
+			export EBASH_HOME="${EBASH_HOME}"
+			export EBASH="${EBASH}"
+			source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+			EOF
+			sed -i -e "s%^#!.*%${EBASH_PREAMBLE//$'\n'/\\n}%" "${SCRIPT}"
+
+            # Execute the new script with any arguments passed along
+            chmod +x "${SCRIPT}"
+            exec "${SCRIPT}" ${@:-}
         fi
 
         # Run the command, but pretend to be inside a try so that die doesn't print an ugly stack trace.
