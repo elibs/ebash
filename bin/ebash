@@ -120,7 +120,7 @@ else
     if [[ ${#@} -gt 0 ]] ; then
 
         # If we were given the path to another script run it inside ebash environment
-        if [[ ${#@} -gt 1 && -e "${1}" ]]; then
+        if [[ ${#@} -ge 1 && -e "${1}" ]]; then
 
             # Copy provided script over to a temporary file that we'll set a trap to delete later
             SOURCE="${1}"; shift
