@@ -36,8 +36,10 @@ jobs:
           sudo bin/ebash-install-deps
           sudo apt install -y kcov
 
+      # Run all tests through kcov coverage analyzer. Something about how kcov runs etest causes some tests to fail.
+      # This isn't being done for correctness testing, only coverage testing. So explicitly exclude those tests.
       - name: Test
-        run: kcov coverage bin/etest
+        run: kcov coverage bin/etest --exclude 'cgroup_current|cgroup_move_multiple_pids_at_once'
 
       - name: Report
         if: always()
