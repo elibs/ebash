@@ -22,6 +22,36 @@ jobs:
 
   #--------------------------------------------------------------------------------------------------------------------
   #
+  # Code Coverage
+  #
+  #--------------------------------------------------------------------------------------------------------------------
+  Coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: |
+          sudo bin/ebash-install-deps
+          sudo apt install -y kcov
+
+      - name: Test
+        run: kcov coverage bin/etest
+
+      - name: Report
+        run: |
+          bash <(curl -s https://codecov.io/bash)
+
+      - name: Archive
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage
+          path: coverage
+
+  #--------------------------------------------------------------------------------------------------------------------
+  #
   # LINUX
   #
   #--------------------------------------------------------------------------------------------------------------------
@@ -65,7 +95,7 @@ jobs:
       - name: Test
         run: bin/etest --summary
 
-      - name: Archive test results
+      - name: Archive
         if: always()
         uses: actions/upload-artifact@v2
         with:
@@ -99,7 +129,7 @@ jobs:
       - name: Test
         run: bin/etest --summary
 
-      - name: Archive test results
+      - name: Archive
         if: always()
         uses: actions/upload-artifact@v2
         with:
@@ -107,26 +137,3 @@ jobs:
           path: |
             etest.log
             etest.json
-
-  #--------------------------------------------------------------------------------------------------------------------
-  #
-  # Code Coverage
-  #
-  #--------------------------------------------------------------------------------------------------------------------
-  Coverage:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Install Dependencies
-        run: |
-          sudo bin/ebash-install-deps
-          sudo apt install -y kcov
-
-      - name: Test
-        run: kcov coverage bin/etest
-
-      - name: Report
-        run: |
-          bash <(curl -s https://codecov.io/bash)
