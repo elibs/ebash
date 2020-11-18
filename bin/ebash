@@ -54,7 +54,6 @@
 #
 # And for this to work in all of the ebash files, we must do it before
 # sourcing them.
-__EBASH_SAVE_DOC=0
 for arg in "$@" ; do
     if [[ ${arg} == "--help" ]] ; then
         __EBASH_SAVE_DOC=1
@@ -119,37 +118,31 @@ else
     # Use all arguments to ebash as a command to execute
     if [[ ${#@} -gt 0 ]] ; then
 
-        # If we were given the path to another script run it inside ebash environment
-        if [[ ${#@} -ge 1 && -e "${1}" ]]; then
-
-            # Copy provided script over to a temporary file that we'll set a trap to delete later
-            SOURCE="${1}"; shift
-            SCRIPT=$(mktemp --tmpdir ebash-script-XXXXXX)
-            trap_add "rm -f ${SCRIPT}"
-            cp "${SOURCE}" "${SCRIPT}"
-
-            (
-                # Disable fatal error handling as that will be handled by the actual script we invoke which
-                # will run in ebash environment. It's not our responsibility at this point.
-                nodie_on_abort
-                nodie_on_error
-
-                # Replace shebang with EBASH environment.
-				read -r -d '' EBASH_PREAMBLE <<-EOF
-				#!/usr/bin/env bash
-				export EBASH_HOME="${EBASH_HOME}"
-				export EBASH="${EBASH}"
-				export __EBASH_SAVE_DOC=${__EBASH_SAVE_DOC}
-				source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
-				EOF
-                sed -i -e "s%^#!.*%${EBASH_PREAMBLE//$'\n'/\\n}%" "${SCRIPT}"
-
-                # Execute the new script with any arguments passed along
-                chmod +x "${SCRIPT}"
-                exec "${SCRIPT}" ${@:-}
-            )
-
-            exit 0
+        # ebash shebang interpreter.
+        #
+        # If our first argument is ANOTHER BASH script then we've been invoked as an interpreter and we need to actually
+        # execute the other script we were given along with any of its arguments.
+        #
+        # The tricky part here is we don't want to simply execute the script, but instead we want to run it within our
+        # existing ebash context. This way the called script inherits all the benefits of ebash without having to do
+        # anything tricky in their script other than simply using the ebash shebang.
+        #
+        # Originally we copied the script we were given into a temporary directory and then modified it to source the
+        # ebash environment at the top of the script. That had several undesirable side-effects:
+        #
+        # (1) Required file operations just to run a script
+        # (2) Extra overhead of fork/exec to run the external script.
+        # (3) Error prone to be running sed commands on arbitrary script contents
+        # (4) Alters the called script's ${BASH_SOURCE} such that it looked like the script path is /tmp/blahXXXX
+        #     rather than the actual location of the script. This is really bad since the caller may want to have
+        #     access to files relative to it's source directory.
+        #
+        # So, a much simpler, and more correct solution is to simply SOURCE the external script (along with arguments).
+        # This has the same effect as executing a script only it is run within our existing process context rather than
+        # as an external script.
+        if file "${1}" | grep -Pq "(bash script|Bourne-Again shell script)"; then
+            source "${@}"
+            exit $?
         fi
 
         # Run the command, but pretend to be inside a try so that die doesn't print an ugly stack trace.
