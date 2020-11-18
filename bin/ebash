@@ -54,6 +54,7 @@
 #
 # And for this to work in all of the ebash files, we must do it before
 # sourcing them.
+__EBASH_SAVE_DOC=0
 for arg in "$@" ; do
     if [[ ${arg} == "--help" ]] ; then
         __EBASH_SAVE_DOC=1
