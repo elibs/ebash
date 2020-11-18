@@ -121,8 +121,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          bin/ebash-install-deps
-          apt install -y kcov
+          sudo bin/ebash-install-deps
+          sudo apt install -y kcov
 
       - name: Test
         run: kcov coverage bin/etest
