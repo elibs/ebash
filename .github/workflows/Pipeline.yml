@@ -25,7 +25,7 @@ jobs:
   # Code Coverage
   #
   #--------------------------------------------------------------------------------------------------------------------
-  Coverage:
+  Code Coverage:
     runs-on: ubuntu-20.04
 
     steps:
@@ -40,6 +40,7 @@ jobs:
         run: kcov coverage bin/etest
 
       - name: Report
+        if: always()
         run: |
           bash <(curl -s https://codecov.io/bash)
 
@@ -72,6 +73,7 @@ jobs:
           - "fedora:33"
           - "fedora:32"
           - "gentoo/stage3"
+          - "ubuntu:20.04"
           - "ubuntu:18.04"
           - "ubuntu:16.04"
 

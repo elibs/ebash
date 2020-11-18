@@ -113,6 +113,7 @@ DISTROS =			\
 	fedora:33		\
 	fedora:32		\
 	gentoo/stage3	\
+	ubuntu:20.04	\
 	ubuntu:18.04	\
 	ubuntu:16.04	\
 
