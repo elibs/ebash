@@ -8,3 +8,4 @@ results
 .forge/work
 .tags
 selftest/output.log
+coverage

@@ -1,4 +1,5 @@
 [![Build Status](https://github.com/marshallmcmullen/ebash/workflows/Pipeline/badge.svg?branch=master)](https://github.com/marshallmcmullen/ebash/actions?query=workflow%3APipeline+branch%3Amaster)
+[![codecov](https://codecov.io/gh/marshallmcmullen/ebash/branch/master/graph/badge.svg?token=9LM4YARJ51)](https://codecov.io/gh/marshallmcmullen/ebash)
 
 <p align="center">
     <img alt="Bash" src="https://raw.githubusercontent.com/odb/official-bash-logo/master/assets/Logos/Identity/PNG/BASH_logo-transparent-bg-color.png">

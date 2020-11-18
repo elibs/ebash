@@ -9,7 +9,10 @@
 
 ########################################################################################################################
 #
-# The preferred way to load ebash in a script is to add this to your code:
+# The preferred way to use ebash is to ensure ebash is in your path then replace your typical bash shebang with:
+#    #!/usr/bin/env ebash
+#
+# Alternatively, you can use the older mechanism by adding this to your code:
 #    $(${EBASH}/bin/ebash --source)
 #
 # Or to ensure ${EBASH}/bin is in your path and to load it like this:

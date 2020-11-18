@@ -107,3 +107,26 @@ jobs:
           path: |
             etest.log
             etest.json
+
+  #--------------------------------------------------------------------------------------------------------------------
+  #
+  # Code Coverage
+  #
+  #--------------------------------------------------------------------------------------------------------------------
+  Coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: |
+          bin/ebash-install-deps
+          apt install -y kcov
+
+      - name: Test
+        run: kcov coverage bin/etest
+
+      - name: Report
+        run: |
+          bash <(curl -s https://codecov.io/bash)
