@@ -27,13 +27,12 @@ jobs:
   #--------------------------------------------------------------------------------------------------------------------
   Coverage:
     runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
     container:
       image: ubuntu-20.04
       options: --init --interactive --privileged --tty
+
+    steps:
+      - uses: actions/checkout@v2
 
       - name: Install Dependencies
         run: |
