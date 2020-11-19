@@ -43,9 +43,7 @@ jobs:
 
       - name: Report
         if: always()
-        run: |
-          curl -s https://codecov.io/bash > codecov.sh
-          bash codecov.sh -t ${CODECOV_TOKEN}
+        run: bash <(curl -s https://codecov.io/bash)
 
       - name: Archive
         if: always()
