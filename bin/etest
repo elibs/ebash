@@ -135,7 +135,13 @@ ETEST_LOG=${log_dir}/etest.log
 ETEST_JSON=${log_dir}/etest.json
 
 # Setup redirection for "etest" and actual "test" output
-if [[ "${logfile}" -eq 0 ]]; then
+if [[ ${logfile} -eq 0 && ${verbose} -eq 0 ]]; then
+
+    # If we can't use elogfile and we don't want verbose output we are forced to do some trickery to get the desired
+    # result. Yes this is a bit convoluted since we need to basically show the terse output on the console but also
+    # send a copy of both stdout and stderr to the log file. So basically we send stdout to the logfile, then we
+    # create a new file descriptor (3) and associate that with what is our current stderr. Then we can send stderr to
+    # where stdout has been redirect so that they both end up in the logfile.
     exec 1>${ETEST_LOG}
     exec 3>&2
     exec 2>&1
@@ -157,7 +163,6 @@ if [[ ${coverage} -eq 1 ]]; then
     kcov --bash-method=DEBUG "${coverage_dir}" \
         "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile
 
-    echo
     einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
 
     exit 0
@@ -537,9 +542,9 @@ fi
 OS="$(os_pretty_name)"
 SHARD="($((${shard_index}+1))/${total_shards})"
 if [[ "${verbose}" -eq 1 ]]; then
-    ebanner --uppercase "ETEST" COVERAGE OS break failures filter repeat SHARD
+    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD
 else
-    ebanner --uppercase "ETEST" COVERAGE OS break failures filter repeat SHARD &>${ETEST_OUT}
+    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD &>${ETEST_OUT}
 fi
 
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
