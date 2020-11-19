@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ubuntu:20.04
-      options: --init --interactive --privileged --tty --volume /dev/pts:/dev/pts
+      options: --init --interactive --privileged --tty
 
     steps:
       - uses: actions/checkout@v2
