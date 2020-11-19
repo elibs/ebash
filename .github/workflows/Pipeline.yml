@@ -28,6 +28,7 @@ jobs:
   Coverage:
     runs-on: ubuntu-20.04
 
+
     steps:
       - uses: actions/checkout@v2
 
@@ -39,7 +40,7 @@ jobs:
       # Run all tests through kcov coverage analyzer. Something about how kcov runs etest causes some tests to fail.
       # This isn't being done for correctness testing, only coverage testing. So explicitly exclude those tests.
       - name: Test
-        run: kcov --bash-method=DEBUG coverage bin/etest --exclude 'cgroup_current|cgroup_move_multiple_pids_at_once'
+        run: kcov --bash-method=DEBUG coverage bin/etest --no-logfile &> /dev/null
 
       - name: Report
         if: always()
@@ -52,6 +53,8 @@ jobs:
         with:
           name: coverage
           path: coverage
+
+
 
   #--------------------------------------------------------------------------------------------------------------------
   #

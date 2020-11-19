@@ -40,6 +40,7 @@ $(opt_parse \
                                  classify it as a failure if that test fails more than the requested threshold." \
     ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
+    "+logfile=1                | Whether we should use elogfile to log all output." \
     ":log_dir                  | Directory to place logs in.  Defaults to the current directory." \
     "+mount_ns=1               | Run tests inside a mount namespace." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
@@ -130,8 +131,10 @@ exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${log_dir}/etest.log
 ETEST_JSON=${log_dir}/etest.json
 
-elogrotate "${ETEST_JSON}"
-elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
+if [[ ${logfile} -eq 1 ]]; then
+    elogrotate "${ETEST_JSON}"
+    elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
+fi
 
 # Setup redirection for "etest" and actual "test" output
 if [[ ${verbose} -eq 0 ]]; then
