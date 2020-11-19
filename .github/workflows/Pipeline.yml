@@ -26,15 +26,18 @@ jobs:
   #
   #--------------------------------------------------------------------------------------------------------------------
   Coverage:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+      options: --init --interactive --privileged --tty
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Install Dependencies
         run: |
-          sudo bin/ebash-install-deps
-          sudo apt install -y kcov
+          bin/ebash-install-deps
+          apt install -y kcov
 
       # Run all tests through kcov coverage analyzer.
       - name: Test
