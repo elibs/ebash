@@ -134,6 +134,17 @@ exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${log_dir}/etest.log
 ETEST_JSON=${log_dir}/etest.json
 
+# Setup redirection for "etest" and actual "test" output
+if [[ "${logfile}" -eq 0 ]]; then
+    ETEST_OUT="${log_dir}/etest.out"
+elif [[ ${verbose} -eq 0 ]]; then
+    ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
+    TEST_OUT="/dev/null"
+else
+    ETEST_OUT="/dev/null"
+    TEST_OUT="/dev/stderr"
+fi
+
 # Coverage mode
 if [[ ${coverage} -eq 1 ]]; then
     command_exists kcov
@@ -142,7 +153,9 @@ if [[ ${coverage} -eq 1 ]]; then
 
     export COLUMNS
     kcov --bash-method=DEBUG "${coverage_dir}" \
-        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG}
+        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG} &
+
+    tail --pid=$$ --follow "${ETEST_OUT}"
 
     echo
     einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
@@ -153,17 +166,6 @@ fi
 if [[ ${logfile} -eq 1 ]]; then
     elogrotate "${ETEST_JSON}"
     elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
-fi
-
-# Setup redirection for "etest" and actual "test" output
-if [[ "${logfile}" -eq 0 ]]; then
-    ETEST_OUT="/dev/console"
-elif [[ ${verbose} -eq 0 ]]; then
-    ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
-    TEST_OUT="/dev/null"
-else
-    ETEST_OUT="/dev/null"
-    TEST_OUT="/dev/stderr"
 fi
 
 #-------------------------------------------------------------------------------------------------------------------------

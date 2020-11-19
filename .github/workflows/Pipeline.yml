@@ -50,7 +50,11 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: coverage
-          path: coverage
+          path: |
+            coverage
+            etest.log
+            etest.json
+            etest.out
 
   #--------------------------------------------------------------------------------------------------------------------
   #
