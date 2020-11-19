@@ -41,7 +41,9 @@ jobs:
 
       # Run all tests through kcov coverage analyzer.
       - name: Test
-        run: bin/etest --coverage --coverage-dir coverage
+        run: |
+          tty || echo "TTY FAILURE"
+          bin/etest --coverage --coverage-dir coverage
 
       - name: Report
         if: always()

@@ -533,9 +533,9 @@ fi
 OS="$(os_pretty_name)"
 SHARD="($((${shard_index}+1))/${total_shards})"
 if [[ "${verbose}" -eq 1 ]]; then
-    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD
+    ebanner --uppercase "ETEST" COVERAGE OS break failures filter repeat SHARD
 else
-    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD &>${ETEST_OUT}
+    ebanner --uppercase "ETEST" COVERAGE OS break failures filter repeat SHARD &>${ETEST_OUT}
 fi
 
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
