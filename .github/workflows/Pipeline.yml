@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install Dependencies
+      - name: Dependencies
         run: bin/ebash-install-deps kcov
 
       # Run all tests through kcov coverage analyzer.
@@ -43,7 +43,9 @@ jobs:
 
       - name: Report
         if: always()
-        run: bash <(curl -s https://codecov.io/bash)
+        run: |
+          curl -s https://codecov.io/bash > codecov.sh
+          bash codecov.sh -t ${CODECOV_TOKEN}
 
       - name: Archive
         if: always()
@@ -89,7 +91,7 @@ jobs:
       - uses: actions/checkout@v2
       - run: echo "OSNAME=$(echo ${{ matrix.container }} | sed -e 's|:|-|' -e 's|/stage3||')" >> ${GITHUB_ENV}
 
-      - name: Install Dependencies
+      - name: Dependencies
         run: bin/ebash-install-deps
 
       - name: Lint
@@ -123,7 +125,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install Dependencies
+      - name: Dependencies
         run: bin/ebash-install-deps
 
       - name: Lint
