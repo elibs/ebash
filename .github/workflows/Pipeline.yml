@@ -43,10 +43,11 @@ jobs:
       - name: Test
         run: |
           ls -l /dev/pts* /dev/tty* /dev/ttyS* || true
-          echo "foo" > /dev/console || true
-          echo "bar" > /dev/stdout  || true
-          echo "zap" > /dev/stderr  || true
-          echo "lez" > /dev/pts/0   || true
+          echo "TTY" > /dev/tty     || true
+          echo "CONSOLE" > /dev/console || true
+          echo "STDOUT" > /dev/stdout  || true
+          echo "STDERR" > /dev/stderr  || true
+          echo "PTS/0" > /dev/pts/0   || true
           bin/etest --coverage --coverage-dir coverage
 
       - name: Report
