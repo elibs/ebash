@@ -28,7 +28,7 @@ jobs:
   Coverage:
     runs-on: ubuntu-latest
     container:
-      image: archlinux
+      image: gentoo/stage3
       options: --init --interactive --privileged --tty
 
     steps:
