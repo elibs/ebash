@@ -136,7 +136,11 @@ ETEST_JSON=${log_dir}/etest.json
 
 # Setup redirection for "etest" and actual "test" output
 if [[ "${logfile}" -eq 0 ]]; then
-    ETEST_OUT="$(tty)"
+    exec 1>${ETEST_LOG}
+    exec 3>&2
+    exec 2>&1
+    exec {ETEST_OUT_FD}<&3
+    ETEST_OUT="$(fd_path)/${ETEST_OUT_FD}"
 elif [[ ${verbose} -eq 0 ]]; then
     ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
 else
@@ -151,7 +155,7 @@ if [[ ${coverage} -eq 1 ]]; then
 
     export COLUMNS
     kcov --bash-method=DEBUG "${coverage_dir}" \
-        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG}
+        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile
 
     echo
     einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
