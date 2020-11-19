@@ -58,7 +58,9 @@ $(opt_parse \
     ":work_dir                 | Temporary location where etest can place temporary files.  This location will be both
                                  created and deleted by etest." \
     "+coverage                 | Run etest through kcov coverage tool to identify and report code coverage for all
-                                 executed code." \
+                                 executed code. This will create a code coverage report that you can view locally at the
+                                 specified coverage_dir under index.html. Alternatively it is suitable for uploading to
+                                 a service such as codecov.io. For an example see .github/workflows/Pipeline.yaml" \
     ":coverage_dir=coverage    | Directory to store coverage output in." \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
