@@ -41,10 +41,6 @@ jobs:
       - name: Test
         run: bin/etest --coverage --coverage-dir coverage
 
-      - name: Report
-        if: always()
-        run: bash <(curl -s https://codecov.io/bash)
-
       - name: Archive
         if: always()
         uses: actions/upload-artifact@v2

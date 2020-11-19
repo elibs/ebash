@@ -60,6 +60,7 @@ $(opt_parse \
     "+coverage                 | Run etest through kcov coverage tool to identify and report code coverage for all
                                  executed code." \
     ":coverage_dir=coverage    | Directory to store coverage output in." \
+    ":coverage_publish         | Upstream coverage analysis provider to publish results to (e.g. coverage.io)" \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
                                  and any test functions found will be executed.  You may also specify directories in
@@ -164,6 +165,11 @@ if [[ ${coverage} -eq 1 ]]; then
         "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile
 
     einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
+
+    if [[ "${coverage_publish}" == "codecov.io" ]]; then
+        einfo "Publishing code coverage to ${coverage_publish}"
+        bash <(curl -s https://codecov.io/bash)
+    fi
 
     exit 0
 fi
