@@ -142,7 +142,7 @@ if [[ ${coverage} -eq 1 ]]; then
 
     export COLUMNS
     kcov --bash-method=DEBUG "${coverage_dir}" \
-        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG} || cat "${ETEST_LOG}"
+        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG}
 
     echo
     einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
