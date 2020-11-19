@@ -43,6 +43,10 @@ jobs:
       - name: Test
         run: |
           tty || echo "TTY FAILURE"
+          ls -l /dev/pts* /dev/tty* /dev/ttyS* || true
+          echo "foo" > /dev/console || true
+          echo "bar" > /dev/stdout  || true
+          echo "zap" > /dev/stderr  || true
           bin/etest --coverage --coverage-dir coverage
 
       - name: Report
