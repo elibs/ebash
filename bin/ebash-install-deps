@@ -196,7 +196,7 @@ elif [ "${DISTRO}" = "gentoo" ]; then
 
     emerge-webrsync
 
-    emerge --autounmask-write --autounmask-continue --noreplace --quiet \
+    emerge --autounmask --autounmask-write --autounmask-continue --noreplace --quiet \
         cdrtools        \
         cpio            \
         debootstrap     \
