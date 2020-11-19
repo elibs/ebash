@@ -39,7 +39,7 @@ jobs:
 
       # Run all tests through kcov coverage analyzer.
       - name: Test
-        run: bin/etest --coverage --coverage-dir coverage
+        run: bin/etest --coverage --coverage-dir coverage --coverage-publish codecov.io
 
       - name: Archive
         if: always()
