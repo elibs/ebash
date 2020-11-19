@@ -140,18 +140,9 @@ if [[ ${coverage} -eq 1 ]]; then
 
     efreshdir "${coverage_dir}"
 
-    ewarn "TTY"
-    tty || true
-    sinks=( /dev/console /dev/pts/[0-9] /dev/tty[1-6] /dev/ttyS[1-6] )
-    for sink in ${sinks[@]}; do
-        if [[ -e "${sink}" ]]; then
-            echo "${sink} exists"
-        fi
-    done
-
     export COLUMNS
     kcov --bash-method=DEBUG "${coverage_dir}" \
-        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG}
+        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG} || cat "${ETEST_LOG}"
 
     echo
     einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
@@ -166,7 +157,7 @@ fi
 
 # Setup redirection for "etest" and actual "test" output
 if [[ "${logfile}" -eq 0 ]]; then
-    ETEST_OUT="$(tty)"
+    ETEST_OUT="/dev/console"
 elif [[ ${verbose} -eq 0 ]]; then
     ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
     TEST_OUT="/dev/null"
