@@ -42,7 +42,6 @@ jobs:
       # Run all tests through kcov coverage analyzer.
       - name: Test
         run: |
-          tty || echo "TTY FAILURE"
           ls -l /dev/pts* /dev/tty* /dev/ttyS* || true
           echo "foo" > /dev/console || true
           echo "bar" > /dev/stdout  || true
