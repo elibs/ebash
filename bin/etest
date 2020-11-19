@@ -138,6 +138,8 @@ ETEST_JSON=${log_dir}/etest.json
 if [[ ${coverage} -eq 1 ]]; then
     command_exists kcov
 
+    efreshdir "${coverage_dir}"
+
     export COLUMNS
     kcov --bash-method=DEBUG "${coverage_dir}" \
         "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG}
