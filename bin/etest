@@ -57,6 +57,9 @@ $(opt_parse \
     "+verbose v=${VERBOSE:-0}  | Verbose output." \
     ":work_dir                 | Temporary location where etest can place temporary files.  This location will be both
                                  created and deleted by etest." \
+    "+coverage                 | Run etest through kcov coverage tool to identify and report code coverage for all
+                                 executed code." \
+    ":coverage_dir=coverage    | Directory to store coverage output in." \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
                                  and any test functions found will be executed.  You may also specify directories in
@@ -131,13 +134,29 @@ exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${log_dir}/etest.log
 ETEST_JSON=${log_dir}/etest.json
 
+# Coverage mode
+if [[ ${coverage} -eq 1 ]]; then
+    command_exists kcov
+
+    export COLUMNS
+    kcov --bash-method=DEBUG "${coverage_dir}" \
+        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile &> ${ETEST_LOG}
+
+    echo
+    einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
+
+    exit 0
+fi
+
 if [[ ${logfile} -eq 1 ]]; then
     elogrotate "${ETEST_JSON}"
     elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 fi
 
 # Setup redirection for "etest" and actual "test" output
-if [[ ${verbose} -eq 0 ]]; then
+if [[ "${logfile}" -eq 0 ]]; then
+    ETEST_OUT="/dev/tty"
+elif [[ ${verbose} -eq 0 ]]; then
     ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
     TEST_OUT="/dev/null"
 else
