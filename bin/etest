@@ -134,6 +134,7 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${log_dir}/etest.log
 ETEST_JSON=${log_dir}/etest.json
+ETEST_COV=${log_dir}/etest.cov
 
 # Setup redirection for "etest" and actual "test" output
 if [[ ${logfile} -eq 0 && ${verbose} -eq 0 ]]; then
@@ -156,31 +157,7 @@ fi
 
 # Coverage mode
 if [[ ${coverage} -eq 1 ]]; then
-    command_exists kcov
-
-    efreshdir "${coverage_dir}"
-
-    export COLUMNS
-    kcov --bash-method=DEBUG "${coverage_dir}" \
-        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile
-
-    einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
-
-    # Optionally publish the coverage data
-    if [[ -n "${coverage_publish}" ]]; then
-
-        einfo "Publishing code coverage to ${coverage_publish}"
-
-        case "${coverage_publish}" in
-            "codecov.io")
-                bash <(curl -s https://codecov.io/bash)
-                ;;
-            *)
-                die "Unsupported $(lval coverage_publish)"
-        esac
-    fi
-
-    exit 0
+    trap 'echo "${BASH_SOURCE}@${LINENO}" >> ${ETEST_COV}' DEBUG
 fi
 
 if [[ ${logfile} -eq 1 ]]; then
