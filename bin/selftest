@@ -10,6 +10,10 @@
 # Source ebash from the same directory as this script
 $( $(dirname $0)/ebash --source )
 
+if [[ ${__EBASH_OS} == "Linux" ]] ; then
+    reexec --sudo
+fi
+
 # Some ebash recognized environment variables interfer with functionality of the selftests so we need to unset them.
 unset BREAK
 unset EDEBUG
@@ -21,6 +25,11 @@ unset REPEAT
 unset REPEAT
 unset VERBOSE
 
+declare -A _EBASH_CONF
+if [[ -r .ebash ]] ; then
+    conf_read _EBASH_CONF .ebash
+fi
+
 # All of the asserts below depend on etest having been run by this function, which sets up the values of ETEST_OUTPUT,
 # ETEST_LOG, and ETEST_RC.
 #
@@ -29,13 +38,18 @@ run_etest()
 {
     ebanner "$(caller 0 | awk '{print $2}')"
 
+    # Default log directory from conf file if unspecified on the command line
+    local log_dir
+    log_dir=$(conf_get _EBASH_CONF etest.log_dir)
+    : ${log_dir:=.work/logs}
+
     local rc=0
-    EDEBUG="" ${ETEST} "${@}" |& tee output.log && rc=0 || rc=1
+    EDEBUG="" ${ETEST} "${@}" |& tee "selftest.log" && rc=-1 || rc=1
     ETEST_RC=${rc}
-    ETEST_OUTPUT=$(< output.log)
-    ETEST_LOG=$(< etest.log)
-    ETEST_JSON="etest.json"
-    rm -f output.log etest.log
+    ETEST_OUTPUT=$(< selftest.log)
+    ETEST_LOG=$(< ${log_dir}/etest.log)
+    ETEST_JSON=${log_dir}/etest.json
+    rm -f selftest.log ${log_dir}/etest.log
 }
 
 # Accepts a list of test names and asserts that the test was properly reported as a failing test. Requires that you run

@@ -29,8 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: gentoo/stage3
-      options: --init --interactive --privileged --tty
-
+      options: --init --interactive --privileged --tty --security-opt=seccomp=unconfined
     steps:
       - uses: actions/checkout@v2
 
@@ -39,7 +38,7 @@ jobs:
 
       # Run all tests through kcov coverage analyzer.
       - name: Test
-        run: bin/etest --coverage --coverage-dir coverage --coverage-publish codecov.io
+        run: bin/etest --coverage --coverage-dir coverage --coverage-publish codecov.io --filter 'array|json|opt'
 
       - name: Archive
         if: always()
@@ -51,91 +50,3 @@ jobs:
             etest.log
             etest.json
 
-  #--------------------------------------------------------------------------------------------------------------------
-  #
-  # LINUX
-  #
-  #--------------------------------------------------------------------------------------------------------------------
-  Linux:
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        container:
-          - "alpine:3.12"
-          - "alpine:3.11"
-          - "archlinux"
-          - "centos:8"
-          - "centos:7"
-          - "debian:10"
-          - "debian:9"
-          - "fedora:33"
-          - "fedora:32"
-          - "gentoo/stage3"
-          - "ubuntu:20.04"
-          - "ubuntu:18.04"
-          - "ubuntu:16.04"
-
-    container:
-      image: ${{ matrix.container }}
-      options: --init --interactive --privileged --tty
-
-    steps:
-      - uses: actions/checkout@v2
-      - run: echo "OSNAME=$(echo ${{ matrix.container }} | sed -e 's|:|-|' -e 's|/stage3||')" >> ${GITHUB_ENV}
-
-      - name: Dependencies
-        run: bin/ebash-install-deps
-
-      - name: Lint
-        run: bin/bashlint
-
-      - name: Self Test
-        run: bin/selftest
-
-      - name: Test
-        run: bin/etest --summary
-
-      - name: Archive
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.OSNAME }}
-          path: |
-            etest.log
-            etest.json
-
-  #--------------------------------------------------------------------------------------------------------------------
-  #
-  # MacOS
-  #
-  #--------------------------------------------------------------------------------------------------------------------
-  MacOS:
-    strategy:
-      matrix:
-        os: ["11.0", "10.15"]
-    runs-on: macos-${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Dependencies
-        run: bin/ebash-install-deps
-
-      - name: Lint
-        run: bin/bashlint
-
-      - name: Self Test
-        run: bin/selftest
-
-      - name: Test
-        run: bin/etest --summary
-
-      - name: Archive
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: macos-${{ matrix.os }}
-          path: |
-            etest.log
-            etest.json

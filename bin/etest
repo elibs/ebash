@@ -32,7 +32,7 @@ $(opt_parse \
     "+break   b=${BREAK:-0}    | Stop immediately on first failure." \
     "+clean   c=0              | Clean only and then exit." \
     ":debug   D=${EDEBUG:-}    | EDEBUG output." \
-    "+delete  d=0              | Delete all output files when tests complete." \
+    "+delete  d=1              | Delete all output files when tests complete." \
     ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
     ":failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
                                  test fails at all. However, in certain circumstances where flaky tests exist it may
@@ -41,7 +41,7 @@ $(opt_parse \
     ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
     "+logfile=1                | Whether we should use elogfile to log all output." \
-    ":log_dir                  | Directory to place logs in (default .work/logs)." \
+    ":log_dir                  | Directory to place logs in.  Defaults to the current directory." \
     "+mount_ns=1               | Run tests inside a mount namespace." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
     ":shard_index=0            | Shard index of tests to run. This allows splitting up our tests into chunks to help
@@ -55,10 +55,11 @@ $(opt_parse \
                                  files.  Relative paths will be interpreted against the current directory.  This option
                                  may be specified multiple times." \
     "+verbose v=${VERBOSE:-0}  | Verbose output." \
-    ":work_dir                 | Temporary location where etest can place temporary files. This will be created fresh on
-                                 each run of etest." \
+    ":work_dir                 | Temporary location where etest can place temporary files.  This location will be both
+                                 created and deleted by etest." \
     "+coverage                 | Run etest through kcov coverage tool to identify and report code coverage for all
                                  executed code." \
+    ":coverage_dir=coverage    | Directory to store coverage output in." \
     ":coverage_publish         | Upstream coverage analysis provider to publish results to (e.g. codecov.io)" \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
@@ -79,6 +80,112 @@ $(opt_parse \
 #      -- docker already protects us inside a mount namespace)
 if [[ ${mount_ns} -eq 1 ]] && os linux && ! running_in_docker; then
     reexec --mount-ns
+fi
+
+declare -A _EBASH_CONF
+if [[ -r .ebash ]] ; then
+    conf_read _EBASH_CONF .ebash
+fi
+
+START_TIME=$SECONDS
+
+# Default log directory from conf file if unspecified on the command line
+: ${log_dir:=$(conf_get _EBASH_CONF etest.log_dir)}
+: ${log_dir:=.}
+log_dir=$(readlink -f ${log_dir})
+
+# Default set of tests from conf file if unspecified on the command line
+if array_empty tests && array_empty test_list ; then
+    tests=( $(conf_get _EBASH_CONF etest.tests) )
+fi
+
+if array_not_empty test_list ; then
+    # Read non-comment lines from test_list and treat them as if they were passed as arguments to this script
+    edebug "Grabbing test list from $(lval test_list)"
+    array_init_nl tests_from_list "$(grep -vP '^\s*(#.*)$' "${test_list[@]}")"
+    if array_not_empty tests_from_list ; then
+        edebug "Found $(lval test_list tests_from_list)"
+        tests+=( "${tests_from_list[@]}" )
+    else
+        edebug "Found no tests in $(lval test_list)"
+    fi
+fi
+
+# Default working directory from conf file if unspecified, or ./output if not in either place
+: ${work_dir:=$(conf_get _EBASH_CONF etest.work_dir)}
+: ${work_dir:=./output}
+work_dir=$(readlink -f ${work_dir})
+
+EDEBUG=${debug}
+
+(( ${repeat} < 1 )) && repeat=1
+[[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
+edebug "$(lval TEST_DIR) $(opt_dump)"
+
+if ! cgroup_supported ; then
+    export ETEST_CGROUP_BASE=unsupported
+else
+    # Global cgroup name for all unit tests run here
+    export ETEST_CGROUP_BASE="etest"
+fi
+export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
+
+# Setup logfile
+exec {ETEST_STDERR_FD}<&2
+ETEST_LOG=${log_dir}/etest.log
+ETEST_JSON=${log_dir}/etest.json
+
+# Setup redirection for "etest" and actual "test" output
+if [[ ${logfile} -eq 0 && ${verbose} -eq 0 ]]; then
+
+    # If we can't use elogfile and we don't want verbose output we are forced to do some trickery to get the desired
+    # result. Yes this is a bit convoluted since we need to basically show the terse output on the console but also
+    # send a copy of both stdout and stderr to the log file. So basically we send stdout to the logfile, then we
+    # create a new file descriptor (3) and associate that with what is our current stderr. Then we can send stderr to
+    # where stdout has been redirect so that they both end up in the logfile.
+    exec 1>${ETEST_LOG}
+    exec 3>&2
+    exec 2>&1
+    exec {ETEST_OUT_FD}<&3
+    ETEST_OUT="$(fd_path)/${ETEST_OUT_FD}"
+elif [[ ${verbose} -eq 0 ]]; then
+    ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
+else
+    ETEST_OUT="/dev/null"
+fi
+
+# Coverage mode
+if [[ ${coverage} -eq 1 ]]; then
+    command_exists kcov
+
+    efreshdir "${coverage_dir}"
+
+    export COLUMNS
+    kcov --bash-method=DEBUG "${coverage_dir}" \
+        "$0" "${__EBASH_FULL_ARGS[@]}" --no-coverage --no-logfile
+
+    einfo "Coverage data: file://$(readlink -m ${coverage_dir}/index.html)"
+
+    # Optionally publish the coverage data
+    if [[ -n "${coverage_publish}" ]]; then
+
+        einfo "Publishing code coverage to ${coverage_publish}"
+
+        case "${coverage_publish}" in
+            "codecov.io")
+                bash <(curl -s https://codecov.io/bash)
+                ;;
+            *)
+                die "Unsupported $(lval coverage_publish)"
+        esac
+    fi
+
+    exit 0
+fi
+
+if [[ ${logfile} -eq 1 ]]; then
+    elogrotate "${ETEST_JSON}"
+    elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 fi
 
 #-------------------------------------------------------------------------------------------------------------------------
@@ -182,92 +289,9 @@ global_setup()
 {
     edebug "Running global_setup"
 
-    declare -A _EBASH_CONF
-    if [[ -r .ebash ]] ; then
-        conf_read _EBASH_CONF .ebash
-    fi
-
-    START_TIME=$SECONDS
-
-    # Default working directory from conf file if unspecified, or ./work if not in either place
-    : ${work_dir:=$(conf_get _EBASH_CONF etest.work_dir)}
-    : ${work_dir:=.work}
-    work_dir=$(readlink -f ${work_dir})
+    # Create a specific directory to run this test in. That way the test can create whatever directories and files it
+    # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
     efreshdir "${work_dir}"
-
-    # Default log directory from conf file if unspecified on the command line
-    : ${log_dir:=$(conf_get _EBASH_CONF etest.log_dir)}
-    : ${log_dir:=.work/logs}
-    mkdir -p "${log_dir}"
-    log_dir=$(readlink -f ${log_dir})
-
-    # Default set of tests from conf file if unspecified on the command line
-    if array_empty tests && array_empty test_list ; then
-        tests=( $(conf_get _EBASH_CONF etest.tests) )
-    fi
-
-    if array_not_empty test_list ; then
-        # Read non-comment lines from test_list and treat them as if they were passed as arguments to this script
-        edebug "Grabbing test list from $(lval test_list)"
-        array_init_nl tests_from_list "$(grep -vP '^\s*(#.*)$' "${test_list[@]}")"
-        if array_not_empty tests_from_list ; then
-            edebug "Found $(lval test_list tests_from_list)"
-            tests+=( "${tests_from_list[@]}" )
-        else
-            edebug "Found no tests in $(lval test_list)"
-        fi
-    fi
-
-    EDEBUG=${debug}
-
-    (( ${repeat} < 1 )) && repeat=1
-    [[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
-    edebug "$(lval TEST_DIR) $(opt_dump)"
-
-    if ! cgroup_supported ; then
-        export ETEST_CGROUP_BASE=unsupported
-    else
-        # Global cgroup name for all unit tests run here
-        export ETEST_CGROUP_BASE="etest"
-    fi
-    export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
-
-    # Setup logfile
-    exec {ETEST_STDERR_FD}<&2
-    ETEST_LOG=${log_dir}/etest.log
-    ETEST_JSON=${log_dir}/etest.json
-    ETEST_COV=${log_dir}/etest.cov
-
-    # Setup redirection for "etest" and actual "test" output
-    if [[ ${logfile} -eq 0 && ${verbose} -eq 0 ]]; then
-
-        # If we can't use elogfile and we don't want verbose output we are forced to do some trickery to get the desired
-        # result. Yes this is a bit convoluted since we need to basically show the terse output on the console but also
-        # send a copy of both stdout and stderr to the log file. So basically we send stdout to the logfile, then we
-        # create a new file descriptor (3) and associate that with what is our current stderr. Then we can send stderr to
-        # where stdout has been redirect so that they both end up in the logfile.
-        exec 1>${ETEST_LOG}
-        exec 3>&2
-        exec 2>&1
-        exec {ETEST_OUT_FD}<&3
-        ETEST_OUT="$(fd_path)/${ETEST_OUT_FD}"
-    elif [[ ${verbose} -eq 0 ]]; then
-        ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
-    else
-        ETEST_OUT="/dev/null"
-    fi
-
-    # Coverage mode
-    if [[ ${coverage} -eq 1 ]]; then
-        #mkfifo "${ETEST_COV}"
-        trap 'echo "${BASH_SOURCE}@${LINENO}" >> ${ETEST_COV}' DEBUG
-    fi
-
-    if [[ ${logfile} -eq 1 ]]; then
-        elogrotate "${ETEST_JSON}"
-        elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
-    fi
-
 
     if cgroup_supported ; then
         # And a cgroup that will contain all output
@@ -486,10 +510,7 @@ global_setup
 trap_add global_teardown
 
 # If clean only is requested exit immediately. The "clean" is done via global_setup and global_teardown.
-if [[ ${clean} -eq 1 ]]; then
-    delete=1
-    exit 0
-fi
+[[ ${clean} -eq 1 ]] && exit 0
 
 #-------------------------------------------------------------------------------------------------------------------------
 # MAIN
@@ -536,9 +557,9 @@ fi
 OS="$(os_pretty_name)"
 SHARD="($((${shard_index}+1))/${total_shards})"
 if [[ "${verbose}" -eq 1 ]]; then
-    ebanner --uppercase "ETEST" coverage OS break failures filter repeat SHARD
+    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD
 else
-    ebanner --uppercase "ETEST" coverage OS break failures filter repeat SHARD &>${ETEST_OUT}
+    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD &>${ETEST_OUT}
 fi
 
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
