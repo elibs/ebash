@@ -135,6 +135,16 @@ ETEST_emetadata_git_outside_git_tree()
 
 ETEST_emetadata_custom_entries()
 {
+    # Mock out a git repository here in our current working directory. This way we can have a very controlled
+    # environment and make tighter assertions.
+    git config --global user.email "neo@matrix.com"
+    git config --global user.name "Neo"
+    git init
+    touch "file1.txt"
+    git add "file1.txt"
+    git commit -am "Add file1.txt"
+
+    # Metadata for known file
     local src meta
     src="$(make_testfile)"
     meta="${src}.meta"
