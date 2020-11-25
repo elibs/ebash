@@ -76,6 +76,7 @@ elif [ "${DISTRO}" = "arch" ]; then
         debootstrap         \
         dialog              \
         diffutils           \
+        git                 \
         jq                  \
         net-tools           \
         squashfs-tools      \
@@ -102,6 +103,7 @@ elif [ "${DISTRO}" = "centos" ]; then
         diffutils           \
         file                \
         genisoimage         \
+        git                 \
         glibc               \
         glibc-langpack-en   \
         glibc-locale-source \
@@ -137,6 +139,7 @@ elif [ "${DISTRO}" = "debian" ]; then
         dialog          \
         file            \
         genisoimage     \
+        git             \
         iptables        \
         jq              \
         iproute2        \
@@ -165,6 +168,7 @@ elif [ "${DISTRO}" = "fedora" ]; then
         file                \
         findutils           \
         genisoimage         \
+        git                 \
         glibc               \
         glibc-langpack-en   \
         glibc-locale-source \
@@ -196,6 +200,7 @@ elif [ "${DISTRO}" = "gentoo" ]; then
         cdrtools        \
         cpio            \
         debootstrap     \
+        dev-vcs/git     \
         dialog          \
         jq              \
         net-tools       \
@@ -225,6 +230,7 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
         debootstrap     \
         dialog          \
         file            \
+        git             \
         jq              \
         iproute2        \
         iptables        \
