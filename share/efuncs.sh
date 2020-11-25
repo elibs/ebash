@@ -1192,71 +1192,112 @@ emd5sum_check()
 }
 
 opt_usage emetadata <<'END'
-Output checksum information for the given file to STDOUT. Specifically output
-the following:
+Output various metadata information about the provided file to STDOUT. By default this outputs a number of common
+metadata and digest information about the provided file such as Filename, MD5, Size, SHA1, SHA256, etc. It can also
+optionally emit a bunch of Git related metadata using the --git option. This will then emit additional fields such as
+GitOriginUrl, GitBranch, GitVersion, and GitCommit. Finally, all additional arugments provided after the filename are
+interpreted as additional tag=value fields to emit into the output.
 
+Here is example output:
+    BuildDate=2020-11-25T03:36:44UTC
     Filename=foo
+    GitBranch=develop
+    GitCommit=f59a8535afd05b816cf891ec09bddd19fca92ebd
+    GitOriginUrl=http://github.com/marshallmcmullen/ebash
+    GitVersion=v1.6.4
     MD5=864ec6157c1eea88acfef44d0f34d219
-    Size=2192793069
     SHA1=75490a32967169452c10c937784163126c4e9753
     SHA256=8297aefe5bb7319ab5827169fce2e664fe9cd7b88c9b31c40658ab55fcae3bfe
+    Size=2192793069
 END
 emetadata()
 {
     $(opt_parse \
-        ":private_key p | Also check the PGP signature based on this private key." \
-        ":keyphrase k   | The keyphrase to use for the specified private key." \
-        "path")
+        "+build_date  b=1   | Include the current UTC date as BuildDate." \
+        "+git         g=1   | Include common Git metadata such as GitBranch, GitCommit, GitOriginUrl, GitVersion." \
+        ":keyphrase k       | The keyphrase to use for the specified private key." \
+        ":private_key p     | Also check the PGP signature based on this private key." \
+        "path               | Path of the filename to generate metadata for." \
+        "@entries           | Additional tag=value entries to emit.")
 
     local rpath
     rpath=$(readlink -m "${path}")
     assert_exists "${rpath}" "${path}"
 
-    echo "Filename=$(basename ${path})"
-    echo "Size=$(stat --printf="%s" "${rpath}")"
+    {
+        echo "Filename=$(basename ${path})"
+        echo "Size=$(stat --printf="%s" "${rpath}")"
 
-    # Now output MD5, SHA256, SHA512
-    local ctype
-    for ctype in MD5 SHA256 SHA512; do
-        echo "${ctype}=$(eval ${ctype,,}sum "${rpath}" | awk '{print $1}')"
-    done
+        # Optionally include BuildDate
+        if [[ "${build_date}" -eq 1 ]]; then
+            echo "BuildDate=$(date "+%FT%T%Z")"
+        fi
 
-    # If PGP signature is NOT requested we can simply return
-    [[ -n ${private_key} ]] || return 0
+        # Optionally include Git metadata
+        if [[ "${git}" -eq 1 ]]; then
+            echo "GitOriginUrl=$(git config --get remote.origin.url)"
+            echo "GitBranch=$(git rev-parse --abbrev-ref HEAD)"
+            echo "GitVersion=$(git describe --always --tags --match "v*.*.*" --abbrev=10)"
+            echo "GitCommit=$(git rev-parse HEAD)"
+        fi
 
-    # Needs to be in /tmp rather than using $TMPDIR because gpg creates a socket in this directory and the complete
-    # path can't be longer than 108 characters. gpg also expands relative paths, so no getting around it that way.
-    local gpg_home
-    gpg_home=$(mktemp --directory /tmp/gpghome-XXXXXX)
-    trap_add "rm -rf ${gpg_home}"
+        # Optionally add in any additional tag=value entries
+        local entry
+        for entry in "${entries[@]:-}"; do
+            [[ -z ${entry} ]] && continue
 
-    # If using GPG 2.1 or higher, start our own gpg-agent. Otherwise, GPG will start one and leave it running.
-    local gpg_version
-    gpg_version=$(gpg --version 2>/dev/null | awk 'NR==1{print $NF}')
-    if compare_version "${gpg_version}" ">=" "2.1"; then
-        local agent_command="gpg-agent --homedir ${gpg_home} --quiet --daemon --allow-loopback-pinentry"
-        ${agent_command}
-        trap_add "pkill -f \"${agent_command}\""
-    fi
+            local _tag="${entry%%=*}"
+            : ${_tag:=${entry}}
+            local _val="${entry#*=}"
+            _tag=${_tag#%}
 
-    # Import that into temporary secret keyring
-    local keyring="" keyring_command=""
-    keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
-    trap_add "rm --force ${keyring}"
+            echo "${_tag}=${_val}"
+        done
 
-    keyring_command="--no-default-keyring --secret-keyring ${keyring}"
-    if compare_version "${gpg_version}" ">=" "2.1"; then
-        keyring_command+=" --pinentry-mode loopback"
-    fi
-    GPG_AGENT_INFO="" GNUPGHOME="${gpg_home}" gpg ${keyring_command} --batch --import ${private_key} |& edebug
+        # Now output MD5, SHA256, SHA512
+        local ctype
+        for ctype in MD5 SHA256 SHA512; do
+            echo "${ctype}=$(eval ${ctype,,}sum "${rpath}" | awk '{print $1}')"
+        done
 
-    # Get optional keyphrase
-    local keyphrase_command=""
-    [[ -z ${keyphrase} ]] || keyphrase_command="--batch --passphrase ${keyphrase}"
+        # If PGP signature is NOT requested we can simply return
+        [[ -n ${private_key} ]] || return 0
 
-    # Output PGPSignature encoded in base64
-    echo "PGPKey=$(basename ${private_key})"
-    echo "PGPSignature=$(GPG_AGENT_INFO="" GNUPGHOME="${gpg_home}" gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${rpath} 2>/dev/null | base64 --wrap 0)"
+        # Needs to be in /tmp rather than using $TMPDIR because gpg creates a socket in this directory and the complete
+        # path can't be longer than 108 characters. gpg also expands relative paths, so no getting around it that way.
+        local gpg_home
+        gpg_home=$(mktemp --directory /tmp/gpghome-XXXXXX)
+        trap_add "rm -rf ${gpg_home}"
+
+        # If using GPG 2.1 or higher, start our own gpg-agent. Otherwise, GPG will start one and leave it running.
+        local gpg_version
+        gpg_version=$(gpg --version 2>/dev/null | awk 'NR==1{print $NF}')
+        if compare_version "${gpg_version}" ">=" "2.1"; then
+            local agent_command="gpg-agent --homedir ${gpg_home} --quiet --daemon --allow-loopback-pinentry"
+            ${agent_command}
+            trap_add "pkill -f \"${agent_command}\""
+        fi
+
+        # Import that into temporary secret keyring
+        local keyring="" keyring_command=""
+        keyring=$(mktemp --tmpdir emetadata-keyring-XXXXXX)
+        trap_add "rm --force ${keyring}"
+
+        keyring_command="--no-default-keyring --secret-keyring ${keyring}"
+        if compare_version "${gpg_version}" ">=" "2.1"; then
+            keyring_command+=" --pinentry-mode loopback"
+        fi
+        GPG_AGENT_INFO="" GNUPGHOME="${gpg_home}" gpg ${keyring_command} --batch --import ${private_key} |& edebug
+
+        # Get optional keyphrase
+        local keyphrase_command=""
+        [[ -z ${keyphrase} ]] || keyphrase_command="--batch --passphrase ${keyphrase}"
+
+        # Output PGPSignature encoded in base64
+        echo "PGPKey=$(basename ${private_key})"
+        echo "PGPSignature=$(GPG_AGENT_INFO="" GNUPGHOME="${gpg_home}" gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${rpath} 2>/dev/null | base64 --wrap 0)"
+
+    } | sort
 }
 
 opt_usage emetadata_check <<'END'

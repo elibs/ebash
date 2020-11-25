@@ -348,9 +348,9 @@ ebanner()
         for k in "${entries[@]:-}"; do
             [[ -z ${k} ]] && continue
 
-            local _ktag="${k%%=*}";
+            local _ktag="${k%%=*}"
             : ${_ktag:=${k}}
-            local _kval="${k#*=}";
+            local _kval="${k#*=}"
             _ktag=${_ktag#%}
 
             # Optionally uppercase the key if requested.
