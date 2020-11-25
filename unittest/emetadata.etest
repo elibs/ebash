@@ -52,7 +52,8 @@ ETEST_emetadata_build_date()
     meta="${src}.meta"
 
     # Mock out date() function so we get consistent output
-    local expected="$(date "+%FT%T%Z")"
+    local expected
+    expected="$(date "+%FT%T%Z")"
     date() { echo "${expected}"; }
 
     # By default emetadata should produce BuildDate
@@ -74,7 +75,7 @@ ETEST_emetadata_build_date()
     assert_false pack_contains MPACK "BuildDate"
 }
 
-ETEST_emetadata_build_git()
+ETEST_emetadata_git()
 {
     local src meta
     src="$(make_testfile)"
@@ -96,6 +97,25 @@ ETEST_emetadata_build_git()
     # Allow opting out of Git Metadata
     etestmsg "Opt out of Git Metadata"
     emetadata --no-git ${src} > ${meta}
+    cat ${meta}
+    MPACK=""
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+    assert_false pack_contains MPACK GitOriginUrl GitBranch GitVersion GitCommit
+}
+
+ETEST_emetadata_git_outside_git_tree()
+{
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+
+    # Mock out git() command to return error if asked if we're in a git tree
+    git() { return 1; }
+
+    # By default emetadata should produce Git metadata
+    etestmsg "Git outside Git tree"
+    emetadata ${src} > ${meta}
     cat ${meta}
     MPACK=""
     pack_set MPACK $(cat ${meta})

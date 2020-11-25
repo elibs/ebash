@@ -1233,8 +1233,8 @@ emetadata()
             echo "BuildDate=$(date "+%FT%T%Z")"
         fi
 
-        # Optionally include Git metadata
-        if [[ "${git}" -eq 1 ]]; then
+        # Optionally include Git metadata if Git command is installed and we're in a git working tree.
+        if [[ "${git}" -eq 1 ]] && command_exists git && git rev-parse --is-inside-work-tree &> /dev/null; then
             echo "GitOriginUrl=$(git config --get remote.origin.url)"
             echo "GitBranch=$(git rev-parse --abbrev-ref HEAD)"
             echo "GitVersion=$(git describe --always --tags --match "v*.*.*" --abbrev=10)"
