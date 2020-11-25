@@ -260,7 +260,6 @@ elif [ "${DISTRO}" = "darwin" ]; then
         findutils   \
         git         \
         gnu-sed     \
-        gnupg       \
         grep        \
         jq          \
         pstree
