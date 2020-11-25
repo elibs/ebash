@@ -63,7 +63,7 @@ jobs:
         run: bin/selftest
 
       - name: Test
-        run: bin/etest --summary --verbose --break --filter emetadata
+        run: bin/etest --summary
 
       - name: Archive test results
         if: always()
