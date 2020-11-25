@@ -77,6 +77,16 @@ ETEST_emetadata_build_date()
 
 ETEST_emetadata_git()
 {
+    # Mock out a git repository here in our current working directory. This way we can have a very controlled
+    # environment and make tighter assertions.
+    git config --global user.email "neo@matrix.com"
+    git config --global user.name "Neo"
+    git init
+    touch "file1.txt"
+    git add "file1.txt"
+    git commit -am "Add file1.txt"
+
+    # Metadata for known file
     local src meta
     src="$(make_testfile)"
     meta="${src}.meta"
@@ -88,8 +98,8 @@ ETEST_emetadata_git()
     MPACK=""
     pack_set MPACK $(cat ${meta})
     $(pack_import MPACK)
-    assert_true pack_contains MPACK GitOriginUrl GitBranch GitVersion GitCommit
-    assert_eq "${GitOriginUrl}" "$(git config --get remote.origin.url)"
+    assert_eq "BuildDate Filename GitBranch GitCommit GitOriginUrl GitVersion MD5 SHA256 SHA512 Size " "$(pack_keys MPACK | tr '\n' ' ')"
+    assert_empty "${GitOriginUrl}"
     assert_eq "${GitBranch}"    "$(git rev-parse --abbrev-ref HEAD)"
     assert_eq "${GitVersion}"   "$(git describe --always --tags --match "v*.*.*" --abbrev=10)"
     assert_eq "${GitCommit}"    "$(git rev-parse HEAD)"
