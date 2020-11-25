@@ -46,6 +46,7 @@ if [ "${DISTRO}" = "alpine" ]; then
         file             \
         findutils        \
         gawk             \
+        git              \
         gnupg            \
         grep             \
         gzip             \
@@ -251,6 +252,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
         curl        \
         coreutils   \
         findutils   \
+        git         \
         gnu-sed     \
         gnupg       \
         grep        \
