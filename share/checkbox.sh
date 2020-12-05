@@ -7,7 +7,7 @@ or with a failing X. This is useful to display a list of dependencies or tasks.
 END
 checkbox_open()
 {
-    echo -n "$(tput setaf 209)$(tput bold)[ ]$(tput sgr0) ${@}"
+    echo -n "$(tput setaf 209)$(tput bold)[ ]$(tput sgr0) ${@}" >&2
 }
 
 opt_usage checkbox_open_timer <<'END'
@@ -44,7 +44,7 @@ checkbox_open_timer()
             fi
 
         done
-    ) &
+    ) >&2 &
 
     __CHECKBOX_TIMER_PID=$!
 }
@@ -59,21 +59,22 @@ checkbox_close()
 {
     local rc=${1:-0}
 
-    if [[ -n "${__CHECKBOX_TIMER_PID}" ]]; then
-        kill "${__CHECKBOX_TIMER_PID}" 2>/dev/null || true
-        wait "${__CHECKBOX_TIMER_PID}" 2>/dev/null || true
+    {
+        if [[ -n "${__CHECKBOX_TIMER_PID}" ]]; then
+            kill "${__CHECKBOX_TIMER_PID}" 2>/dev/null || true
+            wait "${__CHECKBOX_TIMER_PID}" 2>/dev/null || true
 
-        # Display cursor again
-        tput cnorm
-    fi
+            tput cnorm
+        fi
 
-    printf "\r"
+        printf "\r"
 
-    if [[ "${rc}" -eq 0 ]]; then
-        echo "$(tput setaf 2)$(tput bold)[✓]$(tput sgr0)"
-    else
-        echo "$(tput setaf 1)$(tput bold)[✘]$(tput sgr0)"
-    fi
+        if [[ "${rc}" -eq 0 ]]; then
+            echo "$(tput setaf 2)$(tput bold)[✓]$(tput sgr0)"
+        else
+            echo "$(tput setaf 1)$(tput bold)[✘]$(tput sgr0)"
+        fi
+    } >&2
 
     return 0
 }
