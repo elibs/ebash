@@ -231,7 +231,7 @@ assert_archive_contents()
     array_sort expect
 
     assert_exists "${archive}"
-    actual=( $(archive_list ${archive}) )
+    actual=( $(opt_forward archive_list type -- ${archive}) )
 
     expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
     echo "$(array_join_nl expect)" | sort --unique > "${expect_tmp}"

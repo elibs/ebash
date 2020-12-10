@@ -809,6 +809,18 @@ ETEST_archive_create_exclude_files()
    done
 }
 
+ETEST_archive_create_custom_suffix()
+{
+    etestmsg "Populating source directory"
+    efreshdir src
+    touch src/{file1,file2}
+
+    etestmsg "Creating dest.upr"
+    archive_create --type=tar dest.upr src
+    archive_list --type=tar dest.upr
+    assert_archive_contents --type=tar dest.upr src src/file1 src/file2
+}
+
 ETEST_archive_create_mount()
 {
     local idx ftype atype
