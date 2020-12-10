@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/marshallmcmullen/ebash/workflows/Pipeline/badge.svg?branch=master)](https://github.com/marshallmcmullen/ebash/actions?query=workflow%3APipeline+branch%3Amaster)
+[![Build Status](https://github.com/elibs/ebash/workflows/Pipeline/badge.svg?branch=master)](https://github.com/elibs/ebash/actions?query=workflow%3APipeline+branch%3Amaster)
 
 <p align="center">
     <img alt="Bash" src="https://raw.githubusercontent.com/odb/official-bash-logo/master/assets/Logos/Identity/PNG/BASH_logo-transparent-bg-color.png">
@@ -27,7 +27,7 @@ advanced features on top of vanilla bash.
 Ebash aims for extreme compatibility with the intention that it "just works" on just about any *NIX OS. While it is not
 feasible to test ebash on _every_ OS/Distro, we nonetheless test it many popular combinations on every single build. You
 can view the build status any time using the build batch at the top of this README or by going here:
-[Builds](https://github.com/marshallmcmullen/ebash/actions?query=workflow%3APipeline+branch%3Amaster).
+[Builds](https://github.com/elibs/ebash/actions?query=workflow%3APipeline+branch%3Amaster).
 
 Here is a table showing all the currently test and validated OS/Distro
 combinations:

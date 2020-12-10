@@ -18,7 +18,7 @@ Here is example output:
     Filename=foo
     GitBranch=develop
     GitCommit=f59a8535afd05b816cf891ec09bddd19fca92ebd
-    GitOriginUrl=http://github.com/marshallmcmullen/ebash
+    GitOriginUrl=http://github.com/elibs/ebash
     GitVersion=v1.6.4
     MD5=864ec6157c1eea88acfef44d0f34d219
     SHA1=75490a32967169452c10c937784163126c4e9753
