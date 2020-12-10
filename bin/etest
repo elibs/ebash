@@ -532,7 +532,7 @@ for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
 done
 
 vcs_pack=""
-if [[ -d ".hg" ]] && which hg &>/dev/null ; then
+if [[ -d ".hg" ]] && command_exists hg; then
     pack_set vcs_pack \
         type="hg"                                       \
         info="$(hg id --id)"                            \
@@ -541,7 +541,7 @@ if [[ -d ".hg" ]] && which hg &>/dev/null ; then
         bookmark="$(hg book | awk '/ * / {print $2}')"  \
         commit="$(hg id --id)"
 
-elif [[ -d ".git" ]] && which git &>/dev/null ; then
+elif [[ -d ".git" ]] && command_exists git && git rev-parse --is-inside-work-tree &>/dev/null; then
     pack_set vcs_pack \
         type="git"                                                \
         info="$(git describe --abbrev=7 --always --tags --dirty)" \
