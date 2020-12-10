@@ -24,6 +24,9 @@ fi
 EBASH_HOME=$(readlink -f "${EBASH_HOME}")
 EBASH=$(readlink -f "${EBASH}")
 
+# Save off the TOPDIR so we can easily find it even when etest is changing directories
+TOPDIR=${PWD}
+
 #-------------------------------------------------------------------------------------------------------------------------
 # GLOBAL SETUP
 #-------------------------------------------------------------------------------------------------------------------------
@@ -78,7 +81,7 @@ if [[ ${mount_ns} -eq 1 ]] && os linux && ! running_in_docker; then
 fi
 
 declare -A _EBASH_CONF
-if [[ -r .ebash ]] ; then
+if [[ -f .ebash ]] ; then
     conf_read _EBASH_CONF .ebash
 fi
 
@@ -115,7 +118,7 @@ EDEBUG=${debug}
 
 (( ${repeat} < 1 )) && repeat=1
 [[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
-edebug "$(lval TEST_DIR) $(opt_dump)"
+edebug "$(lval TOPDIR TEST_DIR) $(opt_dump)"
 
 if ! cgroup_supported ; then
     export ETEST_CGROUP_BASE=unsupported
