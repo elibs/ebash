@@ -219,8 +219,11 @@ assert_not_exists()
 
 assert_archive_contents()
 {
-    $(opt_parse archive)
-    edebug "Validating $(lval archive)"
+    $(opt_parse \
+        ":type t | Override automatic type detection and use explicit archive type." \
+        "archive | Archive whose contents should be listed.")
+
+    edebug "Validating $(lval archive type)"
 
     local expect=() actual=() expect_tmp="" actual_tmp=""
 
