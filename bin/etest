@@ -13,6 +13,7 @@
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ebash." ; exit 1 ; }
 export EBASH
+export PATH="${PATH}:${EBASH_HOME}/bin"
 
 if [[ ${__EBASH_OS} == "Linux" ]] ; then
     reexec --sudo
@@ -365,15 +366,15 @@ run_single_test()
 
             # Unit test provided setup
             if is_function setup ; then
-                etestmsg "Calling setup"
+                etestmsg "Running setup"
                 setup
             fi
 
-            etestmsg "Calling test $(lval tries failures)"
+            etestmsg "Running $(lval command tries failures)"
             "${command}"
 
             if is_function teardown ; then
-                etestmsg "Calling teardown"
+                etestmsg "Running teardown"
                 teardown
             fi
         }
