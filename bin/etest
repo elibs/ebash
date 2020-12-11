@@ -312,9 +312,15 @@ run_single_test()
         display_testname="${source}:${testname}"
     fi
 
-    ebanner --uppercase "${display_testname}" REPEAT=REPEAT_STRING failures
+    ebanner --uppercase "${testname}" REPEAT=REPEAT_STRING failures
 
-    einfos ${display_testname} &>${ETEST_OUT}
+    # If this file is being sourced then it's an ETEST so log it as a subtest
+    # via einfos. Otherwise log via einfo as a top-level test script.
+    if [[ -n "${source}" ]]; then
+        einfos "${testname}"
+    else
+        EMSG_PREFIX="" einfo "${testname}"
+    fi &>${ETEST_OUT}
 
     (( NUM_TESTS_EXECUTED += 1 ))
 
@@ -350,17 +356,17 @@ run_single_test()
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
 
+            local command="${testname}"
+            if ! is_function "${testname}" ; then
+                command=$(readlink -f "${testname}")
+            fi
+
             cd "${work_dir}"
 
             # Unit test provided setup
             if is_function setup ; then
                 etestmsg "Calling setup"
                 setup
-            fi
-
-            local command="${testname}"
-            if ! is_function "${testname}" ; then
-                command=$(readlink -f "${testname}")
             fi
 
             etestmsg "Calling test $(lval tries failures)"
@@ -446,6 +452,8 @@ run_etest_file()
         return 0
     fi
 
+    EMSG_PREFIX="" einfo "${testfilename}" &>${ETEST_OUT}
+
     local testfunc
     for testfunc in ${ETEST_FUNCTIONS[@]} ; do
 
@@ -514,9 +522,9 @@ fi
 OS="$(os_pretty_name)"
 SHARD="($((${shard_index}+1))/${total_shards})"
 if [[ "${verbose}" -eq 1 ]]; then
-    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD
+    ebanner --uppercase "ETEST" OS break exclude failures filter repeat SHARD
 else
-    ebanner --uppercase "ETEST" OS break failures filter repeat SHARD &>${ETEST_OUT}
+    ebanner --uppercase "ETEST" OS break exclude failures filter repeat SHARD &>${ETEST_OUT}
 fi
 
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
