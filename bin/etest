@@ -350,6 +350,8 @@ run_single_test()
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
 
+            cd "${work_dir}"
+
             # Unit test provided setup
             if is_function setup ; then
                 etestmsg "Calling setup"
@@ -360,8 +362,6 @@ run_single_test()
             if ! is_function "${testname}" ; then
                 command=$(readlink -f "${testname}")
             fi
-
-            cd "${work_dir}"
 
             etestmsg "Calling test $(lval tries failures)"
             "${command}"
