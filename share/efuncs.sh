@@ -1482,6 +1482,8 @@ eretry()
                                    timeouts of each individual command. Uses sleep(1) time syntax." \
         ":warn_every w           | A warning will be generated on (or slightly after) every SECONDS
                                    while the command keeps failing." \
+        ":warn_message m         | Custom message to display on each warn_every interval." \
+        ":warn_color c           | Warning color to use." \
         "@cmd                    | Command to run along with any of its own options and arguments.")
 
     # If unspecified, limit timeout to the same as max_timeout
@@ -1492,14 +1494,20 @@ eretry()
     if [[ ${max_timeout} != "infinity" ]]; then
         : ${retries:=infinity}
 
-        etimeout -t=${max_timeout} -s=${signal} --          \
-            opt_forward eretry_internal timeout delay fatal_exit_codes signal warn_every retries -- "${cmd[@]}"
+        etimeout -t=${max_timeout} -s=${signal} --    \
+            opt_forward eretry_internal               \
+                timeout delay fatal_exit_codes signal \
+                warn_every warn_message warn_color    \
+                retries -- "${cmd[@]}"
     else
         # If no total timeout or retry limit was specified then default to prior
         # behavior with a max retry of 5.
         : ${retries:=5}
 
-        opt_forward eretry_internal timeout delay fatal_exit_codes signal warn_every retries -- "${cmd[@]}"
+        opt_forward eretry_internal \
+            timeout delay fatal_exit_codes signal \
+            warn_every warn_message warn_color    \
+            retries -- "${cmd[@]}"
     fi
 }
 
@@ -1516,6 +1524,8 @@ eretry_internal()
         ":signal sig s           | Signal to be send to the command if it takes longer than the timeout." \
         ":timeout t              | If one attempt takes longer than this duration, kill it and retry if appropriate." \
         ":warn_every w           | Generate warning messages after failed attempts when it has been more than this long since the last warning." \
+        ":warn_message           | Custom message to display on each warn_every interval." \
+        ":warn_color c           | Warning color to use." \
         "@cmd                    | Command to run followed by any of its own options and arguments.")
 
     argcheck delay fatal_exit_codes retries signal timeout
@@ -1525,7 +1535,10 @@ eretry_internal()
     local rc=0
     local exit_codes=()
     local stdout=""
+    local start=${SECONDS}
     local warn_seconds="${SECONDS}"
+    : ${warn_color:=${COLOR_WARN}}
+    warn_every=${warn_every%s}
 
     # If no command to execute just return success immediately
     if [[ -z "${cmd[@]:-}" ]]; then
@@ -1535,7 +1548,8 @@ eretry_internal()
     while true; do
         [[ ${retries} != "infinity" && ${attempt} -ge ${retries} ]] && break || (( attempt+=1 ))
 
-        edebug "Executing $(lval cmd timeout max_timeout) retries=(${attempt}/${retries})"
+        seconds=$(( ${SECONDS} - ${start} ))
+        edebug "Executing $(lval cmd) timeout=(${seconds}s/${timeout}) retries=(${attempt}/${retries})"
 
         # Run the command through timeout wrapped in tryrc so we can throw away the stdout
         # on any errors. The reason for this is any caller who cares about the output of
@@ -1547,16 +1561,21 @@ eretry_internal()
 
         # Append list of exit codes we've seen
         exit_codes+=(${rc})
+        edebug "$(lval cmd seconds timeout exit_codes attempt retries)"
 
         # Break if the process exited with white listed exit code.
         if echo "${fatal_exit_codes}" | grep -wq "${rc}"; then
-            edebug "Command reached terminal exit code.  Ending retries. $(lval rc fatal_exit_codes cmd)"
+            edebug "Command reached terminal exit code $(lval rc fatal_exit_codes cmd)"
             break
         fi
 
         # Show warning if requested
         if [[ -n ${warn_every} ]] && (( SECONDS - warn_seconds > warn_every )); then
-            ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})"
+            if [[ -n "${warn_message}" ]]; then
+                emsg "${warn_color}" ">>" "WARN" "${warn_message} timeout=(${seconds}s/${timeout}) retries=(${attempt}/${retries})"
+            else
+                emsg "${warn_color}" ">>" "WARN" "Failed $(lval cmd) timeout=(${seconds}s/${timeout}) retries=(${attempt}/${retries})"
+            fi
             warn_seconds=${SECONDS}
         fi
 
