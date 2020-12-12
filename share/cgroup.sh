@@ -41,11 +41,6 @@ else
     CGROUP_SUBSYSTEMS=(cpu cpuacct memory freezer)
 fi
 
-# We may already be in a cgroup and if so we need to constrain ourselves to only operate within that root cgroup. If we
-# are not in a cgroup at all, this will be just '/'. We filter out user.slice as that's not an actual cgroup we want
-# to stay within.
-CGROUP_ROOT="$(awk -F: '$2 == "'${CGROUP_SUBSYSTEMS[0]}'" {print $3}' /proc/$$/cgroup | sed 's|user.slice||')"
-
 #-------------------------------------------------------------------------------------------------------------------------
 # Detect whether the machine currently running this code is built with kernel support for all of the cgroups subsystems
 # that ebash depends on.
@@ -86,6 +81,10 @@ cgroup_supported()
 
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
+# We may already be in a cgroup and if so we need to constrain ourselves to only operate within that root cgroup. If we
+# are not in a cgroup at all, this will be just '/'. We filter out user.slice as that's not an actual cgroup we want
+# to stay within.
+CGROUP_ROOT="$(awk -F: '$2 == "'${CGROUP_SUBSYSTEMS[0]}'" {print $3}' /proc/$$/cgroup | sed 's|user.slice||')"
 
 #-------------------------------------------------------------------------------------------------------------------------
 # Prior to using a cgroup, you must create it.  It is safe to attempt to

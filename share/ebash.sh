@@ -15,7 +15,21 @@
 # Or to ensure ${EBASH}/bin is in your path and to load it like this:
 #    $(ebash --source)
 #
+# Or just ensure ebash is in your PATH and then modify your shebang interpreter at the top of your script to:
+#    #!/usr/bin/env ebash
+#
 ########################################################################################################################
+
+# In some rare circumstances we may be running under a non-bash shell need to switch over to bash before we can proceed.
+#
+# This can happen if we are invoked through some other interpeter such as via `sh bin/ebash` or `bash bin/ebash.sh`
+# rather than directly calling `bin/ebash`.  When invoked that way, ebash becaomes a parameter of `sh` and bash never
+# gets invoked. This prevents ebash from being setup and executing properly. We solve this by simply checking if we're
+# running inside a native BASH context and if we are not, we simply execute bash directly with our script as a parameter
+# as well as any arguments we were passed.
+if [[ "$(ps -p $$ -ocomm=)" != "bash" ]]; then
+    exec bash "$0" "${@}"
+fi
 
 __EBASH_OS=$(uname)
 

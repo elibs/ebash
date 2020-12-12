@@ -15,6 +15,7 @@ set \
     -o functrace \
     -o nounset   \
     -o pipefail  \
+    +o posix     \
 
 shopt -s           \
     checkwinsize   \
