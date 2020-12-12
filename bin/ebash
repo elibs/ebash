@@ -60,7 +60,6 @@ for arg in "$@" ; do
     fi
 done
 
-
 : ${EBASH_HOME:=$(dirname $0)/..}
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
@@ -69,7 +68,6 @@ source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1
 # both mac and linux
 EBASH=$(readlink -f "${EBASH}")
 EBASH_HOME=$(readlink -f "${EBASH_HOME}")
-
 
 declare name=${0##*/}
 
@@ -140,7 +138,7 @@ else
         # So, a much simpler, and more correct solution is to simply SOURCE the external script (along with arguments).
         # This has the same effect as executing a script only it is run within our existing process context rather than
         # as an external script.
-        if file "${1}" 2>/dev/null | grep -Pq "(bash script|Bourne-Again shell script)"; then
+        if file "${1}" 2>/dev/null | grep -Pq "(ASCII text|bash script|Bourne-Again shell script)"; then
             source "${@}"
             exit $?
         fi
