@@ -75,20 +75,30 @@ declare name=${0##*/}
 if [[ ${name} == "ebash" ]] ; then
 
     $(opt_parse \
-        ":load l          | ebash should source the specified file before attempting to run the specified command." \
-        "+source s        | Print commands that would load ebash from its existing location on disk into the current
-                            shell and then exit.  You'd use this in a script like this: \$(ebash --source)" \
-        "+print_environment printenv p | Dump environment variables that ebash would like to use in a format bash
-                            can interpret" \
-        ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend ebash is running
-                            with the specified name.")
+        ":load l                                | ebash should source the specified file before attempting to run the specified command." \
+        "+source s                              | Print commands that would load ebash from its existing location on disk into the current
+                                                  shell and then exit.  You'd use this in a script like this: \$(ebash --source)" \
+        "+print_environment printenv p          | Dump environment variables that ebash would like to use in a format bash
+                                                  can interpret" \
+        ":name n=${0##*/}                       | Name to use as a starting point for finding functions.  I.e pretend ebash is running
+                                                  with the specified name." \
+        "+color c=$(efuncs_color_as_bool)       | Force explicit color mode." \
+        ":msg_prefix m                          | Prefix to use for all emsg messages." \
+        "+interactive i=$(einteractive_as_bool) | Force interactive mode even if we are not attached to a terminal.")
 
     if [[ -n ${load} ]] ; then
         source "${load}"
     fi
 
+    # Setup ebash environment variables
+    export EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE
+    EFUNCS_COLOR="${color}"
+    EMSG_PREFIX=$(string_trim "${EMSG_PREFIX} ${msg_prefix}")
+    EINTERACTIVE="${interactive}"
+
     if [[ ${source} -eq 1 ]] ; then
-        echo "eval export EBASH=${EBASH} EBASH_HOME=${EBASH_HOME} ; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }"
+        export_string="$(declare -p EBASH EBASH_HOME EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE | sed -e 's|declare -x ||' | tr '\n' ' ')"
+        echo "eval export ${export_string}; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }"
         exit 0
     elif [[ ${print_environment} -eq 1 ]] ; then
         printf "export EBASH=%q\n" "${EBASH}"

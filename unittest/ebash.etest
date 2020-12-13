@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # Tests specifically for the ebash binary
@@ -36,7 +36,7 @@ ETEST_ebash_bin_symlink_name_plus_func()
     assert_eq "omega  alpha" "${stdout}"
 }
 
-ETEST_ebash_bin_calls_ibu()
+ETEST_ebash_bin_calls_repl()
 {
     $(tryrc --rc rc --stderr stderr ${EBASH_HOME}/bin/ebash</dev/null)
 
@@ -69,7 +69,7 @@ ETEST_ebash_bin_specify_name()
 }
 
 ETEST_ebash_bin_right_args()
-{ 
+{
 cat<<'EOF' >testfile.sh
 argchecker()
 {
@@ -125,4 +125,28 @@ ETEST_ebash_bin_printenv()
         assert_eq "${ACTUAL_EBASH_HOME}" "${EBASH_HOME}"
         assert_eq "${ACTUAL_EBASH}" "${EBASH}"
     )
+}
+
+ETEST_ebash_color()
+{
+    ${EBASH_HOME}/bin/ebash --source --color    | grep 'EFUNCS_COLOR="1"'
+    ${EBASH_HOME}/bin/ebash --source --no-color | grep 'EFUNCS_COLOR="0"'
+
+    EFUNCS_COLOR=0 ${EBASH_HOME}/bin/ebash --source --color | grep 'EFUNCS_COLOR="1"'
+}
+
+ETEST_ebash_interactive()
+{
+    ${EBASH_HOME}/bin/ebash --source --interactive    | grep 'EINTERACTIVE="1"'
+    ${EBASH_HOME}/bin/ebash --source --no-interactive | grep 'EINTERACTIVE="0"'
+}
+
+ETEST_ebash_msg_prefix()
+{
+    ${EBASH_HOME}/bin/ebash --source --msg-prefix=time
+    ${EBASH_HOME}/bin/ebash --source --msg-prefix=time | grep 'EMSG_PREFIX="time"'
+    ${EBASH_HOME}/bin/ebash --source --msg-prefix="all" | grep 'EMSG_PREFIX="all"'
+    ${EBASH_HOME}/bin/ebash --source --msg-prefix=""    | grep 'EMSG_PREFIX=""'
+
+    EMSG_PREFIX=level ${EBASH_HOME}/bin/ebash --source --msg-prefix=time | grep 'EMSG_PREFIX="level time"'
 }
