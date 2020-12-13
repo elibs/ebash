@@ -23,6 +23,11 @@
 # By default enable eprogress style tickers
 : ${EPROGRESS:=1}
 
+# Default timestamp format to use. Supports:
+# RFC3339       (e.g. "2006-01-02T15:04:05Z07:00")
+# StampMilli    (e.g. "Jan _2 15:04:05.000")
+: ${ETIMESTAMP_FORMAT:=RFC3339}
+
 # Any functions whose names are "==" to this are exempt from ETRACE.  In other
 # words, even if ETRACE=1, these functions actions will not be displayed in the
 # output.
@@ -150,6 +155,16 @@ einteractive()
     [[ -t 2 ]]
 }
 
+# Get einteractive value as a boolean string
+einteractive_as_bool()
+{
+    if einteractive; then
+        echo -n "1"
+    else
+        echo -n "0"
+    fi
+}
+
 ecolor_code()
 {
    case $1 in
@@ -237,6 +252,29 @@ ecolor_code()
    return 0
 }
 
+# Determine value to use for efuncs_color.
+# If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
+efuncs_color()
+{
+    ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
+    local value=${EFUNCS_COLOR:=}
+    if [[ -z ${value} ]] && einteractive ; then
+        value=1
+    fi
+
+    [[ ${value} -eq 1 ]]
+}
+
+# Get efuncs_color as a boolean string.
+efuncs_color_as_bool()
+{
+    if efuncs_color; then
+        echo "1"
+    else
+        echo "0"
+    fi
+}
+
 ecolor()
 {
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
@@ -302,12 +340,18 @@ eclear()
 
 etimestamp()
 {
-    echo -en "$(date '+%b %d %T.%3N')"
+    if [[ "${ETIMESTAMP_FORMAT:-}" == "StampMilli" ]]; then
+        echo -en "$(date '+%b %d %T.%3N')"
+    elif [[ "${ETIMESTAMP_FORMAT:-}" == "RFC3339" ]]; then
+        echo -en "$(date '+%FT%TZ')"
+    else
+        die "Unsupported $(lval ETIMESTAMP_FORMAT)"
+    fi
 }
 
 etimestamp_rfc3339()
 {
-    echo -en "$(date '+%FT%TZ')"
+    echo -en $(date '+%FT%TZ')
 }
 
 opt_usage ebanner<<'END'

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -39,11 +39,11 @@ fail()
 # Also checks some stylistic issues for consistent coding.
 ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
- 
+
     # If this isn't a bash script skip it
     file ${fname} | grep -Pq "(bash script|Bourne-Again shell script)" || continue
 
-    # Never do any further parsing on our own file since they would all 
+    # Never do any further parsing on our own file since they would all
     # be false positives
     [[ "$(readlink -f ${fname})" == "$(readlink -f $0)" ]] && continue
 
@@ -59,7 +59,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
         | grep -vP '#\s*BASHLINT_IGNORE' \
         | grep -vP '^\s*function \w+'    \
         | grep -vP '^\s*\w+\s*\(\)\s*$')
-    
+
     # Initial error state
     RC=0
 
@@ -70,7 +70,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     # Ensure not using removed $(esource ...)
     echo "${CONTENTS}" | egrep '\s*\$\(esource ' \
         && fail "Using removed esource function"
-    
+
     # Ensure not using removed argument parsing functions
     echo "${CONTENTS}" | egrep '(declare_globals|declare_exports|declare_args|declare_opts)' \
         && fail "Using removed declare_globals|declare_exports functions"
@@ -91,7 +91,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | grep -P '(assert|assert_true|assert_false)\s+\[\[' \
         && fail "Assert commands cannot be followed by a double bracket expression"
 
-    echo "${CONTENTS}" | egrep '(local|export|declare|readonly).*=.*\$\(' \
+    echo "${CONTENTS}" | egrep '(local|export|declare|readonly)\s+.*=.*\$\(' \
         && fail "Combined local variable declaration and assignment masks fatal errors"
 
     [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -10,7 +10,7 @@
 show_text()
 {
     [[ ${TEXT:-0} -eq 1 ]] || return 0
-    head /etc/fstab 
+    head /etc/fstab
     return 0
 }
 
@@ -47,9 +47,43 @@ ETEST_emsg_time_rfc3339()
     EMSG_PREFIX="time_rfc3339" emsg_aux
 }
 
+# Function to normalize seconds and milliseconds to avoid slight time delta false positive
+normalize_time_stamp()
+{
+    sed 's|[0-9].[0-9][0-9][0-9]|0.000|'
+}
+
+# Function to normalize rfc3339 time to avoid slight time delta false positive
+normalize_time_rfc3339()
+{
+    sed 's|[0-9]:[0-9][0-9]Z|0:00Z|'
+}
+
+ETEST_etimestamp_format()
+{
+    (
+        ETIMESTAMP_FORMAT="StampMilli"
+        expect="$(date '+%b %d %T.%3N' | normalize_time_stamp)"
+        actual="$(etimestamp | normalize_time_stamp)"
+        einfo "$(lval ETIMESTAMP_FORMAT expect actual)"
+        assert_eq "${expect}" "${actual}"
+
+        ETIMESTAMP_FORMAT="RFC3339"
+        expect="$(date '+%FT%TZ' | normalize_time_rfc3339)"
+        actual="$(etimestamp | normalize_time_rfc3339)"
+        einfo "$(lval ETIMESTAMP_FORMAT expect actual)"
+        assert_eq "${expect}" "${actual}"
+    )
+}
+
 ETEST_emsg_time_legacy()
 {
     EFUNCS_TIME=1 emsg_aux
+}
+
+ETEST_emsg_time_simple()
+{
+    ETIMESTAMP_FORMAT=simple emsg_aux
 }
 
 ETEST_emsg_level()
@@ -128,7 +162,7 @@ ETEST_ecolor_chart()
     pad=$(printf '%0.1s' " "{1..60})
     padlength=20
     line=0
-    
+
     for c in ${ETEST_COLORS[@]}; do
         printf "%s%*.*s" "$(ecolor $c)${c}$(ecolor none)" 0 $((padlength - ${#c} )) "${pad}"
         (( ++line % 8 == 0 )) && printf "\n" || true
@@ -136,7 +170,7 @@ ETEST_ecolor_chart()
         c="dim ${c}"
         printf "%s%*.*s" "$(ecolor $c)${c}$(ecolor none)" 0 $((padlength - ${#c} )) "${pad}"
         (( ++line % 8 == 0 )) && printf "\n" || true
- 
+
     done
 
     echo ""
@@ -260,7 +294,7 @@ ETEST_noansi_files()
     declare a_contents b_contents
     a_contents="$(cat file_a)"
     b_contents="$(cat file_b)"
-    
+
     assert_ne "A" "${a_contents}"
     assert_ne "B" "${b_contents}"
 
@@ -377,7 +411,7 @@ ETEST_eprogress_ticker_align_invalid()
     $(tryrc eprogress --align RIGHT)
     assert_eq 1 "${rc}"
 }
- 
+
 ETEST_eprogress_ticker_align_right()
 {
     etestmsg "Starting background process that writes to ${OUTPUT}"
