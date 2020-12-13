@@ -23,8 +23,10 @@
 # By default enable eprogress style tickers
 : ${EPROGRESS:=1}
 
-# Default timestamp format to use
-: ${ETIMESTAMP_FORMAT:=rfc3339}
+# Default timestamp format to use. Supports:
+# RFC3339       (e.g. "2006-01-02T15:04:05Z07:00")
+# StampMilli    (e.g. "Jan _2 15:04:05.000")
+: ${ETIMESTAMP_FORMAT:=RFC3339}
 
 # Any functions whose names are "==" to this are exempt from ETRACE.  In other
 # words, even if ETRACE=1, these functions actions will not be displayed in the
@@ -338,9 +340,9 @@ eclear()
 
 etimestamp()
 {
-    if [[ "${ETIMESTAMP_FORMAT:-}" == "simple" ]]; then
+    if [[ "${ETIMESTAMP_FORMAT:-}" == "StampMilli" ]]; then
         echo -en "$(date '+%b %d %T.%3N')"
-    elif [[ "${ETIMESTAMP_FORMAT:-}" == "rfc3339" ]]; then
+    elif [[ "${ETIMESTAMP_FORMAT:-}" == "RFC3339" ]]; then
         echo -en "$(date '+%FT%TZ')"
     else
         die "Unsupported $(lval ETIMESTAMP_FORMAT)"
@@ -349,7 +351,7 @@ etimestamp()
 
 etimestamp_rfc3339()
 {
-    echo -en "$(date '+%FT%TZ')"
+    echo -en $(date '+%FT%TZ')
 }
 
 opt_usage ebanner<<'END'
