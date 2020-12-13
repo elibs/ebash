@@ -143,8 +143,7 @@ ETEST_ebash_interactive()
 
 ETEST_ebash_msg_prefix()
 {
-    ${EBASH_HOME}/bin/ebash --source --msg-prefix=time
-    ${EBASH_HOME}/bin/ebash --source --msg-prefix=time | grep 'EMSG_PREFIX="time"'
+    ${EBASH_HOME}/bin/ebash --source --msg-prefix=time  | grep 'EMSG_PREFIX="time"'
     ${EBASH_HOME}/bin/ebash --source --msg-prefix="all" | grep 'EMSG_PREFIX="all"'
     ${EBASH_HOME}/bin/ebash --source --msg-prefix=""    | grep 'EMSG_PREFIX=""'
 

@@ -97,7 +97,7 @@ if [[ ${name} == "ebash" ]] ; then
     EINTERACTIVE="${interactive}"
 
     if [[ ${source} -eq 1 ]] ; then
-        export_string="$(declare -p EBASH EBASH_HOME EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE | sed -e 's|declare -x ||' | tr '\n' ' ')"
+        export_string="$(declare -p EBASH EBASH_HOME EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE | sed -e 's|declare -[-x] ||' | tr '\n' ' ')"
         echo "eval export ${export_string}; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }"
         exit 0
     elif [[ ${print_environment} -eq 1 ]] ; then
