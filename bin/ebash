@@ -81,14 +81,26 @@ if [[ ${name} == "ebash" ]] ; then
         "+print_environment printenv p | Dump environment variables that ebash would like to use in a format bash
                             can interpret" \
         ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend ebash is running
-                            with the specified name.")
+                            with the specified name." \
+        "+color c         | Force explicit color mode." \
+        "+time t          | Prefix every emsg with time." \
+        "+interactive i   | Force interactive mode even if we are not attached to a terminal.")
 
     if [[ -n ${load} ]] ; then
         source "${load}"
     fi
 
+    # Setup ebash environment variables if requested
+    : ${EFUNCS_COLOR:=}
+    : ${EMSG_PREFIX:=}
+    : ${EINTERACTIVE:=}
+    [[ ${color} -eq 1 ]] && EFUNCS_COLOR=1
+    [[ ${time}  -eq 1 ]] && EMSG_PREFIX="time_rfc3339 ${EMSG_PREFIX}"
+    [[ ${interactive} -eq 1 ]] && EINTERACTIVE=1
+
     if [[ ${source} -eq 1 ]] ; then
-        echo "eval export EBASH=${EBASH} EBASH_HOME=${EBASH_HOME} ; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }"
+        export_string="$(declare -p EBASH EBASH_HOME EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE | sed -e 's|declare -.* ||' | tr '\n' ' ')"
+        echo "eval export ${export_string}; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }"
         exit 0
     elif [[ ${print_environment} -eq 1 ]] ; then
         printf "export EBASH=%q\n" "${EBASH}"
