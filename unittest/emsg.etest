@@ -79,11 +79,7 @@ ETEST_etimestamp_format()
 ETEST_emsg_time_legacy()
 {
     EFUNCS_TIME=1 emsg_aux
-}
-
-ETEST_emsg_time_simple()
-{
-    ETIMESTAMP_FORMAT=simple emsg_aux
+    ETIMESTAMP_FORMAT=StampMilli emsg_aux
 }
 
 ETEST_emsg_level()
