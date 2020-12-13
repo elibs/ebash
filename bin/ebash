@@ -91,9 +91,10 @@ if [[ ${name} == "ebash" ]] ; then
     fi
 
     # Setup ebash environment variables
-    export EFUNCS_COLOR="${color}"
-    export EMSG_PREFIX=$(string_trim "${EMSG_PREFIX} ${msg_prefix}")
-    export EINTERACTIVE="${interactive}"
+    export EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE
+    EFUNCS_COLOR="${color}"
+    EMSG_PREFIX=$(string_trim "${EMSG_PREFIX} ${msg_prefix}")
+    EINTERACTIVE="${interactive}"
 
     if [[ ${source} -eq 1 ]] ; then
         export_string="$(declare -p EBASH EBASH_HOME EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE | sed -e 's|declare -x ||' | tr '\n' ' ')"
