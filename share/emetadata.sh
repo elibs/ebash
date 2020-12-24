@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim: textwidth=120 colorcolumn=120
 #
 # Copyright 2011-2020, Marshall McMullen <marshall.mcmullen@gmail.com>
 #
@@ -227,4 +228,37 @@ emetadata_check()
         eprogress_kill -r=${rc}
     fi
     assert_eq 0 "${rc}"
+}
+
+opt_usage emd5sum <<'END'
+Wrapper around computing the md5sum of a file to output just the filename instead of the full path
+to the filename. This is a departure from normal md5sum for good reason. If you download an md5 file
+with a path embedded into it then the md5sum can only be validated if you put it in the exact same
+path. This function will die on failure.
+END
+emd5sum()
+{
+    $(opt_parse path)
+
+    local dname="" fname=""
+    dname=$(dirname  "${path}")
+    fname=$(basename "${path}")
+
+    pushd "${dname}"
+    md5sum "${fname}"
+    popd
+}
+
+opt_usage emd5sum_check <<'END'
+Wrapper around checking an md5sum file regardless of the path used when the file was originally created. If someone
+unwittingly said `md5sum /home/foo/bar` and then later moved the file to /home/zap/bar, and ran md5sum -c on the
+relocated file it would fail. This works around this silly problem by assuming that the md5 file is a sibling to the
+original source file and ignores the path specified in the md5 file. Then it manually compares the MD5 from the file
+with the actual MD5 of the source file.
+END
+emd5sum_check()
+{
+    $(opt_parse path)
+
+    echo "$(awk '{print $1}' "${path}".md5)" "${path}" | md5sum -c - | edebug
 }
