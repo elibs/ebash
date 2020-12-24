@@ -1155,43 +1155,6 @@ elogfile()
     fi
 }
 
-opt_usage emd5sum <<'END'
-Wrapper around computing the md5sum of a file to output just the filename instead of the full path
-to the filename. This is a departure from normal md5sum for good reason. If you download an md5 file
-with a path embedded into it then the md5sum can only be validated if you put it in the exact same
-path. This function will die on failure.
-END
-emd5sum()
-{
-    $(opt_parse path)
-
-    local dname="" fname=""
-    dname=$(dirname  "${path}")
-    fname=$(basename "${path}")
-
-    pushd "${dname}"
-    md5sum "${fname}"
-    popd
-}
-
-opt_usage emd5sum_check <<'END'
-Wrapper around checking an md5sum file by pushd into the directory that contains the md5 file so
-that paths to the file don't affect the md5sum check. This assumes that the md5 file is a sibling
-next to the source file with the suffix 'md5'. This method will die on failure.
-END
-emd5sum_check()
-{
-    $(opt_parse path)
-
-    local fname="" dname=""
-    fname=$(basename "${path}")
-    dname=$(dirname  "${path}")
-
-    pushd "${dname}"
-    md5sum -c "${fname}.md5" | edebug
-    popd
-}
-
 # Check if a directory is empty
 directory_empty()
 {
