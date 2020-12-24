@@ -501,31 +501,3 @@ ETEST_array_associative_indexes_sort()
     indexes=$(array_indexes_sort values)
     assert_eq "a b c d m z" "${indexes}"
 }
-
-#-----------------------------------------------------------------------------
-#
-# Linux only tests
-#
-#-----------------------------------------------------------------------------
-
-if [[ ${__EBASH_OS} == Linux ]]; then
-
-# Validate sorting on Linux uses native byte values. As explained in 'man sort' under 'WARNING' section, the sort order
-# on Linux is affectedly greatly by the environmental sort values. This test validates that things sort the way we
-# expect. We set LC_ALL in platform.sh.
-ETEST_array_sort_locale()
-{
-    # We can't run this test on alpine because it uses MUSL instead of GLIBC and as such does not support proper
-    # locale aware sorting.
-    if os_distro alpine; then
-        ewarn "Alpine Linux does not support locale aware sorting"
-        return 0
-    fi
-
-    local keep_paths=( "/sf/etc/origin.json" "bar" "foo" )
-    array_sort -u keep_paths
-    export SF_KEEP_PATHS="${keep_paths[@]}"
-    assert_eq "bar foo /sf/etc/origin.json" "${SF_KEEP_PATHS}"
-}
-
-fi

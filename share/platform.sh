@@ -15,14 +15,6 @@ elif [[ ${__EBASH_OS} == Darwin ]] ; then
     EBASH_WORD_END='[[:>:]]'
 fi
 
-if [[ "${__EBASH_OS}" == Linux ]] ; then
-    export LC_ALL="en_US.utf8"
-    export LANG="en_US.utf8"
-elif [[ "${__EBASH_OS}" == Darwin ]] ; then
-    export LC_ALL="en_US.UTF-8"
-    export LANG="en_US.UTF-8"
-fi
-
 #---------------------------------------------------------------------------------------------------
 # LINUX
 #---------------------------------------------------------------------------------------------------
@@ -193,6 +185,13 @@ redirect_gnu_tools
 rm()
 {
     command grm --one-file-system "${@}"
+}
+
+# Replace sort with explicit LC_COLLATE so that we always get consistent sorting
+# regardless of the user's configured locale.
+sort()
+{
+    LC_COLLATE="C" command sort "${@}"
 }
 
 return 0
