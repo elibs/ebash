@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #
+# vim: textwidth=120 colorcolumn=120
+#
 # Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
@@ -239,3 +241,95 @@ ETEST_emetadata_failure()
     echo "${SECONDS}" >> ${src}
     assert_false emetadata_check ${src}
 }
+
+ETEST_emd5sum()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum ${src} > ${md5}
+    cat ${md5}
+
+    # Our output MUST match md5sum output
+    assert_eq "$(md5sum ${src})" "$(cat ${md5})"
+}
+
+ETEST_emd5sum_strip_path()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum "$(readlink -m ${src})" > ${md5}
+    cat ${md5}
+
+    # Our output MUST match md5sum output
+    assert_eq "$(md5sum ${src})" "$(cat ${md5})"
+}
+
+ETEST_emd5sum_check()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum ${src} > ${md5}
+    cat ${md5}
+
+    # Our output MUST match md5sum output
+    assert_eq "$(md5sum ${src})" "$(cat ${md5})"
+    emd5sum_check "${src}"
+}
+
+ETEST_emd5sum_check_absolute_path()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum ${src} > ${md5}
+    cat ${md5}
+
+    # Out output MUST match md5sum output except stripped path
+    assert_eq "$(md5sum ${src})" "$(cat ${md5})"
+    emd5sum_check "$(readlink -m ${src})"
+}
+
+ETEST_emd5sum_check_strip_path()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    # Genereate md5 file with vanilla md5sum with a full path
+    md5sum "$(readlink -m ${src})" > "${md5}"
+    cat ${md5}
+
+    # Our output MUST match md5sum output
+    assert_eq "$(md5sum $(readlink -m ${src}))" "$(cat ${md5})"
+    emd5sum_check "${src}"
+}
+
+ETEST_emd5sum_fail()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum "${src}" > "${md5}"
+    cat ${md5}
+
+    # Modify the source file and verify this causes md5sum mismath
+    date >> "${src}"
+    try
+    {
+        emd5sum_check "${src}"
+        die "Expected MD5 mismatch"
+    }
+    catch
+    {
+        etestmsg "MD5 mismatch properly detected"
+    }
+}
+
