@@ -634,6 +634,69 @@ ETEST_opt_parse_help()
     assert_exists ${tmpfile}
 }
 
+ETEST_opt_parse_help_short()
+{
+    local tmpfile=${FUNCNAME}.tmp
+    rm -f ${tmpfile}
+    assert_not_exists ${tmpfile}
+
+    set -- -?
+    foo()
+    {
+        $(opt_parse \
+            ":money m       | Units of tender" \
+            ":number n      | degrees of value" \
+            "+bool b        | on or off" \
+            "+long_option l | Here's an option that has a really really long docstring
+                              which is broken across multiple lines in order to
+                              do some level of validation that opt_parse can handle such
+                              things." \
+            "arg1           | First argument" \
+            "?arg2          | Second argument")
+
+        touch ${tmpfile}
+    }
+
+    etestmsg "Run with usage and make sure the function didn't perform its normal operation"
+    local usage=""
+    usage=$(COLUMNS=80 foo -? 2>&1)
+    echo "${usage}"
+    assert_not_exists ${tmpfile}
+
+    etestmsg "Make sure the usage statement looks right"
+    assert_match "${usage}" "--bool"
+    assert_match "${usage}" "--money"
+    assert_match "${usage}" "--number"
+    assert_match "${usage}" "Units of tender"
+    assert_match "${usage}" "degrees of value"
+
+    # This check is dependant on the specific output format.  You might have to
+    # adjust it for reality if you change, for instance, the number of columns
+    # of output produced by opt_display_usage
+    etestmsg "Verify that the super-long docstring is broken into lines differently than it"
+    etestmsg "is in the code.  In other words that opt_parse formats it appropriately to fit"
+    etestmsg "available space."
+    assert_match "${usage}" "docstring which"
+
+    etestmsg "Further verify the first line"
+    # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right
+    # info (because it was displayed above in the log).  Not sure what happened there, but the
+    # following statements will still catch errors even if we ignore the failure in head.
+    local firstline=""
+    firstline=$(echo "${usage}" | head -n 1 || true)
+    etestmsg "$(lval firstline)"
+
+    assert_match "${firstline}" "Usage"
+    assert_match "${firstline}" "foo"
+    assert_match "${firstline}" "\[option\]\.\.\."
+    assert_match "${firstline}" "arg1"
+    assert_match "${firstline}" "\[arg2\]"
+
+    etestmsg "Make sure a call to the function without -? works as expected."
+    foo a
+    assert_exists ${tmpfile}
+}
+
 ETEST_opt_parse_rest()
 {
     A="a"
