@@ -204,7 +204,7 @@ SELFTEST_assert_setup_teardown()
     > "${output}"
     trap_add "rm ${output}"
 
-    run_etest --filter setup_teardown
+    run_etest setup_teardown.etest
     assert_test_count --pass 3 --fail 0 --flaky 0 --total 3
     assert_exists "${output}"
 
