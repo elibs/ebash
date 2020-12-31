@@ -14,24 +14,20 @@ source ${EBASH_HOME}/unittest/daemon_expect.sh
 # Enable chroot debugging for this module. This doesn't affect the caller's environment just our local process that is
 # running etest for this test suite.
 EDEBUG+="= chroot"
+CHROOT=$(readlink -m ${TOPDIR}/.work/chroot-$$)
 
-setup()
+suite_setup()
 {
-    # NOTE: We create the CHROOT a directory above our normal output directory so that it survives a single test's
-    # normal setup/teardown infrastructure. This allows us to re-use the CHROOT within this file for each subsequent
-    # test to avoid the massive overhead of re-creating it every time.
-    CHROOT=$(readlink -m ${TEST_DIR_OUTPUT}/../chroot)
+    einfo "Making chroot in ${CHROOT}"
+    efreshdir ${CHROOT}
+    etestmsg "Cleaned ${CHROOT}"
+    mkchroot ${CHROOT} precise amd64
+    etestmsg "Finished creating ${CHROOT}"
+}
 
-    if [[ ! -e "${CHROOT}" ]]; then
-        einfo "Making chroot in ${CHROOT}"
-        efreshdir ${CHROOT}
-        etestmsg "Cleaned ${CHROOT}"
-        mkchroot ${CHROOT} precise amd64
-        etestmsg "Finished creating ${CHROOT}"
-    else
-        etestmsg "Chroot was previously created via setup routine -- verifying it looks minimally sane."
-        assert test -x ${CHROOT}/bin/bash
-    fi
+suite_teardown()
+{
+    eunmount --recursive --delete ${CHROOT}
 }
 
 teardown()
@@ -39,8 +35,7 @@ teardown()
     chroot_kill
 
     # NOTE: We do not delete the CHROOT itself here because we want to be able to re-use it for each test to avoid
-    # the massive overhad of recreating it every time. It will get automatically cleaned up when etest cleans up for
-    # us.
+    # the massive overhad of recreating it every time. It will get cleaned up in suite_teardown.
     eunmount --recursive ${CHROOT}
 }
 

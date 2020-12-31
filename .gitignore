@@ -5,6 +5,6 @@ etest.json*
 results
 output
 results
-.forge/work
+.work
 .tags
 selftest/output.log
