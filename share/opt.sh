@@ -231,11 +231,11 @@ would with arguments.
 Automatic Help
 --------------
 
-Opt_parse automatically supports a --help option for you, which will display
-a usage statement using the docstrings that you provided for each of the
-options and arguments.
+Opt_parse automatically supports --help option and corresponding short option
+-? option for you, which will display a usage statement using the docstrings
+that you provided for each of the options and arguments.
 
-Functions called with --help as processed by opt_parse will not perform their
+Functions called with --help/-? as processed by opt_parse will not perform their
 typical operation and will instead return successfully after printing this
 usage statement.
 
@@ -490,7 +490,7 @@ opt_parse_options()
                 (( shift_count += 1 ))
                 break
                 ;;
-            --help)
+            --help | -\?)
                 __EBASH_OPT_USAGE_REQUESTED=1
                 return 0
                 ;;

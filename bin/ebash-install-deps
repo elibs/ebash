@@ -258,7 +258,6 @@ elif [ "${DISTRO}" = "darwin" ]; then
         curl        \
         coreutils   \
         findutils   \
-        git         \
         gnu-sed     \
         grep        \
         jq          \
