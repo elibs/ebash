@@ -69,8 +69,8 @@ ETEST_cgroup_pstree()
         etestmsg "Actual pstree output $(lval sleep1 sleep2 CGROUP)"
         echo "${output}"
 
-        # Make sure the output contains some handy strings that I know should
-        # be there, such as the PIDs of the two sleeps.
+        # Make sure the output contains some handy strings that I know should be there, such as the PIDs of the two
+        # sleeps.
         etestmsg "Checking the output:"
         (
             echo "${output}" | grep -w ${sleep1}
@@ -231,8 +231,7 @@ ETEST_cgroup_pids_missing_cgroup()
         edebug "$(lval found_pids pid CGROUP)"
         assert array_contains found_pids ${pid}
 
-        # And it should return an error code, specifically two for the two
-        # cgroups (b and c) that do not exist
+        # And it should return an error code, specifically two for the two cgroups (b and c) that do not exist
         cgroup_pids -r ${CGROUP}/{a,b,c} || rc=$?
         assert test ${rc} -eq 2
     )
@@ -244,9 +243,8 @@ ETEST_cgroup_move_ignores_empties()
     trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
     cgroup_create ${CGROUP}
     (
-        # Adding an empty string to the tasks file in the cgroup filesystem would
-        # typically blow up.  cgroup_move intentionally skips empty strings to make
-        # life a bit easier.
+        # Adding an empty string to the tasks file in the cgroup filesystem would typically blow up.  cgroup_move
+        # intentionally skips empty strings to make life a bit easier.
         cgroup_move ${CGROUP} "" ${BASHPID} ""
     )
 }
@@ -292,9 +290,7 @@ ETEST_cgroup_kill_excepts_current_process()
 
 
     (
-        # NOTE: You must add ${BASHPID}, not $$ here because we only want the
-        # subshell inside this cgroup
-
+        # NOTE: You must add ${BASHPID}, not $$ here because we only want the subshell inside this cgroup
         cgroup_move ${CGROUP} ${BASHPID}
         etestmsg "Joined cgroup $(lval CGROUP) \$\$=$$ \$BASHPID=${BASHPID} pids=$(cgroup_pids -r ${CGROUP})"
         cgroup_kill_and_wait -x="${BASHPID} $$" ${CGROUP}
@@ -332,8 +328,7 @@ ETEST_cgroup_kill_and_destroy_ingore_nonexistent_cgroups()
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
     trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
-    # Even if it had accidentally been created, if you destroy the cgroup twice
-    # it definitely should've been gone once
+    # Even if it had accidentally been created, if you destroy the cgroup twice it definitely should've been gone once
     cgroup_destroy ${CGROUP}
     cgroup_destroy ${CGROUP}
 

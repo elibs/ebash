@@ -1,5 +1,5 @@
 set textwidth=120
-set colorcolumn=120
+set colorcolumn=121
 set expandtab
 set softtabstop=4
 set tabstop=4

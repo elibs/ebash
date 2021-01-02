@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -47,7 +47,7 @@ ETEST_opt_parse_boolean_multi()
         "+verbose v"     \
         "+another a"     \
         "+something s"   \
-        "+else e") 
+        "+else e")
     etestmsg "$(opt_dump)"
 
     assert_eq 1 "${verbose}"
@@ -91,7 +91,7 @@ ETEST_opt_parse_required_arg()
     set -- -a
     try
     {
-        $(opt_parse ":a") 
+        $(opt_parse ":a")
         etestmsg "$(opt_dump)"
 
         die -r=243 "Should have failed parsing options."
@@ -105,7 +105,7 @@ ETEST_opt_parse_required_arg()
 ETEST_opt_parse_shorts_crammed_together_with_arg()
 {
     set -- -abc optarg arg
-    $(opt_parse "+a" "+b" ":c") 
+    $(opt_parse "+a" "+b" ":c")
     etestmsg "$(opt_dump)"
 
     assert_eq 1 "${a}"
@@ -120,7 +120,7 @@ ETEST_opt_parse_shorts_crammed_together_required_arg()
     set -- -abc
     try
     {
-        $(opt_parse "+a" "+b" ":c") 
+        $(opt_parse "+a" "+b" ":c")
         etestmsg "$(opt_dump)"
 
         die -r=243 "Should have failed when parsing options but did not."
@@ -224,8 +224,7 @@ ETEST_opt_parse_equal_empty()
 ETEST_opt_parse_default()
 {
     set --
-    # Note whitespace at beginning of option definition here to verify that
-    # opt_parse handles it properly.
+    # Note whitespace at beginning of option definition here to verify that opt_parse handles it properly.
     $(opt_parse \
         "   +alpha a=1"                \
         "   :beta b=3"                 \
@@ -416,7 +415,7 @@ ETEST_opt_parse_args()
 
 ETEST_opt_parse_arg_default()
 {
-    set -- 
+    set --
     $(opt_parse "arg1=alpha")
     assert_eq "alpha" "${arg1}"
 
@@ -607,18 +606,17 @@ ETEST_opt_parse_help()
     assert_match "${usage}" "Units of tender"
     assert_match "${usage}" "degrees of value"
 
-    # This check is dependant on the specific output format.  You might have to
-    # adjust it for reality if you change, for instance, the number of columns
-    # of output produced by opt_display_usage
+    # This check is dependant on the specific output format.  You might have to adjust it for reality if you change, for
+    # instance, the number of columns of output produced by opt_display_usage
     etestmsg "Verify that the super-long docstring is broken into lines differently than it"
     etestmsg "is in the code.  In other words that opt_parse formats it appropriately to fit"
     etestmsg "available space."
     assert_match "${usage}" "docstring which"
 
     etestmsg "Further verify the first line"
-    # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right
-    # info (because it was displayed above in the log).  Not sure what happened there, but the
-    # following statements will still catch errors even if we ignore the failure in head.
+    # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right info (because it was
+    # displayed above in the log).  Not sure what happened there, but the following statements will still catch errors
+    # even if we ignore the failure in head.
     local firstline=""
     firstline=$(echo "${usage}" | head -n 1 || true)
     etestmsg "$(lval firstline)"
@@ -670,18 +668,17 @@ ETEST_opt_parse_help_short()
     assert_match "${usage}" "Units of tender"
     assert_match "${usage}" "degrees of value"
 
-    # This check is dependant on the specific output format.  You might have to
-    # adjust it for reality if you change, for instance, the number of columns
-    # of output produced by opt_display_usage
+    # This check is dependant on the specific output format.  You might have to adjust it for reality if you change, for
+    # instance, the number of columns of output produced by opt_display_usage
     etestmsg "Verify that the super-long docstring is broken into lines differently than it"
     etestmsg "is in the code.  In other words that opt_parse formats it appropriately to fit"
     etestmsg "available space."
     assert_match "${usage}" "docstring which"
 
     etestmsg "Further verify the first line"
-    # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right
-    # info (because it was displayed above in the log).  Not sure what happened there, but the
-    # following statements will still catch errors even if we ignore the failure in head.
+    # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right info (because it was
+    # displayed above in the log).  Not sure what happened there, but the following statements will still catch errors
+    # even if we ignore the failure in head.
     local firstline=""
     firstline=$(echo "${usage}" | head -n 1 || true)
     etestmsg "$(lval firstline)"

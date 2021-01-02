@@ -28,32 +28,26 @@
 # StampMilli    (e.g. "Jan _2 15:04:05.000")
 : ${ETIMESTAMP_FORMAT:=RFC3339}
 
-# Any functions whose names are "==" to this are exempt from ETRACE.  In other
-# words, even if ETRACE=1, these functions actions will not be displayed in the
-# output.
+# Any functions whose names are "==" to this are exempt from ETRACE. In other words, even if ETRACE=1, these functions
+# actions will not be displayed in the output.
 #
 # By default, these are excluded:
-#   - Any parts of opt_parse (plus string_trim because opt_parse uses it)
-#   - Emsg and other message producing internals (but not the message
-#     functions like edebug, einfo)
-#   - Internals of die and stack generation (but leaving some parts of die
-#     so it's more clear what is happening.)
-#   - Signame, which does translations amongst signal names in various styles
-#     and signal numbers.
+#   1) Any parts of opt_parse (plus string_trim because opt_parse uses it)
+#   2) Emsg and other message producing internals (but not the message functions like edebug, einfo)
+#   3) Internals of die and stack generation (but leaving some parts of die so it's more clear what is happening.)
+#   4) Signame, which does translations amongst signal names in various styles and signal numbers.
 : ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|string_trim|print_value|lval|disable_signals|reenable_signals|eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
 
 etrace()
 {
-    # This function returns as soon as it can decide that tracing should not
-    # happen.  If it makes its way to the end, then it finally does the tracing
-    # it must do.
+    # This function returns as soon as it can decide that tracing should not happen. If it makes its way to the end,
+    # then it finally does the tracing it must do.
 
     # Is tracing globally off?
     [[ ${ETRACE} == "" || ${ETRACE} == "0" ]] && return 0 || true
 
 
-    # Is tracing enabled, but not globally (i.e. now we check function and
-    # filenames)
+    # Is tracing enabled, but not globally (i.e. now we check function and filenames)
     if [[ ${ETRACE} != "1" ]]; then
 
         local should_be_enabled=0
@@ -68,8 +62,8 @@ etrace()
     fi
 
 
-    # Whether we got here because ETRACE=1 or because a function was
-    # specifically chosen, we still leave out blacklisted functions
+    # Whether we got here because ETRACE=1 or because a function was specifically chosen, we still leave out blacklisted
+    # functions
     if [[ ${FUNCNAME[1]} == ${ETRACE_BLACKLIST} ]] ; then
         return 0
     fi
@@ -100,8 +94,8 @@ edebug_enabled()
         filename=${BASH_SOURCE[$index]}
     fi
 
-    # If the edebug or etrace strings contain a word that matches the name of
-    # the function or filename, then edebug is on.
+    # If the edebug or etrace strings contain a word that matches the name of the function or filename, then edebug is
+    # on.
     local word
     for word in ${EDEBUG:-} ${ETRACE:-} ; do
         [[ "${caller}"   == *"${word}"* ]] && return 0
@@ -119,8 +113,7 @@ edebug_disabled()
 
 edebug()
 {
-    # Take input either from arguments or if no arguments were provided take input from
-    # standard input.
+    # Take input either from arguments or if no arguments were provided take input from standard input.
     local msg=""
     if [[ $# -gt 0 ]]; then
         msg="${@}"
@@ -129,14 +122,13 @@ edebug()
         [[ -z ${msg} ]] && return 0
     fi
 
-    # If debugging isn't enabled then simply return without writing anything.
-    # NOTE: We can't return at the top of this function in the event the caller has
-    # piped output into edebug. We have to consume their output so that they don't
+    # If debugging isn't enabled then simply return without writing anything. NOTE: We can't return at the top of this
+    # function in the event the caller has piped output into edebug. We have to consume their output so that they don't
     # get an error or block.
     edebug_enabled || return 0
 
-    # Force caller to be in edebug output because it's helpful and if you
-    # turned on edebug, you probably want to know anyway
+    # Force caller to be in edebug output because it's helpful and if you turned on edebug, you probably want to know
+    # anyway
     EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "${COLOR_DEBUG}" "" "DEBUG" "${msg}"
 }
 
@@ -145,17 +137,20 @@ edebug_out()
     edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
-# Check if we are "interactive" or not. For our purposes, we are interactive
-# if STDERR is attached to a terminal or not. This is checked via the bash
-# idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default
-# check with the global variable EINTERACTIVE=1.
+#opt_usage einteractive <<'END'
+#Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
+#This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
+#global variable EINTERACTIVE=1.
+#END
 einteractive()
 {
     [[ ${EINTERACTIVE:-0} -eq 1 ]] && return 0
     [[ -t 2 ]]
 }
 
-# Get einteractive value as a boolean string
+#opt_usage einteractive_as_bool <<'END'
+#Get einteractive value as a boolean string
+#END
 einteractive_as_bool()
 {
     if einteractive; then
@@ -252,8 +247,10 @@ ecolor_code()
    return 0
 }
 
-# Determine value to use for efuncs_color.
-# If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
+#opt_usage efuncs_color <<'END'
+#Determine value to use for efuncs_color.
+#If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
+#END
 efuncs_color()
 {
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
@@ -265,7 +262,9 @@ efuncs_color()
     [[ ${value} -eq 1 ]]
 }
 
-# Get efuncs_color as a boolean string.
+#opt_usage efuncs_color_as_bool <<'END'
+#Get efuncs_color as a boolean string.
+#END
 efuncs_color_as_bool()
 {
     if efuncs_color; then
@@ -317,13 +316,12 @@ ecolor_internal()
 }
 
 opt_usage noansi<<'END'
-Noansi filters out ansi characters such as color codes.  It can modify files in place if you specify
-any.  If you do not, it will assume that you'd like it to operate on stdin and repeat the modified
-output to stdout.
+Noansi filters out ansi characters such as color codes. It can modify files in place if you specify any. If you do not,
+it will assume that you'd like it to operate on stdin and repeat the modified output to stdout.
 END
 noansi()
 {
-    $(opt_parse "@files | Files to modify.  If none are specified, operate on stdin and spew to stdout.")
+    $(opt_parse "@files | Files to modify. If none are specified, operate on stdin and spew to stdout.")
 
     if array_empty files ; then
         sed "s:\x1B\[[0-9;]*[mK]::g"
@@ -472,9 +470,8 @@ emsg()
             informative_header=1
         fi
 
-        # Print the "informative header" containing things like timestamp, calling
-        # function, etc.  We choose which ones to print based on the contents of
-        # EMSG_PREFIX and which ones to color based on the value of EMSG_COLOR
+        # Print the "informative header" containing things like timestamp, calling function, etc. We choose which ones
+        # to print based on the contents of EMSG_PREFIX and which ones to color based on the value of EMSG_COLOR
         if [[ ${informative_header} == 1 && ${level} != @(INFOS|WARNS) ]] ; then
             ecolor $color
             echo -n "["
@@ -527,15 +524,13 @@ emsg()
             echo -n "] "
 
         else
-            # If not the informative header, just use the message-type-specific
-            # header passed as an argument to emsg
+            # If not the informative header, just use the message-type-specific header passed as an argument to emsg
             ecolor $color
             echo -n "${header} "
         fi
 
         declare msg_color=1
-        # If EMSG_COLOR doesn't say to color the message turn off color before
-        # we start printing it
+        # If EMSG_COLOR doesn't say to color the message turn off color before we start printing it
         [[ ! ${EMSG_COLOR} =~ ${EBASH_WORD_BEGIN}(all|msg)${EBASH_WORD_END} ]] && { msg_color=0 ; ecolor reset ; }
 
         # Also, only print colored messages for certain levels
@@ -550,8 +545,10 @@ emsg()
     } >&2
 }
 
-# Wrapper around tput to suppress and swallow errors. This is because tput is used only for formatting for console
-# output and should never cause an actual failure.
+#opt_usage tput <<'END'
+#Wrapper around tput to suppress and swallow errors. This is because tput is used only for formatting for console
+#output and should never cause an actual failure.
+#END
 tput()
 {
     command tput $@ 2>/dev/null || true
@@ -594,18 +591,17 @@ etestmsg()
 }
 
 opt_usage eerror_stacktrace <<'END'
-Print an error stacktrace to stderr.  This is like stacktrace only it pretty prints the entire
-stacktrace as a bright red error message with the funct and file:line number nicely formatted for
-easily display of fatal errors.
+Print an error stacktrace to stderr. This is like stacktrace only it pretty prints the entire stacktrace as a bright red
+error message with the funct and file:line number nicely formatted for easily display of fatal errors.
 
-Allows you to optionally pass in a starting frame to start the stacktrace at. 0 is the top of the
-stack and counts up. See also stacktrace and eerror_stacktrace.
+Allows you to optionally pass in a starting frame to start the stacktrace at. 0 is the top of the stack and counts up.
+See also stacktrace and eerror_stacktrace.
 END
 eerror_stacktrace()
 {
     $(opt_parse \
-        ":frame f=2              | Frame number to start at.  Defaults to 2, which skips this function and its caller." \
-        "+skip s                 | Skip the initial error message.  Useful if the caller already displayed it." \
+        ":frame f=2              | Frame number to start at. Defaults to 2, which skips this function and its caller." \
+        "+skip s                 | Skip the initial error message. Useful if the caller already displayed it." \
         ":color c=${COLOR_ERROR} | Use the specified color for output messages.")
 
     if [[ ${skip} -eq 0 ]]; then
@@ -688,8 +684,7 @@ eend()
 
     if einteractive; then
         # Terminal magic that:
-        #    1) Gets the number of columns on the screen, minus 6 because that's
-        #       how many we're about to output
+        #    1) Gets the number of columns on the screen, minus 6 because that's how many we're about to output
         #    2) Moves up a line
         #    3) Moves right the number of columns from #1
         local colums=0 startcol=0
@@ -715,16 +710,16 @@ spinout()
 eprogress()
 {
     $(opt_parse \
-        ":file f      | A file whose contents should be continually updated and displayed along with
-                        the ticker. This file will be deleted by default when eprogress is complete." \
+        ":file f      | A file whose contents should be continually updated and displayed along with the ticker. This
+                        file will be deleted by default when eprogress is complete." \
         "+delete d=1  | Delete file when eprogress completes if one was specified via --file option." \
-        "+time=1      | As long as not turned off with --no-time, the amount of time since eprogress
-                        start will be displayed next to the ticker." \
-        ":style=einfo | Style used when displaying the message.  You might want to use, for
-                        instance, einfos or ewarn or eerror instead." \
+        "+time=1      | As long as not turned off with --no-time, the amount of time since eprogress start will be
+                        displayed next to the ticker." \
+        ":style=einfo | Style used when displaying the message. You might want to use, for instance, einfos or ewarn or
+                        eerror instead." \
         ":align=left  | Where to align the tickker to (valid options are 'left' and 'right')." \
-        "@message     | A message to be displayed once prior to showing a time ticker.  This will
-                        occur before the file contents if you also use --file.")
+        "@message     | A message to be displayed once prior to showing a time ticker. This will occur before the file
+                        contents if you also use --file.")
 
     assert_match "${align}" "(left|right)"
 
@@ -747,7 +742,7 @@ eprogress()
         # Close any file descriptors our parent had open.
         close_fds
 
-        # Don't produce any errors when tools here catch a signal.  That's what we expect to happen
+        # Don't produce any errors when tools here catch a signal. That's what we expect to happen
         nodie_on_error
 
         # Sentinal for breaking out of the loop on signal from eprogress_kill
@@ -831,8 +826,8 @@ eprogress()
 }
 
 opt_usage eprogress_kill <<'END'
-Kill the most recent eprogress in the event multiple ones are queued up. Can optionally pass in a
-specific list of eprogress pids to kill.
+Kill the most recent eprogress in the event multiple ones are queued up. Can optionally pass in a specific list of
+eprogress pids to kill.
 END
 eprogress_kill()
 {
@@ -846,8 +841,7 @@ eprogress_kill()
         return 0
     fi
 
-    # If given a list of pids, kill each one. Otherwise kill most recent.
-    # If there's nothing to kill just return.
+    # If given a list of pids, kill each one. Otherwise kill most recent. If there's nothing to kill just return.
     local pids=()
     if [[ $# -gt 0 ]]; then
         pids=( ${@} )
@@ -865,9 +859,8 @@ eprogress_kill()
     local pid
     for pid in ${pids[@]}; do
 
-        # Don't kill the pid if it's not running or it's not an eprogress pid.
-        # This catches potentially disasterous errors where someone would do
-        # "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
+        # Don't kill the pid if it's not running or it's not an eprogress pid. This catches potentially disasterous
+        # errors where someone would do "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
         if process_not_running ${pid} || ! array_contains __EBASH_EPROGRESS_PIDS ${pid}; then
             continue
         fi
@@ -885,30 +878,28 @@ eprogress_kill()
     return 0
 }
 
-# Print the value for the corresponding variable using a slightly modified
-# version of what is returned by declare -p. This is the lower level function
-# called by lval in order to easily print tag=value for the provided arguments
-# to lval. The type of the variable will dictate the delimiter used around the
-# value portion. Wherever possible this is meant to generally mimic how the
-# types are declared and defined.
-#
-# Specifically:
-#
-# - Strings: delimited by double quotes.
-# - Arrays and associative arrays: Delimited by ( ).
-# - Packs: You must preceed the pack name with a percent sign (i.e. %pack)
-#
-# Examples:
-# String: "value1"
-# Arrays: ("value1" "value2 with spaces" "another")
-# Associative Arrays: ([key1]="value1" [key2]="value2 with spaces" )
+opt_usage print_value <<'END'
+Print the value for the corresponding variable using a slightly modified version of what is returned by declare -p. This
+is the lower level function called by lval in order to easily print tag=value for the provided arguments to lval. The
+type of the variable will dictate the delimiter used around the value portion. Wherever possible this is meant to
+generally mimic how the types are declared and defined.
+
+Specifically:
+  1) Strings: delimited by double quotes.
+  2) Arrays and associative arrays: Delimited by ( ).
+  3) Packs: You must preceed the pack name with a percent sign (i.e. %pack)
+
+Examples:
+  1) String: "value1"
+  2) Arrays: ("value1" "value2 with spaces" "another")
+  3) Associative Arrays: ([key1]="value1" [key2]="value2 with spaces" )
+END
 print_value()
 {
     local __input=${1:-}
     [[ -z ${__input} ]] && return 0
 
-    # Special handling for packs, as long as their name is specified with a
-    # '%' character in front of it
+    # Special handling for packs, as long as their name is specified with a '%' character in front of it
     if [[ "${__input:0:1}" == '%' ]] ; then
         pack_print "${__input:1}"
         return 0
@@ -945,17 +936,17 @@ print_value()
     echo -n "${val}"
 }
 
-# Log a list of variable in tag="value" form similar to our C++ logging idiom.
-# This function is variadic (takes variable number of arguments) and will log
-# the tag="value" for each of them. If multiple arguments are given, they will
-# be separated by a space, as in: tag="value" tag2="value2" tag3="value3"
-#
-# This is implemented via calling print_value on each entry in the argument
-# list. The one other really handy thing this does is understand our C++
-# LVAL2 idiom where you want to log something with a _different_ key. So
-# you can say nice things like:
-#
-# $(lval PWD=$(pwd) VARS=myuglylocalvariablename)
+opt_usage lval <<'END'
+Log a list of variable in tag="value" form similar to our C++ logging idiom. This function is variadic (takes variable
+number of arguments) and will log the tag="value" for each of them. If multiple arguments are given, they will be
+separated by a space, as in: tag="value" tag2="value2" tag3="value3"
+
+This is implemented via calling print_value on each entry in the argument list. The one other really handy thing this
+does is understand our C++ LVAL2 idiom where you want to log something with a _different_ key. So you can say nice
+things like:
+
+$(lval PWD=$(pwd) VARS=myuglylocalvariablename)
+END
 lval()
 {
     local __lval_pre=""

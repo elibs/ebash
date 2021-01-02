@@ -7,8 +7,8 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# DT-373: Dialog doesn't work properly on OSX and Ubuntu 12.04. The version of dialog on Darwin does not properly
-# handle EBASH_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
+# DT-373: Dialog doesn't work properly on OSX and Ubuntu 12.04. The version of dialog on Darwin does not properly handle
+# EBASH_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
 # version of dialog and it is missing required flags --default-button and --default-item. This check will exclude these
 # two OSes completely so the code doesn't get included at all. This means we don't have to check for support in all the
 # dialog functions as they won't be emitted or callable at all.
@@ -26,8 +26,8 @@ DIALOG_ESC=255
 
 dialog_load()
 {
-    # Constants used for various arrow keys. Some of these are standard across all TERMs (TAB, ESC, ENTER, BACKSPACE and DELETE)
-    # but the arrow keys are not. So we have to look those up dynamically.
+    # Constants used for various arrow keys. Some of these are standard across all TERMs (TAB, ESC, ENTER, BACKSPACE and
+    # DELETE) but the arrow keys are not. So we have to look those up dynamically.
     EBASH_KEY_UP=$(tput kcuu1)
     EBASH_KEY_DOWN=$(tput kcud1)
     EBASH_KEY_RIGHT=$(tput kcuf1)
@@ -100,11 +100,11 @@ dialog_prgbox()
 }
 
 opt_usage dialog_read <<'END'
-Helper function for dialog_prompt to try to read a character from stdin. Unfortunately some arrow keys and other
-control characters are represented as multi-byte characters (see EBASH_KEY_UP, EBASH_KEY_RIGHT, EBASH_KEY_DOWN, EBASH_KEY_RIGHT,
-EBASH_KEY_DELETE, EBASH_KEY_BACKSPACE). So this function helps by reading a character and checking if it looks like the start
-of a multi-byte control character. If so, it will read the next character and so on until it has read the required 4
-characters to know if it is indeed a multi-byte control character or not.
+Helper function for dialog_prompt to try to read a character from stdin. Unfortunately some arrow keys and other control
+characters are represented as multi-byte characters (see EBASH_KEY_UP, EBASH_KEY_RIGHT, EBASH_KEY_DOWN, EBASH_KEY_RIGHT,
+EBASH_KEY_DELETE, EBASH_KEY_BACKSPACE). So this function helps by reading a character and checking if it looks like the
+start of a multi-byte control character. If so, it will read the next character and so on until it has read the required
+4 characters to know if it is indeed a multi-byte control character or not.
 END
 dialog_read()
 {
@@ -179,11 +179,11 @@ dialog_prompt()
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     #
-    # Command substitution really can only run one big command.  In other words, everything after the first command
-    # inside it is passed as an argument to the first command.  But you can separate multiple commands by semicolons
+    # Command substitution really can only run one big command. In other words, everything after the first command
+    # inside it is passed as an argument to the first command. But you can separate multiple commands by semicolons
     # inside an eval, so we put an eval around the entire output of dialog_prompt.
     #
-    # Later we also put eval around the inside commands.  We basically quote everything twice and then make up for it by
+    # Later we also put eval around the inside commands. We basically quote everything twice and then make up for it by
     # eval-ing twice in order to convince everything to keep whitespace as it is.
     echo eval
 
@@ -565,11 +565,11 @@ dialog_prompt_username_password()
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     #
-    # Command substitution really can only run one big command.  In other words, everything after the first command
-    # inside it is passed as an argument to the first command.  But you can separate multiple commands by semicolons
+    # Command substitution really can only run one big command. In other words, everything after the first command
+    # inside it is passed as an argument to the first command. But you can separate multiple commands by semicolons
     # inside an eval, so we put an eval around the entire output of dialog_prompt.
     #
-    # Later we also put eval around the inside commands.  We basically quote everything twice and then make up for it by
+    # Later we also put eval around the inside commands. We basically quote everything twice and then make up for it by
     # eval-ing twice in order to convince everything to keep whitespace as it is.
     echo eval
     local username=""
@@ -610,8 +610,10 @@ dialog_prompt_username_password()
     done
 }
 
-# This function separates the UI from the business logic of the username/password function.
-# This allows us to unit test the business logic without user interaction.
+opt_usage dialog_prompt_username_password_UI <<'END'
+This function separates the UI from the business logic of the username/password function. This allows us to unit test
+the business logic without user interaction.
+END
 dialog_prompt_username_password_UI()
 {
     $(opt_parse \

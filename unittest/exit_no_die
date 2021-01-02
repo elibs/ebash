@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -9,12 +9,11 @@
 
 $(${EBASH_HOME}/bin/ebash --source)
 
-#-------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 # SANITY TEST EXPLICITLY CALLING EXIT TO ENSURE DIE IS NOT CALLED
-# 
-# NOTE: This is intentionally NOT an etest.  This script must be run in its
-# own TOP-LEVEL shell.
-#-------------------------------------------------------------------------------------------------------------------------
+#
+# NOTE: This is intentionally NOT an etest.  This script must be run in its own TOP-LEVEL shell.
+#-----------------------------------------------------------------------------------------------------------------------
 
 # Create a script to run
 OUTPUT=$(mktemp --tmpdir etest-output-txt-XXXXXX)
@@ -30,7 +29,7 @@ die_handler()
     # Die handler should NOT GET CALLED so if it is FAIL.
     edebug "DIE_HANDLER called"
     echo "DIE" >> "${OUTPUT}"
-    
+
     exit 1
 }
 
@@ -40,8 +39,8 @@ exit 5
 EOF
 chmod +x ${SCRIPT}
 
-# Run the script we created above - have to disable die_on_error or else we'd
-# blow up here since the script exits with non-zero.
+# Run the script we created above - have to disable die_on_error or else we'd blow up here since the script exits with
+# non-zero.
 nodie_on_error
 ${SCRIPT}
 rc=$?

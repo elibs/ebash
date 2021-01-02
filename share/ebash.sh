@@ -23,7 +23,7 @@
 # In some rare circumstances we may be running under a non-bash shell need to switch over to bash before we can proceed.
 #
 # This can happen if we are invoked through some other interpeter such as via `sh bin/ebash` or `bash bin/ebash.sh`
-# rather than directly calling `bin/ebash`.  When invoked that way, ebash becaomes a parameter of `sh` and bash never
+# rather than directly calling `bin/ebash`. When invoked that way, ebash becaomes a parameter of `sh` and bash never
 # gets invoked. This prevents ebash from being setup and executing properly. We solve this by simply checking if we're
 # running inside a native BASH context and if we are not, we simply execute bash directly with our script as a parameter
 # as well as any arguments we were passed.
@@ -86,16 +86,15 @@ opt_usage()
     fi
 }
 
-
-# PLATFORM MUST BE FIRST.  It sets up aliases.  Those aliases won't be expanded inside functions that are already
+# PLATFORM MUST BE FIRST. It sets up aliases. Those aliases won't be expanded inside functions that are already
 # declared, only inside those declared after this.
 source "${EBASH}/platform.sh"
 
 # Efuncs needs to be soon after to define a few critical aliases such as try/catch before sourcing everything else
 source "${EBASH}/efuncs.sh"
 
-# opt_parse and os modules are used extensively throughout some of the other modules we're going to source. We need
-# os in particular in all of these modules so that we can intelligently exclude certain modules from inclusion for
+# opt_parse and os modules are used extensively throughout some of the other modules we're going to source. We need os
+# in particular in all of these modules so that we can intelligently exclude certain modules from inclusion for
 # particular OSes or distros.
 source "${EBASH}/opt.sh"
 source "${EBASH}/os.sh"
