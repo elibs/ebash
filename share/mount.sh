@@ -24,7 +24,9 @@ emount_realpath()
     fi
 }
 
-opt_usage emount_regex "Echo the emount regex for a given path"
+opt_usage emount_regex <<'END'
+Echo the emount regex for a given path.
+END
 emount_regex()
 {
     $(opt_parse path)
@@ -35,14 +37,18 @@ emount_regex()
     echo -n "(^| )(${path}|${rpath})(\\\\040\\(deleted\\))* "
 }
 
-opt_usage emount_count "Echo the number of times a given directory is mounted."
+opt_usage emount_count <<'END'
+Echo the number of times a given directory is mounted.
+END
 emount_count()
 {
     $(opt_parse path)
     list_mounts | grep --count --perl-regexp "$(emount_regex ${path})" || true
 }
 
-opt_usage emount_type "Get the mount type of a given mount point."
+opt_usage emount_type <<'END'
+Get the mount type of a given mount point.
+END
 emount_type()
 {
     $(opt_parse path)
@@ -357,7 +363,9 @@ eunmount()
     done
 }
 
-# Platform agnostic mechanism for listing mounts.
+opt_usage list_mounts <<'END'
+Platform agnostic mechanism for listing mounts.
+END
 list_mounts()
 {
     if [[ ${__EBASH_OS} == Linux ]] ; then

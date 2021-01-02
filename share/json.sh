@@ -88,7 +88,9 @@ associative_array_to_json()
     echo -n "}"
 }
 
-# Convert a single pack into a json blob where the keys are the same as the keys from the pack (and so are the values)
+opt_usage pack_to_json <<'END'
+Convert a single pack into a json blob where the keys are the same as the keys from the pack (and so are the values)
+END
 pack_to_json()
 {
     [[ -z ${1} ]] && die "pack_to_json requires a pack to be specified as \$1"
@@ -104,9 +106,11 @@ pack_to_json()
     echo -n "}"
 }
 
-# Escape an arbitrary string (specified as $1) so that it is quoted and safe to put inside json. This is done via a call
-# to jq with --raw-input which will cause it to emit a properly quoted and escaped string that is safe to use inside
-# json.
+opt_usage json_escape <<'END'
+Escape an arbitrary string (specified as $1) so that it is quoted and safe to put inside json. This is done via a call
+to jq with --raw-input which will cause it to emit a properly quoted and escaped string that is safe to use inside
+json.
+END
 json_escape()
 {
     # Newer jq has a -j flag to join newlines into a single flat string.  To workaround the lack of this flag in older

@@ -137,16 +137,20 @@ edebug_out()
     edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
-# Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
-# This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
-# global variable EINTERACTIVE=1.
+#opt_usage einteractive <<'END'
+#Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
+#This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
+#global variable EINTERACTIVE=1.
+#END
 einteractive()
 {
     [[ ${EINTERACTIVE:-0} -eq 1 ]] && return 0
     [[ -t 2 ]]
 }
 
-# Get einteractive value as a boolean string
+#opt_usage einteractive_as_bool <<'END'
+#Get einteractive value as a boolean string
+#END
 einteractive_as_bool()
 {
     if einteractive; then
@@ -243,8 +247,10 @@ ecolor_code()
    return 0
 }
 
-# Determine value to use for efuncs_color.
-# If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
+#opt_usage efuncs_color <<'END'
+#Determine value to use for efuncs_color.
+#If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
+#END
 efuncs_color()
 {
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
@@ -256,7 +262,9 @@ efuncs_color()
     [[ ${value} -eq 1 ]]
 }
 
-# Get efuncs_color as a boolean string.
+#opt_usage efuncs_color_as_bool <<'END'
+#Get efuncs_color as a boolean string.
+#END
 efuncs_color_as_bool()
 {
     if efuncs_color; then
@@ -537,8 +545,10 @@ emsg()
     } >&2
 }
 
-# Wrapper around tput to suppress and swallow errors. This is because tput is used only for formatting for console
-# output and should never cause an actual failure.
+#opt_usage tput <<'END'
+#Wrapper around tput to suppress and swallow errors. This is because tput is used only for formatting for console
+#output and should never cause an actual failure.
+#END
 tput()
 {
     command tput $@ 2>/dev/null || true

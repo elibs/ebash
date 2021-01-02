@@ -423,16 +423,20 @@ daemon_status()
     return 0
 }
 
-# Check if the daemon is running. This is just a convenience wrapper around
-# "daemon_status -q". This is a little more convenient to use in scripts where you
-# only care if it's running and don't want to have to suppress all the output from
-# daemon_status.
+opt_usage daemon_running <<'END'
+Check if the daemon is running. This is just a convenience wrapper around
+"daemon_status -q". This is a little more convenient to use in scripts where you
+only care if it's running and don't want to have to suppress all the output from
+daemon_status.
+END
 daemon_running()
 {
     daemon_status -q "${@}"
 }
 
-# Check if the daemon is not running
+opt_usage daemon_not_running <<'END'
+Check if the daemon is not running
+END
 daemon_not_running()
 {
     $(tryrc daemon_status -q "${@}")

@@ -11,7 +11,9 @@
 
 EBASH_NETNS_DIR="/run/netns"
 
-opt_usage netns_supported "check which network namespace features are supported"
+opt_usage netns_supported <<'END'
+Check which network namespace features are supported.
+END
 netns_supported()
 {
     $(opt_parse "?area=all")
@@ -37,7 +39,9 @@ netns_supported()
     return 0
 }
 
-opt_usage netns_create "Idempotent create a network namespace"
+opt_usage netns_create <<'END'
+Idempotent create a network namespace.
+END
 netns_create()
 {
     $(opt_parse ns_name)
@@ -49,7 +53,9 @@ netns_create()
     netns_exec "${ns_name}" ip link set dev lo up
 }
 
-opt_usage netns_delete "Idempotent delete a network namespace"
+opt_usage netns_delete <<'END'
+Idempotent delete a network namespace.
+END
 netns_delete()
 {
     $(opt_parse ns_name)
@@ -61,20 +67,26 @@ netns_delete()
     ip netns delete "${ns_name}"
 }
 
-opt_usage netns_exec "Execute a command in the given network namespace"
+opt_usage netns_exec <<'END'
+Execute a command in the given network namespace.
+END
 netns_exec()
 {
     $(opt_parse ns_name)
     ip netns exec "${ns_name}" "$@"
 }
 
-opt_usage netns_list "Get a list of network namespaces"
+opt_usage netns_list <<'END'
+Get a list of network namespaces.
+END
 netns_list()
 {
     ip netns list | sort
 }
 
-opt_usage netns_exists "Check if a network namespace exists"
+opt_usage netns_exists <<'END'
+Check if a network namespace exists.
+END
 netns_exists()
 {
     $(opt_parse ns_name)
@@ -159,7 +171,9 @@ netns_check_pack()
     fi
 }
 
-opt_usage netns_chroot_exec "Run a command in a netns chroot that already exists"
+opt_usage netns_chroot_exec <<'END'
+Run a command in a netns chroot that already exists.
+END
 netns_chroot_exec()
 {
     $(opt_parse \

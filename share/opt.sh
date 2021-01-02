@@ -14,7 +14,7 @@ opt_parse
 Terminology
 -----------
 
-First a quick bit of background on the terminology used for ebash parameter parsing.  Different well-meaning folks use
+First a quick bit of background on the terminology used for ebash parameter parsing. Different well-meaning folks use
 different terms for the same things, but these are the definitions as they apply within ebash documentation.
 
 First, here's an example command line you might use to search for lines that do not contain "alpha" within a file named
@@ -22,22 +22,22 @@ First, here's an example command line you might use to search for lines that do 
 
     grep --word-regexp -v alpha somefile
 
-In this case --word-regexp and -v are _options_.  That is to say, they're optional flags to the command whose names
-start with hyphens.  Options follow the GNU style in that single character options have one hyphen before their name,
+In this case --word-regexp and -v are _options_. That is to say, they're optional flags to the command whose names
+start with hyphens. Options follow the GNU style in that single character options have one hyphen before their name,
 while long options have two hyphens before their name.
 
 Typically, a single functionality within a tool can be controlled by the caller's choice of either a long option or a
-short option.  For instance, grep considers -v and --invert to be equivalent options.
+short option. For instance, grep considers -v and --invert to be equivalent options.
 
-_Arguments_ are the positional things that must occur on the command line following all of the options.  If you're ever
-concerned that there could be ambiguity, you can explicitly separate the two with a pair of hyphens on their own.  The
+_Arguments_ are the positional things that must occur on the command line following all of the options. If you're ever
+concerned that there could be ambiguity, you can explicitly separate the two with a pair of hyphens on their own. The
 following is equivalent to the first example.
 
     grep --word-regex -v -- alpha somefile
 
 
-To add to the confusing terminology, some options accept their own arguments.  For example, grep can limit the number of
-matches with the --max-count option.  This will print the first line in somefile that matches alpha.
+To add to the confusing terminology, some options accept their own arguments. For example, grep can limit the number of
+matches with the --max-count option. This will print the first line in somefile that matches alpha.
 
     grep --max-count 1 alpha somefile.
 
@@ -47,7 +47,7 @@ So we say that if --max-count is specified, it requires an _argument_.
 Arguments
 ---------
 
-The simplest functions frequently just take an argument or two.  We discovered early in the life of ebash a frequent
+The simplest functions frequently just take an argument or two. We discovered early in the life of ebash a frequent
 pattern:
 
     foo()
@@ -60,14 +60,14 @@ pattern:
         # Do some stuff here with ${arg1} and ${arg2}
     }
 
-But we wanted to make it more concise. Enter opt_parse.  This is equivalent to those four lines of argument handling
-code in `foo()`.  That is, it creates two local variables (`arg1` and `arg2`) and then verifies that both of them are
+But we wanted to make it more concise. Enter opt_parse. This is equivalent to those four lines of argument handling
+code in `foo()`. That is, it creates two local variables (`arg1` and `arg2`) and then verifies that both of them are
 non-empty by calling `argcheck` on them.
 
     $(opt_parse arg1 arg2)
 
-As a best practice, we suggest documenting said arguments within the opt_parse declaration.  Note that each quoted
-string passed to opt_parse creates a single argument or option.  Pipe characters separate sections, and whitespace near
+As a best practice, we suggest documenting said arguments within the opt_parse declaration. Note that each quoted
+string passed to opt_parse creates a single argument or option. Pipe characters separate sections, and whitespace near
 the pipe characters is discarded. This, too, is equivalent.
 
     $(opt_parse \
@@ -75,7 +75,7 @@ the pipe characters is discarded. This, too, is equivalent.
         "arg2 | This is what arg2 means.")
 
 Note that `argcheck` in the original example ensures that your function will blow up if either `arg1` or `arg2` is
-empty.  This is pretty handy for bash functions, but not always what you want.  You can specify that a given argument
+empty. This is pretty handy for bash functions, but not always what you want. You can specify that a given argument
 _may_ be empty by putting a question mark before its name.
 
     $(opt_parse \
@@ -95,23 +95,23 @@ Note that having a default value is a separate concern from the check that verif
         "c=1  | Default is 1, if called with '', will blow up" \
         "?d=1 | Default is 1, will still be happy if '' is specified")
 
-But maybe you need a variable number of arguments.  Opt_parse always passes those back as $@, but you can request that
-they be put in an array for you.  The biggest benefit is that you can add a docstring which will be included in the
-generated help statement.  For example:
+But maybe you need a variable number of arguments. Opt_parse always passes those back as $@, but you can request that
+they be put in an array for you. The biggest benefit is that you can add a docstring which will be included in the
+generated help statement. For example:
 
     $(opt_parse \
         "first  | This will get the first thing passed on the command line" \
         "@rest  | This will get everything after that.")
 
 This will create a standard bash array named "rest" that will contain all of the items remaining on the command line
-after other arguments are consumed.  This may be zero or more, opt_parse does no valiation on the number .  Note that
+after other arguments are consumed. This may be zero or more, opt_parse does no valiation on the number . Note that
 you may only use this in the final argument position.
 
 
 Options
 --------
 
-Options are specified in a similar form to arguments.  The biggest difference is that options may have multiple names.
+Options are specified in a similar form to arguments. The biggest difference is that options may have multiple names.
 Both short and long options are supported.
 
     $(opt_parse \
@@ -122,10 +122,10 @@ Both short and long options are supported.
     [[ ${invert}     -eq 1 ]] && # do stuff for inverting
 
 
-As with arguments, `opt_parse` creates a local variable for each option.  The name of that variable is always the
+As with arguments, `opt_parse` creates a local variable for each option. The name of that variable is always the
 _first_ name given.
 
-This means that -w and --word-regex are equivalent, and so are --invert and -v.  Note that there's a translation here in
+This means that -w and --word-regex are equivalent, and so are --invert and -v. Note that there's a translation here in
 the name of the option. By convention, words are separated with hyphens in option names, but hyphens are not allowed to
 be characters in bash variables, so we use underscores in the variable name and automatically translate that to a hyphen
 in the option name.
@@ -136,18 +136,18 @@ At present, ebash supports two different types of options: boolean and string.
 Boolean Options
 ---------------
 
-Word_regex and invert in the example above are both boolean options.  That is, they're either on the command line (in
+Word_regex and invert in the example above are both boolean options. That is, they're either on the command line (in
 which case opt_parse assigns 1 to the variable) or not on the command line (in which case opt_parse assigns 0 to the
 variable).
 
 You can also be explicit about the value you'd like to choose for an option by specifying =0 or =1 at the end of the
-option.  For instance, these are equivalent and would enable the word_regex option and disable the invert option.
+option. For instance, these are equivalent and would enable the word_regex option and disable the invert option.
 
     cmd --invert=0 --word-regex=1
     cmd -i=0 -w=1
 
-Note that these two options are considered to be boolean.  Either they were specified on the command line or they were
-not.  When specified, the value of the variable will be 1, when not specified it will be zero.
+Note that these two options are considered to be boolean. Either they were specified on the command line or they were
+not. When specified, the value of the variable will be 1, when not specified it will be zero.
 
 The long option versions of boolean options also implicitly support a negation by prepending the option name with no-.
 For example, this is also equivalent to the above examples.
@@ -158,8 +158,8 @@ For example, this is also equivalent to the above examples.
 String Options
 --------------
 
-Opt_parse also supports options whose value is a string.  When specified on the command line, these _require_ an
-argument, even if it is an empty string.  In order to get a string option, you prepend its name with a colon character.
+Opt_parse also supports options whose value is a string. When specified on the command line, these _require_ an
+argument, even if it is an empty string. In order to get a string option, you prepend its name with a colon character.
 
     func()
     {
@@ -182,7 +182,7 @@ Accumulator Values
 ------------------
 
 Opt parse also supports the ability to accumulate string values into an array when the option is given multiple times.
-In order to use an accumulator, you prepend its name with an ampersand character.  The values placed into an accumulated
+In order to use an accumulator, you prepend its name with an ampersand character. The values placed into an accumulated
 array cannot contain a newline character.
 
     func()
@@ -218,11 +218,11 @@ return successfully after printing this usage statement.
 END
 opt_parse()
 {
-    # An interesting but non-obvious trick is being played here.  Opt_parse_setup is called during the opt_parse call,
-    # and it sets up some variables (such as __EBASH_OPT and __EBASH_ARG).  Since they're already created, when we eval
+    # An interesting but non-obvious trick is being played here. Opt_parse_setup is called during the opt_parse call,
+    # and it sets up some variables (such as __EBASH_OPT and __EBASH_ARG). Since they're already created, when we eval
     # the calls to opt_parse_options and opt_parse_arguments, we can modify those variables and pass them amongst the
-    # internals of opt_parse.  This makes it easier to write the more complicated stuff in literal functions.  Then we
-    # can limit the size of the blocks of code that have to be "echo"-ed out for the caller to execute.  Much simpler to
+    # internals of opt_parse. This makes it easier to write the more complicated stuff in literal functions. Then we
+    # can limit the size of the blocks of code that have to be "echo"-ed out for the caller to execute. Much simpler to
     # get them to call a function (but of course that function can't create local variables for them).
     echo "eval "
     opt_parse_setup "${@}"
@@ -299,22 +299,22 @@ opt_parse_setup()
 
         local complete_arg=$1 ; shift
 
-        # Arguments to opt_parse may contain two things, separated by a pipe character.  First is opt_definition.  This
+        # Arguments to opt_parse may contain two things, separated by a pipe character. First is opt_definition. This
         # is all of the information about the argument that opt_parse uses to read it out of the command line arguments
-        # passed to your function.  The second is the docstring which is used only for documentation purposes.
+        # passed to your function. The second is the docstring which is used only for documentation purposes.
         #
-        # IMPLEMENTATION NOTE: This is a BIG FAT PERFORMANCE HOTSPOT inside ebash.  Think of how many functions use
-        # opt_parse.  And this splitting into opt_definition and docstring must process all of the code lines that are
-        # passed in to opt_parse.  Every time.  Later lines in this function typically just handle bits and pieces of
+        # IMPLEMENTATION NOTE: This is a BIG FAT PERFORMANCE HOTSPOT inside ebash. Think of how many functions use
+        # opt_parse. And this splitting into opt_definition and docstring must process all of the code lines that are
+        # passed in to opt_parse. Every time. Later lines in this function typically just handle bits and pieces of
         # the opt_definition which is much smaller so they're not as important to performance.
         #
-        # This implementation is on par with the original regex-based implementation.  Both of those are somewhat faster
+        # This implementation is on par with the original regex-based implementation. Both of those are somewhat faster
         # than an implementation based on IFS and read on bash 4.3 as of 2016-05.09.
         local opt_definition=${complete_arg%%|*}
         opt_definition=${opt_definition##+([[:space:]])}
         local docstring=${complete_arg##*|}
 
-        [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Option definition is empty."
+        [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax. Option definition is empty."
 
         # Make sure this option definition looks right
         [[ ${opt_definition} =~ ^([+:&?@])?([^=]+)(=.*)?$ ]]
@@ -336,7 +336,7 @@ opt_parse_setup()
 
         # It must be non-empty and must not contain hyphens (because hyphens
         # are not allowed in bash variable names)
-        [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax.  Name is empty."
+        [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax. Name is empty."
         [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: name ${canonical} is not allowed to contain hyphens."
 
         # None of the option names are allowed override help, which is provided
@@ -361,7 +361,7 @@ opt_parse_setup()
                 opt_type="boolean"
 
                 # Boolean options implicitly get a version whose name starts with
-                # no- that is a negation of the option.  Adjust the name regex.
+                # no- that is a negation of the option. Adjust the name regex.
                 name_regex=${name_regex/^/^\(no_\)?}
 
                 # And forbid double-negative options
@@ -430,7 +430,7 @@ opt_parse_setup()
 
 opt_parse_options()
 {
-    # Odd idiom here to determine if there are no options because of bash 4.2/4.3/4.4 changing behavior.  See array_size
+    # Odd idiom here to determine if there are no options because of bash 4.2/4.3/4.4 changing behavior. See array_size
     # in array.sh for more info.
     if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 ]] ; then
 
@@ -578,7 +578,7 @@ opt_parse_options()
 
                 elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" ]] ; then
 
-                    # Boolean options may optionally be specified a value via -b=(0|1).  Take it if it's there.
+                    # Boolean options may optionally be specified a value via -b=(0|1). Take it if it's there.
                     if [[ -n ${has_arg} ]] ; then
                         __EBASH_OPT[$canonical]=${opt_arg}
                     else
@@ -607,7 +607,7 @@ opt_parse_options()
     # Assign to the __EBASH_ARGS array so that the opt_parse macro can make its contents the remaining set of arguments
     # in the calling function.
     #
-    # Odd idiom here to determine if this array contains anything because of bash 4.2/4.3/4.4 changing behavior.  See
+    # Odd idiom here to determine if this array contains anything because of bash 4.2/4.3/4.4 changing behavior. See
     # array_size in array.sh for more info.
     if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then
         __EBASH_ARGS=( "${__EBASH_ARGS[@]:$shift_count}" )
@@ -673,7 +673,7 @@ opt_display_usage()
         # Finish the first line
         echo
 
-        # If there's a documentation block in memory for this function, display it.  (Note: these only get saved when
+        # If there's a documentation block in memory for this function, display it. (Note: these only get saved when
         # __EBASH_SAVE_DOC is set to 1 -- see ebash.sh)
         if [[ -n "${__EBASH_DOC[${FUNCNAME[1]:-}]:-}" ]] ; then
             printf -- "\n%s\n" "${__EBASH_DOC[${FUNCNAME[1]}]}"
@@ -765,7 +765,7 @@ opt_forward
 
 When you have a bunch of options that were passed into a function that wants to simply forward them into an internal
 function, it can be a little tedious to make the call to that internal function because you have to repeat all of the
-options and then read the value that the option of the same name was stored into.  For instance look at the foo_internal
+options and then read the value that the option of the same name was stored into. For instance look at the foo_internal
 call here, assuming it takes an identical set of options as foo.
 
     foo()
@@ -777,12 +777,12 @@ call here, assuming it takes an identical set of options as foo.
 
     }
 
-Of course, that only gets worse as you have more or as the names of your options get longer.  And if you quote it
+Of course, that only gets worse as you have more or as the names of your options get longer. And if you quote it
 incorrectly, it will continue to work until one of your options contains something weird like whitespace in which case
 it will probably fail subtly.
 
-`Opt_forward` exists simply to make this easier.  It knows how to forward options that were parsed by `opt_parse` to
-another function, quoting correctly.  You can use it like this
+`Opt_forward` exists simply to make this easier. It knows how to forward options that were parsed by `opt_parse` to
+another function, quoting correctly. You can use it like this
 
     opt_forward <command> <names of options to forward>+ [-- [other args]]
 
@@ -794,14 +794,14 @@ Or, if you needed to pass additional things to `foo_internal`, like this:
 
     opt_forward foo_internal a b c -- additional things
 
-You may find that the option has a different name in the function you'd like to forward to.  You can specify this by
-adding a colon followed by the name of the option in the function you're asking `opt_forward` to call.  For instance, if
+You may find that the option has a different name in the function you'd like to forward to. You can specify this by
+adding a colon followed by the name of the option in the function you're asking `opt_forward` to call. For instance, if
 the function you wanted to _call_ has options named X, Y, and Z.
 
     opt_forward foo_internal a:X b:Y c:Z
 
 Note that `opt_forward` is forgiving about the fact that we use underscores in variable names but options support
-hyphens.  You can pass option names in either form to `opt_forward`.
+hyphens. You can pass option names in either form to `opt_forward`.
 END
 opt_forward()
 {
@@ -813,13 +813,12 @@ opt_forward()
     while [[ $# -gt 0 ]] ; do
         local __option=$1 ; shift
 
-        # Keep processing things until --.  If we encounter that it means the caller wants to present more arguments or
+        # Keep processing things until --. If we encounter that it means the caller wants to present more arguments or
         # options that are not forwarded
         [[ ${__option} == "--" ]] && break
 
-
         # If there's no colon in the option name to be forwarded, then assume the option names match in this function
-        # and the other.  If there IS one, then use the first portion to be the name of the local variable, and the part
+        # and the other. If there IS one, then use the first portion to be the name of the local variable, and the part
         # after the colon to be the name of the option in the called function.
         local __local_name=${__option%%:*}
         local __called_name=${__option##*:}

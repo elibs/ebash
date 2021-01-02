@@ -7,11 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# edistro is a generic way to figure out what "distro" we are running on. This is largely only a Linux concept so on
-# MacOS this produces "darwin" as per `uname` output. Otherwise, Linux generically supports getting the Distro by
-# looking in `/etc/os-release`. This is lighter weight than having to ensure that lsb_release is installed on all
-# clients. If we have to, we'll fall back to lsb_release and finally just use raw `uname` output if nothing is
-# available.
+opt_usage edistro <<'END'
+edistro is a generic way to figure out what "distro" we are running on. This is largely only a Linux concept so on MacOS
+this produces "darwin" as per `uname` output. Otherwise, Linux generically supports getting the Distro by looking in
+`/etc/os-release`. This is lighter weight than having to ensure that lsb_release is installed on all clients. If we have
+to, we'll fall back to lsb_release and finally just use raw `uname` output if nothing is available.
+END
 edistro()
 {
     local name="" result=""
@@ -30,7 +31,7 @@ edistro()
     echo "${result,,}"
 }
 
-opt_usage os_distro<<'EOF'
+opt_usage os_distro <<'EOF'
 Get the name of the currently running distro, or check whether it is in a list of specified distros.
 EOF
 os_distro()
@@ -108,7 +109,6 @@ os_release()
     fi
 
 }
-
 
 opt_usage os <<'EOF'
 Get the unix name of the currently running OS, OR test it against a list of specified OSes returning success if it is in

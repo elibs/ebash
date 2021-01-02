@@ -52,7 +52,7 @@ pkg_known()
     esac
 }
 
-opt_usage pkg_gentoo_canonicalize<<'END'
+opt_usage pkg_gentoo_canonicalize <<'END'
 Takes as input a package name that may or may not have a category identifier on it.  If it does not have a category
 (e.g. app-misc or dev-util), then find the category that contains the specified package.
 
@@ -89,7 +89,7 @@ pkg_gentoo_canonicalize()
     fi
 }
 
-opt_usage pkg_installed<<'END'
+opt_usage pkg_installed <<'END'
 Returns success if the specified package has been installed on this machine and false if it has not.
 END
 pkg_installed()
@@ -179,7 +179,7 @@ pkg_install()
     esac
 }
 
-opt_usage pkg_uninstall<<'END'
+opt_usage pkg_uninstall <<'END'
 Use local package manager to remove any number of specified packages without prompting to ask any questions.
 END
 pkg_uninstall()
@@ -213,7 +213,7 @@ pkg_uninstall()
     esac
 }
 
-opt_usage pkg_sync<<'END'
+opt_usage pkg_sync <<'END'
 Sync the local package manager database with whatever remote repositories are known so that all packages known to those
 repositories are also known locally.
 END
@@ -246,7 +246,7 @@ pkg_sync()
     esac
 }
 
-opt_usage pkg_clean<<'END'
+opt_usage pkg_clean <<'END'
 Clean out the local package manager database cache and do anything else to the package manager to try to clean up any
 bad states it might be in.
 END
@@ -282,7 +282,7 @@ pkg_clean()
     pkg_sync
 }
 
-opt_usage pkg_upgrade<<'END'
+opt_usage pkg_upgrade <<'END'
 Replace the existing version of the specified package with the newest available package by that name.
 END
 pkg_upgrade()

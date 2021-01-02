@@ -179,11 +179,11 @@ dialog_prompt()
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     #
-    # Command substitution really can only run one big command.  In other words, everything after the first command
-    # inside it is passed as an argument to the first command.  But you can separate multiple commands by semicolons
+    # Command substitution really can only run one big command. In other words, everything after the first command
+    # inside it is passed as an argument to the first command. But you can separate multiple commands by semicolons
     # inside an eval, so we put an eval around the entire output of dialog_prompt.
     #
-    # Later we also put eval around the inside commands.  We basically quote everything twice and then make up for it by
+    # Later we also put eval around the inside commands. We basically quote everything twice and then make up for it by
     # eval-ing twice in order to convince everything to keep whitespace as it is.
     echo eval
 
@@ -565,11 +565,11 @@ dialog_prompt_username_password()
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     #
-    # Command substitution really can only run one big command.  In other words, everything after the first command
-    # inside it is passed as an argument to the first command.  But you can separate multiple commands by semicolons
+    # Command substitution really can only run one big command. In other words, everything after the first command
+    # inside it is passed as an argument to the first command. But you can separate multiple commands by semicolons
     # inside an eval, so we put an eval around the entire output of dialog_prompt.
     #
-    # Later we also put eval around the inside commands.  We basically quote everything twice and then make up for it by
+    # Later we also put eval around the inside commands. We basically quote everything twice and then make up for it by
     # eval-ing twice in order to convince everything to keep whitespace as it is.
     echo eval
     local username=""
@@ -610,8 +610,10 @@ dialog_prompt_username_password()
     done
 }
 
-# This function separates the UI from the business logic of the username/password function.
-# This allows us to unit test the business logic without user interaction.
+opt_usage dialog_prompt_username_password_UI <<'END'
+This function separates the UI from the business logic of the username/password function. This allows us to unit test
+the business logic without user interaction.
+END
 dialog_prompt_username_password_UI()
 {
     $(opt_parse \
