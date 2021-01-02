@@ -68,8 +68,7 @@ netns_teardown_traphandler()
 {
   $(opt_parse ns_name)
 
-  # if the namespace was destroyed successfully in the test, we will have
-  # nothing to do.
+  # if the namespace was destroyed successfully in the test, we will have nothing to do.
   netns_exists ${ns_name} || return 0
 
   # The test is failing, so try to do what you can, but ignore command failures
@@ -88,8 +87,8 @@ netns_setup_connected_network()
 
     $(pack_import ${netns_args_packname})
 
-    # this allows packets to come in on the real nic and be forwarded to the
-    # virtual nic.  It turns on routing in the kernel.
+    # this allows packets to come in on the real nic and be forwarded to the virtual nic.  It turns on routing in the
+    # kernel.
     echo 1 > /proc/sys/net/ipv4/ip_forward
 
     $(tryrc netns_exists ${ns_name})
@@ -103,8 +102,7 @@ netns_setup_connected_network()
         return 0
     fi
 
-    # We create all the virtual things we need.  A veth pair, a tap adapter
-    # and a virtual bridge
+    # We create all the virtual things we need.  A veth pair, a tap adapter and a virtual bridge
     ip link add dev ${devname} type veth peer name ${devname}p
     ip link set dev ${devname} up
     ip tuntap add ${ns_name}_t mode tap
@@ -290,11 +288,9 @@ fi
 END
     chmod +x netns_runner
 
-
-    # This script is run from the directory output/daemon.sh/ETEST_daemon.sh/,
-    # which is a transient directory that only exists during the test run and
-    # is cleaned up immediately after.  Regardless, that is why the cmdline
-    # specifies the script to run the way it does.
+    # This script is run from the directory output/daemon.sh/ETEST_daemon.sh/, which is a transient directory that only
+    # exists during the test run and is cleaned up immediately after.  Regardless, that is why the cmdline specifies the
+    # script to run the way it does.
     etestmsg "Starting infinity daemon"
     daemon_init sleep_daemon                                        \
         "${DAEMON_EXPECT[@]}"                                       \
@@ -505,8 +501,7 @@ ETEST_daemon_respawn()
     assert daemon_status  sleep_daemon
     assert process_running $(cat ${pidfile})
 
-    # Now kill it the specified number of respawns
-    # and verify it respawns each time
+    # Now kill it the specified number of respawns and verify it respawns each time
     for (( iter=1; iter<=${respawns}; iter++ )); do
 
         # Kill underlying pid
@@ -540,8 +535,8 @@ ETEST_daemon_respawn()
     daemon_stop sleep_daemon
 }
 
-# Modified version of above test which gives a large enough window between kills
-# such that it should keep respawning (b/c/ failed count resets)
+# Modified version of above test which gives a large enough window between kills such that it should keep respawning
+# (b/c/ failed count resets)
 ETEST_daemon_respawn_reset()
 {
     touch ${DAEMON_LOCK}

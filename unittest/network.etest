@@ -9,8 +9,8 @@
 
 os linux || return 0
 
-# Setup code mocks out some fake paths beneath a fake SYSFS tree for consistent testing even in Docker where we may
-# not have actual sysfs tree.
+# Setup code mocks out some fake paths beneath a fake SYSFS tree for consistent testing even in Docker where we may not
+# have actual sysfs tree.
 setup()
 {
     SYSFS="${TEST_DIR_OUTPUT}/sys"
@@ -188,7 +188,6 @@ ETEST_getvlans()
     output="$(getvlans Bond10G)"
     etestmsg "looking for a match [$(lval vlan output)]"
     assert_eq "${output}" "${vlan}"
-
 
     # look for something other than what testnic is set to, should get back nothing.
     output="$(getvlans Bond1G)"

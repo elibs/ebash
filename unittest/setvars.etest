@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -32,7 +32,7 @@ ETEST_setvars_multi()
 ETEST_setvars_error()
 {
     local file="setvars_multi.txt"
-    
+
     try
     {
         local arg1="Foo"
@@ -53,8 +53,8 @@ adjust_version()
     local val=$2
     einfo "$(lval key val)"
 
-    # If we've patched the firmware package itself it's version will change but the underlying version of the reported firmware
-    # itself is unchanged. So we need to strip off any -pXXX on the version string.
+    # If we've patched the firmware package itself it's version will change but the underlying version of the reported
+    # firmware itself is unchanged. So we need to strip off any -pXXX on the version string.
     [[ ${key} =~ .*_DRIVER_VERSION$ || ${key} =~ .*_FIRMWARE_VERSION$ ]] && val=${val%%-p*}
 
     echo -n "${val}"
@@ -109,8 +109,7 @@ ETEST_setvars_punctuation()
 
         einfo "$(lval mark endmark)"
 
-        # Create a simple file to setvars in, and replace part of it with a
-        # string containing that punctuation mark
+        # Create a simple file to setvars in, and replace part of it with a string containing that punctuation mark
         echo "A __B__ C" > ${file}
         B=jan${mark}feb${endmark}march
         setvars "${file}"

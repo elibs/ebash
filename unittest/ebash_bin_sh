@@ -8,13 +8,12 @@
 
 $(${EBASH_HOME}/bin/ebash --source)
 
-#-------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 #
 # Check if we call an ebash-enabled script through /bin/sh (which enables posix mode) doesn't cause errors.
 #
-# NOTE: This is intentionally NOT an etest.  This script must be run in its
-# own TOP-LEVEL shell.
-#-------------------------------------------------------------------------------------------------------------------------
+# NOTE: This is intentionally NOT an etest.  This script must be run in its own TOP-LEVEL shell.
+#-----------------------------------------------------------------------------------------------------------------------
 
 # Create a script to run
 OUTPUT=$(mktemp --tmpdir etest-output-txt-XXXXXX)
@@ -48,5 +47,3 @@ assert_eq 1 $(wc -l ${OUTPUT})
 first=$(head -1 ${OUTPUT})
 
 assert_eq "HELLO WORLD" "${first}"
-
-# exit 0

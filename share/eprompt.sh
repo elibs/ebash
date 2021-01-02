@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -24,14 +24,14 @@ eprompt()
 }
 
 opt_usage eprompt_with_options <<'END'
-eprompt_with_options allows the caller to specify what options are valid responses to the provided question using a 
+eprompt_with_options allows the caller to specify what options are valid responses to the provided question using a
 comma separated list. The caller can also optionally provide a list of "secret" options which will not be displayed in
 the prompt to the user but will be accepted as a valid response. This list is also comma separated.
 END
 eprompt_with_options()
 {
     $(opt_parse "msg" "opt" "?secret")
-    
+
     local valid
     valid="$(echo ${opt},${secret} | tr ',' '\n' | sort --ignore-case --unique)"
     msg+=" (${opt})"

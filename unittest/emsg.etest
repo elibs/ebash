@@ -420,8 +420,7 @@ ETEST_eprogress_ticker_align_right()
         ETRACE=0
         EINTERACTIVE=1
         EMSG_PREFIX=""
-        # Output stored in this test expects what it would look like if term
-        # were screen-256color
+        # Output stored in this test expects what it would look like if term were screen-256color
         TERM=screen-256color
         eprogress --align right "Waiting"
         eprogress_kill
@@ -431,9 +430,8 @@ ETEST_eprogress_ticker_align_right()
     cat -evt ${OUTPUT}
     etestmsg "End ${OUTPUT} contents"
 
-    # The ticker may actuall run for slightly longer than we requested due to
-    # how sleep works. Change instances of 00:00:0[1-9] to 00:00:00 in the output
-    # for easier validation.
+    # The ticker may actually run for slightly longer than we requested due to how sleep works. Change instances of
+    # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
     sed -i "s|:01\]|:00\]|g" ${OUTPUT}
 
     # Different terms have different codes.  Ignore the number in the ANSI code.
@@ -458,8 +456,7 @@ ETEST_eprogress_ticker_align_left()
         ETRACE=0
         EINTERACTIVE=1
         EMSG_PREFIX=""
-        # Output stored in this test expects what it would look like if term
-        # were screen-256color
+        # Output stored in this test expects what it would look like if term were screen-256color
         TERM=screen-256color
         eprogress --align left "Waiting"
         eprogress_kill
@@ -469,9 +466,8 @@ ETEST_eprogress_ticker_align_left()
     cat -evt ${OUTPUT}
     etestmsg "End ${OUTPUT} contents"
 
-    # The ticker may actuall run for slightly longer than we requested due to
-    # how sleep works. Change instances of 00:00:0[1-9] to 00:00:00 in the output
-    # for easier validation.
+    # The ticker may actuall run for slightly longer than we requested due to how sleep works. Change instances of
+    # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
     sed -i "s|:01\]|:00\]|g" ${OUTPUT}
 
     # Different terms have different codes.  Ignore the number in the ANSI code.

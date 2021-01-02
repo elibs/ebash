@@ -79,9 +79,8 @@ ETEST_die_traps_parent()
     assert test ! -e ${fname2}
 }
 
-# Ensure trap_add works properly and appends traps to existing ones.
-# NOTE: Use different signals throughout this test since trap_add
-#       operates on all of DIE_SIGNALS.
+# Ensure trap_add works properly and appends traps to existing ones.  NOTE: Use different signals throughout this test
+# since trap_add operates on all of DIE_SIGNALS.
 ETEST_die_trap_add()
 {
     # Stub out die so that we don't actually die
@@ -182,9 +181,8 @@ EOF
         return 0
     fi
 
-    # The later of the two stacks will be a SIGTERM because the shell failed
-    # and is informing it's parent via SIGTERM.  That message will be 1)
-    # truncated and 2) contain an ellipsis to indicate that it was truncated.
+    # The later of the two stacks will be a SIGTERM because the shell failed and is informing it's parent via SIGTERM.
+    # That message will be 1) truncated and 2) contain an ellipsis to indicate that it was truncated.
     assert_match     "${stderr}" "\[UnhandledError.*cmd=\(.*\.\.\.\]"
     assert_not_match "${stderr}" "UnhandledError.*baz"
 }

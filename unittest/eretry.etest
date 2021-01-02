@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -160,7 +160,7 @@ do_sleep()
     local ticks
     ticks=$(cat child.ticks || true)
     (( ticks += 1 ))
-    
+
     echo ${BASHPID}  > child.pid
     echo ${ticks}    > child.ticks
     sleep infinity
@@ -282,15 +282,14 @@ ETEST_eretry_true()
     assert test ${rc} -eq 0
 }
 
-# This test is disabled because it's dangerous to be removing /dev/{stdout,stderr}. 
-# Unfortunately that was the only way to recreate this bug. But now that it's fixed
-# there's no reason to run this continuously. But I'm leaving it in here because it
-# may be useful in the future if we encounter this bug again.
+# This test is disabled because it's dangerous to be removing /dev/{stdout,stderr}.  Unfortunately that was the only way
+# to recreate this bug. But now that it's fixed there's no reason to run this continuously. But I'm leaving it in here
+# because it may be useful in the future if we encounter this bug again.
 DISABLED_ETEST_eretry_dead_stdout_stderr_symlink()
 {
     local dname="/proc/${FUNCNAME}-${BASHPID}"
     assert_not_exists "${dname}"
-    
+
     # Setup traps to ensure we fix /dev/stdout and /dev/stderr
     trap_add "ln -sf /proc/self/fd/1 /dev/stdout"
     trap_add "ln -sf /proc/self/fd/2 /dev/stderr"
@@ -298,11 +297,11 @@ DISABLED_ETEST_eretry_dead_stdout_stderr_symlink()
     # Forcibly remove /dev/stdout and /dev/stderr
     rm --force /dev/stdout /dev/stderr
     assert_not_exists /dev/stdout /dev/stderr
-    
+
     # Make them dangling symlinks
     ln -s ${dname}/fd/1 /dev/stdout
     ln -s ${dname}/fd/2 /dev/stderr
-    
+
     callback()
     {
         EFUNCS_COLOR=0
@@ -310,7 +309,7 @@ DISABLED_ETEST_eretry_dead_stdout_stderr_symlink()
         echo "Output"
         exit 0
     }
-    
+
     local output
     output=$(eretry callback)
     assert_eq "Output" "${output}"

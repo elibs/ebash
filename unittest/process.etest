@@ -63,9 +63,8 @@ ETEST_process_hierarchy()
     assert_eq "${my_processes[1]}" "${children[0]}"
 
 
-    # The rest of the verification steps are just checking that a list of
-    # processes match, not checking them in order, so we'll sort them to make
-    # that easier.
+    # The rest of the verification steps are just checking that a list of processes match, not checking them in order,
+    # so we'll sort them to make that easier.
     array_sort my_processes ancestors ancestors_noarg children tree
 
 
@@ -156,8 +155,8 @@ ETEST_ekilltree()
         bash -c 'sleep 1000'&  echo "$!" >> pids
 
         # Wait on all our backgrounded processes. This ensures two important things:
-        # (1) The entire subshell won't exit
-        # (2) Processes we kill get reaped and don't show up in process list output anymore
+        # 1) The entire subshell won't exit
+        # 2) Processes we kill get reaped and don't show up in process list output anymore
         for pid in $(cat pids); do
             etestmsg "[main] Waiting for ${pid}"
             wait "${pid}" || true

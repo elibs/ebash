@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -218,7 +218,7 @@ ETEST_json_import_export()
 {
     $(json_import -ue <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
     argcheck DRIVE_SIZE LSI_FIRMWARE
-    
+
     local actual
     actual="$(declare -p DRIVE_SIZE)"
     assert_eq 'declare -x DRIVE_SIZE="100"'       "${actual}"
@@ -289,7 +289,7 @@ ETEST_json_import_query_platform()
 {
     local json='
     { "hardwareConfig": [
-        {   
+        {
             "chassisType": "R620",
             "nodeType": "SF3010",
             "biosRevision": "1.0",
@@ -318,8 +318,8 @@ ETEST_json_import_query_platform()
             "scsiBusInternalDriver": "ahci",
             "sliceBufferCacheGb": "16",
             "sliceDriveSize": "299992412160"
-        },  
-        {   
+        },
+        {
             "chassisType": "R620",
             "nodeType": "SF6010",
             "biosRevision": "1.0",
@@ -381,7 +381,7 @@ ETEST_json_import_array_empty()
     echo '{ "R620": { "SF3010": { "sliceDrives": [ ], "blockDrives": [ "/dev/slot1", "/dev/slot2"] } } }' > file.json
     cat file.json
     $(json_import -u -q=".R620.SF3010" -f=file.json)
-    
+
     einfo "$(lval SLICE_DRIVES BLOCK_DRIVES)"
     local slice_expect=( )
     local block_expect=( "/dev/slot1" "/dev/slot2" )

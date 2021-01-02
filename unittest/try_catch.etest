@@ -7,8 +7,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# Check if there is an error trap enabled. Returns success (0) if enabled and failure
-# (1) otherwise.
+# Check if there is an error trap enabled. Returns success (0) if enabled and failure (1) otherwise.
 err_trap_exists()
 {
     trap -p | grep -q ERR
@@ -16,9 +15,8 @@ err_trap_exists()
 
 ETEST_ensure_trap_enabled_by_default()
 {
-    # Simple sanity test to ensure the default setup in efuncs enables
-    # ERR trap otherwise all other assumptions in this test suite are
-    # invalid.
+    # Simple sanity test to ensure the default setup in efuncs enables ERR trap otherwise all other assumptions in this
+    # test suite are invalid.
     einfo "Verifying ERR trap is set"
     trap -p
     err_trap_exists || die "ERR trap should be enabled"
@@ -117,8 +115,7 @@ ETEST_try_exit_code()
 # Verify we can disable trap/die on error
 ETEST_nodie_on_error()
 {
-    # First ensure we have our trap set for ERR so that the test actually
-    # validates we can disable the trap
+    # First ensure we have our trap set for ERR so that the test actually validates we can disable the trap
     einfo "Verifying ERR trap is set"
     err_trap_exists || die "ERR trap should be enabled"
 
@@ -133,12 +130,10 @@ ETEST_nodie_on_error()
     return 0
 }
 
-# Verify we can disable die_on_error and that later using a try-catch
-# doesn't incorrectly re-enable it.
+# Verify we can disable die_on_error and that later using a try-catch doesn't incorrectly re-enable it.
 ETEST_nodie_on_error_with_try_catch()
 {
-    # First ensure we have our trap set for ERR so that the test actually
-    # validates we can disable the trap
+    # First ensure we have our trap set for ERR so that the test actually validates we can disable the trap
     einfo "Verifying ERR trap is set"
     err_trap_exists || die "ERR trap should be enabled"
 
@@ -295,9 +290,8 @@ ETEST_try_catch_deep_error()
     die "test should have returned"
 }
 
-# Verify die_on_error **IS** inherited into subshell since we are now using
-# 'set -o errtrace' to ensure our trap is inherited by functions, command
-# substitutions, and commands executed inside subshells.
+# Verify die_on_error **IS** inherited into subshell since we are now using 'set -o errtrace' to ensure our trap is
+# inherited by functions, command substitutions, and commands executed inside subshells.
 ETEST_errtrap_inherited_in_subshell()
 {
     try
@@ -584,9 +578,8 @@ ETEST_tryrc_stderr_unbuffered()
     ) &
     echo "$!" >> "${FUNCNAME}.pids"
 
-    # Background process to write to the pipe. Do this in the background
-    # so we can read from the pipe above. This will emit an error message
-    # and we'll ensure we see it BEFORE the process completes.
+    # Background process to write to the pipe. Do this in the background so we can read from the pipe above. This will
+    # emit an error message and we'll ensure we see it BEFORE the process completes.
     einfo "Creating background infinite process writing to stderr"
     (
         $(EDEBUG=0 tryrc eval 'echo "MESSAGE" >&2; sleep infinity') &
@@ -655,10 +648,9 @@ setup_die_environment()
 ETEST_tryrc_eretry_error_never_pass()
 {
     $(tryrc eretry --delay=5 --max-timeout=10s --warn-every=3 never_pass)
-    # This combination of ebash functions is unique, normally tryrc
-    # should return the code of the command, but in this case eretry is
-    # the command being executed so if the command that eretry is executing
-    # is not successful eretry will return 124 to tryrc.
+    # This combination of ebash functions is unique, normally tryrc should return the code of the command, but in this
+    # case eretry is the command being executed so if the command that eretry is executing is not successful eretry will
+    # return 124 to tryrc.
     assert_eq "124" "${rc}"
 }
 

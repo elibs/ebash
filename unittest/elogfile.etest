@@ -42,8 +42,8 @@ ETEST_elogfile_term()
         ) &>/dev/null &
 
         # Wait on our background process above. This ensures two important things:
-        # (1) Entire subshell won't exit
-        # (2) Process we kill will get reaped properly and not appear to still be running
+        # 1) Entire subshell won't exit
+        # 2) Process we kill will get reaped properly and not appear to still be running
         wait || true
 
     ) &

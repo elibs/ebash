@@ -500,14 +500,14 @@ ETEST_archive_create_exclude_illegal_prefix()
         ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
-        # path to be used (which is an illegal prefix to the archive formats).
+        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative path to be used (which is an illegal
+        # prefix to the archive formats).
         etestmsg "Populating source directory"
         src=$(mktemp --tmpdir=/tmp --directory archive-XXXXXX)
         touch ${src}/{file1,file2}
 
-        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
-        # path to be used (which is an illegal prefix to the archive formats).
+        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative path to be used (which is an illegal
+        # prefix to the archive formats).
         etestmsg "Creating src/dest.${ftype}"
         dest=$(mktemp --tmpdir=/tmp archive-XXXXXX.${ftype})
         archive_create ${dest} ${src}
@@ -585,8 +585,8 @@ ETEST_archive_create_pivot_root()
         ftype="${ARCHIVE_TYPES[$idx]}"
         COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
 
-        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative
-        # path to be used (which is an illegal prefix to the archive formats).
+        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative path to be used (which is an illegal
+        # prefix to the archive formats).
         oldroot=$(mktemp --tmpdir=/tmp --directory oldroot-XXXXXX)
 
         etestmsg "Populating oldroot directory"
@@ -1240,8 +1240,9 @@ ETEST_archive_extract_strip_collisions()
         etestmsg "Validating src and dest"
         assert_directory_contents dest f f.~1~ f.~2~
 
-        # We can't guarantee the order the files are copied in b/c that's dependant on the inode structure and filesystem.
-        # So instead we just assert that we see all three files with the three different contents we expect to see.
+        # We can't guarantee the order the files are copied in b/c that's dependant on the inode structure and
+        # filesystem.  So instead we just assert that we see all three files with the three different contents we expect
+        # to see.
         assert_eq $'s1\ns2\ns3' "$(cat dest/f dest/f.~1~ dest/f.~2~ | sort)"
     done
 }
@@ -1485,8 +1486,7 @@ ETEST_archive_xdiff()
             archive_diff src.${ftype} cpy.${other}
         done
 
-        # Iterate over all types and create a different copy with extra file
-        # diff should not match.
+        # Iterate over all types and create a different copy with extra file diff should not match.
         for other in ${ARCHIVE_TYPES[@]}; do
 
             etestmsg "Creating diff.${other}"
