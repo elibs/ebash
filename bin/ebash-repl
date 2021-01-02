@@ -80,7 +80,7 @@ die_handler()
 }
 
 $(opt_parse \
-    ":load l | Load the specified file prior to running the interactive interpreter.")
+    "=load l | Load the specified file prior to running the interactive interpreter.")
 
 if [[ -n "${load}" ]] ; then
     source "${load}"
