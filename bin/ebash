@@ -8,52 +8,43 @@
 # version.
 
 #
-# This tool is designed to run individual commands in a ebash environment.
-# It can effectively turns ebash functions into commands that can easily be
-# run from a shell prompt.
+# This tool is designed to run individual commands in a ebash environment. It can effectively turns ebash functions
+# into commands that can easily be run from a shell prompt.
 #
-# The first simple use case happens when the binary is called "ebash".  In
-# this mode, everything after ebash on the command line is evaluated inside
-# a bash interpreter that has sourced the various ebash source files.
+# The first simple use case happens when the binary is called "ebash". In this mode, everything after ebash on the
+# command line is evaluated inside a bash interpreter that has sourced the various ebash source files.
 #
-# But ebash can be symlinked to other names.  ebash pays attention to
-# the name that it is called by.  When it's not called as ebash, it tries
-# to run ebash functions intead.  First, it looks to see if the symlink
-# name is the name of a "namespace" of ebash commands.  For instance, the
-# string commands can be used in this way.  Assuming a "string" symlink, then
+# But ebash can be symlinked to other names. ebash pays attention to the name that it is called by. When it's not
+# called as ebash, it tries to run ebash functions intead. First, it looks to see if the symlink name is the name of a
+# "namespace" of ebash commands. For instance, the string commands can be used in this way. Assuming a "string"
+# symlink, then
 #
 #     string trim " a string to trim "
 #
-# will call the string_trim function, passing it that string as an argument.
-# If there is no function that's a combination of the symlink name and the
-# first argument, then ebash will look for a function of the same name as
-# the symlink and call it passing all arguments to the function.  For instance,
-# given a symlink called eunmount, then you could call
+# will call the string_trim function, passing it that string as an argument. If there is no function that's a
+# combination of the symlink name and the first argument, then ebash will look for a function of the same name as the
+# symlink and call it passing all arguments to the function. For instance, given a symlink called eunmount, then you
+# could call
 #
 #     eunmount /path/to/unmount /another/path
 #
-# And both "/path/to/unmount" and "/another/path" will be passed as arguments
-# to eunmount.
+# And both "/path/to/unmount" and "/another/path" will be passed as arguments to eunmount.
 #
 #-------------------------------------------------------------------------------
 
 
-# To be able to make good use of function documentation in places where we do
-# something like this, we need to save function documentation off into
-# variables (or else we'd have to parse bash source code enough to extract it,
-# which sounds very error prone)
+# To be able to make good use of function documentation in places where we do something like this, we need to save
+# function documentation off into variables (or else we'd have to parse bash source code enough to extract it, which
+# sounds very error prone)
 #
 #     somefunc --help
 #
-# But we don't want to bloat the interpreter with a bunch of documentation
-# every time we source ebash.  Our solution is to only save them at times
-# where we believe the variables are going to be needed.  There's no reason to
-# expect they will be necessary unless `--help` is on the command line
-# somewhere.  Or for those few cases where it's needed, they can set this
-# variable, too.
+# But we don't want to bloat the interpreter with a bunch of documentation every time we source ebash. Our solution is
+# to only save them at times where we believe the variables are going to be needed. There's no reason to expect they
+# will be necessary unless `--help` is on the command line somewhere. Or for those few cases where it's needed, they
+# can set this variable, too.
 #
-# And for this to work in all of the ebash files, we must do it before
-# sourcing them.
+# And for this to work in all of the ebash files, we must do it before sourcing them.
 for arg in "$@" ; do
     if [[ ${arg} == "--help" ]] ; then
         __EBASH_SAVE_DOC=1
@@ -75,13 +66,15 @@ declare name=${0##*/}
 if [[ ${name} == "ebash" ]] ; then
 
     $(opt_parse \
-        "=load l                                | ebash should source the specified file before attempting to run the specified command." \
-        "+source s                              | Print commands that would load ebash from its existing location on disk into the current
-                                                  shell and then exit.  You'd use this in a script like this: \$(ebash --source)" \
-        "+print_environment printenv p          | Dump environment variables that ebash would like to use in a format bash
-                                                  can interpret" \
-        "=name n=${0##*/}                       | Name to use as a starting point for finding functions.  I.e pretend ebash is running
-                                                  with the specified name." \
+        ":load l                                | ebash should source the specified file before attempting to run the
+                                                  specified command." \
+        "+source s                              | Print commands that would load ebash from its existing location on
+                                                  disk into the current shell and then exit. You'd use this in a script
+                                                  like this: \$(ebash --source)" \
+        "+print_environment printenv p          | Dump environment variables that ebash would like to use in a format
+                                                  bash can interpret" \
+        ":name n=${0##*/}                       | Name to use as a starting point for finding functions. This basically
+                                                  pretends that ebash is running with the specified name." \
         "+color c=$(efuncs_color_as_bool)       | Force explicit color mode." \
         ":msg_prefix m                          | Prefix to use for all emsg messages." \
         "+interactive i=$(einteractive_as_bool) | Force interactive mode even if we are not attached to a terminal.")
@@ -138,12 +131,12 @@ else
         # Originally we copied the script we were given into a temporary directory and then modified it to source the
         # ebash environment at the top of the script. That had several undesirable side-effects:
         #
-        # (1) Required file operations just to run a script
-        # (2) Extra overhead of fork/exec to run the external script.
-        # (3) Error prone to be running sed commands on arbitrary script contents
-        # (4) Alters the called script's ${BASH_SOURCE} such that it looked like the script path is /tmp/blahXXXX
-        #     rather than the actual location of the script. This is really bad since the caller may want to have
-        #     access to files relative to it's source directory.
+        # 1) Required file operations just to run a script
+        # 2) Extra overhead of fork/exec to run the external script.
+        # 3) Error prone to be running sed commands on arbitrary script contents
+        # 4) Alters the called script's ${BASH_SOURCE} such that it looked like the script path is /tmp/blahXXXX rather
+        #    than the actual location of the script. This is really bad since the caller may want to have access to
+        #    files relative to it's source directory.
         #
         # So, a much simpler, and more correct solution is to simply SOURCE the external script (along with arguments).
         # This has the same effect as executing a script only it is run within our existing process context rather than

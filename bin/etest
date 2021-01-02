@@ -35,18 +35,18 @@ TOPDIR=${PWD}
 $(opt_parse \
     "+break   b=${BREAK:-0}    | Stop immediately on first failure." \
     "+clean   c=0              | Clean only and then exit." \
-    "=debug   D=${EDEBUG:-}    | EDEBUG output." \
+    ":debug   D=${EDEBUG:-}    | EDEBUG output." \
     "+delete  d=1              | Delete all output files when tests complete." \
-    "=exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
-    "=failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
+    ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
+    ":failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
                                  test fails at all. However, in certain circumstances where flaky tests exist it may
                                  be desireable to allow each test to retried a specified number of times and only
                                  classify it as a failure if that test fails more than the requested threshold." \
-    "=filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
+    ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
-    "=log_dir                  | Directory to place logs in. Defaults to the current directory." \
+    ":log_dir                  | Directory to place logs in. Defaults to the current directory." \
     "+mount_ns=1               | Run tests inside a mount namespace." \
-    "=repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
+    ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
     "+summary s=0              | Display final summary to terminal in addition to logging it to etest.json." \
     "&test_list l              | File that contains a list of tests to run. This file may contain comments on lines
                                  that begin with the # character. All other nonblank lines will be interpreted as
@@ -54,7 +54,7 @@ $(opt_parse \
                                  files. Relative paths will be interpreted against the current directory. This option
                                  may be specified multiple times." \
     "+verbose v=${VERBOSE:-0}  | Verbose output." \
-    "=work_dir                 | Temporary location where etest can place temporary files. This location will be both
+    ":work_dir                 | Temporary location where etest can place temporary files. This location will be both
                                  created and deleted by etest." \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
