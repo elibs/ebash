@@ -83,7 +83,7 @@ if [[ ${name} == "ebash" ]] ; then
         "=name n=${0##*/}                       | Name to use as a starting point for finding functions.  I.e pretend ebash is running
                                                   with the specified name." \
         "+color c=$(efuncs_color_as_bool)       | Force explicit color mode." \
-        "=msg_prefix m                          | Prefix to use for all emsg messages." \
+        ":msg_prefix m                          | Prefix to use for all emsg messages." \
         "+interactive i=$(einteractive_as_bool) | Force interactive mode even if we are not attached to a terminal.")
 
     if [[ -n ${load} ]] ; then
