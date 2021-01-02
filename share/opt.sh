@@ -707,10 +707,14 @@ opt_display_usage()
         # Display any REQUIRED options
         local opt
         local required_opts=()
+        local entry
         for opt in ${!__EBASH_OPT[@]} ; do
 
-            local entry=$(if [[ ${__EBASH_OPT_TYPE[$opt]} == "required_string" ]]; then
+            if [[ ${__EBASH_OPT_TYPE[$opt]} != "required_string" ]]; then
+                continue
+            fi
 
+            entry=$(
                 local synonym="" first=1
                 for synonym in ${__EBASH_OPT_SYNONYMS[$opt]} ; do
 
@@ -728,7 +732,7 @@ opt_display_usage()
                 done
 
                 echo -n " <non-empty value>"
-            fi)
+            )
 
             required_opts+=( $(string_trim "${entry}") )
         done
