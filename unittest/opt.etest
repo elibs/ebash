@@ -163,7 +163,7 @@ ETEST_opt_parse_shorts_crammed_together_required_arg()
     }
 }
 
-ETEST_opt_parse_shorts_crammed_together_required_nonempty_missing_arg()
+ETEST_opt_parse_shorts_crammed_together_required_opt_missing_arg()
 {
     set -- -abc
     try
@@ -179,7 +179,23 @@ ETEST_opt_parse_shorts_crammed_together_required_nonempty_missing_arg()
     }
 }
 
-ETEST_opt_parse_shorts_crammed_together_required_nonempty_empty_arg()
+ETEST_opt_parse_shorts_crammed_together_required_opt_missing_opt()
+{
+    set -- -ab
+    try
+    {
+        $(opt_parse "+a" "+b" "=c")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed when parsing options but did not."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_shorts_crammed_together_required_opt_empty_arg()
 {
     set -- -abc ""
     try
