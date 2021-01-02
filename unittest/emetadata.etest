@@ -187,7 +187,6 @@ ETEST_emetadata_symlink()
     assert_var_empty SHA1
 }
 
-#
 # Verify emetadata_check still validates SHA1 field if present even if we don't use it anymore
 ETEST_emetadata_sha1_backwards_compatible()
 {
@@ -196,8 +195,8 @@ ETEST_emetadata_sha1_backwards_compatible()
     meta="${src}.meta"
     emetadata ${src} > ${meta}
 
-    # Insert legacy SHA1 field by hand since emetadata doesn't do it anymore. This way we can validate
-    # that emetadata_check still checks it.
+    # Insert legacy SHA1 field by hand since emetadata doesn't do it anymore. This way we can validate that
+    # emetadata_check still checks it.
     echo "SHA1=$(sha1sum ${src} | awk '{print $1}')" >> ${meta}
     cat ${meta}
     pack_set MPACK $(cat ${meta})

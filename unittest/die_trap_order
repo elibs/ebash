@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -9,16 +9,14 @@
 
 $(${EBASH_HOME}/bin/ebash --source)
 
-#-------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 # SANITY TEST OF DIE FUNCTIONALITY
 #
-# NOTE: This is intentionally NOT an etest.  This script must be run in its own
-# TOP-LEVEL shell to be able to test whether die_handler works, because die_handler
-# is only called in the top level shell level.
+# NOTE: This is intentionally NOT an etest.  This script must be run in its own TOP-LEVEL shell to be able to test
+# whether die_handler works, because die_handler is only called in the top level shell level.
 #
-# It's run early on by the etest framework, because if die doesn't work, etest
-# isn't likely to work either.
-#-------------------------------------------------------------------------------------------------------------------------
+# It's run early on by the etest framework, because if die doesn't work, etest isn't likely to work either.
+#-----------------------------------------------------------------------------------------------------------------------
 
 # Create a script to run
 OUTPUT=$(mktemp --tmpdir etest-output-txt-XXXXXX)

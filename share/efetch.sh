@@ -88,13 +88,15 @@ efetch()
     )
 }
 
-# Internal helper method to load all the metadata for all the requested URLs in efetch() into an associative array of
-# packs. This allows us to store a bunch of metadata on each URL we are fetching such as the filename and its destination
-# path and progress file, etc., in a single place and all the functions that operate on this metadata can just use these
-# variables without having them each reimplement the parsing logic.
-#
-# NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-#       avoid the overhead of needlessly calling opt_parse again.
+opt_usage __efetch_load_info <<'END'
+Internal helper method to load all the metadata for all the requested URLs in efetch() into an associative array of
+packs. This allows us to store a bunch of metadata on each URL we are fetching such as the filename and its destination
+path and progress file, etc., in a single place and all the functions that operate on this metadata can just use these
+variables without having them each reimplement the parsing logic.
+
+NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
+      avoid the overhead of needlessly calling opt_parse again.
+END
 __efetch_load_info()
 {
     # Determine what our destination directory will be.
@@ -171,13 +173,15 @@ __efetch_load_info()
     fi
 }
 
-# Internal helper method to call out to curl to download all of the URLs requested in efetch. It will background a call
-# to curl for each URL requested in efetch with a progress ticker showing percent complete of each file. This is all
-# redirected to the progress file for each URL. We store the PID off of the backgrounded process so we can wait on them
-# in __efetch_download_wait.
-#
-# NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-#       avoid the overhead of needlessly calling opt_parse again.
+opt_usage __efetch_download <<'END'
+Internal helper method to call out to curl to download all of the URLs requested in efetch. It will background a call
+to curl for each URL requested in efetch with a progress ticker showing percent complete of each file. This is all
+redirected to the progress file for each URL. We store the PID off of the backgrounded process so we can wait on them
+in __efetch_download_wait.
+
+NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
+      avoid the overhead of needlessly calling opt_parse again.
+END
 __efetch_download()
 {
     local url=""
@@ -195,13 +199,15 @@ __efetch_download()
     done
 }
 
-# Internal heper method to wait for all the backgrounded curl calls to complete for all the URLs requested in efetch.
-# On each iteration of the loop in this function it will print the file name and the progress file output from curl.
-# Then it will move back up to the first file and print it again so that we see a nice output table of all the files
-# being downloaded.
-#
-# NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-#       avoid the overhead of needlessly calling opt_parse again.
+opt_usage __efetch_download_wait <<'END'
+Internal heper method to wait for all the backgrounded curl calls to complete for all the URLs requested in efetch.
+On each iteration of the loop in this function it will print the file name and the progress file output from curl.
+Then it will move back up to the first file and print it again so that we see a nice output table of all the files
+being downloaded.
+
+NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
+      avoid the overhead of needlessly calling opt_parse again.
+END
 __efetch_download_wait()
 {
     local finished=() url=""
@@ -269,12 +275,14 @@ __efetch_download_wait()
     fi
 }
 
-# Internel helper method to check if any of the fetch jobs were incomplete or failed. If they were successful then it
-# moves the *.pending file to its final destination. If it failed, then we remove the incomplete file as well as its
-# *.md5 and *.meta file.
-#
-# NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-#       avoid the overhead of needlessly calling opt_parse again.
+opt_usage __efetch_check_incomplete_or_failed <<'END'
+Internel helper method to check if any of the fetch jobs were incomplete or failed. If they were successful then it
+moves the *.pending file to its final destination. If it failed, then we remove the incomplete file as well as its
+*.md5 and *.meta file.
+
+NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
+      avoid the overhead of needlessly calling opt_parse again.
+END
 __efetch_check_incomplete_or_failed()
 {
     # Move files to their final destinations or remove pending files for failed downloads
@@ -311,11 +319,13 @@ __efetch_check_incomplete_or_failed()
     done
 }
 
-# Internel helper method to validate the files we downloaded against companion md5 or our newer more powerful *.meta
-# files which includes optional PGP signature validation. If any files we downloaded are corrupt then they are deleted.
-#
-# NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-#       avoid the overhead of needlessly calling opt_parse again.
+opt_usage __efetch_digest_validation <<'END'
+Internel helper method to validate the files we downloaded against companion md5 or our newer more powerful *.meta
+files which includes optional PGP signature validation. If any files we downloaded are corrupt then they are deleted.
+
+NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
+      avoid the overhead of needlessly calling opt_parse again.
+END
 __efetch_digest_validation()
 {
     if [[ ${md5} -eq 0 && ${meta} -eq 0 ]]; then
@@ -334,9 +344,9 @@ __efetch_digest_validation()
         {
             if [[ "${md5}" -eq 1 ]]; then
 
-                # If the requested destination was different than what was originally in the MD5 it will fail.
-                # Or if the md5sum file was generated with a different path in it it will fail. This just
-                # sanititizes it to have the current working directory and the name of the file we downloaded to.
+                # If the requested destination was different than what was originally in the MD5 it will fail.  Or if
+                # the md5sum file was generated with a different path in it it will fail. This just sanititizes it to
+                # have the current working directory and the name of the file we downloaded to.
                 assert_exists "${dest}.md5"
                 sed -i "s|\(^[^#]\+\s\+\)\S\+|\1${fname}|" "${dest}.md5"
                 emd5sum_check "${dest}"
@@ -357,8 +367,8 @@ __efetch_digest_validation()
 }
 
 opt_usage efetch_wait <<'END'
-Wait for previously backgrounded efetch process to complete and optionally tail its output on the console.
-See also `efetch`. The basic usage of these two would be:
+Wait for previously backgrounded efetch process to complete and optionally tail its output on the console.  See also
+`efetch`. The basic usage of these two would be:
 
 efetch --output efetch.output <url1> <url2> ... <destination> &
 efetch_pid=$!
@@ -407,4 +417,3 @@ efetch_wait()
         fi
     fi
 }
-

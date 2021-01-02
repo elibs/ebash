@@ -41,13 +41,11 @@ fi
 # OTHER
 #---------------------------------------------------------------------------------------------------
 
-# But for others OSes, it's typical to install the gnu toolchain as
-# binaries whose name is prefixed with a letter "g".  For instance, GNU
-# grep gets installed as ggrep.
+# But for others OSes, it's typical to install the gnu toolchain as binaries whose name is prefixed with a letter "g".
+# For instance, GNU grep gets installed as ggrep.
 #
-# This would probably be a nice area to allow for configuration, but for
-# now we assume that the GNU toolchain is installed in that fashion on anything
-# that is not Linux.  (GNU/Linux? ;-)
+# This would probably be a nice area to allow for configuration, but for now we assume that the GNU toolchain is
+# installed in that fashion on anything that is not Linux.  (GNU/Linux? ;-)
 #
 #
 __EBASH_GNU_TOOLS=(
@@ -187,8 +185,8 @@ rm()
     command grm --one-file-system "${@}"
 }
 
-# Replace sort with explicit LC_COLLATE so that we always get consistent sorting
-# regardless of the user's configured locale.
+# Replace sort with explicit LC_COLLATE so that we always get consistent sorting regardless of the user's configured
+# locale.
 sort()
 {
     LC_COLLATE="C" command sort "${@}"

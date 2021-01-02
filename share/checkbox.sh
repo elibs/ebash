@@ -1,9 +1,15 @@
 #!/bin/bash
+#
+# Copyright 2020, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
 
 opt_usage checkbox_open <<'END'
-Dispay an open checkbox with an optional message to display. You can then later
-call checkbox_close to have the checkbox filled in with a successful check mark
-or with a failing X. This is useful to display a list of dependencies or tasks.
+Dispay an open checkbox with an optional message to display. You can then later call checkbox_close to have the checkbox
+filled in with a successful check mark or with a failing X. This is useful to display a list of dependencies or tasks.
 END
 checkbox_open()
 {
@@ -11,10 +17,9 @@ checkbox_open()
 }
 
 opt_usage checkbox_open_timer <<'END'
-Display an open checkbox with an optional message as well as a timer. This is
-similar in purpose as checkbox_open only this also displays a timer. This is
-useful when you want to have a long-running task with a timer and then fill in
-the checkbox with a successful check mark or a failing X.
+Display an open checkbox with an optional message as well as a timer. This is similar in purpose as checkbox_open only
+this also displays a timer. This is useful when you want to have a long-running task with a timer and then fill in the
+checkbox with a successful check mark or a failing X.
 END
 __CHECKBOX_TIMER_PID=
 checkbox_open_timer()
@@ -50,10 +55,9 @@ checkbox_open_timer()
 }
 
 opt_usage checkbox_close <<'END'
-This is used to close a previosly opened checkbox with optional return code.
-The default if no return code is passed in is 0 for success. This will move the
-curser up a line and fill in the open [ ] checkbox with a checkmark on success
-and an X on failure.
+This is used to close a previosly opened checkbox with optional return code.  The default if no return code is passed in
+is 0 for success. This will move the curser up a line and fill in the open [ ] checkbox with a checkmark on success and
+an X on failure.
 END
 checkbox_close()
 {
@@ -80,8 +84,7 @@ checkbox_close()
 }
 
 opt_usage checkbox <<'END'
-checkbox is a simple function to display a checkbox at the start of the line
-followed by an optional message.
+checkbox is a simple function to display a checkbox at the start of the line followed by an optional message.
 END
 checkbox()
 {
@@ -89,8 +92,8 @@ checkbox()
 }
 
 opt_usage checkbox_passed <<'END'
-checkbox_passed is a simple wrapper around checkbox that displays a successful
-checkbox and PASSED followed by an optional message.
+checkbox_passed is a simple wrapper around checkbox that displays a successful checkbox and PASSED followed by an
+optional message.
 END
 checkbox_passed()
 {
@@ -98,8 +101,8 @@ checkbox_passed()
 }
 
 opt_usage checkbox_failed <<'END'
-checkbox_failed is a simple wrapper around checkbox that displays a failure
-checkbox and FAILED followed by an optional message.
+checkbox_failed is a simple wrapper around checkbox that displays a failure checkbox and FAILED followed by an optional
+message.
 END
 checkbox_failed()
 {

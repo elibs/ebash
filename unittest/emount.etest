@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -73,7 +73,7 @@ ETEST_emount_unmount_recursive()
     eunmount --recursive dst
     einfo "Mounts after unmount"
     list_mounts | grep "${TEST_DIR_OUTPUT}" || true
-    
+
     etestmsg "Validating mounts"
     assert_false emounted dst/dst1
     assert_false emounted dst/dst2
@@ -138,8 +138,7 @@ ETEST_eunmount_all()
         trap_add "eunmount dest/${i}"
     done
 
-    # eunmount -a dest without -r should SUCCEED but do NOTHING
-    # since dest itself is not mounted.
+    # eunmount -a dest without -r should SUCCEED but do NOTHING since dest itself is not mounted.
     etestmsg "Verifying eunmount -a without -r does nothing"
     assert_true eunmount -a dest
     for (( i=0; i<${nmounts}; ++i )); do
@@ -243,7 +242,7 @@ ETEST_ebindmount_into_shadow()
     touch src1/{file1,file2}
     echo "data1" >src1/file1
     echo "data2" >src1/file2
-    
+
     mkdir src2
     echo "XXXX1" >src2/file1
     echo "XXXX2" >src2/file2
@@ -251,7 +250,7 @@ ETEST_ebindmount_into_shadow()
     etestmsg "Bind Mounting src1 and src2 into dest"
     ebindmount_into dest src1/. src2/.
 
-    # Setup a trap to unmount and delete all the mounts beneath dest. 
+    # Setup a trap to unmount and delete all the mounts beneath dest.
     # NOTE: We MUST use --all here since we are ->intentionally<- bind mounting multiple files with the same name.
     #       This causes there to be multiple copies of the same filename show up in /proc/mounts, e.g.:
     # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file2 ext4 rw,noatime,data=ordered 0 0
@@ -259,7 +258,7 @@ ETEST_ebindmount_into_shadow()
     # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file2 ext4 rw,noatime,data=ordered 0 0
     # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file1 ext4 rw,noatime,data=ordered 0 0
     trap_add "eunmount --all --recursive --delete dest"
-    
+
     etestmsg "Validating contents"
     assert_directory_contents dest file1 file2
 
@@ -294,7 +293,7 @@ ETEST_ebindmount_into_shadow_recursive_merge()
     # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file2 ext4 rw,noatime,data=ordered 0 0
     # /dev/sda1 ETEST_ebindmount_into_shadow/dest/file1 ext4 rw,noatime,data=ordered 0 0
     trap_add "eunmount --all --recursive --delete dest"
-    
+
     etestmsg "Validating contents"
     assert_directory_contents dest foo foo/alpha foo/file1 foo/file2 foo/bar foo/bar/file1 foo/bar/beta foo/bar/zap foo/bar/zap/file1
 
