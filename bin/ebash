@@ -75,15 +75,15 @@ declare name=${0##*/}
 if [[ ${name} == "ebash" ]] ; then
 
     $(opt_parse \
-        ":load l                                | ebash should source the specified file before attempting to run the specified command." \
+        "=load l                                | ebash should source the specified file before attempting to run the specified command." \
         "+source s                              | Print commands that would load ebash from its existing location on disk into the current
                                                   shell and then exit.  You'd use this in a script like this: \$(ebash --source)" \
         "+print_environment printenv p          | Dump environment variables that ebash would like to use in a format bash
                                                   can interpret" \
-        ":name n=${0##*/}                       | Name to use as a starting point for finding functions.  I.e pretend ebash is running
+        "=name n=${0##*/}                       | Name to use as a starting point for finding functions.  I.e pretend ebash is running
                                                   with the specified name." \
         "+color c=$(efuncs_color_as_bool)       | Force explicit color mode." \
-        ":msg_prefix m                          | Prefix to use for all emsg messages." \
+        "=msg_prefix m                          | Prefix to use for all emsg messages." \
         "+interactive i=$(einteractive_as_bool) | Force interactive mode even if we are not attached to a terminal.")
 
     if [[ -n ${load} ]] ; then
