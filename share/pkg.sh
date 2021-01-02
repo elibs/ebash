@@ -10,9 +10,9 @@
 os darwin && return 0
 
 opt_usage pkg_known <<'END'
-Determine if the package management system locally knows of a package with the specified name.  This
-won't update the package database to do its check.  Note that this does _not_ mean the package is
-installed.  Just that the package system believes it could install it.
+Determine if the package management system locally knows of a package with the specified name.  This won't update the
+package database to do its check.  Note that this does _not_ mean the package is installed.  Just that the package
+system believes it could install it.
 
 See pkg_installed to check if a package is actually installed.
 END
@@ -53,8 +53,8 @@ pkg_known()
 }
 
 opt_usage pkg_gentoo_canonicalize<<'END'
-Takes as input a package name that may or may not have a category identifier on it.  If it does not
-have a category (e.g. app-misc or dev-util), then find the category that contains the specified package.
+Takes as input a package name that may or may not have a category identifier on it.  If it does not have a category
+(e.g. app-misc or dev-util), then find the category that contains the specified package.
 
 NOTE: If the results would be ambiguous, fails and indicates that a category is required.
 END
@@ -131,8 +131,8 @@ pkg_installed()
 }
 
 opt_usage pkg_install <<'END'
-Install some set of packages whose names are specified.  Note that while this function supports
-several different package managers, packages may have different names on different systems.
+Install some set of packages whose names are specified.  Note that while this function supports several different
+package managers, packages may have different names on different systems.
 END
 pkg_install()
 {
@@ -214,8 +214,8 @@ pkg_uninstall()
 }
 
 opt_usage pkg_sync<<'END'
-Sync the local package manager database with whatever remote repositories are known so that all
-packages known to those repositories are also known locally.
+Sync the local package manager database with whatever remote repositories are known so that all packages known to those
+repositories are also known locally.
 END
 pkg_sync()
 {
@@ -247,8 +247,8 @@ pkg_sync()
 }
 
 opt_usage pkg_clean<<'END'
-Clean out the local package manager database cache and do anything else to the package manager to
-try to clean up any bad states it might be in.
+Clean out the local package manager database cache and do anything else to the package manager to try to clean up any
+bad states it might be in.
 END
 pkg_clean()
 {

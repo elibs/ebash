@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2012-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2012-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2012-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -10,110 +10,97 @@
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
 opt_usage daemon_init <<'END'
-daemon_init is used to initialize the options pack that all of the various daemon_* functions will
-use. This makes it easy to specify global settings for all of these daemon functions without having
-to worry about consistent argument parsing and argument conflicts between the various daemon_*
-functions. All of the values set into this pack are available in the caller's various hooks if
-desired. If a chroot is provided it is only used inside the body that calls ${cmdline}. If you need
-to be in the chroot to execute a given hook you're responsible for doing that yourself.
+daemon_init is used to initialize the options pack that all of the various daemon_* functions will use. This makes it
+easy to specify global settings for all of these daemon functions without having to worry about consistent argument
+parsing and argument conflicts between the various daemon_* functions. All of the values set into this pack are
+available in the caller's various hooks if desired. If a chroot is provided it is only used inside the body that calls
+${cmdline}. If you need to be in the chroot to execute a given hook you're responsible for doing that yourself.
 
 The following are the keys used to control daemon functionality:
 
 bindmounts
-  Optional whitespace separated list of additional paths which whould be bind mounted into the
-  chroot by the daemon process during daemon_start. A trap will be setup so that the bind mounts are
-  automatically unmounted when the process exits. The syntax for these bind mounts allow mounting
-  them into alternative paths inside the chroot using a colon to delimit the source path outside the
-  chroot and the desired mount point inside the chroot. (e.g.
+  Optional whitespace separated list of additional paths which whould be bind mounted into the chroot by the daemon
+  process during daemon_start. A trap will be setup so that the bind mounts are automatically unmounted when the process
+  exits. The syntax for these bind mounts allow mounting them into alternative paths inside the chroot using a colon to
+  delimit the source path outside the chroot and the desired mount point inside the chroot. (e.g.
   /var/log/kern.log:/var/log/host_kern.log)
 
 cgroup
-  Optional cgroup to run the daemon in. If the cgroup does not exist it will be created for you. The
-  daemon assumes ownership of ALL processes in that cgroup and will kill them at shutdown time. (So
-  give it its own cgroup). See cgroups.sh for more information.
+  Optional cgroup to run the daemon in. If the cgroup does not exist it will be created for you. The daemon assumes
+  ownership of ALL processes in that cgroup and will kill them at shutdown time. (So give it its own cgroup). See
+  cgroups.sh for more information.
 
 chroot
-  Optional CHROOT to run the daemon in. chroot_cmd will be used to execute the provided command line
-  but all other hooks will be performed outside of the chroot. Though the CHROOT variable will be
-  availble in the hooks if needed.
+  Optional CHROOT to run the daemon in. chroot_cmd will be used to execute the provided command line but all other hooks
+  will be performed outside of the chroot. Though the CHROOT variable will be availble in the hooks if needed.
 
 cmdline
-  The command line to be run as a daemon. This includes the executable as well as any of its
-  arguments.
+  The command line to be run as a daemon. This includes the executable as well as any of its arguments.
 
 delay
-  The delay to wait, in sleep(1) syntax, before attempting to restart the daemon when it exits. This
-  should never be <1s otherwise race conditions in startup and shutdown are possible. Defaults to
-  1s.
+  The delay to wait, in sleep(1) syntax, before attempting to restart the daemon when it exits. This should never be <1s
+  otherwise race conditions in startup and shutdown are possible. Defaults to 1s.
 
 logfile
-  Optional logfile to send all stdout and stderr to for the daemon. Since it generally doesn't make
-  sense for the stdout/stderr of the daemon to spew into the caller's stdout/stderr, these will
-  default to /dev/null if not otherwise specified.
+  Optional logfile to send all stdout and stderr to for the daemon. Since it generally doesn't make sense for the
+  stdout/stderr of the daemon to spew into the caller's stdout/stderr, these will default to /dev/null if not otherwise
+  specified.
 
 logfile_count
   Maximum number of logfiles to keep (defaults to 5). See elogfile and elogrotate for more details.
 
 logfile_size
-  Maximum logfile size before logfiles should be rotated. This defaults to zero such that if you
-  provide any logfile it will be rotated automatially. See elogfile and elogrotate for more details.
+  Maximum logfile size before logfiles should be rotated. This defaults to zero such that if you provide any logfile it
+  will be rotated automatially. See elogfile and elogrotate for more details.
 
 name
-  The name of the daemon, for readability purposes. By default this will use the basename of the
-  command being executed.
+  The name of the daemon, for readability purposes. By default this will use the basename of the command being executed.
 
 pidfile
-  Path to the pidfile for the daemon. By default this is the basename of the command being executed,
-  stored in /var/run.
+  Path to the pidfile for the daemon. By default this is the basename of the command being executed, stored in /var/run.
 
 pre_start
-  Optional hook to be executed before starting the daemon. Must be a single command to be executed.
-  If more complexity is required use a function. If this hook fails, the daemon will NOT be started
-      or respawned.
+  Optional hook to be executed before starting the daemon. Must be a single command to be executed.  If more complexity
+  is required use a function. If this hook fails, the daemon will NOT be started or respawned.
 
 pre_stop
-  Optional hook to be executed before stopping the daemon. Must be a single command to be executed.
-  If more complexity is required use a function. Any errors from this hook are ignored.
+  Optional hook to be executed before stopping the daemon. Must be a single command to be executed.  If more complexity
+  is required use a function. Any errors from this hook are ignored.
 
 post_mount
-  Optional hook to be executed after bind mounts have been created but before starting the daemon.
-  Must be a single command to be executed. If more complexity is required use a function. This hook
-  is invoked regardless of whether this daemon has bind mounts. Any errors from this hook are
-  ignored
+  Optional hook to be executed after bind mounts have been created but before starting the daemon.  Must be a single
+  command to be executed. If more complexity is required use a function. This hook is invoked regardless of whether this
+  daemon has bind mounts. Any errors from this hook are ignored
 
 post_stop
-  Optional hook to be exected after stopping the daemon. Must be a single command to be executed. If
-  more complexity is required use a function. Any errors from this hook are ignored.
+  Optional hook to be exected after stopping the daemon. Must be a single command to be executed. If more complexity is
+  required use a function. Any errors from this hook are ignored.
 
 post_crash
-  Optional hook to be executed after the daemon stops abnormally (i.e not through daemon_stop).
-  Errors from this hook are ignored.
+  Optional hook to be executed after the daemon stops abnormally (i.e not through daemon_stop).  Errors from this hook
+  are ignored.
 
 post_abort
-  Optional hook to be called after the daemon aborts due to crashing too many times. Errors from
-  this hook are ignored.
+  Optional hook to be called after the daemon aborts due to crashing too many times. Errors from this hook are ignored.
 
 respawns
   The maximum number of times to respawn the daemon command before just giving up. Defaults to 10.
 
 respawn_interval
-  Amount of seconds the process must stay up for it to be considered a successful start. This is
-  used in conjunction with respawn similar to upstart/systemd. If the process is respawned more than
-  ${respawns} times within ${respawn_interval} seconds, the process will no longer be respawned.
+  Amount of seconds the process must stay up for it to be considered a successful start. This is used in conjunction
+  with respawn similar to upstart/systemd. If the process is respawned more than ${respawns} times within
+  ${respawn_interval} seconds, the process will no longer be respawned.
 
 netns_name
-  Network namespce to run the daemon in.  The namespace must be created and properly configured
-  before use.  if you use this, you need to source netns.sh from ebash prior to calling
-  daemon_start
+  Network namespce to run the daemon in.  The namespace must be created and properly configured before use.  if you use
+  this, you need to source netns.sh from ebash prior to calling daemon_start
 END
-
 daemon_init()
 {
     $(opt_parse optpack)
 
-    # Load defaults into the pack first then add in any additional provided settings
-    # Since the last key=val added to the pack will always override prior values
-    # this allows caller to override the defaults.
+    # Load defaults into the pack first then add in any additional provided settings Since the last key=val added to the
+    # pack will always override prior values this allows caller to override the defaults.
     pack_set ${optpack}     \
         bindmounts=         \
         cgroup=             \
@@ -149,10 +136,9 @@ daemon_init()
 }
 
 opt_usage daemon_start <<'END'
-daemon_start will daemonize the provided command and its arguments as a pseudo-daemon and
-automatically respawn it on failure. We don't use the core operating system's default daemon system,
-as that is platform dependent and lacks the portability we need to daemonize things on any arbitrary
-system.
+daemon_start will daemonize the provided command and its arguments as a pseudo-daemon and automatically respawn it on
+failure. We don't use the core operating system's default daemon system, as that is platform dependent and lacks the
+portability we need to daemonize things on any arbitrary system.
 
 For options which control daemon_start functionality please see daemon_init.
 END
@@ -183,11 +169,9 @@ daemon_start()
     fi
 
 
-    # Split this off into a separate sub-shell running in the background so we can
-    # return to the caller.
+    # Split this off into a separate sub-shell running in the background so we can return to the caller.
     (
-        # Enable fatal error handling inside subshell but do not signal the
-        # parent of failures.
+        # Enable fatal error handling inside subshell but do not signal the parent of failures.
         die_on_error
         disable_die_parent
         enable_trace
@@ -200,11 +184,9 @@ daemon_start()
         # Info
         einfo "Starting ${name}"
 
-        # Since we are backgrounding this process we don't want to hold onto
-        # any open file descriptors our parent may have open. So go ahead and
-        # close them now. There's a special case if no logfile was provided
-        # where we also need to close STDOUT and STDERR (which normally would
-        # have been done by elogfile).
+        # Since we are backgrounding this process we don't want to hold onto any open file descriptors our parent may
+        # have open. So go ahead and close them now. There's a special case if no logfile was provided where we also
+        # need to close STDOUT and STDERR (which normally would have been done by elogfile).
         exec 0</dev/null
         close_fds
 
@@ -218,31 +200,27 @@ daemon_start()
             cgroup_move ${cgroup} ${BASHPID}
         fi
 
-        # Check to ensure that we haven't failed running "respawns" times. If
-        # we have, then don't run again. Likewise, ensure that the pidfile
-        # exists. If it doesn't it likely means that we have been stopped (via
-        # daemon_stop) and we really don't want to run again.
+        # Check to ensure that we haven't failed running "respawns" times. If we have, then don't run again. Likewise,
+        # ensure that the pidfile exists. If it doesn't it likely means that we have been stopped (via daemon_stop) and
+        # we really don't want to run again.
         while [[ -e "${pidfile}" && ${runs} -lt ${respawns} ]]; do
 
             # Increment run counter
             (( runs+=1 ))
 
-            # Execute optional pre_start hook. If this fails for any reason do NOT
-            # actually start the daemon.
+            # Execute optional pre_start hook. If this fails for any reason do NOT actually start the daemon.
             $(tryrc ${pre_start})
             [[ ${rc} -eq 0 ]] || { eend 1; break; }
 
-            # Construct a subprocess which bind mounts chroot mount points then executes
-            # requested daemon. After the daemon completes automatically unmount chroot.
+            # Construct a subprocess which bind mounts chroot mount points then executes requested daemon. After the
+            # daemon completes automatically unmount chroot.
             (
                 die_on_abort
                 disable_die_parent
                 enable_trace
 
-                # Normal shutdown for the daemon will cause SIGTERM to this
-                # process.  That's great, we'll let it shut us down, but
-                # without printing a stack trace because this is a normal
-                # situation.
+                # Normal shutdown for the daemon will cause SIGTERM to this process.  That's great, we'll let it shut us
+                # down, but without printing a stack trace because this is a normal situation.
                 trap - SIGTERM
 
                 if [[ -n ${chroot} ]]; then
@@ -250,8 +228,8 @@ daemon_start()
                     chroot_mount
                     trap_add chroot_unmount
 
-                    # If there are additional bindmounts requested mount them as well
-                    # with associated traps to ensure they are unmounted.
+                    # If there are additional bindmounts requested mount them as well with associated traps to ensure
+                    # they are unmounted.
                     if [[ -n ${bindmounts} ]]; then
                         local mounts=( ${bindmounts} )
                         local mnt
@@ -282,7 +260,6 @@ daemon_start()
                     $netns_cmd_prefix ${cmdline} || true
                 fi
 
-
             ) &
 
             # Get the PID of the process we just created and store into requested pid file.
@@ -290,16 +267,14 @@ daemon_start()
             echo "${pid}" > "${pidfile}"
             eend 0
 
-            # SECONDS is a magic bash variable keeping track of the number of
-            # seconds since the shell started, we can modify it without messing
-            # with the parent shell (and it will continue from where we leave
-            # it).
+            # SECONDS is a magic bash variable keeping track of the number of seconds since the shell started, we can
+            # modify it without messing with the parent shell (and it will continue from where we leave it).
             SECONDS=0
             wait ${pid} &>/dev/null || true
 
-            # Note: it would be quite possible to accomplish this as a trap in the shell where the
-            # mount is created, but traps are less-than-perfectly-reliable on Ubuntu 12.04.  To be
-            # sure we clean up mounts, we do it here explicitly.
+            # Note: it would be quite possible to accomplish this as a trap in the shell where the mount is created, but
+            # traps are less-than-perfectly-reliable on Ubuntu 12.04.  To be sure we clean up mounts, we do it here
+            # explicitly.
             if [[ -n ${bindmounts} ]] ; then
                 local to_unmount=( ${bindmounts} )
                 for mnt in "${to_unmount[@]}" ; do
@@ -311,8 +286,7 @@ daemon_start()
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
 
-            # Check that we have run for the minimum duration so we can decide
-            # if we're going to respawn or not.
+            # Check that we have run for the minimum duration so we can decide if we're going to respawn or not.
             local current_runs=${runs}
             if [[ ${SECONDS} -ge ${respawn_interval} ]]; then
                 runs=0
@@ -341,8 +315,8 @@ daemon_start()
 }
 
 opt_usage daemon_stop <<'END'
-daemon_stop will find a command currently being run as a pseudo-daemon, terminate it with the
-provided signal, and clean up afterwards.
+daemon_stop will find a command currently being run as a pseudo-daemon, terminate it with the provided signal, and clean
+up afterwards.
 
 For options which control daemon_start functionality please see daemon_init.
 END
@@ -465,7 +439,4 @@ daemon_not_running()
     [[ ${rc} -ne 0 ]]
 }
 
-#---------------------------------------------------------------------------------------------------
-# SOURCING
-#---------------------------------------------------------------------------------------------------
 return 0

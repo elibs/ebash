@@ -11,7 +11,6 @@
 
 EBASH_NETNS_DIR="/run/netns"
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_supported "check which network namespace features are supported"
 netns_supported()
 {
@@ -38,7 +37,6 @@ netns_supported()
     return 0
 }
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_create "Idempotent create a network namespace"
 netns_create()
 {
@@ -51,7 +49,6 @@ netns_create()
     netns_exec "${ns_name}" ip link set dev lo up
 }
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_delete "Idempotent delete a network namespace"
 netns_delete()
 {
@@ -64,7 +61,6 @@ netns_delete()
     ip netns delete "${ns_name}"
 }
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_exec "Execute a command in the given network namespace"
 netns_exec()
 {
@@ -72,14 +68,12 @@ netns_exec()
     ip netns exec "${ns_name}" "$@"
 }
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_list "Get a list of network namespaces"
 netns_list()
 {
     ip netns list | sort
 }
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_exists "Check if a network namespace exists"
 netns_exists()
 {
@@ -87,7 +81,6 @@ netns_exists()
     [[ -e "${EBASH_NETNS_DIR}/${ns_name}" ]] && return 0 || return 1
 }
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_init <<'END'
 create a pack containing the network namespace parameters
 
@@ -124,7 +117,6 @@ netns_init()
     return 0
 }
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_check_pack <<'END'
 Ensure that the minimum parameters to set up a namespace are present in the pack and that the
 parameters meet some minimum criteria in form and/or length
@@ -149,10 +141,9 @@ netns_check_pack()
     [[ ${#peer_devname} -le 16 ]] || die "ERROR: peer_devname too long (Max: 16 chars)"
     [[ ${#connected_nic} -le 16 ]] || die "ERROR: connected_nic too long (Max: 16 chars)"
 
-    # a cidr is an ip address with the number of static (or network) bits
-    # added to the end.  It is typically of the form "A.B.C.D/##".  the "ip"
-    # utility uses cidr addresses rather than netmasks, as they serve the same
-    # purpose.  This regex ensures that the address is a cidr address.
+    # a cidr is an ip address with the number of static (or network) bits added to the end.  It is typically of the form
+    # "A.B.C.D/##".  the "ip" utility uses cidr addresses rather than netmasks, as they serve the same purpose.  This
+    # regex ensures that the address is a cidr address.
     local cidr_regex="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}"
 
     if ! [[ ${bridge_cidr} =~ ${cidr_regex} ]] ; then
@@ -168,7 +159,6 @@ netns_check_pack()
     fi
 }
 
-#-----------------------------------------------------------------------------------------------------
 opt_usage netns_chroot_exec "Run a command in a netns chroot that already exists"
 netns_chroot_exec()
 {

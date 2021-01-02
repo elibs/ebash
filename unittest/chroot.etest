@@ -81,8 +81,8 @@ ETEST_chroot_create_mount()
     check_mounts 0
 }
 
-# Ensure if we have multiple chroot_mounts going on that we can successfully
-# unmount them properly using a single call to eunmount.
+# Ensure if we have multiple chroot_mounts going on that we can successfully unmount them properly using a single call
+# to eunmount.
 ETEST_chroot_create_mount_unmount_recursive()
 {
     check_mounts 0
@@ -99,11 +99,9 @@ ETEST_chroot_create_mount_unmount_recursive()
     check_mounts 0
 }
 
-# A problem that we've had repeatedly is after using chroot_mount, our root
-# system gets honked up.  This seems to be related to shared/private mounts.
-# Here we create a file on the root system in /dev/shm, which will go away if
-# that problem occurs.  This seems to occur only on systems that mount /dev as
-# shared initially (e.g. those running systemd)
+# A problem that we've had repeatedly is after using chroot_mount, our root system gets honked up.  This seems to be
+# related to shared/private mounts.  Here we create a file on the root system in /dev/shm, which will go away if that
+# problem occurs.  This seems to occur only on systems that mount /dev as shared initially (e.g. those running systemd)
 ETEST_chroot_slash_dev_shared_mounts()
 {
     TESTFILE=/dev/shm/${FUNCNAME}_$$
@@ -112,9 +110,8 @@ ETEST_chroot_slash_dev_shared_mounts()
     [[ -f ${TESTFILE} ]] || die "Unable to create ${TESTFILE}"
     trap_add "rm ${TESTFILE}"
 
-    # Force /dev to be mounted "shared" so that the following code can test
-    # whether it actually works that way.  This is the default on systemd
-    # boxes, but not others
+    # Force /dev to be mounted "shared" so that the following code can test whether it actually works that way.  This is
+    # the default on systemd boxes, but not others
     mount --make-shared /dev
 
     mkdir dev
@@ -174,13 +171,11 @@ ETEST_chroot_install()
     chroot_uninstall
 }
 
-# This test verifies a portion of ebindmount that can only readily be demonstrated inside a chroot.
-# Once inside, you're no longer able to see mountpoints that exist on the filesystem outside the
-# chroot.  But ebindmount attempts to call mount --make-rprivate on the source of things it bind
-# mounts.  If it cannot see them, it fails.
+# This test verifies a portion of ebindmount that can only readily be demonstrated inside a chroot.  Once inside, you're
+# no longer able to see mountpoints that exist on the filesystem outside the chroot.  But ebindmount attempts to call
+# mount --make-rprivate on the source of things it bind mounts.  If it cannot see them, it fails.
 #
-# This test thus does a bind mount from something that would be on a filesystem whose mount point
-# the chroot cannot see.
+# This test thus does a bind mount from something that would be on a filesystem whose mount point the chroot cannot see.
 ETEST_chroot_ebindmount()
 {
     chroot_mount
@@ -194,8 +189,8 @@ ETEST_chroot_ebindmount()
     # Bind mount ebash into the chroot so we can call ebindmount from that
     ebindmount "${EBASH_HOME}" "${CHROOT}/${dirname}"
 
-    # Bind a local directory to another at the top of the hierarchy so we can be sure the filesystem
-    # source of the first is a filesystem whose root we cannot see in this chroot
+    # Bind a local directory to another at the top of the hierarchy so we can be sure the filesystem source of the first
+    # is a filesystem whose root we cannot see in this chroot
     chroot_cmd "EBASH_HOME=/${dirname} EBASH=${dirname}/share /${dirname}/bin/ebash ebindmount /${dirname} /${dirname}-bound"
 
     assert_exists "${CHROOT}/${dirname}-bound/share/ebash.sh"

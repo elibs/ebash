@@ -79,9 +79,8 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | egrep '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
         && fail "Using non-existent deprecated ifs_* functions"
 
-    # Ensure we don't have any sloppy 'return' statements which don't specify what
-    # return code to use. Because this usually returns the prior return code which
-    # is generally not what is intended and causes 'set -e' problems.
+    # Ensure we don't have any sloppy 'return' statements which don't specify what return code to use. Because this
+    # usually returns the prior return code which is generally not what is intended and causes 'set -e' problems.
     echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
         && fail "Ambiguous return statements"
 

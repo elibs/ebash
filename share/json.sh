@@ -1,15 +1,15 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# Convert each argument, in turn, to json in an appropriate way and drop them
-# all in a single json blob.
-#
+opt_usage to_json <<'END'
+Convert each argument, in turn, to json in an appropriate way and drop them all in a single json blob.
+END
 to_json()
 {
     echo -n "{"
@@ -29,11 +29,9 @@ to_json()
             associative_array_to_json ${_arg}
 
         else
-            # You don't strictly need the test here to determine if ${_arg}
-            # contains the name of a variable, but if we skip the check then
-            # bash generates an error message that just says "!_arg: unbound
-            # variable" which really isn't all that helpful.  This way we can
-            # spit out the name of the bad variable.
+            # You don't strictly need the test here to determine if ${_arg} contains the name of a variable, but if we
+            # skip the check then bash generates an error message that just says "!_arg: unbound variable" which really
+            # isn't all that helpful.  This way we can spit out the name of the bad variable.
             [[ -v ${_arg} ]] || die "Cannot create json from unbound variable ${_arg}."
             json_escape "${!_arg}"
         fi
@@ -44,25 +42,22 @@ to_json()
 }
 
 opt_usage array_to_json <<'END'
-Convert an array specified by name (i.e ARRAY not ${ARRAY} or ${ARRAY[@]}) into a json array
-containing the same data.
+Convert an array specified by name (i.e ARRAY not ${ARRAY} or ${ARRAY[@]}) into a json array containing the same data.
 END
 array_to_json()
 {
     # This will store a copy of the specified array's contents into __array
     $(opt_parse __array)
 
-    # Return immediately if if array is not set. The reason we don't error out on
-    # an unset array is because bash doesn't save arrays with no members.
-    # For instance A=() unsets array A. Instead simply echo "[]" for the json
-    # equivalent of an empty array.
+    # Return immediately if if array is not set. The reason we don't error out on an unset array is because bash doesn't
+    # save arrays with no members.  For instance A=() unsets array A. Instead simply echo "[]" for the json equivalent
+    # of an empty array.
     if array_empty ${__array}; then
         echo -n "[]"
         return 0
     fi
 
-    # Otherwise grab the contents of the array and iterate over it and convert
-    # each element to json.
+    # Otherwise grab the contents of the array and iterate over it and convert each element to json.
     eval "local __array=(\"\${${__array}[@]}\")"
     echo -n "["
     local i notfirst=""
@@ -93,9 +88,7 @@ associative_array_to_json()
     echo -n "}"
 }
 
-# Convert a single pack into a json blob where the keys are the same as the
-# keys from the pack (and so are the values)
-#
+# Convert a single pack into a json blob where the keys are the same as the keys from the pack (and so are the values)
 pack_to_json()
 {
     [[ -z ${1} ]] && die "pack_to_json requires a pack to be specified as \$1"
@@ -111,37 +104,32 @@ pack_to_json()
     echo -n "}"
 }
 
-# Escape an arbitrary string (specified as $1) so that it is quoted and safe to
-# put inside json. This is done via a call to jq with --raw-input which will 
-# cause it to emit a properly quoted and escaped string that is safe to use
-# inside json.
-#
+# Escape an arbitrary string (specified as $1) so that it is quoted and safe to put inside json. This is done via a call
+# to jq with --raw-input which will cause it to emit a properly quoted and escaped string that is safe to use inside
+# json.
 json_escape()
 {
-    # Newer jq has a -j flag to join newlines into a single flat string.
-    # To workaround the lack of this flag in older versions, we wrap the call
-    # to jq in a subshell which is not quoted to strip off the final newline.
+    # Newer jq has a -j flag to join newlines into a single flat string.  To workaround the lack of this flag in older
+    # versions, we wrap the call to jq in a subshell which is not quoted to strip off the final newline.
     echo -n $(echo -n "$1" | jq --raw-input --slurp .)
 }
 
 opt_usage json_import <<'END'
-Import all of the key:value pairs from a non-nested Json object directly into the caller's
-environment as proper bash variables. By default this will import all the keys available into the
-caller's environment. Alternatively you can provide an optional list of keys to restrict what is
-imported. If any of the explicitly requested keys are not present this will be interpreted as an
-error and json_import will return non-zero. Keys can be marked optional via the '?' prefix before
-the key name in which case they will be set to an empty string if the key is missing. 
+Import all of the key:value pairs from a non-nested Json object directly into the caller's environment as proper bash
+variables. By default this will import all the keys available into the caller's environment. Alternatively you can
+provide an optional list of keys to restrict what is imported. If any of the explicitly requested keys are not present
+this will be interpreted as an error and json_import will return non-zero. Keys can be marked optional via the '?'
+prefix before the key name in which case they will be set to an empty string if the key is missing.
 
-Similar to a lot of other  methods inside ebash, this uses the "eval command invocation string"
-idom. So, the proper calling convention for this is:
+Similar to a lot of other  methods inside ebash, this uses the "eval command invocation string" idom. So, the proper
+calling convention for this is:
 
     $(json_import)
 
-By default this function operates on stdin. Alternatively you can change it to operate on a file via
--f. To use via STDIN use one of these idioms:
+By default this function operates on stdin. Alternatively you can change it to operate on a file via -f. To use via
+STDIN use one of these idioms:
 
-    $(json_import <<< ${json})
-    $(curl ... | $(json_import)
+    $(json_import <<< ${json}) $(curl ... | $(json_import)
 
 END
 json_import()
@@ -164,8 +152,8 @@ json_import()
     # optional jq query, or . which selects everything in jq
     : ${query:=.}
 
-    # Lookup optional filename to use. If no filename was given then we're operating on STDIN.
-    # In either case read into a local variable so we can parse it repeatedly in this function.
+    # Lookup optional filename to use. If no filename was given then we're operating on STDIN.  In either case read into
+    # a local variable so we can parse it repeatedly in this function.
     local _json_import_input _json_import_data
     _json_import_input=$(cat ${file} || true)
     _json_import_data=$(jq -r "${query}" <<< ${_json_import_input} || true)
@@ -231,7 +219,7 @@ file_to_json()
     (
         # Parse the file and strip out any ansi escape codes and then replace newlines with spaces. This gives a bunch
         # of separate, quoted items that we can safely insert into a pack. We can then pass that pack through eval so
-        # that bash can safely interpret those quotes and make them separate arguments passed into pack_set. 
+        # that bash can safely interpret those quotes and make them separate arguments passed into pack_set.
         array_init_nl parts "$(cat "${file}" | noansi)"
         pack_set pack "${parts[@]}"
         pack_to_json pack

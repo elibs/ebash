@@ -73,9 +73,8 @@ fully_qualify_hostname()
 #---------------------------------------------------------------------------------------------------
 
 opt_usage getipaddress <<'END'
-Get the IPAddress currently bound to the requested interface (if any). It is not an error for an
-interface to be unbound so this function will not fail if no IPAddress is set on the interface.
-Instead it will simply return an empty string.
+Get the IPAddress currently bound to the requested interface (if any). It is not an error for an interface to be unbound
+so this function will not fail if no IPAddress is set on the interface.  Instead it will simply return an empty string.
 END
 getipaddress()
 {
@@ -84,9 +83,9 @@ getipaddress()
 }
 
 opt_usage getnetmask <<'END'
-Get the netmask (IPv4 dotted notation) currently set on the requested interface (if any). It is not
-an error for an interface to be unbound so this method will not fail if no Netmask has been set on
-an interface. Instead it will simply return an empty string.
+Get the netmask (IPv4 dotted notation) currently set on the requested interface (if any). It is not an error for an
+interface to be unbound so this method will not fail if no Netmask has been set on an interface. Instead it will simply
+return an empty string.
 END
 getnetmask()
 {
@@ -98,9 +97,8 @@ getnetmask()
     cidr2netmask "${cidr}"
 }
 
-# Convert a netmask in IPv4 dotted notation into CIDR notation (e.g 255.255.255.0 => 24).
-# Below is the official chart of all possible valid Netmasks in quad-dotted decimal notation
-# with the associated CIDR value:
+# Convert a netmask in IPv4 dotted notation into CIDR notation (e.g 255.255.255.0 => 24).  Below is the official chart
+# of all possible valid Netmasks in quad-dotted decimal notation with the associated CIDR value:
 #
 # { "255.255.255.255", 32 }, { "255.255.255.254", 31 }, { "255.255.255.252", 30 }, { "255.255.255.248", 29 },
 # { "255.255.255.240", 28 }, { "255.255.255.224", 27 }, { "255.255.255.192", 26 }, { "255.255.255.128", 25 },
@@ -121,9 +119,9 @@ netmask2cidr ()
     echo $(( $1 + (${#rem}/4) ))
 }
 
-# Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0).
-# This function takes input in the form of just a singular number (e.g. 24) and will echo to
-# standard output the associated IPv4 dotted notation form of that netmask (e.g. 255.255.255.0).
+# Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0).  This function takes input
+# in the form of just a singular number (e.g. 24) and will echo to standard output the associated IPv4 dotted notation
+# form of that netmask (e.g. 255.255.255.0).
 #
 # See comments in netmask2cidr for a table of all possible netmask/cidr mappings.
 #

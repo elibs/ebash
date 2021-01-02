@@ -117,18 +117,17 @@ emetadata()
 }
 
 opt_usage emetadata_check <<'END'
-Validate an exiting source file against a companion *.meta file which contains various checksum
-fields. The list of checksums is optional but at present the supported fields we inspect are:
-Filename, Size, MD5, SHA1, SHA256, SHA512, PGPSignature.
+Validate an exiting source file against a companion *.meta file which contains various checksum fields. The list of
+checksums is optional but at present the supported fields we inspect are: Filename, Size, MD5, SHA1, SHA256, SHA512,
+PGPSignature.
 
-For each of the above fields, if they are present in the .meta file, validate it against the source
-file. If any of them fail this function returns non-zero. If NO validators are present in the info
-file, this function returns non-zero.
+For each of the above fields, if they are present in the .meta file, validate it against the source file. If any of them
+fail this function returns non-zero. If NO validators are present in the info file, this function returns non-zero.
 END
 emetadata_check()
 {
     $(opt_parse \
-        "+quiet q      | If specified, produce no output.  Return code reflects whether check was good or bad." \
+        "+quiet q      | If specified, produce no output. Return code reflects whether check was good or bad." \
         ":public_key p | Path to a PGP public key that can be used to validate PGPSignature in .meta file."     \
         "path")
 
@@ -162,8 +161,8 @@ emetadata_check()
         die "No digest validation fields found: $(lval path)"
     fi
 
-    # Callback function for use in the below block of code. The reason we can't just call die() inline when one of
-    # the associated checks fail is because they are backgrounded processes. Calling die() in backgrounded processes
+    # Callback function for use in the below block of code. The reason we can't just call die() inline when one of the
+    # associated checks fail is because they are backgrounded processes. Calling die() in backgrounded processes
     # sometimes causes glibc stack smashing corruption.
     fail()
     {
@@ -190,8 +189,8 @@ emetadata_check()
             fi
         elif [[ ${ctype} == "PGP" && -n ${public_key} && -n ${pgpsignature} ]]; then
 
-            # Setup a cgroup to track the gpg agent that we're going to spawn so we can ensure it gets killed.
-            # If cgroups are not supported, then we'll fallback to using ekill below.
+            # Setup a cgroup to track the gpg agent that we're going to spawn so we can ensure it gets killed. If
+            # cgroups are not supported, then we'll fallback to using ekill below.
             local cgroup=""
             if cgroup_supported ; then
                 cgroup="ebash/$$"
@@ -231,10 +230,9 @@ emetadata_check()
 }
 
 opt_usage emd5sum <<'END'
-Wrapper around computing the md5sum of a file to output just the filename instead of the full path
-to the filename. This is a departure from normal md5sum for good reason. If you download an md5 file
-with a path embedded into it then the md5sum can only be validated if you put it in the exact same
-path. This function will die on failure.
+Wrapper around computing the md5sum of a file to output just the filename instead of the full path to the filename. This
+is a departure from normal md5sum for good reason. If you download an md5 file with a path embedded into it then the
+md5sum can only be validated if you put it in the exact same path. This function will die on failure.
 END
 emd5sum()
 {
