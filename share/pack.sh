@@ -7,23 +7,20 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-#
-# Consider a "pack" to be a "new" data type for bash.  It stores a set of key/value pairs in an arbitrary format inside
-# a normal bash (string) variable.  This is much like an associative array, but has a few differences
-#
-#   1) You can store packs INSIDE associative arrays (example in unit tests)
-#   2) The "keys" in a pack may not contain an equal sign, nor may they contain whitespace.
-#   3) Packed values cannot contain newlines.
-#
-#
+opt_usage pack_set <<'END'
+Consider a "pack" to be a "new" data type for bash. It stores a set of key/value pairs in an arbitrary format inside
+a normal bash (string) variable. This is much like an associative array, but has a few differences
 
-#
-# For a (new or existing) variable whose contents are formatted as a pack, set one or more keys to values.  For example,
-# the following will create a new variable packvar that will contain three keys (alpha, beta, n) with associated values
-# (a, b, 7)
-#
-#  pack_set packvar alpha=a beta=b n=7
-#
+  1) You can store packs INSIDE associative arrays (example in unit tests)
+  2) The "keys" in a pack may not contain an equal sign, nor may they contain whitespace.
+  3) Packed values cannot contain newlines.
+
+For a (new or existing) variable whose contents are formatted as a pack, set one or more keys to values. For example,
+the following will create a new variable packvar that will contain three keys (alpha, beta, n) with associated values
+(a, b, 7)
+
+  pack_set packvar alpha=a beta=b n=7
+END
 pack_set()
 {
     local _pack_set_pack=$1 ; shift
@@ -36,10 +33,10 @@ pack_set()
     done
 }
 
-#
-# Much like pack_set, and takes arguments of the same form.  The difference is that pack_update will create no new keys
-# -- it will only update keys that already exist.
-#
+opt_usage pack_update <<'END'
+ Much like pack_set, and takes arguments of the same form. The difference is that pack_update will create no new keys
+ -- it will only update keys that already exist.
+END
 pack_update()
 {
     local _pack_update_pack=$1 ; shift
@@ -73,9 +70,9 @@ pack_set_internal()
     printf -v "${1}" "${_packed}"
 }
 
-#
-# Get the last value assigned to a particular key in this pack.
-#
+opt_usage pack_get <<'END'
+Get the last value assigned to a particular key in this pack.
+END
 pack_get()
 {
     local _pack_pack_get=$1
@@ -94,25 +91,25 @@ pack_contains()
     [[ -n $(pack_get $@) ]]
 }
 
-#
-# Copy a packed value from one variable to another.  Either variable may be part of an associative array, if you're so
-# inclined.
-#
-# Examples:
-#   pack_copy A B
-#   pack_copy B A["alpha"]
-#   pack_copy A["alpha"] B[1]
-#
+opt_usage pack_copy <<'END'
+Copy a packed value from one variable to another. Either variable may be part of an associative array, if you're so
+inclined.
+
+Examples:
+  pack_copy A B
+  pack_copy B A["alpha"]
+  pack_copy A["alpha"] B[1]
+END
 pack_copy()
 {
     argcheck 1 2
     eval "${2}=\"\${!1}\""
 }
 
-#
-# Call provided callback function on each entry in the pack. The callback function should take two arguments, and it
-# will be called once for each item in the pack and passed the key as the first value and its value as the second value.
-#
+opt_usage pack_iterate <<'END'
+Call provided callback function on each entry in the pack. The callback function should take two arguments, and it
+will be called once for each item in the pack and passed the key as the first value and its value as the second value.
+END
 pack_iterate()
 {
     local _func=$1
@@ -141,7 +138,7 @@ locals a=1 and b=2 by running:
 
     $(pack_import pack)
 
-If you don't want the pack's entire contents, but only a limited subset, you may specify them.  For instance, in the
+If you don't want the pack's entire contents, but only a limited subset, you may specify them. For instance, in the
 same example scenario, the following will create a local a=1, but not a local for b.
 
     $(pack_import pack a)
@@ -183,7 +180,6 @@ You will be left with the same pack as if you instead said:
 
     pack_set pack a=${a} b=${b}
 END
-
 pack_export()
 {
     local _pack_export_pack=$1 ; shift
@@ -202,16 +198,18 @@ pack_size()
     echo -n "${!1}" | _unpack | wc -l
 }
 
-#
-# Echo a whitespace-separated list of the keys in the specified pack to stdout.
-#
+opt_usage pack_keys <<'END'
+Echo a whitespace-separated list of the keys in the specified pack to stdout.
+END
 pack_keys()
 {
     [[ -z ${1} ]] && die "pack_keys requires a pack to be specified as \$1"
     echo "${!1:-}" | _unpack | sed 's/=.*$//'
 }
 
-# Note: To support working with print_value, pack_print does NOT print a newline at the end of its output
+opt_usage pack_print <<'END'
+Note: To support working with print_value, pack_print does NOT print a newline at the end of its output
+END
 pack_print()
 {
     local _pack_pack_print=$1

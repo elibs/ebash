@@ -27,13 +27,17 @@
 # we find (hence the use of head -1).
 __EBASH_OVERLAYFS=$(awk '/overlay/ {print $2}' /proc/filesystems 2>/dev/null | sort | head -1 || true)
 
-# Detect whether overlayfs is supported or not.
+opt_usage overlayfs_supported <<'END'
+Detect whether overlayfs is supported or not.
+END
 overlayfs_supported()
 {
     [[ -n "${__EBASH_OVERLAYFS}" ]]
 }
 
-# Try to enable overlayfs by modprobing the kernel module.
+opt_usage overlayfs_enable <<'END'
+Try to enable overlayfs by modprobing the kernel module.
+END
 overlayfs_enable()
 {
     # If it's already supported then return - nothing to do
@@ -64,25 +68,27 @@ overlayfs_enable()
     overlayfs_supported
 }
 
-# overlayfs_mount mounts multiple filesystems into a single unified writeable directory with read-through semantics. All
-# the underlying filesystem layers are mounted read-only (if they are mountable) and the top-most layer is mounted
-# read-write. Only the top-level layer is mounted read-write.
-#
-# The most common uses cases for using overlayfs is to mount ISOs or squashfs images with a read-write layer on top of
-# them. To make this implementation as generic as possible, it deals only with overlayfs mounting semantics.  The
-# specific mounting of ISO or squashfs images are handled by separate dedicated modules.
-#
-# This function takes multiple arguments where each argument is a layer to mount into the final unified overlayfs image.
-# The final positional parameter is the final mount point to mount everything at. This final directory will be created
-# if it doesn't exist.
-#
-# The versioning around OverlayFS is quite complex. The first version of the kernel which officially supported overlayfs
-# was 3.18 and the kernel module name is just 'overlay'. Earlier, unofficial versions of the kernel module used the
-# module name 'overlayfs'. The newer module 'overlay' requires specifying an additional 'workdir' option for the scratch
-# work performed by overlayfs. 3.19 added support for layering up to two overlayfs mounts on top of one another. 3.20
-# extended this support even more by allowing you to chain as many as you'd like in the 'lowerdir' option separated by
-# colons and it would overlay them all seamlessly. The 3.19 version is not particularly interesting to us due to it's
-# limitation of only 2 layers so we don't use that one at all.
+opt_usage overlayfs_mount <<'END'
+overlayfs_mount mounts multiple filesystems into a single unified writeable directory with read-through semantics. All
+the underlying filesystem layers are mounted read-only (if they are mountable) and the top-most layer is mounted
+read-write. Only the top-level layer is mounted read-write.
+
+The most common uses cases for using overlayfs is to mount ISOs or squashfs images with a read-write layer on top of
+them. To make this implementation as generic as possible, it deals only with overlayfs mounting semantics. The specific
+mounting of ISO or squashfs images are handled by separate dedicated modules.
+
+This function takes multiple arguments where each argument is a layer to mount into the final unified overlayfs image.
+The final positional parameter is the final mount point to mount everything at. This final directory will be created if
+it doesn't exist.
+
+The versioning around OverlayFS is quite complex. The first version of the kernel which officially supported overlayfs
+was 3.18 and the kernel module name is just 'overlay'. Earlier, unofficial versions of the kernel module used the module
+name 'overlayfs'. The newer module 'overlay' requires specifying an additional 'workdir' option for the scratch work
+performed by overlayfs. 3.19 added support for layering up to two overlayfs mounts on top of one another. 3.20 extended
+this support even more by allowing you to chain as many as you'd like in the 'lowerdir' option separated by colons and
+it would overlay them all seamlessly. The 3.19 version is not particularly interesting to us due to it's limitation of
+only 2 layers so we don't use that one at all.
+END
 overlayfs_mount()
 {
     overlayfs_enable
@@ -216,7 +222,7 @@ overlayfs_unmount()
     # call overlayfs_unmount again and we'd recurse infinitely.
     umount -l "${mnt}"
 
-    # Now we can eunmount all the other layers to ensure everything is cleaned up.  This is necessary on older kernels
+    # Now we can eunmount all the other layers to ensure everything is cleaned up. This is necessary on older kernels
     # which would leak the lower layer mounts.
     local metadir
     metadir=$(pack_get layers metadir)
@@ -281,7 +287,7 @@ overlayfs_tree()
     local layers=""
     overlayfs_layers "${mnt}" layers
 
-    # Parse all the lowerdirs and upperdir into an array of mount points to get contents of.  For display purposes want
+    # Parse all the lowerdirs and upperdir into an array of mount points to get contents of. For display purposes want
     # to display the sources of the mount points instead. So construct a second array for that. This relies on the fact
     # that the entries are in the same order inside the layer map.
     local lowerdirs=() sources=()
@@ -371,7 +377,7 @@ overlayfs_commit()
     fi
 
     # Create a tmp file to store changed version Note: if src_name contains any captiol X's, it will either cause mktemp
-    # to fail completely or put the randomness in the wrong place.  converting to lowercase solves this problem
+    # to fail completely or put the randomness in the wrong place. converting to lowercase solves this problem
     local tmp
     tmp=$(mktemp --tmpdir overlayfs-commit-XXXXXX-${src_name,,})
     trap_add "rm --force ${tmp}"
@@ -386,7 +392,7 @@ overlayfs_commit()
     local flags=""
     if [[ ${src_type} == "iso" ]]; then
 
-        # Get volume name and bootable flag.  NOTE: Suppress stderr because isoinfo spews messages to stderr that can't
+        # Get volume name and bootable flag. NOTE: Suppress stderr because isoinfo spews messages to stderr that can't
         # be turned of such as 'Setting input-charset to 'UTF-8' from locale.'
         #
         # The "file" utility version 5.29 reports a bootable ISO image like this:
@@ -435,7 +441,9 @@ overlayfs_save_changes()
     archive_create "${dest}" "$(pack_get layers upperdir)/."
 }
 
-opt_usage overlayfs_changed "Check if there are any changes in an overlayfs or not."
+opt_usage overlayfs_changed <<'END'
+Check if there are any changes in an overlayfs or not.
+END
 overlayfs_changed()
 {
     $(opt_parse mnt)
@@ -448,7 +456,9 @@ overlayfs_changed()
     directory_not_empty "$(pack_get layers upperdir)"
 }
 
-opt_usage overlayfs_list_changes "List the changes in an overlayfs"
+opt_usage overlayfs_list_changes <<'END'
+List the changes in an overlayfs
+END
 overlayfs_list_changes()
 {
     $(opt_parse \
@@ -473,7 +483,9 @@ overlayfs_list_changes()
     fi
 }
 
-opt_usage overlayfs_diff "Show a unified diff between the lowest and upper layers"
+opt_usage overlayfs_diff <<'END'
+Show a unified diff between the lowest and upper layers.
+END
 overlayfs_diff()
 {
     $(opt_parse \

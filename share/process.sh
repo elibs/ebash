@@ -8,8 +8,8 @@
 # version.
 
 
-# This is a simple override of the linux pstree command.  The trouble with that command is that it likes to segfault.
-# It's buggy.  So here, we simply ignore the error codes that would come from it.
+# This is a simple override of the linux pstree command. The trouble with that command is that it likes to segfault.
+# It's buggy. So here, we simply ignore the error codes that would come from it.
 #
 if [[ ${__EBASH_OS} == Linux ]] ; then
     pstree()
@@ -21,8 +21,10 @@ if [[ ${__EBASH_OS} == Linux ]] ; then
     }
 fi
 
-# Check if a given process is running. Returns success (0) if all of the specified processes are running and failure (1)
-# otherwise.
+opt_usage process_running <<'END'
+Check if a given process is running. Returns success (0) if all of the specified processes are running and failure (1)
+otherwise.
+END
 process_running()
 {
     local pid
@@ -34,8 +36,10 @@ process_running()
     return 0
 }
 
-# Check if a given process is NOT running. Returns success (0) if all of the specified processes are not running and
-# failure (1) otherwise.
+opt_usage process_not_running <<'END'
+Check if a given process is NOT running. Returns success (0) if all of the specified processes are not running and
+failure (1) otherwise.
+END
 process_not_running()
 {
     local pid
@@ -79,10 +83,10 @@ process_tree()
 }
 
 opt_usage process_children <<'END'
-Print the pids of all children of the specified list of processes.  If no processes were specified, default to
+Print the pids of all children of the specified list of processes. If no processes were specified, default to
 ${BASHPID}.
 
-Note, this doesn't print grandchildren and other descendants.  Just children. See process_tree for a recursive tree of
+Note, this doesn't print grandchildren and other descendants. Just children. See process_tree for a recursive tree of
 descendants.
 END
 process_children()
@@ -148,7 +152,7 @@ process_parent_tree()
 }
 
 opt_usage process_ancestors <<'END'
-Print pids of all ancestores of the specified list of processes, up to and including init (pid 1).  If no processes are
+Print pids of all ancestores of the specified list of processes, up to and including init (pid 1). If no processes are
 specified as arguments, defaults to ${BASHPID}
 END
 process_ancestors()
@@ -237,7 +241,7 @@ ekilltree()
         ":signal sig s=SIGTERM | The signal to send to the process tree, either as a number or a name." \
         ":exclude x            | Processes to exclude from being killed." \
         ":kill_after k         | Elevate to SIGKILL after this duration if the processes haven't died." \
-        "@pids                 | IDs of processes to be affected.  All of these plus their children will receive the
+        "@pids                 | IDs of processes to be affected. All of these plus their children will receive the
                                  specified signal.")
 
     # Determine what signal to send to the processes

@@ -74,12 +74,13 @@ fully_qualify_hostname()
 
 opt_usage getipaddress <<'END'
 Get the IPAddress currently bound to the requested interface (if any). It is not an error for an interface to be unbound
-so this function will not fail if no IPAddress is set on the interface.  Instead it will simply return an empty string.
+so this function will not fail if no IPAddress is set on the interface. Instead it will simply return an empty string.
 END
 getipaddress()
 {
     $(opt_parse iface)
-    ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global (dynamic )*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
+    ip addr show "${iface}" 2>/dev/null \
+        | awk '/inet [0-9.\/]+ .* scope global (dynamic )*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
 }
 
 opt_usage getnetmask <<'END'
@@ -97,19 +98,21 @@ getnetmask()
     cidr2netmask "${cidr}"
 }
 
-# Convert a netmask in IPv4 dotted notation into CIDR notation (e.g 255.255.255.0 => 24).  Below is the official chart
-# of all possible valid Netmasks in quad-dotted decimal notation with the associated CIDR value:
-#
-# { "255.255.255.255", 32 }, { "255.255.255.254", 31 }, { "255.255.255.252", 30 }, { "255.255.255.248", 29 },
-# { "255.255.255.240", 28 }, { "255.255.255.224", 27 }, { "255.255.255.192", 26 }, { "255.255.255.128", 25 },
-# { "255.255.255.0",   24 }, { "255.255.254.0",   23 }, { "255.255.252.0",   22 }, { "255.255.248.0",   21 },
-# { "255.255.240.0",   20 }, { "255.255.224.0",   19 }, { "255.255.192.0",   18 }, { "255.255.128.0",   17 },
-# { "255.255.0.0",     16 }, { "255.254.0.0",     15 }, { "255.252.0.0",     14 }, { "255.248.0.0",     13 },
-# { "255.240.0.0",     12 }, { "255.224.0.0",     11 }, { "255.192.0.0",     10 }, { "255.128.0.0",      9 },
-# { "255.0.0.0",        8 }, { "254.0.0.0",        7 }, { "252.0.0.0",        6 }, { "248.0.0.0",        5 },
-# { "240.0.0.0",        4 }, { "224.0.0.0",        3 }, { "192.0.0.0",        2 }, { "128.0.0.0",        1 },
-#
-# From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
+opt_usage netmask2cidr <<'END'
+Convert a netmask in IPv4 dotted notation into CIDR notation (e.g 255.255.255.0 => 24). Below is the official chart
+of all possible valid Netmasks in quad-dotted decimal notation with the associated CIDR value:
+
+{ "255.255.255.255", 32 }, { "255.255.255.254", 31 }, { "255.255.255.252", 30 }, { "255.255.255.248", 29 },
+{ "255.255.255.240", 28 }, { "255.255.255.224", 27 }, { "255.255.255.192", 26 }, { "255.255.255.128", 25 },
+{ "255.255.255.0",   24 }, { "255.255.254.0",   23 }, { "255.255.252.0",   22 }, { "255.255.248.0",   21 },
+{ "255.255.240.0",   20 }, { "255.255.224.0",   19 }, { "255.255.192.0",   18 }, { "255.255.128.0",   17 },
+{ "255.255.0.0",     16 }, { "255.254.0.0",     15 }, { "255.252.0.0",     14 }, { "255.248.0.0",     13 },
+{ "255.240.0.0",     12 }, { "255.224.0.0",     11 }, { "255.192.0.0",     10 }, { "255.128.0.0",      9 },
+{ "255.0.0.0",        8 }, { "254.0.0.0",        7 }, { "252.0.0.0",        6 }, { "248.0.0.0",        5 },
+{ "240.0.0.0",        4 }, { "224.0.0.0",        3 }, { "192.0.0.0",        2 }, { "128.0.0.0",        1 },
+
+From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
+END
 netmask2cidr ()
 {
     # Assumes there's no "255." after a non-255 byte in the mask
@@ -119,18 +122,20 @@ netmask2cidr ()
     echo $(( $1 + (${#rem}/4) ))
 }
 
-# Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0).  This function takes input
-# in the form of just a singular number (e.g. 24) and will echo to standard output the associated IPv4 dotted notation
-# form of that netmask (e.g. 255.255.255.0).
-#
-# See comments in netmask2cidr for a table of all possible netmask/cidr mappings.
-#
-# From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
-cidr2netmask ()
+opt_usage cidr2netmask <<'END'
+Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0). This function takes input in
+the form of just a singular number (e.g. 24) and will echo to standard output the associated IPv4 dotted notation form
+of that netmask (e.g. 255.255.255.0).
+
+See comments in netmask2cidr for a table of all possible netmask/cidr mappings.
+
+From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
+END
+cidr2netmask()
 {
     # Number of args to shift, 255..255, first non-255 byte, zeroes
     set -- $(( 5 - ($1 / 8) )) 255 255 255 255 $(( (255 << (8 - ($1 % 8))) & 255 )) 0 0 0
-    [ $1 -gt 1 ] && shift $1 || shift
+    [[ $1 -gt 1 ]] && shift $1 || shift
     echo ${1-0}.${2-0}.${3-0}.${4-0}
 }
 
@@ -142,12 +147,14 @@ END
 getbroadcast()
 {
     $(opt_parse iface)
-    ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ brd .* scope global (dynamic )*'${iface}'$/ { print $4 }' || true
+    ip addr show "${iface}" 2>/dev/null \
+        | awk '/inet [0-9.\/]+ brd .* scope global (dynamic )*'${iface}'$/ { print $4 }' || true
 }
 
-# Gets the default gateway that is currently in use, if any. It is not an
-# error for there to be no gateway set. In that case this will simply echo an
-# empty string.
+opt_usage getgateway <<'END'
+Gets the default gateway that is currently in use, if any. It is not an error for there to be no gateway set. In that
+case this will simply echo an empty string.
+END
 getgateway()
 {
     $(opt_parse iface)
@@ -171,14 +178,18 @@ getsubnet()
     printf "%d.%d.%d.%d" "$((i1 & m1))" "$(($i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
 }
 
-opt_usage getmtu "Get the MTU that is currently set on a given interface."
+opt_usage getmtu <<'END'
+Get the MTU that is currently set on a given interface.
+END
 getmtu()
 {
     $(opt_parse iface)
     ip addr show "${iface}" 2>/dev/null | grep -Po 'mtu \K[\d.]+' || true
 }
 
-opt_usage getvlans "Get the vlans on a given interface."
+opt_usage getvlans <<'END'
+Get the vlans on a given interface.
+END
 getvlans()
 {
     $(opt_parse iface)
@@ -186,7 +197,9 @@ getvlans()
     ip link show type vlan | grep "[0-9]\+: ${iface}\." | cut -d: -f2 | cut -d. -f2 | cut -d@ -f1 || true
 }
 
-# Get list of network interfaces
+opt_usage get_network_interfaces <<'END'
+Get list of network interfaces
+END
 get_network_interfaces()
 {
     for iface in $(ls -1 ${SYSFS}/class/net); do
@@ -196,7 +209,9 @@ get_network_interfaces()
     done | tr '\n' ' ' || true
 }
 
-# Get list network interfaces with specified "Supported Ports" query.
+opt_usage get_network_interfaces_with_port <<'END'
+Get list network interfaces with specified "Supported Ports" query.
+END
 get_network_interfaces_with_port()
 {
     local query ifname port
@@ -215,13 +230,17 @@ get_network_interfaces_with_port()
     echo -n "${results[@]:-}"
 }
 
-# Get list of 1G network interfaces
+opt_usage get_network_interfaces_1g <<'END'
+Get list of 1G network interfaces.
+END
 get_network_interfaces_1g()
 {
     get_network_interfaces_with_port "TP"
 }
 
-# Get list of 10G network interfaces
+opt_usage get_network_interfaces_10g <<'END'
+Get list of 10G network interfaces.
+END
 get_network_interfaces_10g()
 {
     get_network_interfaces_with_port "FIBRE" "Backplane"
@@ -230,8 +249,8 @@ get_network_interfaces_10g()
 opt_usage get_permanent_mac_address <<'END'
 Get the permanent MAC address for given ifname.
 
-NOTE: Do NOT use ethtool -P for this as that doesn't reliably work on all cards since the firmware
-has to support it properly.
+NOTE: Do NOT use ethtool -P for this as that doesn't reliably work on all cards since the firmware has to support it
+properly.
 END
 get_permanent_mac_address()
 {
@@ -267,7 +286,9 @@ get_network_pci_device()
     echo ${pci_addr}
 }
 
-# Export ethernet device names in the form ETH_1G_0=eth0, etc.
+opt_usage export_network_interface_names <<'END'
+Export ethernet device names in the form ETH_1G_0=eth0, etc.
+END
 export_network_interface_names()
 {
     local idx=0
@@ -380,14 +401,14 @@ get_network_ports()
 
 opt_usage netselect <<'END'
 Netselect chooses the host that responds most quickly and reliably among a list of specified IP
-addresses or hostnames.  It does this by pinging each and looking for response times as well as
+addresses or hostnames. It does this by pinging each and looking for response times as well as
 packet drops.
 END
 netselect()
 {
     $(opt_parse \
         "+quiet q=0 | Don't display progress information, just print the chosen host on stdout." \
-        ":count c   | Number of times to ping.  Defaults to 10 for multiple hosts or 1 for a single host." \
+        ":count c   | Number of times to ping. Defaults to 10 for multiple hosts or 1 for a single host." \
         "@hosts     | Names or IP address of hosts to test.")
 
     [[ ${#hosts[@]} -gt 0 ]] || die "must specify hosts to test."

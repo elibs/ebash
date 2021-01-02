@@ -27,12 +27,12 @@
 # written sector on an optical disc, including the optical disc file system. The name ISO is taken from the ISO
 # 9660 file system used with CD-ROM media, but what is known as an ISO image can contain other file systems.
 #
-# TAR: A tar file is an archive file format that may or may not be compressed.  The archive data sets created by tar
+# TAR: A tar file is an archive file format that may or may not be compressed. The archive data sets created by tar
 # contain various file system parameters, such as time stamps, ownership, file access permissions, and directory
 # organization. Our archive_compress_program function is used to generalize our use of tar so that compression format is
 # handled seamlessly based on the file extension in a way which picks the best compression program at runtime.
 #
-# CPIO: "cpio is a general file archiver utility and its associated file format.  It is primarily installed on Unix-like
+# CPIO: "cpio is a general file archiver utility and its associated file format. It is primarily installed on Unix-like
 # computer operating systems. The software utility was originally intended as a tape archiving program as part of the
 # Programmer's Workbench (PWB/UNIX), and has been a component of virtually every Unix operating system released
 # thereafter. Its name is derived from the phrase copy in and out, in close description of the program's use of standard
@@ -46,7 +46,7 @@ opt_usage archive_suffixes <<'END'
 Echo a list of the supported archive suffixes for the optional provided type. If no type is given it returns a unified
 list of all the supported archive suffixes supported. By default the list of the supported suffixes is echoed as a
 whitespace separated list. But using the --pattern option it will instead echo the result in a pattern-list which is a
-list of one or more patterns separated by a '|'.  This can then be used more seamlessly inside extended glob matching.
+list of one or more patterns separated by a '|'. This can then be used more seamlessly inside extended glob matching.
 END
 archive_suffixes()
 {
@@ -80,7 +80,7 @@ archive_suffixes()
         results=( "${results[@]/./*.}" )
     fi
 
-    # If pattern-list was requested convert the result to a pattern-list.  NOTE: Use sed here instead of array_join
+    # If pattern-list was requested convert the result to a pattern-list. NOTE: Use sed here instead of array_join
     # because it is an order of magnitude faster, the array is well-formed without holes, and we don't need additional
     # functionality offered by array_join.
     if [[ ${pattern} -eq 1 ]]; then
@@ -120,7 +120,18 @@ archive_type()
     die "Unsupported fstype $(lval src)"
 }
 
-# Determine the best compress programm to use based on the archive suffix.
+opt_usage archive_compress_program <<'END'
+Determine the best compress programm to use based on the archive suffix.
+
+Uses the following algorithm based on filename suffix:
+
+    *.bz2|*.tz2|*.tbz2|*.tbz)
+        use first available from ( lbzip2 pbzip2 bzip2 )
+    *.gz|*.tgz|*.taz|*.cgz)
+        use first available from ( pigz gzip )
+    *.lz|*.xz|*.txz|*.tlz|*.cxz|*.clz)
+        use first available from ( lzma xz )
+END
 archive_compress_program()
 {
     $(opt_parse \
@@ -154,9 +165,9 @@ archive_compress_program()
 }
 
 opt_usage tar_ignored_modified_files <<'END'
-Tar has a pecularity with return codes that is inconsistent with the other archive formats.  It returns 1 if any files
+Tar has a pecularity with return codes that is inconsistent with the other archive formats. It returns 1 if any files
 were modified during creation. This isn't something we want to guard against as it's extremely frequent when archiving
-files for them to be modified during archival.  Moreover, since none of the other archive formats have this behavior
+files for them to be modified during archival. Moreover, since none of the other archive formats have this behavior
 ignoring this error helps to unify archive_create across all its supported formats.
 END
 tar_ignore_modified_files()
@@ -185,7 +196,7 @@ suffix of the destination file.
 
 ${PATH_MAPPING_SYNTAX_DOC}
 
-You can also optionally exclude certain paths from being included in the resultant archive.  Unfortunately, each of the
+You can also optionally exclude certain paths from being included in the resultant archive. Unfortunately, each of the
 supported archive formats have different levels of support for excluding via filename, glob or regex. So, to provide a
 common interface in archive_create, we pre-expand all exclude paths using find(1).
 
@@ -308,7 +319,7 @@ archive_create()
     edebug $'Exclude File:\n'"$(cat ${exclude_file})"
 
     # In order to provide a common interface around all the archive formats we must deal with inconsistencies in how
-    # multiple mount points are handled.  mksquashfs would use the basename of each provided path, whereas mkisofs would
+    # multiple mount points are handled. mksquashfs would use the basename of each provided path, whereas mkisofs would
     # merge them all into a flat directory while tar would preserve the entire directory structure for each provided
     # path. In order to make them all work the same we bind mount each provided source into a single unified directory.
     # This isn't strictly necessary if a single source path is given but it drastically simplifies the code to treat it
@@ -446,7 +457,7 @@ archive_create()
 }
 
 opt_usage archive_extract <<'END'
-Extract a previously constructed archive image. This works on all of our supported archive types.  Also takes an
+Extract a previously constructed archive image. This works on all of our supported archive types. Also takes an
 optional list of find(1) glob patterns to limit what files are extracted from the archive. If no files are provided it
 will extract all files from the archive.
 END
@@ -514,7 +525,7 @@ archive_extract()
     # TAR or CPIO
     elif [[ ${src_type} == @(tar|cpio) ]]; then
 
-        # By default the files to extract from the archive is all the files requested.  If files is an empty array this
+        # By default the files to extract from the archive is all the files requested. If files is an empty array this
         # will evaluate to an empty string and all files will be extracted.
         local includes=""
         includes=$(array_join files)
@@ -637,7 +648,7 @@ archive_list()
 
     # The code below calls out to the various archive format specific tools to dump their contents. There's a little sed
     # on each command's output to normalize the tools output as much as possible to make them all have a consistent
-    # output.  Then we sort the whole thing at the end to ensure consistent ordering.
+    # output. Then we sort the whole thing at the end to ensure consistent ordering.
     if [[ ${src_type} == squashfs ]]; then
         unsquashfs -ls "${src}" | grep "^squashfs-root" | sed -e 's|^squashfs-root[/]*||' -e '/^\s*$/d'
     elif [[ ${src_type} == iso ]]; then
@@ -692,7 +703,7 @@ ${PATH_MAPPING_SYNTAX_DOC}
 
 NOTE: The implementation of this function purposefully doesn't use native --append functions in the various archive
 formats as they do not all support it. The ones which do support append do not implement in a remotely sane manner. You
-might ask why we don't use overlayfs for this.  First, overlayfs with bindmounting and chroots on older kernels causes
+might ask why we don't use overlayfs for this. First, overlayfs with bindmounting and chroots on older kernels causes
 some serious problems wherein orphaned mounts become unmountable and the file systems containing them cannot be
 unmounted later due to reference counts not being freed in the kernel. Additionally, if compression is used (which it
 almost always is) we are forced to decompress and recompress the archive regardless so overlayfs doesn't save us
@@ -739,11 +750,11 @@ archive_append()
     trap_add "eunmount --recursive --delete ${unified}"
 
     # Create an archive of the unified directory. It's important that this temporary file:
-    # (1) Is created in the same directory as the final destination we will move it to in order to guarantee atomicity.
-    # (2) Ends in the same exact suffix as the original file so that we'll use the correct compression.
+    # 1) Is created in the same directory as the final destination we will move it to in order to guarantee atomicity.
+    # 2) Ends in the same exact suffix as the original file so that we'll use the correct compression.
     #
     # Note: if src_name contains any captiol X's, it will either cause mktemp to fail completely or put the randomness
-    # in the wrong place.  converting to lowercase solves this problem
+    # in the wrong place. Converting to lowercase solves this problem.
     local appended
     appended=$(mktemp $(dirname ${dest_real})/archive-append-XXXXXX-${dest_name,,})
     opt_forward archive_create best bootable dereference fast ignore_missing level nice volume -- "${appended}" "${unified}/."

@@ -16,7 +16,7 @@ array_init()
     $(opt_parse \
         "__array     | Name of array to assign to." \
         "?__string   | String to be split" \
-        "?__delim    | Optional delimiting characters to split on.  Defaults to IFS.")
+        "?__delim    | Optional delimiting characters to split on. Defaults to IFS.")
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
@@ -27,14 +27,18 @@ array_init()
     IFS="${__delim}" eval "${__array}=(\${__string})"
 }
 
-# This function works like array_init, but always specifies that the delimiter be a newline.
+opt_usage array_init_nl <<'END'
+array_init_nl works identically to array_init, but always specifies that the delimiter be a newline.
+END
 array_init_nl()
 {
     [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters but passed=($@)"
     array_init "$1" "$2" $'\n'
 }
 
-# Initialize an array from a Json array. This will essentially just strip off the brackets from around the Json array.
+opt_usage array_init_json <<'END'
+Initialize an array from a Json array. This will essentially just strip off the brackets from around the Json array.
+END
 array_init_json()
 {
     $(opt_parse \
@@ -50,7 +54,7 @@ array_init_json()
 }
 
 opt_usage array_size <<'END'
-Print the size of any array.  Yes, you can also do this with ${#array[@]}. But this functions makes for symmertry with
+Print the size of any array. Yes, you can also do this with ${#array[@]}. But this functions makes for symmertry with
 pack (i.e. pack_size).
 END
 array_size()
@@ -58,7 +62,7 @@ array_size()
     $(opt_parse "__array | Name of array to check the size of.")
 
     # Treat unset variables as being an empty array, because when you tell bash to create an empty array it doesn't
-    # really allow you to distinguish that from an unset variable.  (i.e. it doesn't show you the variable until you put
+    # really allow you to distinguish that from an unset variable. (i.e. it doesn't show you the variable until you put
     # something in it)
     #
     # NOTE: The mechanism we use here is to stringify the contents of an array and see if that's an empty string or not.
@@ -70,7 +74,7 @@ array_size()
     # a=() [[ ! -v a[@] ]] && echo 0
     #
     # The problem is that this doesn't work with bash-4.2 because the -v operator doesn't work on arrays. This was added
-    # explicitly in 4.3 pre https://tiswww.case.edu/php/chet/bash/CHANGES: a.  The [[ -v ]] option now understands array
+    # explicitly in 4.3 pre https://tiswww.case.edu/php/chet/bash/CHANGES: a. The [[ -v ]] option now understands array
     # references (foo[1]) and returns success if the referenced element has a value.
     #
     local value
@@ -111,7 +115,7 @@ array_add()
     $(opt_parse \
         "__array    | Name of array to add elements to." \
         "?__string  | String to be split up and added to that array." \
-        "?__delim   | Delimiter to use when splitting.  Defaults to IFS.")
+        "?__delim   | Delimiter to use when splitting. Defaults to IFS.")
 
     # If nothing was provided to split on just return immediately
     [[ -z ${__string} ]] && return 0
@@ -142,7 +146,7 @@ array_remove()
         "__array | Name of array to operate on.")
 
     # Return immediately if if array is empty or no values were given to be removed. The reason we don't error out on an
-    # unset array is because bash doesn't save arrays with no members.  For instance A=() unsets array A...
+    # unset array is because bash doesn't save arrays with no members. For instance A=() unsets array A...
     if array_empty ${__array} || [[ $# -eq 0 ]]; then
         return 0
     fi
@@ -164,7 +168,7 @@ array_remove()
 }
 
 opt_usage array_indexes <<'END'
-Bash arrays may have non-contiguous indexes.  For instance, you can unset an ARRAY[index] to remove an item from the
+Bash arrays may have non-contiguous indexes. For instance, you can unset an ARRAY[index] to remove an item from the
 array and bash does not shuffle the indexes.
 
 If you need to iterate over the indexes of an array (rather than simply iterating over the items), you can call
@@ -224,7 +228,7 @@ array_join()
         "+before b | Insert delimiter before all joined elements." \
         "+after a  | Insert delimiter after all joined elements."  \
         "__array   | Name of array to operate on."                 \
-        "?delim    | Delimiter to place between array items.  Default is a space.")
+        "?delim    | Delimiter to place between array items. Default is a space.")
 
     # If the array is empty return empty string
     array_empty ${__array} && { echo -n ""; return 0; } || true
@@ -247,7 +251,7 @@ array_join()
     for idx in ${indexes[@]}; do
         eval "echo -n \"\${${__array}[$idx]}\""
 
-        # If this is not the last element then always echo the delimiter.  If this is the last element only echo the
+        # If this is not the last element then always echo the delimiter. If this is the last element only echo the
         # delimiter if after==1.
         if [[ ${idx} -lt ${idx_last} || ${after} -eq 1 ]]; then
             echo -n "${delim}"
@@ -265,8 +269,8 @@ array_join_nl()
 }
 
 opt_usage array_regex <<'END'
-Create a regular expression that will match any one of the items in this array.  Suppose you had an array containing the
-first four letters of the alphabet.  Calling array_regex on that array will produce:
+Create a regular expression that will match any one of the items in this array. Suppose you had an array containing the
+first four letters of the alphabet. Calling array_regex on that array will produce:
 
    (a|b|c|d)
 
@@ -276,7 +280,7 @@ NOTE: Be sure to quote the output of your array_regex call, because bash finds p
 very important.
 
 WARNING: This probably only works if your array contains items that do not have whitespace or regex-y characters in
-them.  Pids are good.  Other stuff, probably not so much.
+them. Pids are good. Other stuff, probably not so much.
 END
 array_regex()
 {
