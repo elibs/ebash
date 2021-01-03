@@ -130,7 +130,7 @@ the name of the option. By convention, words are separated with hyphens in optio
 be characters in bash variables, so we use underscores in the variable name and automatically translate that to a hyphen
 in the option name.
 
-At present, ebash supports two different types of options: boolean and string.
+At present, ebash supports the following types of options:
 
 
 Boolean Options
@@ -164,18 +164,49 @@ argument, even if it is an empty string. In order to get a string option, you pr
     func()
     {
         $(opt_parse ":string s")
-        echo "STRING: X${string}X"
+        echo "STRING="${string}""
     }
 
     func --string "alpha"
-    # output -- STRING: XalphaX
+    # output: STRING="alpha"
     func --string ""
-    # output -- STRING: XX
+    # output: STRING=""
 
     func --string=alpha
-    # output -- STRING: XalphaX
+    # output: STRING="alpha"
     func --string=
-    # output -- STRING: XX
+    # output: STRING=""
+
+
+Required Non-Empty String Options
+---------------------------------
+
+Opt_parse also supports required options whose value is a non-empty string. This is identical to a normal `:` string
+option only it is more strict in two ways:
+
+    1) The option and argument MUST be provided
+    2) The string argument must be non-empty
+
+In order to use this option, prepend its name with an equal character.
+
+    func()
+    {
+        $(opt_parse "=string s")
+        echo "STRING="${string}""
+    }
+
+    func --string "alpha"
+    # output: STRING="alpha"
+    func --string ""
+    # error: option --string requires a non-empty argument.
+
+    func --string=alpha
+    # output: STRING="alpha"
+    func --string=
+    # error: option --string requires a non-empty argument.
+
+    func
+    # error: option --string is required.
 
 
 Accumulator Values
@@ -250,6 +281,9 @@ opt_parse()
     echo '        else '
     echo '            declare "${opt//-/_}=${__EBASH_OPT[$opt]}" ; '
     echo '        fi ; '
+    echo '        if [[ ${__EBASH_OPT_TYPE[$opt]} == "required_string" ]] ; then '
+    echo '            [[ -n ${__EBASH_OPT[$opt]} ]] || die "${FUNCNAME:-}: option ${opt} is required." ; '
+    echo '        fi ; '
     echo '    done ; '
     echo 'fi ; '
 
@@ -317,7 +351,7 @@ opt_parse_setup()
         [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax. Option definition is empty."
 
         # Make sure this option definition looks right
-        [[ ${opt_definition} =~ ^([+:&?@])?([^=]+)(=.*)?$ ]]
+        [[ ${opt_definition} =~ ^([+:=&?@])?([^=]+)(=.*)?$ ]]
 
         # TYPE is the first character of the definition
         local opt_type_char=${BASH_REMATCH[1]}
@@ -326,33 +360,33 @@ opt_parse_setup()
         local all_names=${BASH_REMATCH[2]}
         all_names=${all_names%%+([[:space:]])}
 
-        # DEFAULT VALUE is everything after the equal sign, excluding trailing
-        # whitespace
+        # DEFAULT VALUE is everything after the equal sign, excluding trailing whitespace
         local default=${BASH_REMATCH[3]#=}
         default=${default%%+([[:space:]])}
 
         # CANONICAL NAME is the first name specified
         local canonical=${all_names%%[ 	]*}
 
-        # It must be non-empty and must not contain hyphens (because hyphens
-        # are not allowed in bash variable names)
+        # It must be non-empty and must not contain hyphens (because hyphens are not allowed in bash variable names)
         [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax. Name is empty."
         [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: name ${canonical} is not allowed to contain hyphens."
 
-        # None of the option names are allowed override help, which is provided
-        # by opt_parse
+        # None of the option names are allowed override help, which is provided by opt_parse
         local name
         for name in ${all_names} ; do
             [[ "${name}" != "help" ]] || die "${FUNCNAME[2]}: The opt_parse help option cannot be overridden."
         done
 
         # OPTIONS
-        if [[ ${opt_type_char} == @(:|&|+) ]] ; then
+        if [[ ${opt_type_char} == @(:|=|&|+) ]] ; then
 
             local name_regex=^\(${all_names//+( )/|}\)$
 
             if [[ ${opt_type_char} == ":" ]] ; then
                 opt_type="string"
+
+            elif [[ ${opt_type_char} == "=" ]] ; then
+                opt_type="required_string"
 
             elif [[ ${opt_type_char} == "&" ]] ; then
                 opt_type="accumulator"
@@ -360,8 +394,8 @@ opt_parse_setup()
             elif [[ ${opt_type_char} == "+" ]] ; then
                 opt_type="boolean"
 
-                # Boolean options implicitly get a version whose name starts with
-                # no- that is a negation of the option. Adjust the name regex.
+                # Boolean options implicitly get a version whose name starts with no- that is a negation of the option.
+                # Adjust the name regex.
                 name_regex=${name_regex/^/^\(no_\)?}
 
                 # And forbid double-negative options
@@ -473,12 +507,17 @@ opt_parse_options()
                 canonical=$(opt_parse_find_canonical ${long_opt//-/_})
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                if [[ ${__EBASH_OPT_TYPE[$canonical]} == "string" ]] ; then
+                if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument but didn't receive one."
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
+                    fi
+
+                    # If this is a required_string assert it's non-empty
+                    if [[ ${__EBASH_OPT_TYPE[$canonical]} == "required_string" && -z "${opt_arg}" ]]; then
+                        die "${FUNCNAME[1]}: option --${long_opt} requires a non-empty argument."
                     fi
 
                     __EBASH_OPT[$canonical]=${opt_arg}
@@ -486,7 +525,7 @@ opt_parse_options()
                 elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "accumulator" ]]; then
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument but didn't receive one."
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
@@ -535,8 +574,8 @@ opt_parse_options()
                     canonical=$(opt_parse_find_canonical ${char})
                     [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
 
-                    if [[ ${__EBASH_OPT_TYPE[$canonical]} == "string" ]] ; then
-                        die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
+                    if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
+                        die "${FUNCNAME[1]}: option -${char} requires an argument."
                     fi
 
                     __EBASH_OPT[$canonical]=1
@@ -548,14 +587,18 @@ opt_parse_options()
                 [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.
-                if [[ ${__EBASH_OPT_TYPE[$canonical]} == "string" ]] ; then
+                if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
-
+                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
+                    fi
+
+                    # If this is a required_string assert it's non-empty
+                    if [[ ${__EBASH_OPT_TYPE[$canonical]} == "required_string" && -z "${opt_arg}" ]]; then
+                        die "${FUNCNAME[1]}: option --${long_opt} requires a non-empty argument."
                     fi
 
                     __EBASH_OPT[$canonical]=${opt_arg}
@@ -652,7 +695,53 @@ opt_display_usage()
 {
     {
         # Function name and <option> specification if there are any options
-        echo -n "Usage: ${FUNCNAME[1]} "
+        if [[ "${FUNCNAME[1]}" == "main" ]]; then
+            echo -n "Usage: $(basename $0) "
+        else
+            echo -n "Usage: ${FUNCNAME[1]} "
+        fi
+
+        # Sort option keys so we can display options in sorted order.
+        local opt_keys=()
+        opt_keys=( $(echo ${!__EBASH_OPT[@]} | tr ' ' '\n' | sort) )
+
+        # Display any REQUIRED options
+        local opt
+        local required_opts=()
+        local entry
+        for opt in ${opt_keys[@]}; do
+
+            if [[ ${__EBASH_OPT_TYPE[$opt]} != "required_string" ]]; then
+                continue
+            fi
+
+            entry=$(
+                local synonym="" first=1
+                for synonym in ${__EBASH_OPT_SYNONYMS[$opt]} ; do
+
+                    if [[ ${first} -ne 1 ]] ; then
+                        printf "|"
+                    else
+                        first=0
+                    fi
+
+                    if [[ ${#synonym} -gt 1 ]] ; then
+                        printf -- "--%s" "${synonym//_/-}"
+                    else
+                        printf -- "-%s" "${synonym}"
+                    fi
+                done
+
+                echo -n " <non-empty value>"
+            )
+
+            required_opts+=( $(string_trim "${entry}") )
+        done
+
+        if [[ "${#required_opts[@]}" -gt 0 ]]; then
+            echo -n "(${required_opts[@]}) "
+        fi
+
         [[ ${#__EBASH_OPT[@]} -gt 0 ]] && echo -n "[option]... "
 
         # List arguments on the first line
@@ -683,8 +772,10 @@ opt_display_usage()
         if [[ ${#__EBASH_OPT[@]} -gt 0 ]] ; then
             echo
             echo "Options:"
+            echo "(*) Denotes required options"
+            echo ""
             local opt
-            for opt in ${!__EBASH_OPT[@]} ; do
+            for opt in ${opt_keys[@]}; do
 
                 # Print the names of all option "synonyms" next to each other
                 printf "   "
@@ -707,6 +798,8 @@ opt_display_usage()
 
                 # If the option accepts arguments, say that
                 [[ ${__EBASH_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
+                [[ ${__EBASH_OPT_TYPE[$opt]} == "required_string" ]] && echo -n " <non-empty value> (*)"
+
                 echo
 
                 # Print the docstring, constrained to current terminal width, indented another level past the option
