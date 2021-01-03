@@ -102,6 +102,38 @@ ETEST_opt_parse_required_arg()
     }
 }
 
+ETEST_opt_parse_required_nonempty_missing_arg()
+{
+    set -- -a
+    try
+    {
+        $(opt_parse "=a")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed parsing options."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_required_nonempty_empty_arg()
+{
+    set -- -a ""
+    try
+    {
+        $(opt_parse "=a")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed parsing options."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
 ETEST_opt_parse_shorts_crammed_together_with_arg()
 {
     set -- -abc optarg arg
@@ -121,6 +153,54 @@ ETEST_opt_parse_shorts_crammed_together_required_arg()
     try
     {
         $(opt_parse "+a" "+b" ":c")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed when parsing options but did not."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_shorts_crammed_together_required_opt_missing_arg()
+{
+    set -- -abc
+    try
+    {
+        $(opt_parse "+a" "+b" "=c")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed when parsing options but did not."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_shorts_crammed_together_required_opt_missing_opt()
+{
+    set -- -ab
+    try
+    {
+        $(opt_parse "+a" "+b" "=c")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed when parsing options but did not."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_shorts_crammed_together_required_opt_empty_arg()
+{
+    set -- -abc ""
+    try
+    {
+        $(opt_parse "+a" "+b" "=c")
         etestmsg "$(opt_dump)"
 
         die -r=243 "Should have failed when parsing options but did not."
@@ -284,13 +364,14 @@ ETEST_opt_parse_recursive()
 
 ETEST_opt_parse_dump()
 {
-    set -- --alpha 10 --beta 20
-    $(opt_parse ":alpha" ":beta")
+    set -- --alpha 10 --beta 20 --gamma 30
+    $(opt_parse ":alpha" ":beta" "=gamma")
 
     etestmsg "$(opt_dump)"
 
     assert_eq 10 "${alpha}"
     assert_eq 20 "${beta}"
+    assert_eq 30 "${gamma}"
 
     local dump=""
     dump=$(opt_dump)
@@ -298,14 +379,15 @@ ETEST_opt_parse_dump()
     [[ "${dump}" =~ 10 ]]
     [[ "${dump}" =~ beta ]]
     [[ "${dump}" =~ 20 ]]
-
+    [[ "${dump}" =~ gamma ]]
+    [[ "${dump}" =~ 30 ]]
 }
 
 ETEST_opt_parse_without_options()
 {
     etestmsg "Trying to run opt_parse in a function that received no arguments or options"
     set --
-    $(opt_parse "+a" ":b" "+c=0")
+    $(opt_parse "+a" ":b" "+c=0" "=d=foobar")
     etestmsg "$(opt_dump)"
     etestmsg "Succcess."
 }
@@ -400,13 +482,15 @@ ETEST_opt_parse_boolean_validate()
 
 ETEST_opt_parse_args()
 {
-    set -- -o option one two more
+    set -- -o option -r required one two more
     $(opt_parse \
         ":option o" \
+        "=required r" \
         "arg1" \
         "arg2")
 
     assert_eq "option" "${option}"
+    assert_eq "required" "${required}"
     assert_eq "one" "${arg1}"
     assert_eq "two" "${arg2}"
     assert_eq 1 $#
@@ -473,6 +557,7 @@ ETEST_opt_parse_arg_optional()
 ETEST_opt_forward()
 {
     A_STRING="string with whitespace"
+    B_STRING="non-empty string"
     EXTRA1="EXTRA_1"
     EXTRA2="EXTRA  WITH  WHITESPACE"
 
@@ -483,10 +568,12 @@ ETEST_opt_forward()
         einfo "$(ecolor cyan)$(lval raw_args)"
         $(opt_parse \
             ":string"   \
+            "=required" \
             "+bool"     \
             "+other_bool")
         einfo "$(ecolor cyan)$(declare -p __EBASH_OPT)"
         assert_eq "${A_STRING}" "${string}"
+        assert_eq "${B_STRING}" "${required}"
         assert_eq 1 "${bool}"
         assert_eq 0 "${other_bool}"
     }
@@ -498,10 +585,12 @@ ETEST_opt_forward()
         einfo "$(ecolor orchid)$(lval raw_args)"
         $(opt_parse \
             ":string"   \
+            "=required" \
             "+bool"     \
             "+other_bool")
         einfo "$(ecolor orchid)$(declare -p __EBASH_OPT)"
         assert_eq "${A_STRING}" "${string}"
+        assert_eq "${B_STRING}" "${required}"
         assert_eq 1 "${bool}"
         assert_eq 0 "${other_bool}"
 
@@ -509,32 +598,32 @@ ETEST_opt_forward()
         assert_eq "$2" "${EXTRA2}"
     }
 
-
-
-    set -- --string "string with whitespace" --bool argument --no-other-bool
+    set -- --string "${A_STRING}" --required "${B_STRING}" --bool argument --no-other-bool
     local raw_args=( "$@" )
     einfo "$(ecolor green)$(lval raw_args)"
     $(opt_parse \
         ":string"   \
+        "=required" \
         "+bool"     \
         "+other_bool")
 
     einfo "$(ecolor green)$(declare -p __EBASH_OPT)"
     assert_eq "${A_STRING}" "${string}"
+    assert_eq "${B_STRING}" "${required}"
     assert_eq 1 "${bool}"
     assert_eq 0 "${other_bool}"
 
     etestmsg "calling subfunc"
-    opt_forward subfunc string bool other_bool
+    opt_forward subfunc string required bool other_bool
 
     etestmsg "Calling subfunc with hyphens"
-    opt_forward subfunc string bool other-bool
+    opt_forward subfunc string required bool other-bool
 
     etestmsg "calling subfunc with only -- after it"
-    opt_forward subfunc string bool --
+    opt_forward subfunc string required bool --
 
     etestmsg "calling subfunc_extra"
-    opt_forward subfunc_extra string bool -- "${EXTRA1}" "${EXTRA2}"
+    opt_forward subfunc_extra string required bool -- "${EXTRA1}" "${EXTRA2}"
 }
 
 ETEST_opt_forward_different_name()

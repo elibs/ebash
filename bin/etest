@@ -44,26 +44,26 @@ $(opt_parse \
                                  classify it as a failure if that test fails more than the requested threshold." \
     ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
-    ":log_dir                  | Directory to place logs in.  Defaults to the current directory." \
+    ":log_dir                  | Directory to place logs in. Defaults to the current directory." \
     "+mount_ns=1               | Run tests inside a mount namespace." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
     "+summary s=0              | Display final summary to terminal in addition to logging it to etest.json." \
-    "&test_list l              | File that contains a list of tests to run.  This file may contain comments on lines
-                                 that begin with the # character.  All other nonblank lines will be interpreted as
+    "&test_list l              | File that contains a list of tests to run. This file may contain comments on lines
+                                 that begin with the # character. All other nonblank lines will be interpreted as
                                  things that could be passed as @tests -- directories, executable scripts, or .etest
-                                 files.  Relative paths will be interpreted against the current directory.  This option
+                                 files. Relative paths will be interpreted against the current directory. This option
                                  may be specified multiple times." \
     "+verbose v=${VERBOSE:-0}  | Verbose output." \
-    ":work_dir                 | Temporary location where etest can place temporary files.  This location will be both
+    ":work_dir                 | Temporary location where etest can place temporary files. This location will be both
                                  created and deleted by etest." \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
-                                 and any test functions found will be executed.  You may also specify directories in
+                                 and any test functions found will be executed. You may also specify directories in
                                  which case etest will recursively find executables and .etest files and treat them in
                                  similar fashion.")
 
-# Default settings for filter an exclude.  Note that we can't use the opt_parse "default value" feature for this,
-# because our values are regular expressions.  That is, they're fairly likely to contain pipe characters and that would
+# Default settings for filter an exclude. Note that we can't use the opt_parse "default value" feature for this,
+# because our values are regular expressions. That is, they're fairly likely to contain pipe characters and that would
 # cause opt_parse to do crazy things.
 : ${filter:=${FILTER:-}}
 : ${exclude:=${EXCLUDE:-}}
@@ -198,7 +198,7 @@ assert_no_process_leaks()
 
     edebug "Waiting..."
 
-    # Wait for up to 5 seconds for leaked processes to die off.  If anything
+    # Wait for up to 5 seconds for leaked processes to die off. If anything
     # lasts beyond that, we'll call it a test failure.
     $(tryrc eretry -T=5s no_process_leaks_remain)
 
@@ -290,7 +290,7 @@ run_single_test()
         ":testidx       | Test index of current test. Mose useful if the test is a function inside a test suite." \
         ":testidx_total | Total number of tests. Most useful if the test is a function inside a test suite." \
         ":work_dir      | Temporary directory that the test should use as its current working directory." \
-        ":source        | Name file to be sourced in the shell that will run the test.  Most useful if the test is a function
+        ":source        | Name file to be sourced in the shell that will run the test. Most useful if the test is a function
                           inside that file." \
         "testname       | Command to execute to run the test")
 
@@ -332,7 +332,7 @@ run_single_test()
         # We want to make sure that any traps from the tests
         # execute _before_ we run teardown, and also we don't
         # want the teardown to run inside the test-specific
-        # cgroup.  This subshell solves both issues.
+        # cgroup. This subshell solves both issues.
         try
         {
             export EBASH EBASH_HOME TEST_DIR_OUTPUT=${work_dir}
@@ -442,7 +442,7 @@ run_single_test()
         $(tryrc -r=teardown_rc teardown)
     fi
 
-    # NOTE: Don't return rc here.  We've already set things up so etest knows if there was a failure.
+    # NOTE: Don't return rc here. We've already set things up so etest knows if there was a failure.
     if [[ ${break} -eq 1 && ${#TESTS_FAILED[@]} -gt 0 ]] ; then
         die "${display_testname} failed and break=1" &>${ETEST_OUT}
     fi
