@@ -360,21 +360,18 @@ opt_parse_setup()
         local all_names=${BASH_REMATCH[2]}
         all_names=${all_names%%+([[:space:]])}
 
-        # DEFAULT VALUE is everything after the equal sign, excluding trailing
-        # whitespace
+        # DEFAULT VALUE is everything after the equal sign, excluding trailing whitespace
         local default=${BASH_REMATCH[3]#=}
         default=${default%%+([[:space:]])}
 
         # CANONICAL NAME is the first name specified
         local canonical=${all_names%%[ 	]*}
 
-        # It must be non-empty and must not contain hyphens (because hyphens
-        # are not allowed in bash variable names)
+        # It must be non-empty and must not contain hyphens (because hyphens are not allowed in bash variable names)
         [[ -n ${canonical} ]]      || die "${FUNCNAME[2]}: invalid opt_parse syntax. Name is empty."
         [[ ! ${canonical} = *-* ]] || die "${FUNCNAME[2]}: name ${canonical} is not allowed to contain hyphens."
 
-        # None of the option names are allowed override help, which is provided
-        # by opt_parse
+        # None of the option names are allowed override help, which is provided by opt_parse
         local name
         for name in ${all_names} ; do
             [[ "${name}" != "help" ]] || die "${FUNCNAME[2]}: The opt_parse help option cannot be overridden."
@@ -397,8 +394,8 @@ opt_parse_setup()
             elif [[ ${opt_type_char} == "+" ]] ; then
                 opt_type="boolean"
 
-                # Boolean options implicitly get a version whose name starts with
-                # no- that is a negation of the option. Adjust the name regex.
+                # Boolean options implicitly get a version whose name starts with no- that is a negation of the option.
+                # Adjust the name regex.
                 name_regex=${name_regex/^/^\(no_\)?}
 
                 # And forbid double-negative options
@@ -704,11 +701,15 @@ opt_display_usage()
             echo -n "Usage: ${FUNCNAME[1]} "
         fi
 
+        # Sort option keys so we can display options in sorted order.
+        local opt_keys=()
+        opt_keys=( $(echo ${!__EBASH_OPT[@]} | tr ' ' '\n' | sort) )
+
         # Display any REQUIRED options
         local opt
         local required_opts=()
         local entry
-        for opt in ${!__EBASH_OPT[@]} ; do
+        for opt in ${opt_keys[@]}; do
 
             if [[ ${__EBASH_OPT_TYPE[$opt]} != "required_string" ]]; then
                 continue
@@ -774,7 +775,7 @@ opt_display_usage()
             echo "(*) Denotes required options"
             echo ""
             local opt
-            for opt in ${!__EBASH_OPT[@]} ; do
+            for opt in ${opt_keys[@]}; do
 
                 # Print the names of all option "synonyms" next to each other
                 printf "   "
