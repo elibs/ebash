@@ -50,6 +50,7 @@ ETEST_commands()
             "mount"
             "netstat"
             "pstree"
+            "xmlstarlet"
         )
     fi
 

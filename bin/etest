@@ -3,9 +3,8 @@
 # Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
-# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
-# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
-# version.
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
+# published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
 
 : ${EMSG_PREFIX:=time}
 
@@ -19,18 +18,17 @@ if [[ ${__EBASH_OS} == "Linux" ]] ; then
     reexec --sudo
 fi
 
-# Normalize EBASH path in case any tests depend on it looking... normal.
-# Note: wait until after sourcing so that we can let ebash make sure we get
-# GNU readlink rater than BSD readlink.
+# Normalize EBASH path in case any tests depend on it looking... normal.  Note: wait until after sourcing so that we can
+# let ebash make sure we get GNU readlink rater than BSD readlink.
 EBASH_HOME=$(readlink -f "${EBASH_HOME}")
 EBASH=$(readlink -f "${EBASH}")
 
 # Save off the TOPDIR so we can easily find it even when etest is changing directories
 TOPDIR=${PWD}
 
-#-------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 # GLOBAL SETUP
-#-------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 
 $(opt_parse \
     "+break   b=${BREAK:-0}    | Stop immediately on first failure." \
@@ -82,7 +80,7 @@ if [[ -f .ebash ]] ; then
     conf_read _EBASH_CONF .ebash
 fi
 
-START_TIME=$SECONDS
+START_TIME=${SECONDS}
 
 # Default log directory from conf file if unspecified on the command line
 : ${log_dir:=$(conf_get _EBASH_CONF etest.log_dir)}
@@ -129,8 +127,10 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 exec {ETEST_STDERR_FD}<&2
 ETEST_LOG=${log_dir}/etest.log
 ETEST_JSON=${log_dir}/etest.json
+ETEST_XML=${log_dir}/etest.xml
 
 elogrotate "${ETEST_JSON}"
+elogrotate "${ETEST_XML}"
 elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 
 # Setup redirection for "etest" and actual "test" output
@@ -142,9 +142,9 @@ else
     TEST_OUT="/dev/stderr"
 fi
 
-#-------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 # TEST UTILITY FUNCTIONS
-#-------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 
 die_handler()
 {
@@ -156,9 +156,8 @@ die_handler()
         echo "" >&2
         eerror "${@}"
 
-        # Call eerror_stacktrace but skip top three frames to skip over the frames
-        # containing stacktrace_array, eerror_stacktrace and die itself. Also skip
-        # over the initial error message since we already displayed it.
+        # Call eerror_stacktrace but skip top three frames to skip over the frames containing stacktrace_array,
+        # eerror_stacktrace and die itself. Also skip over the initial error message since we already displayed it.
         eerror_stacktrace -f=4 -s
 
     fi &>${ETEST_OUT}
@@ -166,17 +165,15 @@ die_handler()
     exit ${rc}
 }
 
-# Returns success if there are no stale processes remaining in the cgroup for
-# this test and failure if there are any.
-#
+# Returns success if there are no stale processes remaining in the cgroup for this test and failure if there are any.
 no_process_leaks_remain()
 {
     if ! cgroup_supported; then
         return 0
     fi
 
-    # If the cgroup no longer exists, we're in good shape because you can't
-    # destroy a cgroup until all its processes are dead.
+    # If the cgroup no longer exists, we're in good shape because you can't destroy a cgroup until all its processes are
+    # dead.
     $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
     if [[ ${exists_rc} -ne 0 ]] ; then
         return 0
@@ -192,19 +189,17 @@ no_process_leaks_remain()
 
 assert_no_process_leaks()
 {
-    # Error stacks generated here should produce output, even though etest has
-    # them wrapped in a try.
+    # Error stacks generated here should produce output, even though etest has them wrapped in a try.
     __EBASH_INSIDE_TRY=0
 
     edebug "Waiting..."
 
-    # Wait for up to 5 seconds for leaked processes to die off. If anything
-    # lasts beyond that, we'll call it a test failure.
+    # Wait for up to 5 seconds for leaked processes to die off. If anything lasts beyond that, we'll call it a test
+    # failure.
     $(tryrc eretry -T=5s no_process_leaks_remain)
 
-    # The above command could have timed out but that doesn't necessarily mean
-    # there are leaked processes. So KILL anything that's left, but only DIE
-    # if there were actually processes leaked.
+    # The above command could have timed out but that doesn't necessarily mean there are leaked processes. So KILL
+    # anything that's left, but only DIE if there were actually processes leaked.
     if [[ ${rc} -ne 0 ]] && cgroup_supported ; then
         local leaked_processes=""
         leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
@@ -290,8 +285,8 @@ run_single_test()
         ":testidx       | Test index of current test. Mose useful if the test is a function inside a test suite." \
         ":testidx_total | Total number of tests. Most useful if the test is a function inside a test suite." \
         ":work_dir      | Temporary directory that the test should use as its current working directory." \
-        ":source        | Name file to be sourced in the shell that will run the test. Most useful if the test is a function
-                          inside that file." \
+        ":source        | Name of the file to be sourced in the shell that will run the test. Most useful if the test is
+                          a function inside that file." \
         "testname       | Command to execute to run the test")
 
     local rc=0
@@ -306,6 +301,10 @@ run_single_test()
         return 0
     fi
 
+    # Record start time of the test and at the end of the test we'll update the total runtime for the test.  This will
+    # be total runtime including any suite setup, test setup, test teardown and suite teardown.
+    local start_time="${SECONDS}"
+
     local display_testname=${testname}
     if [[ -n ${source} ]] ; then
         display_testname="${source}:${testname}"
@@ -314,8 +313,8 @@ run_single_test()
     local index_string="${testidx}/${testidx_total}"
     ebanner --uppercase "${testname}" INDEX=index_string REPEAT=REPEAT_STRING failures
 
-    # If this file is being sourced then it's an ETEST so log it as a subtest
-    # via einfos. Otherwise log via einfo as a top-level test script.
+    # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
+    # top-level test script.
     if [[ -n "${source}" ]]; then
         einfos "${testname}"
     else
@@ -329,10 +328,8 @@ run_single_test()
 
         rc=0
 
-        # We want to make sure that any traps from the tests
-        # execute _before_ we run teardown, and also we don't
-        # want the teardown to run inside the test-specific
-        # cgroup. This subshell solves both issues.
+        # We want to make sure that any traps from the tests execute _before_ we run teardown, and also we don't want
+        # the teardown to run inside the test-specific cgroup. This subshell solves both issues.
         try
         {
             export EBASH EBASH_HOME TEST_DIR_OUTPUT=${work_dir}
@@ -340,9 +337,8 @@ run_single_test()
                 source "${source}"
             fi
 
-            # Pretend that the test _not_ executing inside a try/catch so that the
-            # error stack will get printed if part of the test fails, as if etest
-            # weren't running it inside a try/catch
+            # Pretend that the test _not_ executing inside a try/catch so that the error stack will get printed if part
+            # of the test fails, as if etest weren't running it inside a try/catch
             __EBASH_INSIDE_TRY=0
 
             # Create our temporary workspace in the directory specified by the caller
@@ -409,29 +405,46 @@ run_single_test()
     local mount_leak_rc=0
     $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${work_dir}")
 
+    #-- xunit test tracking --#
+    local suite
+    if [[ -n "${source}" ]]; then
+        suite="$(basename "${source}" ".etest")"
+    else
+        suite="$(basename "${testname}")"
+    fi
+
+    if ! array_contains TEST_SUITES "${suite}"; then
+        TEST_SUITES+=( "${suite}" )
+    fi
+
     # If the test eventually passed (rc==0) but we had to try more than one time (tries > 0) then by definition
     # this is a flaky test.
     if [[ ${rc} -eq 0 && ${tries} -gt 0 ]]; then
-        TESTS_FLAKY+=( "${display_testname}" )
+        TESTS_FLAKY[$suite]+="${testname} "
+        (( NUM_TESTS_FLAKY += 1 ))
     fi
 
     if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 && ${mount_leak_rc} -eq 0 ]]; then
         einfo "$(ecolor green)${display_testname} PASSED."
-        TESTS_PASSED+=( "${display_testname}" )
+        TESTS_PASSED[$suite]+="${testname} "
+        (( NUM_TESTS_PASSED += 1 ))
 
     elif [[ ${rc} -eq 0 && ${process_leak_rc} -ne 0 ]] ; then
         eerror "${display_testname} FAILED due to process leak."
-        TESTS_FAILED+=( "${display_testname}" )
+        TESTS_FAILED[$suite]+="${testname} "
+        (( NUM_TESTS_FAILED += 1 ))
         rc=1
 
     elif [[ ${rc} -eq 0 && ${mount_leak_rc} -ne 0 ]] ; then
         eerror "${display_testname} FAILED due to mount leak."
-        TESTS_FAILED+=( "${display_testname}" )
+        TESTS_FAILED[$suite]+="${testname} "
+        (( NUM_TESTS_FAILED += 1 ))
         rc=1
 
     else
         eerror "${display_testname} FAILED."
-        TESTS_FAILED+=( "${display_testname}" )
+        TESTS_FAILED[$suite]+="${testname} "
+        (( NUM_TESTS_FAILED += 1 ))
     fi
 
     eend ${rc} &>${ETEST_OUT}
@@ -443,9 +456,12 @@ run_single_test()
     fi
 
     # NOTE: Don't return rc here. We've already set things up so etest knows if there was a failure.
-    if [[ ${break} -eq 1 && ${#TESTS_FAILED[@]} -gt 0 ]] ; then
+    if [[ ${break} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
         die "${display_testname} failed and break=1" &>${ETEST_OUT}
     fi
+
+    # Finally record the total runtime of this test
+    TESTS_RUNTIME[${testname}]=$(( ${SECONDS} - ${start_time} ))
 }
 
 run_etest_file()
@@ -470,6 +486,7 @@ run_etest_file()
 
     EMSG_PREFIX="" einfo "${testfilename}" &>${ETEST_OUT}
 
+    # Run all tests for this suite
     local idx
     for idx in $(array_indexes ETEST_FUNCTIONS); do
 
@@ -483,149 +500,227 @@ run_etest_file()
             --source "${testfile}" \
             "${testfunc}"
 
-        if [[ ${break} -eq 1 && ${#TESTS_FAILED[@]} -gt 0 ]] ; then
+        if [[ ${break} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
             die "${testfunc} failed and break=1" &>${ETEST_OUT}
         fi
 
     done
 }
 
-#-------------------------------------------------------------------------------------------------------------------------
-# GLOBAL SETUP
-#-------------------------------------------------------------------------------------------------------------------------
+run_all_tests()
+{
+    # Expand tests to find all standalone executable scripts as well as any *.etest files.
+    TESTS=(
+        $(find "${tests[@]}" -type f -executable     | sort || true)
+        $(find "${tests[@]}" -type f -name "*.etest" | sort || true)
+    )
+
+    OS="$(os_pretty_name)"
+    if [[ "${verbose}" -eq 1 ]]; then
+        ebanner --uppercase "ETEST" OS break exclude failures filter repeat
+    else
+        ebanner --uppercase "ETEST" OS break exclude failures filter repeat &>${ETEST_OUT}
+    fi
+
+    for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
+        REPEAT_STRING="${ITERATION}/${repeat}"
+
+        for filename in "${TESTS[@]}"; do
+
+            # Record start time of entire test suite
+            local suite_start_time="${SECONDS}"
+
+            # Run the test which could be a single test file or an entire suite (etest) file.
+            if [[ "${filename}" =~ \.etest$ ]]; then
+                run_etest_file "${filename}"
+            else
+                run_single_test --work-dir "${work_dir}/standalone" "${filename}"
+            fi
+
+            SUITE_RUNTIME[$(basename ${filename} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
+        done
+    done
+}
+
+create_vcs_info()
+{
+    declare -g VCS_INFO=""
+
+    if [[ -d ".hg" ]] && command_exists hg; then
+        pack_set VCS_INFO \
+            type="hg"                                       \
+            info="$(hg id --id)"                            \
+            url="$(hg paths default)"                       \
+            branch="$(hg branch)"                           \
+            bookmark="$(hg book | awk '/ * / {print $2}')"  \
+            commit="$(hg id --id)"
+
+    elif [[ -d ".git" ]] && command_exists git && git rev-parse --is-inside-work-tree &>/dev/null; then
+        pack_set VCS_INFO \
+            type="git"                                                \
+            info="$(git describe --abbrev=7 --always --tags --dirty)" \
+            url="$(git config --get remote.origin.url)"               \
+            branch="$(git rev-parse --abbrev-ref HEAD)"               \
+            bookmark=""                                               \
+            commit="$(git rev-parse --short=12 HEAD)"
+    fi
+}
+
+create_summary()
+{
+    create_vcs_info
+
+    {
+        echo
+        message="Finished testing $(pack_get VCS_INFO info)."
+        message+=" $(( ${NUM_TESTS_PASSED} ))/${NUM_TESTS_EXECUTED} tests passed"
+        message+=" in ${RUNTIME} seconds."
+
+        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
+            eerror "${message}"
+        else
+            einfo "${message}"
+        fi
+        echo
+
+        if array_not_empty TESTS_FAILED; then
+            eerror "FAILED TESTS:"
+            for failed_test in "${TESTS_FAILED[@]}" ; do
+                echo "$(ecolor "red")      ${failed_test}" >&2
+            done
+            ecolor off >&2
+        fi
+
+        if array_not_empty TESTS_FLAKY; then
+            ewarn "FLAKY TESTS:"
+            for flaky_test in "${TESTS_FLAKY[@]}" ; do
+                echo "$(ecolor "yellow")      ${flaky_test}" >&2
+            done
+            ecolor off >&2
+        fi
+
+        # Create a summary file with relevant statistics
+        if command_exists jq; then
+
+			jq . <<-EOF > ${ETEST_JSON}
+			{
+				"numTestsExecuted": "${NUM_TESTS_EXECUTED}",
+				"numTestsPassed": "${NUM_TESTS_PASSED}",
+				"numTestsFailed": "${NUM_TESTS_FAILED}",
+				"numTestsFlaky": "${NUM_TESTS_FLAKY}",
+				"testsPassed": $(associative_array_to_json_split TESTS_PASSED),
+				"testsFailed": $(associative_array_to_json_split TESTS_FAILED),
+				"testsFlaky": $(associative_array_to_json_split TESTS_FLAKY),
+				"runtime": "${RUNTIME} seconds",
+				"datetime": "$(etimestamp_rfc3339)",
+				"options": {
+					"break": "${break}",
+					"clean": "${clean}",
+					"debug": "${debug}",
+					"delete": "${delete}",
+					"exclude": "${exclude}",
+					"failures": "${failures}",
+					"filter": "${filter}",
+					"html": "${html}",
+					"log_dir": "${log_dir}",
+					"mount_ns": "${mount_ns}",
+					"repeat": "${repeat}",
+					"test_list": $(array_to_json test_list),
+					"tests": $(array_to_json tests),
+					"verbose": "${verbose}"
+				},
+				"vcs": $(pack_to_json VCS_INFO)
+			}
+			EOF
+
+            # Additionally display summary output to the terminal if requested
+            if [[ "${summary}" -eq 1 ]]; then
+                einfo "Summary"
+                jq --color-output . ${ETEST_JSON}
+            fi
+        fi
+
+    } |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
+}
+
+create_xml()
+{
+    {
+        printf '<?xml version="1.0" encoding="UTF-8" ?>\n'
+        printf '<testsuites name="etest (%s)" tests="%d" failures="%d" time="%s">\n' \
+            "$(etimestamp_rfc3339)" \
+            "${NUM_TESTS_EXECUTED}" \
+            "${NUM_TESTS_FAILED}"   \
+            "${RUNTIME}"
+
+        for suite in "${TEST_SUITES[@]}"; do
+
+            local testcases_passed testcases_failed
+            array_init testcases_passed "${TESTS_PASSED[$suite]:-}"
+            array_init testcases_failed "${TESTS_FAILED[$suite]:-}"
+            edebug "$(lval suite testcases_passed testcases_failed)"
+
+            printf '<testsuite name="%s" tests="%d" failures="%d" time="%s">' \
+                "${suite}" \
+                $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} )) \
+                ${#testcases_failed[@]} \
+                ${SUITE_RUNTIME[$suite]}
+
+            local xml_lines=()
+            local name
+
+            # Add all passing tests
+            for name in "${testcases_passed[@]}"; do
+                xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s"></testcase>\n' "${suite}" "${name}" "${TESTS_RUNTIME[$name]}")" )
+            done
+
+            # Add all failing tests
+            for name in "${testcases_failed[@]}"; do
+                local failure_msg
+                failure_msg="$(printf '<failure message="%s:%s failed" type="ERROR"></failure>' "${suite}" "${name}")"
+                xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s">%s</testcase>\n' "${suite}" "${name}" "${TESTS_RUNTIME[$name]}" "${failure_msg}")" )
+            done
+
+            array_sort xml_lines
+            edebug "$(lval xml_lines)"
+            echo "${xml_lines[@]}"
+            echo "</testsuite>"
+        done
+
+        printf "</testsuites>\n"
+
+    } | xmlstarlet format --indent-tab > ${ETEST_XML}
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# MAIN
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 global_setup
 trap_add global_teardown
 
 # If clean only is requested exit immediately. The "clean" is done via global_setup and global_teardown.
-[[ ${clean} -eq 1 ]] && exit 0
+if [[ ${clean} -eq 1 ]]; then
+    exit 0
+fi
 
-#-------------------------------------------------------------------------------------------------------------------------
-# MAIN
-#-------------------------------------------------------------------------------------------------------------------------
-
-declare -ag TESTS_PASSED=()
-declare -ag TESTS_FAILED=()
-declare -ag TESTS_FLAKY=()
+# Global variables for state tracking
+declare -ag TEST_SUITES=()
+declare -Ag TESTS_PASSED=()
+declare -Ag TESTS_FAILED=()
+declare -Ag TESTS_FLAKY=()
+declare -Ag SUITE_RUNTIME=()
+declare -Ag TESTS_RUNTIME=()
 declare -g  NUM_TESTS_EXECUTED=0
+declare -g  NUM_TESTS_PASSED=0
+declare -g  NUM_TESTS_FAILED=0
+declare -g  NUM_TESTS_FLAKY=0
 
-# Expand tests to find all standalone executable scripts as well as any *.etest files.
-TESTS=(
-    $(find "${tests[@]}" -type f -executable     | sort || true)
-    $(find "${tests[@]}" -type f -name "*.etest" | sort || true)
-)
-
-OS="$(os_pretty_name)"
-if [[ "${verbose}" -eq 1 ]]; then
-    ebanner --uppercase "ETEST" OS break exclude failures filter repeat
-else
-    ebanner --uppercase "ETEST" OS break exclude failures filter repeat &>${ETEST_OUT}
-fi
-
-for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
-    REPEAT_STRING="${ITERATION}/${repeat}"
-
-    for filename in "${TESTS[@]}"; do
-        if [[ "${filename}" =~ \.etest$ ]]; then
-            run_etest_file "${filename}"
-        else
-            run_single_test --work-dir "${work_dir}/standalone" "${filename}"
-        fi
-    done
-done
-
-vcs_pack=""
-if [[ -d ".hg" ]] && command_exists hg; then
-    pack_set vcs_pack \
-        type="hg"                                       \
-        info="$(hg id --id)"                            \
-        url="$(hg paths default)"                       \
-        branch="$(hg branch)"                           \
-        bookmark="$(hg book | awk '/ * / {print $2}')"  \
-        commit="$(hg id --id)"
-
-elif [[ -d ".git" ]] && command_exists git && git rev-parse --is-inside-work-tree &>/dev/null; then
-    pack_set vcs_pack \
-        type="git"                                                \
-        info="$(git describe --abbrev=7 --always --tags --dirty)" \
-        url="$(git config --get remote.origin.url)"               \
-        branch="$(git rev-parse --abbrev-ref HEAD)"               \
-        bookmark=""                                               \
-        commit="$(git rev-parse --short=12 HEAD)"
-fi
-
+run_all_tests
 RUNTIME=$(( SECONDS - START_TIME ))
+create_summary
+create_xml
 
-{
-    echo
-    message="Finished testing $(pack_get vcs_pack info)."
-    message+=" $(( ${#TESTS_PASSED[@]} ))/${NUM_TESTS_EXECUTED} tests passed"
-    message+=" in ${RUNTIME} seconds."
-
-    if [[ ${#TESTS_FAILED[@]} -gt 0 ]]; then
-        eerror "${message}"
-    else
-        einfo "${message}"
-    fi
-    echo
-
-    if array_not_empty TESTS_FAILED; then
-        eerror "FAILED TESTS:"
-        for failed_test in "${TESTS_FAILED[@]}" ; do
-            echo "$(ecolor "red")      ${failed_test}" >&2
-        done
-        ecolor off >&2
-    fi
-
-    if array_not_empty TESTS_FLAKY; then
-        ewarn "FLAKY TESTS:"
-        for flaky_test in "${TESTS_FLAKY[@]}" ; do
-            echo "$(ecolor "yellow")      ${flaky_test}" >&2
-        done
-        ecolor off >&2
-    fi
-
-# Create a summary file with relevant statistics
-if command_exists jq; then
-
-jq . << EOF > ${ETEST_JSON}
-{
-    "numTestsExecuted": "${NUM_TESTS_EXECUTED}",
-    "numTestsPassed": "${#TESTS_PASSED[@]}",
-    "numTestsFailed": "${#TESTS_FAILED[@]}",
-    "numTestsFlaky": "${#TESTS_FLAKY[@]}",
-    "testsPassed": $(array_to_json TESTS_PASSED),
-    "testsFailed": $(array_to_json TESTS_FAILED),
-    "testsFlaky": $(array_to_json TESTS_FLAKY),
-    "runtime": "${RUNTIME} seconds",
-    "datetime": "$(etimestamp_rfc3339)",
-    "options": {
-        "break": "${break}",
-        "clean": "${clean}",
-        "debug": "${debug}",
-        "delete": "${delete}",
-        "exclude": "${exclude}",
-        "failures": "${failures}",
-        "filter": "${filter}",
-        "html": "${html}",
-        "log_dir": "${log_dir}",
-        "mount_ns": "${mount_ns}",
-        "repeat": "${repeat}",
-        "test_list": $(array_to_json test_list),
-        "tests": $(array_to_json tests),
-        "verbose": "${verbose}"
-    },
-    "vcs": $(pack_to_json vcs_pack)
-}
-EOF
-
-    # Additionally display summary output to the terminal if requested
-    if [[ "${summary}" -eq 1 ]]; then
-        einfo "Summary"
-        jq --color-output . ${ETEST_JSON}
-    fi
-fi
-
-} |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
-
-exit ${#TESTS_FAILED[@]}
+exit ${NUM_TESTS_FAILED}

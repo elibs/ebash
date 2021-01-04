@@ -100,6 +100,91 @@ ETEST_AA_to_json()
     assert_eq "${AA[beta]}"  "$(echo ${json} | jq --raw-output .beta)"
 }
 
+ETEST_AA_to_json_split()
+{
+    declare -A AA
+    AA[alpha]="b c"
+    AA[beta]="1 2 3"
+
+    expect='
+    {
+        "alpha": ["b", "c"],
+        "beta": ["1", "2", "3"]
+    }'
+
+    actual=$(associative_array_to_json_split AA)
+
+    etestmsg "Expect"
+    echo "${expect}" | jq .
+
+    etestmsg "Actual"
+    echo "${actual}" | jq .
+
+    json_compare "${expect}" "${actual}"
+}
+
+ETEST_AA_to_json_split_delim()
+{
+    declare -A AA
+    AA[alpha]="b|c"
+    AA[beta]="1|2|3"
+
+    expect='
+    {
+        "alpha": ["b", "c"],
+        "beta": ["1", "2", "3"]
+    }'
+
+    actual=$(associative_array_to_json_split AA "|")
+
+    etestmsg "Expect"
+    echo "${expect}" | jq .
+
+    etestmsg "Actual"
+    echo "${actual}" | jq .
+
+    json_compare "${expect}" "${actual}"
+}
+
+ETEST_AA_to_json_split_delim_with_spaces()
+{
+    declare -A AA
+    AA[alpha]="This is the first|This is the second"
+    AA[beta]="Spaces|Are Not That Much Fun"
+
+    expect='
+    {
+        "alpha": ["This is the first", "This is the second"],
+        "beta": ["Spaces", "Are Not That Much Fun"]
+    }'
+
+    actual=$(associative_array_to_json_split AA "|")
+
+    etestmsg "Expect"
+    echo "${expect}" | jq .
+
+    etestmsg "Actual"
+    echo "${actual}" | jq .
+
+    json_compare "${expect}" "${actual}"
+}
+
+ETEST_AA_to_json_split_empty()
+{
+    declare -A AA
+
+    expect="{}"
+    actual=$(associative_array_to_json_split AA)
+
+    etestmsg "Expect"
+    echo "${expect}" | jq .
+
+    etestmsg "Actual"
+    echo "${actual}" | jq .
+
+    json_compare "${expect}" "${actual}"
+}
+
 ETEST_file_to_json()
 {
     cat <<-"EOF" >data.txt
