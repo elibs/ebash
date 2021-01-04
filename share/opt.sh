@@ -462,6 +462,15 @@ opt_parse_setup()
     printf "declare __EBASH_ARG_REST=%s __EBASH_ARG_REST_DOCSTRING=%s ; " "${arg_rest_var}" "${arg_rest_docstring}"
 }
 
+opt_parse_usage_name()
+{
+    if [[ "${FUNCNAME[2]}" == "main" ]]; then
+        echo -n "$(basename $0)"
+    else
+        echo -n "${FUNCNAME[2]}"
+    fi
+}
+
 opt_parse_options()
 {
     # Odd idiom here to determine if there are no options because of bash 4.2/4.3/4.4 changing behavior. See array_size
@@ -478,6 +487,10 @@ opt_parse_options()
         fi
 
     fi
+
+    # Function name and <option> specification if there are any options
+    local usage_name
+    usage_name=$(opt_parse_usage_name)
 
     set -- "${__EBASH_FULL_ARGS[@]}"
 
@@ -505,19 +518,19 @@ opt_parse_options()
                 # command line)
                 local canonical=""
                 canonical=$(opt_parse_find_canonical ${long_opt//-/_})
-                [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
+                [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option --${long_opt}"
 
                 if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument."
+                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option --${long_opt} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
 
                     # If this is a required_string assert it's non-empty
                     if [[ ${__EBASH_OPT_TYPE[$canonical]} == "required_string" && -z "${opt_arg}" ]]; then
-                        die "${FUNCNAME[1]}: option --${long_opt} requires a non-empty argument."
+                        die "$(opt_parse_usage_name): option --${long_opt} requires a non-empty argument."
                     fi
 
                     __EBASH_OPT[$canonical]=${opt_arg}
@@ -525,14 +538,14 @@ opt_parse_options()
                 elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "accumulator" ]]; then
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument."
+                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option --${long_opt} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
 
                     # Do not allow the value to contain a newline in an accumulator since this would cause failures in
                     # array_init_nl later.
-                    [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "$(opt_parse_usage_name): newlines cannot appear in accumulator values."
 
                     __EBASH_OPT[$canonical]+=${opt_arg}$'\n'
 
@@ -555,7 +568,7 @@ opt_parse_options()
 
                     __EBASH_OPT[$canonical]=${value}
                 else
-                    die "${FUNCNAME[1]}: option --${long_opt} has an invalid type ${__EBASH_OPT_TYPE[$canonical]}"
+                    die "$(opt_parse_usage_name): option --${long_opt} has an invalid type ${__EBASH_OPT_TYPE[$canonical]}"
                 fi
                 ;;
 
@@ -572,10 +585,10 @@ opt_parse_options()
                 for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
                     char=${short_opts:$index:1}
                     canonical=$(opt_parse_find_canonical ${char})
-                    [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option --${long_opt}"
+                    [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option --${long_opt}"
 
                     if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
-                        die "${FUNCNAME[1]}: option -${char} requires an argument."
+                        die "$(opt_parse_usage_name): option -${char} requires an argument."
                     fi
 
                     __EBASH_OPT[$canonical]=1
@@ -584,21 +597,21 @@ opt_parse_options()
                 # Handle the last one separately, because it might have an argument.
                 char=${short_opts:$index}
                 canonical=$(opt_parse_find_canonical ${char})
-                [[ -n ${canonical} ]] || die "${FUNCNAME[1]}: unexpected option -${char}"
+                [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option -${char}"
 
                 # If it expects an argument, make sure it has one and use it.
                 if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option --${long_opt} requires an argument."
+                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option --${long_opt} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
 
                     # If this is a required_string assert it's non-empty
                     if [[ ${__EBASH_OPT_TYPE[$canonical]} == "required_string" && -z "${opt_arg}" ]]; then
-                        die "${FUNCNAME[1]}: option --${long_opt} requires a non-empty argument."
+                        die "$(opt_parse_usage_name): option --${long_opt} requires a non-empty argument."
                     fi
 
                     __EBASH_OPT[$canonical]=${opt_arg}
@@ -607,7 +620,7 @@ opt_parse_options()
 
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "${FUNCNAME[1]}: option -${char} requires an argument but didn't receive one."
+                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option -${char} requires an argument but didn't receive one."
 
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
@@ -615,7 +628,7 @@ opt_parse_options()
 
                     # Do not allow the value to contain a newline in an accumulator since this would cause failures in
                     # array_init_nl later.
-                    [[ "${opt_arg}" =~ $'\n' ]] && die "${FUNCNAME[1]}: newlines cannot appear in accumulator values."
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "$(opt_parse_usage_name): newlines cannot appear in accumulator values."
 
                     __EBASH_OPT[$canonical]+=${opt_arg}$'\n'
 
@@ -629,7 +642,7 @@ opt_parse_options()
                     fi
 
                 else
-                    die "${FUNCNAME[1]}: option -${char} has an invalid type ${__EBASH_OPT_TYPE[$canonical]}"
+                    die "$(opt_parse_usage_name): option -${char} has an invalid type ${__EBASH_OPT_TYPE[$canonical]}"
                 fi
                 ;;
             *)
@@ -640,7 +653,7 @@ opt_parse_options()
         # Make sure that the value chosen for boolean options is either 0 or 1
         if [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" \
             && ${__EBASH_OPT[$canonical]} != 1 && ${__EBASH_OPT[$canonical]} != 0 ]] ; then
-                die "${FUNCNAME[1]}: option $canonical can only be 0 or 1 but was ${__EBASH_OPT[$canonical]}."
+                die "$(opt_parse_usage_name): option $canonical can only be 0 or 1 but was ${__EBASH_OPT[$canonical]}."
         fi
 
         # Move on to the next item, recognizing that an option may have consumed the last one
@@ -695,11 +708,7 @@ opt_display_usage()
 {
     {
         # Function name and <option> specification if there are any options
-        if [[ "${FUNCNAME[1]}" == "main" ]]; then
-            echo -n "Usage: $(basename $0) "
-        else
-            echo -n "Usage: ${FUNCNAME[1]} "
-        fi
+        echo -n "Usage: $(opt_parse_usage_name) "
 
         # Sort option keys so we can display options in sorted order.
         local opt_keys=()
@@ -765,7 +774,7 @@ opt_display_usage()
         # If there's a documentation block in memory for this function, display it. (Note: these only get saved when
         # __EBASH_SAVE_DOC is set to 1 -- see ebash.sh)
         if [[ -n "${__EBASH_DOC[${FUNCNAME[1]:-}]:-}" ]] ; then
-            printf -- "\n%s\n" "${__EBASH_DOC[${FUNCNAME[1]}]}"
+            printf -- "\n%s\n" "${__EBASH_DOC[$(opt_parse_usage_name)]}"
         fi
 
         # Display block of documentation for options if there are any

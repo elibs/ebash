@@ -70,6 +70,10 @@ array_to_json()
     echo -n "]"
 }
 
+opt_usage associative_array_to_json <<'END'
+Convert an associative array by name (e.g. ARRAY not ${ARRAY} or ${ARRAY[@]}) into a json object containing the same
+data.
+END
 associative_array_to_json()
 {
     echo -n "{"
@@ -84,6 +88,63 @@ associative_array_to_json()
         echo -n $(json_escape "$(eval echo -n \${$1[$_key]})")
 
         _notfirst=true
+    done
+    echo -n "}"
+}
+
+opt_usage associative_array_to_json_split <<'END'
+Convert an associative array by name (e.g. ARRAY not ${ARRAY} or ${ARRAY[@]}) into a json object containing the same
+data. This is similar to associative_array_to_json with some extra functionality layered ontop wherein it will split
+each entry in the associative array on the provided delimiter into an array.
+
+For example:
+
+    declare -A data
+    data[key1]="value1 value2 value3"
+    data[key2]="entry1 entry2 entry3"
+
+    associative_array_to_json_split data " " | jq .
+    # output:
+    # {
+    #   "key1": [
+    #       "value1",
+    #       "value2",
+    #       "value3"
+    #   ],
+    #   "key2": [
+    #       "entry1",
+    #       "entry2",
+    #       "entry3"
+    #   ]
+    # }
+END
+associative_array_to_json_split()
+{
+    $(opt_parse \
+        "input  | Name of the associative array to convert to json." \
+        "?delim | Delimiter to place between array items. Default is a space.")
+
+    # If the array is empty return empty json object
+    array_empty ${input} && { echo -n "{}"; return 0; } || true
+
+    # Default delimiter is an empty string.
+    : ${delim:=" "}
+
+    echo -n "{"
+
+    local _first=1 _key _entry _values
+    for _key in $(array_indexes_sort ${input}); do
+        edebug $(lval _key)
+
+        [[ ${_first} -eq 1 ]] && _first=0 || echo -n ","
+
+        eval "_entry=\${${input}[$_key]}"
+        array_init _values "${_entry}" "${delim}"
+
+        echo -n $(json_escape ${_key})
+        echo -n ':'
+        array_to_json _values
+
     done
     echo -n "}"
 }
