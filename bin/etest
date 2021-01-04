@@ -660,7 +660,7 @@ create_xml()
             array_init testcases_failed "${TESTS_FAILED[$suite]:-}"
             edebug "$(lval suite testcases_passed testcases_failed)"
 
-            printf '<testsuite name="%s" tests="%d" failures="%d" time="%s">' \
+            printf '<testsuite name="%s" tests="%d" failures="%d" time="%s">\n' \
                 "${suite}" \
                 $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} )) \
                 ${#testcases_failed[@]} \
@@ -670,12 +670,12 @@ create_xml()
             local name
 
             # Add all passing tests
-            for name in "${testcases_passed[@]}"; do
+            for name in ${testcases_passed[@]:-}; do
                 xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s"></testcase>\n' "${suite}" "${name}" "${TESTS_RUNTIME[$name]}")" )
             done
 
             # Add all failing tests
-            for name in "${testcases_failed[@]}"; do
+            for name in ${testcases_failed[@]:-}; do
                 local failure_msg
                 failure_msg="$(printf '<failure message="%s:%s failed" type="ERROR"></failure>' "${suite}" "${name}")"
                 xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s">%s</testcase>\n' "${suite}" "${name}" "${TESTS_RUNTIME[$name]}" "${failure_msg}")" )
