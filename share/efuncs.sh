@@ -692,9 +692,9 @@ die_on_abort()
     done
 }
 
-#opt_usage nodie_on_abort <<'END'
-#Disable default traps for all DIE_SIGNALS.
-#END
+opt_usage nodie_on_abort <<'END'
+Disable default traps for all DIE_SIGNALS.
+END
 nodie_on_abort()
 {
     export __EBASH_DIE_ON_ABORT_ENABLED=0
@@ -745,9 +745,9 @@ alias reexec='declare -a __EBASH_REEXEC_CMD=("$0" "$@") ; reexec'
 # SIGNAL FUNCTIONS
 #-----------------------------------------------------------------------------------------------------------------------
 
-#opt_usage signum <<'END'
-#Given a name or number, echo the signal name associated with it.
-#END
+opt_usage signum <<'END'
+Given a name or number, echo the signal name associated with it.
+END
 signum()
 {
     if [[ "$1" =~ ^[[:digit:]]$ ]] ; then
@@ -800,10 +800,10 @@ signame()
     return 0
 }
 
-#opt_usage sigexitcode <<'END'
-#Given a signal name or number, echo the exit code that a bash process would produce if it died due to the specified
-#signal.
-#END
+opt_usage sigexitcode <<'END'
+Given a signal name or number, echo the exit code that a bash process would produce if it died due to the specified
+signal.
+END
 sigexitcode()
 {
     echo "$(( 128 + $(signum $1) ))"
@@ -831,34 +831,34 @@ directory itself using scp like syntax. For example, if you wanted to refer to t
 the contents of the directory should be used rather than the directory itself. You can also map the
 contents of that directory into an alternative destination path using '/var/log/.:logs'."
 
-#opt_usage pushd <<'END'
-#Wrapper around pushd to suppress its noisy output.
-#END
+opt_usage pushd <<'END'
+Wrapper around pushd to suppress its noisy output.
+END
 pushd()
 {
     builtin pushd "${@}" >/dev/null
 }
 
-#opt_usage popd <<'END'
-#Wrapper around popd to suppress its noisy output.
-#END
+opt_usage popd <<'END'
+Wrapper around popd to suppress its noisy output.
+END
 popd()
 {
     builtin popd "${@}" >/dev/null
 }
 
-#opt_usage command_exists <<'END'
-#Helper function to check if a command exists. The actual implementation could be a function in
-#our environment or an external program.
-#END
+opt_usage command_exists <<'END'
+Helper function to check if a command exists. The actual implementation could be a function in
+our environment or an external program.
+END
 command_exists()
 {
     { declare -f "${1}" || which "${1}"; } &>/dev/null
 }
 
-#opt_usage require <<'END'
-#Helper function to validate that a list of commands are all installed in our PATH.
-#END
+opt_usage require <<'END'
+Helper function to validate that a list of commands are all installed in our PATH.
+END
 require()
 {
     local missing=0
@@ -873,9 +873,9 @@ require()
     assert_zero "${missing}"
 }
 
-#opt_usage echmodown <<'END'
-#echmodown is basically chmod and chown combined into one function.
-#END
+opt_usage echmodown <<'END'
+echmodown is basically chmod and chown combined into one function.
+END
 echmodown()
 {
     [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
@@ -885,11 +885,11 @@ echmodown()
     chown ${owner} $@
 }
 
-#opt_usage efreshdir <<'END'
-#Recursively unmount the named directories and remove them (if they exist) then create new ones.
-#
-#NOTE: Unlike earlier implementations, this handles multiple arguments properly.
-#END
+opt_usage efreshdir <<'END'
+Recursively unmount the named directories and remove them (if they exist) then create new ones.
+
+NOTE: Unlike earlier implementations, this handles multiple arguments properly.
+END
 efreshdir()
 {
     local mnt
@@ -903,9 +903,9 @@ efreshdir()
     done
 }
 
-#opt_usage ebackup <<'END'
-#Copies the given file to *.bak if it doesn't already exist.
-#END
+opt_usage ebackup <<'END'
+Copies the given file to *.bak if it doesn't already exist.
+END
 ebackup()
 {
     $(opt_parse src)
@@ -913,6 +913,9 @@ ebackup()
     [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak" || true
 }
 
+opt_usage erestore <<'END'
+Copies files previously backed up via ebackup to their original location.
+END
 erestore()
 {
     $(opt_parse src)
@@ -1115,9 +1118,9 @@ elogfile()
     fi
 }
 
-#opt_usage directory_empty <<'END'
-#Check if a directory is empty
-#END
+opt_usage directory_empty <<'END'
+Check if a directory is empty
+END
 directory_empty()
 {
     $(opt_parse dir)
@@ -1161,9 +1164,9 @@ compare()
     awk -v lh="${lh}" -v rh="${rh}" "BEGIN { if ( lh ${op} rh ) exit(0) ; else exit(1) ; }" && return 0 || return 1
 }
 
-#opt_usage compare_version <<'END'
-#Specialized comparision helper to properly compare versions
-#END
+opt_usage compare_version <<'END'
+Specialized comparision helper to properly compare versions
+END
 compare_version()
 {
     local lh=${1}
@@ -1187,9 +1190,9 @@ compare_version()
 # ARGUMENT HELPERS
 #---------------------------------------------------------------------------------------------------
 
-#opt_usage argcheck <<'END'
-#Check to ensure all the provided arguments are non-empty
-#END
+opt_usage argcheck <<'END'
+Check to ensure all the provided arguments are non-empty
+END
 argcheck()
 {
     local _argcheck_arg
@@ -1203,10 +1206,10 @@ argcheck()
 # MISC HELPERS
 #---------------------------------------------------------------------------------------------------
 
-#opt_usage save_function <<'END'
-#save_function is used to safe off the contents of a previously declared function into ${1}_real to aid in overridding
-#a function or altering it's behavior.
-#END
+opt_usage save_function <<'END'
+save_function is used to safe off the contents of a previously declared function into ${1}_real to aid in overridding
+a function or altering it's behavior.
+END
 save_function()
 {
     local orig="" new=""
@@ -1712,9 +1715,9 @@ string_truncate()
     fi
 }
 
-#opt_usage string_collapse <<'END'
-#Collapse grouped whitespace in the specified string to single spaces.
-#END
+opt_usage string_collapse <<'END'
+Collapse grouped whitespace in the specified string to single spaces.
+END
 string_collapse()
 {
     echo -en "$@" | tr -s "[:space:]" " "
