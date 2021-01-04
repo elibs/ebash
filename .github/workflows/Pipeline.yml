@@ -117,7 +117,7 @@ jobs:
   #--------------------------------------------------------------------------------------------------------------------
   publish-test-results:
     name: "Publish Unit Tests Results"
-    needs: Linux MacOS
+    needs: [Linux, MacOS]
     runs-on: ubuntu-latest
     # the build-and-test job might be skipped, we don't need to run this job then
     if: success() || failure()
