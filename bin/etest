@@ -585,7 +585,7 @@ create_summary()
 
         if array_not_empty TESTS_FAILED; then
             eerror "FAILED TESTS:"
-            for failed_test in "${TESTS_FAILED[@]}" ; do
+            for failed_test in $(echo "${TESTS_FAILED[@]}" | tr ' ' '\n') ; do
                 echo "$(ecolor "red")      ${failed_test}" >&2
             done
             ecolor off >&2
@@ -593,7 +593,7 @@ create_summary()
 
         if array_not_empty TESTS_FLAKY; then
             ewarn "FLAKY TESTS:"
-            for flaky_test in "${TESTS_FLAKY[@]}" ; do
+            for flaky_test in $(echo "${TESTS_FLAKY[@]}" | tr ' ' '\n') ; do
                 echo "$(ecolor "yellow")      ${flaky_test}" >&2
             done
             ecolor off >&2
