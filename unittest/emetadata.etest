@@ -14,6 +14,12 @@ ETEST_PGP_PUBLIC="${EBASH_HOME}/unittest/etest_pgp_public.asc"
 ETEST_PGP_PRIVATE="${EBASH_HOME}/unittest/etest_pgp_private.asc"
 ETEST_PGP_PHRASE="${EBASH_HOME}/unittest/etest_pgp_phrase.txt"
 
+# Test helper for doing a git commit with a known user configuration
+git_commit()
+{
+    git -c user.name='Neo' -c user.email='neo@matrix.com' commit "${@}"
+}
+
 make_testfile()
 {
     # Generate some data into a file that we can checksum and such
@@ -84,7 +90,7 @@ ETEST_emetadata_git()
     git init
     touch "file1.txt"
     git add "file1.txt"
-    git commit -am "Add file1.txt"
+    git_commit -am "Add file1.txt"
 
     # Metadata for known file
     local src meta
@@ -140,7 +146,7 @@ ETEST_emetadata_custom_entries()
     git init
     touch "file1.txt"
     git add "file1.txt"
-    git commit -am "Add file1.txt"
+    git_commit -am "Add file1.txt"
 
     # Metadata for known file
     local src meta
