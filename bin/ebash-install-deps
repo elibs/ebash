@@ -258,7 +258,7 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "darwin" ]; then
 
-    brew update
+    brew update-reset
 
     brew install    \
         bash        \
