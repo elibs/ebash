@@ -128,9 +128,12 @@ jobs:
         with:
           path: artifacts
 
+      - name: Details
+        run: find artifacts
+
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v1.6
         with:
           check_name: Unit Test Results
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          files: etest.xml
+          files: artifacts/**/etest.xml
