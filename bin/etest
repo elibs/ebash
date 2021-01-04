@@ -7,7 +7,6 @@
 # published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
 
 : ${EMSG_PREFIX:=time}
-
 : ${EBASH_HOME:=$(dirname $0)/..}
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ebash." ; exit 1 ; }
@@ -30,6 +29,30 @@ TOPDIR=${PWD}
 # GLOBAL SETUP
 #-----------------------------------------------------------------------------------------------------------------------
 
+opt_usage main <<'END'
+etest is an extensible test framework primarily focused at providing a rich test framework for bash complete with test
+suites and a rich set of test assertions and other various test related frameworks. It also supports running any
+standalone executable binaries or scripts written in any language. In this mode it is essentially a simple test driver.
+
+Tests can be grouped into test suites by placing them into a *.etest file. Each test is then a function inside that file
+with the naming scheme `ETEST_${suite}_${testcase}` (e.g. `ETEST_array_init` for the `array` suite and the testcase
+`init`). Each test suite *.etest file can contain optional `sutie_setup` and `suite_teardown` functions which are
+performed only once at the start and end of a suite, respectively. It can also optionally contain `setup` and
+`teardown` functions which are run before and after every single individual test.
+
+etest provides several additional security and auditing features of interest:
+
+    1) Every test is run in its own subshell to ensure process isolation.
+    2) Every test is run inside a unique cgroup (on Linux) to further isolate the process, mounts and networking from
+       the rest of the system.
+    3) Each test is monitored for process leaks and mount leaks.
+
+Tests can be repeated, filtered, excluded, debugged, traced and a host of other extensive developer friendly features.
+
+etest produces a JUnit/XUnit compatible etest.xml file at the end of the test run listing all the tests that were
+executed along with runtimes and specific lists of passing, failing and flaky tests. This file can be directly hooked
+into Jenkins, GitHub Actions, and BitBucket Pipelines for clear test visibility and reporting.
+END
 $(opt_parse \
     "+break   b=${BREAK:-0}    | Stop immediately on first failure." \
     "+clean   c=0              | Clean only and then exit." \
