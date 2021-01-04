@@ -61,7 +61,6 @@ if [ "${DISTRO}" = "alpine" ]; then
         pstree           \
         squashfs-tools   \
         util-linux       \
-        xmlstarlet       \
         xz
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -81,8 +80,7 @@ elif [ "${DISTRO}" = "arch" ]; then
         jq                  \
         net-tools           \
         squashfs-tools      \
-        which               \
-        xmlstarlet
+        which
 
     localedef -i en_US -f UTF-8 en_US.UTF-8
 
@@ -119,7 +117,6 @@ elif [ "${DISTRO}" = "centos" ]; then
         psmisc              \
         squashfs-tools      \
         which               \
-        xmlstarlet          \
         xz
 
     localedef -i en_US -f UTF-8 en_US.UTF-8
@@ -151,7 +148,6 @@ elif [ "${DISTRO}" = "debian" ]; then
         procps          \
         psmisc          \
         squashfs-tools  \
-        xmlstarlet      \
         xz-utils
 
     localedef -i en_US -f UTF-8 en_US.UTF-8
@@ -187,7 +183,6 @@ elif [ "${DISTRO}" = "fedora" ]; then
         psmisc              \
         squashfs-tools      \
         which               \
-        xmlstarlet          \
         xz
 
     localedef -i en_US -f UTF-8 en_US.UTF-8
@@ -209,8 +204,7 @@ elif [ "${DISTRO}" = "gentoo" ]; then
         dialog          \
         jq              \
         net-tools       \
-        squashfs-tools  \
-        xmlstarlet
+        squashfs-tools
 
     localedef -i en_US -f UTF-8 en_US.UTF-8
 
@@ -246,7 +240,6 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
         net-tools       \
         psmisc          \
         squashfs-tools  \
-        xmlstarlet      \
         xz-utils
 
     localedef -i en_US -f UTF-8 en_US.UTF-8
@@ -268,8 +261,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
         gnu-sed     \
         grep        \
         jq          \
-        pstree      \
-        xmlstarlet
+        pstree
 
 #----------------------------------------------------------------------------------------------------------------------
 #

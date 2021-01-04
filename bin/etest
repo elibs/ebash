@@ -683,13 +683,15 @@ create_xml()
 
             array_sort xml_lines
             edebug "$(lval xml_lines)"
-            echo "${xml_lines[@]}"
+            for line in "${xml_lines[@]}"; do
+                echo "${line}"
+            done
             echo "</testsuite>"
         done
 
-        printf "</testsuites>\n"
+        echo "</testsuites>"
 
-    } | xmlstarlet format --indent-tab > ${ETEST_XML}
+    } > ${ETEST_XML}
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
