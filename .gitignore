@@ -2,6 +2,7 @@
 etest.log*
 etest.html
 etest.json*
+etest.xml*
 results
 output
 results
