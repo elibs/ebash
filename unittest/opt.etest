@@ -876,3 +876,19 @@ ETEST_opt_parse_accumulator_single()
     assert_eq 1       $(array_size files)
     assert_eq "apples" "${files[0]}"
 }
+
+ETEST_argcheck()
+{
+    try
+    {
+        alpha="notempty"
+        output=$((argcheck alpha beta 2>&1))
+        die "argcheck should have thrown"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "argcheck should have thrown"
+}

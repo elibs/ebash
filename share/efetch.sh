@@ -1,11 +1,17 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# efetch
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage efetch <<'END'
 Fetch one or more URLs to an optional destination path with progress monitor and metadata validation. Older versions
@@ -286,23 +292,17 @@ END
 __efetch_check_incomplete_or_failed()
 {
     # Move files to their final destinations or remove pending files for failed downloads
-    echo
-    einfo "Checking for incomplete or failed downloads"
     local url
     for url in ${!data[@]}; do
         $(pack_import data[$url])
 
-        einfos "${fname}"
         rm --force "${progress}"
 
         if [[ "${result}" == "failed" ]]; then
-            eend 1
             eerror "Removing incomplete or failed files: ($(echo \"${dest}{,.md5,.meta}.pending\"))"
             rm --force ${dest}{,.md5,.meta}.pending
             (( errors += 1 ))
         else
-            eend 0
-
             if [[ -e "${dest}.pending" ]]; then
                 mv "${dest}.pending" "${dest}"
             else
