@@ -13,6 +13,24 @@ err_trap_exists()
     trap -p | grep -q ERR
 }
 
+# Ensure local variable assignments don't mask errors. Specifically things of this form:
+# 'local x=$(false)' need to still trigger fatal error handling.
+ETEST_local_variables_masking_errors()
+{
+    try
+    {
+        local foo
+        foo=$(false)
+        die "local variable assignment should have thrown"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "try block should have thrown"
+}
+
 ETEST_ensure_trap_enabled_by_default()
 {
     # Simple sanity test to ensure the default setup in efuncs enables ERR trap otherwise all other assumptions in this
