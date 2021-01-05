@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# String
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 opt_usage to_upper_snake_case <<'END'
 Convert a given input string into "upper snake case". This is generally most useful when converting a "CamelCase" string
 although it will work just as well on non-camel case input. Essentially it looks for all upper case letters and puts an

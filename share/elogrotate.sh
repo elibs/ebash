@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Logfile Rotation
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 opt_usage elogrotate <<'END'
 elogrotate rotates all the log files with a given basename similar to what happens with logrotate.
 It will always touch an empty non-versioned file just log logrotate.

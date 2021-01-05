@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# eretry
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 opt_usage eretry <<'END'
 Eretry executes arbitrary shell commands for you wrapped in a call to etimeout and retrying up to a specified count.
 

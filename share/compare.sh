@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Compare
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 opt_usage compare <<'END'
 Generic comparison function using awk which doesn't suffer from bash stupidity with regards to having to do use separate
 comparison operators for integers and strings and even worse being completely incapable of comparing floats.

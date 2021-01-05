@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# setvars
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 opt_usage setvars <<'END'
 setvars takes a template file with optional variables inside the file which are surrounded on both sides by two
 underscores. It will replace the variable (and surrounding underscores) with a value you specify in the environment.

@@ -1,10 +1,17 @@
 #!/bin/bash
 #
 # Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Try/Catch
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 DIE_MSG_KILLED='[Killed]'
 DIE_MSG_CAUGHT='[ExceptionCaught pid=$BASHPID cmd=$(string_truncate -e 60 ${BASH_COMMAND})]'

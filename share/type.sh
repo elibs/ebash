@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Type Helpers
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 opt_usage is_int <<'END'
 Returns success (0) if the input string is an integer and failure (1) otherwise. May have a leading '-' or '+' to
 indicate the number is negative or positive. This does NOT handle floating point numbers. For that you should instead
