@@ -481,8 +481,8 @@ run_single_test()
 run_etest_file()
 {
     $(opt_parse \
-        "testfile      | Name of the etest file to test." \
-        "functions_raw | Whitespace separated list of tests to run inside the testfile.")
+        "testfile       | Name of the etest file to test." \
+        "?functions_raw | Whitespace separated list of tests to run inside the testfile.")
 
     local testfilename
     testfilename=$(basename ${testfile})
