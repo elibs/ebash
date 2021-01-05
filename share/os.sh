@@ -1,11 +1,17 @@
 #!/bin/bash
 #
-# Copyright 2014-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2014-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2014-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# OS
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage edistro <<'END'
 edistro is a generic way to figure out what "distro" we are running on. This is largely only a Linux concept so on MacOS
@@ -156,3 +162,31 @@ os_pretty_name()
         echo "${distro^} $(os) $(os_release)"
     fi
 }
+
+opt_usage command_exists <<'END'
+Helper function to check if a command exists. The actual implementation could be a function in
+our environment or an external program.
+END
+command_exists()
+{
+    { declare -f "${1}" || which "${1}"; } &>/dev/null
+}
+
+opt_usage require <<'END'
+Helper function to validate that a list of commands are all installed in our PATH.
+END
+require()
+{
+    local missing=0
+    local cmd
+    for cmd in "${@}"; do
+        if ! command_exists "${cmd}"; then
+            eerror "Command ${cmd} not found in ${PATH}"
+            (( missing += 1 ))
+        fi
+    done
+
+    assert_zero "${missing}"
+}
+
+
