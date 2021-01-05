@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Daemon
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
 opt_usage daemon_init <<'END'

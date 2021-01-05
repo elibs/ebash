@@ -207,4 +207,15 @@ tryrc()
     rm --recursive --force ${tmpdir}
 }
 
+# We need to include disable_die_parent in trycatch.sh as it is included at the top of ebash.sh to ensure that the alias
+# is expanded BEFORE functions which use it are sourced. Otherwise this alias never gets expanded.
+opt_usage disable_die_parent <<'END'
+Prevent an error or other die call in the _current_ shell from killing its parent. By default with ebash, errors
+propagate to the parent by sending the parent a sigterm.
+
+You might want to use this in shells that you put in the background if you don't want an error in them to cause you to
+be notified via sigterm.
+END
+alias disable_die_parent="declare __EBASH_DISABLE_DIE_PARENT_PID=\${BASHPID}"
+
 return 0
