@@ -58,7 +58,7 @@ $(opt_parse \
     "+clean   c=0              | Clean only and then exit." \
     ":debug   D=${EDEBUG:-}    | EDEBUG output." \
     "+delete  d=1              | Delete all output files when tests complete." \
-    "+print_only print p=1     | Print list of tests that would be executed based on provided filter and exclude to
+    "+print_only print p       | Print list of tests that would be executed based on provided filter and exclude to
                                  stdout and then exit without actually running any tests." \
     ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
     ":failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
