@@ -29,32 +29,6 @@ popd()
     builtin popd "${@}" >/dev/null
 }
 
-opt_usage command_exists <<'END'
-Helper function to check if a command exists. The actual implementation could be a function in
-our environment or an external program.
-END
-command_exists()
-{
-    { declare -f "${1}" || which "${1}"; } &>/dev/null
-}
-
-opt_usage require <<'END'
-Helper function to validate that a list of commands are all installed in our PATH.
-END
-require()
-{
-    local missing=0
-    local cmd
-    for cmd in "${@}"; do
-        if ! command_exists "${cmd}"; then
-            eerror "Command ${cmd} not found in ${PATH}"
-            (( missing += 1 ))
-        fi
-    done
-
-    assert_zero "${missing}"
-}
-
 opt_usage echmodown <<'END'
 echmodown is basically chmod and chown combined into one function.
 END
