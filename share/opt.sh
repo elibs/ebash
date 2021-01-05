@@ -771,13 +771,16 @@ opt_display_usage()
         # Finish the first line
         echo
 
-        # If there's a documentation block in memory for this function, display it. (Note: these only get saved when
-        # __EBASH_SAVE_DOC is set to 1 -- see ebash.sh)
-        if [[ -n "${__EBASH_DOC[${FUNCNAME[1]:-}]:-}" ]] ; then
+        # If there's a documentation block in memory for this function, display it.
+        # Note1: These only get saved when __EBASH_SAVE_DOC is set to 1 -- see ebash.sh)
+        # Note2: Newer code uses opt_parse_usage_name, but older code would have just used "main". We want to be
+        #        backwards compatible so we look for both.
+        if [[ -n "${__EBASH_DOC[$(opt_parse_usage_name)]:-}" ]] ; then
             printf -- "\n%s\n" "${__EBASH_DOC[$(opt_parse_usage_name)]}"
+        elif [[ "${FUNCNAME[1]:-}" == "main" && -n "${__EBASH_DOC["main"]:-}" ]] ; then
+            printf -- "\n%s\n" "${__EBASH_DOC["main"]}"
         fi
 
-        # Display block of documentation for options if there are any
         if [[ ${#__EBASH_OPT[@]} -gt 0 ]] ; then
             echo
             echo "Options:"

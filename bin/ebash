@@ -32,25 +32,6 @@
 #
 #-------------------------------------------------------------------------------
 
-
-# To be able to make good use of function documentation in places where we do something like this, we need to save
-# function documentation off into variables (or else we'd have to parse bash source code enough to extract it, which
-# sounds very error prone)
-#
-#     somefunc --help
-#
-# But we don't want to bloat the interpreter with a bunch of documentation every time we source ebash. Our solution is
-# to only save them at times where we believe the variables are going to be needed. There's no reason to expect they
-# will be necessary unless `--help` is on the command line somewhere. Or for those few cases where it's needed, they
-# can set this variable, too.
-#
-# And for this to work in all of the ebash files, we must do it before sourcing them.
-for arg in "$@" ; do
-    if [[ ${arg} == "--help" ]] ; then
-        __EBASH_SAVE_DOC=1
-    fi
-done
-
 : ${EBASH_HOME:=$(dirname $0)/..}
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }

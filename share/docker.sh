@@ -11,6 +11,5 @@ Check if we are running inside docker or not.
 END
 running_in_docker()
 {
-    grep -qw docker /proc/$$/cgroup 2>/dev/null
+    [[ -f "/.dockerenv" ]] || grep -qw docker /proc/$$/cgroup 2>/dev/null
 }
-
