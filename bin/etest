@@ -58,8 +58,8 @@ $(opt_parse \
     "+clean   c=0              | Clean only and then exit." \
     ":debug   D=${EDEBUG:-}    | EDEBUG output." \
     "+delete  d=1              | Delete all output files when tests complete." \
-    "+discover                 | Discover what tests would be executed based on provided filter and excludes then print
-                                 them to stdout and then exit without actually running any tests." \
+    "+print_only print p=1     | Print list of tests that would be executed based on provided filter and exclude to
+                                 stdout and then exit without actually running any tests." \
     ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
     ":failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
                                  test fails at all. However, in certain circumstances where flaky tests exist it may
@@ -137,7 +137,7 @@ work_dir=$(readlink -f ${work_dir})
 EDEBUG=${debug}
 
 (( ${repeat} < 1 )) && repeat=1
-[[ ${EDEBUG:-0} != "0" || ${discover} -eq 1 ]] && verbose=1 || true
+[[ ${EDEBUG:-0} != "0" || ${print_only} -eq 1 ]] && verbose=1 || true
 edebug "$(lval TOPDIR TEST_DIR) $(opt_dump)"
 
 if ! cgroup_supported ; then
@@ -518,7 +518,7 @@ run_etest_file()
     done
 }
 
-discover_tests()
+find_matching_tests()
 {
     # Expand tests to find all standalone executable scripts as well as any *.etest files.
     local all_tests=(
@@ -769,12 +769,12 @@ declare -g  NUM_TESTS_PASSED=0
 declare -g  NUM_TESTS_FAILED=0
 declare -g  NUM_TESTS_FLAKY=0
 
-discover_tests
+find_matching_tests
 
-# If we are in discovery mode only report what we found and exit
-if [[ ${discover} -eq 1 ]]; then
+# If we are in print_only mode only report what we found and exit
+if [[ ${print_only} -eq 1 ]]; then
 
-    ebanner "Test discovery"
+    ebanner "Tests"
 
     for testname in ${TEST_FILES_TO_RUN[@]}; do
         einfo "${testname}"
