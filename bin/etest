@@ -546,7 +546,7 @@ discover_tests()
                     continue
                 fi
 
-                if [[ -z ${filter} || ${function} =~ ${filter} ]]; then
+                if [[ -z ${filter} || ${testfile} =~ ${filter} || ${function} =~ ${filter} ]]; then
                     TEST_FUNCTIONS_TO_RUN[$testfile]+="${function} "
                     has_matching_functions=true
                 fi
@@ -579,7 +579,7 @@ run_all_tests()
 
             # Run the test which could be a single test file or an entire suite (etest) file.
             if [[ "${testfile}" =~ \.etest$ ]]; then
-                run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]}"
+                run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
             else
                 run_single_test --work-dir "${work_dir}/standalone" "${testfile}"
             fi
