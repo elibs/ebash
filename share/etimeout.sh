@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Timeout
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 opt_usage etimeout <<'END'
 `etimeout` will execute an arbitrary bash command for you, but will only let it use up the amount of time (i.e. the
 "timeout") you specify.
