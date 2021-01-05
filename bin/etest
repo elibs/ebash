@@ -58,6 +58,8 @@ $(opt_parse \
     "+clean   c=0              | Clean only and then exit." \
     ":debug   D=${EDEBUG:-}    | EDEBUG output." \
     "+delete  d=1              | Delete all output files when tests complete." \
+    "+discover                 | Discover what tests would be executed based on provided filter and excludes then print
+                                 them to stdout and then exit without actually running any tests." \
     ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
     ":failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
                                  test fails at all. However, in certain circumstances where flaky tests exist it may
@@ -135,7 +137,7 @@ work_dir=$(readlink -f ${work_dir})
 EDEBUG=${debug}
 
 (( ${repeat} < 1 )) && repeat=1
-[[ ${EDEBUG:-0} != "0" ]] && verbose=1 || true
+[[ ${EDEBUG:-0} != "0" || ${discover} -eq 1 ]] && verbose=1 || true
 edebug "$(lval TOPDIR TEST_DIR) $(opt_dump)"
 
 if ! cgroup_supported ; then
@@ -314,16 +316,6 @@ run_single_test()
 
     local rc=0
 
-    # If the test name or optional source name doesn't match a specified FILTER, we're done
-    if ! [[ -z ${filter} || ${testname} =~ ${filter} || ( -n ${source} && ${source} =~ ${filter} ) ]] ; then
-        return 0
-    fi
-
-    # If the test name does match a specified EXCLUDE, we're done
-    if [[ -n ${exclude} && ${testname} =~ ${exclude} ]] ; then
-        return 0
-    fi
-
     # Record start time of the test and at the end of the test we'll update the total runtime for the test.  This will
     # be total runtime including any suite setup, test setup, test teardown and suite teardown.
     local start_time="${SECONDS}"
@@ -345,6 +337,13 @@ run_single_test()
     fi &>${ETEST_OUT}
 
     (( NUM_TESTS_EXECUTED += 1 ))
+
+    local suite
+    if [[ -n "${source}" ]]; then
+        suite="$(basename "${source}" ".etest")"
+    else
+        suite="$(basename "${testname}")"
+    fi
 
     local tries=0
     for (( tries=0; tries <= ${failures}; tries++ )); do
@@ -382,8 +381,8 @@ run_single_test()
 
             cd "${work_dir}"
 
-            # Run suite setup function if provided and we're on the first test
-            if [[ "${testidx}" -eq 0 ]] && is_function suite_setup; then
+            # Run suite setup function if provided and we're on the first test.
+            if is_function suite_setup && [[ ${testidx} -eq 0 ]]; then
                 etestmsg "Running suite_setup $(lval testidx testidx_total)"
                 suite_setup
             fi
@@ -404,7 +403,7 @@ run_single_test()
             fi
 
             # Run suite teardown function if provided and we're on the last test
-            if [[ "${testidx}" -eq "${testidx_total}" ]] && is_function suite_teardown; then
+            if is_function suite_teardown && [[ ${testidx} -eq ${testidx_total} ]]; then
                 etestmsg "Running suite_teardown $(lval testidx testidx_total)"
                 suite_teardown
             fi
@@ -427,14 +426,6 @@ run_single_test()
 
     local mount_leak_rc=0
     $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${work_dir}")
-
-    #-- xunit test tracking --#
-    local suite
-    if [[ -n "${source}" ]]; then
-        suite="$(basename "${source}" ".etest")"
-    else
-        suite="$(basename "${testname}")"
-    fi
 
     if ! array_contains TEST_SUITES "${suite}"; then
         TEST_SUITES+=( "${suite}" )
@@ -489,20 +480,17 @@ run_single_test()
 
 run_etest_file()
 {
-    $(opt_parse testfile)
+    $(opt_parse \
+        "testfile      | Name of the etest file to test." \
+        "functions_raw | Whitespace separated list of tests to run inside the testfile.")
+
     local testfilename
     testfilename=$(basename ${testfile})
 
-    # If the test file name does match a specified exclude, we're done
-    if [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] ; then
-        return 0
-    fi
+    local functions
+    array_init functions "${functions_raw}"
 
-    # Get all function names that begin with ETEST_
-    edebug $(lval testfile ETEST_FUNCTIONS)
-    ETEST_FUNCTIONS=( $(source "${testfile}" ; declare -F | awk '$3 ~ "^ETEST" {print $3}' || true) )
-
-    if [[ ${#ETEST_FUNCTIONS[@]} -eq 0 ]] ; then
+    if array_empty functions; then
         ewarn "No tests found in $(lval testfile)"
         return 0
     fi
@@ -511,14 +499,14 @@ run_etest_file()
 
     # Run all tests for this suite
     local idx
-    for idx in $(array_indexes ETEST_FUNCTIONS); do
+    for idx in $(array_indexes functions); do
 
-        local testfunc=${ETEST_FUNCTIONS[$idx]}
+        local testfunc=${functions[$idx]}
         local test_work_dir="${work_dir}/${testfilename}/${testfunc}"
 
         run_single_test \
             --testidx ${idx} \
-            --testidx-total $(( ${#ETEST_FUNCTIONS[@]} - 1 )) \
+            --testidx-total $(( ${#functions[@]} - 1 )) \
             --work-dir "${test_work_dir}" \
             --source "${testfile}" \
             "${testfunc}"
@@ -530,14 +518,50 @@ run_etest_file()
     done
 }
 
-run_all_tests()
+discover_tests()
 {
     # Expand tests to find all standalone executable scripts as well as any *.etest files.
-    TESTS=(
+    local all_tests=(
         $(find "${tests[@]}" -type f -executable     | sort || true)
         $(find "${tests[@]}" -type f -name "*.etest" | sort || true)
     )
 
+    # Get a list of tests we should actually run.
+    local testfile
+    for testfile in "${all_tests[@]}"; do
+
+        # If the test name matches a specified EXCLUDE, then skip it
+        if [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] ; then
+            continue
+        fi
+
+        # If this is an etest, see if any of the functions inside the file match the filter.
+        local has_matching_functions=false
+        if [[ ${testfile} =~ \.etest$ ]]; then
+
+            local function
+            for function in $(source "${testfile}" ; declare -F | awk '$3 ~ "^ETEST" {print $3}' || true); do
+
+                if [[ -n ${exclude} && ${function} =~ ${exclude} ]]; then
+                    continue
+                fi
+
+                if [[ -z ${filter} || ${function} =~ ${filter} ]]; then
+                    TEST_FUNCTIONS_TO_RUN[$testfile]+="${function} "
+                    has_matching_functions=true
+                fi
+            done
+        fi
+
+        # If the filename matches a non-empty filter or we found functions that match the filter then run it.
+        if [[ -z ${filter} || ${testfile} =~ ${filter} || ${has_matching_functions} == "true" ]]; then
+            TEST_FILES_TO_RUN+=( "${testfile}" )
+        fi
+    done
+}
+
+run_all_tests()
+{
     OS="$(os_pretty_name)"
     if [[ "${verbose}" -eq 1 ]]; then
         ebanner --uppercase "ETEST" OS break exclude failures filter repeat
@@ -548,19 +572,19 @@ run_all_tests()
     for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
         REPEAT_STRING="${ITERATION}/${repeat}"
 
-        for filename in "${TESTS[@]}"; do
+        for testfile in "${TEST_FILES_TO_RUN[@]}"; do
 
             # Record start time of entire test suite
             local suite_start_time="${SECONDS}"
 
             # Run the test which could be a single test file or an entire suite (etest) file.
-            if [[ "${filename}" =~ \.etest$ ]]; then
-                run_etest_file "${filename}"
+            if [[ "${testfile}" =~ \.etest$ ]]; then
+                run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]}"
             else
-                run_single_test --work-dir "${work_dir}/standalone" "${filename}"
+                run_single_test --work-dir "${work_dir}/standalone" "${testfile}"
             fi
 
-            SUITE_RUNTIME[$(basename ${filename} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
+            SUITE_RUNTIME[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
         done
     done
 }
@@ -732,6 +756,8 @@ if [[ ${clean} -eq 1 ]]; then
 fi
 
 # Global variables for state tracking
+declare -ag TEST_FILES_TO_RUN
+declare -Ag TEST_FUNCTIONS_TO_RUN
 declare -ag TEST_SUITES=()
 declare -Ag TESTS_PASSED=()
 declare -Ag TESTS_FAILED=()
@@ -742,6 +768,21 @@ declare -g  NUM_TESTS_EXECUTED=0
 declare -g  NUM_TESTS_PASSED=0
 declare -g  NUM_TESTS_FAILED=0
 declare -g  NUM_TESTS_FLAKY=0
+
+discover_tests
+
+# If we are in discovery mode only report what we found and exit
+if [[ ${discover} -eq 1 ]]; then
+
+    ebanner "Test discovery"
+
+    for testname in ${TEST_FILES_TO_RUN[@]}; do
+        einfo "${testname}"
+        echo "${TEST_FUNCTIONS_TO_RUN[$testname]:-}" | tr ' ' '\n'
+    done
+
+    exit 0
+fi
 
 run_all_tests
 RUNTIME=$(( SECONDS - START_TIME ))
