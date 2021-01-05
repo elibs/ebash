@@ -31,6 +31,22 @@ if [[ "$(ps -p $$ -ocomm=)" != "bash" ]]; then
     exec bash "$0" "${@}"
 fi
 
+# Automatic documentation
+#
+# All functions and ebash based scripts which utilize `opt_parse` get automatic documentation and usage information.
+# This is automatically available via `--help` or `-?` options. For this to work, we have to store off the docstrings
+# above each function into variables for subsequent output when the usage is requested via `--help` or `-?`.
+#
+# But we don't want to bloat the interpreter with a bunch of documentation every time we source ebash. Our solution is
+# to only save them at times where we believe the variables are going to be needed. There's no reason to expect they
+# will be necessary unless `--help` or `-?` is on the command line somewhere. Or for those few cases where it's needed,
+# for any other reason, the caller can just set `__EBASH_SAVE_DOC=1` explicitly.
+for arg in "$@" ; do
+    if [[ ${arg} == "--help" || ${arg} == "-?" ]] ; then
+        __EBASH_SAVE_DOC=1
+    fi
+done
+
 __EBASH_OS=$(uname)
 
 # Load configuration files
