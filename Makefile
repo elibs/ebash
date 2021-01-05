@@ -65,9 +65,9 @@ ctags: unittest/*.sh unittest/*.etest share/*.sh bin/*
 
 clean:
 	git clean -fX
-	bin/ebash rm -fr --one-file-system .forge/work
 
 clobber: clean
+	sudo bin/ebash rm -frv --one-file-system .work
 
 lint:
 	bin/bashlint
