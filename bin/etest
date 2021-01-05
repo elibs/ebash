@@ -774,7 +774,7 @@ find_matching_tests
 # If we are in print_only mode only report what we found and exit
 if [[ ${print_only} -eq 1 ]]; then
 
-    ebanner "Tests"
+    ebanner --uppercase "ETEST TESTS" OS break exclude filter repeat
 
     for testname in ${TEST_FILES_TO_RUN[@]}; do
         einfo "${testname}"
