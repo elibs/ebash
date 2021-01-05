@@ -34,15 +34,6 @@ nodie_on_error()
     trap - ERR
 }
 
-opt_usage disable_die_parent <<'END'
-Prevent an error or other die call in the _current_ shell from killing its parent. By default with ebash, errors
-propagate to the parent by sending the parent a sigterm.
-
-You might want to use this in shells that you put in the background if you don't want an error in them to cause you to
-be notified via sigterm.
-END
-alias disable_die_parent="declare __EBASH_DISABLE_DIE_PARENT_PID=\${BASHPID}"
-
 opt_usage exit <<'END'
 Replace normal exit function with our own internal exit function so we can detect abnormal exit conditions through an
 EXIT trap which we setup to ensure die() is called on exit if it didn't go through our own internal exit mechanism.
