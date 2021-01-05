@@ -139,7 +139,7 @@ opt_usage()
 # normally expanded inside functions that have already been declared. So we must source these modules before loading any
 # others.
 source "${EBASH}/platform.sh"
-source "${EBASH}/trycatch.sh"
+source "${EBASH}/try_catch.sh"
 
 # opt_parse and os modules are used extensively throughout some of the other modules we're going to source. We need os
 # in particular in all of these modules so that we can intelligently exclude certain modules from inclusion for
