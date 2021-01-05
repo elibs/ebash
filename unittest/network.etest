@@ -27,6 +27,30 @@ setup()
     find "${SYSFS}"
 }
 
+ETEST_fully_qualify_hostname_ignores_case()
+{
+    TEST_HOSTNAME="some.host.com"
+    host() { echo "${TEST_HOSTNAME} has address 10.2.3.4" ; }
+
+    local short_name=${TEST_HOSTNAME%%.*}
+    etestmsg "Simulating DNS requests for ${short_name}"
+
+    # Make sure it works for either case coming in
+    assert_eq "${TEST_HOSTNAME}" $(fully_qualify_hostname "${short_name}")
+    assert_eq "${TEST_HOSTNAME}" $(fully_qualify_hostname "${short_name^^}")
+
+    # And also for either case being returned by DNS
+    host() { echo "${TEST_HOSTNAME^^} has address 10.2.3.4" ; }
+    assert_eq "${TEST_HOSTNAME}" $(fully_qualify_hostname bdr-es56)
+    assert_eq "${TEST_HOSTNAME}" $(fully_qualify_hostname BDR-ES56)
+}
+
+ETEST_hostname_to_ip()
+{
+    host() { echo "some.host.com has address 10.2.3.4" ; }
+    assert_eq "10.2.3.4" "$(hostname_to_ip some.host.com)"
+}
+
 ETEST_get_network_ports()
 {
     # Mock out netstat for consistent testability across all distros even in Docker where we may have no network ports
