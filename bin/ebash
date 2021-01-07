@@ -7,43 +7,41 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-#
-# This tool is designed to run individual commands in a ebash environment. It can effectively turns ebash functions
-# into commands that can easily be run from a shell prompt.
-#
-# The first simple use case happens when the binary is called "ebash". In this mode, everything after ebash on the
-# command line is evaluated inside a bash interpreter that has sourced the various ebash source files.
-#
-# But ebash can be symlinked to other names. ebash pays attention to the name that it is called by. When it's not
-# called as ebash, it tries to run ebash functions intead. First, it looks to see if the symlink name is the name of a
-# "namespace" of ebash commands. For instance, the string commands can be used in this way. Assuming a "string"
-# symlink, then
-#
-#     string trim " a string to trim "
-#
-# will call the string_trim function, passing it that string as an argument. If there is no function that's a
-# combination of the symlink name and the first argument, then ebash will look for a function of the same name as the
-# symlink and call it passing all arguments to the function. For instance, given a symlink called eunmount, then you
-# could call
-#
-#     eunmount /path/to/unmount /another/path
-#
-# And both "/path/to/unmount" and "/another/path" will be passed as arguments to eunmount.
-#
-#-------------------------------------------------------------------------------
-
 : ${EBASH_HOME:=$(dirname $0)/..}
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
-# Canonicalize EBASH_HOME and EBASH _after_ sourcing ebash because it makes sure readlink behaves the same for
-# both mac and linux
+opt_usage ebash <<'END'
+This tool is designed to run individual commands in a ebash environment. It can effectively turns ebash functions
+into commands that can easily be run from a shell prompt.
+
+The first simple use case happens when the binary is called "ebash". In this mode, everything after ebash on the
+command line is evaluated inside a bash interpreter that has sourced the various ebash source files.
+
+But ebash can be symlinked to other names. ebash pays attention to the name that it is called by. When it's not
+called as ebash, it tries to run ebash functions intead. First, it looks to see if the symlink name is the name of a
+"namespace" of ebash commands. For instance, the string commands can be used in this way. Assuming a "string"
+symlink, then
+
+    string trim " a string to trim "
+
+will call the string_trim function, passing it that string as an argument. If there is no function that's a
+combination of the symlink name and the first argument, then ebash will look for a function of the same name as the
+symlink and call it passing all arguments to the function. For instance, given a symlink called eunmount, then you
+could call
+
+    eunmount /path/to/unmount /another/path
+
+And both "/path/to/unmount" and "/another/path" will be passed as arguments to eunmount.
+END
+
+# Canonicalize EBASH_HOME and EBASH _after_ sourcing ebash because it makes sure readlink behaves the same for both mac
+# and linux
 EBASH=$(readlink -f "${EBASH}")
 EBASH_HOME=$(readlink -f "${EBASH_HOME}")
 
-declare name=${0##*/}
-
 # If we were called as "ebash", then the caller can specify options to this script.
+declare name=${0##*/}
 if [[ ${name} == "ebash" ]] ; then
 
     $(opt_parse \
