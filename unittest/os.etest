@@ -64,3 +64,10 @@ ETEST_os_release()
 
     assert_eq 10.11.5 "$(os_release)"
 }
+
+ETEST_os_nproc()
+{
+    local numproc=$(nproc)
+    etestmsg "$(lval numproc)"
+    assert_num_gt ${numproc} 0
+}

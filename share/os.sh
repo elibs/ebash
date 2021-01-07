@@ -189,4 +189,15 @@ require()
     assert_zero "${missing}"
 }
 
-
+opt_usage nproc <<'END'
+This is a simple wrapper around nproc command so that this works properly on OSX where there is now nproc command. On
+Linux this is a direct passthrough operation into the real nproc command.
+END
+nproc()
+{
+    if os darwin; then
+        sysctl -n hw.ncpu
+    else
+        command nproc
+    fi
+}
