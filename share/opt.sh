@@ -775,17 +775,21 @@ opt_display_usage()
         # Note1: These only get saved when __EBASH_SAVE_DOC is set to 1 -- see ebash.sh)
         # Note2: Newer code uses opt_parse_usage_name, but older code would have just used "main". We want to be
         #        backwards compatible so we look for both.
+        echo
+        echo "DESCRIPTION"
+        echo "==========="
         if [[ -n "${__EBASH_DOC[$(opt_parse_usage_name)]:-}" ]] ; then
-            printf -- "\n%s\n" "${__EBASH_DOC[$(opt_parse_usage_name)]}"
+            printf -- "%s\n" "${__EBASH_DOC[$(opt_parse_usage_name)]}"
         elif [[ "${FUNCNAME[1]:-}" == "main" && -n "${__EBASH_DOC["main"]:-}" ]] ; then
-            printf -- "\n%s\n" "${__EBASH_DOC["main"]}"
+            printf -- "%s\n" "${__EBASH_DOC["main"]}"
         fi
 
         if [[ ${#__EBASH_OPT[@]} -gt 0 ]] ; then
             echo
-            echo "Options:"
+            echo "OPTIONS"
+            echo "======="
             echo "(*) Denotes required options"
-            echo ""
+            echo
             local opt
             for opt in ${opt_keys[@]}; do
 
@@ -828,7 +832,9 @@ opt_display_usage()
 
         # Display block of documentation for arguments if there are any
         if [[ ${#__EBASH_ARG_NAMES[@]} -gt 0 || -n ${__EBASH_ARG_REST} ]] ; then
-            echo "Arguments:"
+            echo
+            echo "ARGUMENTS"
+            echo "========="
 
             for i in "${!__EBASH_ARG_NAMES[@]}" ; do
                 printf  "   %s\n" "${__EBASH_ARG_NAMES[$i]}"
