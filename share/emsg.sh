@@ -628,15 +628,62 @@ eerror_stacktrace()
     done
 }
 
-# etable("col1|col2|col3", "r1c1|r1c2|r1c3"...)
+opt_usage etable <<'END'
+etable is designed to be able to easily produce a nicely formatted SQL-like table with columns and rows. The input
+passed into this function is essentially a variadic number of strings, where each string represents a row in the table.
+Each entry provided has the columns encoded with a '|' character separating each column.
+
+For example, suppose you wanted to produce this table:
+
+    +-------+-------------+-------------+
+    | Repo  | Source      | Target      |
+    +-------+-------------+-------------+
+    | api   | develop-2.5 | release-2.5 |
+    | os    | release-2.4 | develop-2.5 |
+    | ui    | develop-2.5 | release-2.5 |
+    +-------+-------------+-------------+
+
+The raw input you would need to pass is as follows:
+
+    $ bin/etable "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
+
+This can be cumbersome to create, so there are helper methods to make this easier. For example:
+
+    $ array_init_nl table "Repo|Source|Target"
+    $ array_add_nl  table "api|develop-2.5|release-2.5"
+    $ array_add_nl  table "os|develop-2.4|release-2.5"
+    $ array_add_nl  table "ui|develop-2.5|release-2.5"
+    $ etable "${table[@]}"
+
+You can also optionally get a line separating each row, via:
+
+    $ etable --row-lines "${table[@]}"
+
+Which would produce:
+
+    +------+-------------+-------------+
+    | Repo | Source      | Target      |
+    +------+-------------+-------------+
+    | api  | develop-2.5 | release-2.5 |
+    |------|-------------|-------------|
+    | os   | release-2.4 | develop-2.5 |
+    |------|-------------|-------------|
+    | ui   | develop-2.5 | release-2.5 |
+    +------+-------------+-------------+
+END
 etable()
 {
-    $(opt_parse "columns")
+    $(opt_parse \
+        "+row_lines  | Display a separator line in between each row." \
+        "columns     | Column headers for the table. Each column should be separated by a '|' character." \
+        "@entries    | Array of encoded rows and columns. Each entry in the array is a single row in the table. Within
+                       a single entry, the columns are separated by a '|' character.")
+
     local lengths=()
     local parts=()
     local idx=0
 
-    for line in "${columns}" "$@"; do
+    for line in "${columns}" "${entries[@]}"; do
         array_init parts "${line}" "|"
         idx=0
         for p in "${parts[@]}"; do
@@ -659,7 +706,7 @@ etable()
     printf "%s\n" ${divider}
 
     lnum=0
-    for line in "${columns}" "$@"; do
+    for line in "${columns}" "${entries[@]}"; do
         array_init parts "${line}" "|"
         idx=0
         printf "|"
@@ -673,7 +720,9 @@ etable()
         if [[ ${lnum} -eq 1 || ${lnum} -eq $(( $# + 1 )) ]]; then
             printf "%s\n" ${divider}
         else
-            [[ ${ETABLE_ROW_LINES:-1} -eq 1 ]] && printf "%s\n" ${divider//+/|}
+            if [[ ${row_lines} -eq 1 ]]; then
+                printf "%s\n" ${divider//+/|}
+            fi
         fi
     done
 }
