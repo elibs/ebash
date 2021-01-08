@@ -67,7 +67,8 @@ ETEST_os_release()
 
 ETEST_os_nproc()
 {
-    local numproc=$(nproc)
+    local numproc
+    numproc=$(nproc)
     etestmsg "$(lval numproc)"
     assert_num_gt ${numproc} 0
 }
