@@ -19,6 +19,7 @@
 : ${COLOR_ERROR:="bold red"}
 : ${COLOR_BRACKET:="bold blue"}
 : ${COLOR_BANNER:="bold magenta"}
+: ${COLOR_USAGE:="bold green"}
 
 # By default enable eprogress style tickers
 : ${EPROGRESS:=1}
@@ -631,7 +632,7 @@ eerror_stacktrace()
 opt_usage etable <<'END'
 etable is designed to be able to easily produce a nicely formatted SQL-like table with columns and rows. The input
 passed into this function is essentially a variadic number of strings, where each string represents a row in the table.
-Each entry provided has the columns encoded with a '|' character separating each column.
+Each entry provided has the columns encoded with a vertical pipe character separating each column.
 
 For example, suppose you wanted to produce this table:
 
@@ -675,9 +676,9 @@ etable()
 {
     $(opt_parse \
         "+row_lines  | Display a separator line in between each row." \
-        "columns     | Column headers for the table. Each column should be separated by a '|' character." \
+        "columns     | Column headers for the table. Each column should be separated by a vertical pipe character." \
         "@entries    | Array of encoded rows and columns. Each entry in the array is a single row in the table. Within
-                       a single entry, the columns are separated by a '|' character.")
+                       a single entry, the columns are separated by a vertical pipe character.")
 
     local lengths=()
     local parts=()

@@ -708,6 +708,8 @@ opt_display_usage()
 {
     {
         # Function name and <option> specification if there are any options
+        echo "$(ecolor ${COLOR_USAGE})SYNOPSIS$(ecolor none)"
+        echo
         echo -n "Usage: $(opt_parse_usage_name) "
 
         # Sort option keys so we can display options in sorted order.
@@ -776,8 +778,8 @@ opt_display_usage()
         # Note2: Newer code uses opt_parse_usage_name, but older code would have just used "main". We want to be
         #        backwards compatible so we look for both.
         echo
-        echo "DESCRIPTION"
-        echo "==========="
+        echo "$(ecolor ${COLOR_USAGE})DESCRIPTION$(ecolor none)"
+        echo
         if [[ -n "${__EBASH_DOC[$(opt_parse_usage_name)]:-}" ]] ; then
             printf -- "%s\n" "${__EBASH_DOC[$(opt_parse_usage_name)]}"
         elif [[ "${FUNCNAME[1]:-}" == "main" && -n "${__EBASH_DOC["main"]:-}" ]] ; then
@@ -786,17 +788,18 @@ opt_display_usage()
 
         if [[ ${#__EBASH_OPT[@]} -gt 0 ]] ; then
             echo
-            echo "OPTIONS"
-            echo "======="
-            echo "(*) Denotes required options"
+            echo "$(ecolor ${COLOR_USAGE})OPTIONS$(ecolor none)"
+            echo "$(ecolor ${COLOR_USAGE})(*) Denotes required options$(ecolor none)"
             echo
             local opt
             for opt in ${opt_keys[@]}; do
 
                 # Print the names of all option "synonyms" next to each other
+                echo -n "$(ecolor ${COLOR_USAGE})"
                 printf "   "
                 local synonym="" first=1
                 for synonym in ${__EBASH_OPT_SYNONYMS[$opt]} ; do
+
 
                     if [[ ${first} -ne 1 ]] ; then
                         printf ", "
@@ -816,6 +819,8 @@ opt_display_usage()
                 [[ ${__EBASH_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
                 [[ ${__EBASH_OPT_TYPE[$opt]} == "required_string" ]] && echo -n " <non-empty value> (*)"
 
+                echo -n "$(ecolor none)"
+
                 echo
 
                 # Print the docstring, constrained to current terminal width, indented another level past the option
@@ -833,11 +838,11 @@ opt_display_usage()
         # Display block of documentation for arguments if there are any
         if [[ ${#__EBASH_ARG_NAMES[@]} -gt 0 || -n ${__EBASH_ARG_REST} ]] ; then
             echo
-            echo "ARGUMENTS"
-            echo "========="
+            echo "$(ecolor ${COLOR_USAGE})ARGUMENTS$(ecolor none)"
+            echo
 
             for i in "${!__EBASH_ARG_NAMES[@]}" ; do
-                printf  "   %s\n" "${__EBASH_ARG_NAMES[$i]}"
+                printf  "   $(ecolor ${COLOR_USAGE})%s$(ecolor none)\n" "${__EBASH_ARG_NAMES[$i]}"
 
                 # Print the docstring, constrained to current terminal width, indented another level past the argument
                 # name, and compress whitespace to look like normal english prose.
@@ -845,10 +850,13 @@ opt_display_usage()
                     | tr '\n' ' ' \
                     | fmt --uniform-spacing --width=$(( ${EBASH_TEXT_WIDTH:-${COLUMNS:-80}} - 8)) \
                     | pr -T --indent 8
+
+                echo
+
             done
 
             if [[ -n ${__EBASH_ARG_REST} ]] ; then
-                printf  "   %s\n" "${__EBASH_ARG_REST}"
+                printf  "   $(ecolor ${COLOR_USAGE})%s$(ecolor none)\n" "${__EBASH_ARG_REST}"
 
                 # Print the docstring, constrained to current terminal width, indented another level past the argument
                 # name, and compress whitespace to look like normal english prose.
