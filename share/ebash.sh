@@ -72,6 +72,9 @@ if [[ -z ${TERM:-} || ${TERM} == @(dumb|vt102|unknown) ]] ; then
     export TERM=xterm-256color
 fi
 
+# Unset CDPATH in case the caller exported it since it badly breaks `cd` commands.
+unset CDPATH
+
 #-----------------------------------------------------------------------------------------------------------------------
 #
 # Automatic documentation
