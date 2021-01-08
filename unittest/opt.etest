@@ -684,7 +684,7 @@ ETEST_opt_parse_help()
 
     etestmsg "Run with usage and make sure the function didn't perform its normal operation"
     local usage=""
-    usage=$(COLUMNS=80 foo --help 2>&1)
+    usage=$(ECOLOR=0 COLUMNS=80 foo --help 2>&1)
     echo "${usage}"
     assert_not_exists ${tmpfile}
 
@@ -707,7 +707,7 @@ ETEST_opt_parse_help()
     # displayed above in the log).  Not sure what happened there, but the following statements will still catch errors
     # even if we ignore the failure in head.
     local firstline=""
-    firstline=$(echo "${usage}" | head -n 1 || true)
+    firstline=$(echo "${usage}" | head -n 3 | tail -n 1 || true)
     etestmsg "$(lval firstline)"
 
     assert_match "${firstline}" "Usage"
@@ -746,7 +746,7 @@ ETEST_opt_parse_help_short()
 
     etestmsg "Run with usage and make sure the function didn't perform its normal operation"
     local usage=""
-    usage=$(COLUMNS=80 foo -? 2>&1)
+    usage=$(ECOLOR=0 COLUMNS=80 foo -? 2>&1)
     echo "${usage}"
     assert_not_exists ${tmpfile}
 
@@ -769,7 +769,7 @@ ETEST_opt_parse_help_short()
     # displayed above in the log).  Not sure what happened there, but the following statements will still catch errors
     # even if we ignore the failure in head.
     local firstline=""
-    firstline=$(echo "${usage}" | head -n 1 || true)
+    firstline=$(echo "${usage}" | head -n 3 | tail -n 1 || true)
     etestmsg "$(lval firstline)"
 
     assert_match "${firstline}" "Usage"
