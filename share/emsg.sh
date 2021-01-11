@@ -688,7 +688,7 @@ etable()
         array_init parts "${line}" "|"
         idx=0
         for p in "${parts[@]}"; do
-            mlen=${#p}
+            mlen=$(echo -n "${p}" | noansi | wc -c)
             [[ ${mlen} -gt ${lengths[$idx]:-} ]] && lengths[$idx]=${mlen}
             idx=$((idx+1))
         done
@@ -712,7 +712,8 @@ etable()
         idx=0
         printf "|"
         for p in "${parts[@]}"; do
-            pad=$((lengths[$idx]-${#p}+1))
+            plen=$(echo -n "${p}" | noansi | wc -c)
+            pad=$((lengths[$idx]-${plen}+1))
             printf " %s%${pad}s|" "${p}" " "
             idx=$((idx+1))
         done
