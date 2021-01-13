@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
+# published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
+
+ETEST_etable_ascii()
+{
+    etable "Repo|Source|Target" \
+        "api|develop-2.5|release-2.5" \
+        "os|release-2.4|develop-2.5"  \
+        "ui|develop-2.5|release-2.5" > actual
+
+    cat actual
+
+    cat >expect <<-EOF
+	+------+-------------+-------------+
+	| Repo | Source      | Target      |
+	+------+-------------+-------------+
+	| api  | develop-2.5 | release-2.5 |
+	| os   | release-2.4 | develop-2.5 |
+	| ui   | develop-2.5 | release-2.5 |
+	+------+-------------+-------------+
+	EOF
+
+    diff --unified expect actual
+}
+
+ETEST_etable_ascii_row_lines()
+{
+    etable --row-lines "Repo|Source|Target" \
+        "api|develop-2.5|release-2.5" \
+        "os|release-2.4|develop-2.5"  \
+        "ui|develop-2.5|release-2.5" > actual
+
+    cat actual
+
+    cat >expect <<-EOF
+	+------+-------------+-------------+
+	| Repo | Source      | Target      |
+	+------+-------------+-------------+
+	| api  | develop-2.5 | release-2.5 |
+	|------|-------------|-------------|
+	| os   | release-2.4 | develop-2.5 |
+	|------|-------------|-------------|
+	| ui   | develop-2.5 | release-2.5 |
+	+------+-------------+-------------+
+	EOF
+
+    diff --unified expect actual
+}
+
+ETEST_etable_ascii_array()
+{
+    local table=""
+    array_init_nl table "Repo|Source|Target"
+    array_add_nl  table "api|develop-2.5|release-2.5"
+    array_add_nl  table "os|release-2.4|develop-2.5"
+    array_add_nl  table "ui|develop-2.5|release-2.5"
+    etable "${table[@]}" > actual
+
+    cat actual
+
+    cat >expect <<-EOF
+	+------+-------------+-------------+
+	| Repo | Source      | Target      |
+	+------+-------------+-------------+
+	| api  | develop-2.5 | release-2.5 |
+	| os   | release-2.4 | develop-2.5 |
+	| ui   | develop-2.5 | release-2.5 |
+	+------+-------------+-------------+
+	EOF
+
+    diff --unified expect actual
+}
+
+ETEST_etable_html()
+{
+    etable --html "Repo|Source|Target" \
+        "api|develop-2.5|release-2.5" \
+        "os|release-2.4|develop-2.5"  \
+        "ui|develop-2.5|release-2.5" > actual
+
+    cat actual
+
+    cat >expect <<-EOF
+	<table>
+	    <tbody>
+	        <tr>
+	            <th><p><strong>Repo</strong></p></th>
+	            <th><p><strong>Source</strong></p></th>
+	            <th><p><strong>Target</strong></p></th>
+	        </tr>
+	        <tr>
+	            <td><p>api</p></td>
+	            <td><p>develop-2.5</p></td>
+	            <td><p>release-2.5</p></td>
+	        </tr>
+	        <tr>
+	            <td><p>os</p></td>
+	            <td><p>release-2.4</p></td>
+	            <td><p>develop-2.5</p></td>
+	        </tr>
+	        <tr>
+	            <td><p>ui</p></td>
+	            <td><p>develop-2.5</p></td>
+	            <td><p>release-2.5</p></td>
+	        </tr>
+	    </tbody>
+	</table>
+	EOF
+
+    diff --unified expect actual
+}
+
