@@ -114,3 +114,80 @@ ETEST_etable_html()
     diff --unified expect actual
 }
 
+ETEST_etable_html_color()
+{
+    etable --html "Repo|Source|Target|Status" \
+        "api|develop-2.5|release-2.5|$(ecolor bold green)PASSED$(ecolor none)" \
+        "os|release-2.4|develop-2.5|$(ecolor bold red)FAILED$(ecolor none)"    \
+        "ui|develop-2.5|release-2.5|$(ecolor yellow)SKIPPED$(ecolor none)" > actual
+
+    cat actual
+
+    # debian 9 has a much older version of aha where the generated HTML is slightly different
+    if os_distro debian 9; then
+        cat >expect <<-EOF
+		<table>
+		    <tbody>
+		        <tr>
+		            <th><p><strong>Repo</strong></p></th>
+		            <th><p><strong>Source</strong></p></th>
+		            <th><p><strong>Target</strong></p></th>
+		            <th><p><strong>Status</strong></p></th>
+		        </tr>
+		        <tr>
+		            <td><p>api</p></td>
+		            <td><p>develop-2.5</p></td>
+		            <td><p>release-2.5</p></td>
+		            <td><p><span style="font-weight:bold;"></span><span style="color:green;font-weight:bold;">PASSED</span></p></td>
+		        </tr>
+		        <tr>
+		            <td><p>os</p></td>
+		            <td><p>release-2.4</p></td>
+		            <td><p>develop-2.5</p></td>
+		            <td><p><span style="font-weight:bold;"></span><span style="color:red;font-weight:bold;">FAILED</span></p></td>
+		        </tr>
+		        <tr>
+		            <td><p>ui</p></td>
+		            <td><p>develop-2.5</p></td>
+		            <td><p>release-2.5</p></td>
+		            <td><p><span style="color:olive;">SKIPPED</span></p></td>
+		        </tr>
+		    </tbody>
+		</table>
+		EOF
+
+    else
+        cat >expect <<-EOF
+		<table>
+		    <tbody>
+		        <tr>
+		            <th><p><strong>Repo</strong></p></th>
+		            <th><p><strong>Source</strong></p></th>
+		            <th><p><strong>Target</strong></p></th>
+		            <th><p><strong>Status</strong></p></th>
+		        </tr>
+		        <tr>
+		            <td><p>api</p></td>
+		            <td><p>develop-2.5</p></td>
+		            <td><p>release-2.5</p></td>
+		            <td><p><span style="font-weight:bold;"></span><span style="font-weight:bold;color:green;">PASSED</span></p></td>
+		        </tr>
+		        <tr>
+		            <td><p>os</p></td>
+		            <td><p>release-2.4</p></td>
+		            <td><p>develop-2.5</p></td>
+		            <td><p><span style="font-weight:bold;"></span><span style="font-weight:bold;color:red;">FAILED</span></p></td>
+		        </tr>
+		        <tr>
+		            <td><p>ui</p></td>
+		            <td><p>develop-2.5</p></td>
+		            <td><p>release-2.5</p></td>
+		            <td><p><span style="color:olive;">SKIPPED</span></p></td>
+		        </tr>
+		    </tbody>
+		</table>
+		EOF
+    fi
+
+    diff --unified expect actual
+}
