@@ -66,8 +66,7 @@ $(opt_parse \
                                  be desireable to allow each test to retried a specified number of times and only
                                  classify it as a failure if that test fails more than the requested threshold." \
     ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
-    "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log. Depends on external
-                                 program aha (https://github.com/theZiz/aha)." \
+    "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
     ":log_dir                  | Directory to place logs in. Defaults to the current directory." \
     "+mount_ns=1               | Run tests inside a mount namespace." \
     ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
@@ -295,9 +294,9 @@ global_teardown()
     fi
 
     # Convert logfile to HTML if requested
-    if [[ ${html} -eq 1 ]] && which aha &>/dev/null; then
+    if [[ ${html} -eq 1 ]] && which ansi2html &>/dev/null; then
         edebug "Converting ${ETEST_LOG} into HTML"
-        cat ${ETEST_LOG} | aha > ${ETEST_LOG/.log/.html}
+        cat ${ETEST_LOG} | ansi2html --scheme=xterm > ${ETEST_LOG/.log/.html}
         noansi ${ETEST_LOG}
     fi
 
