@@ -88,8 +88,8 @@ etable()
 {
     $(opt_parse \
         "+row_lines  | Display a separator line in between each row." \
-        "+html       | Output resulting table as an HTML table. This transparently converts ANSI color codes into their
-                       equivalent HTML color codes. This depends on external program aha (https://github.com/theZiz/aha)." \
+        "+html       | Output resulting table as an HTML table. This strips out any ANSI color codes using noansi
+                       otherwise the generated HTML is invalid." \
         "columns     | Column headers for the table. Each column should be separated by a vertical pipe character." \
         "@entries    | Array of encoded rows and columns. Each entry in the array is a single row in the table. Within
                        a single entry, the columns are separated by a vertical pipe character.")
@@ -174,7 +174,7 @@ __etable_internal_html()
     local part parts
     array_init parts "${columns}" "|"
     for part in "${parts[@]}"; do
-        echo "            <th><p><strong>${part}</strong></p></th>"
+        echo "            <th><p><strong>$(echo "${part}" | noansi)</strong></p></th>"
     done
     echo "        </tr>"
 
@@ -186,7 +186,7 @@ __etable_internal_html()
         local part parts
         array_init parts "${line}" "|"
         for part in "${parts[@]}"; do
-            echo "            <td><p>$(echo "${part}" | aha --no-header)</p></td>"
+            echo "            <td><p>$(echo "${part}" | noansi)</p></td>"
         done
 
         echo "        </tr>"

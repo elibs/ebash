@@ -15,7 +15,6 @@ ETEST_commands()
         "which"
 
         # Everything else
-        "aha"
         "awk"
         "base64"
         "bash"

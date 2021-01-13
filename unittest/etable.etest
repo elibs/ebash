@@ -114,6 +114,7 @@ ETEST_etable_html()
     diff --unified expect actual
 }
 
+# Verify color codes are stripped out
 ETEST_etable_html_color()
 {
     etable --html "Repo|Source|Target|Status" \
@@ -123,71 +124,36 @@ ETEST_etable_html_color()
 
     cat actual
 
-    # debian 9 has a much older version of aha where the generated HTML is slightly different
-    if os_distro debian 9; then
-        cat >expect <<-EOF
-		<table>
-		    <tbody>
-		        <tr>
-		            <th><p><strong>Repo</strong></p></th>
-		            <th><p><strong>Source</strong></p></th>
-		            <th><p><strong>Target</strong></p></th>
-		            <th><p><strong>Status</strong></p></th>
-		        </tr>
-		        <tr>
-		            <td><p>api</p></td>
-		            <td><p>develop-2.5</p></td>
-		            <td><p>release-2.5</p></td>
-		            <td><p><span style="font-weight:bold;"></span><span style="color:green;font-weight:bold;">PASSED</span></p></td>
-		        </tr>
-		        <tr>
-		            <td><p>os</p></td>
-		            <td><p>release-2.4</p></td>
-		            <td><p>develop-2.5</p></td>
-		            <td><p><span style="font-weight:bold;"></span><span style="color:red;font-weight:bold;">FAILED</span></p></td>
-		        </tr>
-		        <tr>
-		            <td><p>ui</p></td>
-		            <td><p>develop-2.5</p></td>
-		            <td><p>release-2.5</p></td>
-		            <td><p><span style="color:olive;">SKIPPED</span></p></td>
-		        </tr>
-		    </tbody>
-		</table>
-		EOF
-
-    else
-        cat >expect <<-EOF
-		<table>
-		    <tbody>
-		        <tr>
-		            <th><p><strong>Repo</strong></p></th>
-		            <th><p><strong>Source</strong></p></th>
-		            <th><p><strong>Target</strong></p></th>
-		            <th><p><strong>Status</strong></p></th>
-		        </tr>
-		        <tr>
-		            <td><p>api</p></td>
-		            <td><p>develop-2.5</p></td>
-		            <td><p>release-2.5</p></td>
-		            <td><p><span style="font-weight:bold;"></span><span style="font-weight:bold;color:green;">PASSED</span></p></td>
-		        </tr>
-		        <tr>
-		            <td><p>os</p></td>
-		            <td><p>release-2.4</p></td>
-		            <td><p>develop-2.5</p></td>
-		            <td><p><span style="font-weight:bold;"></span><span style="font-weight:bold;color:red;">FAILED</span></p></td>
-		        </tr>
-		        <tr>
-		            <td><p>ui</p></td>
-		            <td><p>develop-2.5</p></td>
-		            <td><p>release-2.5</p></td>
-		            <td><p><span style="color:olive;">SKIPPED</span></p></td>
-		        </tr>
-		    </tbody>
-		</table>
-		EOF
-    fi
+    cat >expect <<-EOF
+	<table>
+	    <tbody>
+	        <tr>
+	            <th><p><strong>Repo</strong></p></th>
+	            <th><p><strong>Source</strong></p></th>
+	            <th><p><strong>Target</strong></p></th>
+	            <th><p><strong>Status</strong></p></th>
+	        </tr>
+	        <tr>
+	            <td><p>api</p></td>
+	            <td><p>develop-2.5</p></td>
+	            <td><p>release-2.5</p></td>
+	            <td><p>PASSED</p></td>
+	        </tr>
+	        <tr>
+	            <td><p>os</p></td>
+	            <td><p>release-2.4</p></td>
+	            <td><p>develop-2.5</p></td>
+	            <td><p>FAILED</p></td>
+	        </tr>
+	        <tr>
+	            <td><p>ui</p></td>
+	            <td><p>develop-2.5</p></td>
+	            <td><p>release-2.5</p></td>
+	            <td><p>SKIPPED</p></td>
+	        </tr>
+	    </tbody>
+	</table>
+	EOF
 
     diff --unified expect actual
 }
