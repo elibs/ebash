@@ -1,14 +1,38 @@
 #!/bin/sh
 
-#######################################################################################################################
+set -e
+
+########################################################################################################################
 ####
 #### WARNING: This script is meant to be runnable in any Linux OS including older ones which do not have bash installed.
 ####
 #### DO NOT change the she-bang at the top to bash.
 ####
-#######################################################################################################################
+########################################################################################################################
 
-set -e
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Helper Functions
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Helper function to install aha from source when not available in distro package managers.
+install_aha_from_source()
+{
+    # aha is only available in AUR and we can't install things from AUR as root. Such a PITA.
+    mkdir -p .work
+    git clone https://github.com/theZiz/aha .work/aha
+    pushd .work/aha
+    make install
+    popd
+    rm -rf .work/aha
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Main
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 UNAME="$(uname -s)"
 
@@ -33,7 +57,10 @@ echo ">> Installing dependencies for ${DISTRO}"
 #----------------------------------------------------------------------------------------------------------------------
 if [ "${DISTRO}" = "alpine" ]; then
 
+    echo "http://dl-3.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+
     apk add              \
+        aha              \
         bash             \
         bzip2            \
         cdrkit           \
@@ -70,19 +97,23 @@ if [ "${DISTRO}" = "alpine" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "arch" ]; then
 
+    #base-devel          \
     pacman -Sy --noconfirm  \
         cdrkit              \
         cpio                \
         debootstrap         \
         dialog              \
         diffutils           \
+        gcc                 \
         git                 \
         jq                  \
+        make                \
         net-tools           \
         squashfs-tools      \
         which
 
-    localedef -i en_US -f UTF-8 en_US.UTF-8
+    # aha is only available in AUR and we can't install things from AUR as root. Such a PITA.
+    install_aha_from_source
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -96,6 +127,7 @@ elif [ "${DISTRO}" = "centos" ]; then
     yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-${VERSION}.noarch.rpm
 
     yum install -y          \
+        aha                 \
         bzip2               \
         cpio                \
         debootstrap         \
@@ -105,8 +137,6 @@ elif [ "${DISTRO}" = "centos" ]; then
         genisoimage         \
         git                 \
         glibc               \
-        glibc-langpack-en   \
-        glibc-locale-source \
         gzip                \
         iproute             \
         iptables            \
@@ -119,8 +149,6 @@ elif [ "${DISTRO}" = "centos" ]; then
         which               \
         xz
 
-    localedef -i en_US -f UTF-8 en_US.UTF-8
-
 #----------------------------------------------------------------------------------------------------------------------
 #
 # Debian
@@ -131,6 +159,7 @@ elif [ "${DISTRO}" = "debian" ]; then
     apt update
 
     apt install -y      \
+        aha             \
         bsdmainutils    \
         bzip2           \
         cpio            \
@@ -143,14 +172,11 @@ elif [ "${DISTRO}" = "debian" ]; then
         iptables        \
         jq              \
         iproute2        \
-        locales         \
         net-tools       \
         procps          \
         psmisc          \
         squashfs-tools  \
         xz-utils
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -160,6 +186,7 @@ elif [ "${DISTRO}" = "debian" ]; then
 elif [ "${DISTRO}" = "fedora" ]; then
 
     dnf install -y          \
+        aha                 \
         bzip2               \
         cpio                \
         debootstrap         \
@@ -170,8 +197,6 @@ elif [ "${DISTRO}" = "fedora" ]; then
         genisoimage         \
         git                 \
         glibc               \
-        glibc-langpack-en   \
-        glibc-locale-source \
         iproute             \
         iptables            \
         iputils             \
@@ -184,8 +209,6 @@ elif [ "${DISTRO}" = "fedora" ]; then
         squashfs-tools      \
         which               \
         xz
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -206,11 +229,8 @@ elif [ "${DISTRO}" = "gentoo" ]; then
         net-tools       \
         squashfs-tools
 
-    localedef -i en_US -f UTF-8 en_US.UTF-8
-
-    eselect locale set en_US.UTF-8
-
-    env-update
+    # aha is not in mainline portage yet and layman isn't installed.
+    install_aha_from_source
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -222,6 +242,7 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
     apt update
 
     apt install -y      \
+        aha             \
         bsdmainutils    \
         bzip2           \
         cgroup-lite     \
@@ -235,14 +256,11 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
         iproute2        \
         iptables        \
         iputils-ping    \
-        locales         \
         mkisofs         \
         net-tools       \
         psmisc          \
         squashfs-tools  \
         xz-utils
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -254,6 +272,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
     brew update-reset
 
     brew install    \
+        aha         \
         bash        \
         curl        \
         coreutils   \

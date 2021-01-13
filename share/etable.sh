@@ -13,9 +13,6 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
-## TODO: Needs to handle color codes like ascii table does. e.g. it needs to replace $(ecolor green) with
-## <td data-highlight-colour=\"#57d9a3\">
-
 opt_usage etable <<'END'
 etable is designed to be able to easily produce a nicely formatted ASCII or HTML table with columns and rows. The input
 passed into this function is essentially a variadic number of strings, where each string represents a row in the table.
@@ -91,7 +88,8 @@ etable()
 {
     $(opt_parse \
         "+row_lines  | Display a separator line in between each row." \
-        "+html       | Output resulting table as an HTML table." \
+        "+html       | Output resulting table as an HTML table. This transparently converts ANSI color codes into their
+                       equivalent HTML color codes. This depends on external program aha (https://github.com/theZiz/aha)." \
         "columns     | Column headers for the table. Each column should be separated by a vertical pipe character." \
         "@entries    | Array of encoded rows and columns. Each entry in the array is a single row in the table. Within
                        a single entry, the columns are separated by a vertical pipe character.")
@@ -188,7 +186,7 @@ __etable_internal_html()
         local part parts
         array_init parts "${line}" "|"
         for part in "${parts[@]}"; do
-            echo "            <td><p>${part}</p></td>"
+            echo "            <td><p>$(echo "${part}" | aha --no-header)</p></td>"
         done
 
         echo "        </tr>"
