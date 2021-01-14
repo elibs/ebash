@@ -1,14 +1,20 @@
 #!/bin/sh
 
-#######################################################################################################################
+set -e
+
+########################################################################################################################
 ####
 #### WARNING: This script is meant to be runnable in any Linux OS including older ones which do not have bash installed.
 ####
 #### DO NOT change the she-bang at the top to bash.
 ####
-#######################################################################################################################
+########################################################################################################################
 
-set -e
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Main
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 UNAME="$(uname -s)"
 
@@ -32,6 +38,8 @@ echo ">> Installing dependencies for ${DISTRO}"
 #
 #----------------------------------------------------------------------------------------------------------------------
 if [ "${DISTRO}" = "alpine" ]; then
+
+    echo "http://dl-3.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 
     apk add              \
         bash             \
@@ -70,19 +78,20 @@ if [ "${DISTRO}" = "alpine" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "arch" ]; then
 
+    #base-devel          \
     pacman -Sy --noconfirm  \
         cdrkit              \
         cpio                \
         debootstrap         \
         dialog              \
         diffutils           \
+        gcc                 \
         git                 \
         jq                  \
+        make                \
         net-tools           \
         squashfs-tools      \
         which
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -105,8 +114,6 @@ elif [ "${DISTRO}" = "centos" ]; then
         genisoimage         \
         git                 \
         glibc               \
-        glibc-langpack-en   \
-        glibc-locale-source \
         gzip                \
         iproute             \
         iptables            \
@@ -118,8 +125,6 @@ elif [ "${DISTRO}" = "centos" ]; then
         squashfs-tools      \
         which               \
         xz
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -143,14 +148,11 @@ elif [ "${DISTRO}" = "debian" ]; then
         iptables        \
         jq              \
         iproute2        \
-        locales         \
         net-tools       \
         procps          \
         psmisc          \
         squashfs-tools  \
         xz-utils
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -170,8 +172,6 @@ elif [ "${DISTRO}" = "fedora" ]; then
         genisoimage         \
         git                 \
         glibc               \
-        glibc-langpack-en   \
-        glibc-locale-source \
         iproute             \
         iptables            \
         iputils             \
@@ -184,8 +184,6 @@ elif [ "${DISTRO}" = "fedora" ]; then
         squashfs-tools      \
         which               \
         xz
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -205,12 +203,6 @@ elif [ "${DISTRO}" = "gentoo" ]; then
         jq              \
         net-tools       \
         squashfs-tools
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
-
-    eselect locale set en_US.UTF-8
-
-    env-update
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -235,14 +227,11 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
         iproute2        \
         iptables        \
         iputils-ping    \
-        locales         \
         mkisofs         \
         net-tools       \
         psmisc          \
         squashfs-tools  \
         xz-utils
-
-    localedef -i en_US -f UTF-8 en_US.UTF-8
 
 #----------------------------------------------------------------------------------------------------------------------
 #
