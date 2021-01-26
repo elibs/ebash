@@ -15,10 +15,17 @@ the output cannot currently contain newlines though it can contain whitespace.
 END
 eprompt()
 {
+    $(opt_parse \
+        "+silent s | Be silent and do not echo input coming from the terminal.")
+
     echo -en "$(ecolor bold) * $@: $(ecolor none)" >&2
     local result=""
 
-    read result < /dev/stdin
+    if [[ "${silent}" -eq 1 ]]; then
+        read -s result < /dev/stdin
+    else
+        read result < /dev/stdin
+    fi
 
     echo -en "${result}"
 }
