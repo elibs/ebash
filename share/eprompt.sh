@@ -23,6 +23,7 @@ eprompt()
 
     if [[ "${silent}" -eq 1 ]]; then
         read -s result < /dev/stdin
+        echo
     else
         read result < /dev/stdin
     fi
