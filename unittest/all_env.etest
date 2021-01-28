@@ -30,6 +30,7 @@ ETEST_commands()
         "ping"
         "ps"
         "readlink"
+        "tar"
         "tput"
     )
 
