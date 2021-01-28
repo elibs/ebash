@@ -5,7 +5,7 @@
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
 # published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
 
-ETEST_etable_ascii()
+ETEST_etable_default_ascii()
 {
     etable "Repo|Source|Target" \
         "api|develop-2.5|release-2.5" \
@@ -14,7 +14,7 @@ ETEST_etable_ascii()
 
     cat actual
 
-    cat >expect <<-EOF
+    cat >expect <<-END
 	+------+-------------+-------------+
 	| Repo | Source      | Target      |
 	+------+-------------+-------------+
@@ -22,21 +22,45 @@ ETEST_etable_ascii()
 	| os   | release-2.4 | develop-2.5 |
 	| ui   | develop-2.5 | release-2.5 |
 	+------+-------------+-------------+
-	EOF
+	END
 
     diff --unified expect actual
 }
 
-ETEST_etable_ascii_row_lines()
+ETEST_etable_ascii()
 {
-    etable --row-lines "Repo|Source|Target" \
+    etable --style=ascii \
+        "Repo|Source|Target" \
         "api|develop-2.5|release-2.5" \
         "os|release-2.4|develop-2.5"  \
         "ui|develop-2.5|release-2.5" > actual
 
     cat actual
 
-    cat >expect <<-EOF
+    cat >expect <<-END
+	+------+-------------+-------------+
+	| Repo | Source      | Target      |
+	+------+-------------+-------------+
+	| api  | develop-2.5 | release-2.5 |
+	| os   | release-2.4 | develop-2.5 |
+	| ui   | develop-2.5 | release-2.5 |
+	+------+-------------+-------------+
+	END
+
+    diff --unified expect actual
+}
+
+
+ETEST_etable_ascii_rowlines()
+{
+    etable --rowlines "Repo|Source|Target" \
+        "api|develop-2.5|release-2.5" \
+        "os|release-2.4|develop-2.5"  \
+        "ui|develop-2.5|release-2.5" > actual
+
+    cat actual
+
+    cat >expect <<-END
 	+------+-------------+-------------+
 	| Repo | Source      | Target      |
 	+------+-------------+-------------+
@@ -46,10 +70,34 @@ ETEST_etable_ascii_row_lines()
 	|------|-------------|-------------|
 	| ui   | develop-2.5 | release-2.5 |
 	+------+-------------+-------------+
-	EOF
+	END
 
     diff --unified expect actual
 }
+
+ETEST_etable_ascii_rowlines_noheaders()
+{
+    etable --rowlines --no-headers \
+        "Repo|Source|Target" \
+        "api|develop-2.5|release-2.5" \
+        "os|release-2.4|develop-2.5"  \
+        "ui|develop-2.5|release-2.5" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	+------+-------------+-------------+
+	| api  | develop-2.5 | release-2.5 |
+	|------|-------------|-------------|
+	| os   | release-2.4 | develop-2.5 |
+	|------|-------------|-------------|
+	| ui   | develop-2.5 | release-2.5 |
+	+------+-------------+-------------+
+	END
+
+    diff --unified expect actual
+}
+
 
 ETEST_etable_ascii_array()
 {
@@ -62,7 +110,7 @@ ETEST_etable_ascii_array()
 
     cat actual
 
-    cat >expect <<-EOF
+    cat >expect <<-END
 	+------+-------------+-------------+
 	| Repo | Source      | Target      |
 	+------+-------------+-------------+
@@ -70,21 +118,22 @@ ETEST_etable_ascii_array()
 	| os   | release-2.4 | develop-2.5 |
 	| ui   | develop-2.5 | release-2.5 |
 	+------+-------------+-------------+
-	EOF
+	END
 
     diff --unified expect actual
 }
 
 ETEST_etable_html()
 {
-    etable --html "Repo|Source|Target" \
+    etable --style=html \
+        "Repo|Source|Target"          \
         "api|develop-2.5|release-2.5" \
         "os|release-2.4|develop-2.5"  \
         "ui|develop-2.5|release-2.5" > actual
 
     cat actual
 
-    cat >expect <<-EOF
+    cat >expect <<-END
 	<table>
 	    <tbody>
 	        <tr>
@@ -109,7 +158,7 @@ ETEST_etable_html()
 	        </tr>
 	    </tbody>
 	</table>
-	EOF
+	END
 
     diff --unified expect actual
 }
@@ -117,14 +166,15 @@ ETEST_etable_html()
 # Verify color codes are stripped out
 ETEST_etable_html_color()
 {
-    etable --html "Repo|Source|Target|Status" \
+    etable --style=html \
+        "Repo|Source|Target|Status" \
         "api|develop-2.5|release-2.5|$(ecolor bold green)PASSED$(ecolor none)" \
         "os|release-2.4|develop-2.5|$(ecolor bold red)FAILED$(ecolor none)"    \
         "ui|develop-2.5|release-2.5|$(ecolor yellow)SKIPPED$(ecolor none)" > actual
 
     cat actual
 
-    cat >expect <<-EOF
+    cat >expect <<-END
 	<table>
 	    <tbody>
 	        <tr>
@@ -153,7 +203,249 @@ ETEST_etable_html_color()
 	        </tr>
 	    </tbody>
 	</table>
-	EOF
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_lineart()
+{
+    etable --style=lineart \
+        "Repo|Source|Target"          \
+        "api|develop-2.5|release-2.5" \
+        "os|release-2.4|develop-2.5"  \
+        "ui|develop-2.5|release-2.5" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	┌──────┬─────────────┬─────────────┐
+	│ Repo │ Source      │ Target      │
+	├──────┼─────────────┼─────────────┤
+	│ api  │ develop-2.5 │ release-2.5 │
+	│ os   │ release-2.4 │ develop-2.5 │
+	│ ui   │ develop-2.5 │ release-2.5 │
+	└──────┴─────────────┴─────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_lineart_rowlines()
+{
+    etable --style=lineart --rowlines \
+        "Repo|Source|Target"          \
+        "api|develop-2.5|release-2.5" \
+        "os|release-2.4|develop-2.5"  \
+        "ui|develop-2.5|release-2.5" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	┌──────┬─────────────┬─────────────┐
+	│ Repo │ Source      │ Target      │
+	├──────┼─────────────┼─────────────┤
+	│ api  │ develop-2.5 │ release-2.5 │
+	├──────┼─────────────┼─────────────┤
+	│ os   │ release-2.4 │ develop-2.5 │
+	├──────┼─────────────┼─────────────┤
+	│ ui   │ develop-2.5 │ release-2.5 │
+	└──────┴─────────────┴─────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_lineart_rowlines_noheaders()
+{
+    etable --style=lineart --rowlines --no-headers \
+        "Repo|Source|Target"                 \
+        "api|develop-2.5|release-2.5"        \
+        "os|release-2.4|develop-2.5"         \
+        "ui|develop-2.5|release-2.5" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	┌──────┬─────────────┬─────────────┐
+	│ api  │ develop-2.5 │ release-2.5 │
+	├──────┼─────────────┼─────────────┤
+	│ os   │ release-2.4 │ develop-2.5 │
+	├──────┼─────────────┼─────────────┤
+	│ ui   │ develop-2.5 │ release-2.5 │
+	└──────┴─────────────┴─────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_lineart_title()
+{
+    etable --style=lineart \
+        --title "Welcome To LiqidOS"                            \
+        "Component|Version|Branch|Commit|Date"                  \
+        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
+        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
+        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|2021-01-27T04" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	╒══ Welcome To LiqidOS ════════════════════════════════════════════╕
+	├────────────┬──────────┬─────────────┬────────────┬───────────────┤
+	│ Component  │ Version  │ Branch      │ Commit     │ Date          │
+	├────────────┼──────────┼─────────────┼────────────┼───────────────┤
+	│ API        │ 2.4.0.73 │ release-2.4 │ 2f4607c24b │ 2021-01-26T21 │
+	│ COREBOOT   │ 2.4.0.5  │ release-2.4 │ 452ca2892a │ 2021-01-26T09 │
+	│ NORTHBOUND │ 2.4.0.25 │ release-2.4 │ 386bcfb5d0 │ 2021-01-27T04 │
+	└────────────┴──────────┴─────────────┴────────────┴───────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_lineart_colortitle()
+{
+    etable --style=lineart \
+        --title "$(ecolor bold green)Welcome To LiqidOS$(ecolor none)" \
+        "Component|Version|Branch|Commit|Date"                  \
+        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
+        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
+        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|2021-01-27T04" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	╒══ $(ecolor bold green)Welcome To LiqidOS$(ecolor none) ════════════════════════════════════════════╕
+	├────────────┬──────────┬─────────────┬────────────┬───────────────┤
+	│ Component  │ Version  │ Branch      │ Commit     │ Date          │
+	├────────────┼──────────┼─────────────┼────────────┼───────────────┤
+	│ API        │ 2.4.0.73 │ release-2.4 │ 2f4607c24b │ 2021-01-26T21 │
+	│ COREBOOT   │ 2.4.0.5  │ release-2.4 │ 452ca2892a │ 2021-01-26T09 │
+	│ NORTHBOUND │ 2.4.0.25 │ release-2.4 │ 386bcfb5d0 │ 2021-01-27T04 │
+	└────────────┴──────────┴─────────────┴────────────┴───────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+
+ETEST_etable_ascii_title()
+{
+    etable --title "Welcome To LiqidOS"                         \
+        "Component|Version|Branch|Commit|Date"                  \
+        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
+        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
+        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|2021-01-27T04" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	== Welcome To LiqidOS ==
+
+	+------------+----------+-------------+------------+---------------+
+	| Component  | Version  | Branch      | Commit     | Date          |
+	+------------+----------+-------------+------------+---------------+
+	| API        | 2.4.0.73 | release-2.4 | 2f4607c24b | 2021-01-26T21 |
+	| COREBOOT   | 2.4.0.5  | release-2.4 | 452ca2892a | 2021-01-26T09 |
+	| NORTHBOUND | 2.4.0.25 | release-2.4 | 386bcfb5d0 | 2021-01-27T04 |
+	+------------+----------+-------------+------------+---------------+
+	END
+
+    diff --unified expect actual
+}
+
+
+ETEST_etable_lineart_title_skip_first_delim()
+{
+    etable --style=lineart --skip-first-delim                   \
+        --title "Welcome To LiqidOS"                            \
+        "Component|Version|Branch|Commit|Date"                  \
+        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
+        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
+        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|2021-01-27T04" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	╒══ Welcome To LiqidOS ════════════════════════════════════════════╕
+	│                                                                  │
+	│ Component  │ Version  │ Branch      │ Commit     │ Date          │
+	├────────────┼──────────┼─────────────┼────────────┼───────────────┤
+	│ API        │ 2.4.0.73 │ release-2.4 │ 2f4607c24b │ 2021-01-26T21 │
+	│ COREBOOT   │ 2.4.0.5  │ release-2.4 │ 452ca2892a │ 2021-01-26T09 │
+	│ NORTHBOUND │ 2.4.0.25 │ release-2.4 │ 386bcfb5d0 │ 2021-01-27T04 │
+	└────────────┴──────────┴─────────────┴────────────┴───────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_lineart_title_skip_first_delim_no_headers()
+{
+    etable --style=lineart --skip-first-delim --no-headers      \
+        --title "Welcome To LiqidOS"                            \
+        "Component|Version|Branch|Commit|Date"                  \
+        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
+        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
+        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|2021-01-27T04" > actual
+
+    cat actual
+
+    cat > expect <<-END
+	╒══ Welcome To LiqidOS ════════════════════════════════════════════╕
+	│                                                                  │
+	│ API        │ 2.4.0.73 │ release-2.4 │ 2f4607c24b │ 2021-01-26T21 │
+	│ COREBOOT   │ 2.4.0.5  │ release-2.4 │ 452ca2892a │ 2021-01-26T09 │
+	│ NORTHBOUND │ 2.4.0.25 │ release-2.4 │ 386bcfb5d0 │ 2021-01-27T04 │
+	└────────────┴──────────┴─────────────┴────────────┴───────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_lineart_title_no_headers()
+{
+    etable --style=lineart --no-headers                         \
+        --title "Welcome To LiqidOS"                            \
+        "Component|Version|Branch|Commit|Date"                  \
+        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
+        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
+        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|2021-01-27T04" > actual
+
+    cat actual
+
+    cat > expect <<-END
+	╒══ Welcome To LiqidOS ════════════════════════════════════════════╕
+	├────────────┬──────────┬─────────────┬────────────┬───────────────┤
+	│ API        │ 2.4.0.73 │ release-2.4 │ 2f4607c24b │ 2021-01-26T21 │
+	│ COREBOOT   │ 2.4.0.5  │ release-2.4 │ 452ca2892a │ 2021-01-26T09 │
+	│ NORTHBOUND │ 2.4.0.25 │ release-2.4 │ 386bcfb5d0 │ 2021-01-27T04 │
+	└────────────┴──────────┴─────────────┴────────────┴───────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_lineart_title_no_internal_lines()
+{
+    etable --style=lineart --skip-first-delim --no-headers --no-column-delim \
+        --title "Welcome To LiqidOS"                            \
+        "Component|Version|Branch|Commit|Date"                  \
+        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
+        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
+        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|2021-01-27T04" > actual
+
+    cat actual
+
+    cat > expect <<-END
+	╒══ Welcome To LiqidOS ════════════════════════════════════════════╕
+	│                                                                  │
+	│ API          2.4.0.73   release-2.4   2f4607c24b   2021-01-26T21 │
+	│ COREBOOT     2.4.0.5    release-2.4   452ca2892a   2021-01-26T09 │
+	│ NORTHBOUND   2.4.0.25   release-2.4   386bcfb5d0   2021-01-27T04 │
+	└──────────────────────────────────────────────────────────────────┘
+	END
 
     diff --unified expect actual
 }
