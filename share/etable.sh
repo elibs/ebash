@@ -14,9 +14,10 @@
 #-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage etable <<'END'
-etable is designed to be able to easily produce a nicely formatted ASCII or HTML table with columns and rows. The input
-passed into this function is essentially a variadic number of strings, where each string represents a row in the table.
-Each entry provided has the columns encoded with a vertical pipe character separating each column.
+etable is designed to be able to easily produce a nicely formatted ASCII, HTML or "box-drawing" or "boxart" tables with
+columns and rows. The input passed into this function is essentially a variadic number of strings, where each string
+represents a row in the table.  Each entry provided has the columns encoded with a vertical pipe character separating
+each column.
 
 For example, suppose you wanted to produce this ASCII table:
 
@@ -42,7 +43,7 @@ This can be cumbersome to create, so there are helper methods to make this easie
 
 You can also optionally get a line separating each row, via:
 
-    $ etable --row-lines "${table[@]}"
+    $ etable --rowlines "${table[@]}"
 
 Which would produce:
 
@@ -57,7 +58,7 @@ Which would produce:
     +------+-------------+-------------+
 
 If instead you wanted to produce an HTML formatted table, you would use the exact same input as above only you would
-pass in `--html` usage flag.
+pass in `--style=html` usage flag.
 
 <table>
     <tbody>
@@ -83,21 +84,61 @@ pass in `--html` usage flag.
         </tr>
     </tbody>
 </table>
+
+Finally, etable also supports box-drawing boxart characters instead of ASCII
+
+    $ bin/etable --style=boxart --rowlines "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
+
+    ┌──────┬─────────────┬─────────────┐
+    │ Repo │ Source      │ Target      │
+    ├──────┼─────────────┼─────────────┤
+    │ api  │ develop-2.5 │ release-2.5 │
+    ├──────┼─────────────┼─────────────┤
+    │ os   │ release-2.4 │ develop-2.5 │
+    ├──────┼─────────────┼─────────────┤
+    │ ui   │ develop-2.5 │ release-2.5 │
+    └──────┴─────────────┴─────────────┘
+
+Or without rowlines:
+
+    $ bin/etable --style=boxart "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
+
+    ┌──────┬─────────────┬─────────────┐
+    │ Repo │ Source      │ Target      │
+    ├──────┼─────────────┼─────────────┤
+    │ api  │ develop-2.5 │ release-2.5 │
+    │ os   │ release-2.4 │ develop-2.5 │
+    │ ui   │ develop-2.5 │ release-2.5 │
+    └──────┴─────────────┴─────────────┘
+
 END
 etable()
 {
     $(opt_parse \
-        "+row_lines  | Display a separator line in between each row." \
-        "+html       | Output resulting table as an HTML table. This strips out any ANSI color codes using noansi
-                       otherwise the generated HTML is invalid." \
-        "columns     | Column headers for the table. Each column should be separated by a vertical pipe character." \
-        "@entries    | Array of encoded rows and columns. Each entry in the array is a single row in the table. Within
-                       a single entry, the columns are separated by a vertical pipe character.")
+        ":style            | Table style (ascii, html, boxart). Default=ascii." \
+        "+rowlines         | Display a separator line in between each row." \
+        "+headers=1        | Display column headers." \
+        "+headers_delim=1  | Display column headers delimiter." \
+        ":title            | Table title to display." \
+        "+column_delim=1   | Display column delimiters." \
+        "columns           | Column headers for the table. Each column should be separated by a vertical pipe character." \
+        "@entries          | Array of encoded rows and columns. Each entry in the array is a single row in the table. Within
+                             a single entry, the columns are separated by a vertical pipe character.")
 
-    if [[ ${html} -eq 1 ]]; then
+    # Default style is ascii
+    : ${style:=ascii}
+
+    if [[ ${headers} -eq 0 ]]; then
+        headers_delim=0
+    fi
+
+    #  Generate table using internal function
+    if [[ ${style} == "html" ]]; then
         __etable_internal_html
-    else
+    elif [[ "${style}" == @(ascii|boxart) ]]; then
         __etable_internal_ascii
+    else
+        die "Unsupported $(lval style)"
     fi
 }
 
@@ -121,44 +162,137 @@ __etable_internal_ascii()
         done
     done
 
-    # Create divider line
-    local divider="+"
+    # Figure out what symbols to use
+    declare -A symbols=()
+    if [[ ${style} == "boxart" ]]; then
+        symbols[bottom_left]="└"
+        symbols[bottom_right]="┘"
+        symbols[bottom_tee]="┴"
+        symbols[horizonal_line]="─"
+        symbols[left_tee]="├"
+        symbols[middle_tee]="┼"
+        symbols[right_tee]="┤"
+        symbols[top_left]="┌"
+        symbols[top_right]="┐"
+        symbols[top_tee]="┬"
+        symbols[vertical_line]="│"
+    else
+        symbols[bottom_left]="+"
+        symbols[bottom_right]="+"
+        symbols[bottom_tee]="+"
+        symbols[horizonal_line]="-"
+        symbols[left_tee]="|"
+        symbols[middle_tee]="+"
+        symbols[right_tee]="+"
+        symbols[top_left]="+"
+        symbols[top_right]="+"
+        symbols[top_tee]="+"
+        symbols[vertical_line]="|"
+    fi
+
+    local divider="${symbols[top_left]}"
+    local divider_len=0
     array_init parts "${columns}" "|"
     local idx=0
     local len=0
     for idx in $(array_indexes parts); do
         len=$((lengths[$idx]+2))
-        divider+=$(printf "%${len}s+" | sed -e 's| |-|g')
+        (( divider_len += len ))
+
+        if [[ $(( idx+1 )) -eq $(array_size parts) ]]; then
+            divider+=$(printf "%${len}s${symbols[top_right]}" | sed -e "s| |${symbols[horizonal_line]}|g")
+        else
+            divider+=$(printf "%${len}s${symbols[top_tee]}"   | sed -e "s| |${symbols[horizonal_line]}|g")
+        fi
     done
 
-    printf "%s\n" ${divider}
+    if [[ -n "${title}" ]]; then
+
+        if [[ ${style} == "ascii" ]]; then
+            printf "== ${title} ==\n\n%s\n" "${divider}"
+        else
+            local title_nocolor
+            title_nocolor=$(echo "${title}" | noansi)
+            len=$(( ${divider_len} - ${#title_nocolor} - 3 ))
+            printf "╒══__TITLE__%${len}s ══╕\n" | sed -e "s| |═|g" -e "s|__TITLE__| ${title} |"
+
+            if [[ ${headers_delim} -eq 1 ]]; then
+                printf "${divider}\n" | sed \
+                    -e "s|${symbols[top_left]}|${symbols[left_tee]}|" \
+                    -e "s|${symbols[top_right]}|${symbols[right_tee]}|"
+            else
+                printf "${symbols[vertical_line]}%$(( divider_len + 4 ))s${symbols[vertical_line]}\n"
+            fi
+        fi
+
+    else
+        printf "%s\n" ${divider}
+    fi
 
     # Now iterate over each row and print each row and it's row delimiter.
     local lnum=0
     for line in "${columns}" "${entries[@]}"; do
 
+        if [[ ${lnum} -eq 0 && ${headers} -eq 0 ]]; then
+            ((lnum+=1))
+            continue
+        fi
+
         # Split this row on the column delimiber and then iterate over each part and print it padded out to the right
         # width.
         array_init parts "${line}" "|"
-        printf "|"
+        printf "${symbols[vertical_line]}"
+
         local idx=0
         for idx in $(array_indexes parts); do
             part=${parts[$idx]}
             part_len=$(echo -n "${part}" | noansi | wc -c)
-            pad=$((lengths[$idx]-${part_len}+1))
-            printf " %s%${pad}s|" "${part}" " "
+            pad=$(( lengths[$idx] - part_len + 1 ))
+
+            if [[ ${column_delim} -eq 1 || ${idx} -eq $(( ${#parts[@]} - 1 )) ]]; then
+                printf " %s%${pad}s${symbols[vertical_line]}" "${part}" " "
+            else
+                printf " %s%${pad}s " "${part}" " "
+            fi
         done
         printf $'\n'
 
         # Print either header/footer delimiter if we're on the first or last row, or optionally print the row line
         # separator if requested.
         lnum=$((lnum+1))
-        if [[ ${lnum} -eq 1 || ${lnum} -eq $(( ${#entries[@]} + 1 )) ]]; then
-            printf "%s\n" ${divider}
-        else
-            if [[ ${row_lines} -eq 1 ]]; then
-                printf "%s\n" ${divider//+/|}
+        if [[ ${lnum} -eq 1 ]]; then
+
+            if [[ ${style} == "ascii" ]]; then
+                echo "${divider}"
+            else
+
+                if [[ ${column_delim} -eq 0 ]]; then
+                    echo "${divider}" | sed -e "s/${symbols[top_tee]}/${symbols[horizonal_line]}/g" \
+                                            -e "s/${symbols[top_left]}/${symbols[left_tee]}/g"  \
+                                            -e "s/${symbols[top_right]}/${symbols[right_tee]}/g"
+                else
+                    echo "${divider}" | sed -e "s/${symbols[top_tee]}/${symbols[middle_tee]}/g" \
+                                            -e "s/${symbols[top_left]}/${symbols[left_tee]}/g"  \
+                                            -e "s/${symbols[top_right]}/${symbols[right_tee]}/g"
+                fi
             fi
+
+        elif [[ ${lnum} -eq $(( ${#entries[@]} + 1 )) ]]; then
+
+            if [[ ${column_delim} -eq 0 ]]; then
+                echo "${divider}" | sed -e "s/${symbols[top_tee]}/${symbols[horizonal_line]}/g" \
+                                        -e "s/${symbols[top_left]}/${symbols[bottom_left]}/g"   \
+                                        -e "s/${symbols[top_right]}/${symbols[bottom_right]}/g"
+            else
+                echo "${divider}" | sed -e "s/${symbols[top_tee]}/${symbols[bottom_tee]}/g"     \
+                                        -e "s/${symbols[top_left]}/${symbols[bottom_left]}/g"   \
+                                        -e "s/${symbols[top_right]}/${symbols[bottom_right]}/g"
+            fi
+
+        elif [[ ${rowlines} -eq 1 ]]; then
+            echo "${divider}" | sed -e "s/${symbols[top_left]}/${symbols[left_tee]}/g"  \
+                                    -e "s/${symbols[top_tee]}/${symbols[middle_tee]}/g" \
+                                    -e "s/${symbols[top_right]}/${symbols[right_tee]}/g"
         fi
     done
 }

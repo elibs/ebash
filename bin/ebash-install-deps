@@ -248,6 +248,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
         coreutils   \
         findutils   \
         gnu-sed     \
+        gnu-tar     \
         grep        \
         jq          \
         pstree
