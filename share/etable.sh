@@ -118,8 +118,8 @@ etable()
         ":style            | Table style (ascii, html, boxart). Default=ascii." \
         "+rowlines         | Display a separator line in between each row." \
         "+headers=1        | Display column headers." \
+        "+headers_delim=1  | Display column headers delimiter." \
         ":title            | Table title to display." \
-        "+skip_first_delim | Skip the first delimiter." \
         "+column_delim=1   | Display column delimiters." \
         "columns           | Column headers for the table. Each column should be separated by a vertical pipe character." \
         "@entries          | Array of encoded rows and columns. Each entry in the array is a single row in the table. Within
@@ -127,6 +127,10 @@ etable()
 
     # Default style is ascii
     : ${style:=ascii}
+
+    if [[ ${headers} -eq 0 ]]; then
+        headers_delim=0
+    fi
 
     #  Generate table using internal function
     if [[ ${style} == "html" ]]; then
@@ -212,7 +216,7 @@ __etable_internal_ascii()
             len=$(( ${divider_len} - ${#title_nocolor} - 3 ))
             printf "╒══__TITLE__%${len}s ══╕\n" | sed -e "s| |═|g" -e "s|__TITLE__| ${title} |"
 
-            if [[ ${skip_first_delim} -eq 0 ]]; then
+            if [[ ${headers_delim} -eq 1 ]]; then
                 printf "${divider}\n" | sed \
                     -e "s|${symbols[top_left]}|${symbols[left_tee]}|" \
                     -e "s|${symbols[top_right]}|${symbols[right_tee]}|"
