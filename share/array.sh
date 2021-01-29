@@ -190,12 +190,13 @@ array_indexes_sort()
 }
 
 opt_usage array_rindexes <<'END'
-Same as array_indexes only this enumerates them in reverse order.
+Same as array_indexes only this enumerates them in reverse order. Unlike prior versions of this function this now
+correctly handles multi-digit index values.
 END
 array_rindexes()
 {
     $(opt_parse "__array_indexes_array | Name of array whose indexes should be produced.")
-    eval "echo \${!${__array_indexes_array}[@]} | rev"
+    eval "printf '%s\n' \${!${__array_indexes_array}[@]} | tac | tr '\n' ' '" | sed 's| $||'
 }
 
 opt_usage array_contains <<'END'
