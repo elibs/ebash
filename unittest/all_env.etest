@@ -31,6 +31,7 @@ ETEST_commands()
         "ps"
         "readlink"
         "tar"
+        "tac"
         "tput"
     )
 
