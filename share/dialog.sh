@@ -161,7 +161,7 @@ END
 dialog_prompt()
 {
     $(opt_parse \
-        "+instructions=1                                   | Include instructions on how to navigate dialog window."   \
+        "+instructions                                     | Include instructions on how to navigate dialog window."   \
         ":backtitle                                        | Text to display on backdrop at top left of the screen."   \
         ":geometry g                                       | Geometry of the box (HEIGHTxWIDTHxMENU-HEIGHT). "         \
         ":help_label                                       | Override label used for 'Help' button."                   \
@@ -169,6 +169,11 @@ dialog_prompt()
         "+hide                                             | Hide ncurses output from screen (useful for testing)."    \
         ":title t=Please provide the following information | String to display as the top of the dialog box."          \
         "+trace                                            | If enabled, enable extensive dialog debugging to stderr." \
+        "&transform                                        | Accumulator of sed-like replace expressions to perform on
+                                                             dialog labels. Expressions are 's/regexp/replace/[flags]'
+                                                             where regexp is a regular expression and replace is a
+                                                             replacement for each label that matches regexp. For more
+                                                             details see the sed manpage."                             \
         "@fields                                           | List of option fields to prompt for. Field names may not
                                                              contain spaces, newlines or special punctuation characters.")
 
@@ -239,6 +244,17 @@ dialog_prompt()
             field="${field:1}"
             display="${field^}"
         fi
+
+        # Change any underscores to spaces in the display field.
+        # Then apply any other custom replacements the caller asked for in the replace_label accumulator where each
+        # entry is a sed-style exppression.
+        display=$(echo "${display}" | sed -e "s|_\(.\)| \u\1|g")
+        local exp
+        for exp in "${transform[@]}"; do
+            edebug "Applying $(lval transform) to $(lval display)"
+            display=$(echo "${display}" | sed -e "${exp}")
+            edebug "After transform $(lva display)"
+        done
 
         # Ensure field name doesn't have any unsupported characters. It may not contain spaces, newlines or any special
         # punctuation characters.
@@ -406,8 +422,8 @@ dialog_prompt()
                 dialog_cancel
                 return 0
 
-            # PE-3865 - Don't allow certain characters in user input, as they can be used for security
-            # exploits if interpreted by bash.
+            # Don't allow certain characters in user input, as they can be used for security exploits if interpreted by
+            # bash.
             elif [[ "${char}" =~ [\;\|\&\`{}()\<\>\$] ]]; then
                 edebug "Invalid Character: $(lval char)"
                 dialog_error "Invalid Character: '${char}'"
