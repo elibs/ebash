@@ -250,10 +250,8 @@ dialog_prompt()
 
         # Apply all custom replacements in the transform accumulator where each entry is a sed-style expression.
         local exp
-        for exp in "${transform[@]}"; do
-            edebug "Applying $(lval transform) to $(lval display)"
+        for exp in "${transform[@]:-}"; do
             display=$(echo "${display}" | sed -e "${exp}")
-            edebug "After transform $(lva display)"
         done
 
         # Ensure field name doesn't have any unsupported characters. It may not contain spaces, newlines or any special
