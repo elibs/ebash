@@ -103,7 +103,7 @@ dshell-$1:
 endef
 
 DISTROS =			\
-	alpine:3.11		\
+	alpine:3.13		\
 	alpine:3.12		\
 	archlinux		\
 	centos:8		\
