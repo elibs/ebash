@@ -877,6 +877,13 @@ ETEST_opt_parse_accumulator_single()
     assert_eq "apples" "${files[0]}"
 }
 
+ETEST_opt_parse_accumalator_empty()
+{
+    $(opt_parse "&files")
+    etestmsg "$(opt_dump)"
+    assert_zero "$(array_size files)"
+}
+
 ETEST_argcheck()
 {
     try
