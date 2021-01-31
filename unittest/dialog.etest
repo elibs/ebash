@@ -87,6 +87,25 @@ ETEST_dialog_prompt_single()
     assert_eq "Locke" "${philo1}"
 }
 
+# Verify fields are pretty printed by splitting on underscores and capitalizing each word.
+ETEST_dialog_prompt_pretty_print_fields()
+{
+    local input="192.168.0.1${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    $(printf "${input}" | ${DIALOG_PROMPT} ip_address ?user_name ?user_password 2> output)
+    grep "Ip Address" output
+    grep "User Name"  output
+    grep "User Password" output
+}
+
+# Verify we can customize field pretty-printing via --replace-label accumalator.
+ETEST_dialog_prompt_transform()
+{
+    local input="192.168.0.1${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    $(printf "${input}" | ${DIALOG_PROMPT} --transform "s|Ip|IP|g" --transform "s|Usb|USB|g" ip_address ?usb_device 2> output || true)
+    grep "IP Address" output
+    grep "USB Device" output
+}
+
 # Test multiple input fields. Also verifies that the down arrow key is used to seamlessly navigate between fields
 # without having to press ENTER to exit the first field and enter the second field.
 ETEST_dialog_prompt_multi()

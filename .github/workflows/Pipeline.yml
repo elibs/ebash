@@ -32,8 +32,8 @@ jobs:
       fail-fast: false
       matrix:
         container:
+          - "alpine:3.13"
           - "alpine:3.12"
-          - "alpine:3.11"
           - "archlinux"
           - "centos:8"
           - "centos:7"
