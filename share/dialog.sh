@@ -245,10 +245,10 @@ dialog_prompt()
             display="${field^}"
         fi
 
-        # Change any underscores to spaces in the display field.
-        # Then apply any other custom replacements the caller asked for in the replace_label accumulator where each
-        # entry is a sed-style exppression.
-        display=$(echo "${display}" | sed -e "s|_\(.\)| \u\1|g")
+        # Split underscores and change them to spaces and uppercase the next character.
+        display=$(echo "${display}" | perl -pe 's/_([a-z])/ \U\1/g')
+
+        # Apply all custom replacements in the transform accumulator where each entry is a sed-style expression.
         local exp
         for exp in "${transform[@]}"; do
             edebug "Applying $(lval transform) to $(lval display)"
@@ -479,7 +479,7 @@ dialog_prompt()
         fi
 
         local dialog_output=""
-        dialog_output="$(string_trim "$(cat "${output_file}")")"
+        dialog_output="$(string_trim "$(tr -d '\0' < ${output_file})")"
         edebug "Dialog exited $(lval dialog_pid dialog_rc dialog_output)"
 
         if [[ ${dialog_rc} == ${DIALOG_CANCEL} ]]; then
