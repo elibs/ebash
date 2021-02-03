@@ -161,13 +161,15 @@ END
 dialog_prompt()
 {
     $(opt_parse \
+        "+global                                           | Emit global variables instead of local ones."             \
+        "+export                                           | Emit exported variables instead of local ones."           \
         "+instructions                                     | Include instructions on how to navigate dialog window."   \
         ":backtitle                                        | Text to display on backdrop at top left of the screen."   \
-        ":geometry g                                       | Geometry of the box (HEIGHTxWIDTHxMENU-HEIGHT). "         \
+        ":geometry                                         | Geometry of the box (HEIGHTxWIDTHxMENU-HEIGHT). "         \
         ":help_label                                       | Override label used for 'Help' button."                   \
         ":help_callback                                    | Callback to invoke when 'Help' button is pressed."        \
         "+hide                                             | Hide ncurses output from screen (useful for testing)."    \
-        ":title t=Please provide the following information | String to display as the top of the dialog box."          \
+        ":title=Please provide the following information   | String to display as the top of the dialog box."          \
         "+trace                                            | If enabled, enable extensive dialog debugging to stderr." \
         "&transform                                        | Accumulator of sed-like replace expressions to perform on
                                                              dialog labels. Expressions are 's/regexp/replace/[flags]'
@@ -181,6 +183,11 @@ dialog_prompt()
     if array_empty fields; then
         die "Must prompt for at least one field."
     fi
+
+    # Determine flags to pass into declare
+    local declare_flags=""
+    [[ ${global} -eq 1 ]] && declare_flags="-g"
+    [[ ${export} -eq 1 ]] && declare_flags="-gx"
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     #
@@ -546,12 +553,12 @@ dialog_prompt()
     done
 
     # Export final values for caller
-    echo "eval declare dialog_rc=${dialog_rc};"
+    echo "eval declare ${declare_flags} dialog_rc=${dialog_rc};"
     for key in "${keys[@]}"; do
         edebug "${key}=>$(pack_get fpack[$key] value)"
         local value=""
         value=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")")
-        echo "eval declare ${key}=${value};"
+        echo "eval declare ${declare_flags} ${key}=${value};"
     done
 
     # Clean-up
@@ -572,10 +579,17 @@ dialog_prompt_username_password()
 {
     local default_title="\nPlease provide login information.\n"
     $(opt_parse \
-        "+optional               | If true, the username and password are optional. In this case the user will be
+        "+global   g             | Emit global variables instead of local ones."                                       \
+        "+export   e             | Emit exported variables instead of local ones."                                     \
+        "+optional o             | If true, the username and password are optional. In this case the user will be
                                    allowed to exit the dialog menu without providing username and passwords. Otherwise
-                                   it will sit in a loop until the user provides both values." \
+                                   it will sit in a loop until the user provides both values."                         \
         ":title=${default_title} | Title to put at the top of the dialog box.")
+
+    # Determine flags to pass into declare
+    local declare_flags=""
+    [[ ${global} -eq 1 ]] && declare_flags="-g"
+    [[ ${export} -eq 1 ]] && declare_flags="-gx"
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     #
@@ -613,11 +627,11 @@ dialog_prompt_username_password()
             continue
         fi
 
-        # Note that the password is quoted to properly handle special characters - in particular,
-        # PE-1482 identified a problem with passwords that begin with '$' which caused bash to
-        # evaluate the password as a variable name (and it would usually fail with a complaint
-        # that the varialbe was unbound).
-        echo "eval declare username password; "
+        # NOTE: The password is quoted to properly handle special characters.
+        #
+        # In particular, passwords that begin with '$' cause bash to evaluate the password as a variable name (and
+        # it would usually fail with a complaint that the varialbe was unbound).
+        echo "eval declare ${declare_flags} username password; "
         echo "eval username=$(printf %q "${username}"); "
         echo "eval password=$(printf \'%q\' "${password}"); "
         return 0

@@ -87,6 +87,34 @@ ETEST_dialog_prompt_single()
     assert_eq "Locke" "${philo1}"
 }
 
+ETEST_dialog_prompt_export()
+{
+    local expect="Calvin and Hobbes"
+    local input="${expect}${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    $(printf "${input}" | ${DIALOG_PROMPT} --export name)
+    assert_eq "${expect}" "${name}"
+
+    local actual
+    actual="$(declare -p name)"
+    assert_eq "declare -x name=\"${expect}\"" "${actual}"
+}
+
+ETEST_dialog_prompt_global()
+{
+    declare -g name=""
+    local expect="Calvin and Hobbes"
+    local input="${expect}${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+
+    # If this is a global variable, then changing it inside this function will have the changes persistant outside.
+    run()
+    {
+        $(printf "${input}" | ${DIALOG_PROMPT} --global name)
+    }
+
+    run
+    assert_eq "${expect}" "${name}"
+}
+
 # Verify fields are pretty printed by splitting on underscores and capitalizing each word.
 ETEST_dialog_prompt_pretty_print_fields()
 {
