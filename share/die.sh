@@ -169,9 +169,7 @@ _ebash_on_exit_start()
 
 _ebash_on_exit_end()
 {
-    if [[ -v __EBASH_EXIT_CODE ]]; then
-        reenable_signals
-    fi
+    reenable_signals
 
     # If we're exiting with non-zero exit code, make sure that it occurred through our custom exit function. The only
     # reason we currently believe that it will _not_ go through that path is if bash dies due to an unset variable.
