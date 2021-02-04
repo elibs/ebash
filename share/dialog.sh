@@ -396,9 +396,16 @@ dialog_prompt()
         local char="" focus=0
         while process_running ${dialog_pid} && $(dialog_read char); do
 
-            # TAB. This key is used to transfer focus between the input fields and the control characters at the bottom
-            # of the window. So here we essentially update the default_button.
-            if [[ "${char}" == "${EBASH_KEY_TAB}" && ${focus} -ne 1 ]]; then
+            # TAB WITH FOCUS. The user just pressed the tab key while in the middle of inputting text. For the best user
+            # experience we've decided to have this automatically move focus down to the bottom window control
+            # characters and set default button back to "OK"
+            if [[ "${char}" == "${EBASH_KEY_TAB}" && "${focus}" -eq 1 ]]; then
+                default_button="ok"
+                edebug "[TAB With Focus] Updating $(lval default_button)"
+
+            # TAB WITHOUT FOCUS. This key is used to transfer focus between the input fields and the control characters
+            # at the bottom of the window. So here we essentially update the default_button.
+            elif [[ "${char}" == "${EBASH_KEY_TAB}" && ${focus} -eq 0 ]]; then
 
                 if [[ ${default_button} == "extra" ]]; then
                     default_button="ok"
@@ -406,6 +413,7 @@ dialog_prompt()
                     default_button="extra"
                 fi
 
+                edebug "[TAB Without Focus] Updating $(lval default_button) and killing dialog."
                 dialog_kill
                 continue 2
 
@@ -521,10 +529,10 @@ dialog_prompt()
             done
         fi
 
-        # Now check if we are done or not. We should only check this if the user hit the "OK" button.
-        # If there are any required fields that have not been provided display an error
-        # and re-prompt them for the required fields.
-        if [[ ${default_button} == "ok" || ${dialog_rc} -eq 0 ]]; then
+        # Now check if we are done or not. We should only check this if the user just hit the "OK" button.  Then, we
+        # have to check if any required fields that have not been provided display an error and re-prompt them for the
+        # required fields.
+        if [[ ${default_button} == "ok" && "${char}" == "${EBASH_KEY_ENTER}" ]]; then
 
             local missing=()
             for key in "${keys[@]}"; do
