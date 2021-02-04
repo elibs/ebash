@@ -27,9 +27,7 @@ disable_signals()
 
 reenable_signals()
 {
-    if array_not_empty _EBASH_SAVED_TRAPS; then
-        eval "${_EBASH_SAVED_TRAPS[$BASHPID]}"
-    fi
+    eval "${_EBASH_SAVED_TRAPS[$BASHPID]}"
 }
 
 opt_usage signum <<'END'
