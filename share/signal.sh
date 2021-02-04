@@ -20,14 +20,16 @@ done.
 END
 disable_signals()
 {
-    declare -Ag _EBASH_SAVED_TRAPS
-    _EBASH_SAVED_TRAPS[$BASHPID]=$(trap -p "${DIE_SIGNALS[@]}")
+    declare -Ag __EBASH_SAVED_TRAPS
+    __EBASH_SAVED_TRAPS[$BASHPID]=$(trap -p "${DIE_SIGNALS[@]}")
     trap "" "${DIE_SIGNALS[@]}"
 }
 
 reenable_signals()
 {
-    eval "${_EBASH_SAVED_TRAPS[$BASHPID]}"
+    if [[ -v __EBASH_SAVED_TRAPS ]]; then
+        eval "${__EBASH_SAVED_TRAPS[$BASHPID]}"
+    fi
 }
 
 opt_usage signum <<'END'
