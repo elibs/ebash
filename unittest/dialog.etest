@@ -80,39 +80,20 @@ ETEST_dialog_read_term()
 # Setup flags we want to use for all these tests
 DIALOG_PROMPT="dialog_prompt --hide --trace"
 
+# Global variable to ensure we can set this using non-declare option
+non_declared_username=""
+ETEST_dialog_prompt_no_declare()
+{
+    local input="Mando${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    $(printf "${input}" | ${DIALOG_PROMPT} --no-declare non_declared_username)
+    assert_eq "Mando" "${non_declared_username}"
+}
+
 ETEST_dialog_prompt_single()
 {
     local input="Locke${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} philo1)
     assert_eq "Locke" "${philo1}"
-}
-
-ETEST_dialog_prompt_export()
-{
-    local expect="Calvin and Hobbes"
-    local input="${expect}${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} --export name)
-    assert_eq "${expect}" "${name}"
-
-    local actual
-    actual="$(declare -p name)"
-    assert_eq "declare -x name=\"${expect}\"" "${actual}"
-}
-
-ETEST_dialog_prompt_global()
-{
-    declare -g name=""
-    local expect="Calvin and Hobbes"
-    local input="${expect}${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-
-    # If this is a global variable, then changing it inside this function will have the changes persistant outside.
-    run()
-    {
-        $(printf "${input}" | ${DIALOG_PROMPT} --global name)
-    }
-
-    run
-    assert_eq "${expect}" "${name}"
 }
 
 # Verify fields are pretty printed by splitting on underscores and capitalizing each word.
@@ -217,11 +198,8 @@ ETEST_dialog_prompt_default_values_override()
     assert_eq "John Rawls"       "${philo3}"
 }
 
-ETEST_dialog_prompt_default_values_override_term()
+ETEST_dialog_prompt_default_values_override_tab()
 {
-    export TERM=linux
-    dialog_load
-
     # Since we intend to overwrite the existing values we need to delete the keys already present.
     local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
@@ -230,6 +208,80 @@ ETEST_dialog_prompt_default_values_override_term()
     assert_eq "John Rawls"       "${philo3}"
 }
 
+ETEST_dialog_prompt_default_values_override_term()
+{
+    export TERM=linux
+    dialog_load
+
+    # Since we intend to overwrite the existing values we need to delete the keys already present.
+    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
+    #local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
+    assert_eq "Thomas Jefferson" "${philo1}"
+    assert_eq "Kant"             "${philo2}"
+    assert_eq "John Rawls"       "${philo3}"
+}
+
+# Basic sanity test around menu navigation
+ETEST_dialog_prompt_navigation()
+{
+    local input=(
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_UP}"
+        "${EBASH_KEY_UP}"
+        "Linus Torvalds"
+        "${EBASH_KEY_ENTER}"
+        "${EBASH_KEY_TAB}"
+        "${EBASH_KEY_TAB}"
+        "Tove Torvalds"
+        "${EBASH_KEY_ENTER}"
+        "${EBASH_KEY_TAB}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf %s "${input[@]/#/}" | ${DIALOG_PROMPT} "name1" "name2" "?name3")
+
+    assert_eq "Linus Torvalds" "${name1}"
+    assert_eq "Tove Torvalds" "${name2}"
+    assert_eq ""              "${name3}"
+}
+
+# Additional test with navigation mixed with character deletions
+ETEST_dialog_prompt_navigation_with_delete()
+{
+    # Expected values we're going to use
+    declare -A expect=(
+        [hostname]="etest-$$"
+        [ip]="1.1.1.1"
+    )
+
+    # Mock out hostname
+    hostname()
+    {
+        echo "${expect[hostname]}"
+    }
+
+    # Construct a string of deletions to delete the default hostname we're going to use
+    local delete_hostname=""
+    for (( idx=0; idx < ${#expect[hostname]}; idx++ )); do
+        delete_hostname+="${EBASH_KEY_DELETE}"
+    done
+
+    local input=(
+        "${delete_hostname}"
+        "${expect[hostname]}"
+        "${EBASH_KEY_DOWN}"
+        "${expect[ip]}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf %s "${input[@]/#/}" | ${DIALOG_PROMPT} "hostname" "ip")
+
+    assert_eq "${expect[hostname]}" "${hostname}"
+    assert_eq "${expect[ip]}"       "${ip}"
+}
 
 # Wherever we are in the dialog menu, escape key should take us out immediately.
 ETEST_dialog_prompt_escape()
