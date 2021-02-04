@@ -101,8 +101,8 @@ ETEST_dialog_prompt_pretty_print_fields()
 {
     local input="192.168.0.1${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} ip_address ?user_name ?user_password 2> output)
-    grep "Ip Address" output
-    grep "User Name"  output
+    grep "Ip Address"    output
+    grep "User Name"     output
     grep "User Password" output
 }
 
@@ -191,8 +191,18 @@ ETEST_dialog_prompt_default_values()
 ETEST_dialog_prompt_default_values_override()
 {
     # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
+     local input=(
+        "${EBASH_KEY_DELETE}"
+        "Thomas Jefferson"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_DELETE}"
+        "John Rawls"
+        "${EBASH_KEY_TAB}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf %s "${input[@]/#/}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
     assert_eq "John Rawls"       "${philo3}"
@@ -215,7 +225,6 @@ ETEST_dialog_prompt_default_values_override_term()
 
     # Since we intend to overwrite the existing values we need to delete the keys already present.
     local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
-    #local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
