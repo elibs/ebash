@@ -27,7 +27,7 @@ disable_signals()
 
 reenable_signals()
 {
-    eval "${_EBASH_SAVED_TRAPS[$BASHPID]}"
+    eval "${_EBASH_SAVED_TRAPS[$BASHPID]:-}"
 }
 
 opt_usage signum <<'END'
