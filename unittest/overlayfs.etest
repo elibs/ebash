@@ -9,8 +9,8 @@
 
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
-BANNER_WIDTH=50
-ARCHIVE_TYPES=(
+banner_width=50
+archive_types=(
     squashfs
     iso
     tar
@@ -20,9 +20,9 @@ ARCHIVE_TYPES=(
 ETEST_overlayfs_mount()
 {
     local idx=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes archive_types); do
+        local ftype="${archive_types[$idx]}"
+        COLUMNS=${banner_width} ebanner "${ftype} ($((idx+1))/${#archive_types[@]})"
 
         etestmsg "Populating source directory"
         efreshdir src
@@ -69,9 +69,9 @@ ETEST_overlayfs_eunmount()
 ETEST_overlayfs_modify()
 {
     local idx=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes archive_types); do
+        local ftype="${archive_types[$idx]}"
+        COLUMNS=${banner_width} ebanner "${ftype} ($((idx+1))/${#archive_types[@]})"
 
         etestmsg "Populating source directory"
         efreshdir src dest
@@ -125,9 +125,9 @@ ETEST_overlayfs_modify()
 ETEST_overlayfs_commit()
 {
     local idx=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
-        local ftype="${ARCHIVE_TYPES[$idx]}"
-        COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+    for idx in $(array_indexes archive_types); do
+        local ftype="${archive_types[$idx]}"
+        COLUMNS=${banner_width} ebanner "${ftype} ($((idx+1))/${#archive_types[@]})"
 
         etestmsg "Populating source directory"
         efreshdir src dest

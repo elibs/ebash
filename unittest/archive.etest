@@ -65,13 +65,13 @@ test_all_archives()
     wait ${pids[@]}
     eprogress_kill
 
-    local rc=0
+    local rc=0 idx_rc=0 ftype=""
     for idx in $(array_indexes archive_types); do
 
         cat ${idx}.log
 
-        local ftype="${archive_types[$idx]}"
-        local idx_rc=$(cat ${idx}.rc)
+        ftype="${archive_types[$idx]}"
+        idx_rc=$(cat ${idx}.rc)
         etestmsg "Archive $(lval idx ftype idx_rc)"
 
         if [[ ${idx_rc} -ne 0 ]]; then
