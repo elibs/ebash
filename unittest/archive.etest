@@ -14,8 +14,7 @@
 # Test Helpers
 #
 #-----------------------------------------------------------------------------------------------------------------------
-BANNER_WIDTH=50
-ARCHIVE_TYPES=(
+archive_types=(
     cgz
     cpio
     cxz
@@ -34,15 +33,15 @@ test_all_archives()
 
     local idx=0
     declare -A pids
-    for idx in $(array_indexes ARCHIVE_TYPES); do
+    for idx in $(array_indexes archive_types); do
 
-        rcfile="${PWD}/${idx}.rc"
+        local rcfile="${PWD}/${idx}.rc"
 
         (
-            local ftype="${ARCHIVE_TYPES[$idx]}"
+            local ftype="${archive_types[$idx]}"
             einfos "${ftype}"
 
-            COLUMNS=${BANNER_WIDTH} ebanner "${ftype} ($((idx+1))/${#ARCHIVE_TYPES[@]})"
+            COLUMNS=50 ebanner "${ftype} ($((idx+1))/${#archive_types[@]})"
 
             mkdir -p "${idx}"
             cd "${idx}"
@@ -66,10 +65,20 @@ test_all_archives()
     wait ${pids[@]}
     eprogress_kill
 
-    rc=0
-    for idx in $(array_indexes ARCHIVE_TYPES); do
+    local rc=0
+    for idx in $(array_indexes archive_types); do
+
         cat ${idx}.log
-        (( rc += $(cat ${idx}.rc) )) || true
+
+        local ftype="${archive_types[$idx]}"
+        local idx_rc=$(cat ${idx}.rc)
+        etestmsg "Archive $(lval idx ftype idx_rc)"
+
+        if [[ ${idx_rc} -ne 0 ]]; then
+            eerror "Error in $(lval ftype idx idx_rc)"
+        fi
+
+        (( rc += idx_rc )) || true
     done
 
     return "${rc}"
@@ -302,7 +311,7 @@ ETEST_archive_create_symlinks_dereference_not_supported()
 
 ETEST_archive_create_symlinks_dereference()
 {
-    ARCHIVE_TYPES=( tar tar.gz )
+    archive_types=( tar tar.gz )
     test_body()
     {
         etestmsg "Populating source directory"
@@ -1444,7 +1453,7 @@ ETEST_archive_xconvert()
         archive_create src.${ftype} src
 
         local other src_contents cpy_contents src_contents_join cpy_contents_join
-        for other in ${ARCHIVE_TYPES[@]}; do
+        for other in ${archive_types[@]}; do
 
             etestmsg "Converting src.${ftype} to cpy.${other}"
             archive_convert src.${ftype} cpy.${other}
@@ -1477,7 +1486,7 @@ ETEST_archive_xdiff()
         archive_create src.${ftype} src
 
         # Iterate over all types and create copy -- diff should match
-        for other in ${ARCHIVE_TYPES[@]}; do
+        for other in ${archive_types[@]}; do
 
             etestmsg "Creating cpy.${other}"
             archive_create cpy.${other} src
@@ -1487,7 +1496,7 @@ ETEST_archive_xdiff()
         done
 
         # Iterate over all types and create a different copy with extra file diff should not match.
-        for other in ${ARCHIVE_TYPES[@]}; do
+        for other in ${archive_types[@]}; do
 
             etestmsg "Creating diff.${other}"
             efreshdir diff
