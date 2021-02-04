@@ -157,7 +157,7 @@ die()
 
 _ebash_on_exit_start()
 {
-    # Save off the exit code the fist time the exit trap is called -- it can be reinvoked multiple times in the process
+    # Save off the exit code the first time the exit trap is called -- it can be reinvoked multiple times in the process
     # of the shell going down.
     local exit_code=$?
     if [[ ! -v __EBASH_EXIT_CODE ]] ; then
@@ -169,7 +169,9 @@ _ebash_on_exit_start()
 
 _ebash_on_exit_end()
 {
-    reenable_signals
+    if [[ -v __EBASH_EXIT_CODE ]]; then
+        reenable_signals
+    fi
 
     # If we're exiting with non-zero exit code, make sure that it occurred through our custom exit function. The only
     # reason we currently believe that it will _not_ go through that path is if bash dies due to an unset variable.
