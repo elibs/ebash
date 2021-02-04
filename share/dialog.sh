@@ -160,34 +160,29 @@ window. But the caller is always allowed to override this with the --geometry op
 END
 dialog_prompt()
 {
+    local default_title="\nPlease provide the following information.\n"
     $(opt_parse \
-        "+global                                           | Emit global variables instead of local ones."             \
-        "+export                                           | Emit exported variables instead of local ones."           \
-        "+instructions                                     | Include instructions on how to navigate dialog window."   \
-        ":backtitle                                        | Text to display on backdrop at top left of the screen."   \
-        ":geometry                                         | Geometry of the box (HEIGHTxWIDTHxMENU-HEIGHT). "         \
-        ":help_label                                       | Override label used for 'Help' button."                   \
-        ":help_callback                                    | Callback to invoke when 'Help' button is pressed."        \
-        "+hide                                             | Hide ncurses output from screen (useful for testing)."    \
-        ":title=Please provide the following information   | String to display as the top of the dialog box."          \
-        "+trace                                            | If enabled, enable extensive dialog debugging to stderr." \
-        "&transform                                        | Accumulator of sed-like replace expressions to perform on
-                                                             dialog labels. Expressions are 's/regexp/replace/[flags]'
-                                                             where regexp is a regular expression and replace is a
-                                                             replacement for each label that matches regexp. For more
-                                                             details see the sed manpage."                             \
-        "@fields                                           | List of option fields to prompt for. Field names may not
-                                                             contain spaces, newlines or special punctuation characters.")
+        "+declare=1              | Declare variables before assigning to them. This is almost always required unless the
+                                   caller has already declared the variables before calling into dialog_prompt and
+                                   disires to simply reuse the existing variables."                                    \
+        "+instructions           | Include instructions on how to navigate dialog window."                             \
+        ":backtitle              | Text to display on backdrop at top left of the screen."                             \
+        ":geometry               | Geometry of the box (HEIGHTxWIDTHxMENU-HEIGHT)."                                    \
+        ":help_label             | Override label used for 'Help' button."                                             \
+        ":help_callback          | Callback to invoke when 'Help' button is pressed."                                  \
+        "+hide                   | Hide ncurses output from screen (useful for testing)."                              \
+        ":title=${default_title} | String to display as the top of the dialog box."                                    \
+        "+trace                  | If enabled, enable extensive dialog debugging to stderr."                           \
+        "&transform              | Accumulator of sed-like replace expressions to perform on dialog labels. Expressions
+                                   are 's/regexp/replace/[flags]' where regexp is a regular expression and replace is a
+                                   replacement for each label matching regexp. For more details see the sed manpage."  \
+        "@fields                 | List of option fields to prompt for. Field names may not contain spaces, newlines or
+                                   special punctuation characters.")
 
     # Ensure at least one field was prompted for
     if array_empty fields; then
         die "Must prompt for at least one field."
     fi
-
-    # Determine flags to pass into declare
-    local declare_flags=""
-    [[ ${global} -eq 1 ]] && declare_flags="-g"
-    [[ ${export} -eq 1 ]] && declare_flags="-gx"
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     #
@@ -401,16 +396,16 @@ dialog_prompt()
         local char="" focus=0
         while process_running ${dialog_pid} && $(dialog_read char); do
 
-            # TAB. This key is used to transfer focus between the input fields and the control characters at the bottom
-            # of the window. So here we essentially update the default_button.
-            if [[ "${char}" == "${EBASH_KEY_TAB}" && ${focus} -ne 1 ]]; then
+            # TAB WITH FOCUS. The user just pressed the tab key while in the middle of inputting text. For the best user
+            # experience we've decided to have this automatically move focus down to the bottom window control
+            # characters and set default button back to "OK"
+            if [[ "${char}" == "${EBASH_KEY_TAB}" && "${focus}" -eq 1 ]]; then
+                default_button="ok"
+                edebug "[TAB With Focus] Updating $(lval default_button)"
 
-                # Ignore TAB if we're in the middle of an input field as it's not clear if the expectation is to
-                # insert a literal tab character into the input field or to navigate down to the bottom menu. Doing
-                # any kind of automatic navigation is sloppy and confusing for the user.
-                if [[ ${focus} -eq 1 ]]; then
-                    continue
-                fi
+            # TAB WITHOUT FOCUS. This key is used to transfer focus between the input fields and the control characters
+            # at the bottom of the window. So here we essentially update the default_button.
+            elif [[ "${char}" == "${EBASH_KEY_TAB}" && ${focus} -eq 0 ]]; then
 
                 if [[ ${default_button} == "extra" ]]; then
                     default_button="ok"
@@ -418,6 +413,7 @@ dialog_prompt()
                     default_button="extra"
                 fi
 
+                edebug "[TAB Without Focus] Updating $(lval default_button) and killing dialog."
                 dialog_kill
                 continue 2
 
@@ -446,8 +442,10 @@ dialog_prompt()
                     focus=0
                     echo "" > "${input_file}"
 
-                    if [[ "${char}" == ${EBASH_KEY_DOWN} || "${char}" == ${EBASH_KEY_ENTER} || "${char}" == "${EBASH_KEY_TAB}" ]]; then
+                    if [[ "${char}" == ${EBASH_KEY_DOWN} || "${char}" == ${EBASH_KEY_ENTER} ]]; then
                         offset=1
+                    elif [[ "${char}" == "${EBASH_KEY_TAB}" ]]; then
+                        default_button="ok"
                     elif [[ "${char}" == "${EBASH_KEY_UP}" ]]; then
                         offset=-1
                     fi
@@ -517,7 +515,9 @@ dialog_prompt()
 
                     next=$((idx+${offset}))
                     if [[ ${next} -ge ${#keys[@]} ]]; then
-                        next=$(( ${#keys[@]} -1 ))
+                        next=0
+                        default_button="ok"
+                        break
                     elif [[ ${next} -lt 0 ]]; then
                         next=0
                     fi
@@ -529,15 +529,15 @@ dialog_prompt()
             done
         fi
 
-        # Now check if we are done or not. We should only check this if the user hit the "OK" button.
-        # If there are any required fields that have not been provided display an error
-        # and re-prompt them for the required fields.
-        if [[ ${default_button} == "ok" || ${dialog_rc} -eq 0 ]]; then
+        # Now check if we are done or not. We should only check this if the user just hit the "OK" button.  Then, we
+        # have to check if any required fields that have not been provided display an error and re-prompt them for the
+        # required fields.
+        if [[ ${default_button} == "ok" && "${char}" == "${EBASH_KEY_ENTER}" ]]; then
 
             local missing=()
             for key in "${keys[@]}"; do
                 if [[ $(pack_get fpack[$key] required) -eq 1 && -z $(pack_get fpack[$key] value) ]]; then
-                    missing+=( $(pack_get fpack[$key] display | sed 's|^*||') )
+                    missing+=( "$(pack_get fpack[$key] display | sed 's|^*||')" )
                 fi
             done
 
@@ -553,12 +553,17 @@ dialog_prompt()
     done
 
     # Export final values for caller
-    echo "eval declare ${declare_flags} dialog_rc=${dialog_rc};"
+    echo "eval declare dialog_rc=${dialog_rc};"
     for key in "${keys[@]}"; do
         edebug "${key}=>$(pack_get fpack[$key] value)"
         local value=""
         value=$(printf %q "$(printf "%q" "$(pack_get fpack[$key] value)")")
-        echo "eval declare ${declare_flags} ${key}=${value};"
+
+        if [[ "${declare}" -eq 1 ]]; then
+            echo "eval declare ${key}=${value};"
+        else
+            echo "eval ${key}=${value};"
+        fi
     done
 
     # Clean-up
@@ -579,17 +584,13 @@ dialog_prompt_username_password()
 {
     local default_title="\nPlease provide login information.\n"
     $(opt_parse \
-        "+global   g             | Emit global variables instead of local ones."                                       \
-        "+export   e             | Emit exported variables instead of local ones."                                     \
+        "+declare=1              | Declare variables before assigning to them. This is almost always required unless the
+                                   caller has already declared the variables before calling into dialog_prompt and
+                                   disires to simly reuse the existing variables."                                     \
         "+optional o             | If true, the username and password are optional. In this case the user will be
                                    allowed to exit the dialog menu without providing username and passwords. Otherwise
                                    it will sit in a loop until the user provides both values."                         \
         ":title=${default_title} | Title to put at the top of the dialog box.")
-
-    # Determine flags to pass into declare
-    local declare_flags=""
-    [[ ${global} -eq 1 ]] && declare_flags="-g"
-    [[ ${export} -eq 1 ]] && declare_flags="-gx"
 
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     #
@@ -631,9 +632,12 @@ dialog_prompt_username_password()
         #
         # In particular, passwords that begin with '$' cause bash to evaluate the password as a variable name (and
         # it would usually fail with a complaint that the varialbe was unbound).
-        echo "eval declare ${declare_flags} username password; "
+        if [[ "${declare}" -eq 1 ]]; then
+            echo "eval declare username password; "
+        fi
         echo "eval username=$(printf %q "${username}"); "
         echo "eval password=$(printf \'%q\' "${password}"); "
+
         return 0
     done
 }
