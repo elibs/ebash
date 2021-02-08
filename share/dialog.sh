@@ -801,8 +801,6 @@ __dialog_select_list()
         return 0
     fi
 
-    opt_dump | edebug
-
     # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
     echo eval
 
