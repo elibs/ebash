@@ -37,18 +37,116 @@ dialog_load()
     EBASH_KEY_ENTER=$'\n'
     EBASH_KEY_BACKSPACE=$'\b'
     EBASH_KEY_DELETE=$'\e[3~'
+    EBASH_KEY_SPACE=$' '
 
     # Key sequence when we're done with dialog_prompt and want to hit "OK"
     EBASH_KEY_DONE="${EBASH_KEY_TAB}${EBASH_KEY_ENTER}"
 }
 
-# Create an alias to wrap calls to dialog through our tryrc idiom. This is necessary for a couple of reasons. First
-# dialog returns non-zero for lots of not-fatal reasons. We don't want callers to throw fatal errors when that happens.
-# Intead they should inspect the error codes and output and take action accordingly. Secondly, we need to capture the
-# stdout from dialog and then parse it accordingly. Using the tryrc idiom addresses these issues by capturing the
-# return code into 'dialog_rc' and the output into 'dialog_output' for subsequent inspection and parsing.
-alias dialog='tryrc --stdout=dialog_output --rc=dialog_rc command dialog --stdout --no-mouse'
 dialog_load
+
+opt_usage dialog <<'END'
+This is a generic wrapper around dialog which adds --hide and --trace functionality across the board so that we don't
+have to implement wrappers for every widget. Moreover, it also deals with dialog behavior of returning non-zero for lots
+of not-fatal reasons. We don't want callers to throw fatal errors when that happens.  Intead they should inspect the
+error codes and output and take action accordingly. Secondly, we need to capture the stdout from dialog and then parse
+it accordingly. Using the tryrc idiom addresses these issues by capturing the return code into 'dialog_rc' and the
+output into 'dialog_output' for subsequent inspection and parsing.
+END
+dialog()
+{
+    # See if --hide or --trace was requested. Do not use opt_parse here since we only want to look for these two special
+    # meta flags that are ebash provided. The rest of the options and arguments need to be passed directly into dialog
+    # itself.
+    local hide=0 trace=0
+    for arg in "$@" ; do
+        if [[ "${arg}" == "--hide" ]]; then
+            hide=1
+            shift
+        elif [[ "${arg}" == "--trace" ]]; then
+            trace=1
+            shift
+        fi
+    done
+
+    # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
+    echo eval
+
+    # Create a temporary directory to contain some temporary files for communication with dialog. The creates an input
+    # file to feed input to dialog, and output file to read its output. The mechanism we use in this function to drive
+    # dialog essentially spawns dialog as a separate background process reading and writing to these temporary files.
+    # We then retain foreground control so that we can drive dialog and control its behavior a little better.
+    local input_fd=0 output_fd=0 tmp=""
+    tmp=$(mktemp --tmpdir --directory ebash-dialog-XXXXXX)
+    trap_add "rm --recursive --force \"${tmp}\""
+    local input_file="${tmp}/input"
+    local output_file="${tmp}/output"
+    mkfifo "${input_file}"
+    exec {input_fd}<>${input_file}
+    exec {output_fd}<>${output_file}
+    local dialog_pid=0 dialog_rc=0
+
+    # Setup array of static arguments to pass through to dialog.
+    local dialog_args=(
+        --no-mouse
+        --input-fd ${input_fd}
+        --output-fd ${output_fd}
+    )
+
+    # Optionally append trace and help arguments
+    [[ ${trace} -eq 1 ]] && dialog_args+=( --trace "$(fd_path)/2" )
+
+    # Where should the ncurses output go to?
+    local ncurses_out
+    ncurses_out="$(fd_path)/2"
+    if [[ ${hide} -eq 1 ]]; then
+        ncurses_out="/dev/null"
+    fi
+
+    echo "" > "${output_file}"
+
+    # Spawn a background dialog process to react to the key presses and other metadata keys we'll feed it through
+    # the input file descriptor.
+    (
+        __EBASH_INSIDE_TRY=1
+        disable_die_parent
+        command dialog --colors "${dialog_args[@]}" "${@}"
+    ) >${ncurses_out} &
+
+    # While the above process is still running, read characters from stdin and essentially echo them into dialog
+    # input file descriptor. But magically insert necessary ENTER keys so that focus will automatically enter the
+    # input fiels and automatically exit the input fields when arrow keys or tab are pressed.
+    dialog_pid=$!
+    edebug "Spawned $(lval dialog_pid)"
+    trap_add dialog_kill
+
+    local char="" focus=0
+    while process_running ${dialog_pid} && $(dialog_read char); do
+        echo -n "${char}" > "${input_file}"
+    done
+
+    # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
+    # If it exited for any non-dialog reason then we need to abort as something unexpected happened.
+    wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
+    if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
+        dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
+        return ${dialog_rc}
+    fi
+
+    # Output
+    local dialog_output=""
+    dialog_output="$(string_trim "$(tr -d '\0' < ${output_file})")"
+    edebug "Dialog exited $(lval dialog_rc dialog_output)"
+    echo "eval declare dialog_rc=${dialog_rc}; "
+    echo "eval declare dialog_output=${dialog_output}; "
+
+    if [[ ${dialog_rc} == ${DIALOG_CANCEL} ]]; then
+        return 0
+    fi
+
+    # Clean-up
+    rm --recursive --force "${tmp}"
+}
 
 opt_usage dialog_info <<'END'
 Helper function to make it easier to display simple information boxes inside dialog. This is similar in purpose and
@@ -141,6 +239,24 @@ dialog_read()
     value="$(printf "%q" "${char}")"
     echo "eval declare ${output}=${value}; "
     return 0
+}
+
+# Helper function to provide a consistent and safe way to kill dialog subprocess that we spawn.
+dialog_kill()
+{
+    if [[ -n "${dialog_pid:-}" ]]; then
+        edebug "Killing $(lval dialog_pid)"
+        ekilltree -k=0.25s ${dialog_pid}
+        wait ${dialog_pid} &>/dev/null || true
+    fi
+}
+
+# Helper function to cancel the dialog process that we spawned in a consistent reusable way.
+dialog_cancel()
+{
+    dialog_kill
+    dialog_error "Operation canceled."
+    echo "eval return ${DIALOG_CANCEL};"
 }
 
 opt_usage dialog_prompt <<'END'
@@ -275,7 +391,7 @@ dialog_prompt()
     # on an input field and start typing. Similarly, we automatically exit the input field when the user tries to arrow
     # up or down or tab out of the field.
     local input_fd=0 output_fd=0 tmp=""
-    tmp=$(mktemp --tmpdir --directory eprompt-dialog-XXXXXX)
+    tmp=$(mktemp --tmpdir --directory ebash-dialog-XXXXXX)
     trap_add "rm --recursive --force \"${tmp}\""
     local input_file="${tmp}/input"
     local output_file="${tmp}/output"
@@ -362,7 +478,7 @@ dialog_prompt()
         (
             __EBASH_INSIDE_TRY=1
             disable_die_parent
-            DIALOGRC=${dlgrc} command dialog --colors   \
+            command dialog --colors                     \
                 --default-button    "${default_button}" \
                 --default-item      "${default_item}"   \
                 "${dialog_args[@]}" "${fields_opt[@]}"
@@ -373,25 +489,7 @@ dialog_prompt()
         # input fiels and automatically exit the input fields when arrow keys or tab are pressed.
         dialog_pid=$!
         edebug "Spawned $(lval dialog_pid)"
-
-        # Helper function to provide a consistent and safe way to kill dialog subprocess that we spawn.
-        dialog_kill()
-        {
-            if [[ -n "${dialog_pid:-}" ]]; then
-                edebug "Killing $(lval dialog_pid)"
-                ekilltree -k=0.25s ${dialog_pid}
-                wait ${dialog_pid} &>/dev/null || true
-            fi
-        }
         trap_add dialog_kill
-
-        # Helper function to cancel the dialog process that we spawned in a consistent reusable way.
-        dialog_cancel()
-        {
-            dialog_kill
-            dialog_error "Operation canceled."
-            echo "eval return ${DIALOG_CANCEL};"
-        }
 
         local char="" focus=0
         while process_running ${dialog_pid} && $(dialog_read char); do
@@ -661,4 +759,214 @@ dialog_prompt_username_password_UI()
             "Username"         1 1 "${username}" 1 20 20 0 0 \
             "Password"         2 1 "${password}" 2 20 20 0 1 \
             "Confirm Password" 3 1 "${password}" 3 20 20 0 1
+}
+
+opt_usage __dialog_select_list <<'END'
+__dialog_select_list is an internal helper function for implementation of a wrapper around "dialog --checklist" and
+"dialog --radiolist" and potentially others in the future which have identical API.
+
+This helper function provides a very simpliist interface around these lower level widgets by simplying operating on an
+array variable. Instead of taking in raw strings and worrying about quoting and escaping this simply takes in the
+__name__ of an array and then directly operates on it. Each entry in the widget is composed of the first three elements
+in the array. So, typically you would format the array as follows:
+
+array=()
+array+=( tag "item text with spaces" status )
+
+WHere "status" is either "on" or "off"
+
+Each 3-tuple in the array will be parsed and presented in either a checklist or radiolist depending on --style passed
+in. At the end, the output is parsed to determine which ones were selected and the input array is updated for the
+caller. With the --delete flag (on by default) it will delete anything in the array which was not selected. If this flag
+is not used, then the caller can manually look at the "status" field in each array element to see if it is "on" or
+"off".
+
+dialog_checklist tries to intelligently auto detect the geometry of the window but the caller is always allowed to
+override this with --geometry option.
+END
+__dialog_select_list()
+{
+    local default_title="\nPlease select one or more of the following:\n"
+    $(opt_parse \
+        "=style                  | Style (checklist or radiobox)."                                                     \
+        ":title=${default_title} | String to display as the top of the dialog box."                                    \
+        ":backtitle              | Text to display on backdrop at top left of the screen."                             \
+        ":geometry               | Geometry of the box (HEIGHTxWIDTHxLIST-HEIGHT)."                                    \
+        "+hide                   | Hide ncurses output from screen (useful for testing)."                              \
+        "+trace                  | If enabled, enable extensive dialog debugging to stderr."                           \
+        "+delete=1               | Delete all non-selected fields from the array."                                     \
+        "__array                 | Name of the array to use for input and output.")
+
+    if array_empty ${__array}; then
+        return 0
+    fi
+
+    # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
+    echo eval
+
+    # Compute reasonable geometry if one wasn't explicitly requested by the caller.
+    geometry=${geometry//x/ }
+    if [[ -z ${geometry} ]]; then
+        geometry="0 0 0"
+    fi
+
+    # Create a temporary directory to contain some temporary files for communication with dialog. The creates an input
+    # file to feed input to dialog, and output file to read its output. The mechanism we use in this function to drive
+    # dialog essentially spawns dialog as a separate background process reading and writing to these temporary files.
+    # We then retain foreground control so that we can drive dialog and control its behavior a little better.
+    local input_fd=0 output_fd=0 tmp=""
+    tmp=$(mktemp --tmpdir --directory ebash-dialog-XXXXXX)
+    trap_add "rm --recursive --force \"${tmp}\""
+    local input_file="${tmp}/input"
+    local output_file="${tmp}/output"
+    mkfifo "${input_file}"
+    exec {input_fd}<>${input_file}
+    exec {output_fd}<>${output_file}
+    local dialog_pid=0 dialog_rc=0
+
+    # Setup array of static arguments to pass through to dialog.
+    local dialog_args=(
+        --no-mouse
+        --input-fd ${input_fd}
+        --output-fd ${output_fd}
+        --backtitle "${backtitle}"
+    )
+
+    # Optionally append trace and help arguments
+    [[ ${trace} -eq 1 ]] && dialog_args+=( --trace "$(fd_path)/2" )
+
+    # Append final static flags
+    dialog_args+=( --${style} "${title}" ${geometry} )
+
+    # Where should the ncurses output go to?
+    local ncurses_out
+    ncurses_out="$(fd_path)/2"
+    if [[ ${hide} -eq 1 ]]; then
+        ncurses_out="/dev/null"
+    fi
+
+    echo "" > "${output_file}"
+
+    # Spawn a background dialog process to react to the key presses and other metadata keys we'll feed it through
+    # the input file descriptor.
+    (
+        __EBASH_INSIDE_TRY=1
+        disable_die_parent
+        eval "columns=( \"\${$__array[@]}\" )"
+        command dialog --colors "${dialog_args[@]}" "${columns[@]}"
+    ) >${ncurses_out} &
+
+    # While the above process is still running, read characters from stdin and essentially echo them into dialog
+    # input file descriptor. But magically insert necessary ENTER keys so that focus will automatically enter the
+    # input fiels and automatically exit the input fields when arrow keys or tab are pressed.
+    dialog_pid=$!
+    edebug "Spawned $(lval dialog_pid)"
+    trap_add dialog_kill
+
+    local char="" focus=0
+    while process_running ${dialog_pid} && $(dialog_read char); do
+        echo -n "${char}" > "${input_file}"
+    done
+
+    # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
+    # If it exited for any non-dialog reason then we need to abort as something unexpected happened.
+    wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
+    if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
+        dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
+        return ${dialog_rc}
+    fi
+
+    local dialog_output=""
+    dialog_output="$(string_trim "$(tr -d '\0' < ${output_file})")"
+    edebug "Dialog exited $(lval dialog_rc dialog_output)"
+
+    if [[ ${dialog_rc} == ${DIALOG_CANCEL} ]]; then
+        return 0
+    fi
+
+    # Figure out which rows were selected.
+    local selected
+    array_init selected "${dialog_output}"
+    echo "eval declare dialog_rc=${dialog_rc}; "
+
+    # Delete any entries from the array that were not selected.
+    local idx tag
+    for (( idx=0; idx < $(array_size ${__array}); idx += 3 )); do
+
+        eval "local tag=\${${__array}[$idx]}"
+
+        if [[ ${delete} -eq 1 ]]; then
+            if ! array_contains selected "${tag}"; then
+                edebug "Removing $(lval idx tag)"
+                echo "eval unset ${__array}[${idx}]; "
+                echo "eval unset ${__array}[$(( idx + 1 ))]; "
+                echo "eval unset ${__array}[$(( idx + 2 ))]; "
+            else
+                edebug "Updating $(lval idx tag) to ON"
+                echo "eval ${__array}[$(( idx + 2 ))]=on; "
+            fi
+        elif [[ ${delete} -eq 0 ]]; then
+            if ! array_contains selected "${tag}"; then
+                edebug "Updating $(lval idx tag) to OFF"
+                echo "eval ${__array}[$(( idx + 2 ))]=off; "
+            else
+                edebug "Updating $(lval idx tag) to ON"
+                echo "eval ${__array}[$(( idx + 2 ))]=on; "
+            fi
+        fi
+    done
+
+    # Clean-up
+    rm --recursive --force "${tmp}"
+}
+
+opt_usage dialog_checklist <<'END'
+dialog_checklist provides a very simple interface around the dialog checklist widget by simplying operating on an array
+variable. Instead of taking in raw strings and worrying about quoting and escaping this simply takes in the __name__ of
+an array and then directly operates on it. Each entry in the widget is composed of the first three elements in the
+array. So, typically you would format the array as follows:
+
+array=()
+array+=( tag "item text with spaces" status )
+
+WHere "status" is either "on" or "off"
+
+Each 3-tuple in the array will be parsed and presented in a checklist widget. At the end, the output is parsed to
+determine which ones were selected and the input array is updated for the caller. With the --delete flag (on by default)
+it will delete anything in the array which was not selected. If this flag is not used, then the caller can manually look
+at the "status" field in each array element to see if it is "on" or "off".
+
+dialog_checklist tries to intelligently auto detect the geometry of the window but the caller is always allowed to
+override this with --geometry option.
+END
+dialog_checklist()
+{
+    __dialog_select_list --style="checklist" "${@}"
+}
+
+opt_usage dialog_radiolist <<'END'
+dialog_radiolist provides a very simple interface around the dialog radiolist widget by simplying operating on an array
+variable. Instead of taking in raw strings and worrying about quoting and escaping this simply takes in the __name__ of
+an array and then directly operates on it. Each entry in the widget is composed of the first three elements in the
+array. So, typically you would format the array as follows:
+
+array=()
+array+=( tag "item text with spaces" status )
+
+WHere "status" is either "on" or "off"
+
+Each 3-tuple in the array will be parsed and presented in a radiolist widget. At the end, the output is parsed to
+determine which ones were selected and the input array is updated for the caller. With the --delete flag (on by default)
+it will delete anything in the array which was not selected. If this flag is not used, then the caller can manually look
+at the "status" field in each array element to see if it is "on" or "off".
+
+dialog_radiolist tries to intelligently auto detect the geometry of the window but the caller is always allowed to
+override this with --geometry option.
+
+NOTE: A radiolist is almost identical to a checklist only the radiolist only allows a single element to be selected
+whereas a checklist allows multiple rows to be selected.
+END
+dialog_radiolist()
+{
+    __dialog_select_list --style="radiolist" "${@}"
 }
