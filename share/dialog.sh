@@ -43,13 +43,110 @@ dialog_load()
     EBASH_KEY_DONE="${EBASH_KEY_TAB}${EBASH_KEY_ENTER}"
 }
 
-# Create an alias to wrap calls to dialog through our tryrc idiom. This is necessary for a couple of reasons. First
-# dialog returns non-zero for lots of not-fatal reasons. We don't want callers to throw fatal errors when that happens.
-# Intead they should inspect the error codes and output and take action accordingly. Secondly, we need to capture the
-# stdout from dialog and then parse it accordingly. Using the tryrc idiom addresses these issues by capturing the
-# return code into 'dialog_rc' and the output into 'dialog_output' for subsequent inspection and parsing.
-alias dialog='tryrc --stdout=dialog_output --rc=dialog_rc command dialog --stdout --no-mouse'
 dialog_load
+
+opt_usage dialog <<'END'
+This is a generic wrapper around dialog which adds --hide and --trace functionality across the board so that we don't
+have to implement wrappers for every widget. Moreover, it also deals with dialog behavior of returning non-zero for lots
+of not-fatal reasons. We don't want callers to throw fatal errors when that happens.  Intead they should inspect the
+error codes and output and take action accordingly. Secondly, we need to capture the stdout from dialog and then parse
+it accordingly. Using the tryrc idiom addresses these issues by capturing the return code into 'dialog_rc' and the
+output into 'dialog_output' for subsequent inspection and parsing.
+END
+dialog()
+{
+    # See if --hide or --trace was requested. Do not use opt_parse here since we only want to look for these two special
+    # meta flags that are ebash provided. The rest of the options and arguments need to be passed directly into dialog
+    # itself.
+    local hide=0 trace=0
+    for arg in "$@" ; do
+        if [[ "${arg}" == "--hide" ]]; then
+            hide=1
+            shift
+        elif [[ "${arg}" == "--trace" ]]; then
+            trace=1
+            shift
+        fi
+    done
+
+    # We're creating an "eval command string" inside the command substitution the caller wraps around dialog_prompt.
+    echo eval
+
+    # Create a temporary directory to contain some temporary files for communication with dialog. The creates an input
+    # file to feed input to dialog, and output file to read its output. The mechanism we use in this function to drive
+    # dialog essentially spawns dialog as a separate background process reading and writing to these temporary files.
+    # We then retain foreground control so that we can drive dialog and control its behavior a little better.
+    local input_fd=0 output_fd=0 tmp=""
+    tmp=$(mktemp --tmpdir --directory ebash-dialog-XXXXXX)
+    trap_add "rm --recursive --force \"${tmp}\""
+    local input_file="${tmp}/input"
+    local output_file="${tmp}/output"
+    mkfifo "${input_file}"
+    exec {input_fd}<>${input_file}
+    exec {output_fd}<>${output_file}
+    local dialog_pid=0 dialog_rc=0
+
+    # Setup array of static arguments to pass through to dialog.
+    local dialog_args=(
+        --no-mouse
+        --input-fd ${input_fd}
+        --output-fd ${output_fd}
+    )
+
+    # Optionally append trace and help arguments
+    [[ ${trace} -eq 1 ]] && dialog_args+=( --trace "$(fd_path)/2" )
+
+    # Where should the ncurses output go to?
+    local ncurses_out
+    ncurses_out="$(fd_path)/2"
+    if [[ ${hide} -eq 1 ]]; then
+        ncurses_out="/dev/null"
+    fi
+
+    echo "" > "${output_file}"
+
+    # Spawn a background dialog process to react to the key presses and other metadata keys we'll feed it through
+    # the input file descriptor.
+    (
+        __EBASH_INSIDE_TRY=1
+        disable_die_parent
+        command dialog --colors "${dialog_args[@]}" "${@}"
+    ) >${ncurses_out} &
+
+    # While the above process is still running, read characters from stdin and essentially echo them into dialog
+    # input file descriptor. But magically insert necessary ENTER keys so that focus will automatically enter the
+    # input fiels and automatically exit the input fields when arrow keys or tab are pressed.
+    dialog_pid=$!
+    edebug "Spawned $(lval dialog_pid)"
+    trap_add dialog_kill
+
+    local char="" focus=0
+    while process_running ${dialog_pid} && $(dialog_read char); do
+        echo -n "${char}" > "${input_file}"
+    done
+
+    # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
+    # If it exited for any non-dialog reason then we need to abort as something unexpected happened.
+    wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
+    if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
+        dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
+        return ${dialog_rc}
+    fi
+
+    # Output
+    local dialog_output=""
+    dialog_output="$(string_trim "$(tr -d '\0' < ${output_file})")"
+    edebug "Dialog exited $(lval dialog_rc dialog_output)"
+    echo "eval declare dialog_rc=${dialog_rc}; "
+    echo "eval declare dialog_output=${dialog_output}; "
+
+    if [[ ${dialog_rc} == ${DIALOG_CANCEL} ]]; then
+        return 0
+    fi
+
+    # Clean-up
+    rm --recursive --force "${tmp}"
+}
 
 opt_usage dialog_info <<'END'
 Helper function to make it easier to display simple information boxes inside dialog. This is similar in purpose and
@@ -724,7 +821,6 @@ __dialog_select_list()
     trap_add "rm --recursive --force \"${tmp}\""
     local input_file="${tmp}/input"
     local output_file="${tmp}/output"
-    local dlgrc="${tmp}/dlgrc"
     mkfifo "${input_file}"
     exec {input_fd}<>${input_file}
     exec {output_fd}<>${output_file}
