@@ -34,17 +34,17 @@ combinations:
 
 | OS    | Disto  | Version |
 | ----- | -------| ------- |
-| Linux | Alpine | 3.11    |
+| Linux | Alpine | 3.13    |
 | Linux | Alpine | 3.12    |
 | Linux | Arch   | rolling |
-| Linux | CentOS | 7       |
 | Linux | CentOS | 8       |
+| Linux | CentOS | 7       |
 | Linux | Debian | 10      |
 | Linux | Debian | 9       |
-| Linux | Fedora | 32      |
 | Linux | Fedora | 33      |
+| Linux | Fedora | 32      |
 | Linux | Gentoo | rolling |
-| Linux | Ubuntu | 16.04   |
+| Linux | Ubuntu | 20.04   |
 | Linux | Ubuntu | 18.04   |
 | MacOS | N/A    |  11.0   |
 | MacOS | N/A    | 10.15   |
