@@ -78,21 +78,44 @@ ETEST_dialog_read_term()
 }
 
 # Setup flags we want to use for all these tests
-DIALOG_PROMPT="dialog_prompt --hide --trace"
+dialog_options="--hide --trace"
+
+ETEST_dialog_yesno_yes()
+{
+    local input=(
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(dialog ${dialog_options} --yesno "Would you like another" 5 30 < <(printf "%s" "${input[@]/#/}"))
+    assert_empty "${dialog_output}"
+    assert_eq "${DIALOG_OK}" "${dialog_rc}"
+}
+
+ETEST_dialog_yesno_no()
+{
+    local input=(
+        "${EBASH_KEY_RIGHT}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(dialog ${dialog_options} --yesno "Would you like another" 5 30 < <(printf "%s" "${input[@]/#/}"))
+    assert_empty "${dialog_output}"
+    assert_eq "${DIALOG_CANCEL}" "${dialog_rc}"
+}
 
 # Global variable to ensure we can set this using non-declare option
 non_declared_username=""
 ETEST_dialog_prompt_no_declare()
 {
     local input="Mando${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} --no-declare non_declared_username)
+    $(printf "${input}" | dialog_prompt ${dialog_options} --no-declare non_declared_username)
     assert_eq "Mando" "${non_declared_username}"
 }
 
 ETEST_dialog_prompt_single()
 {
     local input="Locke${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} philo1)
+    $(printf "${input}" | dialog_prompt ${dialog_options} philo1)
     assert_eq "Locke" "${philo1}"
 }
 
@@ -100,7 +123,7 @@ ETEST_dialog_prompt_single()
 ETEST_dialog_prompt_pretty_print_fields()
 {
     local input="192.168.0.1${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} ip_address ?user_name ?user_password 2> output)
+    $(printf "${input}" | dialog_prompt ${dialog_options} ip_address ?user_name ?user_password 2> output)
     grep "Ip Address"    output
     grep "User Name"     output
     grep "User Password" output
@@ -110,7 +133,7 @@ ETEST_dialog_prompt_pretty_print_fields()
 ETEST_dialog_prompt_transform()
 {
     local input="192.168.0.1${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} --transform "s|Ip|IP|g" --transform "s|Usb|USB|g" ip_address ?usb_device 2> output || true)
+    $(printf "${input}" | dialog_prompt ${dialog_options} --transform "s|Ip|IP|g" --transform "s|Usb|USB|g" ip_address ?usb_device 2> output || true)
     grep "IP Address" output
     grep "USB Device" output
 }
@@ -120,7 +143,7 @@ ETEST_dialog_prompt_transform()
 ETEST_dialog_prompt_multi()
 {
     local input="Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2)
+    $(printf "${input}" | dialog_prompt ${dialog_options} philo1 philo2)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
 }
@@ -128,7 +151,7 @@ ETEST_dialog_prompt_multi()
 ETEST_dialog_prompt_multi_spaces()
 {
     local input="Locke${EBASH_KEY_DOWN}Thomas Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2)
+    $(printf "${input}" | dialog_prompt ${dialog_options} philo1 philo2)
     assert_eq "Locke"         "${philo1}"
     assert_eq "Thomas Hobbes" "${philo2}"
 }
@@ -136,7 +159,7 @@ ETEST_dialog_prompt_multi_spaces()
 ETEST_dialog_prompt_optional()
 {
     local input="${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} ?field1)
+    $(printf "${input}" | dialog_prompt ${dialog_options} ?field1)
     assert_empty "${field1}"
 }
 
@@ -144,7 +167,7 @@ ETEST_dialog_prompt_optional_multi_first()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="${EBASH_KEY_DOWN}Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} ?philo1 philo2 philo3)
+    $(printf "${input}" | dialog_prompt ${dialog_options} ?philo1 philo2 philo3)
     assert_empty       "${philo1}"
     assert_eq "Locke"  "${philo2}"
     assert_eq "Hobbes" "${philo3}"
@@ -154,7 +177,7 @@ ETEST_dialog_prompt_optional_multi_middle()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="Locke${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} philo1 ?philo2 philo3)
+    $(printf "${input}" | dialog_prompt ${dialog_options} philo1 ?philo2 philo3)
     assert_eq "Locke"  "${philo1}"
     assert_empty       "${philo2}"
     assert_eq "Hobbes" "${philo3}"
@@ -164,7 +187,7 @@ ETEST_dialog_prompt_optional_multi_last()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_UP}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} philo1 philo2 ?philo3)
+    $(printf "${input}" | dialog_prompt ${dialog_options} philo1 philo2 ?philo3)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
     assert_empty       "${philo3}"
@@ -173,7 +196,7 @@ ETEST_dialog_prompt_optional_multi_last()
 ETEST_dialog_prompt_move_without_edit()
 {
     local input="${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_UP}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} ?philo1 ?philo2 ?philo3)
+    $(printf "${input}" | dialog_prompt ${dialog_options} ?philo1 ?philo2 ?philo3)
     assert_empty "${philo1}"
     assert_empty "${philo2}"
     assert_empty "${philo3}"
@@ -182,7 +205,7 @@ ETEST_dialog_prompt_move_without_edit()
 ETEST_dialog_prompt_default_values()
 {
     local input="${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=John Locke" "?philo2=Kant" "?philo3=John Stuart Mill")
+    $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=John Locke" "?philo2=Kant" "?philo3=John Stuart Mill")
     assert_eq "John Locke"       "${philo1}"
     assert_eq "Kant"             "${philo2}"
     assert_eq "John Stuart Mill" "${philo3}"
@@ -202,7 +225,7 @@ ETEST_dialog_prompt_default_values_override()
         "${EBASH_KEY_ENTER}"
     )
 
-    $(printf %s "${input[@]/#/}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
+    $(printf %s "${input[@]/#/}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
     assert_eq "John Rawls"       "${philo3}"
@@ -212,7 +235,7 @@ ETEST_dialog_prompt_default_values_override_tab()
 {
     # Since we intend to overwrite the existing values we need to delete the keys already present.
     local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
+    $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
     assert_eq "John Rawls"       "${philo3}"
@@ -225,7 +248,7 @@ ETEST_dialog_prompt_default_values_override_term()
 
     # Since we intend to overwrite the existing values we need to delete the keys already present.
     local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
-    $(printf "${input}" | ${DIALOG_PROMPT} "?philo1=A" "?philo2=Kant" "?philo3=_")
+    $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
     assert_eq "John Rawls"       "${philo3}"
@@ -249,7 +272,7 @@ ETEST_dialog_prompt_navigation()
         "${EBASH_KEY_ENTER}"
     )
 
-    $(printf %s "${input[@]/#/}" | ${DIALOG_PROMPT} "name1" "name2" "?name3")
+    $(printf %s "${input[@]/#/}" | dialog_prompt ${dialog_options} "name1" "name2" "?name3")
 
     assert_eq "Linus Torvalds" "${name1}"
     assert_eq "Tove Torvalds" "${name2}"
@@ -286,7 +309,7 @@ ETEST_dialog_prompt_navigation_with_delete()
         "${EBASH_KEY_ENTER}"
     )
 
-    $(printf %s "${input[@]/#/}" | ${DIALOG_PROMPT} "hostname" "ip")
+    $(printf %s "${input[@]/#/}" | dialog_prompt ${dialog_options} "hostname" "ip")
 
     assert_eq "${expect[hostname]}" "${hostname}"
     assert_eq "${expect[ip]}"       "${ip}"
@@ -297,7 +320,7 @@ ETEST_dialog_prompt_escape()
 {
     try
     {
-        $(disable_die_parent; printf "${EBASH_KEY_ESC}" | ${DIALOG_PROMPT} ?philo1 ?philo2 ?philo3)
+        $(disable_die_parent; printf "${EBASH_KEY_ESC}" | dialog_prompt ${dialog_options} ?philo1 ?philo2 ?philo3)
 
         # The above code should have exitted with DIALOG_CANCEL(1). We're going to check for that in the catch block
         # specifically. If we got here, then something went wrong. So we'll exit with a different value (it doesn't
@@ -317,7 +340,7 @@ ETEST_dialog_prompt_escape_during_input()
 
     try
     {
-        $(disable_die_parent; printf "${input}" | ${DIALOG_PROMPT} ?philo1 ?philo2 ?philo3)
+        $(disable_die_parent; printf "${input}" | dialog_prompt ${dialog_options} ?philo1 ?philo2 ?philo3)
 
         # The above code should have exitted with DIALOG_CANCEL(1). We're going to check for that in the catch block
         # specifically. If we got here, then something went wrong. So we'll exit with a different value (it doesn't
@@ -344,7 +367,7 @@ ETEST_dialog_prompt_invalid_characters()
     local field
     for field in "${fields[@]}"; do
         einfos "$(lval field)"
-        $(tryrc --stdout=ignore --stderr=ignore ${DIALOG_PROMPT} "${field}")
+        $(tryrc --stdout=ignore --stderr=ignore dialog_prompt ${dialog_options} "${field}")
         assert_eq 1 ${rc}
     done
 }
@@ -368,7 +391,7 @@ ETEST_dialog_prompt_invalid_input()
     etestmsg "Testing with invalid characters in user input (these characters should not show up in final values)"
     local input
     for input in "${inputs[@]}"; do
-        $(printf "${input}${EBASH_KEY_ENTER}${EBASH_KEY_DONE}" | ${DIALOG_PROMPT} badstuff)
+        $(printf "${input}${EBASH_KEY_ENTER}${EBASH_KEY_DONE}" | dialog_prompt ${dialog_options} badstuff)
         assert_eq "badstuff" "${badstuff}"
     done
 }
@@ -477,4 +500,272 @@ ETEST_dialog_prompt_username_password_003_special_characters()
     $(dialog_prompt_username_password)
     assert_eq "solidfir3" "${username}" "Password state test returned \"${username}\""
     assert_eq "\$pswd" "${password}" "Got invalid password \"${password}\""
+}
+
+ETEST_dialog_checklist()
+{
+    local kids=(
+        0 "Calvin" off
+        1 "Hobbes" off
+        2 "Susie"  off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_checklist ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 9 $(array_size kids)
+}
+
+ETEST_dialog_checklist_none()
+{
+    local kids=(
+        0 "Calvin" off
+        1 "Hobbes" off
+        2 "Susie"  off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_checklist ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 0 $(array_size kids)
+}
+
+ETEST_dialog_checklist_none_no_delete()
+{
+    local kids=(
+        0 "Calvin" off
+        1 "Hobbes" off
+        2 "Susie"  off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_checklist --no-delete ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 9 $(array_size kids)
+    assert_eq 0        "${kids[0]}"
+    assert_eq "Calvin" "${kids[1]}"
+    assert_eq "off"    "${kids[2]}"
+
+    assert_eq "1"      "${kids[3]}"
+    assert_eq "Hobbes" "${kids[4]}"
+    assert_eq "off"    "${kids[5]}"
+
+    assert_eq "2"      "${kids[6]}"
+    assert_eq "Susie"  "${kids[7]}"
+    assert_eq "off"    "${kids[8]}"
+}
+
+ETEST_dialog_checklist_middle()
+{
+    local kids=(
+        0 "Calvin" off
+        1 "Hobbes" off
+        2 "Susie"  off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_checklist ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 3 $(array_size kids)
+    assert_eq 1        "${kids[3]}"
+    assert_eq "Hobbes" "${kids[4]}"
+    assert_eq "on"     "${kids[5]}"
+}
+
+ETEST_dialog_checklist_spaces()
+{
+    local kids=(
+        0 "Calvin Watterson" off
+        1 "Hobbes Watterson" off
+        2 "Susie Derkins"    off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_checklist ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 3 $(array_size kids)
+    assert_eq 1                  "${kids[3]}"
+    assert_eq "Hobbes Watterson" "${kids[4]}"
+    assert_eq "on"               "${kids[5]}"
+}
+
+ETEST_dialog_radiolist()
+{
+    local kids=(
+        0 "Calvin" off
+        1 "Hobbes" off
+        2 "Susie"  off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_radiolist ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    # LAST ONE WINS in a radiolist so other rows should be deleted
+    declare -p kids
+    assert_eq 3 $(array_size kids)
+    assert_eq "2"     "${kids[6]}"
+    assert_eq "Susie" "${kids[7]}"
+    assert_eq "on"    "${kids[8]}"
+}
+
+ETEST_dialog_radiolist_none()
+{
+    local kids=(
+        0 "Calvin" off
+        1 "Hobbes" off
+        2 "Susie"  off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_radiolist ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 0 $(array_size kids)
+}
+
+ETEST_dialog_radiolist_none_no_delete()
+{
+    local kids=(
+        0 "Calvin" off
+        1 "Hobbes" off
+        2 "Susie"  off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_radiolist --no-delete ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 9 $(array_size kids)
+    assert_eq 0        "${kids[0]}"
+    assert_eq "Calvin" "${kids[1]}"
+    assert_eq "off"    "${kids[2]}"
+
+    assert_eq "1"      "${kids[3]}"
+    assert_eq "Hobbes" "${kids[4]}"
+    assert_eq "off"    "${kids[5]}"
+
+    assert_eq "2"      "${kids[6]}"
+    assert_eq "Susie"  "${kids[7]}"
+    assert_eq "off"    "${kids[8]}"
+}
+
+ETEST_dialog_radiolist_middle()
+{
+    local kids=(
+        0 "Calvin" off
+        1 "Hobbes" off
+        2 "Susie"  off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_radiolist ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 3 $(array_size kids)
+    assert_eq 1        "${kids[3]}"
+    assert_eq "Hobbes" "${kids[4]}"
+    assert_eq "on"     "${kids[5]}"
+}
+
+ETEST_dialog_radiolist_spaces()
+{
+    local kids=(
+        0 "Calvin Watterson" off
+        1 "Hobbes Watterson" off
+        2 "Susie Derkins"    off
+    )
+
+    assert_eq 9 $(array_size kids)
+
+    local input=(
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_SPACE}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf "%s" "${input[@]/#/}" | dialog_radiolist ${dialog_options} kids)
+    assert_eq 0 "${dialog_rc}"
+
+    declare -p kids
+    assert_eq 3 $(array_size kids)
+    assert_eq 1                  "${kids[3]}"
+    assert_eq "Hobbes Watterson" "${kids[4]}"
+    assert_eq "on"               "${kids[5]}"
 }

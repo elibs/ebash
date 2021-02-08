@@ -102,19 +102,19 @@ dshell-$1:
 
 endef
 
-DISTROS =			\
-	alpine:3.13		\
-	alpine:3.12		\
-	archlinux		\
-	centos:8		\
-	centos:7		\
-	debian:10		\
-	debian:9		\
-	fedora:33		\
-	fedora:32		\
-	gentoo/stage3	\
-	ubuntu:18.04	\
-	ubuntu:16.04	\
+DISTROS =           \
+	alpine:3.13     \
+	alpine:3.12     \
+	archlinux       \
+	centos:8        \
+	centos:7        \
+	debian:10       \
+	debian:9        \
+	fedora:33       \
+	fedora:32       \
+	gentoo/stage3   \
+	ubuntu:20.04    \
+	ubuntu:18.04    \
 
 $(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t})))
 
