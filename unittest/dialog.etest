@@ -80,6 +80,29 @@ ETEST_dialog_read_term()
 # Setup flags we want to use for all these tests
 dialog_options="--hide --trace"
 
+ETEST_dialog_yesno_yes()
+{
+    local input=(
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(dialog ${dialog_options} --yesno "Would you like another" 5 30 < <(printf "%s" "${input[@]/#/}"))
+    assert_empty "${dialog_output}"
+    assert_eq "${DIALOG_OK}" "${dialog_rc}"
+}
+
+ETEST_dialog_yesno_no()
+{
+    local input=(
+        "${EBASH_KEY_RIGHT}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(dialog ${dialog_options} --yesno "Would you like another" 5 30 < <(printf "%s" "${input[@]/#/}"))
+    assert_empty "${dialog_output}"
+    assert_eq "${DIALOG_CANCEL}" "${dialog_rc}"
+}
+
 # Global variable to ensure we can set this using non-declare option
 non_declared_username=""
 ETEST_dialog_prompt_no_declare()
