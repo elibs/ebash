@@ -138,7 +138,7 @@ dialog()
     dialog_output="$(string_trim "$(tr -d '\0' < ${output_file})")"
     edebug "Dialog exited $(lval dialog_rc dialog_output)"
     echo "eval declare dialog_rc=${dialog_rc}; "
-    echo "eval declare dialog_output=${dialog_output}; "
+    echo "eval declare dialog_output=$(printf \'%q\' "${dialog_output}"); "
 
     if [[ ${dialog_rc} == ${DIALOG_CANCEL} ]]; then
         return 0
