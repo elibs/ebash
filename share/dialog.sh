@@ -478,7 +478,7 @@ dialog_prompt()
         (
             __EBASH_INSIDE_TRY=1
             disable_die_parent
-            command dialog --colors                     \
+            DIALOGRC=${dlgrc} command dialog --colors   \
                 --default-button    "${default_button}" \
                 --default-item      "${default_item}"   \
                 "${dialog_args[@]}" "${fields_opt[@]}"
