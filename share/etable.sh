@@ -336,10 +336,7 @@ etable_values is a special-purpose wrapper around etable which makes it easier t
 of values and formats it into two columns, one showing the KEY and one showing the VALUE. For each variable, if it is a
 string or an array it will be expanded into the value as you'd expect. If the variable is an associative array or a
 pack, the keys and values will be unpacked and displayed in the KEY/VALUE columns in an exploded manner. This function
-relies on print_value() for pretty printing individual values. Specifically:
-
-    1) Strings: "value with spaces"
-    2) Arrays:  ("value with spaces" "Something" "1")
+relies on print_value() for pretty printing arrays.
 
 For example, if you passed in:
 
@@ -347,12 +344,12 @@ For example, if you passed in:
 
 This would produce
 
-    +------+------------------+
-    | Key  | Value            |
-    +------+------------------+
-    | HOME | "/home/marshall" |
-    | USER | "marshall"       |
-    +------+------------------+
+    +------+----------------+
+    | Key  | Value          |
+    +------+----------------+
+    | HOME | /home/marshall |
+    | USER | marshall       |
+    +------+----------------+
 
 If you have an associative array:
 
@@ -361,12 +358,24 @@ If you have an associative array:
 
 This would produce
 
-    +------+----------+
-    | Key  | Value    |
-    +------+----------+
-    | key1 | "value1" |
-    | key2 | "value2" |
-    +------+----------+
+    +------+--------+
+    | Key  | Value  |
+    +------+--------+
+    | key1 | value1 |
+    | key2 | value2 |
+    +------+--------+
+
+With a pack:
+
+    $ pack_set data key1="value1" key2="value2"
+    $ etable_values %data
+
+    +------+--------+
+    | Key  | Value  |
+    +------+--------+
+    | key1 | value1 |
+    | key2 | value2 |
+    +------+--------+
 
 Similar to ebanner there is an --uppercase and a --lowercase if you want to have all the keys in all uppercase or
 lowercase for consistency.
