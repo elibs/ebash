@@ -474,3 +474,155 @@ ETEST_etable_boxart_title_no_internal_lines_with_headers()
 
     diff --unified expect actual
 }
+
+ETEST_etable_values()
+{
+    KEY1="Value With Spaces 1"
+    KEY2="Value With Spaces 2"
+    etable_values KEY1 KEY2 > actual
+
+    cat actual
+
+    cat >expect <<-END
+	+------+---------------------+
+	| Key  | Value               |
+	+------+---------------------+
+	| KEY1 | Value With Spaces 1 |
+	| KEY2 | Value With Spaces 2 |
+	+------+---------------------+
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_values_columns()
+{
+    KEY1="Value With Spaces 1"
+    KEY2="Value With Spaces 2"
+    etable_values --columns "Parameter|Value" KEY1 KEY2 > actual
+
+    cat actual
+
+    cat >expect <<-END
+	+-----------+---------------------+
+	| Parameter | Value               |
+	+-----------+---------------------+
+	| KEY1      | Value With Spaces 1 |
+	| KEY2      | Value With Spaces 2 |
+	+-----------+---------------------+
+	END
+
+    diff --unified expect actual
+}
+
+
+ETEST_etable_values_associative_array()
+{
+    KEY1="Value With Spaces 1"
+    KEY2="Value With Spaces 2"
+    declare -A data=([dkey1]="Calvin and Hobbes" [dkey2]="Calvin and Suzie" [dkey3]="Fourty-Two")
+    etable_values --uppercase KEY1 KEY2 data > actual
+
+    cat actual
+
+    cat >expect <<-END
+	+-------+---------------------+
+	| Key   | Value               |
+	+-------+---------------------+
+	| DKEY1 | Calvin and Hobbes   |
+	| DKEY2 | Calvin and Suzie    |
+	| DKEY3 | Fourty-Two          |
+	| KEY1  | Value With Spaces 1 |
+	| KEY2  | Value With Spaces 2 |
+	+-------+---------------------+
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_values_associative_array_nosort()
+{
+    KEY1="Value With Spaces 1"
+    KEY2="Value With Spaces 2"
+    declare -A data=([dkey1]="Calvin and Hobbes" [dkey2]="Calvin and Suzie" [dkey3]="Fourty-Two")
+    app="foo"
+    etable_values --no-sort KEY1 KEY2 data app > actual
+
+    cat actual
+
+    cat >expect <<-END
+	+-------+---------------------+
+	| Key   | Value               |
+	+-------+---------------------+
+	| KEY1  | Value With Spaces 1 |
+	| KEY2  | Value With Spaces 2 |
+	| dkey1 | Calvin and Hobbes   |
+	| dkey2 | Calvin and Suzie    |
+	| dkey3 | Fourty-Two          |
+	| app   | foo                 |
+	+-------+---------------------+
+	END
+
+    diff --unified expect actual
+}
+
+
+ETEST_etable_values_array_pack()
+{
+    KEY1="Value With Spaces 1"
+    KEY2="Value With Spaces 2"
+    declare -A data=([dkey1]="Calvin and Hobbes" [dkey2]="Calvin and Suzie" [dkey3]="Fourty-Two")
+    declare -a values=("array #1" "array #2" "array #3")
+    pack_set pack FNAME="my-file.txt" SIZE="1024" MD5="86f52cf9433ced9f6e1619d66e1a50f6"
+    etable_values --lowercase KEY1 KEY2 data values %pack > actual
+
+    cat actual
+
+    cat >expect <<-END
+	+--------+------------------------------------+
+	| Key    | Value                              |
+	+--------+------------------------------------+
+	| dkey1  | Calvin and Hobbes                  |
+	| dkey2  | Calvin and Suzie                   |
+	| dkey3  | Fourty-Two                         |
+	| fname  | my-file.txt                        |
+	| key1   | Value With Spaces 1                |
+	| key2   | Value With Spaces 2                |
+	| md5    | 86f52cf9433ced9f6e1619d66e1a50f6   |
+	| size   | 1024                               |
+	| values | ("array #1" "array #2" "array #3") |
+	+--------+------------------------------------+
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_values_array_pack_boxart()
+{
+    KEY1="Value With Spaces 1"
+    KEY2="Value With Spaces 2"
+    declare -A data=([dkey1]="Calvin and Hobbes" [dkey2]="Calvin and Suzie" [dkey3]="Fourty-Two")
+    declare -a values=("array #1" "array #2" "array #3")
+    pack_set pack FNAME="my-file.txt" SIZE="1024" MD5="86f52cf9433ced9f6e1619d66e1a50f6"
+    etable_values --lowercase --style=boxart KEY1 KEY2 data values %pack > actual
+
+    cat actual
+
+    cat >expect <<-END
+	┌────────┬────────────────────────────────────┐
+	│ Key    │ Value                              │
+	├────────┼────────────────────────────────────┤
+	│ dkey1  │ Calvin and Hobbes                  │
+	│ dkey2  │ Calvin and Suzie                   │
+	│ dkey3  │ Fourty-Two                         │
+	│ fname  │ my-file.txt                        │
+	│ key1   │ Value With Spaces 1                │
+	│ key2   │ Value With Spaces 2                │
+	│ md5    │ 86f52cf9433ced9f6e1619d66e1a50f6   │
+	│ size   │ 1024                               │
+	│ values │ ("array #1" "array #2" "array #3") │
+	└────────┴────────────────────────────────────┘
+	END
+
+    diff --unified expect actual
+}
