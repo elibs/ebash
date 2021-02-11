@@ -207,6 +207,14 @@ pack_keys()
     echo "${!1:-}" | _unpack | sed 's/=.*$//'
 }
 
+opt_usage pack_keys_sort <<'END'
+Echo a whitespace-separated list of the sorted keys in the specified pack to stdout.
+END
+pack_keys_sort()
+{
+    pack_keys "${@}" | sort
+}
+
 opt_usage pack_print <<'END'
 Note: To support working with print_value, pack_print does NOT print a newline at the end of its output
 END
