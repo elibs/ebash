@@ -959,15 +959,27 @@ opt_forward()
 }
 
 : <<'END'
-argcheck
-========
-Check to ensure all the provided arguments are non-empty
+Check to ensure all the provided arguments are non-empty. Unlike prior versions, this does not call die. Instead it just emits
+an error to stderr on the first unset variable and then returns 1. Since we have implicit error detection enabled die will still 
+get called if the caller doesn't handle the error message (e.g. in an if statement). This allows the caller to decide if this is
+a fatal error or not.
+
+If you want this to cause your code to exit with a fatal error as it always has, no change is required. e.g.:
+
+	$ argcheck FOO BAR
+
+If you want to handle this failure and perhaps do something if the variables are not set, then something like this:
+
+	$ if ! argcheck FOO BAR &>/dev/null; then ...; fi
 END
 argcheck()
 {
     local _argcheck_arg
     for _argcheck_arg in $@; do
-        [[ -z "${!_argcheck_arg:-}" ]] && die "Missing argument '${_argcheck_arg}'" || true
+        if [[ -z "${!_argcheck_arg:-}" ]]; then
+            eerror "Missing argument '${_argcheck_arg}'"
+            return 1
+        fi
     done
 }
 
