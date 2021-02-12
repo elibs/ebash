@@ -886,10 +886,12 @@ ETEST_opt_parse_accumalator_empty()
 
 ETEST_argcheck()
 {
+    declare -fp argcheck
+
     try
     {
         alpha="notempty"
-        output=$((argcheck alpha beta 2>&1))
+        argcheck alpha beta
         die "argcheck should have thrown"
     }
     catch
@@ -898,4 +900,21 @@ ETEST_argcheck()
     }
 
     die "argcheck should have thrown"
+}
+
+ETEST_argcheck_nodie()
+{
+    local die_called=0
+    die_handler()
+    {
+        die_called=1
+        eerror "die should not have been called"
+        return 1
+    }
+
+    alpha="notempty"
+    if ! argcheck alpha beta; then
+        etestmsg "As Expected -- not all variables were set"
+    fi
+    assert_eq 0 "${die_called}"
 }
