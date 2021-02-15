@@ -54,31 +54,38 @@ executed along with runtimes and specific lists of passing, failing and flaky te
 into Jenkins, GitHub Actions, and BitBucket Pipelines for clear test visibility and reporting.
 END
 $(opt_parse \
-    "+break   b=${BREAK:-0}    | Stop immediately on first failure." \
-    "+clean   c=0              | Clean only and then exit." \
-    ":debug   D=${EDEBUG:-}    | EDEBUG output." \
-    "+delete  d=1              | Delete all output files when tests complete." \
+    "+break   b=${BREAK:-0}    | Stop immediately on first failure."                                                    \
+    "+clean   c=0              | Clean only and then exit."                                                             \
+    ":debug   D=${EDEBUG:-}    | EDEBUG output."                                                                        \
+    "+delete  d=1              | Delete all output files when tests complete."                                          \
     "+print_only print p       | Print list of tests that would be executed based on provided filter and exclude to
-                                 stdout and then exit without actually running any tests." \
-    ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run." \
+                                 stdout and then exit without actually running any tests."                              \
+    ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run."  \
     ":failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
                                  test fails at all. However, in certain circumstances where flaky tests exist it may
                                  be desireable to allow each test to retried a specified number of times and only
-                                 classify it as a failure if that test fails more than the requested threshold." \
-    ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run." \
-    "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log." \
-    ":log_dir                  | Directory to place logs in. Defaults to the current directory." \
-    "+mount_ns=1               | Run tests inside a mount namespace." \
-    ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test." \
-    "+summary s=0              | Display final summary to terminal in addition to logging it to etest.json." \
+                                 classify it as a failure if that test fails more than the requested threshold."        \
+    ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run."      \
+    "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log."                       \
+    ":log_dir                  | Directory to place logs in. Defaults to the current directory."                        \
+    "+mount_ns=1               | Run tests inside a mount namespace."                                                   \
+    ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test."                                                  \
+    "+summary s=0              | Display final summary to terminal in addition to logging it to etest.json."            \
     "&test_list l              | File that contains a list of tests to run. This file may contain comments on lines
                                  that begin with the # character. All other nonblank lines will be interpreted as
                                  things that could be passed as @tests -- directories, executable scripts, or .etest
                                  files. Relative paths will be interpreted against the current directory. This option
-                                 may be specified multiple times." \
-    "+verbose v=${VERBOSE:-0}  | Verbose output." \
+                                 may be specified multiple times."                                                      \
+    "+verbose v=${VERBOSE:-0}  | Verbose output."                                                                       \
     ":work_dir                 | Temporary location where etest can place temporary files. This location will be both
-                                 created and deleted by etest." \
+                                 created and deleted by etest."                                                         \
+    ":timeout=infinity         | Per-Test timeout. After this duration the test will be killed if it has not completed.
+                                 You can also define this programmatically in setup() using the ETEST_TIMEOUT variable.
+                                 This uses sleep(1) time syntax."                                                       \
+    ":total_timeout=infinity   | Total test timeout for entire etest run. This is different than timeout which is for a
+                                 single unit test. This is the total timeout for ALL test suites and tests being
+                                 executed. After this duration etest will be killed if it has not completed. This uses
+                                 sleep(1) time syntax."                                                                 \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
                                  and any test functions found will be executed. You may also specify directories in
@@ -168,7 +175,9 @@ else
 fi
 
 #-----------------------------------------------------------------------------------------------------------------------
+#
 # TEST UTILITY FUNCTIONS
+#
 #-----------------------------------------------------------------------------------------------------------------------
 
 die_handler()
@@ -326,7 +335,7 @@ run_single_test()
     fi
 
     local index_string="${testidx}/${testidx_total}"
-    ebanner --uppercase "${testname}" OS break exclude feailures REPEAT=REPEAT_STRING INDEX=index_string verbose
+    ebanner --uppercase "${testname}" OS break exclude feailures REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
@@ -374,10 +383,13 @@ run_single_test()
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
 
+            # Determine the command that etest needs to run.
+            # Also set ETEST_COMMAND in case caller wants to know what command is being run inside Setup or suite_setup, etc.
             local command="${testname}"
             if ! is_function "${testname}" ; then
                 command=$(readlink -f "${testname}")
             fi
+            ETEST_COMMAND="${command}"
 
             cd "${work_dir}"
 
@@ -393,8 +405,14 @@ run_single_test()
                 setup
             fi
 
-            etestmsg "Running $(lval command tries failures testidx testidx_total)"
-            "${command}"
+            : ${ETEST_TIMEOUT:=${timeout}}
+            etestmsg "Running $(lval command tries failures testidx testidx_total timeout=ETEST_TIMEOUT)"
+
+            if [[ -n "${ETEST_TIMEOUT}" && "${ETEST_TIMEOUT}" != "infinity" ]]; then
+                etimeout --timeout="${ETEST_TIMEOUT}" "${command}"
+            else
+                "${command}"
+            fi
 
             # Run optional test teardown function if provided
             if is_function teardown ; then
@@ -564,9 +582,9 @@ run_all_tests()
 {
     OS="$(os_pretty_name)"
     if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "ETEST" OS break exclude failures filter repeat verbose
+        ebanner --uppercase "ETEST" OS break exclude failures filter repeat timeout total_timeout verbose
     else
-        ebanner --uppercase "ETEST" OS break exclude failures filter repeat verbose &>${ETEST_OUT}
+        ebanner --uppercase "ETEST" OS break exclude failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
     fi
 
     for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
@@ -747,6 +765,8 @@ create_xml()
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
+export ETEST_PID=$$
+
 global_setup
 trap_add global_teardown
 
@@ -782,6 +802,31 @@ if [[ ${print_only} -eq 1 ]]; then
     done
 
     exit 0
+fi
+
+# If total timeout is requested thn create a background process that will sleep that amount of time and then kill our
+# main etest process.
+if [[ -n "${total_timeout}" && "${total_timeout}" != "infinity" ]]; then
+    (
+        sleep "${total_timeout}"
+
+        eerror "ETEST exceeded $(lval total_timeout). Killing etest."
+
+        ekill ${ETEST_PID}
+
+        $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
+        if [[ ${exists_rc} -eq 0 ]] ; then
+            cgroup_kill --signal=SIGKILL ${ETEST_CGROUP}
+            cgroup_destroy --recursive ${ETEST_CGROUP}
+        fi
+
+        exit 124
+
+    ) &>/dev/null &
+
+    watcher_pid=$!
+
+    trap_add "ekill ${watcher_pid} &>/dev/null" EXIT
 fi
 
 run_all_tests
