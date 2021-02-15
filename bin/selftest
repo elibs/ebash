@@ -341,6 +341,35 @@ SELFTEST_flaky_failures_mixed()
     assert_test_flaky ETEST_flaky_fails_once
 }
 
+SELFTEST_hang_standalone()
+{
+    run_etest --timeout 5s hang_standalone
+    assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
+    assert_test_fail hang_standalone
+}
+
+SELFTEST_hang_total_timeout()
+{
+    run_etest --timeout 30s hang.etest
+    assert_test_count --pass 2 --fail 1 --flaky 0 --total 3
+    assert_test_pass hang_001_short hang_002_long
+    assert_test_fail hang_003_infinity
+}
+
+SELFTEST_hang_override()
+{
+    start=${SECONDS}
+
+    # Set a very large timeout. The test overrides this with 5s. So make sure it doesn't hang for the full 5m.
+    run_etest --timeout 5m "hang_override.etest"
+    assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
+    assert_test_fail hang_infinity
+
+    runtime=$(( SECONDS - start ))
+
+    assert_lt "${runtime}" 30
+}
+
 #----------------------------------------------------------------------------------------------------------------------
 #
 # MAIN
