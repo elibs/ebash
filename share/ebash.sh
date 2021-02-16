@@ -46,6 +46,7 @@ set \
     -o functrace \
     -o nounset   \
     -o pipefail  \
+    +o noclobber \
     +o posix     \
 
 shopt -s           \
