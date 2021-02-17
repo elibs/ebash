@@ -763,8 +763,6 @@ eprogress()
             # iteration.
             if [[ ${done} -eq 1 ]]; then
                 break
-            else
-                ecolor restore_cursor
             fi
 
             # Optionally sleep if delay was requested.
@@ -777,6 +775,8 @@ eprogress()
             if [[ ${inline} -eq 0 ]]; then
                 printf "\n"
                 "${style}" -n "$*"
+            else
+                ecolor restore_cursor
             fi
 
         done >&2
