@@ -52,6 +52,9 @@ checkbox_open_timer()
     ) >&2 &
 
     __CHECKBOX_TIMER_PID=$!
+
+    # Also store inside __EBASH_EPROGRESS_PIDS so that we'll be sure to kill the timer in die()
+    __EBASH_EPROGRESS_PIDS+=( ${__CHECKBOX_TIMER_PID} )
 }
 
 opt_usage checkbox_close <<'END'
@@ -97,7 +100,7 @@ optional message.
 END
 checkbox_passed()
 {
-    echo -e "$(tput setaf 2)$(tput bold)[✓] PASSED$(tput sgr0) ${@}" >&2
+    checkbox_close 0
 }
 
 opt_usage checkbox_failed <<'END'
@@ -106,7 +109,7 @@ message.
 END
 checkbox_failed()
 {
-    echo -e "$(tput setaf 1)$(tput bold)[✘] FAILED$(tput sgr0) ${@}" >&2
+    checkbox_close 1
 }
 
 return 0
