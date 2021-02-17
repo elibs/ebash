@@ -661,19 +661,24 @@ spinout()
 eprogress()
 {
     $(opt_parse \
-        ":align=left                 | Where to align the tickker to (valid options are 'left' and 'right')."          \
-        ":delay=${EPROGRESS_DELAY:-} | Optional delay between tickers to avoid flooding the screen. Useful for automated
-                                       CI/CD builds where we are not writing to an actual terminal but want to see
-                                       periodic updates."                                                              \
-        "+delete d=1                 | Delete file when eprogress completes if one was specified via --file option."   \
-        ":file f                     | A file whose contents should be continually updated and displayed along with the
-                                       ticker. This file will be deleted by default when eprogress is complete."       \
-        "+time=1                     | As long as not turned off with --no-time, the amount of time since eprogress
-                                       start will be displayed next to the ticker."                                    \
-        ":style=einfo                | Style used when displaying the message. You might want to use, for instance,
-                                       einfos or ewarn or eerror instead."                                             \
-        "@message                    | A message to be displayed once prior to showing a time ticker. This will occur
-                                       before the file contents if you also use --file.")
+        ":align=left                      | Where to align the tickker to (valid options are 'left' and 'right')."     \
+        ":delay=${EPROGRESS_DELAY:-}      | Optional delay between tickers to avoid flooding the screen. Useful for
+                                            automated CI/CD builds where we are not writing to an actual terminal but
+                                            want to see periodic updates."                                             \
+        "+spinner=${EPROGRESS_SPINNER:-1} | Display spinner inline with the message and timer."                        \
+        "+inline=${EPROGRESS_INLINE:-1}   | Display message, timer and spinner all inline. If you disable this the full
+                                            message and timer is printed on a separate line on each iteration instead.
+                                            This is useful for automated CI/CD builds where we are not writing to an
+                                            actual terminal."                                                          \
+        "+delete d=1                      | Delete file when eprogress completes if one was specified via --file."     \
+        ":file f                          | A file whose contents should be continually updated and displayed along with
+                                            the ticker. This file will be deleted by default when eprogress completes."\
+        "+time=1                          | As long as not turned off with --no-time, the amount of time since eprogress
+                                            start will be displayed next to the ticker."                               \
+        ":style=einfo                     | Style used when displaying the message. You might want to use, for instance,
+                                            einfos or ewarn or eerror instead."                                        \
+        "@message                         | A message to be displayed once prior to showing a time ticker. This will
+                                            occur before the file contents if you also use --file.")
 
     assert_match "${align}" "(left|right)"
 
@@ -739,18 +744,20 @@ eprogress()
                 ecolor none
             fi
 
-            # Put an extra space before the ticker
-            echo -n " "
-            ecolor clear_to_eol
+            # Optionally display the spinner.
+            if [[ ${spinner} -eq 1 ]]; then
+                echo -n " "
+                ecolor clear_to_eol
 
-            spinout "/"
-            spinout "-"
-            spinout "\\"
-            spinout "|"
-            spinout "/"
-            spinout "-"
-            spinout "\\"
-            spinout "|"
+                spinout "/"
+                spinout "-"
+                spinout "\\"
+                spinout "|"
+                spinout "/"
+                spinout "-"
+                spinout "\\"
+                spinout "|"
+            fi
 
             # If we are done then break out of the loop and perform necessary clean-up. Otherwise prepare for next
             # iteration.
@@ -763,6 +770,13 @@ eprogress()
             # Optionally sleep if delay was requested.
             if [[ -n "${delay}" ]]; then
                 sleep "${delay}"
+            fi
+
+            # If we are NOT in inline mode, then emit a newline followed by the static message to prepare for the next
+            # iteration.
+            if [[ ${inline} -eq 0 ]]; then
+                printf "\n"
+                "${style}" -n "$*"
             fi
 
         done >&2
