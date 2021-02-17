@@ -661,16 +661,19 @@ spinout()
 eprogress()
 {
     $(opt_parse \
-        ":file f      | A file whose contents should be continually updated and displayed along with the ticker. This
-                        file will be deleted by default when eprogress is complete." \
-        "+delete d=1  | Delete file when eprogress completes if one was specified via --file option." \
-        "+time=1      | As long as not turned off with --no-time, the amount of time since eprogress start will be
-                        displayed next to the ticker." \
-        ":style=einfo | Style used when displaying the message. You might want to use, for instance, einfos or ewarn or
-                        eerror instead." \
-        ":align=left  | Where to align the tickker to (valid options are 'left' and 'right')." \
-        "@message     | A message to be displayed once prior to showing a time ticker. This will occur before the file
-                        contents if you also use --file.")
+        ":align=left                 | Where to align the tickker to (valid options are 'left' and 'right')."          \
+        ":delay=${EPROGRESS_DELAY:-} | Optional delay between tickers to avoid flooding the screen. Useful for automated
+                                       CI/CD builds where we are not writing to an actual terminal but want to see
+                                       periodic updates."                                                              \
+        "+delete d=1                 | Delete file when eprogress completes if one was specified via --file option."   \
+        ":file f                     | A file whose contents should be continually updated and displayed along with the
+                                       ticker. This file will be deleted by default when eprogress is complete."       \
+        "+time=1                     | As long as not turned off with --no-time, the amount of time since eprogress
+                                       start will be displayed next to the ticker."                                    \
+        ":style=einfo                | Style used when displaying the message. You might want to use, for instance,
+                                       einfos or ewarn or eerror instead."                                             \
+        "@message                    | A message to be displayed once prior to showing a time ticker. This will occur
+                                       before the file contents if you also use --file.")
 
     assert_match "${align}" "(left|right)"
 
@@ -755,6 +758,11 @@ eprogress()
                 break
             else
                 ecolor restore_cursor
+            fi
+
+            # Optionally sleep if delay was requested.
+            if [[ -n "${delay}" ]]; then
+                sleep "${delay}"
             fi
 
         done >&2
