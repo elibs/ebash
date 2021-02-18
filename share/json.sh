@@ -154,16 +154,31 @@ Convert a single pack into a json blob where the keys are the same as the keys f
 END
 pack_to_json()
 {
-    [[ -z ${1} ]] && die "pack_to_json requires a pack to be specified as \$1"
+    $(opt_parse \
+        "+lowercase | Convert keys in the pack to all lowercase" \
+        "_pack      | Named pack to operate on.")
 
-    local _pack _key _notfirst=""
-    _pack=$(discard_qualifiers $1)
+    local _pack _key _val _notfirst=""
+    _pack=$(discard_qualifiers ${_pack})
     echo -n "{"
+
     for _key in $(pack_keys ${_pack}) ; do
+
         [[ -n ${_notfirst} ]] && echo -n ","
-        echo -n '"'${_key}'":'"$(json_escape "$(pack_get ${_pack} ${_key})")"
+
+        # Capture value before we modify the key for display purposes
+        _val="$(json_escape "$(pack_get ${_pack} ${_key})")"
+
+        if [[ ${lowercase} -eq 1 ]]; then
+            _key="${_key,,}"
+        fi
+
+        echo -n '"'${_key}'":'"${_val}"
+
         _notfirst=true
+
     done
+
     echo -n "}"
 }
 
@@ -277,21 +292,20 @@ END
 file_to_json()
 {
     $(opt_parse \
-        "+exports  | File format is an 'exports file' (e.g. KEY=VALUE)." \
-        "file      | Parse contents of provided file.")
+        "+exports   | File format is an 'exports file' (e.g. KEY=VALUE)." \
+        "+lowercase | Convert all keys to lowercase during conversion."   \
+        "file       | Parse contents of provided file.")
 
-    if [[ ${exports} -eq 1 ]]; then
+    assert_eq 1 "${exports}" "Unsupported file format (--exports=0)"
+
     (
         # Parse the file and strip out any ansi escape codes and then replace newlines with spaces. This gives a bunch
         # of separate, quoted items that we can safely insert into a pack. We can then pass that pack through eval so
         # that bash can safely interpret those quotes and make them separate arguments passed into pack_set.
         array_init_nl parts "$(cat "${file}" | noansi)"
         pack_set pack "${parts[@]}"
-        pack_to_json pack
+        opt_forward pack_to_json lowercase -- pack
     )
-    else
-        die "Unsupported file format"
-    fi
 }
 
 opt_usage json_compare <<'END'
@@ -302,15 +316,15 @@ json_compare()
 {
     $(opt_parse first second)
 
-    if ! echo "${first}" | jq . &>/dev/null ; then
+    if ! echo "${first}" | jq -e . &>/dev/null ; then
         die "ERROR: invalid json $(lval first)"
     fi
-    if ! echo "${second}" | jq . &>/dev/null ; then
+    if ! echo "${second}" | jq -e . &>/dev/null ; then
         die "ERROR: invalid json $(lval second)"
     fi
 
     # Using diff rather than cmp, you get a hint if what didn't compare.  Otherwise, they are both silent.
-    diff <(echo "${first}" | jq --compact-output --sort-keys .) \
+    diff <(echo "${first}"  | jq --compact-output --sort-keys .) \
          <(echo "${second}" | jq --compact-output --sort-keys .)
 }
 
@@ -323,7 +337,7 @@ json_compare_files()
 
     assert_exists "${left}" "${right}"
 
-    json_compare "$( < "${left}")" "$( < "${right}")"
+    json_compare "$(< "${left}")" "$(< "${right}")"
 }
 
 return 0

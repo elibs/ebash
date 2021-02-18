@@ -211,6 +211,32 @@ ETEST_file_to_json()
     assert_eq "Some Data With Spaces" "${Spaces}"
 }
 
+ETEST_file_to_json_lowercase()
+{
+    cat <<-"EOF" >data.txt
+	File=platformconfig-9.1.0.48.tbz2
+	Size=5423
+	MD5=48880ec09bd56c2f5367b9e4258f8200
+	SHA_256=df1ae6f732804dd5b9ced2dccf501fb6926aaf6d7c679ac77f8c095ce8744bac
+	SHA_512=5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a
+	PGP_Key=solidfire_packaging_private.asc
+	PGP_Signature=MYSIGN ATURE$FOO
+	Spaces=Some Data With Spaces
+	EOF
+
+    local raw
+    raw=$(file_to_json --lowercase --exports data.txt)
+    $(json_import <<< "${raw}")
+    assert_eq "platformconfig-9.1.0.48.tbz2"     "${file}"
+    assert_eq "5423"                             "${size}"
+    assert_eq "48880ec09bd56c2f5367b9e4258f8200" "${md5}"
+    assert_eq "df1ae6f732804dd5b9ced2dccf501fb6926aaf6d7c679ac77f8c095ce8744bac" "${sha_256}"
+    assert_eq "5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a" "${sha_512}"
+    assert_eq "solidfire_packaging_private.asc" "${pgp_key}"
+    assert_eq 'MYSIGN ATURE$FOO' "${pgp_signature}"
+    assert_eq "Some Data With Spaces" "${spaces}"
+}
+
 ETEST_to_json_single()
 {
     A="1 2 3"
@@ -510,7 +536,7 @@ ETEST_json_import_array_space_and_hashtag()
     assert_eq "${#block_expect[@]}" "${#BLOCK_DRIVES[@]}"
 }
 
-ETEST_json_compare_and_json_compare_files()
+ETEST_json_compare()
 {
     local json1='{"one":1}'
     local json1_again='{"one":1}'
@@ -529,10 +555,13 @@ ETEST_json_compare_and_json_compare_files()
 
     local empty='{}'
 
+    einfo "$(lval bad_json)"
+    assert_false json_compare "${bad_json}" "${bad_json}"
+    exit 0
+
     assert_true  json_compare "${json1}"    "${json1_again}"
     assert_true  json_compare "${json1}"    "${json1_sp}"
     assert_false json_compare "${json1}"    "${json2}"
-    assert_false json_compare "${bad_json}" "${bad_json}"
     assert_true  json_compare "${comp1}"    "${comp2}"
     assert_false json_compare "${comp1}"    "${comp3}"
     assert_true  json_compare "${empty}"    "${empty}"
