@@ -271,8 +271,8 @@ ETEST_docker_build_tags()
     etestmsg "Building docker image"
     docker_build \
         --repo "elibs/ebash"  \
-        --tag "etest-$$-tag1" \
-        --tag "etest-$$-tag2" \
+        --tag "elibs/ebash:etest-$$-tag1" \
+        --tag "elibs/ebash:etest-$$-tag2" \
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
