@@ -314,3 +314,21 @@ assert_num_ge()
     assert_num "${lh}" "${rh}"
     assert_ge "${lh}" "${rh}" "${msg}"
 }
+
+opt_usage assert_docker_image_exists <<'END'
+This function asserts that a docker image exists locally.
+END
+assert_docker_image_exists()
+{
+    $(opt_parse image)
+    docker inspect --type image --format . "${image}" &> /dev/null
+}
+
+opt_usage assert_docker_image_not_exists <<'END'
+This function asserts that a docker image does not exists locally.
+END
+assert_docker_image_not_exists()
+{
+    $(opt_parse image)
+    ! docker inspect --type image --format . "${image}" &> /dev/null
+}

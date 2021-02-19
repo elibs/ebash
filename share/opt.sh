@@ -790,6 +790,7 @@ opt_display_usage()
             echo
             echo "$(ecolor ${COLOR_USAGE})OPTIONS$(ecolor none)"
             echo "$(ecolor ${COLOR_USAGE})(*) Denotes required options$(ecolor none)"
+            echo "$(ecolor ${COLOR_USAGE})(&) Denotes options which can be given multiple times$(ecolor none)"
             echo
             local opt
             for opt in ${opt_keys[@]}; do
@@ -816,8 +817,11 @@ opt_display_usage()
                 done
 
                 # If the option accepts arguments, say that
-                [[ ${__EBASH_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
-                [[ ${__EBASH_OPT_TYPE[$opt]} == "required_string" ]] && echo -n " <non-empty value> (*)"
+                case "${__EBASH_OPT_TYPE[$opt]}" in
+                    string)          echo -n " <value>"               ;;
+                    required_string) echo -n " <non-empty value> (*)" ;;
+                    accumulator)     echo -n " (&)"                   ;;
+                esac
 
                 echo -n "$(ecolor none)"
 
@@ -960,7 +964,7 @@ opt_forward()
 
 : <<'END'
 Check to ensure all the provided arguments are non-empty. Unlike prior versions, this does not call die. Instead it just emits
-an error to stderr on the first unset variable and then returns 1. Since we have implicit error detection enabled die will still 
+an error to stderr on the first unset variable and then returns 1. Since we have implicit error detection enabled die will still
 get called if the caller doesn't handle the error message (e.g. in an if statement). This allows the caller to decide if this is
 a fatal error or not.
 
