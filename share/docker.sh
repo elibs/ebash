@@ -51,7 +51,8 @@ the required ${repo}.
     7) ${repo}.${shafunc}_detail : Contains a detailed listing of all the dependencies that led to the creation of the
                                    docker image along with THEIR respective SHAs.
 
-NOTE: If you want to publish via --publish then you need to provide --username and --password arguments as well.
+NOTE: If you want to push any tags you need to provide --username and --password arguments or have DOCKER_USERNAME and
+DOCKER_PASSWORD environment variables set.
 
 END
 docker_build()
@@ -69,17 +70,18 @@ docker_build()
                                           tag than offered by tags_url_base, you can give the fully qualified URL
                                           we should use for looking up docker tagss."                                  \
         ":file=Dockerfile               | The docker file to use. Defaults to Dockerfile."                             \
-        "+publish                       | If we build a new image, also publish it to the remote registry."            \
         "+pull                          | Pull the image from the remote registry."                                    \
+        "&push                          | List of tags to push to the remote registry. The special value 'builtin' is
+                                          used indicate you want to push the content-based tag that we auto generate." \
         "+pretend                       | Do not actually build the docker image. Return 0 if image already exists and 1
                                           if the image does not exist and a build is required."                        \
         ":shafunc=sha256                | SHA function to use. Default to sha256."                                     \
         "&tag                           | Optional tags to assign to the image in addition to the content based SHA.
                                           Unlike normal docker, this is JUST the tag NOT name:tag."                    \
-        ":username=${DOCKER_USERNAME:-} | Username for publishing the image to the docker registry. Defaults to
-                                          DOCKER_USERNAME environment variable"                                        \
-        ":password=${DOCKER_PASSWORD:-} | Password for publishing the image to the docker registry. Defaults to
-                                          DOCKER_PASSWORD environment variable"                                        \
+        ":username=${DOCKER_USERNAME:-} | Username for pushing images to the docker registry. Defaults to DOCKER_USERNAME
+                                          environment variable"                                                        \
+        ":password=${DOCKER_PASSWORD:-} | Password for pushing images to the docker registry. Defaults to DOCKER_PASSWORD
+                                          environment variable"                                                        \
         ":workdir=.work/docker          | Temporary work directory to save output files to."                           \
     )
 
@@ -153,7 +155,7 @@ docker_build()
         image          \
         inspect        \
         pretend        \
-        publish        \
+        push           \
         registry       \
         repo           \
         sha            \
@@ -205,10 +207,7 @@ docker_build()
 
     eprogress "Building docker $(lval image tag)"
 
-    docker build \
-        ${build_arg_vals[@]} \
-        --tag "${image}"     \
-        --file "${dockerfile}" . | edebug
+    docker build --tag "${image}" --file "${dockerfile}" . | edebug
 
     eprogress_kill
 
@@ -218,10 +217,7 @@ docker_build()
         [[ -z "${entry}" ]] && continue
 
         einfo "Tagging with custom $(lval tag=entry)"
-        docker build \
-            ${build_arg_vals[@]}  \
-            --tag "${registry}/${repo}:${entry}" \
-            --file "${dockerfile}" .
+        docker build --tag "${registry}/${repo}:${entry}" --file "${dockerfile}" . | edebug
     done
 
     einfo "Size"
@@ -230,17 +226,19 @@ docker_build()
     einfo "Layers"
     docker history "${image}" | tee "${history}"
 
-    if [[ ${publish} -eq 1 ]]; then
-        einfo "Pushing ${image}"
+    if array_not_empty push; then
 
         argcheck username password
         echo "${password}" | docker login --username "${username}" --password-stdin
 
-        docker push "${image}"
+        for entry in "${push[@]}"; do
 
-        for entry in "${tag[@]:-}"; do
-            [[ -z "${entry}" ]] && continue
+            if [[ "${entry}" == "builtin" ]]; then
+                entry="${image}"
+            fi
 
+            # Make sure the provided tag they want us to push is one we built
+            assert array_contains tag "${entry}"
             einfo "Pushing $(lval tag=entry)"
             docker push "${entry}"
         done
