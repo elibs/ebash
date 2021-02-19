@@ -143,29 +143,29 @@ docker_build()
 
     # Image we should look for
     image="${registry}/${repo}:${sha_short}"
-    edebug $(lval            \
-        build_arg            \
-        build_arg_keys       \
-        build_arg_vals       \
-        registry      \
-        repo          \
-        tags_url_base \
-        tags_url_full \
-        dockerfile           \
-        file                 \
-        history              \
-        image                \
-        inspect              \
-        publish              \
-        pretend              \
-        sha                  \
-        sha_short            \
-        shafile              \
-        shafile_detail       \
-        shafile_short        \
-        shafunc              \
-        tag                  \
-        workdir              \
+    edebug $(lval      \
+        build_arg      \
+        build_arg_keys \
+        build_arg_vals \
+        dockerfile     \
+        file           \
+        history        \
+        image          \
+        inspect        \
+        pretend        \
+        publish        \
+        registry       \
+        repo           \
+        sha            \
+        sha_short      \
+        shafile        \
+        shafile_detail \
+        shafile_short  \
+        shafunc        \
+        tag            \
+        tags_url_base  \
+        tags_url_full  \
+        workdir        \
     )
 
     # Look for image locally first
@@ -203,7 +203,7 @@ docker_build()
         return 1
     fi
 
-    eprogress "Building docker $(lval image)"
+    eprogress "Building docker $(lval image tag)"
 
     docker build \
         ${build_arg_vals[@]} \
@@ -213,16 +213,16 @@ docker_build()
     eprogress_kill
 
     # Also tag with custom tags if requested
-    if array_not_empty tag; then
-        local entry
-        for entry in "${tag[@]}"; do
-            einfo "Tagging with custom $(lval tag=entry)"
-            docker build \
-                ${build_arg_vals[@]}  \
-                --tag "${registry}/${repo}:${entry}" \
-                --file "${dockerfile}" .
-        done
-    fi
+    local entry
+    for entry in "${tag[@]:-}"; do
+        [[ -z "${entry}" ]] && continue
+
+        einfo "Tagging with custom $(lval tag=entry)"
+        docker build \
+            ${build_arg_vals[@]}  \
+            --tag "${registry}/${repo}:${entry}" \
+            --file "${dockerfile}" .
+    done
 
     einfo "Size"
     docker images "${image}"
@@ -238,9 +238,12 @@ docker_build()
 
         docker push "${image}"
 
-        if [[ -n "${tag}" ]]; then
-            docker push "${tag}"
-        fi
+        for entry in "${tag[@]:-}"; do
+            [[ -z "${entry}" ]] && continue
+
+            einfo "Pushing $(lval tag=entry)"
+            docker push "${entry}"
+        done
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
