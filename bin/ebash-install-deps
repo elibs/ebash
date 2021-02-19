@@ -239,27 +239,36 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 
     apt update
 
-    apt install -y      \
-        bsdmainutils    \
-        bzip2           \
-        cgroup-lite     \
-        cpio            \
-        curl            \
-        debootstrap     \
-        dialog          \
-        docker          \
-        file            \
-        gettext         \
-        git             \
-        jq              \
-        iproute2        \
-        iptables        \
-        iputils-ping    \
-        mkisofs         \
-        net-tools       \
-        psmisc          \
-        squashfs-tools  \
+    apt install -y                 \
+        apt-transport-https        \
+        bsdmainutils               \
+        bzip2                      \
+        ca-certificates            \
+        cgroup-lite                \
+        cpio                       \
+        curl                       \
+        debootstrap                \
+        dialog                     \
+        file                       \
+        gettext                    \
+        git                        \
+        gnupg-agent                \
+        iproute2                   \
+        iptables                   \
+        iputils-ping               \
+        jq                         \
+        mkisofs                    \
+        net-tools                  \
+        psmisc                     \
+        software-properties-common \
+        squashfs-tools             \
         xz-utils
+
+    # Install docker
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    apt update
+    apt install -y docker-ce docker-ce-cli containerd.io
 
 #----------------------------------------------------------------------------------------------------------------------
 #
