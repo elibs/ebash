@@ -219,15 +219,15 @@ elif [ "${DISTRO}" = "gentoo" ]; then
     emerge-webrsync
 
     emerge --autounmask-write --autounmask-continue --noreplace --quiet \
-        cdrtools        \
-        cpio            \
-        debootstrap     \
-        dev-vcs/git     \
-        dialog          \
-        docker          \
-        gettext         \
-        jq              \
-        net-tools       \
+        app-emulation/docker \
+        cdrtools             \
+        cpio                 \
+        debootstrap          \
+        dev-vcs/git          \
+        dialog               \
+        gettext              \
+        jq                   \
+        net-tools            \
         squashfs-tools
 
 #----------------------------------------------------------------------------------------------------------------------
