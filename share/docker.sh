@@ -168,6 +168,8 @@ docker_build()
         workdir        \
     )
 
+    einfo "Looking for docker image... $(lval pull username password)"
+
     # Look for image locally first
     if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
         checkbox "Using local ${image}"
@@ -181,11 +183,13 @@ docker_build()
         fi
     elif [[ "${pull}" -eq 0 && -n "${username}" && -n "${password}" ]]; then
 
-        edebug "Checking remote manifest"
+        #edebug "Checking remote manifest"
+        einfo "Checking remote manifest"
 
         opt_forward docker_login registry username password
 
-        if DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${repo}/${sha_short}" &>/dev/null; then
+        #if DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${repo}/${sha_short}" &>/dev/null; then
+        if DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${repo}/${sha_short}"; then
             checkbox "Remote exists ${image}"
             return 0
         fi
