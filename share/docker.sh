@@ -21,7 +21,7 @@ running_in_docker()
 }
 
 EBASH_DOCKER_REGISTRY="index.docker.io"
-EBASH_DOCKER_BUILTIN_TAG="::builtin"
+EBASH_DOCKER_AUTO_TAG="::"
 : ${DOCKER_REGISTRY:=${EBASH_DOCKER_REGISTRY}}
 
 opt_usage docker_build <<'END'
@@ -67,7 +67,7 @@ docker_build()
         ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
         "+pull                              | Pull the image from the remote registry/repo."                           \
         "&push                              | List of tags to push to remote registry/repo. There is a special value
-                                              ${EBASH_DOCKER_BUILTIN_TAG} you can use to indicate you want to push the
+                                              '${EBASH_DOCKER_AUTO_TAG}' you can use to indicate you want to push the
                                               content-based tag ebash auto generates. Multiple tags can be space
                                               delimited inside this array."                                            \
         "+pretend                           | Do not actually build the docker image. Return 0 if image already exists
@@ -198,7 +198,7 @@ docker_build()
         return 1
     fi
 
-    eprogress "Building docker $(lval image tag)"
+    eprogress "Building docker $(lval image additional_tags=tag)"
 
     docker build --tag "${image}" --file "${dockerfile}" . | edebug
 
@@ -235,7 +235,7 @@ docker_build()
         # Push all tags
         for entry in "${entries[@]}"; do
 
-            if [[ "${entry}" == "builtin" ]]; then
+            if [[ "${entry}" == "${EBASH_DOCKER_AUTO_TAG}" ]]; then
                 entry="${image}"
             else
                 assert array_contains tag "${entry}"
