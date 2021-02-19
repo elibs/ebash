@@ -877,15 +877,11 @@ opt_display_usage()
 opt_dump()
 {
     for option in "${!__EBASH_OPT[@]}" ; do
-        echo -n "${option}=\"${__EBASH_OPT[$option]}\" "
+        echo "${option}=\"${__EBASH_OPT[$option]}\""
     done
-    echo
 }
 
 : <<'END'
-opt_forward
-===========
-
 When you have a bunch of options that were passed into a function that wants to simply forward them into an internal
 function, it can be a little tedious to make the call to that internal function because you have to repeat all of the
 options and then read the value that the option of the same name was stored into. For instance look at the foo_internal

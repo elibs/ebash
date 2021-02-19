@@ -40,14 +40,14 @@ directives in the Dockerfile. We then simply use that dynamically generated tag 
 before we try to build.
 
 This function will create some output state files underneath ${workdir} that are super useful. These are all prefixed by
-the required ${docker_repo}.
+the required ${repo}.
 
-    1) ${docker_repo}.history           : Contains output of 'docker history'
-    2) ${docker_repo}.inspect           : Contains output of 'docker inspect'
-    3) ${docker_repo}.dockerfile        : Contains original dockerfile with all environment variables interpolated
-    3) ${docker_repo}.${shafunc}        : Contains full content based sha of the dependencies to create the docker image
-    4) ${docker_repo}.${shafunc}_short  : Contains first 12 characters of the full SHA of the dependencies of the image
-    5) ${docker_repo}.${shafunc}_detail : This contains a detailed listing of all the dependencies that lead to the
+    1) ${repo}.history           : Contains output of 'docker history'
+    2) ${repo}.inspect           : Contains output of 'docker inspect'
+    3) ${repo}.dockerfile        : Contains original dockerfile with all environment variables interpolated
+    3) ${repo}.${shafunc}        : Contains full content based sha of the dependencies to create the docker image
+    4) ${repo}.${shafunc}_short  : Contains first 12 characters of the full SHA of the dependencies of the image
+    5) ${repo}.${shafunc}_detail : This contains a detailed listing of all the dependencies that lead to the
                                           creation of the docker image along with THEIR respective SHAs.
 
 NOTE: If you want to publish via --publish then you need to provide --username and --password arguments as well.
@@ -57,15 +57,15 @@ docker_build()
 {
     $(opt_parse \
         "&build_arg                     | Build arguments to pass into lower level docker build --build-arg."          \
-        "=docker_registry               | Name of docker registry for remote images."                                  \
-        "=docker_repo                   | Name of docker repository for remote images."                                \
-        ":docker_tags_url_base          | Base docker URL to use to check for a tag. By default this uses dockerhub and
+        "=registry                      | Name of docker registry for remote images."                                  \
+        "=repo                          | Name of docker repository for remote images."                                \
+        ":tags_url_base                 | Base docker URL to use to check for a tag. By default this uses dockerhub and
                                           will appending your registry and repo to the base URL. By default the base URL
                                           we use is 'https://hub.docker.com/v2/repositories' and we append a suffix of
                                           '/tags'. For example, given a registry of 'liqid' and a repo of 'liqid' by
                                           default we use 'https://hub.docker.com/v2/repositories/liqid/liqid/tags'"    \
-        ":docker_tags_url_full          | In the event you need more control over the URL used for looking up a docker
-                                          tag than offered by docker_tags_url_base, you can give the fully qualified URL
+        ":tags_url_full                 | In the event you need more control over the URL used for looking up a docker
+                                          tag than offered by tags_url_base, you can give the fully qualified URL
                                           we should use for looking up docker tagss."                                  \
         ":file=Dockerfile               | The docker file to use. Defaults to Dockerfile."                             \
         "+publish                       | If we build a new image, also publish it to the remote registry."            \
@@ -85,11 +85,13 @@ docker_build()
     mkdir -p "${workdir}"
     assert_exists "${file}"
 
-    local history="${workdir}/${docker_repo}.history"
-    local inspect="${workdir}/${docker_repo}.inspect"
-    local shafile="${workdir}/${docker_repo}.${shafunc}"
-    local shafile_short="${workdir}/${docker_repo}.${shafunc}_short"
-    local shafile_detail="${workdir}/${docker_repo}.${shafunc}_detail"
+    local options="${workdir}/${repo}.options"
+    local history="${workdir}/${repo}.history"
+    local inspect="${workdir}/${repo}.inspect"
+    local shafile="${workdir}/${repo}.${shafunc}"
+    local shafile_short="${workdir}/${repo}.${shafunc}_short"
+    local shafile_detail="${workdir}/${repo}.${shafunc}_detail"
+    opt_dump | sort > "${options}"
 
     # Add any build arguments into sha_detail
     local entry="" build_arg_keys=() build_arg_key="" build_arg_val=""
@@ -103,7 +105,7 @@ docker_build()
         build_arg_vals+=( "--build-arg ${entry}" )
     done
 
-    local dockerfile="${workdir}/${docker_repo}.dockerfile"
+    local dockerfile="${workdir}/${repo}.dockerfile"
     envsubst "$(array_join build_arg_keys ,)" < "${file}" > "${dockerfile}"
 
     # Strip out ARGs that we've interpolated
@@ -139,15 +141,15 @@ docker_build()
     echo "${sha_short}" > "${shafile_short}"
 
     # Image we should look for
-    image="${docker_registry}/${docker_repo}:${sha_short}"
+    image="${registry}/${repo}:${sha_short}"
     edebug $(lval            \
         build_arg            \
         build_arg_keys       \
         build_arg_vals       \
-        docker_registry      \
-        docker_repo          \
-        docker_tags_url_base \
-        docker_tags_url_full \
+        registry      \
+        repo          \
+        tags_url_base \
+        tags_url_full \
         dockerfile           \
         file                 \
         history              \
@@ -179,12 +181,12 @@ docker_build()
     elif [[ "${pull}" -eq 0 ]]; then
 
         local docker_url=""
-        if [[ -n "${docker_tags_url_full}" ]]; then
-            docker_url="${docker_tags_url_full}/${sha_short}/"
-        elif [[ -n "${docker_tags_url_base}" ]]; then
-            docker_url="${docker_tags_url_base}/${docker_registry}/${docker_repo}/tags/${sha_short}/"
+        if [[ -n "${tags_url_full}" ]]; then
+            docker_url="${tags_url_full}/${sha_short}/"
+        elif [[ -n "${tags_url_base}" ]]; then
+            docker_url="${tags_url_base}/${registry}/${repo}/tags/${sha_short}/"
         else
-            docker_url="https://hub.docker.com/v2/repositories/${docker_registry}/${docker_repo}/tags/${sha_short}/"
+            docker_url="https://hub.docker.com/v2/repositories/${registry}/${repo}/tags/${sha_short}/"
         fi
 
         edebug "Checking remote $(lval docker_url)"
@@ -216,7 +218,7 @@ docker_build()
             einfo "Tagging with custom $(lval tag=entry)"
             docker build \
                 ${build_arg_vals[@]}  \
-                --tag "${docker_registry}/${docker_repo}:${entry}" \
+                --tag "${registry}/${repo}:${entry}" \
                 --file "${dockerfile}" .
         done
     fi
