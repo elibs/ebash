@@ -32,6 +32,8 @@ DISTRO=$(echo "${DISTRO}" | tr "[A-Z]" "[a-z]")
 
 echo ">> Installing dependencies for ${DISTRO}"
 
+export DEBIAN_FRONTEND=noninteractive
+
 #----------------------------------------------------------------------------------------------------------------------
 #
 # Alpine Linux
@@ -51,6 +53,7 @@ if [ "${DISTRO}" = "alpine" ]; then
         debootstrap      \
         dialog           \
         diffutils        \
+        docker           \
         file             \
         findutils        \
         gawk             \
@@ -58,6 +61,7 @@ if [ "${DISTRO}" = "alpine" ]; then
         gnupg            \
         grep             \
         gzip             \
+        gettext          \
         iproute2         \
         iputils          \
         jq               \
@@ -78,14 +82,15 @@ if [ "${DISTRO}" = "alpine" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "arch" ]; then
 
-    #base-devel          \
-    pacman -Sy --noconfirm  \
+    pacman -Syu --overwrite "/usr/bin/docker-init" --noconfirm  \
         cdrkit              \
         cpio                \
         debootstrap         \
         dialog              \
         diffutils           \
+        docker              \
         gcc                 \
+        gettext             \
         git                 \
         jq                  \
         make                \
@@ -110,8 +115,10 @@ elif [ "${DISTRO}" = "centos" ]; then
         debootstrap         \
         dialog              \
         diffutils           \
+        docker              \
         file                \
         genisoimage         \
+        gettext             \
         git                 \
         glibc               \
         gzip                \
@@ -135,24 +142,35 @@ elif [ "${DISTRO}" = "debian" ]; then
 
     apt update
 
-    apt install -y      \
-        bsdmainutils    \
-        bzip2           \
-        cpio            \
-        curl            \
-        debootstrap     \
-        dialog          \
-        file            \
-        genisoimage     \
-        git             \
-        iptables        \
-        jq              \
-        iproute2        \
-        net-tools       \
-        procps          \
-        psmisc          \
-        squashfs-tools  \
-        xz-utils
+    apt install -y                  \
+        apt-transport-https         \
+        bsdmainutils                \
+        bzip2                       \
+        ca-certificates             \
+        cpio                        \
+        curl                        \
+        debootstrap                 \
+        dialog                      \
+        file                        \
+        genisoimage                 \
+        gettext                     \
+        git                         \
+        gnupg2                      \
+        iproute2                    \
+        iptables                    \
+        jq                          \
+        net-tools                   \
+        procps                      \
+        psmisc                      \
+        software-properties-common  \
+        squashfs-tools              \
+        xz-utils                    \
+
+    # Install docker
+    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+    apt update
+    apt install -y docker-ce
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -167,9 +185,11 @@ elif [ "${DISTRO}" = "fedora" ]; then
         debootstrap         \
         dialog              \
         diffutils           \
+        dnf-plugins-core    \
         file                \
         findutils           \
         genisoimage         \
+        gettext             \
         git                 \
         glibc               \
         iproute             \
@@ -184,6 +204,10 @@ elif [ "${DISTRO}" = "fedora" ]; then
         squashfs-tools      \
         which               \
         xz
+
+    # Install docker
+    dnf config-manager -y --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+    dnf install -y docker-ce docker-ce-cli containerd.io
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -200,6 +224,8 @@ elif [ "${DISTRO}" = "gentoo" ]; then
         debootstrap     \
         dev-vcs/git     \
         dialog          \
+        docker          \
+        gettext         \
         jq              \
         net-tools       \
         squashfs-tools
@@ -221,7 +247,9 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
         curl            \
         debootstrap     \
         dialog          \
+        docker          \
         file            \
+        gettext         \
         git             \
         jq              \
         iproute2        \
@@ -246,6 +274,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
         bash        \
         curl        \
         coreutils   \
+        docker      \
         findutils   \
         gnu-sed     \
         gnu-tar     \
