@@ -18,9 +18,7 @@ ETEST_docker_build()
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build         \
-        --registry elibs \
-        --repo ebash
+    docker_build --repo "elibs/ebash"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -54,10 +52,10 @@ ETEST_docker_build_and_pretend()
     cat Dockerfile
 
     etestmsg "Building docker image (PRETEND)"
-    $(tryrc docker_build \
-        --pretend        \
-        --registry elibs \
-        --repo ebash)
+    $(tryrc docker_build     \
+        --pretend            \
+        --repo "elibs/ebash" \
+    )
     assert_eq 1 "${rc}"
 
     etestmsg "Validating docker_build artifacts"
@@ -96,8 +94,7 @@ ETEST_docker_build_args()
     etestmsg "Building docker image (pretend)"
     $(tryrc docker_build           \
         --pretend                  \
-        --registry elibs           \
-        --repo ebash               \
+        --repo "elibs/ebash"       \
         --build-arg "ARTIST=James" \
         --build-arg "SONG=Laid"    \
     )
@@ -131,10 +128,9 @@ ETEST_docker_build_args_missing()
     cat Dockerfile
 
     etestmsg "Building docker image (pretend)"
-    $(tryrc docker_build \
-        --pretend        \
-        --registry elibs \
-        --repo ebash     \
+    $(tryrc docker_build     \
+        --pretend            \
+        --repo "elibs/ebash" \
     )
     assert_eq 1 "${rc}"
 
@@ -164,9 +160,8 @@ ETEST_docker_build_custom_dockerfile()
     cat "${file}"
 
     etestmsg "Building docker image"
-    docker_build         \
-        --registry elibs \
-        --repo ebash     \
+    docker_build             \
+        --repo "elibs/ebash" \
         --file "${file}"
 
     etestmsg "Validating docker_build artifacts"
@@ -189,6 +184,44 @@ ETEST_docker_build_custom_dockerfile()
     assert_docker_image_exists "${image}"
 }
 
+# Custom dockerfile and custom artifact name
+ETEST_docker_build_custom_dockerfile()
+{
+    local file="Dockerfile.foobar"
+    etestmsg "Creating Dockerfile=${file}"
+	cat <<-END >${file}
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat "${file}"
+
+    etestmsg "Building docker image"
+    docker_build             \
+        --repo "elibs/ebash" \
+        --name "elibs_ebash" \
+        --file "${file}"
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/elibs_ebash.dockerfile"    \
+        ".work/docker/elibs_ebash.history"       \
+        ".work/docker/elibs_ebash.inspect"       \
+        ".work/docker/elibs_ebash.options"       \
+        ".work/docker/elibs_ebash.sha256"        \
+        ".work/docker/elibs_ebash.sha256_short"  \
+        ".work/docker/elibs_ebash.sha256_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/elibs_ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    trap_add "docker rmi ${image}"
+
+    assert_docker_image_exists "${image}"
+}
+
 ETEST_docker_custom_shafunc()
 {
     etestmsg "Creating Dockerfile"
@@ -200,9 +233,8 @@ ETEST_docker_custom_shafunc()
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build         \
-        --registry elibs \
-        --repo ebash     \
+    docker_build             \
+        --repo "elibs/ebash" \
         --shafunc sha512
 
     etestmsg "Validating docker_build artifacts"
@@ -238,8 +270,7 @@ ETEST_docker_build_tags()
 
     etestmsg "Building docker image"
     docker_build \
-        --registry elibs      \
-        --repo ebash          \
+        --repo "elibs/ebash"  \
         --tag "etest-$$-tag1" \
         --tag "etest-$$-tag2" \
 
@@ -282,9 +313,7 @@ ETEST_docker_build_twice()
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build         \
-        --registry elibs \
-        --repo ebash
+    docker_build --repo "elibs/ebash"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -312,8 +341,7 @@ ETEST_docker_build_twice()
     etestmsg "Building docker image (AGAIN)"
     docker_build         \
         --pretend        \
-        --registry elibs \
-        --repo ebash
+        --repo "elibs/ebash"
 
     for part in dockerfile history inspect sha256 sha256_short sha256_detail; do
         diff ".work/docker/ebash.${part}.orig" ".work/docker/ebash.${part}"
@@ -337,9 +365,7 @@ ETEST_docker_build_twice_changed()
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build         \
-        --registry elibs \
-        --repo ebash
+    docker_build --repo "elibs/ebash"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists                          \
@@ -373,10 +399,9 @@ ETEST_docker_build_twice_changed()
     cat Dockerfile
 
     etestmsg "Building docker image (AGAIN)"
-    $(tryrc docker_build \
-        --pretend        \
-        --registry elibs \
-        --repo ebash     \
+    $(tryrc docker_build     \
+        --pretend            \
+        --repo "elibs/ebash" \
     )
 
     assert_eq 1 "${rc}"

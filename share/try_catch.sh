@@ -125,11 +125,14 @@ END
 tryrc()
 {
     $(opt_parse \
-        ":rc r=rc  | Variable to assign the return code to." \
-        ":stdout o | Write stdout to the specified variable rather than letting it go to stdout." \
-        ":stderr e | Write stderr to the specified variable rather than letting it go to stderr." \
-        "+global g | Make variables created global rather than local" \
-        "@cmd      | Command to run, along with any arguments.")
+        ":rc r=rc  | Variable to assign the return code to."                                                           \
+        ":stdout o | Write stdout to the specified variable rather than letting it go to stdout. The special value '_'
+                     means to discard it entirely by sending it to /dev/null."                                         \
+        ":stderr e | Write stderr to the specified variable rather than letting it go to stderr. The special value '_'
+                     means to discard it entirely by sending to to /dev/null."                                         \
+        "+global g | Make variables created global rather than local"                                                  \
+        "@cmd      | Command to run, along with any arguments."                                                        \
+    )
 
     # Determine flags to pass into declare
     local dflags=""
@@ -142,6 +145,8 @@ tryrc()
 
     # Create temporary file for stdout and stderr
     local stdout_file="${tmpdir}/stdout" stderr_file="${tmpdir}/stderr"
+    [[ "${stdout}" == "_" ]] && stdout_file="/dev/null"
+    [[ "${stderr}" == "_" ]] && stderr_file="/dev/null"
 
     # We're creating an "eval command string" inside the command substitution that the caller is supposed to wrap around
     # tryrc.
