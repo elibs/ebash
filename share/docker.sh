@@ -24,15 +24,15 @@ opt_usage docker_build <<'END'
 docker_build is used to intelligently build a docker image from a Dockerfile.
 
 This adds some intelligence around a vanilla docker build command so that we only build when absolutely necessary.
-This smarter than docker's built-in layer caching mechanism since that will always go to the cache and still build the
+This is smarter than docker's built-in layer caching mechanism since that will always go to the cache and still build the
 image even if it's already been built. Moreover, a vanilla docker build command doesn't try to pull before it builds.
 This result in every developer having to do an initial build locally even if we've published it remotely to dockerhub.
 
 The algorithm we employ is as follows:
 
     1) Look for the image locally
-    2) Try to download the image from docker repository
-    3) Build the docker image from scratc
+    2) Try to download the image from docker registry/repository
+    3) Build the docker image from scratch
 
 This entire algorithm is built on a simple idea of essentially computingour own simplistic sha256 which corresponds to
 the content of the provided Dockerfile as well as any files which are dynamically copied or added via COPY or ADD
@@ -42,13 +42,14 @@ before we try to build.
 This function will create some output state files underneath ${workdir} that are super useful. These are all prefixed by
 the required ${repo}.
 
-    1) ${repo}.history           : Contains output of 'docker history'
-    2) ${repo}.inspect           : Contains output of 'docker inspect'
-    3) ${repo}.dockerfile        : Contains original dockerfile with all environment variables interpolated
-    3) ${repo}.${shafunc}        : Contains full content based sha of the dependencies to create the docker image
-    4) ${repo}.${shafunc}_short  : Contains first 12 characters of the full SHA of the dependencies of the image
-    5) ${repo}.${shafunc}_detail : This contains a detailed listing of all the dependencies that lead to the
-                                          creation of the docker image along with THEIR respective SHAs.
+    1) ${repo}.options           : Options passed into docker_build
+    2) ${repo}.history           : Contains output of 'docker history'
+    3) ${repo}.inspect           : Contains output of 'docker inspect'
+    4) ${repo}.dockerfile        : Contains original dockerfile with all environment variables interpolated
+    5) ${repo}.${shafunc}        : Contains full content based sha of the dependencies to create the docker image
+    6) ${repo}.${shafunc}_short  : Contains first 12 characters of the full SHA of the dependencies of the image
+    7) ${repo}.${shafunc}_detail : Contains a detailed listing of all the dependencies that led to the creation of the
+                                   docker image along with THEIR respective SHAs.
 
 NOTE: If you want to publish via --publish then you need to provide --username and --password arguments as well.
 
