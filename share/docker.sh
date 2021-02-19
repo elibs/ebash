@@ -198,22 +198,22 @@ docker_build()
         return 1
     fi
 
-    eprogress "Building docker $(lval image additional_tags=tag)"
+    # Parse tag accumulator
+    local entry additional_tags
+    array_init additional_tags "${tag[*]}"
+    array_sort --unique additional_tags
+    edebug "$(lval tag additional_tags)"
+
+    eprogress "Building docker $(lval image additional_tags)"
 
     docker build --tag "${image}" --file "${dockerfile}" . | edebug
 
     eprogress_kill
 
-    # Parse tag accumulator
-    local entry entries
-    array_init entries "${tag[*]}"
-    array_sort --unique entries
-    edebug "$(lval tag entries)"
-
     # Tag them all
-    for entry in "${entries[@]}"; do
+    for entry in "${additional_tags[@]}"; do
         [[ -z "${entry}" ]] && continue
-        einfo "Tagging with custom $(lval tag=entry)"
+        einfo "Creating $(lval tag=entry)"
         docker build --tag "${entry}" --file "${dockerfile}" . | edebug
     done
 
@@ -228,6 +228,7 @@ docker_build()
         opt_forward docker_login registry username password
 
         # Parse push accumulator
+        local entries
         array_init entries "${push[*]}"
         array_sort --unique entries
         edebug "Pushing $(lval push entries)"
