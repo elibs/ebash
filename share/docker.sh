@@ -214,10 +214,13 @@ docker_build()
 
     eprogress_kill
 
-    # Also tag with custom tags if requested
+    # Parse tag accumulator
     local entry entries
     array_init entries "${tag[*]}"
+    array_sort --unique entries
     edebug "$(lval tag entries)"
+
+    # Tag them all
     for entry in "${entries[@]}"; do
         [[ -z "${entry}" ]] && continue
         einfo "Tagging with custom $(lval tag=entry)"
@@ -235,8 +238,12 @@ docker_build()
         argcheck username password
         echo "${password}" | docker login --username "${username}" --password-stdin
 
+        # Parse push accumulator
         array_init entries "${push[*]}"
+        array_sort --unique entries
         edebug "Pushing $(lval push entries)"
+
+        # Push all tags
         for entry in "${entries[@]}"; do
             [[ "${entry}" == "builtin" ]] && entry="${image}"
 
