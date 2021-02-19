@@ -21,7 +21,7 @@ running_in_docker()
 }
 
 EBASH_DOCKER_REGISTRY="index.docker.io"
-EBASH_DOCKER_BUILTIN_TAG=":builtin"
+EBASH_DOCKER_BUILTIN_TAG="::builtin"
 : ${DOCKER_REGISTRY:=${EBASH_DOCKER_REGISTRY}}
 
 opt_usage docker_build <<'END'
