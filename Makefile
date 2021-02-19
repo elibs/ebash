@@ -82,7 +82,15 @@ test:
 #----------------------------------------------------------------------------------------------------------------------
 
 # Template for running tests inside a Linux distro container
-DRUN = docker run --init --tty --interactive --privileged --mount type=bind,source=${PWD},target=/ebash --workdir /ebash --rm
+DRUN = docker run      \
+       --init          \
+       --tty           \
+       --interactive   \
+       --privileged    \
+       --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+       --mount type=bind,source=${PWD},target=/ebash \
+       --workdir /ebash \
+       --rm
 define DOCKER_TEST_TEMPLATE
 
 .PHONY: dselftest-$1
