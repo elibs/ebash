@@ -280,7 +280,7 @@ docker_login()
         return 0
     fi
 
-    edebug "Logging in $(lval registry username)"
+    edebug "Logging into $(lval registry username)"
     echo "${password}" | docker login "${registry}" --username "${username}" --password-stdin
 }
 
