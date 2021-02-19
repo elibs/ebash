@@ -18,9 +18,9 @@ ETEST_docker_build()
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build \
-        --docker-registry elibs \
-        --docker-repo ebash
+    docker_build         \
+        --registry elibs \
+        --repo ebash
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -29,6 +29,7 @@ ETEST_docker_build()
         ".work/docker/ebash.dockerfile"    \
         ".work/docker/ebash.history"       \
         ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.options"       \
         ".work/docker/ebash.sha256"        \
         ".work/docker/ebash.sha256_short"  \
         ".work/docker/ebash.sha256_detail"
@@ -53,10 +54,10 @@ ETEST_docker_build_and_pretend()
     cat Dockerfile
 
     etestmsg "Building docker image (PRETEND)"
-    $(tryrc docker_build        \
-        --pretend               \
-        --docker-registry elibs \
-        --docker-repo ebash)
+    $(tryrc docker_build \
+        --pretend        \
+        --registry elibs \
+        --repo ebash)
     assert_eq 1 "${rc}"
 
     etestmsg "Validating docker_build artifacts"
@@ -70,8 +71,8 @@ ETEST_docker_build_and_pretend()
 
     etestmsg "Validating docker_build artifacts that should NOT have been created"
     assert_not_exists \
-        ".work/docker/ebash.history"       \
-        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.history" \
+        ".work/docker/ebash.inspect" \
 
     etestmsg "Validating Docker Image was NOT built"
     image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
@@ -95,10 +96,11 @@ ETEST_docker_build_args()
     etestmsg "Building docker image (pretend)"
     $(tryrc docker_build           \
         --pretend                  \
+        --registry elibs           \
+        --repo ebash               \
         --build-arg "ARTIST=James" \
         --build-arg "SONG=Laid"    \
-        --docker-registry elibs    \
-        --docker-repo ebash)
+    )
     assert_eq 1 "${rc}"
 
     etestmsg "Validating docker_build artifacts"
@@ -129,10 +131,11 @@ ETEST_docker_build_args_missing()
     cat Dockerfile
 
     etestmsg "Building docker image (pretend)"
-    $(tryrc docker_build        \
-        --pretend               \
-        --docker-registry elibs \
-        --docker-repo ebash)
+    $(tryrc docker_build \
+        --pretend        \
+        --registry elibs \
+        --repo ebash     \
+    )
     assert_eq 1 "${rc}"
 
     etestmsg "Validating docker_build artifacts"
@@ -161,9 +164,9 @@ ETEST_docker_build_custom_dockerfile()
     cat "${file}"
 
     etestmsg "Building docker image"
-    docker_build \
-        --docker-registry elibs \
-        --docker-repo ebash      \
+    docker_build         \
+        --registry elibs \
+        --repo ebash     \
         --file "${file}"
 
     etestmsg "Validating docker_build artifacts"
@@ -173,6 +176,7 @@ ETEST_docker_build_custom_dockerfile()
         ".work/docker/ebash.dockerfile"    \
         ".work/docker/ebash.history"       \
         ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.options"       \
         ".work/docker/ebash.sha256"        \
         ".work/docker/ebash.sha256_short"  \
         ".work/docker/ebash.sha256_detail"
@@ -196,9 +200,9 @@ ETEST_docker_custom_shafunc()
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build \
-        --docker-registry elibs \
-        --docker-repo ebash     \
+    docker_build         \
+        --registry elibs \
+        --repo ebash     \
         --shafunc sha512
 
     etestmsg "Validating docker_build artifacts"
@@ -208,6 +212,7 @@ ETEST_docker_custom_shafunc()
         ".work/docker/ebash.dockerfile"    \
         ".work/docker/ebash.history"       \
         ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.options"       \
         ".work/docker/ebash.sha512"        \
         ".work/docker/ebash.sha512_short"  \
         ".work/docker/ebash.sha512_detail"
@@ -233,10 +238,10 @@ ETEST_docker_build_tags()
 
     etestmsg "Building docker image"
     docker_build \
-        --docker-registry elibs \
-        --docker-repo ebash     \
-        --tag "etest-$$-tag1"   \
-        --tag "etest-$$-tag2"   \
+        --registry elibs      \
+        --repo ebash          \
+        --tag "etest-$$-tag1" \
+        --tag "etest-$$-tag2" \
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -245,6 +250,7 @@ ETEST_docker_build_tags()
         ".work/docker/ebash.dockerfile"    \
         ".work/docker/ebash.history"       \
         ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.options"       \
         ".work/docker/ebash.sha256"        \
         ".work/docker/ebash.sha256_short"  \
         ".work/docker/ebash.sha256_detail"
@@ -276,9 +282,9 @@ ETEST_docker_build_twice()
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build \
-        --docker-registry elibs \
-        --docker-repo ebash
+    docker_build         \
+        --registry elibs \
+        --repo ebash
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -287,6 +293,7 @@ ETEST_docker_build_twice()
         ".work/docker/ebash.dockerfile"    \
         ".work/docker/ebash.history"       \
         ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.options"       \
         ".work/docker/ebash.sha256"        \
         ".work/docker/ebash.sha256_short"  \
         ".work/docker/ebash.sha256_detail"
@@ -300,16 +307,18 @@ ETEST_docker_build_twice()
     for part in dockerfile history inspect sha256 sha256_short sha256_detail; do
         cp ".work/docker/ebash.${part}" ".work/docker/ebash.${part}.orig"
     done
+    grep 'pretend="0"' ".work/docker/ebash.options"
 
     etestmsg "Building docker image (AGAIN)"
-    docker_build \
-        --pretend               \
-        --docker-registry elibs \
-        --docker-repo ebash
+    docker_build         \
+        --pretend        \
+        --registry elibs \
+        --repo ebash
 
     for part in dockerfile history inspect sha256 sha256_short sha256_detail; do
         diff ".work/docker/ebash.${part}.orig" ".work/docker/ebash.${part}"
     done
+    grep 'pretend="1"' ".work/docker/ebash.options"
 
     created_expect=$(jq --raw-output '.[].Created' ".work/docker/ebash.inspect")
     created_actual=$(docker inspect --type image ${image} | jq --raw-output '.[].Created')
@@ -328,17 +337,18 @@ ETEST_docker_build_twice_changed()
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build \
-        --docker-registry elibs \
-        --docker-repo ebash
+    docker_build         \
+        --registry elibs \
+        --repo ebash
 
     etestmsg "Validating docker_build artifacts"
-    assert_exists \
+    assert_exists                          \
         ".work"                            \
         ".work/docker"                     \
         ".work/docker/ebash.dockerfile"    \
         ".work/docker/ebash.history"       \
         ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.options"       \
         ".work/docker/ebash.sha256"        \
         ".work/docker/ebash.sha256_short"  \
         ".work/docker/ebash.sha256_detail"
@@ -363,10 +373,11 @@ ETEST_docker_build_twice_changed()
     cat Dockerfile
 
     etestmsg "Building docker image (AGAIN)"
-    $(tryrc docker_build        \
-        --pretend               \
-        --docker-registry elibs \
-        --docker-repo ebash)
+    $(tryrc docker_build \
+        --pretend        \
+        --registry elibs \
+        --repo ebash     \
+    )
 
     assert_eq 1 "${rc}"
 
