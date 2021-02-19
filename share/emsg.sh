@@ -712,7 +712,9 @@ eprogress()
         "${style}" -n "$*"
 
         # Save current position and start time
-        ecolor save_cursor >&2
+        if [[ ${inline} -eq 1 ]]; then
+            ecolor save_cursor >&2
+        fi
         local start=${SECONDS}
 
         # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out
