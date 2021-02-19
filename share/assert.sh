@@ -321,7 +321,7 @@ END
 assert_docker_image_exists()
 {
     $(opt_parse image)
-    docker inspect --type image --format . "${image}" &> /dev/null
+    docker inspect --type image --format . "${image}" &> /dev/null || die "docker $(lval image) does not exist"
 }
 
 opt_usage assert_docker_image_not_exists <<'END'
@@ -330,5 +330,5 @@ END
 assert_docker_image_not_exists()
 {
     $(opt_parse image)
-    ! docker inspect --type image --format . "${image}" &> /dev/null
+    ! docker inspect --type image --format . "${image}" &> /dev/null || die "docker $(lval image) exists and should not"
 }

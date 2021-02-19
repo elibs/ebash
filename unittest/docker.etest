@@ -268,11 +268,17 @@ ETEST_docker_build_tags()
 	END
     cat Dockerfile
 
+    local tags=(
+        "elibs/ebash:etest-$$-tag1"
+        "elibs/ebash:etest-$$-tag2"
+        "elibs/ebash-cicd:$$"
+        "foo"
+        "bar"
+        "zap"
+    )
+
     etestmsg "Building docker image"
-    docker_build \
-        --repo "elibs/ebash"  \
-        --tag "elibs/ebash:etest-$$-tag1" \
-        --tag "elibs/ebash:etest-$$-tag2" \
+    eval "docker_build --repo elibs/ebash $(array_join --before tags ' --tag ')"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -293,9 +299,9 @@ ETEST_docker_build_tags()
     assert_docker_image_exists "${image}"
 
     etestmsg "Validating all tags were built"
-    for tag in "etest-$$-tag1" "etest-$$-tag2"; do
+    for tag in ${tags[@]}; do
         etestmsg "${tag}"
-        assert_docker_image_exists "elibs/ebash:${tag}"
+        assert_docker_image_exists "${tag}"
     done
 }
 
