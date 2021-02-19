@@ -1,0 +1,376 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_docker_build()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image"
+    docker_build \
+        --docker-registry elibs \
+        --docker-repo ebash
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    trap_add "docker rmi ${image}"
+
+    assert_docker_image_exists "${image}"
+}
+
+# Verify if we use --pretend on a non-existant image that it returns 1 and doesn't do anything.
+ETEST_docker_build_and_pretend()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image (PRETEND)"
+    $(tryrc docker_build        \
+        --pretend               \
+        --docker-registry elibs \
+        --docker-repo ebash)
+    assert_eq 1 "${rc}"
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating docker_build artifacts that should NOT have been created"
+    assert_not_exists \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+
+    etestmsg "Validating Docker Image was NOT built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    assert_docker_image_not_exists "${image}"
+}
+
+# Verify that provided build args are interpolated
+ETEST_docker_build_args()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-'END' >Dockerfile
+	FROM alpine:edge
+	ARG ARTIST
+	ARG SONG
+	RUN echo "${ARTIST}/${SONG}"
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image (pretend)"
+    $(tryrc docker_build           \
+        --pretend                  \
+        --build-arg "ARTIST=James" \
+        --build-arg "SONG=Laid"    \
+        --docker-registry elibs    \
+        --docker-repo ebash)
+    assert_eq 1 "${rc}"
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating provided BUILD_ARGS are interpolated"
+    assert_false diff "Dockerfile"            ".work/docker/ebash.dockerfile"
+    assert_false grep "ARG ARTIST"            ".work/docker/ebash.dockerfile"
+    assert_false grep "ARG SONG"              ".work/docker/ebash.dockerfile"
+    assert_true  grep 'RUN echo "James/Laid"' ".work/docker/ebash.dockerfile"
+}
+
+# Verify that missing build args are NOT interpolated
+ETEST_docker_build_args_missing()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ARG UPR
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image (pretend)"
+    $(tryrc docker_build        \
+        --pretend               \
+        --docker-registry elibs \
+        --docker-repo ebash)
+    assert_eq 1 "${rc}"
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating missing BUILD_ARGS are not interpolated"
+    diff "Dockerfile" ".work/docker/ebash.dockerfile"
+}
+
+# Custom dockerfile name
+ETEST_docker_build_custom_dockerfile()
+{
+    local file="Dockerfile.foobar"
+    etestmsg "Creating Dockerfile=${file}"
+	cat <<-END >${file}
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat "${file}"
+
+    etestmsg "Building docker image"
+    docker_build \
+        --docker-registry elibs \
+        --docker-repo ebash      \
+        --file "${file}"
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    trap_add "docker rmi ${image}"
+
+    assert_docker_image_exists "${image}"
+}
+
+ETEST_docker_custom_shafunc()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image"
+    docker_build \
+        --docker-registry elibs \
+        --docker-repo ebash     \
+        --shafunc sha512
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.sha512"        \
+        ".work/docker/ebash.sha512_short"  \
+        ".work/docker/ebash.sha512_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha512_short)"
+    etestmsg "$(lval image)"
+    trap_add "docker rmi ${image}"
+
+    assert_docker_image_exists "${image}"
+}
+
+# Verify we can provide multiple additional tags and that all get created
+ETEST_docker_build_tags()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image"
+    docker_build \
+        --docker-registry elibs \
+        --docker-repo ebash     \
+        --tag "etest-$$-tag1"   \
+        --tag "etest-$$-tag2"   \
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    trap_add "docker rmi ${image}"
+    assert_docker_image_exists "${image}"
+
+    etestmsg "Validating all tags were built"
+    for tag in "etest-$$-tag1" "etest-$$-tag2"; do
+        etestmsg "${tag}"
+        assert_docker_image_exists "elibs/ebash:${tag}"
+    done
+}
+
+#
+# Verify if we create the same docker image multiple times in a row that it does NOT build it again but instead reuses
+# the one we've locally built.
+ETEST_docker_build_twice()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image"
+    docker_build \
+        --docker-registry elibs \
+        --docker-repo ebash
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    assert_docker_image_exists "${image}"
+    trap_add "docker rmi ${image}"
+
+    for part in dockerfile history inspect sha256 sha256_short sha256_detail; do
+        cp ".work/docker/ebash.${part}" ".work/docker/ebash.${part}.orig"
+    done
+
+    etestmsg "Building docker image (AGAIN)"
+    docker_build \
+        --pretend               \
+        --docker-registry elibs \
+        --docker-repo ebash
+
+    for part in dockerfile history inspect sha256 sha256_short sha256_detail; do
+        diff ".work/docker/ebash.${part}.orig" ".work/docker/ebash.${part}"
+    done
+
+    created_expect=$(jq --raw-output '.[].Created' ".work/docker/ebash.inspect")
+    created_actual=$(docker inspect --type image ${image} | jq --raw-output '.[].Created')
+    assert_eq "${created_expect}" "${created_actual}"
+}
+
+# Verify if we make a small change to the Dockerfile that we won't reuse the previously built image.
+ETEST_docker_build_twice_changed()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image"
+    docker_build \
+        --docker-registry elibs \
+        --docker-repo ebash
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    assert_docker_image_exists "${image}"
+    trap_add "docker rmi ${image}"
+
+    for part in dockerfile sha256 sha256_short sha256_detail; do
+        cp ".work/docker/ebash.${part}" ".work/docker/ebash.${part}.orig"
+    done
+
+    etestmsg "Modifying Dockerfile"
+    cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENV TIMESTAMP $(etimestamp)
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image (AGAIN)"
+    $(tryrc docker_build        \
+        --pretend               \
+        --docker-registry elibs \
+        --docker-repo ebash)
+
+    assert_eq 1 "${rc}"
+
+    for part in dockerfile sha256 sha256_short sha256_detail; do
+        assert_false diff ".work/docker/ebash.${part}.orig" ".work/docker/ebash.${part}"
+    done
+}
