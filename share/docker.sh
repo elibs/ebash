@@ -245,10 +245,14 @@ docker_build()
 
         # Push all tags
         for entry in "${entries[@]}"; do
-            [[ "${entry}" == "builtin" ]] && entry="${image}"
+
+            if [[ "${entry}" == "builtin" ]]; then
+                entry="${image}"
+            else
+                assert array_contains tag "${entry}"
+            fi
 
             # Make sure the provided tag they want us to push is one we built
-            assert array_contains tag "${entry}"
             einfo "Pushing $(lval tag=entry)"
             docker push "${entry}"
         done
