@@ -361,9 +361,11 @@ ETEST_disable_enable_die_on_error()
     die "Catch block should have returned"
 }
 
-#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
+#
 # tryrc
-#-----------------------------------------------------------------------------
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 ETEST_tryrc()
 {
@@ -561,6 +563,20 @@ ETEST_tryrc_multiline_output()
     assert_eq 0 "${rc}"
     assert_eq "$(cat input.txt)" "${stdout}"
     assert_eq "" "${stderr}"
+}
+
+ETEST_tryrc_multiline_output_dev_null()
+{
+    einfo "Generating input"
+    printf "line 1\nline 2\nline 3\n" > input.txt
+    cat input.txt
+
+    $(EDEBUG=0 tryrc -o=_ -e=_ cat input.txt)
+    assert_eq 0 "${rc}"
+
+    # We should NOT have stdout and stderr variables!
+    assert_false argcheck stdout
+    assert_false argcheck stderr
 }
 
 ETEST_tryrc_multiline_output_spaces()
