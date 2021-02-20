@@ -20,7 +20,7 @@ running_in_docker()
     [[ -f "/.dockerenv" ]] || grep -qw docker /proc/$$/cgroup 2>/dev/null
 }
 
-EBASH_DOCKER_REGISTRY="https://index.docker.io/v1"
+EBASH_DOCKER_REGISTRY="https://index.docker.io/v1/"
 EBASH_DOCKER_AUTO_TAG="__auto__"
 : ${DOCKER_REGISTRY:=${EBASH_DOCKER_REGISTRY}}
 
@@ -188,8 +188,7 @@ docker_build()
 
         opt_forward docker_login registry username password
 
-        #if DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${repo}/${sha_short}" &>/dev/null; then
-        if DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${repo}/${sha_short}"; then
+        if docker_image_exists "${repo}:${sha_short}"; then
             checkbox "Remote exists ${image}"
             return 0
         fi
@@ -286,7 +285,8 @@ docker_login()
     fi
 
     edebug "Logging into $(lval registry username)"
-    echo "${password}" | docker login "${registry}" --username "${username}" --password-stdin
+    echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
+    assert_ne "null" "$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json")"
 }
 
 opt_usage docker_logout <<'END'
@@ -303,4 +303,16 @@ docker_logout()
     argcheck registry
     edebug "Logging out of docker $(lval registry)"
     docker logout "${registry}"
+}
+
+opt_usage docker_image_exists <<'END'
+docker_image_exists is a simple function to easily check if a remote docker image exists. This makes use of an
+experimental feature in docker cli to be able to inspect a remote manifest without having to first pull it.
+END
+docker_image_exists()
+{
+    $(opt_parse \
+        "tag | Docker tag to check for the existance of in the form of name:tag.")
+
+    DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${tag}"
 }
