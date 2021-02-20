@@ -274,7 +274,7 @@ docker_login()
 
     argcheck registry username password
 
-    token=$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json" || true)
+    token=$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json" 2>/dev/null || true)
     edebug "Checking if logged into docker $(lval registry username token force)"
 
     if [[ ${force} -eq 1 ]]; then
@@ -286,6 +286,9 @@ docker_login()
 
     edebug "Logging into $(lval registry username)"
     echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
+
+    cat "${HOME}/.docker/config.json"
+
     assert_ne "null" "$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json")"
 }
 
