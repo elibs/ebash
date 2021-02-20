@@ -20,8 +20,7 @@ running_in_docker()
     [[ -f "/.dockerenv" ]] || grep -qw docker /proc/$$/cgroup 2>/dev/null
 }
 
-EBASH_DOCKER_REGISTRY_V1="https://index.docker.io/v1/"
-EBASH_DOCKER_REGISTRY="${EBASH_DOCKER_REGISTRY_V1}"
+EBASH_DOCKER_REGISTRY="https://index.docker.io/v1/"
 EBASH_DOCKER_AUTO_TAG="__auto__"
 : ${DOCKER_REGISTRY:=${EBASH_DOCKER_REGISTRY}}
 
@@ -288,18 +287,6 @@ docker_login()
 
     einfo "Logging into $(lval registry username)"
     echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
-
-    # Work around behavior of "docker login" which uses "index.docker.io" instead of "https://index.docker.io/v1/".
-    # Unfortunately this prevents docker_image_exists from working properly.
-    token="$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json")"
-    if [[ "${registry}" == "${EBASH_DOCKER_REGISTRY_V1}" && "${token}" == "null" ]]; then
-        local tmp
-        tmp="$(mktemp --tmpdir ebash-docker-login-XXXXXX)"
-
-        token="$(jq --raw-output '.auths."index.docker.io".auth' "${HOME}/.docker/config.json")"
-        jq '.auths."'${registry}'" = { "auth": "'${token}'" }' "${HOME}/.docker/config.json" > "${tmp}"
-        mv "${tmp}" "${HOME}/.docker/config.json"
-    fi
 
     token="$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json")"
     einfo "LOGIN TOKEN: $(lval registry token)"
