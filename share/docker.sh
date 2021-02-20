@@ -20,7 +20,7 @@ running_in_docker()
     [[ -f "/.dockerenv" ]] || grep -qw docker /proc/$$/cgroup 2>/dev/null
 }
 
-EBASH_DOCKER_REGISTRY="index.docker.io"
+EBASH_DOCKER_REGISTRY="https://index.docker.io/v1"
 EBASH_DOCKER_AUTO_TAG="__auto__"
 : ${DOCKER_REGISTRY:=${EBASH_DOCKER_REGISTRY}}
 
