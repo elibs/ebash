@@ -880,35 +880,35 @@ print_value()
         return 0
     fi
 
-    local decl val
-    decl=$(declare -p ${__input} 2>/dev/null || true)
-    val=$(echo "${decl}")
-    val=${val#*=}
+    local __decl __val
+    __decl=$(declare -p ${__input} 2>/dev/null || true)
+    __val=$(echo "${__decl}")
+    __val=${__val#*=}
 
     # Deal with properly declared variables which are empty
-    [[ -z ${val} ]] && val='""'
+    [[ -z ${__val} ]] && __val='""'
 
     # Special handling for arrays and associative arrays
-    local array_regex="declare -a"
-    local assoc_regex="declare -A"
-    if [[ ${decl} =~ ${array_regex} ]] ; then
+    local __array_regex="declare -a"
+    local __assoc_regex="declare -A"
+    if [[ ${__decl} =~ ${__array_regex} ]] ; then
         if [[ BASH_VERSINFO[0] -ge 5 || ( BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -gt 3 ) ]] ; then
             # BASH 4.4 and beyond -- no single quote
-            val=$(declare -p ${__input} | sed -e "s/[^=]*=(\(.*\))/(\1)/" -e "s/[[[:digit:]]\+]=//g")
+            __val=$(declare -p ${__input} | sed -e "s/[^=]*=(\(.*\))/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         else
             # BASH 4.2 and 4.3
-            val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g")
+            __val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         fi
-    elif [[ ${decl} =~ ${assoc_regex} ]]; then
-    	val="("
-	local key
-	for key in $(array_indexes_sort ${__input}); do
-	    eval 'val+="['${key}']=\"${'${__input}'['$key']}\" "'
-	done
-	val+=")"
+    elif [[ ${__decl} =~ ${__assoc_regex} ]]; then
+        __val="("
+        local key
+        for key in $(array_indexes_sort ${__input}); do
+            eval '__val+="['${key}']=\"${'${__input}'['$key']}\" "'
+        done
+        __val+=")"
     fi
 
-    echo -n "${val}"
+    echo -n "${__val}"
 }
 
 opt_usage lval <<'END'

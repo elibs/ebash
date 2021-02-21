@@ -172,22 +172,30 @@ docker_build()
 
     # Look for image locally first
     if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
+
         checkbox "Using local ${image}"
+        docker history "${image}" > "${history}"
         docker inspect "${image}" > "${inspect}"
+        __docker_build_create_tags
+
         return 0
+
     elif [[ "${pull}" -eq 1 ]]; then
+
         if docker pull "${image}" 2>/dev/null; then
             checkbox "Using pulled ${image}"
+            docker history "${image}" > "${history}"
             docker inspect "${image}" > "${inspect}"
+            __docker_build_create_tags
+
             return 0
         fi
+
     elif [[ "${pull}" -eq 0 && -n "${username}" && -n "${password}" ]]; then
 
-        #edebug "Checking remote manifest"
-        einfo "Checking remote manifest"
+        edebug "Checking remote manifest"
 
         opt_forward docker_login registry username password
-
         if docker_image_exists "${repo}:${sha_short}"; then
             checkbox "Remote exists ${image}"
             return 0
@@ -213,12 +221,7 @@ docker_build()
 
     eprogress_kill
 
-    # Tag them all
-    for entry in "${additional_tags[@]}"; do
-        [[ -z "${entry}" ]] && continue
-        einfo "Creating $(lval tag=entry)"
-        docker build --tag "${entry}" --file "${dockerfile}" . | edebug
-    done
+    __docker_build_create_tags
 
     einfo "Size"
     docker images "${image}"
@@ -319,4 +322,18 @@ docker_image_exists()
         "tag | Docker tag to check for the existance of in the form of name:tag.")
 
     DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${tag}"
+}
+
+opt_usage __docker_build_create_tags <<'END'
+Internal helper method to expose reuseable code for adding an additional tag to a previously built docker image.
+This is an internal function used only by docker_build function. As such the parameters are internal variables set
+within that function.
+END
+__docker_build_create_tags()
+{
+    for entry in "${additional_tags[@]}"; do
+        [[ -z "${entry}" ]] && continue
+        einfo "Creating $(lval tag=entry)"
+        docker build --tag "${entry}" --file "${dockerfile}" . | edebug
+    done
 }
