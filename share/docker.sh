@@ -195,7 +195,7 @@ docker_build()
 
         edebug "Checking remote manifest"
 
-        echo "${username}" | docker --username "${username}" --password-stdin
+        echo "${username}" | docker login --username "${username}" --password-stdin "${registry}"
 
         if docker_image_exists "${repo}:${sha_short}"; then
             checkbox "Remote exists ${image}"
@@ -232,7 +232,7 @@ docker_build()
 
     if array_not_empty push; then
 
-        echo "${username}" | docker --username "${username}" --password-stdin
+        echo "${username}" | docker login --username "${username}" --password-stdin "${registry}"
 
         # Parse push accumulator
         local entries
