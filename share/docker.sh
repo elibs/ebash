@@ -273,9 +273,16 @@ docker_login()
                                               which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
         ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
         ":password=${DOCKER_PASSWORD:-}     | Password for registry login. Defaults to DOCKER_PASSWORD env variable."  \
+        "+password_stdin                    | Take the password from stdin."                                           \
     )
 
-    argcheck registry username password
+    argcheck registry username
+
+    if [[ "${password_stdin}" -eq 1 ]]; then
+        read -s password < /dev/stdin
+    fi
+
+    argcheck password
 
     local token
     token=$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json" 2>/dev/null || true)
