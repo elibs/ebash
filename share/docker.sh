@@ -195,7 +195,8 @@ docker_build()
 
         edebug "Checking remote manifest"
 
-        opt_forward docker_login registry username password
+        echo "${username}" | docker --username "${username}" --password-stdin
+
         if docker_image_exists "${repo}:${sha_short}"; then
             checkbox "Remote exists ${image}"
             return 0
@@ -231,7 +232,7 @@ docker_build()
 
     if array_not_empty push; then
 
-        opt_forward docker_login registry username password
+        echo "${username}" | docker --username "${username}" --password-stdin
 
         # Parse push accumulator
         local entries
@@ -257,66 +258,6 @@ docker_build()
     # Only create inspect (stamp) file at the very end after everything has been done.
     einfo "Creating stamp file ${inspect}"
     docker inspect "${image}" > "${inspect}"
-}
-
-opt_usage docker_login <<'END'
-docker_login is a wrapper around native "docker login" command which checks if we aleady have a cached login auth token
-for the desired registry. By default it will assume that token is still valid. If you pass in --force it will logout of
-the registry before it does the actual login.
-END
-docker_login()
-{
-    $(opt_parse \
-        "+force                             | If force is enabled explicitly invalidate existing login via an explicit
-                                              logout before trying to login."                                          \
-        ":registry=${DOCKER_REGISTRY:-}     | Remote docker registry for login. Defaults to DOCKER_REGISTRY env variable
-                                              which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
-        ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
-        ":password=${DOCKER_PASSWORD:-}     | Password for registry login. Defaults to DOCKER_PASSWORD env variable."  \
-        "+password_stdin                    | Take the password from stdin."                                           \
-    )
-
-    argcheck registry username
-
-    if [[ "${password_stdin}" -eq 1 ]]; then
-        read -s password < /dev/stdin
-    fi
-
-    argcheck password
-
-    local token
-    token=$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json" 2>/dev/null || true)
-    einfo "Checking if logged into docker $(lval registry username token force)"
-
-    if [[ ${force} -eq 1 ]]; then
-        opt_forward docker_logout registry
-    elif [[ -n "${token}" && "${token}" != "null" ]]; then
-        einfo "Auth token exists"
-        return 0
-    fi
-
-    einfo "Logging into $(lval registry username)"
-    echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
-
-    token="$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json")"
-    einfo "LOGIN TOKEN: $(lval registry token)"
-    assert_ne "null" "$(jq --raw-output '.auths."'${registry}'".auth' "${HOME}/.docker/config.json")"
-}
-
-opt_usage docker_logout <<'END'
-docker_logout is a thin wrapper around "docker logout" largely for symmetry with docker_login function. Provides better
-testability and logging and traceability as a wrapper.
-END
-docker_logout()
-{
-     $(opt_parse \
-        ":registry=${DOCKER_REGISTRY:-}     | Remote docker registry for login. Defaults to DOCKER_REGISTRY env variable
-                                              which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
-    )
-
-    argcheck registry
-    edebug "Logging out of docker $(lval registry)"
-    docker logout "${registry}"
 }
 
 opt_usage docker_image_exists <<'END'
