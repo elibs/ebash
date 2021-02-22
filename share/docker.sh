@@ -168,7 +168,13 @@ docker_build()
         workdir        \
     )
 
-    einfo "Looking for docker image... $(lval pull username password)"
+    einfo "Looking for docker $(lval image pull tag)"
+
+    # Parse tag accumulator
+    local entry additional_tags
+    array_init additional_tags "${tag[*]}"
+    array_sort --unique additional_tags
+    edebug "$(lval tag additional_tags)"
 
     # Look for image locally first
     if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
@@ -209,12 +215,6 @@ docker_build()
         ewarn "Build required for $(lval image) but pretend=1"
         return 1
     fi
-
-    # Parse tag accumulator
-    local entry additional_tags
-    array_init additional_tags "${tag[*]}"
-    array_sort --unique additional_tags
-    edebug "$(lval tag additional_tags)"
 
     eprogress "Building docker $(lval image additional_tags)"
 
