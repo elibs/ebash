@@ -15,6 +15,8 @@
 
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
+__EBASH_DAEMON_RUNDIR="/var/run/ebash-daemon"
+
 opt_usage daemon_init <<'END'
 daemon_init is used to initialize the options pack that all of the various daemon_* functions will use. This makes it
 easy to specify global settings for all of these daemon functions without having to worry about consistent argument
@@ -24,12 +26,22 @@ ${cmdline}. If you need to be in the chroot to execute a given hook you're respo
 
 The following are the keys used to control daemon functionality:
 
+autostart
+  Automatically start the configured daemon after a successful daemon_init. This is off by default to allow the caller
+  more granular control. Valid values are "yes" and "no" (ignoring case).
+
 bindmounts
   Optional whitespace separated list of additional paths which whould be bind mounted into the chroot by the daemon
   process during daemon_start. A trap will be setup so that the bind mounts are automatically unmounted when the process
   exits. The syntax for these bind mounts allow mounting them into alternative paths inside the chroot using a colon to
   delimit the source path outside the chroot and the desired mount point inside the chroot. (e.g.
   /var/log/kern.log:/var/log/host_kern.log)
+
+cfgfile
+  This is a file that ebash will store the pack configuration information about the daemon. By default this is
+  ${__EBASH_DAEMON_RUNDIR}. This allows external integration into other parts of ebash such as the docker systemctl
+  wrapper which can be used to start/stop and query the status of daemons. Set this to an empty string if you want to
+  disable this.
 
 cgroup
   Optional cgroup to run the daemon in. If the cgroup does not exist it will be created for you. The daemon assumes
@@ -60,10 +72,10 @@ logfile_size
   will be rotated automatially. See elogfile and elogrotate for more details.
 
 name
-  The name of the daemon, for readability purposes. By default this will use the basename of the command being executed.
+  The name of the daemon, for readability purposes. By default this will use the name of the configuration pack.
 
 pidfile
-  Path to the pidfile for the daemon. By default this is the basename of the command being executed, stored in /var/run.
+  Path to the pidfile for the daemon. By default this is the name of the configuration pack and is stored in /var/run.
 
 pre_start
   Optional hook to be executed before starting the daemon. Must be a single command to be executed.  If more complexity
@@ -98,8 +110,9 @@ respawn_interval
   ${respawn_interval} seconds, the process will no longer be respawned.
 
 netns_name
-  Network namespce to run the daemon in.  The namespace must be created and properly configured before use.  if you use
+  Network namespce to run the daemon in.  The namespace must be created and properly configured before use. If you use
   this, you need to source netns.sh from ebash prior to calling daemon_start
+
 END
 daemon_init()
 {
@@ -107,35 +120,41 @@ daemon_init()
 
     # Load defaults into the pack first then add in any additional provided settings Since the last key=val added to the
     # pack will always override prior values this allows caller to override the defaults.
-    pack_set ${optpack}     \
-        bindmounts=         \
-        cgroup=             \
-        chroot=             \
-        delay=1             \
-        logfile=            \
-        logfile_count=0     \
-        logfile_size=0      \
-        pre_start=          \
-        pre_stop=           \
-        post_mount=         \
-        post_stop=          \
-        post_crash=         \
-        post_abort=         \
-        respawns=20         \
-        respawn_interval=15 \
-        netns_name=         \
+    pack_set ${optpack}               \
+        autostart="no"                \
+        bindmounts=                   \
+        cgroup=                       \
+        chroot=                       \
+        delay=1                       \
+        logfile=                      \
+        logfile_count=0               \
+        logfile_size=0                \
+        name=${optpack}               \
+        netns_name=                   \
+        pidfile="/var/run/${optpack}" \
+        post_abort=                   \
+        post_crash=                   \
+        post_mount=                   \
+        post_stop=                    \
+        pre_start=                    \
+        pre_stop=                     \
+        respawn_interval=15           \
+        respawns=20                   \
+        cfgfile="${__EBASH_DAEMON_RUNDIR}/${optpack}" \
         "${@}"
 
-    # Set name if missing
-    local base
-    base=$(basename $(pack_get ${optpack} "cmdline" | awk '{print $1}'))
-    if ! pack_contains ${optpack} "name"; then
-        pack_set ${optpack} name=${base}
+    edebug "$(lval %${optpack})"
+
+    local cfgfile
+    cfgfile="$(pack_get ${optpack} "cfgfile")"
+    if [[ -n "${cfgfile}" ]]; then
+        edebug "Creating $(lval cfgfile)"
+        mkdir -p "$(dirname "${cfgfile}")"
+        pack_save "${optpack}" "${cfgfile}"
     fi
 
-    # Set pidfile if missing
-    if ! pack_contains ${optpack} "pidfile"; then
-        pack_set ${optpack} pidfile="/var/run/${base}"
+    if [[ $(pack_get ${optpack} "autostart" | tr '[:upper:]' '[:lower:])') == "yes" ]]; then
+        daemon_start ${optpack}
     fi
 
     return 0
@@ -173,7 +192,6 @@ daemon_start()
         fi
         netns_cmd_prefix="netns_exec ${netns_name}"
     fi
-
 
     # Split this off into a separate sub-shell running in the background so we can return to the caller.
     (
@@ -288,7 +306,6 @@ daemon_start()
                 done
             fi
 
-
             # If we were gracefully shutdown then don't do anything further
             [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
 
@@ -330,14 +347,12 @@ daemon_stop()
 {
     # Pull in our argument pack then import all of its settings for use.
     $(opt_parse \
-        ":signal s=TERM        | Signal to use when gracefully stopping the daemon." \
-        ":timeout t=5          | Number of seconds to wait after initial signal before sending
-                                 SIGKILL." \
-        ":cgroup_timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear.
-                                 Requires cgroup support. If you specify a c=<some number of
-                                 seconds>, we'll give up (and return an error) after that many
-                                 seconds have elapsed.  By default, this is 300 seconds (i.e. 5
-                                 minutes).  If you specify 0, this will wait forever." \
+        ":signal s=TERM        | Signal to use when gracefully stopping the daemon."                                   \
+        ":timeout t=5          | Number of seconds to wait after initial signal before sending SIGKILL."               \
+        ":cgroup_timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear. Requires cgroup
+                                 support. If you specify a c=<some number of seconds>, we'll give up (and return an
+                                 error) after that many seconds have elapsed. By default, this is 300 seconds. If you
+                                 specify 0, this will wait forever."                                                   \
         "optpack               | Name of options pack that was returned by daemon_init.")
 
     $(pack_import ${optpack})
@@ -429,15 +444,34 @@ daemon_status()
     return 0
 }
 
+opt_usage daemon_restart <<'END'
+daemon_restart is a wrapper around daemon_stop followed by daemon_start. It is not a failure for the deamon to not be
+running and then call daemon_restart.
+END
+daemon_restart()
+{
+    # Pull in our argument pack then import all of its settings for use.
+    $(opt_parse \
+        ":signal s=TERM        | Signal to use when gracefully stopping the daemon."                                   \
+        ":timeout t=5          | Number of seconds to wait after initial signal before sending SIGKILL."               \
+        ":cgroup_timeout c=300 | Seconds after SIGKILL to wait for processes to actually disappear. Requires cgroup
+                                 support. If you specify a c=<some number of seconds>, we'll give up (and return an
+                                 error) after that many seconds have elapsed. By default, this is 300 seconds. If you
+                                 specify 0, this will wait forever."                                                   \
+        "optpack               | Name of options pack that was returned by daemon_init.")
+
+    opt_forward daemon_stop signal timeout cgroup_timeout -- ${optpack}
+    daemon_start ${optpack}
+}
+
 opt_usage daemon_running <<'END'
-Check if the daemon is running. This is just a convenience wrapper around
-"daemon_status -q". This is a little more convenient to use in scripts where you
-only care if it's running and don't want to have to suppress all the output from
+Check if the daemon is running. This is just a convenience wrapper around "daemon_status --quiet". This is a little more
+convenient to use in scripts where you only care if it's running and don't want to have to suppress all the output from
 daemon_status.
 END
 daemon_running()
 {
-    daemon_status -q "${@}"
+    daemon_status --quiet "${@}"
 }
 
 opt_usage daemon_not_running <<'END'

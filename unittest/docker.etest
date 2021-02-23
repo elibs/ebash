@@ -416,3 +416,71 @@ ETEST_docker_build_twice_changed()
         assert_false diff ".work/docker/ebash.${part}.orig" ".work/docker/ebash.${part}"
     done
 }
+
+ETEST_docker_build_systemctl_wrapper()
+{
+    etestmsg "Creating init"
+	cat <<-'END' >init
+	#!/bin/bash
+
+	$(/ebash/bin/ebash --source)
+
+	docker_create_systemctl_wrapper
+
+	daemon_init sleeper1 \
+	    autostart="yes"  \
+	    cmdline="sleep infinity" \
+        logfile="/var/log/sleeper1.log"
+
+	daemon_init sleeper2 \
+	    autostart="yes"  \
+	    cmdline="sleep infinity" \
+        logfile="/var/log/sleeper2.log"
+
+	tail -f /dev/null
+	END
+    cat init
+    chmod +x init
+
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM ubuntu:20.04
+	COPY "." "/ebash"
+	COPY "${TEST_DIR_OUTPUT#${EBASH_HOME}/}/init" "/init"
+	ENTRYPOINT ["/init"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image"
+    pushd "${TOPDIR}"
+    docker_build --repo "elibs/ebash" --file "${TEST_DIR_OUTPUT}/Dockerfile"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    container_id=$(docker run --detach "${image}")
+    trap_add "docker kill ${container_id}"
+    eretry docker exec -t "${container_id}" bash -c "[[ -e /usr/local/bin/systemctl ]]"
+
+    etestmsg "Validate systemctl wrapper"
+    docker exec -t "${container_id}" systemctl status sleeper1
+    docker exec -t "${container_id}" systemctl is-active sleeper1
+    docker exec -t "${container_id}" systemctl status sleeper2
+    docker exec -t "${container_id}" systemctl is-active sleeper2
+
+    etestmsg "Stopping sleeper1 and sleeper2"
+    docker exec -t "${container_id}" systemctl stop sleeper1
+    docker exec -t "${container_id}" systemctl stop sleeper2
+    assert_false docker exec -t "${container_id}" systemctl status sleeper1
+    assert_false docker exec -t "${container_id}" systemctl status sleeper2
+    docker exec -t "${container_id}" pgrep --full --inverse 'sleep infinity'
+
+    etestmsg "Starting sleeper1"
+    docker exec -t "${container_id}" systemctl start sleeper1
+    eretry docker exec -t "${container_id}" systemctl status sleeper1
+
+    etestmsg "Restarting sleeper1"
+    docker exec -t "${container_id}" systemctl restart sleeper1
+    eretry docker exec -t "${container_id}" systemctl status sleeper1
+
+    etestmsg "Restarting sleeper2"
+    docker exec -t "${container_id}" systemctl restart sleeper2
+    eretry docker exec -t "${container_id}" systemctl status sleeper2
+}
