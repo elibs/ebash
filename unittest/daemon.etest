@@ -3,66 +3,18 @@
 # Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
-# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
-# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
-# version.
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
+# published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
 
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Test Helpers
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 source ${EBASH_HOME}/unittest/daemon_expect.sh
-
-ETEST_daemon_init()
-{
-    local pidfile_real="${FUNCNAME}.pid"
-    local sleep_daemon
-
-    daemon_init sleep_daemon     \
-        "${DAEMON_EXPECT[@]}"    \
-        name="Init Test Daemon"  \
-        cmdline="sleep infinity" \
-        pidfile="${pidfile_real}"
-
-    $(pack_import sleep_daemon)
-
-    assert_eq "Init Test Daemon" "${name}"
-    assert_eq "sleep infinity"   "${cmdline}"
-    assert_eq "${pidfile_real}"  "$(pack_get sleep_daemon pidfile)"
-}
-
-ETEST_daemon_start_stop()
-{
-    local pidfile="${FUNCNAME}.pid"
-    local sleep_daemon
-
-    etestmsg "Starting infinity daemon"
-    daemon_init sleep_daemon            \
-        "${DAEMON_EXPECT[@]}"           \
-        name="Test Daemon"              \
-        cmdline="sleep infinity"        \
-        pidfile="${pidfile}"
-
-    daemon_start sleep_daemon
-
-    # Wait for process to be running
-    daemon_expect pre_start
-    daemon_expect post_mount
-    assert_true daemon_running sleep_daemon
-    assert test -s ${pidfile}
-    assert process_running $(cat ${pidfile})
-    assert daemon_running sleep_daemon
-    assert daemon_status  sleep_daemon
-
-    # Now stop it and verify proper shutdown
-    local pid
-    pid=$(cat "${pidfile}")
-    daemon_stop sleep_daemon &
-    daemon_expect pre_stop
-    daemon_expect post_stop
-    wait
-    assert_false daemon_running sleep_daemon
-    assert_false daemon_status -q sleep_daemon
-    assert_not_exists pidfile
-}
 
 netns_teardown_traphandler()
 {
@@ -222,6 +174,181 @@ netns_iptables_rule_exists()
       grep -q ${devname}
 }
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Unit Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_daemon_init()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
+    local sleep_daemon
+
+    daemon_init sleep_daemon     \
+        "${DAEMON_EXPECT[@]}"    \
+        name="Init Test Daemon"  \
+        cmdline="sleep infinity" \
+        pidfile=${pidfile}       \
+        cfgfile=${cfgfile}
+
+    unset pidfile cfgfile
+    $(pack_import sleep_daemon)
+    etestmsg "Sleep Daemon Settings: $(lval %sleep_daemon)"
+
+    assert_eq "Init Test Daemon" "${name}"
+    assert_eq "sleep infinity"   "${cmdline}"
+    assert_eq "${FUNCNAME}.pid"  "${pidfile}"
+    assert_eq "${FUNCNAME}.cfg"  "${cfgfile}"
+
+    # Validate state file
+    assert test -s ${cfgfile}
+    unset name cmdline pidfile
+    $(pack_import $(cat ${cfgfile} | _unpack))
+    etestmsg "On-Disk Settings: $(lval %$(cat ${cfgfile}))"
+    assert_eq "Init Test Daemon" "${name}"
+    assert_eq "sleep infinity"   "${cmdline}"
+    assert_eq "${FUNCNAME}.pid"  "${pidfile}"
+}
+
+ETEST_daemon_autostart()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
+    local sleep_daemon
+
+    etestmsg "Starting infinity daemon"
+    daemon_init sleep_daemon            \
+        "${DAEMON_EXPECT[@]}"           \
+        autostart=yes                   \
+        name="Test Daemon"              \
+        cmdline="sleep infinity"        \
+        pidfile=${pidfile}              \
+        cfgfile=${cfgfile}
+
+    # Wait for process to be running
+    daemon_expect pre_start
+    daemon_expect post_mount
+    assert_true daemon_running sleep_daemon
+    assert test -s ${pidfile}
+    assert test -s ${cfgfile}
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
+
+    # Now stop it and verify proper shutdown
+    local pid
+    pid=$(cat ${pidfile})
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    assert_not_exists pidfile
+}
+
+ETEST_daemon_start_stop()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
+    local sleep_daemon
+
+    etestmsg "Starting infinity daemon"
+    daemon_init sleep_daemon            \
+        "${DAEMON_EXPECT[@]}"           \
+        name="Test Daemon"              \
+        cmdline="sleep infinity"        \
+        pidfile="${pidfile}"            \
+        cfgfile="${cfgfile}"
+
+    daemon_start sleep_daemon
+
+    # Wait for process to be running
+    daemon_expect pre_start
+    daemon_expect post_mount
+    assert_true daemon_running sleep_daemon
+    assert test -s ${pidfile}
+    assert test -s ${cfgfile}
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
+
+    # Now stop it and verify proper shutdown
+    local pid
+    pid=$(cat "${pidfile}")
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    assert_not_exists pidfile
+}
+
+ETEST_daemon_start_stop_start()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
+    local sleep_daemon
+
+    etestmsg "Starting infinity daemon"
+    daemon_init sleep_daemon            \
+        "${DAEMON_EXPECT[@]}"           \
+        name="Test Daemon"              \
+        cmdline="sleep infinity"        \
+        pidfile="${pidfile}"            \
+        cfgfile="${cfgfile}"
+
+    daemon_start sleep_daemon
+
+    # Wait for process to be running
+    daemon_expect pre_start
+    daemon_expect post_mount
+    assert_true daemon_running sleep_daemon
+    assert test -s ${pidfile}
+    assert test -s ${cfgfile}
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
+
+    # Now stop it and verify proper shutdown
+    local pid
+    pid=$(cat "${pidfile}")
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    assert_not_exists pidfile
+
+    # Now start it up again
+    daemon_start sleep_daemon
+
+    # Wait for process to be running
+    daemon_expect pre_start
+    daemon_expect post_mount
+    assert_true daemon_running sleep_daemon
+    assert test -s ${pidfile}
+    assert test -s ${cfgfile}
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
+
+    # Now stop it and verify proper shutdown
+    local pid
+    pid=$(cat "${pidfile}")
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    assert_not_exists pidfile
+}
+
 # This test is different.  12.04 doesn't have a way to ask the system what netns a program is running in, and it's
 # difficult to tell when you are in a namespace that you are there, and if you are there, which one you are in.
 #
@@ -235,6 +362,7 @@ ETEST_daemon_netns()
     fi
 
     local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
     local sleep_daemon
     local testns_args
 
@@ -292,12 +420,13 @@ END
     # exists during the test run and is cleaned up immediately after.  Regardless, that is why the cmdline specifies the
     # script to run the way it does.
     etestmsg "Starting infinity daemon"
-    daemon_init sleep_daemon                                        \
-        "${DAEMON_EXPECT[@]}"                                       \
-        name="Netns test daemon"                                    \
-        cmdline="./netns_runner ${peer_devname}"                    \
-        netns_name=${ns_name}                                       \
-        pidfile="${pidfile}"
+    daemon_init sleep_daemon                     \
+        "${DAEMON_EXPECT[@]}"                    \
+        name="Netns test daemon"                 \
+        cmdline="./netns_runner ${peer_devname}" \
+        netns_name=${ns_name}                    \
+        pidfile="${pidfile}"                     \
+        cfgfile="${cfgfile}"
 
     echo $(lval %sleep_daemon)
 
@@ -311,6 +440,7 @@ END
     daemon_expect post_mount
     assert_true daemon_running sleep_daemon
     assert test -s ${pidfile}
+    assert test -s ${cfgfile}
     assert process_running $(cat ${pidfile})
     assert daemon_running sleep_daemon
     assert daemon_status  sleep_daemon
@@ -343,6 +473,7 @@ ETEST_daemon_cgroup()
     cgroup_create ${CGROUP}
 
     local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
 
     etestmsg "Initializing daemon"
     daemon_init sleep_daemon      \
@@ -350,7 +481,8 @@ ETEST_daemon_cgroup()
         name="cgroup test daemon" \
         cmdline="sleep infinity"  \
         cgroup=${CGROUP}          \
-        pidfile="${pidfile}"
+        pidfile="${pidfile}"      \
+        cfgfile="${cfgfile}"
 
     etestmsg "Running daemon"
     daemon_start sleep_daemon
@@ -358,6 +490,7 @@ ETEST_daemon_cgroup()
     daemon_expect post_mount
     assert_true daemon_running sleep_daemon
     assert test -s ${pidfile}
+    assert test -s ${cfgfile}
 
     local running_pids stopped_pids
     running_pids=$(cgroup_pids ${CGROUP})
@@ -375,6 +508,7 @@ ETEST_daemon_cgroup()
 ETEST_daemon_hooks()
 {
     local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
     local sleep_daemon
 
     daemon_init sleep_daemon     \
@@ -382,6 +516,7 @@ ETEST_daemon_hooks()
         name="hooks daemon"      \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"     \
+        cfgfile="${cfgfile}"     \
         respawns="3"             \
         respawn_interval="1"
 
@@ -403,12 +538,14 @@ ETEST_daemon_hooks()
 ETEST_daemon_pre_start_fail()
 {
     local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
     local sleep_daemon
 
     daemon_init sleep_daemon                      \
         name="pre_start_fail daemon"              \
         cmdline="sleep infinity"                  \
         pidfile="${pidfile}"                      \
+        cfgfile="${cfgfile}"                      \
         pre_start="false"                         \
         pre_stop="touch ${FUNCNAME}.pre_stop"     \
         post_mount="touch ${FUNCNAME}.post_mount" \
@@ -480,6 +617,7 @@ ETEST_daemon_respawn()
 {
     touch ${DAEMON_LOCK}
     local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
     local sleep_daemon
 
     daemon_init sleep_daemon     \
@@ -487,6 +625,7 @@ ETEST_daemon_respawn()
         name="respawning daemon" \
         cmdline="sleep infinity" \
         pidfile="${pidfile}"     \
+        cfgfile="${cfgfile}"     \
         respawns="3"             \
         respawn_interval="300"
 
@@ -541,6 +680,7 @@ ETEST_daemon_respawn_reset()
 {
     touch ${DAEMON_LOCK}
     local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
     local sleep_daemon
 
     daemon_init sleep_daemon        \
@@ -548,6 +688,7 @@ ETEST_daemon_respawn_reset()
         name="respawn_reset daemon" \
         cmdline="sleep infinity"    \
         pidfile="${pidfile}"        \
+        cfgfile="${cfgfile}"        \
         respawns="3"                \
         respawn_interval="0"
 

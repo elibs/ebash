@@ -285,3 +285,77 @@ __docker_build_create_tags()
         docker build --tag "${entry}" --file "${dockerfile}" . | edebug
     done
 }
+
+opt_usage __docker_systemctl_wrapper <<'END'
+Thin wrapper around systemctl...
+END
+__docker_systemctl_wrapper()
+{
+    $(opt_parse \
+        "action  | The action to perform (start, stop, status, restart, is-active)."    \
+        "service | The service to perform action on (e.g. sshd)." \
+    )
+
+    cfgfile="${__EBASH_DAEMON_RUNDIR}/${service}"
+
+    if [[ ! -e "${cfgfile}" ]]; then
+        die "Unknown $(lval service) (missing $(lval cfgfile))"
+    fi
+
+    EDEBUG=1
+    pack_load cfg "${cfgfile}"
+    edebug "Loaded daemon $(lval %cfg)"
+
+    __EBASH_INSIDE_TRY=0
+
+    case ${action} in
+
+        start)
+            daemon_start cfg
+            ;;
+
+        stop)
+            daemon_stop cfg
+            ;;
+
+        status)
+            daemon_status cfg
+            ;;
+
+        restart)
+            daemon_restart cfg
+            ;;
+
+        is-active)
+            daemon_running cfg
+            ;;
+
+        *)
+            die "Unsupported $(lval action)"
+            ;;
+    esac
+}
+
+docker_create_systemctl_wrapper()
+{
+    $(opt_parse \
+        ":path=/usr/local/bin/systemctl | Path to systemctl wrapper to create")
+
+    mkdir -p "$(dirname ${path})"
+
+    {
+        echo '#!/bin/bash'
+        echo '$('${EBASH}'/../bin/ebash --source)'
+
+        declare -fp __docker_systemctl_wrapper
+        echo '__docker_systemctl_wrapper "${@}"'
+
+    } > "${path}"
+
+    chmod +x "${path}"
+
+    if edebug_enabled; then
+        edebug "Created $(lval path)"
+        cat "${path}" | edebug
+    fi
+}
