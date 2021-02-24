@@ -133,6 +133,10 @@ elif [ "${DISTRO}" = "centos" ]; then
         which               \
         xz
 
+    # Default podman configuration prevents overlayfs from working properly.
+    sed -i 's|#mount_program = "/usr/bin/fuse-overlayfs"|mount_program = "/usr/bin/fuse-overlayfs"|' \
+        /etc/containers/storage.conf
+
 #----------------------------------------------------------------------------------------------------------------------
 #
 # Debian
@@ -286,7 +290,6 @@ elif [ "${DISTRO}" = "darwin" ]; then
         docker      \
         findutils   \
         gnu-sed     \
-        gnu-tar     \
         grep        \
         jq          \
         pstree
