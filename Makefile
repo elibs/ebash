@@ -73,7 +73,7 @@ lint:
 	bin/bashlint
 
 test:
-	bin/etest --verbose=${V} --filter=${FILTER}
+	bin/etest --verbose=${V} --filter=${FILTER} --exclude=${EXCLUDE} --repeat=${REPEAT} --break=${BREAK}
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -101,7 +101,7 @@ dselftest-$1:
 .PHONY: dtest-$1
 dtest-$1:
 	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "bin/ebash-install-deps && bin/etest --break --verbose=${V} --filter=${FILTER}"
+	${DRUN} $2 sh -c "bin/ebash-install-deps && bin/etest --break --verbose=${V} --filter=${FILTER} --exclude=${EXCLUDE} --repeat=${REPEAT} --break=${BREAK}"
 
 .PHONY: dshell-$1
 dshell-$1:

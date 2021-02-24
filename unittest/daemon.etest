@@ -205,8 +205,9 @@ ETEST_daemon_init()
     # Validate state file
     assert test -s ${cfgfile}
     unset name cmdline pidfile
-    $(pack_import $(cat ${cfgfile} | _unpack))
-    etestmsg "On-Disk Settings: $(lval %$(cat ${cfgfile}))"
+    pack_load cfg ${cfgfile}
+    $(pack_import cfg)
+    etestmsg "On-Disk Settings: $(lval %cfg)"
     assert_eq "Init Test Daemon" "${name}"
     assert_eq "sleep infinity"   "${cmdline}"
     assert_eq "${FUNCNAME}.pid"  "${pidfile}"
@@ -221,7 +222,7 @@ ETEST_daemon_autostart()
     etestmsg "Starting infinity daemon"
     daemon_init sleep_daemon            \
         "${DAEMON_EXPECT[@]}"           \
-        autostart=yes                   \
+        autostart="yes"                 \
         name="Test Daemon"              \
         cmdline="sleep infinity"        \
         pidfile=${pidfile}              \

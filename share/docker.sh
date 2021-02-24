@@ -162,7 +162,7 @@ docker_build()
     docker history "${image}" | tee "${history}"
 
     if array_not_empty push; then
-        push=( "${image}" "${push[@]}" )
+        push=( ${image} ${push[@]} )
         opt_forward docker_push push registry username password
     fi
 
@@ -171,7 +171,15 @@ docker_build()
     docker inspect "${image}" > "${inspect}"
 }
 
-## TODO: DOCSTRING
+opt_usage docker_push<<'END'
+docker_push is an intelligent wrapper around vanilla "docker push" which integrates more nicely with ebash. In addition
+to the normal additional error checking and hardening the ebash variety brings, this also provide the following
+functionality:
+
+    1) Seamlessly login to docker registry before pushing as-needed.
+    2) Accepts an accumulator of what tags to push
+    3) Accumulators can contain nested whitespace separated tags
+END
 docker_push()
 {
     $(opt_parse \
@@ -233,7 +241,7 @@ __docker_build_create_tags()
     done
 }
 
-opt_usage docker_depends_sha <<'END'
+opt_usage docker_depends_sha<<'END'
 docker_depends_sha is used to compute the dependency SHA for a dockerfile as well as any additional files it copies into
 the resulting docker image and also and build arguments used to create it. This is used by docker_build to avoid
 building docker images when none of the dependencies have changed.
@@ -249,6 +257,29 @@ also useful for callers. These are prefixed by ${name} which defaults to $(basen
     6) ${name}.${shafunc}_short  : Contains first 12 characters of the full SHA of the dependencies of the image
     7) ${name}.${shafunc}_detail : Contains a detailed listing of all the dependencies that led to the creation of the
                                    docker image along with THEIR respective SHAs.
+END
+docker_depends_sha()
+{
+    $(opt_parse \
+        "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
+        "=cache_repo                        | Name of docker cache registry/repository for cached remote images."      \
+        ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
+        ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
+        ":shafunc=sha256                    | SHA function to use. Default to sha256."                                 \
+        ":workdir=.work/docker              | Temporary work directory to save output files to."                       \
+    )
+
+    mkdir -p "${workdir}"
+    assert_exists "${file}"
+
+    : ${name:="$(basename "${cache_repo}")"}
+    $(__docker_depends_sha_variables)
+    __docker_depends_sha
+}
+
+opt_usage __docker_depends_sha <<'END'
+__docker_depends_sha is the internal implementation function implementing the algorithm described in docker_depends_sha.
+The actual implementation is broken out into this internal-only function for better code reuse and testability.
 END
 __docker_depends_sha()
 {
@@ -308,7 +339,10 @@ __docker_depends_sha()
     echo "${sha_short}" > "${shafile_short}"
 }
 
-## TODO: Add docstring
+opt_usage __docker_depends_sha_variables<<'END'
+__docker_depends_sha_variables is an internal only function which provides a central function for declaring all the
+internally used dependency SHA variables used throughout the docker module.
+END
 __docker_depends_sha_variables()
 {
     echo eval
@@ -320,24 +354,4 @@ __docker_depends_sha_variables()
     echo 'eval local shafile_short="${workdir}/${name}.${shafunc}_short"; '
     echo 'eval local shafile_detail="${workdir}/${name}.${shafunc}_detail"; '
     echo 'eval local sha_short; '
-}
-
-## TODO: DOCSTRING
-docker_depends_sha()
-{
-    $(opt_parse \
-        "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
-        "=cache_repo                        | Name of docker cache registry/repository for cached remote images."      \
-        ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
-        ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
-        ":shafunc=sha256                    | SHA function to use. Default to sha256."                                 \
-        ":workdir=.work/docker              | Temporary work directory to save output files to."                       \
-    )
-
-    mkdir -p "${workdir}"
-    assert_exists "${file}"
-
-    : ${name:="$(basename "${cache_repo}")"}
-    $(__docker_depends_sha_variables)
-    __docker_depends_sha
 }

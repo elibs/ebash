@@ -947,7 +947,12 @@ opt_forward()
         __called_name=${__called_name//_/-}
         __local_name=${__local_name//-/_}
 
-        args+=("--${__called_name//-/_}=${!__local_name}")
+        # If this is an accumulator we need to pass them all into the called function not just the first one.
+        if [[ ${__EBASH_OPT_TYPE[$__local_name]:-} == "accumulator" ]]; then
+            args+=( $(array_join --before ${__local_name} " --${__called_name//-/_} ") )
+        else
+            args+=("--${__called_name//-/_}=${!__local_name}")
+        fi
     done
 
     while [[ $# -gt 0 ]] ; do
