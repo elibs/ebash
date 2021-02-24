@@ -7,6 +7,28 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+# Mock docker function to intercept "docker push" commands for better testability.
+docker_tags_pushed=()
+docker()
+{
+    if [[ "${1}" == "push" ]]; then
+        etestmsg "Simulating docker push tags=${@}"
+        shift
+        docker_tags_pushed+=( "${@}" )
+        return 0
+    elif [[ "${1}" == "login" ]]; then
+        etestmsg "Simulated docker login with args=${@}"
+        return 0
+    fi
+
+    command docker "${@}"
+}
+
+setup()
+{
+    docker_tags_pushed=()
+}
+
 ETEST_docker_build()
 {
     etestmsg "Creating Dockerfile"
@@ -305,7 +327,62 @@ ETEST_docker_build_tags()
     done
 }
 
-#
+# Verify pushing tags works properly. Mock out docker() so that we don't have to actually have an upstream to push to.
+ETEST_docker_build_tags_push()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	ENTRYPOINT ["/bin/sh"]
+	END
+    cat Dockerfile
+
+    local tags=(
+        "elibs/ebash:etest-$$-tag1"
+        "elibs/ebash:etest-$$-tag2"
+        "elibs/ebash-cicd:$$"
+        "foo"
+        "bar"
+        "zap"
+    )
+
+    etestmsg "Building docker image"
+    eval "docker_build --cache-repo elibs/ebash --username neo --password matrix $(array_join --before tags ' --tag ') $(array_join --before tags ' --push ')"
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.options"       \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    trap_add "docker rmi ${image}"
+    assert_docker_image_exists "${image}"
+
+    etestmsg "Validating all tags were built"
+    for tag in ${tags[@]}; do
+        etestmsg "${tag}"
+        assert_docker_image_exists "${tag}"
+    done
+
+    etestmsg "Validating all tags were pushed"
+    array_sort tags
+    array_sort docker_tags_pushed
+    etestmsg "$(lval tags docker_tags_pushed)"
+    for tag in ${tags[@]}; do
+        array_contains docker_tags_pushed "${tag}"
+    done
+}
+
 # Verify if we create the same docker image multiple times in a row that it does NOT build it again but instead reuses
 # the one we've locally built.
 ETEST_docker_build_twice()
@@ -351,6 +428,18 @@ ETEST_docker_build_twice()
 
     for part in dockerfile history inspect sha256 sha256_short sha256_detail; do
         etestmsg "Checking ${part}"
+        # Depending on how fast this test runs, the output may say '1 second ago' or '2 seconds ago' which can cause
+        # a false-positive failure. We don't actually care about that part of the history file so just remove it from
+        # both files before we diff.
+        if [[ "${part}" == "history" ]]; then
+
+            diff ".work/docker/ebash.${part}.orig" ".work/docker/ebash.${part}" || true
+
+            sed -i -e 's|[0-9]\+ seconds* ago\s*|1 second ago        |' \
+                   -e 's|Less than a second ago\s*|1 second ago        |' \
+                ".work/docker/ebash.${part}.orig" ".work/docker/ebash.${part}"
+        fi
+
         diff ".work/docker/ebash.${part}.orig" ".work/docker/ebash.${part}"
     done
     grep 'pretend="1"' ".work/docker/ebash.options"
