@@ -139,6 +139,7 @@ fi
 # Default working directory from conf file if unspecified, or ./output if not in either place
 : ${work_dir:=$(conf_get _EBASH_CONF etest.work_dir)}
 : ${work_dir:=./output}
+mkdir -p "${work_dir}"
 work_dir=$(readlink -f ${work_dir})
 
 EDEBUG=${debug}
@@ -540,8 +541,8 @@ find_matching_tests()
 {
     # Expand tests to find all standalone executable scripts as well as any *.etest files.
     local all_tests=(
-        $(find "${tests[@]}" -type f -executable     | sort || true)
-        $(find "${tests[@]}" -type f -name "*.etest" | sort || true)
+        $(find "${tests[@]}" -type f -executable -not -name "*.etest" | sort || true)
+        $(find "${tests[@]}" -type f -name "*.etest"                  | sort || true)
     )
 
     # Get a list of tests we should actually run.

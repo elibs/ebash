@@ -47,16 +47,65 @@ captures the content of the provided Dockerfile as well as any files which are d
 directives in the Dockerfile as well as any build arguements. We then simply use that dynamically generated content
 based tag to easily be able to look for the image in the cache repository. For more details see docker_depends_sha.
 
-NOTE: If you want to push any tags you need to provide --username and --password arguments or have DOCKER_USERNAME and
+Overlay Modules
+===============
+
+docker_build supports the concept of overlay modules which facilitates copying files into the resulting docker image
+that we build. The purpose of this is to provide dockerized versions of things that would otherwise not work properly
+inside docker. The best example of this is systemd. Systemd binaries, such as systemctl and journalctl, do not function
+properly inside docker because there is no init daemon inside docker containers. To solve this problem, ebash provides a
+set of replacements for systemd binaries that simulate their intended functionality. These are generally NOT fully
+functional replacements but simple, stripped down replacements that get the job done.
+
+The overlay files are automatically accounted for with the built-in dependency SHA and caching mechanism used by
+docker_build.
+
+There are several built-in overlay modules provided by ebash that you can enable via --overlay=<module>. This is an
+accumulator so you can pass it in multiple times to enable multiple overlay modules.
+
+    1) systemd
+
+       This provides several critical binary replacements to provide seamless systemd-like functionality:
+
+         a) /usr/local/bin/systemctl: manage multiple ebash controlled daemons. This supports 'start', 'stop', 'status',
+            'restart' actions on each daemon.
+         b) /usr/local/bin/timedatectl: simulate systemd timedatectl functionality. This supports being called with no
+            arguments and it will output something similar to the real timedatectl. It also supports being called with
+            "set-timezone ZONE".
+         c) /usr/local/bin/journalctl: This does not implement the full journalctl functionality but instead acts as a
+            lightweight wrapper around rsyslog logger. By default if you call this with no arguments it will simply cat
+            /var/log/messages and pass them into your pager. If you pass in -f or --follow it will tail the log file.
+
+    2) rsyslog.conf
+
+       This provides a custom /etc/rsylog.conf file which allows rsyslog to function properly inside
+       docker. You should also ensure rsyslog is installed inside your container and start it up as a daemon using an
+       ebash controlled init script.
+
+    3) selinux.conf
+
+       This provides a custom /etc/selinux/config file which disables selinux entirely as it doesn't work inside docker.
+
+Finally, you can install your own custom overlay files via --overlay-tree=<path>. The entire tree of the provided path
+will be copied into the root of the created container. For example, if you had "overlay/usr/local/bin/foo" and you
+called "docker_build --overlay-tree overlay" then inside the container you will have "/usr/local/bin/foo".
+
+Notes
+=====
+(1) If you want to push any tags you need to provide --username and --password arguments or have DOCKER_USERNAME and
 DOCKER_PASSWORD environment variables set.
+
 END
 docker_build()
 {
     $(opt_parse \
         "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
         "=cache_repo                        | Name of docker cache registry/repository for cached remote images."      \
+        ":cache_from                        | Images to consider as cache sources. Passthrough into docker build."     \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
+        "&overlay                           | Builtin ebash overlay module to install into the image."                 \
+        ":overlay_tree                      | Tree of additional local files to copy into the resulting image."        \
         "+pull                              | Pull the image and all tags from the remote registry/repo."              \
         "+push                              | Push the image and all tags to remote registry/repo."                    \
         "+pretend                           | Do not actually build the docker image. Return 0 if image already exists
@@ -84,11 +133,14 @@ docker_build()
     image="${cache_repo}:${sha_short}"
     edebug $(lval      \
         build_arg      \
+        cache_from     \
         dockerfile     \
         file           \
         history        \
         image          \
         inspect        \
+        overlay        \
+        overlay_tree   \
         pretend        \
         push           \
         repo           \
@@ -110,12 +162,12 @@ docker_build()
         docker inspect "${image}" > "${inspect}"
 
         if [[ ${pull} -eq 1 ]]; then
-            opt_forward docker_pull registry username password -- ${tag[@]}
+            opt_forward docker_pull registry username password cache_from -- ${tag[@]}
         else
             local tag
             for tag in "${tags[@]}"; do
                 einfo "Creating $(lval tag)"
-                docker build --tag "${entry}" --file "${dockerfile}" . | edebug
+                docker build --file "${dockerfile}" --tag "${tag}" --cache-from "${cache_from}" . | edebug
             done
         fi
 
@@ -129,7 +181,7 @@ docker_build()
             docker history "${image}" > "${history}"
             docker inspect "${image}" > "${inspect}"
 
-            opt_forward docker_pull registry username password -- ${tag[@]}
+            opt_forward docker_pull registry username password cache_from -- ${tag[@]}
 
             return 0
         fi
@@ -151,7 +203,7 @@ docker_build()
     fi
 
     eprogress "Building docker $(lval image tags=tag)"
-    docker build --file "${dockerfile}" --tag "${image}" $(array_join --before tag " --tag ") . | edebug
+    docker build --file "${dockerfile}" --tag "${image}" --cache-from "${cache_from}" $(array_join --before tag " --tag ") . | edebug
     eprogress_kill
 
     einfo "Size"
@@ -184,6 +236,7 @@ docker_pull()
 {
     $(opt_parse \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
+        ":cache_from                        | Images to consider as cache sources. Passthrough into docker build."     \
         ":registry=${DOCKER_REGISTRY:-}     | Remote docker registry for login. Defaults to DOCKER_REGISTRY env variable
                                               which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
         ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
@@ -215,7 +268,7 @@ docker_pull()
                 return 1
             else
                 ewarn "Failed to pull $(lval tag) -- fallback to local build"
-                docker build --tag "${tag}" --file "${dockerfile}" . | edebug
+                docker build --file "${dockerfile}" --tag "${tag}" --cache-from "${cache_from}" . | edebug
             fi
         fi
     done
@@ -272,8 +325,8 @@ docker_image_exists()
 
 opt_usage docker_depends_sha<<'END'
 docker_depends_sha is used to compute the dependency SHA for a dockerfile as well as any additional files it copies into
-the resulting docker image and also and build arguments used to create it. This is used by docker_build to avoid
-building docker images when none of the dependencies have changed.
+the resulting docker image (including overlay modules and overlay_tree files) and also and build arguments used to
+create it. This is used by docker_build to avoid building docker images when none of the dependencies have changed.
 
 This function will create some output state files underneath ${workdir}/docker that are used by docker_build and are
 also useful for callers. These are prefixed by ${name} which defaults to $(basename ${cache_repo}).
@@ -294,6 +347,8 @@ docker_depends_sha()
         "=cache_repo                        | Name of docker cache registry/repository for cached remote images."      \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
+        "&overlay                           | Builtin ebash overlay module to install into the image."                 \
+        ":overlay_tree                      | Tree of additional local files to copy into the resulting image."        \
         ":shafunc=sha256                    | SHA function to use. Default to sha256."                                 \
         ":workdir=.work/docker              | Temporary work directory to save output files to."                       \
     )
@@ -338,6 +393,43 @@ __docker_depends_sha()
         edebug "stripping buildarg: $(lval entry build_arg_key)"
         sed -i -e "/ARG ${build_arg_key}/d" "${dockerfile}"
     done
+
+    # Append COPY directives for overlay modules
+    local overdir="${workdir}/${name}.overlay"
+    mkdir -p "${overdir}"
+    for entry in ${overlay[@]}; do
+
+        edebug "Adding $(lval overlay=entry)"
+
+        if [[ "${entry}" == "ebash" ]]; then
+            mkdir -p "${overdir}/ebash/opt/ebash" "${overdir}/ebash/usr/local/bin"
+            rsync -a "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
+
+            local bin
+            for bin in ${overdir}/ebash/opt/ebash/bin/*; do
+                bin="$(basename "${bin}")"
+                ln -s "/opt/ebash/bin/${bin}" "${overdir}/ebash/usr/local/bin/${bin}"
+            done
+
+            # Update EBASH_HOME in ebash so it works in the newly installed path.
+            sed -i 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/opt/ebash"|' "${overdir}/ebash/opt/ebash/bin/ebash"
+
+        else
+            assert_exists "${EBASH}/docker-overlay/${entry}"
+            rsync -a "${EBASH}/docker-overlay/${entry}" "${overdir}"
+        fi
+
+        echo 'COPY "'${overdir}'/'${entry}'/" "/"' >> "${dockerfile}"
+    done
+
+    # Add COPY directive for overlay_tree if requested.
+    if [[ -n "${overlay_tree}" ]]; then
+        edebug "Adding user provided $(lval overlay_tree)"
+        assert_exists "${overlay_tree}"
+        mkdir -p "${overdir}/custom"
+        rsync -a "${overlay_tree}/" "${overdir}/custom"
+        echo 'COPY "'${overdir}'/custom/" "/"' >> "${dockerfile}"
+    fi
 
     # Dynamically compute dependency SHA of dockerfile
     local depends
