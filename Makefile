@@ -73,10 +73,17 @@ clobber: clean
 	sudo bin/ebash rm -frv --one-file-system .work
 
 lint:
-	bin/bashlint
+	@bin/bashlint
 
 test:
-	bin/etest --verbose=${V} --filter=${FILTER} --exclude=${EXCLUDE} --repeat=${REPEAT} --break=${BREAK}
+	@bin/etest \
+		--work_dir=.work/output \
+		--log_dir=.work         \
+		--verbose=${V}          \
+		--filter=${FILTER}      \
+		--exclude=${EXCLUDE}    \
+		--repeat=${REPEAT}      \
+		--break=${BREAK}
 
 #----------------------------------------------------------------------------------------------------------------------
 #

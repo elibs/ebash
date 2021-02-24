@@ -1,0 +1,43 @@
+#!/bin/bash
+
+$(ebash --source)
+
+$(opt_parse \
+    "action  | The action to perform (start, stop, status, restart, is-active)." \
+    "service | The service to perform action on (e.g. sshd)."                    \
+)
+
+# Disable stacktraces emitted by ebash die() as we do not want them to perculate out to the user from this wrapper.
+disable_die_stacktrace
+
+# Get the configuration file for the requested service.
+cfgfile="${__EBASH_DAEMON_RUNDIR}/${service}"
+if [[ ! -e "${cfgfile}" ]]; then
+    die "Unknown $(lval service) (missing $(lval cfgfile))"
+fi
+
+# Load ebash daemon configuration for this service.
+pack_load cfg "${cfgfile}"
+edebug "Loaded daemon $(lval %cfg)"
+
+# Perform the requested action using ebash provided daemon functions.
+case ${action} in
+    start)
+        daemon_start cfg
+    ;;
+    stop)
+        daemon_stop cfg
+    ;;
+    status)
+        daemon_status cfg
+    ;;
+    restart)
+        daemon_restart cfg
+    ;;
+    is-active)
+        daemon_running cfg
+    ;;
+    *)
+        die "Unsupported $(lval action)"
+    ;;
+esac

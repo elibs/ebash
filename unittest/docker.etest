@@ -35,7 +35,6 @@ ETEST_docker_build()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -69,7 +68,6 @@ ETEST_docker_build_and_pretend()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -109,7 +107,6 @@ ETEST_docker_build_args()
 	ARG ARTIST
 	ARG SONG
 	RUN echo "${ARTIST}/${SONG}"
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -145,7 +142,6 @@ ETEST_docker_build_args_missing()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ARG UPR
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -169,6 +165,38 @@ ETEST_docker_build_args_missing()
     diff "Dockerfile" ".work/docker/ebash.dockerfile"
 }
 
+ETEST_docker_build_cache_from()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image"
+    docker_build --cache-repo "elibs/ebash" --cache-from "alpine:latest"
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work"                            \
+        ".work/docker"                     \
+        ".work/docker/ebash.dockerfile"    \
+        ".work/docker/ebash.history"       \
+        ".work/docker/ebash.inspect"       \
+        ".work/docker/ebash.options"       \
+        ".work/docker/ebash.sha256"        \
+        ".work/docker/ebash.sha256_short"  \
+        ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating Docker Image was built"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    etestmsg "$(lval image)"
+    trap_add "docker rmi ${image}"
+
+    assert_docker_image_exists "${image}"
+}
+
 # Custom dockerfile name
 ETEST_docker_build_custom_dockerfile()
 {
@@ -177,7 +205,6 @@ ETEST_docker_build_custom_dockerfile()
 	cat <<-END >${file}
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat "${file}"
 
@@ -214,7 +241,6 @@ ETEST_docker_build_custom_dockerfile()
 	cat <<-END >${file}
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat "${file}"
 
@@ -250,7 +276,6 @@ ETEST_docker_custom_shafunc()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -286,7 +311,6 @@ ETEST_docker_build_tags()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -335,7 +359,6 @@ ETEST_docker_build_tags_push()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -392,7 +415,6 @@ ETEST_docker_build_twice()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -457,7 +479,6 @@ ETEST_docker_build_twice_changed()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -491,7 +512,6 @@ ETEST_docker_build_twice_changed()
 	FROM alpine:edge
 	ENV CREATOR etest-$$
 	ENV TIMESTAMP $(etimestamp)
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
@@ -508,26 +528,96 @@ ETEST_docker_build_twice_changed()
     done
 }
 
-: <<'END'
-ETEST_docker_build_systemctl_wrapper()
+ETEST_docker_build_overlay()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM ubuntu:20.04
+	ENV CREATOR etest-$$
+	END
+    cat Dockerfile
+
+    mkdir -p "overlay/usr/local/bin" "overlay/etc"
+    touch "overlay/usr/local/bin/foo"
+    touch "overlay/etc/foo.cfg"
+
+    etestmsg "Building docker image"
+    docker_build \
+        --cache-repo "elibs/ebash" \
+        --overlay ebash   \
+        --overlay systemd \
+        --overlay selinux \
+        --overlay rsyslog \
+        --overlay-tree overlay
+
+    cat ".work/docker/ebash.dockerfile"
+
+    local overdir=".work/docker/ebash.overlay"
+    etestmsg "Inspecting $(lval overdir)"
+    find "${overdir}" -ls
+    assert_exists "${overdir}/custom"
+    assert_exists "${overdir}/ebash"
+    assert_exists "${overdir}/systemd"
+    assert_exists "${overdir}/selinux"
+    assert_exists "${overdir}/rsyslog"
+
+    etestmsg "Validating dockerfile COPY directives"
+    grep 'COPY "'${overdir}'/custom/" "/"'  ".work/docker/ebash.dockerfile"
+    grep 'COPY "'${overdir}'/ebash/" "/"'   ".work/docker/ebash.dockerfile"
+    grep 'COPY "'${overdir}'/systemd/" "/"' ".work/docker/ebash.dockerfile"
+    grep 'COPY "'${overdir}'/selinux/" "/"' ".work/docker/ebash.dockerfile"
+    grep 'COPY "'${overdir}'/rsyslog/" "/"' ".work/docker/ebash.dockerfile"
+
+    etestmsg "Validating overlay entries in depends_sha"
+    grep "${overdir}/custom/usr/local/bin/foo"          ".work/docker/ebash.sha256_detail"
+    grep "${overdir}/custom/etc/foo.cfg"                ".work/docker/ebash.sha256_detail"
+    grep "${overdir}/ebash"                             ".work/docker/ebash.sha256_detail"
+    grep "${overdir}/selinux/etc/selinux/config"        ".work/docker/ebash.sha256_detail"
+    grep "${overdir}/systemd/usr/local/bin/systemctl"   ".work/docker/ebash.sha256_detail"
+    grep "${overdir}/systemd/usr/local/bin/timedatectl" ".work/docker/ebash.sha256_detail"
+    grep "${overdir}/rsyslog/etc/rsyslog.conf"          ".work/docker/ebash.sha256_detail"
+
+    etestmsg "Validating overlay contents inside docker image"
+    image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
+    container_id=$(docker run --detach "${image}" sleep infinity)
+    trap_add "docker kill ${container_id}"
+
+    validate_paths=(
+        "/etc/foo.cfg"
+        "/etc/rsyslog.conf"
+        "/etc/selinux/config"
+        "/opt/ebash"
+        "/opt/ebash/bin/ebash"
+        "/opt/ebash/bin/einfo"
+        "/usr/local/bin/ebash"
+        "/usr/local/bin/foo"
+        "/usr/local/bin/systemctl"
+        "/usr/local/bin/timedatectl"
+    )
+
+    for entry in ${validate_paths[@]}; do
+        echo "${entry}"
+        docker exec "${container_id}" bash -c "[[ -e ${entry} ]]"
+    done
+}
+
+ETEST_docker_build_overlay_systemctl_wrapper()
 {
     etestmsg "Creating init"
 	cat <<-'END' >init
 	#!/bin/bash
 
-	$(/ebash/bin/ebash --source)
-
-	docker_create_systemctl_wrapper
+	$(ebash --source)
 
 	daemon_init sleeper1 \
 	    autostart="yes"  \
 	    cmdline="sleep infinity" \
-        logfile="/var/log/sleeper1.log"
+	    logfile="/var/log/sleeper1.log"
 
 	daemon_init sleeper2 \
 	    autostart="yes"  \
 	    cmdline="sleep infinity" \
-        logfile="/var/log/sleeper2.log"
+	    logfile="/var/log/sleeper2.log"
 
 	tail -f /dev/null
 	END
@@ -537,15 +627,21 @@ ETEST_docker_build_systemctl_wrapper()
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
 	FROM ubuntu:20.04
-	COPY "." "/ebash"
-	COPY "${TEST_DIR_OUTPUT#${EBASH_HOME}/}/init" "/init"
+	COPY "init" "/init"
 	ENTRYPOINT ["/init"]
 	END
     cat Dockerfile
 
     etestmsg "Building docker image"
-    pushd "${TOPDIR}"
-    docker_build --cache-repo "elibs/ebash" --file "${TEST_DIR_OUTPUT}/Dockerfile"
+    docker_build \
+        --file "${TEST_DIR_OUTPUT}/Dockerfile" \
+        --cache-repo "elibs/ebash" \
+        --overlay "ebash"          \
+        --overlay "systemd"
+    cat ".work/docker/ebash.dockerfile"
+    find ".work/docker/ebash.overlay" -ls
+
+    etestmsg "Running docker container"
     image="elibs/ebash:$(cat .work/docker/ebash.sha256_short)"
     container_id=$(docker run --detach "${image}")
     trap_add "docker kill ${container_id}"
@@ -566,6 +662,8 @@ ETEST_docker_build_systemctl_wrapper()
 
     etestmsg "Starting sleeper1"
     docker exec -t "${container_id}" systemctl start sleeper1
+    sleep 5
+    docker exec -t "${container_id}" cat /var/log/sleeper1.log
     eretry docker exec -t "${container_id}" systemctl status sleeper1
 
     etestmsg "Restarting sleeper1"
@@ -576,7 +674,6 @@ ETEST_docker_build_systemctl_wrapper()
     docker exec -t "${container_id}" systemctl restart sleeper2
     eretry docker exec -t "${container_id}" systemctl status sleeper2
 }
-END
 
 ETEST_docker_depends_sha()
 {
@@ -584,7 +681,6 @@ ETEST_docker_depends_sha()
 	cat <<-END >Dockerfile
 	FROM alpine:edge
 	ENV CREATOR etest-$$
-	ENTRYPOINT ["/bin/sh"]
 	END
     cat Dockerfile
 
