@@ -58,6 +58,9 @@ endif
 #
 #----------------------------------------------------------------------------------------------------------------------
 
+BREAK?=0
+REPEAT?=0
+
 .PHONY: ctags clean clobber
 
 ctags: unittest/*.sh unittest/*.etest share/*.sh bin/*
