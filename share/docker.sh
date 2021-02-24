@@ -76,15 +76,16 @@ accumulator so you can pass it in multiple times to enable multiple overlay modu
             lightweight wrapper around rsyslog logger. By default if you call this with no arguments it will simply cat
             /var/log/messages and pass them into your pager. If you pass in -f or --follow it will tail the log file.
 
-    2) rsyslog.conf
+    2) rsyslog
 
-       This provides a custom /etc/rsylog.conf file which allows rsyslog to function properly inside
-       docker. You should also ensure rsyslog is installed inside your container and start it up as a daemon using an
-       ebash controlled init script.
+       This is *NOT* a full replacement for rsyslog. Instead it simply provides a custom /etc/rsylog.conf file which
+       allows rsyslog to function properly inside docker. You also need to __install__ rsyslog in your container and
+       must also start it up as a daemon (probably using ebash controlled init script).
 
-    3) selinux.conf
+    3) selinux
 
-       This provides a custom /etc/selinux/config file which disables selinux entirely as it doesn't work inside docker.
+       This is *NOT* a full replacement for selinux. Instead it simply provides a custom /etc/selinux/config file which
+       completely disables selinux entirely as it doesn't work inside docker.
 
 Finally, you can install your own custom overlay files via --overlay-tree=<path>. The entire tree of the provided path
 will be copied into the root of the created container. For example, if you had "overlay/usr/local/bin/foo" and you
@@ -161,15 +162,7 @@ docker_build()
         docker history "${image}" > "${history}"
         docker inspect "${image}" > "${inspect}"
 
-        if [[ ${pull} -eq 1 ]]; then
-            opt_forward docker_pull registry username password cache_from -- ${tag[@]}
-        else
-            local tag
-            for tag in "${tags[@]}"; do
-                einfo "Creating $(lval tag)"
-                docker build --file "${dockerfile}" --tag "${tag}" --cache-from "${cache_from}" . | edebug
-            done
-        fi
+        opt_forward docker_pull registry username password cache_from -- "${tag[@]}"
 
         return 0
 
@@ -249,16 +242,21 @@ docker_pull()
         return 0
     fi
 
-    if ! argcheck registry username password; then
-        edebug "Pull disabled because one or more required arguments are missing"
-        return 1
-    fi
-
-    echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
-
-    # Push all tags
+    local login=1
     local tag
     for tag in "${tags[@]}"; do
+
+        # If it is available locally no need to pull!
+        if [[ -n "$(docker images --quiet "${tag}" 2>/dev/null)" ]]; then
+            checkbox "Using local ${tag}"
+            continue
+        fi
+
+        if [[ ${login} -eq 1 ]]; then
+            argcheck registry username password
+            echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
+            login=0
+        fi
 
         einfo "Pulling $(lval tag)"
         if ! docker pull "${tag}"; then
