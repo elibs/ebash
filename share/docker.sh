@@ -394,7 +394,7 @@ __docker_depends_sha()
 
     # Append COPY directives for overlay modules
     local overdir="${workdir}/${name}.overlay"
-    mkdir -p "${overdir}"
+    efreshdir "${overdir}"
     for entry in ${overlay[@]}; do
 
         edebug "Adding $(lval overlay=entry)"
