@@ -58,8 +58,7 @@ docker_build()
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
         "+pull                              | Pull the image from the remote registry/repo."                           \
-        "&push                              | List of tags to push to remote registry/repo. Multiple tags can be space
-                                              delimited inside this array."                                            \
+        "+push                              | Push the image and all tags to remote registry/repo."                    \
         "+pretend                           | Do not actually build the docker image. Return 0 if image already exists
                                               and 1 if the image does not exist and a build is required."              \
         ":shafunc=sha256                    | SHA function to use. Default to sha256."                                 \
@@ -161,9 +160,10 @@ docker_build()
     einfo "Layers"
     docker history "${image}" | tee "${history}"
 
-    if array_not_empty push; then
-        push=( ${image} ${push[@]} )
-        opt_forward docker_push push registry username password
+    if [[ ${push} -eq 1 ]]; then
+        local push_tags
+        push_tags=( ${image} ${tag[@]} )
+        opt_forward docker_push registry username password -- ${push_tags[@]}
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
@@ -183,15 +183,15 @@ END
 docker_push()
 {
     $(opt_parse \
-        "&push                              | List of tags to push to remote registry/repo. Multiple tags can be space
-                                              delimited inside this array."                                            \
         ":registry=${DOCKER_REGISTRY:-}     | Remote docker registry for login. Defaults to DOCKER_REGISTRY env variable
                                               which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
         ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
         ":password=${DOCKER_PASSWORD:-}     | Password for registry login. Defaults to DOCKER_PASSWORD env variable."  \
+        "@tags                              | List of tags to push to remote registry/repo. Multiple tags can be space
+                                              delimited inside this array."                                            \
     )
 
-    if array_empty push; then
+    if array_empty tags; then
         return 0
     fi
 
@@ -203,15 +203,16 @@ docker_push()
     echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
 
     # Parse push accumulator
-    local entries
-    array_init entries "${push[*]}"
-    array_sort --unique entries
-    edebug "Pushing $(lval push entries)"
+    local all_tags
+    array_init all_tags "${tags[*]}"
+    array_sort --unique all_tags
+    edebug "Pushing $(lval all_tags)"
 
     # Push all tags
-    for entry in "${entries[@]}"; do
-        einfo "Pushing $(lval tag=entry)"
-        docker push "${entry}"
+    local tag
+    for tag in "${all_tags[@]}"; do
+        einfo "Pushing $(lval tag)"
+        docker push "${tag}"
     done
 }
 

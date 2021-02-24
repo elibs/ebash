@@ -348,7 +348,7 @@ ETEST_docker_build_tags_push()
     )
 
     etestmsg "Building docker image"
-    eval "docker_build --cache-repo elibs/ebash --username neo --password matrix $(array_join --before tags ' --tag ') $(array_join --before tags ' --push ')"
+    eval "docker_build --cache-repo elibs/ebash --username neo --password matrix $(array_join --before tags ' --tag ') --push"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
