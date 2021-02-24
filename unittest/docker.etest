@@ -301,6 +301,7 @@ ETEST_docker_build_tags()
 
     etestmsg "Building docker image"
     eval "docker_build --cache-repo elibs/ebash $(array_join --before tags ' --tag ')"
+    trap_add "docker rmi ${tags[*]}"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -322,7 +323,7 @@ ETEST_docker_build_tags()
 
     etestmsg "Validating all tags were built"
     for tag in ${tags[@]}; do
-        etestmsg "${tag}"
+        echo "${tag}"
         assert_docker_image_exists "${tag}"
     done
 }
@@ -370,7 +371,7 @@ ETEST_docker_build_tags_push()
 
     etestmsg "Validating all tags were built"
     for tag in ${tags[@]}; do
-        etestmsg "${tag}"
+        echo "${tag}"
         assert_docker_image_exists "${tag}"
     done
 

@@ -110,9 +110,13 @@ docker_build()
         docker inspect "${image}" > "${inspect}"
 
         if [[ ${pull} -eq 1 ]]; then
-            opt_forward docker_pull registry username password -- ${image} ${tag[@]}
+            opt_forward docker_pull registry username password -- ${tag[@]}
         else
-            __docker_build_create_tags
+            local tag
+            for tag in "${tags[@]}"; do
+                einfo "Creating $(lval tag)"
+                docker build --tag "${entry}" --file "${dockerfile}" . | edebug
+            done
         fi
 
         return 0
@@ -125,7 +129,7 @@ docker_build()
             docker history "${image}" > "${history}"
             docker inspect "${image}" > "${inspect}"
 
-            opt_forward docker_pull registry username password -- ${image} ${tag[@]}
+            opt_forward docker_pull registry username password -- ${tag[@]}
 
             return 0
         fi
@@ -147,12 +151,8 @@ docker_build()
     fi
 
     eprogress "Building docker $(lval image tags=tag)"
-
-    docker build --tag "${image}" --file "${dockerfile}" . | edebug
-
+    docker build --file "${dockerfile}" --tag "${image}" $(array_join --before tag " --tag ") . | edebug
     eprogress_kill
-
-    __docker_build_create_tags
 
     einfo "Size"
     docker images "${image}"
@@ -268,20 +268,6 @@ docker_image_exists()
         "tag | Docker tag to check for the existance of in the form of name:tag.")
 
     DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${tag}"
-}
-
-opt_usage __docker_build_create_tags <<'END'
-Internal helper method to expose reuseable code for adding an additional tag to a previously built docker image.
-This is an internal function used only by docker_build function. As such the parameters are internal variables set
-within that function.
-END
-__docker_build_create_tags()
-{
-    for entry in "${tag[@]}"; do
-        [[ -z "${entry}" ]] && continue
-        einfo "Creating $(lval tag=entry)"
-        docker build --tag "${entry}" --file "${dockerfile}" . | edebug
-    done
 }
 
 opt_usage docker_depends_sha<<'END'
