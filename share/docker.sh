@@ -57,14 +57,13 @@ docker_build()
         "=cache_repo                        | Name of docker cache registry/repository for cached remote images."      \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
-        "+pull                              | Pull the image from the remote registry/repo."                           \
+        "+pull                              | Pull the image and all tags from the remote registry/repo."              \
         "+push                              | Push the image and all tags to remote registry/repo."                    \
         "+pretend                           | Do not actually build the docker image. Return 0 if image already exists
                                               and 1 if the image does not exist and a build is required."              \
         ":shafunc=sha256                    | SHA function to use. Default to sha256."                                 \
         "&tag                               | Tags to assign to the image of the form registry/repo:tag. This allows you
-                                              to actually tag and push to multiple remote repositories in one operation.
-                                              Multiple tags can be space delimited inside this array."                 \
+                                              to actually tag and push to multiple repositories in one operation."     \
         ":registry=${DOCKER_REGISTRY:-}     | Remote docker registry for login. Defaults to DOCKER_REGISTRY env variable
                                               which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
         ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
@@ -103,18 +102,18 @@ docker_build()
         workdir        \
     )
 
-    # Parse tag accumulator
-    array_init tag "${tag[*]}"
-    array_sort --unique tag
-    edebug "$(lval tag tags=tags)"
-
     # Look for image locally first
     if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
 
         checkbox "Using local ${image}"
         docker history "${image}" > "${history}"
         docker inspect "${image}" > "${inspect}"
-        __docker_build_create_tags
+
+        if [[ ${pull} -eq 1 ]]; then
+            opt_forward docker_pull registry username password -- ${image} ${tag[@]}
+        else
+            __docker_build_create_tags
+        fi
 
         return 0
 
@@ -125,7 +124,8 @@ docker_build()
             checkbox "Using pulled ${image}"
             docker history "${image}" > "${history}"
             docker inspect "${image}" > "${inspect}"
-            __docker_build_create_tags
+
+            opt_forward docker_pull registry username password -- ${image} ${tag[@]}
 
             return 0
         fi
@@ -171,14 +171,63 @@ docker_build()
     docker inspect "${image}" > "${inspect}"
 }
 
+opt_usage docker_pull<<'END'
+docker_pull is an intelligent wrapper around vanilla "docker pull" which integrates more nicely with ebash. In addition
+to the normal additional error checking and hardening the ebash variety brings, this also provide the following
+functionality:
+
+    1) Seamlessly login to docker registry before pushing as-needed.
+    2) Accepts an array of tags to pull and pulls them all.
+    3) Fallback to local build if remote pull fails.
+END
+docker_pull()
+{
+    $(opt_parse \
+        ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
+        ":registry=${DOCKER_REGISTRY:-}     | Remote docker registry for login. Defaults to DOCKER_REGISTRY env variable
+                                              which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
+        ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
+        ":password=${DOCKER_PASSWORD:-}     | Password for registry login. Defaults to DOCKER_PASSWORD env variable."  \
+        "+fallback=1                        | If pull fails, build locally."                                           \
+        "@tags                              | List of tags to pull from the remote registry/repo."                     \
+    )
+
+    if array_empty tags; then
+        return 0
+    fi
+
+    if ! argcheck registry username password; then
+        edebug "Pull disabled because one or more required arguments are missing"
+        return 1
+    fi
+
+    echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
+
+    # Push all tags
+    local tag
+    for tag in "${tags[@]}"; do
+
+        einfo "Pulling $(lval tag)"
+        if ! docker pull "${tag}"; then
+
+            if [[ ${fallback} -eq 0 ]]; then
+                eerror "Failed to pull $(lval tag)"
+                return 1
+            else
+                ewarn "Failed to pull $(lval tag) -- fallback to local build"
+                docker build --tag "${tag}" --file "${dockerfile}" . | edebug
+            fi
+        fi
+    done
+}
+
 opt_usage docker_push<<'END'
 docker_push is an intelligent wrapper around vanilla "docker push" which integrates more nicely with ebash. In addition
 to the normal additional error checking and hardening the ebash variety brings, this also provide the following
 functionality:
 
     1) Seamlessly login to docker registry before pushing as-needed.
-    2) Accepts an accumulator of what tags to push
-    3) Accumulators can contain nested whitespace separated tags
+    2) Accepts an array of tags to push and pushes them all.
 END
 docker_push()
 {
@@ -187,8 +236,7 @@ docker_push()
                                               which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
         ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
         ":password=${DOCKER_PASSWORD:-}     | Password for registry login. Defaults to DOCKER_PASSWORD env variable."  \
-        "@tags                              | List of tags to push to remote registry/repo. Multiple tags can be space
-                                              delimited inside this array."                                            \
+        "@tags                              | List of tags to push to remote registry/repo."                           \
     )
 
     if array_empty tags; then
@@ -202,15 +250,9 @@ docker_push()
 
     echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
 
-    # Parse push accumulator
-    local all_tags
-    array_init all_tags "${tags[*]}"
-    array_sort --unique all_tags
-    edebug "Pushing $(lval all_tags)"
-
     # Push all tags
     local tag
-    for tag in "${all_tags[@]}"; do
+    for tag in "${tags[@]}"; do
         einfo "Pushing $(lval tag)"
         docker push "${tag}"
     done
