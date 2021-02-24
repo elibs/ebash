@@ -80,7 +80,7 @@ docker_build()
     : ${name:="$(basename "${cache_repo}")"}
     $(__docker_depends_sha_variables)
     __docker_depends_sha
-    local sha_short=$(cat "${shafile_short}")
+    sha_short=$(cat "${shafile_short}")
 
     # Image we should look for
     image="${cache_repo}:${sha_short}"
@@ -319,6 +319,7 @@ __docker_depends_sha_variables()
     echo 'eval local shafile="${workdir}/${name}.${shafunc}"; '
     echo 'eval local shafile_short="${workdir}/${name}.${shafunc}_short"; '
     echo 'eval local shafile_detail="${workdir}/${name}.${shafunc}_detail"; '
+    echo 'eval local sha_short; '
 }
 
 ## TODO: DOCSTRING
