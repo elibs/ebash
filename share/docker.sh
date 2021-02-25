@@ -438,6 +438,7 @@ __docker_depends_sha()
         ${dockerfile}
         $(grep -P "^(ADD|COPY) " "${dockerfile}" | awk '{$1=$NF=""}1' | sed 's|"||g' || true)
     )
+    array_sort --unique depends
 
     edebug "$(lval depends)"
     local sha_detail=""
