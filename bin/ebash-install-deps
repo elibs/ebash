@@ -140,12 +140,12 @@ elif [ "${DISTRO}" = "centos" ]; then
     sed -i 's|#mount_program = "/usr/bin/fuse-overlayfs"|mount_program = "/usr/bin/fuse-overlayfs"|' \
         /etc/containers/storage.conf
 
-    # Default cgroup settings for running podman inside docker doesn't work properly.
-    # The recommendation in https://github.com/containers/podman/issues/6982 is to set cgroup_manager to "cgroupfs"
-    sed -i 's|# cgroup_manager = "systemd"|cgroup_manager = "cgroupfs"|' \
-        /usr/share/containers/containers.conf
-
-    # yum install iptables-services
+    if [ -e /usr/share/containers/containers.conf ]; then
+        # Default cgroup settings for running podman inside docker doesn't work properly.
+        # The recommendation in https://github.com/containers/podman/issues/6982 is to set cgroup_manager to "cgroupfs"
+        sed -i 's|# cgroup_manager = "systemd"|cgroup_manager = "cgroupfs"|' \
+            /usr/share/containers/containers.conf
+    fi
 
 #----------------------------------------------------------------------------------------------------------------------
 #

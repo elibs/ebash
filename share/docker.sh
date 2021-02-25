@@ -370,10 +370,11 @@ __docker_depends_sha()
     opt_dump | sort   > "${optfile}"
 
     # Add any build arguments into sha_detail
-    local entry="" build_arg_keys=() build_arg_key="" build_arg_val=""
-    for entry in "${build_arg[@]}"; do
-        build_arg_key="${entry%%=*}"
-        build_arg_val="${entry#*=}"
+    local entry=""
+    for entry in "${build_arg[@]:-}"; do
+        [[ -z "${entry}" ]] && continue
+        local build_arg_key="${entry%%=*}"
+        local build_arg_val="${entry#*=}"
         edebug "buildarg: $(lval entry build_arg_key build_arg_val)"
 
         eval "export ${build_arg_key}=${build_arg_val}"
@@ -384,7 +385,8 @@ __docker_depends_sha()
     envsubst "$(array_join build_arg_keys ,)" < "${file}" > "${dockerfile}"
 
     # Strip out ARGs that we've interpolated
-    for entry in "${build_arg[@]}"; do
+    for entry in "${build_arg[@]:-}"; do
+        [[ -z "${entry}" ]] && continue
         build_arg_key="${entry%%=*}"
         edebug "stripping buildarg: $(lval entry build_arg_key)"
         sed -i -e "/ARG ${build_arg_key}/d" "${dockerfile}"
@@ -393,9 +395,17 @@ __docker_depends_sha()
     # Append COPY directives for overlay modules
     local overdir="${workdir}/$(basename ${name})/overlay"
     efreshdir "${overdir}"
-    for entry in ${overlay[@]}; do
 
-        edebug "Adding $(lval overlay=entry)"
+    # Add COPY directive for overlay_tree if requested.
+    local overlay_paths=( "${overlay[@]:-}" )
+    if [[ -n "${overlay_tree}" ]]; then
+        overlay_paths+=( "file://${overlay_tree}" )
+    fi
+
+    # We have to iterate backwards since we're inserting these after the first FROM statement.
+    for idx in $(array_rindexes overlay_paths); do
+        entry="${overlay_paths[$idx]}"
+        edebug "Adding $(lval idx overlay=entry)"
 
         if [[ "${entry}" == "ebash" ]]; then
             mkdir -p "${overdir}/ebash/opt/ebash" "${overdir}/ebash/usr/local/bin"
@@ -410,22 +420,17 @@ __docker_depends_sha()
             # Update EBASH_HOME in ebash so it works in the newly installed path.
             sed -i 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/opt/ebash"|' "${overdir}/ebash/opt/ebash/bin/ebash"
 
+        elif [[ "${entry}" == file://* ]]; then
+            mkdir -p "${overdir}/custom"
+            cp -a "${entry:7}/." "${overdir}/custom"
+            entry="custom"
         else
-            assert_exists "${EBASH}/docker-overlay/${entry}"
+            mkdir -p "${overdir}/${entry}"
             cp -a "${EBASH}/docker-overlay/${entry}" "${overdir}"
         fi
 
-        echo 'COPY "'${overdir}'/'${entry}'/" "/"' >> "${dockerfile}"
+        sed -i '\|^FROM .*|a COPY "'${overdir}'/'${entry}'/" "/"' "${dockerfile}"
     done
-
-    # Add COPY directive for overlay_tree if requested.
-    if [[ -n "${overlay_tree}" ]]; then
-        edebug "Adding user provided $(lval overlay_tree)"
-        assert_exists "${overlay_tree}"
-        mkdir -p "${overdir}/custom"
-        cp -a "${overlay_tree}/." "${overdir}/custom"
-        echo 'COPY "'${overdir}'/custom/" "/"' >> "${dockerfile}"
-    fi
 
     # Dynamically compute dependency SHA of dockerfile
     local depends
