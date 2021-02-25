@@ -1,4 +1,4 @@
-#!/usr/bin/env ../../bin/ebash
+#!/usr/bin/env ../../../bin/ebash
 #
 # Copyright 2020, Marshall McMullen <marshall.mcmullen@gmail.com>
 #
