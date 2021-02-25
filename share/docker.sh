@@ -442,7 +442,7 @@ __docker_depends_sha()
         sha_detail="$(array_join_nl build_arg_vals)"
         sha_detail+=$'\n'
     fi
-    sha_detail+="$(find ${depends[@]} -type f -print0 \
+    sha_detail+="$(find ${depends[@]} -follow -type f -print0 \
         | sort -z \
         | xargs -0 "${shafunc}sum" \
         | awk '{print $2"'@${shafunc}:'"$1}'
