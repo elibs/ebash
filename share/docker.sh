@@ -452,7 +452,6 @@ __docker_depends_sha()
         | awk '{print $2"'@${shafunc}:'"$1}'
     )"
 
-    edebug "$(lval sha_detail)"
     echo "${sha_detail}" > "${shafile_detail}"
     echo "${sha_detail}" | "${shafunc}sum" | awk '{print "'${shafunc}':"$1}' > "${shafile}"
 
