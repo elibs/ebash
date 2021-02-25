@@ -508,3 +508,67 @@ ETEST_array_associative_indexes_sort()
     indexes=$(array_indexes_sort values)
     assert_eq "a b c d m z" "${indexes}"
 }
+
+ETEST_array_copy()
+{
+    local source=("a 1" "b 2" "c 3" "d 4")
+    local target
+    array_copy source target
+
+    assert_eq 4 "$(array_size source)"
+    assert_eq 4 "$(array_size target)"
+
+    assert_eq "a 1|b 2|c 3|d 4" "$(array_join source '|')"
+    assert_eq "a 1|b 2|c 3|d 4" "$(array_join target '|')"
+}
+
+ETEST_array_copy_empty()
+{
+    local source=()
+    local target=()
+    array_copy source target
+
+    assert_eq 0 "$(array_size source)"
+    assert_eq 0 "$(array_size target)"
+}
+
+ETEST_array_copy_empty_replace()
+{
+    local source=()
+    local target=("a 1")
+    array_copy source target
+
+    assert_eq 0 "$(array_size source)"
+    assert_eq 0 "$(array_size target)"
+}
+
+ETEST_array_copy_add()
+{
+    local source=("a 1" "b 2" "c 3" "d 4")
+    local target
+    array_copy   source target
+    array_add_nl target "e 5"
+
+    assert_eq 4 "$(array_size source)"
+    assert_eq 5 "$(array_size target)"
+
+    assert_eq "a 1|b 2|c 3|d 4"     "$(array_join source '|')"
+    assert_eq "a 1|b 2|c 3|d 4|e 5" "$(array_join target '|')"
+}
+
+ETEST_array_copy_add_empty_values()
+{
+    local source=("a 1" "b 2" "c 3" "d 4")
+    local target
+    array_copy   source target
+
+    local empty=""
+    array_add_nl target ""
+    array_add_nl target "${empty}"
+
+    assert_eq 4 "$(array_size source)"
+    assert_eq 4 "$(array_size target)"
+
+    assert_eq "a 1|b 2|c 3|d 4" "$(array_join source '|')"
+    assert_eq "a 1|b 2|c 3|d 4" "$(array_join target '|')"
+}

@@ -15,6 +15,7 @@
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
 BREAK   ?= $(or ${break},0)
+DEBUG   ?= $(or ${debug},0)
 EXCLUDE ?= $(or ${exclude},)
 FILTER  ?= $(or ${filter},)
 REPEAT  ?= $(or ${repeat},0)
@@ -44,13 +45,14 @@ lint:
 
 test:
 	bin/etest \
-		--work_dir=.work/output \
-		--log_dir=.work         \
-		--verbose=${V}          \
-		--filter=${FILTER}      \
+		--break=${BREAK}        \
+		--debug=${DEBUG}        \
 		--exclude=${EXCLUDE}    \
+		--filter=${FILTER}      \
+		--log_dir=.work         \
 		--repeat=${REPEAT}      \
-		--break=${BREAK}
+		--verbose=${V}          \
+		--work_dir=.work/output
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -81,14 +83,14 @@ dtest-$1:
 	bin/ebanner "$2 Dependencies"
 	${DRUN} $2 sh -c "bin/ebash-install-deps && \
         bin/etest \
-            --work-dir=.work/$2/output \
-            --log-dir=.work/$2         \
             --break                    \
-            --verbose=${V}             \
-            --filter=${FILTER}         \
+            --debug=${DEBUG}           \
             --exclude=${EXCLUDE}       \
+            --filter=${FILTER}         \
+            --log-dir=.work/$2         \
             --repeat=${REPEAT}         \
-            --break=${BREAK}"
+            --verbose=${V}             \
+            --work-dir=.work/$2/output"
 
 .PHONY: dshell-$1
 dshell-$1:
