@@ -367,7 +367,7 @@ __docker_depends_sha()
     assert_exists "${file}"
 
     echo "${shafunc}" > "${shafile_func}"
-    opt_dump | sort   > "${optfile}"
+    opt_dump | sort   | tee "${optfile}" | edebug
 
     # Add any build arguments into sha_detail
     local entry=""
@@ -393,15 +393,14 @@ __docker_depends_sha()
     done
 
     # Append COPY directives for overlay modules
-    local overdir
+    local overdir overlay_paths
     overdir="${workdir}/$(basename ${name})/overlay"
     mkdir -p "${overdir}"
 
     # Add COPY directive for overlay_tree if requested.
-    local overlay_paths=( "${overlay[@]:-}" )
-    if [[ -n "${overlay_tree}" ]]; then
-        overlay_paths+=( "file://${overlay_tree}" )
-    fi
+    array_copy overlay overlay_paths
+    [[ -n "${overlay_tree}" ]] && overlay_paths+=( "file://${overlay_tree}" )
+    edebug "Post copy $(lval overlay overlay_paths)"
 
     # We have to iterate backwards since we're inserting these after the first FROM statement.
     for idx in $(array_rindexes overlay_paths); do
@@ -409,8 +408,10 @@ __docker_depends_sha()
         edebug "Adding $(lval idx overlay=entry)"
 
         if [[ "${entry}" == "ebash" ]]; then
+
             mkdir -p "${overdir}/ebash/opt/ebash" "${overdir}/ebash/usr/local/bin"
             cp --recursive --update "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
+
             local bin
             for bin in ${overdir}/ebash/opt/ebash/bin/*; do
                 bin="$(basename "${bin}")"
@@ -420,7 +421,10 @@ __docker_depends_sha()
             done
 
             # Update EBASH_HOME in ebash so it works in the newly installed path.
-            sed -i 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/opt/ebash"|' "${overdir}/ebash/opt/ebash/bin/ebash"
+            if ! grep -q '^EBASH_HOME="/opt/ebash$"' "${overdir}/ebash/opt/ebash/bin/ebash"; then
+                edebug "Updating EBASH_HOME to point to /opt/ebash"
+                sed -i 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/opt/ebash"|' "${overdir}/ebash/opt/ebash/bin/ebash"
+            fi
 
         elif [[ "${entry}" == file://* ]]; then
             mkdir -p "${overdir}/custom"
@@ -431,7 +435,7 @@ __docker_depends_sha()
             cp --recursive --update "${EBASH}/docker-overlay/${entry}" "${overdir}"
         fi
 
-        sed -i '\|^FROM .*|a COPY "'${overdir}'/'${entry}'/" "/"' "${dockerfile}"
+        sed -i '\|^FROM .*|a COPY "'${overdir}'/'${entry}'" "/"' "${dockerfile}"
     done
 
     # Dynamically compute dependency SHA of dockerfile

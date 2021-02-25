@@ -317,4 +317,34 @@ array_sort()
     done
 }
 
+opt_usage array_copy <<'END'
+array_copy is a convenience function for copying one array to another. This is easier to use than raw bash code as it
+handles empty arrays sensibly to avoid tripping up "set -e" and "set -u" settings. It also deals with properly quoting
+the array contents properly so you don't have to worry about it.
+
+Examples:
+  local source=("a 1" "b 2" "c 3" "d 4")
+  local target
+  array_copy source target
+
+END
+array_copy()
+{
+    $(opt_parse \
+        "__source | Source array to copy from." \
+        "__target | Target array to copy into." \
+    )
+
+    # Initialize target array
+    eval "${__target}=()"
+
+    # Return if nothing to do
+    if array_empty ${__source}; then
+        return 0
+    fi
+
+    # Set the array contents
+    eval "${__target}=( \"\${${__source}[@]}\" )"
+}
+
 return 0

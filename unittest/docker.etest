@@ -567,11 +567,11 @@ ETEST_docker_build_overlay()
     assert_exists "${overdir}/rsyslog"
 
     etestmsg "Validating dockerfile COPY directives"
-    grep 'COPY "'${overdir}'/custom/" "/"'  ".work/docker/ebash/dockerfile"
-    grep 'COPY "'${overdir}'/ebash/" "/"'   ".work/docker/ebash/dockerfile"
-    grep 'COPY "'${overdir}'/systemd/" "/"' ".work/docker/ebash/dockerfile"
-    grep 'COPY "'${overdir}'/selinux/" "/"' ".work/docker/ebash/dockerfile"
-    grep 'COPY "'${overdir}'/rsyslog/" "/"' ".work/docker/ebash/dockerfile"
+    grep 'COPY "'${overdir}'/custom" "/"'  ".work/docker/ebash/dockerfile"
+    grep 'COPY "'${overdir}'/ebash" "/"'   ".work/docker/ebash/dockerfile"
+    grep 'COPY "'${overdir}'/systemd" "/"' ".work/docker/ebash/dockerfile"
+    grep 'COPY "'${overdir}'/selinux" "/"' ".work/docker/ebash/dockerfile"
+    grep 'COPY "'${overdir}'/rsyslog" "/"' ".work/docker/ebash/dockerfile"
 
     etestmsg "Validating overlay entries in depends_sha"
     grep "${overdir}/custom/usr/local/bin/foo"          ".work/docker/ebash/sha.detail"
@@ -694,8 +694,19 @@ ETEST_docker_depends_sha()
 	END
     cat Dockerfile
 
+    mkdir -p "overlay/usr/local/bin" "overlay/etc"
+    touch "overlay/usr/local/bin/foo"
+    touch "overlay/etc/foo.cfg"
+
     etestmsg "Computing Dependency SHA"
-    docker_depends_sha --name "elibs/ebash"
+    docker_depends_sha \
+        --name "elibs/ebash" \
+        --overlay systemd    \
+        --overlay selinux    \
+        --overlay rsyslog    \
+        --overlay-tree overlay
+
+    cat ".work/docker/ebash/dockerfile"
 
     etestmsg "Validating depends_sha artifacts"
     assert_exists \
@@ -712,15 +723,35 @@ ETEST_docker_depends_sha()
     assert_docker_image_not_exists "${image}"
 
     # Validate dependency SHA
-    etestmsg "sha256"
+    etestmsg "Validating SHA function"
     assert_eq "sha256" "$(cat .work/docker/ebash/sha.func)"
     cat ".work/docker/ebash/sha"
 
-    etestmsg "details"
+    etestmsg "Details"
     cat ".work/docker/ebash/sha.detail"
-    expect=".work/docker/ebash/dockerfile@sha256:$(sha256sum Dockerfile | awk '{print $1}')"
-    assert_eq "${expect}" "$(cat .work/docker/ebash/sha.detail)"
+    depends=(
+        ".work/docker/ebash/dockerfile"
+        ".work/docker/ebash/overlay/custom/etc/foo.cfg"
+        ".work/docker/ebash/overlay/custom/usr/local/bin/foo"
+        ".work/docker/ebash/overlay/rsyslog/etc/rsyslog.conf"
+        ".work/docker/ebash/overlay/selinux/etc/selinux/config"
+        ".work/docker/ebash/overlay/systemd/usr/local/bin/systemctl"
+        ".work/docker/ebash/overlay/systemd/usr/local/bin/timedatectl"
+    )
 
-    expect=$(sha256sum .work/docker/ebash/sha.detail | awk '{print $1}')
-    assert_eq "sha256:${expect}" "$(cat .work/docker/ebash/sha)"
+    etestmsg "Showing local dependency tree"
+    find ".work/docker/ebash/overlay"
+
+    expect=()
+    for depend in ${depends[@]}; do
+        expect+=( "${depend}@sha256:$(sha256sum "${depend}" | awk '{print $1}')" )
+    done
+
+    etestmsg "Expected SHA Details"
+    expected=$(array_join_nl expect)
+    assert_eq "${expected}" "$(cat .work/docker/ebash/sha.detail)"
+
+    etestmsg "Roll-up SHA"
+    expected=$(sha256sum .work/docker/ebash/sha.detail | awk '{print $1}')
+    assert_eq "sha256:${expected}" "$(cat .work/docker/ebash/sha)"
 }
