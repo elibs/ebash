@@ -393,7 +393,8 @@ __docker_depends_sha()
     done
 
     # Append COPY directives for overlay modules
-    local overdir="${workdir}/$(basename ${name})/overlay"
+    local overdir
+    overdir="${workdir}/$(basename ${name})/overlay"
     efreshdir "${overdir}"
 
     # Add COPY directive for overlay_tree if requested.
