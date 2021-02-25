@@ -79,7 +79,16 @@ dselftest-$1:
 .PHONY: dtest-$1
 dtest-$1:
 	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "bin/ebash-install-deps && bin/etest --break --verbose=${V} --filter=${FILTER} --exclude=${EXCLUDE} --repeat=${REPEAT} --break=${BREAK}"
+	${DRUN} $2 sh -c "bin/ebash-install-deps && \
+        bin/etest \
+            --work-dir=.work/$2/output \
+            --log-dir=.work/$2         \
+            --break                    \
+            --verbose=${V}             \
+            --filter=${FILTER}         \
+            --exclude=${EXCLUDE}       \
+            --repeat=${REPEAT}         \
+            --break=${BREAK}"
 
 .PHONY: dshell-$1
 dshell-$1:
