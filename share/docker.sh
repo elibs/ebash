@@ -469,7 +469,8 @@ END
 __docker_depends_sha_variables()
 {
     echo eval
-    echo 'eval local artifactdir="${workdir}/$(basename ${name})"; '
+    echo 'eval local artifactdir; '
+    echo 'eval artifactdir="${workdir}/$(basename ${name})"; '
     echo 'eval mkdir -p "${artifactdir}"; '
     echo 'eval local dockerfile="${artifactdir}/dockerfile"; '
     echo 'eval local optfile="${artifactdir}/options"; '
