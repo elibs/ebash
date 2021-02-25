@@ -411,11 +411,12 @@ __docker_depends_sha()
         if [[ "${entry}" == "ebash" ]]; then
             mkdir -p "${overdir}/ebash/opt/ebash" "${overdir}/ebash/usr/local/bin"
             rsync --archive --delete-after "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
-
             local bin
             for bin in ${overdir}/ebash/opt/ebash/bin/*; do
                 bin="$(basename "${bin}")"
-                ln -s "/opt/ebash/bin/${bin}" "${overdir}/ebash/usr/local/bin/${bin}"
+                if [[ ! -L "${overdir}/ebash/usr/local/bin/${bin}" ]]; then
+                    ln -s "/opt/ebash/bin/${bin}" "${overdir}/ebash/usr/local/bin/${bin}"
+                fi
             done
 
             # Update EBASH_HOME in ebash so it works in the newly installed path.
