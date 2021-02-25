@@ -367,7 +367,7 @@ __docker_depends_sha()
     assert_exists "${file}"
 
     echo "${shafunc}" > "${shafile_func}"
-    opt_dump | sort   | tee "${optfile}" | edebug
+    opt_dump | tee "${optfile}" | edebug
 
     # Add any build arguments into sha_detail
     local entry=""

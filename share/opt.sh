@@ -874,10 +874,20 @@ opt_display_usage()
     } >&2
 }
 
+: <<'END'
+opt_dump is used to dump all the options to STDOUT in a pretty-printed format suitable for human consumption or for
+debugging.  This is not meant to be used programmatically. The options are sorted by option name (or key) and the value
+are pretty-printed using print_value.
+END
 opt_dump()
 {
-    for option in "${!__EBASH_OPT[@]}" ; do
-        echo "${option}=\"${__EBASH_OPT[$option]}\""
+    for option in $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort); do
+        if [[ ${__EBASH_OPT_TYPE[$option]:-} == "accumulator" ]]; then
+            array_init_nl value "${__EBASH_OPT[$option]}"
+            echo "${option}=$(print_value value)"
+        else
+            echo "${option}=\"${__EBASH_OPT[$option]}\""
+        fi
     done
 }
 
