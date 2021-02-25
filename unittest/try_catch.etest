@@ -647,7 +647,7 @@ ETEST_tryrc_no_eol()
 ETEST_tryrc_multiline_monster_output()
 {
     etestmsg "Generating input"
-    cat ${EBASH}/* | shuf -n 2000 > input.txt
+    find ${EBASH} -type f | shuf -n 2000 > input.txt
     etestmsg "Num lines input=$(wc -l input.txt | awk '{print $1}')"
 
     $(EDEBUG=0 tryrc -o=stdout -e=stderr cat input.txt)
