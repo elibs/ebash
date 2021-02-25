@@ -75,7 +75,8 @@ name
   The name of the daemon, for readability purposes. By default this will use the name of the configuration pack.
 
 pidfile
-  Path to the pidfile for the daemon. By default this is the name of the configuration pack and is stored in /var/run.
+  Path to the pidfile for the daemon. By default this is the name of the configuration pack and is stored in
+  ${__EBASH_DAEMON_RUNDIR}/${name}.pid
 
 pre_start
   Optional hook to be executed before starting the daemon. Must be a single command to be executed.  If more complexity
@@ -123,6 +124,7 @@ daemon_init()
     pack_set ${optpack}               \
         autostart="no"                \
         bindmounts=                   \
+        cfgfile="${__EBASH_DAEMON_RUNDIR}/${optpack}" \
         cgroup=                       \
         chroot=                       \
         delay=1                       \
@@ -131,7 +133,7 @@ daemon_init()
         logfile_size=0                \
         name=${optpack}               \
         netns_name=                   \
-        pidfile="/var/run/${optpack}" \
+        pidfile="${__EBASH_DAEMON_RUNDIR}/${optpack}.pid" \
         post_abort=                   \
         post_crash=                   \
         post_mount=                   \
@@ -140,7 +142,6 @@ daemon_init()
         pre_stop=                     \
         respawn_interval=15           \
         respawns=20                   \
-        cfgfile="${__EBASH_DAEMON_RUNDIR}/${optpack}" \
         "${@}"
 
     edebug "$(lval %${optpack})"
@@ -276,12 +277,12 @@ daemon_start()
                     # Execute optional post_mount hook. Ignore any errors.
                     $(tryrc ${post_mount})
 
-                    $netns_cmd_prefix chroot_cmd ${cmdline} || true
+                    ${netns_cmd_prefix} chroot_cmd ${cmdline} || true
                 else
 
                     # Execute optional post_mount hook. Ignore any errors.
                     $(tryrc ${post_mount})
-                    $netns_cmd_prefix ${cmdline} || true
+                    ${netns_cmd_prefix} ${cmdline} || true
                 fi
 
             ) &
@@ -307,7 +308,10 @@ daemon_start()
             fi
 
             # If we were gracefully shutdown then don't do anything further
-            [[ -e "${pidfile}" ]] || { edebug "Gracefully stopped"; exit 0; }
+            if [[ ! -e "${pidfile}" ]]; then
+                edebug "Gracefully stopped"
+                exit 0
+            fi
 
             # Check that we have run for the minimum duration so we can decide if we're going to respawn or not.
             local current_runs=${runs}
@@ -367,8 +371,12 @@ daemon_stop()
     edebug "Stopping $(lval name signal timeout %${optpack})"
 
     # If it's not running just return
-    daemon_running ${optpack} \
-        || { eend 0; edebug "Already stopped"; rm --recursive --force ${pidfile}; return 0; }
+    if daemon_not_running ${optpack}; then
+        eend 0
+        edebug "Already stopped"
+        rm --recursive --force ${pidfile}
+        return 0
+    fi
 
     # Execute optional pre_stop hook. Ignore any errors.
     $(tryrc ${pre_stop})
@@ -423,17 +431,31 @@ daemon_status()
     [[ ${quiet} -eq 1 ]] && redirect="/dev/null" || redirect="/dev/stderr"
 
     {
-        einfo "${name}"
+        einfo "Checking ${name}"
         edebug "Checking $(lval name %${optpack})"
 
-        # Check pidfile
-        [[ -e ${pidfile} ]] || { eend 1; edebug "Not Running (no pidfile)"; return 1; }
+        # No Pidfile
+        if [[ ! -e ${pidfile} ]]; then
+            eend 1
+            edebug "Not Running (no pidfile)"
+            return 1
+        fi
+
+        # Pidfile, but not running
         local pid
         pid=$(cat ${pidfile} 2>/dev/null || true)
-        [[ -n ${pid}     ]] || { eend 1; edebug "Not Running (no pid)"; return 1; }
+        if [[ -z ${pid} ]]; then
+            eend 1
+            edebug "Not Running (no pid)"
+            return 1
+        fi
 
         # Check if it's running
-        process_running ${pid} || { eend 1; edebug "Not Running"; return 1; }
+        if process_not_running ${pid}; then
+            eend 1
+            edebug "Not Running"
+            return 1
+        fi
 
         # OK -- It's running
         edebug "Running $(lval name pid %${optpack})"

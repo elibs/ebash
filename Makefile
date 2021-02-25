@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -8,15 +8,25 @@
 
 #----------------------------------------------------------------------------------------------------------------------
 #
-# TARGETS
+# Settings
 #
 #----------------------------------------------------------------------------------------------------------------------
 
+# Runtime option flags
+# NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
+BREAK   ?= $(or ${break},0)
+EXCLUDE ?= $(or ${exclude},)
+FILTER  ?= $(or ${filter},)
+REPEAT  ?= $(or ${repeat},0)
+V       ?= $(or $v,0)
+
 .SILENT:
 
-V?=0
-BREAK?=0
-REPEAT?=0
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Targets
+#
+#----------------------------------------------------------------------------------------------------------------------
 
 .PHONY: ctags clean clobber
 
@@ -53,6 +63,7 @@ DRUN = docker run      \
        --init          \
        --tty           \
        --interactive   \
+       --network host  \
        --privileged    \
        --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
        --mount type=bind,source=${PWD},target=/ebash \

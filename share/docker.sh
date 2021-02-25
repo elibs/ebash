@@ -101,10 +101,10 @@ docker_build()
 {
     $(opt_parse \
         "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
-        "=cache_repo                        | Name of docker cache registry/repository for cached remote images."      \
         ":cache_from                        | Images to consider as cache sources. Passthrough into docker build."     \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
-        ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
+        "=name                              | Name of docker image to create. This will also be used as the cache
+                                              registry/repository for cached remote images."                           \
         "&overlay                           | Builtin ebash overlay module to install into the image."                 \
         ":overlay_tree                      | Tree of additional local files to copy into the resulting image."        \
         "+pull                              | Pull the image and all tags from the remote registry/repo."              \
@@ -125,21 +125,18 @@ docker_build()
     assert_exists "${file}"
 
     # Compute dependency SHA
-    : ${name:="$(basename "${cache_repo}")"}
     $(__docker_depends_sha_variables)
     __docker_depends_sha
     sha_short=$(cat "${shafile_short}")
 
     # Image we should look for
-    image="${cache_repo}:${sha_short}"
+    image="${name}:${sha_short}"
     edebug $(lval      \
         build_arg      \
         cache_from     \
         dockerfile     \
         file           \
-        history        \
         image          \
-        inspect        \
         overlay        \
         overlay_tree   \
         pretend        \
@@ -147,20 +144,20 @@ docker_build()
         repo           \
         sha            \
         sha_short      \
-        shafile        \
-        shafile_detail \
-        shafile_short  \
         shafunc        \
         tag            \
         workdir        \
     )
 
+    # Save image name into imagefile
+    echo "${image}" > "${imagefile}"
+
     # Look for image locally first
     if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
 
         checkbox "Using local ${image}"
-        docker history "${image}" > "${history}"
-        docker inspect "${image}" > "${inspect}"
+        docker history "${image}" > "${histfile}"
+        docker inspect "${image}" > "${inspfile}"
 
         opt_forward docker_pull registry username password cache_from -- "${tag[@]}"
 
@@ -171,8 +168,8 @@ docker_build()
 
         if docker pull "${image}" 2>/dev/null; then
             checkbox "Using pulled ${image}"
-            docker history "${image}" > "${history}"
-            docker inspect "${image}" > "${inspect}"
+            docker history "${image}" > "${histfile}"
+            docker inspect "${image}" > "${inspfile}"
 
             opt_forward docker_pull registry username password cache_from -- ${tag[@]}
 
@@ -184,7 +181,7 @@ docker_build()
 
         echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
 
-        if docker_image_exists "${cache_repo}:${sha_short}"; then
+        if docker_image_exists "${name}:${sha_short}"; then
             checkbox "Remote exists ${image}"
             return 0
         fi
@@ -203,7 +200,7 @@ docker_build()
     docker images "${image}"
 
     einfo "Layers"
-    docker history "${image}" | tee "${history}"
+    docker history "${image}" | tee "${histfile}"
 
     if [[ ${push} -eq 1 ]]; then
         local push_tags
@@ -212,8 +209,8 @@ docker_build()
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
-    einfo "Creating stamp file ${inspect}"
-    docker inspect "${image}" > "${inspect}"
+    einfo "Creating stamp file ${inspfile}"
+    docker inspect "${image}" > "${inspfile}"
 }
 
 opt_usage docker_pull<<'END'
@@ -326,25 +323,27 @@ docker_depends_sha is used to compute the dependency SHA for a dockerfile as wel
 the resulting docker image (including overlay modules and overlay_tree files) and also and build arguments used to
 create it. This is used by docker_build to avoid building docker images when none of the dependencies have changed.
 
-This function will create some output state files underneath ${workdir}/docker that are used by docker_build and are
-also useful for callers. These are prefixed by ${name} which defaults to $(basename ${cache_repo}).
+This function will create some output state files underneath ${workdir}/docker/$(basename ${name}) that are used
+internally by docker_build but also useful externally.
 
-    1) ${name}.options           : Options passed into docker_build
-    2) ${name}.history           : Contains output of 'docker history'
-    3) ${name}.inspect           : Contains output of 'docker inspect'
-    4) ${name}.dockerfile        : Contains original dockerfile with all environment variables interpolated
-    5) ${name}.${shafunc}        : Contains full content based sha of the dependencies to create the docker image
-    6) ${name}.${shafunc}_short  : Contains first 12 characters of the full SHA of the dependencies of the image
-    7) ${name}.${shafunc}_detail : Contains a detailed listing of all the dependencies that led to the creation of the
-                                   docker image along with THEIR respective SHAs.
+    - dockerfile : Contains original dockerfile with variables interpolated and overlay information added by ebash
+    - history    : Contains output of 'docker history'
+    - image      : The full image name including name:sha.
+    - inspect    : Contains output of 'docker inspect'
+    - options    : Options passed into docker_build
+    - sha        : Contains full content based sha of the dependencies to create the docker image
+    - sha.detail : Contains details of all the dependencies that affect the image along with their respective SHAs.
+    - sha.func   : Contains the SHA function used (e.g. sha256)
+    - sha.short  : Contains first 12 characters of the full SHA of the dependencies of the image
+}
 END
 docker_depends_sha()
 {
     $(opt_parse \
         "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
-        "=cache_repo                        | Name of docker cache registry/repository for cached remote images."      \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
-        ":name                              | Name to use for generated artifacts. Defaults to the basename of repo."  \
+        "=name                              | Name of docker image to create. This will also be used as the cache
+                                              registry/repository for cached remote images."                           \
         "&overlay                           | Builtin ebash overlay module to install into the image."                 \
         ":overlay_tree                      | Tree of additional local files to copy into the resulting image."        \
         ":shafunc=sha256                    | SHA function to use. Default to sha256."                                 \
@@ -354,7 +353,6 @@ docker_depends_sha()
     mkdir -p "${workdir}"
     assert_exists "${file}"
 
-    : ${name:="$(basename "${cache_repo}")"}
     $(__docker_depends_sha_variables)
     __docker_depends_sha
 }
@@ -368,8 +366,8 @@ __docker_depends_sha()
     mkdir -p "${workdir}"
     assert_exists "${file}"
 
-    : ${name:="$(basename "${cache_repo}")"}
-    opt_dump | sort > "${options}"
+    echo "${shafunc}" > "${shafile_func}"
+    opt_dump | sort   > "${optfile}"
 
     # Add any build arguments into sha_detail
     local entry="" build_arg_keys=() build_arg_key="" build_arg_val=""
@@ -393,7 +391,7 @@ __docker_depends_sha()
     done
 
     # Append COPY directives for overlay modules
-    local overdir="${workdir}/${name}.overlay"
+    local overdir="${workdir}/$(basename ${name})/overlay"
     efreshdir "${overdir}"
     for entry in ${overlay[@]}; do
 
@@ -401,7 +399,7 @@ __docker_depends_sha()
 
         if [[ "${entry}" == "ebash" ]]; then
             mkdir -p "${overdir}/ebash/opt/ebash" "${overdir}/ebash/usr/local/bin"
-            rsync -a "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
+            cp -a "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
 
             local bin
             for bin in ${overdir}/ebash/opt/ebash/bin/*; do
@@ -414,7 +412,7 @@ __docker_depends_sha()
 
         else
             assert_exists "${EBASH}/docker-overlay/${entry}"
-            rsync -a "${EBASH}/docker-overlay/${entry}" "${overdir}"
+            cp -a "${EBASH}/docker-overlay/${entry}" "${overdir}"
         fi
 
         echo 'COPY "'${overdir}'/'${entry}'/" "/"' >> "${dockerfile}"
@@ -425,7 +423,7 @@ __docker_depends_sha()
         edebug "Adding user provided $(lval overlay_tree)"
         assert_exists "${overlay_tree}"
         mkdir -p "${overdir}/custom"
-        rsync -a "${overlay_tree}/" "${overdir}/custom"
+        cp -a "${overlay_tree}/." "${overdir}/custom"
         echo 'COPY "'${overdir}'/custom/" "/"' >> "${dockerfile}"
     fi
 
@@ -465,12 +463,16 @@ END
 __docker_depends_sha_variables()
 {
     echo eval
-    echo 'eval local dockerfile="${workdir}/${name}.dockerfile"; '
-    echo 'eval local options="${workdir}/${name}.options"; '
-    echo 'eval local history="${workdir}/${name}.history"; '
-    echo 'eval local inspect="${workdir}/${name}.inspect"; '
-    echo 'eval local shafile="${workdir}/${name}.${shafunc}"; '
-    echo 'eval local shafile_short="${workdir}/${name}.${shafunc}_short"; '
-    echo 'eval local shafile_detail="${workdir}/${name}.${shafunc}_detail"; '
+    echo 'eval local artifactdir="${workdir}/$(basename ${name})"; '
+    echo 'eval mkdir -p "${artifactdir}"; '
+    echo 'eval local dockerfile="${artifactdir}/dockerfile"; '
+    echo 'eval local optfile="${artifactdir}/options"; '
+    echo 'eval local histfile="${artifactdir}/history"; '
+    echo 'eval local inspfile="${artifactdir}/inspect"; '
+    echo 'eval local imagefile="${artifactdir}/image"; '
+    echo 'eval local shafile="${artifactdir}/sha"; '
+    echo 'eval local shafile_func="${artifactdir}/sha.func"; '
+    echo 'eval local shafile_short="${artifactdir}/sha.short"; '
+    echo 'eval local shafile_detail="${artifactdir}/sha.detail"; '
     echo 'eval local sha_short; '
 }
