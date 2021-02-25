@@ -49,10 +49,10 @@ test:
 		--debug=${DEBUG}        \
 		--exclude=${EXCLUDE}    \
 		--filter=${FILTER}      \
-		--log_dir=.work         \
+		--log-dir=.work         \
 		--repeat=${REPEAT}      \
 		--verbose=${V}          \
-		--work_dir=.work/output
+		--work-dir=.work/output
 
 #----------------------------------------------------------------------------------------------------------------------
 #
