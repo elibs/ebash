@@ -410,7 +410,7 @@ __docker_depends_sha()
 
         if [[ "${entry}" == "ebash" ]]; then
             mkdir -p "${overdir}/ebash/opt/ebash" "${overdir}/ebash/usr/local/bin"
-            rsync --archive --delete-after "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
+            cp --recursive --update "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
             local bin
             for bin in ${overdir}/ebash/opt/ebash/bin/*; do
                 bin="$(basename "${bin}")"
@@ -424,11 +424,11 @@ __docker_depends_sha()
 
         elif [[ "${entry}" == file://* ]]; then
             mkdir -p "${overdir}/custom"
-            rsync --archive --delete-after "${entry:7}/" "${overdir}/custom"
+            cp --recursive --update "${entry:7}/." "${overdir}/custom"
             entry="custom"
         else
             mkdir -p "${overdir}/${entry}"
-            rsync --archive --delete-after "${EBASH}/docker-overlay/${entry}" "${overdir}"
+            cp --recursive --update "${EBASH}/docker-overlay/${entry}" "${overdir}"
         fi
 
         sed -i '\|^FROM .*|a COPY "'${overdir}'/'${entry}'/" "/"' "${dockerfile}"

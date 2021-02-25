@@ -32,7 +32,6 @@ ETEST_commands()
         "ping"
         "ps"
         "readlink"
-        "rsync"
         "tar"
         "tac"
         "tput"

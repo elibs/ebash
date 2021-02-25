@@ -71,7 +71,6 @@ if [ "${DISTRO}" = "alpine" ]; then
         perl             \
         procps           \
         pstree           \
-        rsync            \
         squashfs-tools   \
         util-linux       \
         xz
@@ -96,7 +95,6 @@ elif [ "${DISTRO}" = "arch" ]; then
         jq                  \
         make                \
         net-tools           \
-        rsync               \
         squashfs-tools      \
         which
 
@@ -131,7 +129,6 @@ elif [ "${DISTRO}" = "centos" ]; then
         net-tools           \
         perl                \
         psmisc              \
-        rsync               \
         squashfs-tools      \
         which               \
         xz
@@ -179,7 +176,6 @@ elif [ "${DISTRO}" = "debian" ]; then
         net-tools                   \
         procps                      \
         psmisc                      \
-        rsync                       \
         software-properties-common  \
         squashfs-tools              \
         xz-utils                    \
@@ -219,7 +215,6 @@ elif [ "${DISTRO}" = "fedora" ]; then
         perl-core           \
         procps              \
         psmisc              \
-        rsync               \
         squashfs-tools      \
         which               \
         xz
@@ -247,7 +242,6 @@ elif [ "${DISTRO}" = "gentoo" ]; then
         gettext              \
         jq                   \
         net-tools            \
-        rsync                \
         squashfs-tools
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -280,7 +274,6 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
         mkisofs                    \
         net-tools                  \
         psmisc                     \
-        rsync                      \
         software-properties-common \
         squashfs-tools             \
         xz-utils
@@ -309,8 +302,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
         gnu-sed     \
         grep        \
         jq          \
-        pstree      \
-        rsync
+        pstree
 
 #----------------------------------------------------------------------------------------------------------------------
 #
