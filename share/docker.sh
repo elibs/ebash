@@ -395,7 +395,7 @@ __docker_depends_sha()
     # Append COPY directives for overlay modules
     local overdir
     overdir="${workdir}/$(basename ${name})/overlay"
-    efreshdir "${overdir}"
+    mkdir -p "${overdir}"
 
     # Add COPY directive for overlay_tree if requested.
     local overlay_paths=( "${overlay[@]:-}" )
@@ -410,7 +410,7 @@ __docker_depends_sha()
 
         if [[ "${entry}" == "ebash" ]]; then
             mkdir -p "${overdir}/ebash/opt/ebash" "${overdir}/ebash/usr/local/bin"
-            cp -a "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
+            rsync --archive --delete-after "${EBASH_HOME}/bin" "${EBASH_HOME}/share" "${overdir}/ebash/opt/ebash"
 
             local bin
             for bin in ${overdir}/ebash/opt/ebash/bin/*; do
@@ -423,11 +423,11 @@ __docker_depends_sha()
 
         elif [[ "${entry}" == file://* ]]; then
             mkdir -p "${overdir}/custom"
-            cp -a "${entry:7}/." "${overdir}/custom"
+            rsync --archive --delete-after "${entry:7}/" "${overdir}/custom"
             entry="custom"
         else
             mkdir -p "${overdir}/${entry}"
-            cp -a "${EBASH}/docker-overlay/${entry}" "${overdir}"
+            rsync --archive --delete-after "${EBASH}/docker-overlay/${entry}" "${overdir}"
         fi
 
         sed -i '\|^FROM .*|a COPY "'${overdir}'/'${entry}'/" "/"' "${dockerfile}"
