@@ -29,20 +29,27 @@ V       ?= $(or $v,0)
 #
 #----------------------------------------------------------------------------------------------------------------------
 
-.PHONY: ctags clean clobber
-
+.PHONY: ctags
 ctags: unittest/*.sh unittest/*.etest share/*.sh bin/*
 	ctags -f .tags . $^
 
+.PHONY: clean
 clean:
 	git clean -fX
 
+.PHONY: clobber
 clobber: clean
 	sudo bin/ebash rm -frv --one-file-system .work
 
+.PHONY: lint
 lint:
 	bin/bashlint
 
+.PHONY: selftest
+selftest:
+	bin/selftest
+
+.PHONY: test
 test:
 	bin/etest \
 		--break=${BREAK}        \
