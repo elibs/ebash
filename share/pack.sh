@@ -245,4 +245,39 @@ _pack()
     grep -av '^$' | tr '\n' '\0' | base64 2>/dev/null
 }
 
+pack_encode()
+{
+    [[ -z ${1} ]] && die "pack_encode requires a pack to be specified as \$1"
+    echo -n "${!1}"
+}
+
+pack_decode()
+{
+    [[ -z ${1} ]] && die "pack_decode requires an encoded pack to be specified as \$1"
+    echo -n "${1}" | _unpack
+}
+
+pack_save()
+{
+    $(opt_parse \
+        "_pack_save_name | Name of the pack to save to disk."      \
+        "_pack_save_file | Name of the file to save the pack to."  \
+    )
+
+    mkdir -p "$(dirname "${_pack_save_file}")"
+    pack_encode "${_pack_save_name}" > "${_pack_save_file}"
+}
+
+pack_load()
+{
+    $(opt_parse \
+        "_pack_load_name   | Name of the pack to read into from disk."      \
+        "_pack_load_file   | Name of the file to read the pack from."  \
+    )
+
+    local _pack_load_data
+    _pack_load_data="$(cat "${_pack_load_file}")"
+    pack_copy _pack_load_data ${_pack_load_name}
+}
+
 return 0

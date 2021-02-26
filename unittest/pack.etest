@@ -45,6 +45,27 @@ ETEST_pack_many()
     assert_eq "10"    $(pack_get P z)
 }
 
+ETEST_pack_save_load()
+{
+    pack_set P a=1 b=3 c=7 n=1 x=alpha y=beta z=10
+    etestmsg "Creating pack $(lval %P)"
+
+    etestmsg "Saving to output.pack"
+    pack_save P output.pack
+    cat output.pack
+
+    etestmsg "Loading into Q"
+    pack_load Q output.pack
+
+    assert_eq "1"     $(pack_get Q a)
+    assert_eq "3"     $(pack_get Q b)
+    assert_eq "7"     $(pack_get Q c)
+    assert_eq "1"     $(pack_get Q n)
+    assert_eq "alpha" $(pack_get Q x)
+    assert_eq "beta"  $(pack_get Q y)
+    assert_eq "10"    $(pack_get Q z)
+}
+
 ETEST_pack_sequential()
 {
     pack_set P a=alpha

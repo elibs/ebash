@@ -1,3 +1,5 @@
+#!/bin/bash
+
 setup()
 {
     ETEST_TIMEOUT=5s

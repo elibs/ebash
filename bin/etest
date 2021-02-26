@@ -139,6 +139,7 @@ fi
 # Default working directory from conf file if unspecified, or ./output if not in either place
 : ${work_dir:=$(conf_get _EBASH_CONF etest.work_dir)}
 : ${work_dir:=./output}
+mkdir -p "${work_dir}"
 work_dir=$(readlink -f ${work_dir})
 
 EDEBUG=${debug}
@@ -335,7 +336,7 @@ run_single_test()
     fi
 
     local index_string="${testidx}/${testidx_total}"
-    ebanner --uppercase "${testname}" OS break exclude feailures REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
+    ebanner --uppercase "${testname}" OS break exclude failures REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
@@ -540,8 +541,8 @@ find_matching_tests()
 {
     # Expand tests to find all standalone executable scripts as well as any *.etest files.
     local all_tests=(
-        $(find "${tests[@]}" -type f -executable     | sort || true)
-        $(find "${tests[@]}" -type f -name "*.etest" | sort || true)
+        $(find "${tests[@]}" -type f -executable -not -name "*.etest" | sort || true)
+        $(find "${tests[@]}" -type f -name "*.etest"                  | sort || true)
     )
 
     # Get a list of tests we should actually run.

@@ -57,6 +57,30 @@ exit()
     builtin exit ${1:-${exit_code}}
 }
 
+opt_usage disable_die_stacktrace <<'END'
+Convenience mechanism for disabling stacktraces emitted by die(). They can be re-enabled via enable_die_stacktrace.
+END
+disable_die_stacktrace()
+{
+    __EBASH_DIE_STACKTRACE_ENABLED=0
+}
+
+opt_usage enable_die_stacktrace <<'END'
+Convenience mechanism for enabling stacktraces emitted by die(). They can be disabled disable_die_stacktrace.
+END
+enable_die_stacktrace()
+{
+    __EBASH_DIE_STACKTRACE_ENABLED=1
+}
+
+opt_usage die_stacktrace_enabled <<'END'
+Returns success (0) if die() should emit stacktraces and failure (1) otherwise.
+END
+die_stacktrace_enabled()
+{
+    [[ ${__EBASH_DIE_STACKTRACE_ENABLED:-1} -eq 1 ]]
+}
+
 opt_usage die <<'END'
 die is our central error handling function for all ebash code which is called on any unhandled error or via the ERR
 trap. It is responsible for printing a stacktrace to STDERR indicating the source of the fatal error and then killing
@@ -97,8 +121,10 @@ die()
     __EBASH_DIE_IN_PROGRESS=${return_code}
     : ${__EBASH_DIE_BY_SIGNAL:=${signal}}
 
-    if inside_try ; then
-        # Don't print a stack trace for errors that were caught
+    # If we are inside a try/catch, or die() stacktraces have been disabled via disable_die_stacktrace then bypass
+    # printing the stacktrace.
+    if ! die_stacktrace_enabled || inside_try ; then
+        edebug "Skipping die() stacktrace due to die_stacktrace_enabled or inside_try"
         true
 
     else
