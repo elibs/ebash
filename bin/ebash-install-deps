@@ -304,19 +304,19 @@ elif [ "${DISTRO}" = "darwin" ]; then
         done
     }
 
-    brew_install  \
-        bash      \
-        curl      \
-        coreutils \
-        findutils \
-        gnu-sed   \
-        grep      \
-        jq        \
+    brew_install       \
+        bash           \
+        curl           \
+        docker         \
+        docker-machine \
+        coreutils      \
+        findutils      \
+        gnu-sed        \
+        grep           \
+        jq             \
         pstree
 
     # Install docker for desktop
-    brew install --cask docker
-    #xattr -d com.apple.quarantine /Applications/Docker.app
     open --background --hide -a Docker
 
 #----------------------------------------------------------------------------------------------------------------------
