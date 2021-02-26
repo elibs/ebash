@@ -293,24 +293,26 @@ elif [ "${DISTRO}" = "darwin" ]; then
 
     brew update-reset
 
-    brew_packages=(
-        bash
-        curl
-        coreutils
-        findutils
-        gnu-sed
-        grep
-        jq
-        pstree
-    )
-
     # Brew is lame. If you try to install something that's already installed it returns an error. So we have to first
     # check if it is installed and skip it if so.
-    for pkg in "${brew_packages[@]}"; do
-        if ! brew ls --versions "${pkg}"; then
-            brew install "${pkg}"
-        fi
-    done
+    brew_install()
+    {
+        for pkg in "${@}"; do
+            if ! brew ls --versions "${pkg}"; then
+                brew install "${pkg}"
+            fi
+        done
+    }
+
+    brew_install  \
+        bash      \
+        curl      \
+        coreutils \
+        findutils \
+        gnu-sed   \
+        grep      \
+        jq        \
+        pstree
 
     # Install docker for desktop
     brew install --cask docker
