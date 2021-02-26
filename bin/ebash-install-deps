@@ -316,9 +316,6 @@ elif [ "${DISTRO}" = "darwin" ]; then
         jq             \
         pstree
 
-    # Install docker for desktop
-    open --background --hide -a Docker
-
 #----------------------------------------------------------------------------------------------------------------------
 #
 # UNKNOWN
