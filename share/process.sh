@@ -42,13 +42,7 @@ failure (1) otherwise.
 END
 process_not_running()
 {
-    local pid
-    for pid in "${@}" ; do
-        if ps -p ${pid} &>/dev/null ; then
-            return 1
-        fi
-    done
-    return 0
+    ! process_running "${@}"
 }
 
 opt_usage process_tree <<'END'

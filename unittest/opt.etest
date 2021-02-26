@@ -835,14 +835,43 @@ ETEST_opt_parse_accumulator()
     }
 
     set -- --i=foo --i=bar --i=zap
-    $(opt_parse "&i" )
+    $(opt_parse "&i")
     etestmsg "With equals sign: $(opt_dump)"
+    einfo "$(ecolor green)$(declare -p __EBASH_OPT)"
     validate
 
     set -- --i foo --i bar --i zap
-    $(opt_parse "&i" )
+    $(opt_parse "&i")
     etestmsg "Without equals sign: $(opt_dump)"
+    einfo "$(ecolor green)$(declare -p __EBASH_OPT)"
     validate
+}
+
+ETEST_opt_parse_accumulator_forward()
+{
+    validate()
+    {
+        assert_eq 3    $(array_size i)
+        assert_eq "foo" "${i[0]}"
+        assert_eq "bar" "${i[1]}"
+        assert_eq "zap" "${i[2]}"
+    }
+
+    subfunc()
+    {
+        etestmsg "In subfunc"
+        local raw_args=( "$@" )
+        einfo "$(ecolor cyan)$(lval raw_args)"
+        unset i
+        $(opt_parse "&i")
+        einfo "$(ecolor cyan)$(declare -p __EBASH_OPT)"
+        validate
+    }
+
+    set -- --i=foo --i=bar --i=zap
+    $(opt_parse "&i")
+    validate
+    opt_forward subfunc i
 }
 
 ETEST_opt_parse_accumulator_whitespace()

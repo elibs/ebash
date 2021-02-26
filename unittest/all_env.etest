@@ -20,6 +20,8 @@ ETEST_commands()
         "bash"
         "curl"
         "diff"
+        "docker"
+        "envsubst"
         "file"
         "find"
         "git"

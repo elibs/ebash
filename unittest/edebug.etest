@@ -91,7 +91,7 @@ fi
 ETEST_edebug_pipe_multiple_lines()
 {
     local intput output
-    input="$(cat ${EBASH}/* | shuf -n 20)"
+    input="$(find ${EBASH} -type f | shuf -n 20)"
     output="$(EMSG_PREFIX=""; EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")"
 
     diff --unified --ignore-blank-lines <(echo -en "${input}") <(echo -en "${output}")

@@ -115,22 +115,22 @@ edebug_disabled()
 edebug()
 {
     # Take input either from arguments or if no arguments were provided take input from standard input.
-    local msg=""
     if [[ $# -gt 0 ]]; then
-        msg="${@}"
+        if ! edebug_enabled; then
+            return 0
+        fi
+        EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "${COLOR_DEBUG}" "" "DEBUG" "${@}"
     else
-        msg="$(cat)"
-        [[ -z ${msg} ]] && return 0
+        if ! edebug_enabled; then
+            cat > /dev/null
+            return 0
+        fi
+
+        local line
+        while IFS= read -r line || [[ -n "${line}" ]]; do
+            EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "${COLOR_DEBUG}" "" "DEBUG" "${line}"
+        done
     fi
-
-    # If debugging isn't enabled then simply return without writing anything. NOTE: We can't return at the top of this
-    # function in the event the caller has piped output into edebug. We have to consume their output so that they don't
-    # get an error or block.
-    edebug_enabled || return 0
-
-    # Force caller to be in edebug output because it's helpful and if you turned on edebug, you probably want to know
-    # anyway
-    EMSG_PREFIX="${EMSG_PREFIX:-} caller" emsg "${COLOR_DEBUG}" "" "DEBUG" "${msg}"
 }
 
 edebug_out()
@@ -712,7 +712,9 @@ eprogress()
         "${style}" -n "$*"
 
         # Save current position and start time
-        ecolor save_cursor >&2
+        if [[ ${inline} -eq 1 ]]; then
+            ecolor save_cursor >&2
+        fi
         local start=${SECONDS}
 
         # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out
@@ -878,35 +880,35 @@ print_value()
         return 0
     fi
 
-    local decl val
-    decl=$(declare -p ${__input} 2>/dev/null || true)
-    val=$(echo "${decl}")
-    val=${val#*=}
+    local __decl __val
+    __decl=$(declare -p ${__input} 2>/dev/null || true)
+    __val=$(echo "${__decl}")
+    __val=${__val#*=}
 
     # Deal with properly declared variables which are empty
-    [[ -z ${val} ]] && val='""'
+    [[ -z ${__val} ]] && __val='""'
 
     # Special handling for arrays and associative arrays
-    local array_regex="declare -a"
-    local assoc_regex="declare -A"
-    if [[ ${decl} =~ ${array_regex} ]] ; then
+    local __array_regex="declare -a"
+    local __assoc_regex="declare -A"
+    if [[ ${__decl} =~ ${__array_regex} ]] ; then
         if [[ BASH_VERSINFO[0] -ge 5 || ( BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -gt 3 ) ]] ; then
             # BASH 4.4 and beyond -- no single quote
-            val=$(declare -p ${__input} | sed -e "s/[^=]*=(\(.*\))/(\1)/" -e "s/[[[:digit:]]\+]=//g")
+            __val=$(declare -p ${__input} | sed -e "s/[^=]*=(\(.*\))/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         else
             # BASH 4.2 and 4.3
-            val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g")
+            __val=$(declare -p ${__input} | sed -e "s/[^=]*='(\(.*\))'/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         fi
-    elif [[ ${decl} =~ ${assoc_regex} ]]; then
-    	val="("
-	local key
-	for key in $(array_indexes_sort ${__input}); do
-	    eval 'val+="['${key}']=\"${'${__input}'['$key']}\" "'
-	done
-	val+=")"
+    elif [[ ${__decl} =~ ${__assoc_regex} ]]; then
+        __val="("
+        local key
+        for key in $(array_indexes_sort ${__input}); do
+            eval '__val+="['${key}']=\"${'${__input}'['$key']}\" "'
+        done
+        __val+=")"
     fi
 
-    echo -n "${val}"
+    echo -n "${__val}"
 }
 
 opt_usage lval <<'END'

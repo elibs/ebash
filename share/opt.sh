@@ -790,6 +790,7 @@ opt_display_usage()
             echo
             echo "$(ecolor ${COLOR_USAGE})OPTIONS$(ecolor none)"
             echo "$(ecolor ${COLOR_USAGE})(*) Denotes required options$(ecolor none)"
+            echo "$(ecolor ${COLOR_USAGE})(&) Denotes options which can be given multiple times$(ecolor none)"
             echo
             local opt
             for opt in ${opt_keys[@]}; do
@@ -816,8 +817,11 @@ opt_display_usage()
                 done
 
                 # If the option accepts arguments, say that
-                [[ ${__EBASH_OPT_TYPE[$opt]} == "string" ]] && echo -n " <value>"
-                [[ ${__EBASH_OPT_TYPE[$opt]} == "required_string" ]] && echo -n " <non-empty value> (*)"
+                case "${__EBASH_OPT_TYPE[$opt]}" in
+                    string)          echo -n " <value>"               ;;
+                    required_string) echo -n " <non-empty value> (*)" ;;
+                    accumulator)     echo -n " (&)"                   ;;
+                esac
 
                 echo -n "$(ecolor none)"
 
@@ -870,18 +874,24 @@ opt_display_usage()
     } >&2
 }
 
+: <<'END'
+opt_dump is used to dump all the options to STDOUT in a pretty-printed format suitable for human consumption or for
+debugging.  This is not meant to be used programmatically. The options are sorted by option name (or key) and the value
+are pretty-printed using print_value.
+END
 opt_dump()
 {
-    for option in "${!__EBASH_OPT[@]}" ; do
-        echo -n "${option}=\"${__EBASH_OPT[$option]}\" "
+    for option in $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort); do
+        if [[ ${__EBASH_OPT_TYPE[$option]:-} == "accumulator" ]]; then
+            array_init_nl value "${__EBASH_OPT[$option]}"
+            echo "${option}=$(print_value value)"
+        else
+            echo "${option}=\"${__EBASH_OPT[$option]}\""
+        fi
     done
-    echo
 }
 
 : <<'END'
-opt_forward
-===========
-
 When you have a bunch of options that were passed into a function that wants to simply forward them into an internal
 function, it can be a little tedious to make the call to that internal function because you have to repeat all of the
 options and then read the value that the option of the same name was stored into. For instance look at the foo_internal
@@ -947,7 +957,12 @@ opt_forward()
         __called_name=${__called_name//_/-}
         __local_name=${__local_name//-/_}
 
-        args+=("--${__called_name//-/_}=${!__local_name}")
+        # If this is an accumulator we need to pass them all into the called function not just the first one.
+        if [[ ${__EBASH_OPT_TYPE[$__local_name]:-} == "accumulator" ]]; then
+            args+=( $(array_join --before ${__local_name} " --${__called_name//-/_} ") )
+        else
+            args+=("--${__called_name//-/_}=${!__local_name}")
+        fi
     done
 
     while [[ $# -gt 0 ]] ; do
@@ -960,7 +975,7 @@ opt_forward()
 
 : <<'END'
 Check to ensure all the provided arguments are non-empty. Unlike prior versions, this does not call die. Instead it just emits
-an error to stderr on the first unset variable and then returns 1. Since we have implicit error detection enabled die will still 
+an error to stderr on the first unset variable and then returns 1. Since we have implicit error detection enabled die will still
 get called if the caller doesn't handle the error message (e.g. in an if statement). This allows the caller to decide if this is
 a fatal error or not.
 

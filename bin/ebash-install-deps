@@ -32,6 +32,8 @@ DISTRO=$(echo "${DISTRO}" | tr "[A-Z]" "[a-z]")
 
 echo ">> Installing dependencies for ${DISTRO}"
 
+export DEBIAN_FRONTEND=noninteractive
+
 #----------------------------------------------------------------------------------------------------------------------
 #
 # Alpine Linux
@@ -51,6 +53,7 @@ if [ "${DISTRO}" = "alpine" ]; then
         debootstrap      \
         dialog           \
         diffutils        \
+        docker           \
         file             \
         findutils        \
         gawk             \
@@ -58,6 +61,7 @@ if [ "${DISTRO}" = "alpine" ]; then
         gnupg            \
         grep             \
         gzip             \
+        gettext          \
         iproute2         \
         iputils          \
         jq               \
@@ -78,14 +82,15 @@ if [ "${DISTRO}" = "alpine" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "arch" ]; then
 
-    #base-devel          \
-    pacman -Sy --noconfirm  \
+    pacman -Syu --overwrite "/usr/bin/docker-init" --noconfirm  \
         cdrkit              \
         cpio                \
         debootstrap         \
         dialog              \
         diffutils           \
+        docker              \
         gcc                 \
+        gettext             \
         git                 \
         jq                  \
         make                \
@@ -110,8 +115,10 @@ elif [ "${DISTRO}" = "centos" ]; then
         debootstrap         \
         dialog              \
         diffutils           \
+        docker              \
         file                \
         genisoimage         \
+        gettext             \
         git                 \
         glibc               \
         gzip                \
@@ -126,6 +133,20 @@ elif [ "${DISTRO}" = "centos" ]; then
         which               \
         xz
 
+    # Quiet warning from podman
+    touch /etc/containers/nodocker
+
+    # Default podman configuration prevents overlayfs from working properly.
+    sed -i 's|#mount_program = "/usr/bin/fuse-overlayfs"|mount_program = "/usr/bin/fuse-overlayfs"|' \
+        /etc/containers/storage.conf
+
+    if [ -e /usr/share/containers/containers.conf ]; then
+        # Default cgroup settings for running podman inside docker doesn't work properly.
+        # The recommendation in https://github.com/containers/podman/issues/6982 is to set cgroup_manager to "cgroupfs"
+        sed -i 's|# cgroup_manager = "systemd"|cgroup_manager = "cgroupfs"|' \
+            /usr/share/containers/containers.conf
+    fi
+
 #----------------------------------------------------------------------------------------------------------------------
 #
 # Debian
@@ -135,24 +156,35 @@ elif [ "${DISTRO}" = "debian" ]; then
 
     apt update
 
-    apt install -y      \
-        bsdmainutils    \
-        bzip2           \
-        cpio            \
-        curl            \
-        debootstrap     \
-        dialog          \
-        file            \
-        genisoimage     \
-        git             \
-        iptables        \
-        jq              \
-        iproute2        \
-        net-tools       \
-        procps          \
-        psmisc          \
-        squashfs-tools  \
-        xz-utils
+    apt install -y                  \
+        apt-transport-https         \
+        bsdmainutils                \
+        bzip2                       \
+        ca-certificates             \
+        cpio                        \
+        curl                        \
+        debootstrap                 \
+        dialog                      \
+        file                        \
+        genisoimage                 \
+        gettext                     \
+        git                         \
+        gnupg2                      \
+        iproute2                    \
+        iptables                    \
+        jq                          \
+        net-tools                   \
+        procps                      \
+        psmisc                      \
+        software-properties-common  \
+        squashfs-tools              \
+        xz-utils                    \
+
+    # Install docker
+    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+    apt update
+    apt install -y docker-ce
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -167,9 +199,11 @@ elif [ "${DISTRO}" = "fedora" ]; then
         debootstrap         \
         dialog              \
         diffutils           \
+        dnf-plugins-core    \
         file                \
         findutils           \
         genisoimage         \
+        gettext             \
         git                 \
         glibc               \
         iproute             \
@@ -185,6 +219,10 @@ elif [ "${DISTRO}" = "fedora" ]; then
         which               \
         xz
 
+    # Install docker
+    dnf config-manager -y --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+    dnf install -y docker-ce docker-ce-cli containerd.io
+
 #----------------------------------------------------------------------------------------------------------------------
 #
 # Gentoo
@@ -195,13 +233,15 @@ elif [ "${DISTRO}" = "gentoo" ]; then
     emerge-webrsync
 
     emerge --autounmask-write --autounmask-continue --noreplace --quiet \
-        cdrtools        \
-        cpio            \
-        debootstrap     \
-        dev-vcs/git     \
-        dialog          \
-        jq              \
-        net-tools       \
+        app-emulation/docker \
+        cdrtools             \
+        cpio                 \
+        debootstrap          \
+        dev-vcs/git          \
+        dialog               \
+        gettext              \
+        jq                   \
+        net-tools            \
         squashfs-tools
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -213,25 +253,36 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 
     apt update
 
-    apt install -y      \
-        bsdmainutils    \
-        bzip2           \
-        cgroup-lite     \
-        cpio            \
-        curl            \
-        debootstrap     \
-        dialog          \
-        file            \
-        git             \
-        jq              \
-        iproute2        \
-        iptables        \
-        iputils-ping    \
-        mkisofs         \
-        net-tools       \
-        psmisc          \
-        squashfs-tools  \
+    apt install -y                 \
+        apt-transport-https        \
+        bsdmainutils               \
+        bzip2                      \
+        ca-certificates            \
+        cgroup-lite                \
+        cpio                       \
+        curl                       \
+        debootstrap                \
+        dialog                     \
+        file                       \
+        gettext                    \
+        git                        \
+        gnupg-agent                \
+        iproute2                   \
+        iptables                   \
+        iputils-ping               \
+        jq                         \
+        mkisofs                    \
+        net-tools                  \
+        psmisc                     \
+        software-properties-common \
+        squashfs-tools             \
         xz-utils
+
+    # Install docker
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    apt update
+    apt install -y docker-ce docker-ce-cli containerd.io
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -242,15 +293,27 @@ elif [ "${DISTRO}" = "darwin" ]; then
 
     brew update-reset
 
-    brew install    \
-        bash        \
-        curl        \
-        coreutils   \
-        findutils   \
-        gnu-sed     \
-        gnu-tar     \
-        grep        \
-        jq          \
+    # Brew is lame. If you try to install something that's already installed it returns an error. So we have to first
+    # check if it is installed and skip it if so.
+    brew_install()
+    {
+        for pkg in "${@}"; do
+            if ! brew ls --versions "${pkg}"; then
+                brew install "${pkg}"
+            fi
+        done
+    }
+
+    brew_install       \
+        bash           \
+        curl           \
+        docker         \
+        docker-machine \
+        coreutils      \
+        findutils      \
+        gnu-sed        \
+        grep           \
+        jq             \
         pstree
 
 #----------------------------------------------------------------------------------------------------------------------
