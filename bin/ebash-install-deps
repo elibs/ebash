@@ -316,7 +316,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
 
     # Install docker for desktop
     brew install --cask docker
-    xattr -d com.apple.quarantine /Applications/Docker.app
+    #xattr -d com.apple.quarantine /Applications/Docker.app
     open --background --hide -a Docker
 
 #----------------------------------------------------------------------------------------------------------------------
