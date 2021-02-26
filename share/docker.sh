@@ -179,7 +179,7 @@ docker_build()
     # If pull is NOT requested, and credentials are provided, simply check if the remote image exists.
     elif [[ "${pull}" -eq 0 && -n "${username}" && -n "${password}" ]]; then
 
-        echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
+        echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
 
         if docker_image_exists "${name}:${sha_short}"; then
             checkbox "Remote exists ${image}"
@@ -251,7 +251,7 @@ docker_pull()
 
         if [[ ${login} -eq 1 ]]; then
             argcheck registry username password
-            echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
+            echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
             login=0
         fi
 
@@ -296,7 +296,7 @@ docker_push()
         return 1
     fi
 
-    echo "${password}" | docker login --username "${username}" --password-stdin "${registry}"
+    echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
 
     # Push all tags
     local tag
