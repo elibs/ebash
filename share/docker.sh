@@ -193,7 +193,12 @@ docker_build()
     fi
 
     eprogress "Building docker $(lval image tags=tag)"
-    docker build --file "${dockerfile}" --tag "${image}" --cache-from "${cache_from}" $(array_join --before tag " --tag ") . | edebug
+    docker build                             \
+        --file "${dockerfile}"               \
+        --cache-from "${cache_from}"         \
+        --tag "${image}"                     \
+        $(array_join --before tag " --tag ") \
+        . | tee "${buildlog}" | edebug
     eprogress_kill
 
     einfo "Size"
@@ -263,7 +268,11 @@ docker_pull()
                 return 1
             else
                 ewarn "Failed to pull $(lval tag) -- fallback to local build"
-                docker build --file "${dockerfile}" --tag "${tag}" --cache-from "${cache_from}" . | edebug
+                docker build \
+                    --file "${dockerfile}"       \
+                    --cache-from "${cache_from}" \
+                    --tag "${tag}"               \
+                    . | tee "${buildlog}" | edebug
             fi
         fi
     done
@@ -315,7 +324,7 @@ docker_image_exists()
     $(opt_parse \
         "tag | Docker tag to check for the existance of in the form of name:tag.")
 
-    DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${tag}"
+    DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${tag}" | edebug
 }
 
 opt_usage docker_depends_sha<<'END'
@@ -326,9 +335,10 @@ create it. This is used by docker_build to avoid building docker images when non
 This function will create some output state files underneath ${workdir}/docker/$(basename ${name}) that are used
 internally by docker_build but also useful externally.
 
+    - build.log  : Output from the docker build process
     - dockerfile : Contains original dockerfile with variables interpolated and overlay information added by ebash
     - history    : Contains output of 'docker history'
-    - image      : The full image name including name:sha.
+    - image      : The full image name including name:sha
     - inspect    : Contains output of 'docker inspect'
     - options    : Options passed into docker_build
     - sha        : Contains full content based sha of the dependencies to create the docker image
@@ -477,6 +487,7 @@ __docker_depends_sha_variables()
     echo 'eval local artifactdir; '
     echo 'eval artifactdir="${workdir}/$(basename ${name})"; '
     echo 'eval mkdir -p "${artifactdir}"; '
+    echo 'eval local buildlog="${artifactdir}/build.log"; '
     echo 'eval local dockerfile="${artifactdir}/dockerfile"; '
     echo 'eval local optfile="${artifactdir}/options"; '
     echo 'eval local histfile="${artifactdir}/history"; '
