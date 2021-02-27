@@ -44,6 +44,7 @@ ETEST_docker_build()
     etestmsg "Validating docker_build artifacts"
     find ".work/docker/ebash" -ls
     assert_exists \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/dockerfile" \
         ".work/docker/ebash/history"    \
         ".work/docker/ebash/image"      \
@@ -52,7 +53,7 @@ ETEST_docker_build()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -87,10 +88,11 @@ ETEST_docker_build_and_pretend()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating docker_build artifacts that should NOT have been created"
     assert_not_exists \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/history" \
         ".work/docker/ebash/inspect" \
 
@@ -127,7 +129,7 @@ ETEST_docker_build_args()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating provided BUILD_ARGS are interpolated"
     assert_false diff "Dockerfile"            ".work/docker/ebash/dockerfile"
@@ -159,7 +161,7 @@ ETEST_docker_build_args_missing()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating missing BUILD_ARGS are not interpolated"
     diff "Dockerfile" ".work/docker/ebash/dockerfile"
@@ -179,6 +181,7 @@ ETEST_docker_build_cache_from()
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/dockerfile" \
         ".work/docker/ebash/history"    \
         ".work/docker/ebash/image"      \
@@ -187,7 +190,7 @@ ETEST_docker_build_cache_from()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -215,6 +218,7 @@ ETEST_docker_build_custom_dockerfile()
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/dockerfile" \
         ".work/docker/ebash/history"    \
         ".work/docker/ebash/image"      \
@@ -223,7 +227,7 @@ ETEST_docker_build_custom_dockerfile()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -251,6 +255,7 @@ ETEST_docker_build_custom_dockerfile()
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
+        ".work/docker/elibs_ebash/build.log"  \
         ".work/docker/elibs_ebash/dockerfile" \
         ".work/docker/elibs_ebash/history"    \
         ".work/docker/elibs_ebash/image"      \
@@ -259,7 +264,7 @@ ETEST_docker_build_custom_dockerfile()
         ".work/docker/elibs_ebash/sha"        \
         ".work/docker/elibs_ebash/sha.func"   \
         ".work/docker/elibs_ebash/sha.short"  \
-        ".work/docker/elibs_ebash/sha.detail"
+        ".work/docker/elibs_ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/elibs_ebash/image)"
@@ -287,8 +292,7 @@ ETEST_docker_custom_shafunc()
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
-        ".work"                         \
-        ".work/docker"                  \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/dockerfile" \
         ".work/docker/ebash/history"    \
         ".work/docker/ebash/image"      \
@@ -297,7 +301,7 @@ ETEST_docker_custom_shafunc()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -332,6 +336,7 @@ ETEST_docker_build_tags()
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/dockerfile" \
         ".work/docker/ebash/history"    \
         ".work/docker/ebash/image"      \
@@ -340,7 +345,7 @@ ETEST_docker_build_tags()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -379,6 +384,7 @@ ETEST_docker_build_tags_push()
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/dockerfile" \
         ".work/docker/ebash/history"    \
         ".work/docker/ebash/image"      \
@@ -387,7 +393,7 @@ ETEST_docker_build_tags_push()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -426,15 +432,16 @@ ETEST_docker_build_twice()
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/dockerfile" \
         ".work/docker/ebash/history"    \
         ".work/docker/ebash/image"      \
         ".work/docker/ebash/inspect"    \
         ".work/docker/ebash/options"    \
         ".work/docker/ebash/sha"        \
+        ".work/docker/ebash/sha.detail" \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -442,7 +449,7 @@ ETEST_docker_build_twice()
     assert_docker_image_exists "${image}"
     trap_add "docker rmi ${image}"
 
-    for part in dockerfile history image inspect sha sha.short sha.detail; do
+    for part in build.log dockerfile history image inspect sha sha.short sha.detail; do
         cp ".work/docker/ebash/${part}" ".work/docker/ebash/${part}.orig"
     done
     grep 'pretend="0"' ".work/docker/ebash/options"
@@ -452,7 +459,7 @@ ETEST_docker_build_twice()
         --pretend        \
         --name "elibs/ebash"
 
-    for part in dockerfile history image inspect sha sha.short sha.detail; do
+    for part in build.log dockerfile history image inspect sha sha.short sha.detail; do
         etestmsg "Checking ${part}"
         # Depending on how fast this test runs, the output may say '1 second ago' or '2 seconds ago' which can cause
         # a false-positive failure. We don't actually care about that part of the history file so just remove it from
@@ -490,6 +497,7 @@ ETEST_docker_build_twice_changed()
 
     etestmsg "Validating docker_build artifacts"
     assert_exists                       \
+        ".work/docker/ebash/build.log"  \
         ".work/docker/ebash/dockerfile" \
         ".work/docker/ebash/history"    \
         ".work/docker/ebash/image"      \
@@ -498,7 +506,7 @@ ETEST_docker_build_twice_changed()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -736,7 +744,7 @@ ETEST_docker_depends_sha()
         ".work/docker/ebash/sha"        \
         ".work/docker/ebash/sha.func"   \
         ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail"
+        ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was not built"
     image="elibs/ebash:$(cat .work/docker/ebash/sha.short)"
