@@ -324,7 +324,7 @@ docker_image_exists()
     $(opt_parse \
         "tag | Docker tag to check for the existance of in the form of name:tag.")
 
-    DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${tag}" | edebug
+    DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "${tag}" |& edebug
 }
 
 opt_usage docker_depends_sha<<'END'
