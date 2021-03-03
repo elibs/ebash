@@ -462,7 +462,29 @@ __docker_depends_sha()
         sha_detail="$(array_join_nl build_arg_vals)"
         sha_detail+=$'\n'
     fi
-    sha_detail+="$(find ${depends[@]} -follow -type f -print0 \
+
+    local exclude=""
+    if [[ -e ".dockerignore" ]]; then
+
+        local docker_ignore=()
+        while IFS= read -r line || [[ -n "${line}" ]]; do
+            if [[ -d "${line}" ]]; then
+                docker_ignore+=( $(shopt -s globstar; echo ${line}/**) )
+            else
+                docker_ignore+=( $(shopt -s globstar; echo ${line}) )
+            fi
+        done < .dockerignore
+
+        # Add all the matching globs we should exclude to our find command. We have to deal with one corner case where
+        # if the expanded glob ends with '/' then find emits this warning which we'd like to supress:
+        # find: warning: -path foo/null/ will not match anything because it ends with /.
+        for entry in "${docker_ignore[@]}"; do
+            [[ "${entry: -1}" == "/" ]] && continue
+            exclude+=" -not -path ${entry}"
+        done
+    fi
+
+    sha_detail+="$(find ${depends[@]} ${exclude} -type f -print0 \
         | sort -z \
         | xargs -0 "${shafunc}sum" \
         | awk '{print $2"'@${shafunc}:'"$1}'

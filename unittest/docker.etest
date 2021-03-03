@@ -784,3 +784,81 @@ ETEST_docker_depends_sha()
     expected=$(sha256sum .work/docker/ebash/sha.detail | awk '{print $1}')
     assert_eq "sha256:${expected}" "$(cat .work/docker/ebash/sha)"
 }
+
+ETEST_docker_depends_sha_exclude()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM alpine:edge
+	ENV CREATOR etest-$$
+	COPY foo /foo
+	END
+    cat Dockerfile
+
+    etestmsg "Creating dockerignore"
+    mkdir foo foo/baz foo/null foo/null/work
+    touch \
+        foo/bar        \
+        foo/zap        \
+        foo/a.o        \
+        foo/b.o        \
+        foo/baz/README \
+        foo/baz/dogs.o \
+        foo/baz/cats.o \
+        foo/null/a     \
+        foo/null/b     \
+        foo/null/work/ok
+    echo '**/*.o'   >> .dockerignore
+    echo 'foo/null' >> .dockerignore
+    cat ".dockerignore"
+
+    etestmsg "Computing Dependency SHA"
+    docker_depends_sha \
+        --name "elibs/ebash" \
+
+    cat ".work/docker/ebash/dockerfile"
+
+    etestmsg "Validating depends_sha artifacts"
+    assert_exists \
+        ".work/docker/ebash/dockerfile" \
+        ".work/docker/ebash/options"    \
+        ".work/docker/ebash/sha"        \
+        ".work/docker/ebash/sha.func"   \
+        ".work/docker/ebash/sha.short"  \
+        ".work/docker/ebash/sha.detail" \
+
+    etestmsg "Validating Docker Image was not built"
+    image="elibs/ebash:$(cat .work/docker/ebash/sha.short)"
+    etestmsg "$(lval image)"
+    assert_docker_image_not_exists "${image}"
+
+    # Validate dependency SHA
+    etestmsg "Validating SHA function"
+    assert_eq "sha256" "$(cat .work/docker/ebash/sha.func)"
+    cat ".work/docker/ebash/sha"
+
+    etestmsg "Details"
+    cat ".work/docker/ebash/sha.detail"
+    depends=(
+        ".work/docker/ebash/dockerfile"
+        "foo/bar"
+        "foo/baz/README"
+        "foo/zap"
+    )
+
+    etestmsg "Showing local dependency tree"
+    find ".work/docker/ebash/overlay"
+
+    expect=()
+    for depend in ${depends[@]}; do
+        expect+=( "${depend}@sha256:$(sha256sum "${depend}" | awk '{print $1}')" )
+    done
+
+    etestmsg "Expected SHA Details"
+    expected=$(array_join_nl expect)
+    assert_eq "${expected}" "$(cat .work/docker/ebash/sha.detail)"
+
+    etestmsg "Roll-up SHA"
+    expected=$(sha256sum .work/docker/ebash/sha.detail | awk '{print $1}')
+    assert_eq "sha256:${expected}" "$(cat .work/docker/ebash/sha)"
+}
