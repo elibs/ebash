@@ -7,14 +7,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# The archive module is only supported on Linux. If we're not on Linux just return immediately without emitting any of
-# the code in this module.
-#
-# NOTE: You presently have to be root to use it properly due to the need to be able to perform bind mount operations.
-# bindfs might be a solution to that eventually.
-if [[ ${__EBASH_OS} == "Linux" ]] ; then
-    reexec --sudo
-else
+if [[ ${__EBASH_OS} != "Linux" ]] ; then
     return 0
 fi
 
