@@ -515,3 +515,66 @@ __docker_depends_sha_variables()
     echo 'eval local shafile_detail="${artifactdir}/sha.detail"; '
     echo 'eval local sha_short; '
 }
+
+opt_usage docker_image_export <<'END'
+docker_image_export is a wrapper around "docker export" to make it more seamless to convert a provided docker image to
+various archive formats. This code intentionally does not use ebash archive module as that is too heavy weight for our
+needs and also requires the caller to be root to do the bind mounting.
+END
+docker_image_export()
+{
+    $(opt_parse \
+        ":type t  | Override automatic type detection and use explicit archive type." \
+        "tag      | Docker tag to to export in the form of name:tag."                 \
+        "output   | Output archive to create."                                        \
+    )
+
+    # "docker export" is the only way to create a flat archive but it operates only on containers and not images.
+    # So, we have to run the specified image so that we can export it.
+    local container_id
+    container_id=$(docker run --detach ${tag} tail -f /dev/null)
+    edebug "Exporting $(lval container_id tag output)"
+    trap_add "docker kill ${container_id} &>/dev/null || true"
+
+    # Figure out desired output_type and any compression program we should use.
+    local output_type="" prog=""
+    output_type=$(archive_type --type "${type}" "${output}")
+    if [[ ${output_type} == tar ]]; then
+        prog=$(archive_compress_program --type "${type}" "${output}")
+    elif [[ ${output_type} == squashfs ]]; then
+        prog=""
+    else
+        die "Unsupported $(lval output_type)"
+    fi
+
+    # Now we can export the running container
+    if [[ -z "${prog}" ]]; then
+        prog="gzip"
+    fi
+    edebug "Converting to $(lval output_type prog)"
+    local tmpout
+    tmpout=$(mktemp --tmpdir docker-image-export-XXXXXX)
+    docker export ${container_id} | ${prog} > "${tmpout}"
+    docker kill ${container_id} &>/dev/null
+
+    # If not squashfs, move final image over and return. Otherwise proceed with conversion.
+    if [[ ${output_type} != squashfs ]]; then
+        edebug "Export successful. Moving ${tmpout} to ${output}"
+        mv "${tmpout}" "${output}"
+        return 0
+    fi
+
+    # Squashfs conversion
+    local convert_dir convert_out
+    convert_dir=$(mktemp --tmpdir --directory docker-image-export-XXXXXX)
+    convert_out=$(mktemp --tmpdir docker-image-export-XXXXXX)
+    tar -C "${convert_dir}" -xzvf "${tmpout}"
+
+    (
+        cd "${convert_dir}"
+        mksquashfs . "${convert_out}" -no-duplicates -no-recovery -no-exports -no-progress -noappend -wildcards
+    )
+
+    edebug "Export successful. Moving ${convert_out} to ${output}"
+    mv "${convert_out}" "${output}"
+}
