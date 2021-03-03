@@ -150,6 +150,7 @@ source "${EBASH}/try_catch.sh"
 # particular OSes or distros.
 source "${EBASH}/opt.sh"
 source "${EBASH}/os.sh"
+source "${EBASH}/exec.sh"
 
 # Now we can source everything else.
 source "${EBASH}/archive.sh"
@@ -175,7 +176,6 @@ source "${EBASH}/eprompt.sh"
 source "${EBASH}/eretry.sh"
 source "${EBASH}/etable.sh"
 source "${EBASH}/etimeout.sh"
-source "${EBASH}/exec.sh"
 source "${EBASH}/filesystem.sh"
 source "${EBASH}/fd.sh"
 source "${EBASH}/funcutil.sh"
