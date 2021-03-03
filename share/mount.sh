@@ -83,7 +83,7 @@ ebindmount()
     # such we do not need to remount things with --make-rprivate in order to achieve that desired effect. In this case,
     # ebindmount is essentially just a passthrough into "emount --rbind"
     if running_in_docker; then
-        emount --rbind "${mount_options[@]:-}" "${src}" "${dest}"
+        emount --rbind "${@}" "${src}" "${dest}"
         return 0
     fi
 
