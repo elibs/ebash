@@ -379,8 +379,8 @@ __docker_depends_sha()
     echo "${shafunc}" > "${shafile_func}"
     opt_dump | tee "${optfile}" | edebug
 
-    # Add any build arguments into sha_detail
-    local entry=""
+    # Interpolate build_args
+    local entry="" build_arg_keys=()
     for entry in "${build_arg[@]:-}"; do
         [[ -z "${entry}" ]] && continue
         local build_arg_key="${entry%%=*}"
@@ -389,7 +389,6 @@ __docker_depends_sha()
 
         eval "export ${build_arg_key}=${build_arg_val}"
         build_arg_keys+=( "\$${build_arg_key}" )
-        build_arg_vals+=( "--build-arg ${entry}" )
     done
 
     envsubst "$(array_join build_arg_keys ,)" < "${file}" > "${dockerfile}"
@@ -457,12 +456,6 @@ __docker_depends_sha()
     array_sort --unique depends
 
     edebug "$(lval depends)"
-    local sha_detail=""
-    if array_not_empty build_arg_vals; then
-        sha_detail="$(array_join_nl build_arg_vals)"
-        sha_detail+=$'\n'
-    fi
-
     local exclude=""
     if [[ -e ".dockerignore" ]]; then
 
@@ -484,6 +477,7 @@ __docker_depends_sha()
         done
     fi
 
+    local sha_detail=""
     sha_detail+="$(find ${depends[@]} ${exclude} -type f -print0 \
         | sort -z \
         | xargs -0 "${shafunc}sum" \
