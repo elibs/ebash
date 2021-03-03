@@ -18,6 +18,7 @@ ETEST_commands()
         "awk"
         "base64"
         "bash"
+        "bindfs"
         "curl"
         "diff"
         "docker"
