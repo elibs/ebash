@@ -7,10 +7,6 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if [[ ${__EBASH_OS} != "Linux" ]] ; then
-    return 0
-fi
-
 #-----------------------------------------------------------------------------------------------------------------------
 # ARCHIVE.SH
 #
