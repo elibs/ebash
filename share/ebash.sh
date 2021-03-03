@@ -150,11 +150,13 @@ source "${EBASH}/try_catch.sh"
 # particular OSes or distros.
 source "${EBASH}/opt.sh"
 source "${EBASH}/os.sh"
+
+# We need exec sourced before other modules so we can use reexec where required. And that requires array.sh.
+source "${EBASH}/array.sh"
 source "${EBASH}/exec.sh"
 
 # Now we can source everything else.
 source "${EBASH}/archive.sh"
-source "${EBASH}/array.sh"
 source "${EBASH}/assert.sh"
 source "${EBASH}/cgroup.sh"
 source "${EBASH}/checkbox.sh"
