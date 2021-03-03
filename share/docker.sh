@@ -214,7 +214,7 @@ docker_build()
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
-    einfo "Creating stamp file ${inspfile}"
+    einfo "Creating stamp $(lval file=inspfile)"
     docker inspect "${image}" > "${inspfile}"
 }
 
