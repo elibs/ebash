@@ -187,6 +187,16 @@ docker_build()
         fi
     fi
 
+    # If there exists a ${shafile_detail_prev} then display why we are rebuilding.
+    if [[ -e "${shafile_detail_prev}" ]]; then
+        edebug "Dependency differences"
+        diff --unified "${shafile_detail_prev}" "${shafile_detail}" | edebug || true
+
+        local changes
+        changes=( $(diff -u "${shafile_detail_prev}" "${shafile_detail}" | sed -n '/^+[^+]/ s/^+//p' | sed -e 's/@.*//' || true) )
+        ewarn "Rebuilding docker $(lval image) due to $(lval changes)"
+    fi
+
     if [[ "${pretend}" -eq 1 ]]; then
         ewarn "Build required for $(lval image) but pretend=1"
         return 1
@@ -216,6 +226,7 @@ docker_build()
     # Only create inspect (stamp) file at the very end after everything has been done.
     einfo "Creating stamp $(lval file=inspfile)"
     docker inspect "${image}" > "${inspfile}"
+    cp "${shafile_detail}" "${shafile_detail_prev}"
 }
 
 opt_usage docker_pull<<'END'
@@ -513,6 +524,7 @@ __docker_depends_sha_variables()
     echo 'eval local shafile_func="${artifactdir}/sha.func"; '
     echo 'eval local shafile_short="${artifactdir}/sha.short"; '
     echo 'eval local shafile_detail="${artifactdir}/sha.detail"; '
+    echo 'eval local shafile_detail_prev="${artifactdir}/sha.detail.prev"; '
     echo 'eval local sha_short; '
 }
 
@@ -568,11 +580,11 @@ docker_image_export()
     local convert_dir convert_out
     convert_dir=$(mktemp --tmpdir --directory docker-image-export-XXXXXX)
     convert_out=$(mktemp --tmpdir docker-image-export-XXXXXX)
-    tar -C "${convert_dir}" -xzvf "${tmpout}"
+    tar -C "${convert_dir}" -xzf "${tmpout}"
 
     (
         cd "${convert_dir}"
-        mksquashfs . "${convert_out}" -no-duplicates -no-recovery -no-exports -no-progress -noappend -wildcards
+        mksquashfs . "${convert_out}" -no-duplicates -no-recovery -no-exports -no-progress -noappend
     )
 
     edebug "Export successful. Moving ${convert_out} to ${output}"
