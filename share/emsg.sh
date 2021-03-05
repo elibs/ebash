@@ -548,11 +548,11 @@ emsg()
 
 tput()
 {
-    if [[ ${1:-} == "cols" && -n "${COLUMNS}" ]] ; then
-	echo "${COLUMNS}"
-	return 0
+    if [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]] ; then
+        echo "${COLUMNS}"
+        return 0
     fi
-   
+
     command tput $@ 2>/dev/null || true
 }
 
