@@ -68,11 +68,6 @@ Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of your m
 different behavior between systemd machines (where shared mounts are the default) and everywhere else (where private
 mounts are the default).
 
-Bind mounts are very efficient, but unfortunately require root permissions. Sometimes this is a deal breaker, particular
-inside certain CICD environments where "mount --bind" is prohibited. In such situations, it is preferable to instead use
-"bindfs" which achieves the same effect as a bind mount but does not require root permissions since it uses fuse under
-the hood. Ebash ebindmount will automatically use bindfs if available.
-
 Source and destination MUST be the first two parameters of this function. You may specify any other mount options after
 them.
 END
@@ -82,13 +77,6 @@ ebindmount()
         "src" \
         "dest" \
         "@mount_options")
-
-    # If bindfs exists, use that instead as it bypasses the need for root permissions.
-    if command_exists bindfs; then
-        edebug "Using bindfs"
-        bindfs "${src}" "${dest}"
-        return 0
-    fi
 
     # In order to avoid polluting other mount points that we recursively bind, we want to make sure that our mount
     # points are "private" (not seen by other mount namespaces).  For example, that prevents one chroot from messing
