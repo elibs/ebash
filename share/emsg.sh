@@ -670,6 +670,10 @@ eend()
         : ${current_column:=0}
         columns=$(tput cols)
         startcol=$(( columns - ${current_column} - 5 ))
+
+        echo >&2
+        echo "current_column=${current_column} columns=${columns} startcol=${startcol}" >&2
+
         if [[ ${startcol} -gt 0 ]]; then
             echo -en "$(tput cuf ${startcol} 2>/dev/null)" >&2
         fi
