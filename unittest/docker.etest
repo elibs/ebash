@@ -11,8 +11,6 @@
 docker_tags_pushed=()
 docker()
 {
-    ewarn "DOCKER: ${@}"
-
     if [[ "${1}" == "push" ]]; then
         etestmsg "Simulating docker push tags=${@}"
         shift
@@ -21,8 +19,6 @@ docker()
     elif [[ "${1}" == "login" ]]; then
         etestmsg "Simulated docker login with args=${@}"
         return 0
-    elif [[ "${1}" == "rm" ]]; then
-        command docker "${@}" || true
     fi
 
     command docker "${@}"
