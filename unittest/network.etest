@@ -109,6 +109,10 @@ ETEST_netselect()
 
 ETEST_get_network_pci_device_sanity()
 {
+    # Pretend that this is ubuntu 16.04, whether it is or not
+    os() { [[ ${1,,} == linux ]] && return 0 || return 1 ; }
+    lsb_release() { echo "16.04" ; }
+
     # Mock info pulled from samples of these nodes:
     # eth0-3:   R630 node
     # eth4-7:   VMware node
@@ -153,6 +157,15 @@ ETEST_get_network_pci_device_sanity()
 
 ETEST_get_network_pci_device_hyperv()
 {
+    # Pretend that this is ubuntu 16.04, whether it is or not
+    os() { [[ ${1,,} == linux ]] && return 0 || return 1 ; }
+    lsb_release() { echo "16.04" ; }
+
+    # Mock out get_network_interfaces to return static list of interfaces
+    get_network_interfaces(){ echo "eth0 eth1"; }
+
+    local ifaces=() addr_result=""
+    ifaces=( $(get_network_interfaces) )
     local addr_expected="vmbus_0_13"
 
     # Mock out ethtool to not return the requested info, as it behaves on HyperV VMs
@@ -161,11 +174,9 @@ ETEST_get_network_pci_device_hyperv()
     # Mock out basename to return a HyperV looking address
     basename(){ echo "${addr_expected}"; }
 
-    local ifaces=() addr_result=""
-    ifaces=( $(get_network_interfaces) )
     addr_result=$(get_network_pci_device ${ifaces[0]})
 
-    [[ ${addr_result} == ${addr_expected} ]] || die "$(lval test_addr) does not equal expected $(lval addr_expected)"
+    assert_eq "${addr_result}" "${addr_expected}"
 }
 
 ETEST_netmask2cidr()
@@ -191,11 +202,11 @@ ETEST_netmask2cidr()
 ETEST_getvlans()
 {
 
-# command: ip link show type vlan
-# output:
-# 14: Bond10G.2172@Bond10G: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
-#     link/ether 36:81:9c:a0:10:be brd ff:ff:ff:ff:ff:ff
-#
+    # command: ip link show type vlan
+    # output:
+    # 14: Bond10G.2172@Bond10G: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    #     link/ether 36:81:9c:a0:10:be brd ff:ff:ff:ff:ff:ff
+    #
     ip()
     {
       echo " 14: ${testnic}.${vlan}@${testnic}: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000"
