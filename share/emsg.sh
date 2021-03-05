@@ -551,14 +551,15 @@ tput()
     # Intercept request for "cols" and use "COLUMNS" if it's already set. This allows things to work properly inside a
     # CI/CD environment where normally "tput cols" would return 0, giving us control over how many columns we want to
     # use.
-    if [[ ${1:-} == "cols" && -n "${COLUMNS:-}" ]] ; then
-        echo "${COLUMNS}"
-        return 0
-    fi
+    #if [[ ${1:-} == "cols" && -n "${COLUMNS:-}" ]] ; then
+    #    echo "${COLUMNS}"
+    #    return 0
+    #fi
 
     # Otherwise just pass this through into lower-level tput command. Suppress any warnings and ignore all errors as we
     # do not want tput errors to cause the caller's program to abort.
-    command tput $@ 2>/dev/null || true
+    #command tput $@ 2>/dev/null || true
+    command tput $@
 }
 
 einfo()
