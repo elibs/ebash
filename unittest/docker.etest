@@ -19,6 +19,8 @@ docker()
     elif [[ "${1}" == "login" ]]; then
         etestmsg "Simulated docker login with args=${@}"
         return 0
+    elif [[ "${1}" == "rm" ]]; then
+        command docker "${@}" || true
     fi
 
     command docker "${@}"
