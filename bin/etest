@@ -343,11 +343,14 @@ run_single_test()
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
+    local einfo_message einfo_message_length
     if [[ -n "${source}" ]]; then
-        einfos -n "${testname}"
+        einfo_message=$(einfos -n "${testname}" 2>&1)
     else
-        EMSG_PREFIX="" einfo -n "${testname}"
-    fi &>${ETEST_OUT}
+        einfo_message=$(EMSG_PREFIX="" einfo -n "${testname}" 2>&1)
+    fi
+    echo -n "${einfo_message}" &>${ETEST_OUT}
+    einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
 
     (( NUM_TESTS_EXECUTED += 1 ))
 
@@ -483,7 +486,7 @@ run_single_test()
         (( NUM_TESTS_FAILED += 1 ))
     fi
 
-    eend -n ${rc} &>${ETEST_OUT}
+    eend --inline --inline-offset=${einfo_message_length} ${rc} &>${ETEST_OUT}
 
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
