@@ -660,7 +660,8 @@ eend()
         fi
     else
         local columns startcol current_column
-        current_column=$( IFS=';' read -sdR -p $'\E[6n' ROW COL; echo "${COL#*[}" )
+        current_column=$( IFS=';' read -sdR -p $'\E[6n' ROW COL || true; echo "${COL#*[}" )
+        : ${current_column:=0}
         columns=$(tput cols)
         startcol=$(( columns - ${current_column} - 5 ))
         if [[ ${startcol} -gt 0 ]]; then
