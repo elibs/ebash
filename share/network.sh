@@ -284,7 +284,7 @@ get_permanent_mac_address()
         else
             cat ${SYSFS}/class/net/${ifname}/address
         fi
-    elif command_exists ethtool; do
+    elif command_exists ethtool; then
         ethtool -P "${ifname}" | sed -e 's|Permanent address: ||'
     else
         die "Unable to determine permanent MAC Address for $(lval ifname)"
