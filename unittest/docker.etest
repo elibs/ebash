@@ -888,6 +888,12 @@ ETEST_docker_image_export_tgz()
 
 ETEST_docker_image_export_squashfs()
 {
+    # This test only works on linux as it requires squashfs.
+    if ! os Linux; then
+        ewarn "Skipping ${FUNCNAME} on non-Linux OS."
+        return 0
+    fi
+
     unset docker
 
     etestmsg "Creating Dockerfile"
