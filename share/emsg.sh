@@ -548,18 +548,7 @@ emsg()
 
 tput()
 {
-    # Intercept request for "cols" and use "COLUMNS" if it's already set. This allows things to work properly inside a
-    # CI/CD environment where normally "tput cols" would return 0, giving us control over how many columns we want to
-    # use.
-    #if [[ ${1:-} == "cols" && -n "${COLUMNS:-}" ]] ; then
-    #    echo "${COLUMNS}"
-    #    return 0
-    #fi
-
-    # Otherwise just pass this through into lower-level tput command. Suppress any warnings and ignore all errors as we
-    # do not want tput errors to cause the caller's program to abort.
-    #command tput $@ 2>/dev/null || true
-    command tput $@
+    command tput $@ 2>/dev/null || true
 }
 
 einfo()
@@ -638,53 +627,42 @@ eerror_stacktrace()
 
 eend()
 {
-    # By default, all emsg functions (e.g. einfo, ewarn, eerror) all emit a message and then a trailing newline to move
-    # to the next line. When paired with an eend, we want that eend message to show up on the SAME line. To do so, we
-    # emit some terminal magic to move up a line, and then right justify the eend message. That provides the best output
-    # on interactive displays, but doesn't work if we're not interactive (e.g. writing to a file or in certain CI/CD
-    # systems). For those uses cases, we often pass in "-n" into emsg functions to NOT emit the trailing newline. eend
-    # also understands "-n" to tell it that it doesn't need to emit the leading newline.
-    local pre_newline=1
-    if [[ ${1:-} == "-n" ]] ; then
-        pre_newline=0
-        shift
-    fi
+    $(opt_parse \
+        "+inline n=0        | Display eend inline rather than outputting a leading newline. The reason we emit a leading
+                              newline by default is to work properly with emsg functions (e.g. einfo, ewarn, eerror) as
+                              they all emit a message and then a trailing newline to move to the next line. When paired
+                              with an eend, we want that eend message to show up on the SAME line. So we emit some
+                              terminal magic to move up a line, and then right justify the eend message. This doesn't
+                              work very well for non-interactive displays or in CI/CD output so you can disable it."   \
+        ":inline_offset o=0 | Number of characters to offset inline mode by."                                          \
+        "return_code=0      | Return code of the command that last ran. Success (0) will cause an 'ok' message and any
+                              non-zero value will emit '!!'."                                                          \
+    )
 
-    # Get the return code, if any. Assume the return code is success (0).
-    local rc=${1:-0}
+    # Get the number of columns
+    local colums=0 startcol=0
+    columns=$(tput cols)
 
-    # If interactive AND a pre_newline is requested, move cursor up a line and then move it over to the far right column
-    if einteractive && [[ ${pre_newline} -eq 1 ]]; then
-        # Terminal magic that:
-        #    1) Gets the number of columns on the screen, minus 6 because that's how many we're about to output
-        #    2) Moves up a line
-        #    3) Moves right the number of columns from #1
-        local colums=0 startcol=0
-        columns=$(tput cols)
+    # If interactive AND not inline mode, move cursor up a line and then move it over to the far right column
+    if einteractive && [[ ${inline} -eq 0 ]]; then
         startcol=$(( columns - 6 ))
         if [[ ${startcol} -gt 0 ]]; then
             echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
         fi
     else
-
-        printf "\r"
-        local columns=0 startcol=0
-        columns=$(tput cols)
-        startcol=$(( columns - 6 ))
+        startcol=$(( columns - inline_offset - 6 ))
 
         if [[ ${startcol} -gt 0 ]]; then
-            echo -en "$(tput cuf ${startcol} 2>/dev/null)" >&2
-
             # Do NOT use tput here for padding. If we're non-interactive, it's not going to do what we expect. Instead
             # just print out a padded string that moves us to the desired position.
-            #local eend_pad
-            #eval "eend_pad=\$(printf -- ' %.0s' {1..${startcol}})"
-            #echo -en "${eend_pad}" >&2
+            local eend_pad
+            eval "eend_pad=\$(printf -- ' %.0s' {1..${startcol}})"
+            echo -en "${eend_pad}" >&2
         fi
     fi
 
     # NOW we can emit the actual success or failure message based on the provided return code.
-    if [[ ${rc} -eq 0 ]]; then
+    if [[ ${return_code} -eq 0 ]]; then
         echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_INFO}) ok $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     else
         echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_ERROR}) !! $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
