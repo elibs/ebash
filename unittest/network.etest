@@ -7,8 +7,6 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-os linux || return 0
-
 # Setup code mocks out some fake paths beneath a fake SYSFS tree for consistent testing even in Docker where we may not
 # have actual sysfs tree.
 setup()
