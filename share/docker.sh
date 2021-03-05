@@ -189,12 +189,8 @@ docker_build()
 
     # If there exists a ${shafile_detail_prev} then display why we are rebuilding.
     if [[ -e "${shafile_detail_prev}" ]]; then
-        edebug "Dependency differences"
-        diff --unified "${shafile_detail_prev}" "${shafile_detail}" | edebug || true
-
-        local changes
-        changes=( $(diff -u "${shafile_detail_prev}" "${shafile_detail}" | sed -n '/^+[^+]/ s/^+//p' | sed -e 's/@.*//' || true) )
-        ewarn "Rebuild of docker $(lval image) required due to $(lval changes)"
+        ewarn "Rebuild of docker $(lval image) required due the following changes:"
+        diff --unified --color "${shafile_detail_prev}" "${shafile_detail}" || true
     fi
 
     if [[ "${pretend}" -eq 1 ]]; then
