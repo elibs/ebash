@@ -194,7 +194,7 @@ docker_build()
 
         local changes
         changes=( $(diff -u "${shafile_detail_prev}" "${shafile_detail}" | sed -n '/^+[^+]/ s/^+//p' | sed -e 's/@.*//' || true) )
-        ewarn "Rebuilding docker $(lval image) due to $(lval changes)"
+        ewarn "Rebuild of docker $(lval image) required due to $(lval changes)"
     fi
 
     if [[ "${pretend}" -eq 1 ]]; then
