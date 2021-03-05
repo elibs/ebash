@@ -376,7 +376,7 @@ ETEST_eprogress_ticker_off()
 {
     (
         exec &> ${OUTPUT}
-        COLUMNS=28
+        COLUMNS=0
         EFUNCS_COLOR=0
         EDEBUG=0
         ETRACE=0
