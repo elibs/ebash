@@ -45,7 +45,6 @@ if [ "${DISTRO}" = "alpine" ]; then
 
     apk add              \
         bash             \
-        bindfs           \
         bzip2            \
         cdrkit           \
         coreutils        \
@@ -84,7 +83,6 @@ if [ "${DISTRO}" = "alpine" ]; then
 elif [ "${DISTRO}" = "arch" ]; then
 
     pacman -Syu --overwrite "/usr/bin/docker-init" --noconfirm  \
-        bindfs              \
         cdrkit              \
         cpio                \
         debootstrap         \
@@ -112,7 +110,6 @@ elif [ "${DISTRO}" = "centos" ]; then
     yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-${VERSION}.noarch.rpm
 
     yum install -y          \
-        bindfs              \
         bzip2               \
         cpio                \
         debootstrap         \
@@ -161,7 +158,6 @@ elif [ "${DISTRO}" = "debian" ]; then
 
     apt install -y                  \
         apt-transport-https         \
-        bindfs                      \
         bsdmainutils                \
         bzip2                       \
         ca-certificates             \
@@ -198,7 +194,6 @@ elif [ "${DISTRO}" = "debian" ]; then
 elif [ "${DISTRO}" = "fedora" ]; then
 
     dnf install -y          \
-        bindfs              \
         bzip2               \
         cpio                \
         debootstrap         \
@@ -239,7 +234,6 @@ elif [ "${DISTRO}" = "gentoo" ]; then
 
     emerge --autounmask-write --autounmask-continue --noreplace --quiet \
         app-emulation/docker \
-        bindfs               \
         cdrtools             \
         cpio                 \
         debootstrap          \
@@ -261,7 +255,6 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 
     apt install -y                 \
         apt-transport-https        \
-        bindfs                     \
         bsdmainutils               \
         bzip2                      \
         ca-certificates            \
@@ -313,7 +306,6 @@ elif [ "${DISTRO}" = "darwin" ]; then
 
     brew_install       \
         bash           \
-        bindfs         \
         curl           \
         docker         \
         docker-machine \
