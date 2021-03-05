@@ -671,11 +671,12 @@ eend()
         columns=$(tput cols)
         startcol=$(( columns - ${current_column} - 5 ))
 
-        echo >&2
-        echo "current_column=${current_column} columns=${columns} startcol=${startcol}" >&2
-
         if [[ ${startcol} -gt 0 ]]; then
-            echo -en "$(tput cuf ${startcol} 2>/dev/null)" >&2
+            # Do NOT use tput here for padding. If we're non-interactive, it's not going to do what we expect. Instead
+            # just print out a padded string that moves us to the desired position.
+            local eend_pad
+            eval "eend_pad=\$(printf -- ' %.0s' {1..${startcol}})"
+            echo -en "${eend_pad}" >&2
         fi
     fi
 
