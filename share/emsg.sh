@@ -631,9 +631,23 @@ eerror_stacktrace()
 
 eend()
 {
+    # By default, all emsg functions (e.g. einfo, ewarn, eerror) all emit a message and then a trailing newline to move
+    # to the next line. When paired with an eend, we want that eend message to show up on the SAME line. To do so, we
+    # emit some terminal magic to move up a line, and then right justify the eend message. That provides the best output
+    # on interactive displays, but doesn't work if we're not interactive (e.g. writing to a file or in certain CI/CD
+    # systems). For those uses cases, we often pass in "-n" into emsg functions to NOT emit the trailing newline. eend
+    # also understands "-n" to tell it that it doesn't need to emit the leading newline.
+    local pre_newline=1
+    if [[ ${1:-} == "-n" ]] ; then
+        pre_newline=0
+        shift
+    fi
+
+    # Get the return code, if any. Assume the return code is success (0).
     local rc=${1:-0}
 
-    if einteractive; then
+    # If interactive AND a pre_newline is requested, move cursor up a line and then move it over to the far right column
+    if einteractive && [[ ${pre_newline} -eq 1 ]]; then
         # Terminal magic that:
         #    1) Gets the number of columns on the screen, minus 6 because that's how many we're about to output
         #    2) Moves up a line
@@ -641,9 +655,20 @@ eend()
         local colums=0 startcol=0
         columns=$(tput cols)
         startcol=$(( columns - 6 ))
-        [[ ${startcol} -gt 0 ]] && echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
+        if [[ ${startcol} -gt 0 ]]; then
+            echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
+        fi
+    else
+        local columns startcol current_column
+        current_column=$( IFS=';' read -sdR -p $'\E[6n' ROW COL; echo "${COL#*[}" )
+        columns=$(tput cols)
+        startcol=$(( columns - ${current_column} - 5 ))
+        if [[ ${startcol} -gt 0 ]]; then
+            echo -en "$(tput cuf ${startcol} 2>/dev/null)" >&2
+        fi
     fi
 
+    # NOW we can emit the actual success or failure message based on the provided return code.
     if [[ ${rc} -eq 0 ]]; then
         echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_INFO}) ok $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     else

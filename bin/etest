@@ -271,6 +271,7 @@ assert_no_mount_leaks()
 
 global_setup()
 {
+    ecolor hide_cursor &>${ETEST_OUT}
     edebug "Running global_setup"
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
@@ -289,6 +290,8 @@ global_setup()
 
 global_teardown()
 {
+    ecolor show_cursor &>${ETEST_OUT}
+
     if [[ ${delete} -eq 0 ]]; then
         edebug "Skipping global_teardown"
         return 0
@@ -341,9 +344,9 @@ run_single_test()
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
     if [[ -n "${source}" ]]; then
-        einfos "${testname}"
+        einfos -n "${testname}"
     else
-        EMSG_PREFIX="" einfo "${testname}"
+        EMSG_PREFIX="" einfo -n "${testname}"
     fi &>${ETEST_OUT}
 
     (( NUM_TESTS_EXECUTED += 1 ))
@@ -480,7 +483,7 @@ run_single_test()
         (( NUM_TESTS_FAILED += 1 ))
     fi
 
-    eend ${rc} &>${ETEST_OUT}
+    eend -n ${rc} &>${ETEST_OUT}
 
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
