@@ -138,20 +138,16 @@ edebug_out()
     edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
-#opt_usage einteractive <<'END'
-#Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
-#This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
-#global variable EINTERACTIVE=1.
-#END
+# Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
+# This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
+# global variable EINTERACTIVE=1.
 einteractive()
 {
     [[ ${EINTERACTIVE:-0} -eq 1 ]] && return 0
     [[ -t 2 ]]
 }
 
-#opt_usage einteractive_as_bool <<'END'
-#Get einteractive value as a boolean string
-#END
+# Get einteractive value as a boolean string
 einteractive_as_bool()
 {
     if einteractive; then
@@ -248,10 +244,8 @@ ecolor_code()
    return 0
 }
 
-#opt_usage efuncs_color <<'END'
-#Determine value to use for efuncs_color.
-#If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
-#END
+# Determine value to use for efuncs_color.
+# If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
 efuncs_color()
 {
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
@@ -263,9 +257,7 @@ efuncs_color()
     [[ ${value} -eq 1 ]]
 }
 
-#opt_usage efuncs_color_as_bool <<'END'
-#Get efuncs_color as a boolean string.
-#END
+# Get efuncs_color as a boolean string.
 efuncs_color_as_bool()
 {
     if efuncs_color; then
@@ -548,7 +540,10 @@ emsg()
 
 tput()
 {
-    if [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]] ; then
+    # If we are non-interactive and looking for the number of columns and it's been explicitly set just use that instead
+    # of going to tput. This allows us greater control over the number of columns we want to display in this scenario
+    # instead of defaulting to 80.
+    if ! einteractive && [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]] ; then
         echo "${COLUMNS}"
         return 0
     fi
