@@ -201,7 +201,7 @@ getvlans()
 {
     $(opt_parse iface)
 
-    ip link show type vlan | grep "[0-9]\+: ${iface}\." | cut -d: -f2 | cut -d. -f2 | cut -d@ -f1 || true
+    ip link show type vlan 2>/dev/null | grep "[0-9]\+: ${iface}\." | cut -d: -f2 | cut -d. -f2 | cut -d@ -f1 || true
 }
 
 opt_usage get_network_interfaces <<'END'
@@ -209,11 +209,17 @@ Get list of network interfaces
 END
 get_network_interfaces()
 {
+    # On OSX just delegate this work to networksetup as the mac ports installed ip command doesn't support
+    # "ip link show type" command.
+    if os darwin; then
+        networksetup -listallhardwareports | awk '/Hardware Port: Wi-Fi/{getline; print $2}'
+    fi
+
     # First generate a list of non-physical devices
     local types=(bond bond_slave bridge dummy gre gretap ifb ip6gre ip6gretap ip6tnl ipip ipoib ipvlan macvlan macvtap nlmon sit vcan veth vlan vti vxlan tun tap)
     local logical=()
     for type in "${types[@]}"; do
-        logical+=( $(ip link show type "${type}" | awk -F': ' '{print $2}') )
+        logical+=( $(ip link show type "${type}" 2>/dev/null | awk -F': ' '{print $2}' || true) )
     done
 
     # Get a list of loopback devices and exclude those also
@@ -221,7 +227,7 @@ get_network_interfaces()
 
     # Enumerate all devices NOT in the logical array
     local iface
-    for iface in $(ip -o link show | awk -F': ' '{print $2}'); do
+    for iface in $(ip link show | awk -F': ' '{print $2}' | sed '/^$/d'); do
         if ! array_contains logical "${iface}"; then
             echo "${iface}"
         fi
@@ -450,7 +456,7 @@ netselect()
     local entry
 
     for h in ${hosts}; do
-        entry=$(ping -c${count} -w5 -q $h 2>/dev/null | \
+        entry=$(etimeout -t 5 ping -c${count} -q $h 2>/dev/null | \
             awk '/packet loss/ {loss=$6}
                  /min\/avg\/max/ {
                     split($4,stats,"/")

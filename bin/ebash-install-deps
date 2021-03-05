@@ -311,6 +311,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
         docker-machine \
         coreutils      \
         findutils      \
+        iproute2mac    \
         gnu-sed        \
         grep           \
         jq             \
