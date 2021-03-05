@@ -66,12 +66,6 @@ fully_qualify_hostname()
     return 0
 }
 
-[[ ${__EBASH_OS} == Linux ]] || return 0
-
-#---------------------------------------------------------------------------------------------------
-# Linux-specific networking functions
-#---------------------------------------------------------------------------------------------------
-
 opt_usage getipaddress <<'END'
 Get the IPAddress currently bound to the requested interface (if any). It is not an error for an interface to be unbound
 so this function will not fail if no IPAddress is set on the interface. Instead it will simply return an empty string.
@@ -80,7 +74,20 @@ getipaddress()
 {
     $(opt_parse iface)
     ip addr show "${iface}" 2>/dev/null \
-        | awk '/inet [0-9.\/]+ .* scope global (dynamic )*'${iface}'$/ { split($2, arr, "/"); print arr[1] }' || true
+        | awk '/inet [0-9.\/]+ .* scope global .* '${iface}'$/ { split($2, arr, "/"); print arr[1] }' 2>/dev/null \
+        | tr '\n' ' ' || true
+}
+
+opt_usage get_physical_ipaddresses <<'END'
+Enumerage a list of all IP Addresses attached to physical devices. This leverages the get_network_interfaces function
+to enumerage the physical devices.
+END
+get_physical_ipaddresses()
+{
+    local iface
+    for iface in $(get_network_interfaces); do
+        getipaddress "${iface}"
+    done
 }
 
 opt_usage getnetmask <<'END'
@@ -202,11 +209,23 @@ Get list of network interfaces
 END
 get_network_interfaces()
 {
-    for iface in $(ls -1 ${SYSFS}/class/net); do
-        # Skip virtual devices, we only want physical
-        [[ ! -e ${SYSFS}/class/net/${iface}/device ]] && continue
-        echo "${iface}"
-    done | tr '\n' ' ' || true
+    # First generate a list of non-physical devices
+    local types=(bond bond_slave bridge dummy gre gretap ifb ip6gre ip6gretap ip6tnl ipip ipoib ipvlan macvlan macvtap nlmon sit vcan veth vlan vti vxlan tun tap)
+    local logical=()
+    for type in "${types[@]}"; do
+        logical+=( $(ip link show type "${type}" | awk -F': ' '{print $2}') )
+    done
+
+    # Get a list of loopback devices and exclude those also
+    logical+=( $(ip link show | grep "LOOPBACK" | awk -F': ' '{print $2}') )
+
+    # Enumerate all devices NOT in the logical array
+    local iface
+    for iface in $(ip -o link show | awk -F': ' '{print $2}'); do
+        if ! array_contains logical "${iface}"; then
+            echo "${iface}"
+        fi
+    done
 }
 
 opt_usage get_network_interfaces_with_port <<'END'
@@ -249,19 +268,26 @@ get_network_interfaces_10g()
 opt_usage get_permanent_mac_address <<'END'
 Get the permanent MAC address for given ifname.
 
-NOTE: Do NOT use ethtool -P for this as that doesn't reliably work on all cards since the firmware has to support it
-properly.
+NOTE: "ethtool -P" is not 100% reliable on all cards since the firmware has to support it properly. So on Linux we
+instead look in SYSFS since this is far more reliable as we're talking direct to the kernel. But on OSX we instead just
+use ethtool.
 END
 get_permanent_mac_address()
 {
     $(opt_parse ifname)
 
-    if [[ -e ${SYSFS}/class/net/${ifname}/master ]]; then
-        sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f ${SYSFS}/class/net/${ifname}/master)) \
-            | grep "Permanent HW addr" \
-            | sed -e "s/Permanent HW addr: //"
+    if os Linux; then
+        if [[ -e ${SYSFS}/class/net/${ifname}/master ]]; then
+            sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f ${SYSFS}/class/net/${ifname}/master)) \
+                | grep "Permanent HW addr" \
+                | sed -e "s/Permanent HW addr: //"
+        else
+            cat ${SYSFS}/class/net/${ifname}/address
+        fi
+    elif command_exists ethtool; do
+        ethtool -P "${ifname}" | sed -e 's|Permanent address: ||'
     else
-        cat ${SYSFS}/class/net/${ifname}/address
+        die "Unable to determine permanent MAC Address for $(lval ifname)"
     fi
 }
 
@@ -273,6 +299,10 @@ END
 get_network_pci_device()
 {
     $(opt_parse ifname)
+
+    if ! os Linux; then
+        die "Unable to determine PCI Device for $(lval ifname) on non-Linux"
+    fi
 
     # Try with ethtool first (works on physical platforms and VMware, KVM, VirtualBox)
     local pci_addr
