@@ -666,18 +666,20 @@ eend()
             echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
         fi
     else
-        local columns startcol current_column
-        current_column=$( IFS=';' read -sdR -p $'\E[6n' ROW COL || true; echo "${COL#*[}" )
-        : ${current_column:=0}
+
+        printf "\r"
+        local columns=0 startcol=0
         columns=$(tput cols)
-        startcol=$(( columns - ${current_column} - 5 ))
+        startcol=$(( columns - 6 ))
 
         if [[ ${startcol} -gt 0 ]]; then
+            echo -en "$(tput cuf ${startcol} 2>/dev/null)" >&2
+
             # Do NOT use tput here for padding. If we're non-interactive, it's not going to do what we expect. Instead
             # just print out a padded string that moves us to the desired position.
-            local eend_pad
-            eval "eend_pad=\$(printf -- ' %.0s' {1..${startcol}})"
-            echo -en "${eend_pad}" >&2
+            #local eend_pad
+            #eval "eend_pad=\$(printf -- ' %.0s' {1..${startcol}})"
+            #echo -en "${eend_pad}" >&2
         fi
     fi
 
