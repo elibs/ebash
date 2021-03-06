@@ -78,18 +78,6 @@ getipaddress()
         | tr '\n' ' ' || true
 }
 
-opt_usage get_physical_ipaddresses <<'END'
-Enumerage a list of all IP Addresses attached to physical devices. This leverages the get_network_interfaces function
-to enumerage the physical devices.
-END
-get_physical_ipaddresses()
-{
-    local iface
-    for iface in $(get_network_interfaces); do
-        getipaddress "${iface}"
-    done
-}
-
 opt_usage getnetmask <<'END'
 Get the netmask (IPv4 dotted notation) currently set on the requested interface (if any). It is not an error for an
 interface to be unbound so this method will not fail if no Netmask has been set on an interface. Instead it will simply
@@ -215,23 +203,11 @@ get_network_interfaces()
         networksetup -listallhardwareports | awk '/Hardware Port: Wi-Fi/{getline; print $2}'
     fi
 
-    # First generate a list of non-physical devices
-    local types=(bond bond_slave bridge dummy gre gretap ifb ip6gre ip6gretap ip6tnl ipip ipoib ipvlan macvlan macvtap nlmon sit vcan veth vlan vti vxlan tun tap)
-    local logical=()
-    for type in "${types[@]}"; do
-        logical+=( $(ip link show type "${type}" 2>/dev/null | awk -F': ' '{print $2}' || true) )
-    done
-
-    # Get a list of loopback devices and exclude those also
-    logical+=( $(ip link show | grep "LOOPBACK" | awk -F': ' '{print $2}') )
-
-    # Enumerate all devices NOT in the logical array
-    local iface
-    for iface in $(ip link show | awk -F': ' '{print $2}' | sed '/^$/d'); do
-        if ! array_contains logical "${iface}"; then
-            echo "${iface}"
-        fi
-    done
+    for iface in $(ls -1 ${SYSFS}/class/net); do
+        # Skip virtual devices, we only want physical
+        [[ ! -e ${SYSFS}/class/net/${iface}/device ]] && continue
+        echo "${iface}"
+    done | tr '\n' ' ' || true
 }
 
 opt_usage get_network_interfaces_with_port <<'END'
