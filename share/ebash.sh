@@ -194,6 +194,7 @@ source "${EBASH}/setvars.sh"
 source "${EBASH}/signal.sh"
 source "${EBASH}/stacktrace.sh"
 source "${EBASH}/string.sh"
+source "${EBASH}/testutil.sh"
 source "${EBASH}/trap.sh"
 source "${EBASH}/type.sh"
 

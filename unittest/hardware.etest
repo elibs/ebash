@@ -71,26 +71,41 @@ ETEST_get_memory_peta()
 
 ETEST_get_memory_kibi()
 {
+    # IEC Units not supported on older distros
+    $(skip_if os_distro centos)
+
     assert_eq "48967168" "$(get_memory_size --units=Ki)"
 }
 
 ETEST_get_memory_mebi()
 {
+    # IEC Units not supported on older distros
+    $(skip_if os_distro centos)
+
     assert_eq "47819" "$(get_memory_size --units=Mi)"
 }
 
 ETEST_get_memory_gibi()
 {
+    # IEC Units not supported on older distros
+    $(skip_if os_distro centos)
+
     assert_eq "46" "$(get_memory_size --units=Gi)"
 }
 
 ETEST_get_memory_tebi()
 {
+    # IEC Units not supported on older distros
+    $(skip_if os_distro centos)
+
     assert_zero "$(get_memory_size --units=Ti)"
 }
 
 ETEST_get_memory_pebi()
 {
+    # IEC Units not supported on older distros
+    $(skip_if os_distro centos)
+
     assert_zero "$(get_memory_size --units=Pi)"
 }
 
