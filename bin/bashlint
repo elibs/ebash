@@ -11,13 +11,14 @@
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
-# Options:
-# -q Quiet mode
 $(opt_parse \
-    "+break b | Break on first failure." \
-    "+quiet q | Make bashlint produce no output.")
+    "+break b | Break on first failure."          \
+    "+quiet q | Make bashlint produce no output." \
+)
 
-[[ ${quiet} -eq 1 ]] && exec &> >(edebug)
+if [[ ${quiet} -eq 1 ]]; then
+    exec &> >(edebug)
+fi
 
 # Paths to recursively parse
 PATHS=( ${@:-.} )
@@ -32,19 +33,17 @@ fail()
     RC=1
 }
 
-# Analyze all the requested bash scripts in the specified directories and pass
-# them through bash -n mode which asks bash to make sure the syntax looks okay
-# without actually running anything. Additionally, perform several additional
-# strictness checks that we have found to be sources of really subtle problems.
-# Also checks some stylistic issues for consistent coding.
+# Analyze all the requested bash scripts in the specified directories and pass them through bash -n mode which asks bash
+# to make sure the syntax looks okay without actually running anything. Additionally, perform several additional
+# strictness checks that we have found to be sources of really subtle problems.  Also checks some stylistic issues for
+# consistent coding.
 ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
 
     # If this isn't a bash script skip it
     file ${fname} | grep -Pq "(bash script|Bourne-Again shell script)" || continue
 
-    # Never do any further parsing on our own file since they would all
-    # be false positives
+    # Never do any further parsing on our own file since they would all be false positives
     [[ "$(readlink -f ${fname})" == "$(readlink -f $0)" ]] && continue
 
     # Display what file we are processing
@@ -54,9 +53,8 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo -n "${einfo_message}" >&2
     bash -n ${fname}
 
-    # Read file into variable so we can do a little preprocessing on it before
-    # passing it into the various grep commands below to strip out particular
-    # patterns which would otherwise cause false positives.
+    # Read file into variable so we can do a little preprocessing on it before passing it into the various grep commands
+    # below to strip out particular patterns which would otherwise cause false positives.
     CONTENTS=$(cat ${fname}              \
         | grep -vP '^\s*#'               \
         | grep -vP '#\s*BASHLINT_IGNORE' \
@@ -109,4 +107,9 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
 done
 
 # Display any errors to STDERR regardless if we've redirected output
-array_empty FAILURES && exit 0 || { eerror "Bashlint detected failures in the following $(lval files=FAILURES)" &>/dev/stderr; exit ${#FAILURES[@]}; }
+if array_empty FAILURES; then
+    exit 0
+else
+    eerror "Bashlint detected failures in the following $(lval files=FAILURES)" &>/dev/stderr
+    exit ${#FAILURES[@]}
+fi
