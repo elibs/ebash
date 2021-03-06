@@ -359,7 +359,7 @@ ebanner()
         local cols lines entries
 
         echo ""
-        cols=${COLUMNS:-80}
+        cols=$(tput cols)
         cols=$((cols-2))
         local str=""
         eval "str=\$(printf -- '-%.0s' {1..${cols}})"
@@ -540,15 +540,16 @@ emsg()
 
 tput()
 {
-    # If we are non-interactive and looking for the number of columns and it's been explicitly set just use that instead
-    # of going to tput. This allows us greater control over the number of columns we want to display in this scenario
-    # instead of defaulting to 80.
-    if ! einteractive && [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]] ; then
+    # If we are looking for the number of columns and it's been explicitly set just use that instead of going to tput.
+    # This allows us greater control over the number of columns we want to display in this scenario instead of
+    # defaulting to 80.
+    #if ! einteractive && [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]]; then
+    if [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]]; then
         echo "${COLUMNS}"
         return 0
     fi
 
-    command tput $@ 2>/dev/null || true
+    command tput $@ || true
 }
 
 einfo()

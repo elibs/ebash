@@ -32,6 +32,12 @@ if [[ ${__EBASH_OS} == "Linux" ]]; then
         command rm --one-file-system "${@}"
     }
 
+    # Replace sort with explicit LC_COLLATE so that we always get consistent sorting regardless of the user's locale.
+    sort()
+    {
+        LC_COLLATE="C" command sort "${@}"
+    }
+
     # We presently assume that linux boxes will have a proper gnu toolchain in
     # the default path.  For them, nothing need be done so just return.
     return 0
@@ -112,11 +118,11 @@ __EBASH_GNU_TOOLS=(
     # printf
     ptx
     # NOTE: Don't override bash builtin with function
-    #pwd
+    # pwd
     readlink
     realpath
-    # NOTE: Don't override rm as we do that one one-off below.
-    #rm
+    # NOTE: Don't override 'rm' as we have a function for it below.
+    # rm
     rmdir
     runcon
     seq
@@ -128,7 +134,8 @@ __EBASH_GNU_TOOLS=(
     shred
     shuf
     sleep
-    sort
+    # NOTE: Don't override 'sort' as we have a function for it below.
+    # sort
     split
     stat
     stdbuf
@@ -185,11 +192,10 @@ rm()
     command grm --one-file-system "${@}"
 }
 
-# Replace sort with explicit LC_COLLATE so that we always get consistent sorting regardless of the user's configured
-# locale.
+# Replace sort with explicit LC_COLLATE so that we always get consistent sorting regardless of the user's locale.
 sort()
 {
-    LC_COLLATE="C" command sort "${@}"
+    LC_COLLATE="C" command gsort "${@}"
 }
 
 return 0

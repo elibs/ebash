@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Test Helpers
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+expected_bytes="50142380032"
+
+# Mock out "free --bytes" to return a fixed known number. If any other parameters are passed in return an error.
+free()
+{
+    assert_eq -- "--bytes" "$*" "Unsupported options to mock free"
+
+    cat <<-EOF
+	Mem:    ${expected_bytes} 10511736832 22768001024  1010593792 16862642176 38247469056
+	Swap:             0           0           0
+	EOF
+}
+
+# Mock out "sysctl -n hw.memsize" for MACs. If any other parameters are passed in return an error.
+sysctl()
+{
+    assert_eq -- "-n hw.memsize" "$*" "Unsupported options to mock sysctl"
+
+    echo "${expected_bytes}"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Unit Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_get_memory_bytes()
+{
+    assert_eq "${expected_bytes}" "$(get_memory_size)"
+}
+
+ETEST_get_memory_kilo()
+{
+    assert_eq "50142380" "$(get_memory_size --units=K)"
+}
+
+ETEST_get_memory_mega()
+{
+    assert_eq "50142" "$(get_memory_size --units=M)"
+}
+
+ETEST_get_memory_giga()
+{
+    assert_eq "50" "$(get_memory_size --units=G)"
+}
+
+ETEST_get_memory_tera()
+{
+    assert_zero "$(get_memory_size --units=T)"
+}
+
+ETEST_get_memory_peta()
+{
+    assert_zero "$(get_memory_size --units=P)"
+}
+
+ETEST_get_memory_kibi()
+{
+    assert_eq "48967168" "$(get_memory_size --units=Ki)"
+}
+
+ETEST_get_memory_mebi()
+{
+    assert_eq "47819" "$(get_memory_size --units=Mi)"
+}
+
+ETEST_get_memory_gibi()
+{
+    assert_eq "46" "$(get_memory_size --units=Gi)"
+}
+
+ETEST_get_memory_tebi()
+{
+    assert_zero "$(get_memory_size --units=Ti)"
+}
+
+ETEST_get_memory_pebi()
+{
+    assert_zero "$(get_memory_size --units=Pi)"
+}
+
+ETEST_get_memory_invalid_units()
+{
+    etestmsg "Testing invalid units"
+
+    invalid=(
+        k
+        m
+        g
+        t
+        p
+        ki
+        mi
+        gi
+        ti
+        pi
+        bytes
+        kilobytes
+        megabytes
+        gigabytes
+        terabytes
+        petabytes
+        kibibyte
+        mebibyte
+        gibibyte
+        tebibyte
+        pebibyte
+        foo
+        bar
+        zap
+    )
+
+    for arg in ${invalid[@]}; do
+        echo "${arg}"
+        assert_false get_memory_size --unites=${arg}
+    done
+}
