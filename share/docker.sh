@@ -189,7 +189,7 @@ docker_build()
 
     # If there exists a ${shafile_detail_prev} then display why we are rebuilding.
     if [[ -e "${shafile_detail_prev}" ]]; then
-        ewarn "Rebuild of docker $(lval image) required due the following changes:"
+        ewarn "Rebuilding docker $(lval image) due to:"
         diff --unified --color=always "${shafile_detail_prev}" "${shafile_detail}" \
             | grep --color=never -P '^\e\[3[12]m' || true
     fi
