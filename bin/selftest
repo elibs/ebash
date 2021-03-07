@@ -171,8 +171,8 @@ assert_test_count()
 
     argcheck pass fail flaky total
 
-    assert_match "${ETEST_OUTPUT}" "${pass}/${total} tests passed"
-    assert_match "${ETEST_LOG}"    "${pass}/${total} tests passed"
+    assert_match "${ETEST_OUTPUT}" "${EBASH_WORD_BEGIN}${pass}/${total} tests passed${EBASH_WORD_END}"
+    assert_match "${ETEST_LOG}"    "${EBASH_WORD_BEGIN}${pass}/${total} tests passed${EBASH_WORD_END}"
 
     if [[ pass -lt total ]] ; then
         assert_not_zero "${ETEST_RC}"
