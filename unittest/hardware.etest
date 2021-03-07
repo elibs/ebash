@@ -46,32 +46,17 @@ ETEST_get_memory_bytes()
 
 ETEST_get_memory_kilo()
 {
-    # On older distros, the unit of K actually meant kibi not kilo
-    if os_distro centos && os_release 7; then
-        assert_eq "48967168" "$(get_memory_size --units=K)"
-    else
-        assert_eq "50142380" "$(get_memory_size --units=K)"
-    fi
+    assert_eq "50142380" "$(get_memory_size --units=K)"
 }
 
 ETEST_get_memory_mega()
 {
-    # On older distros, the unit of M actually meant mibi not mega
-    if os_distro centos && os_release 7; then
-        assert_eq "47819" "$(get_memory_size --units=M)"
-    else
-        assert_eq "50142" "$(get_memory_size --units=M)"
-    fi
+    assert_eq "50142" "$(get_memory_size --units=M)"
 }
 
 ETEST_get_memory_giga()
 {
-    # On older distros, the unit of G actually meant Gibi not Giga!
-    if os_distro centos && os_release 7; then
-        assert_eq "46" "$(get_memory_size --units=G)"
-    else
-        assert_eq "50" "$(get_memory_size --units=G)"
-    fi
+    assert_eq "50" "$(get_memory_size --units=G)"
 }
 
 ETEST_get_memory_tera()
@@ -86,52 +71,27 @@ ETEST_get_memory_peta()
 
 ETEST_get_memory_kibi()
 {
-    # IEC Units not supported on older distros
-    if os_distro centos && os_release 7; then
-        assert_false get_memory_size --units=Ki
-    else
-        assert_eq "48967168" "$(get_memory_size --units=Ki)"
-    fi
+    assert_eq "48967168" "$(get_memory_size --units=Ki)"
 }
 
 ETEST_get_memory_mebi()
 {
-    # IEC Units not supported on older distros
-    if os_distro centos && os_release 7; then
-        assert_false get_memory_size --units=Mi
-    else
-        assert_eq "47819" "$(get_memory_size --units=Mi)"
-    fi
+    assert_eq "47819" "$(get_memory_size --units=Mi)"
 }
 
 ETEST_get_memory_gibi()
 {
-    # IEC Units not supported on older distros
-    if os_distro centos && os_release 7; then
-        assert_false get_memory_size --units=Gi
-    else
-        assert_eq "46" "$(get_memory_size --units=Gi)"
-    fi
+    assert_eq "46" "$(get_memory_size --units=Gi)"
 }
 
 ETEST_get_memory_tebi()
 {
-    # IEC Units not supported on older distros
-    if os_distro centos && os_release 7; then
-        assert_false get_memory_size --units=Ti
-    else
-        assert_zero "$(get_memory_size --units=Ti)"
-    fi
+    assert_zero "$(get_memory_size --units=Ti)"
 }
 
 ETEST_get_memory_pebi()
 {
-    # IEC Units not supported on older distros
-    if os_distro centos && os_release 7; then
-        assert_false get_memory_size --units=Pi
-    else
-        assert_zero "$(get_memory_size --units=Pi)"
-    fi
+    assert_zero "$(get_memory_size --units=Pi)"
 }
 
 ETEST_get_memory_invalid_units()
