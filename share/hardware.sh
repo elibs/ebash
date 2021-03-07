@@ -59,6 +59,40 @@ get_memory_size()
         return 0
     fi
 
-    # Else delegate the conversion to numfmt
-    numfmt --to-unit=${units} --round=down "${bytes}"
+    # numfmt on centos:7 didn't properly support SI and IEC units. If you passed in the SI unit symbol, it would instead
+    # return the IEC Units. And if you passed in IEC units, it would return an error. So we work around that behavior to
+    # give the expected results.
+    local factor=""
+    if os_distro centos && os_release 7; then
+
+        case "${units}" in
+
+            # Switch IEC -> SI
+            Ki) units="K" ;;
+            Mi) units="M" ;;
+            Gi) units="G" ;;
+            Ti) units="T" ;;
+            Pi) units="P" ;;
+
+            # SI -> IEC requires a factor
+            K) factor=0.9765625        ;;
+            M) factor=0.95367431640625 ;;
+            G) factor=0.93132257461548 ;;
+            T) factor=0.90949470177293 ;;
+            P) factor=0.888178         ;;
+
+            # Unsupported
+            *) die "Unsupported $(lval units)"
+        esac
+    fi
+
+    edebug "$(lval units)"
+
+    if [[ -n "${factor}" ]]; then
+        local result
+        result=$(numfmt --to-unit=${units} --round=nearest ${bytes})
+        echo "scale=0; ${result} / ${factor}" | bc
+    else
+        numfmt --to-unit=${units} --round=down "${bytes}"
+    fi
 }
