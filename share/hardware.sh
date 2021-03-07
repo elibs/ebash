@@ -12,11 +12,12 @@
 #-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage get_memory_size_kb <<'END'
-Get the size of memroy on the system in various units. This works properly on both Linux and Mac.
+Get the size of memory on the system in various units. This works properly on both Linux and Mac.
 
-The --units option allows you to specify the desired units to express the size in. Both SI and IEC units are supporte.
+The --units option allows you to specify the desired 1 or 2 character code of the units to express the size in. Both
+SI and IEC units are supported.
 
-Here is the list of supported unit values, along with their meanings:
+Here is the list of supported unit codes (case-sensitive) along with their meanings:
 
     B  = bytes
 
@@ -59,40 +60,22 @@ get_memory_size()
         return 0
     fi
 
-    # numfmt on centos:7 didn't properly support SI and IEC units. If you passed in the SI unit symbol, it would instead
-    # return the IEC Units. And if you passed in IEC units, it would return an error. So we work around that behavior to
-    # give the expected results.
-    local factor=""
-    if os_distro centos && os_release 7; then
+    # Convert the bytes to the desired units
+    case "${units}" in
 
-        case "${units}" in
+        Ki) echo $(( bytes / 1024 )) ;;
+        Mi) echo $(( bytes / 1024 / 1024 )) ;;
+        Gi) echo $(( bytes / 1024 / 1024 / 1024 )) ;;
+        Ti) echo $(( bytes / 1024 / 1024 / 1024 / 1024 )) ;;
+        Pi) echo $(( bytes / 1024 / 1024 / 1024 / 1024 / 1024 )) ;;
 
-            # Switch IEC -> SI
-            Ki) units="K" ;;
-            Mi) units="M" ;;
-            Gi) units="G" ;;
-            Ti) units="T" ;;
-            Pi) units="P" ;;
+        K)  echo $(( bytes / 1000 )) ;;
+        M)  echo $(( bytes / 1000 / 1000 )) ;;
+        G)  echo $(( bytes / 1000 / 1000 / 1000 )) ;;
+        T)  echo $(( bytes / 1000 / 1000 / 1000 / 1000 )) ;;
+        P)  echo $(( bytes / 1000 / 1000 / 1000 / 1000 / 1000 )) ;;
 
-            # SI -> IEC requires a factor
-            K) factor=0.9765625        ;;
-            M) factor=0.95367431640625 ;;
-            G) factor=0.93132257461548 ;;
-            T) factor=0.90949470177293 ;;
-            P) factor=0.888178         ;;
-
-            # Unsupported
-            *) die "Unsupported $(lval units)"
-        esac
-    fi
-
-    edebug "$(lval units)"
-
-    if [[ -n "${factor}" ]]; then
-        local result
-        result=$(numfmt --to-unit=${units} --round=nearest ${bytes})
-        echo "scale=0; ${result} / ${factor}" | bc
-    else
-        numfmt --to-unit=${units} --round=down "${bytes}"
-    fi
+        # Unsupported
+        *) die "Unsupported $(lval units)"
+    esac
 }

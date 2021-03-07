@@ -46,52 +46,112 @@ ETEST_get_memory_bytes()
 
 ETEST_get_memory_kilo()
 {
-    assert_eq "50142380" "$(get_memory_size --units=K)"
+    for entry in 50142380032:50142380 67087843328:67087843 8589934592:8589934 66729205760:66729205; do
+        expected_bytes=${entry%%:*}
+        expected_kilo=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_kilo)"
+        assert_eq "${expected_kilo}" "$(get_memory_size --units=K)"
+    done
 }
 
 ETEST_get_memory_mega()
 {
-    assert_eq "50142" "$(get_memory_size --units=M)"
+    for entry in 50142380032:50142 67087843328:67087 8589934592:8589 66729205760:66729; do
+        expected_bytes=${entry%%:*}
+        expected_mega=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_mega)"
+        assert_eq "${expected_mega}" "$(get_memory_size --units=M)"
+    done
 }
 
 ETEST_get_memory_giga()
 {
-    assert_eq "50" "$(get_memory_size --units=G)"
+    for entry in 50142380032:50 67087843328:67 8589934592:8 66729205760:66; do
+        expected_bytes=${entry%%:*}
+        expected_giga=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_giga)"
+        assert_eq "${expected_giga}" "$(get_memory_size --units=G)"
+    done
 }
 
 ETEST_get_memory_tera()
 {
-    assert_zero "$(get_memory_size --units=T)"
+    for entry in 1000000000000:1 50142380032:0 67087843328:0 8589934592:0 66729205760:0; do
+        expected_bytes=${entry%%:*}
+        expected_tera=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_tera)"
+        assert_eq "${expected_tera}" "$(get_memory_size --units=T)"
+    done
 }
 
 ETEST_get_memory_peta()
 {
-    assert_zero "$(get_memory_size --units=P)"
+    for entry in 1000000000000000:1 1000000000000:0 50142380032:0 67087843328:0 8589934592:0 66729205760:0; do
+        expected_bytes=${entry%%:*}
+        expected_peta=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_peta)"
+        assert_eq "${expected_peta}" "$(get_memory_size --units=P)"
+    done
 }
 
 ETEST_get_memory_kibi()
 {
-    assert_eq "48967168" "$(get_memory_size --units=Ki)"
+    for entry in 50142380032:48967168 67087843328:65515472 8589934592:8388608 66729205760:65165240; do
+        expected_bytes=${entry%%:*}
+        expected_kibi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_kibi)"
+        assert_eq "${expected_kibi}" "$(get_memory_size --units=Ki)"
+    done
 }
 
 ETEST_get_memory_mebi()
 {
-    assert_eq "47819" "$(get_memory_size --units=Mi)"
+    for entry in 50142380032:47819 67087843328:63979 8589934592:8192 66729205760:63637; do
+        expected_bytes=${entry%%:*}
+        expected_mebi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_mebi)"
+        assert_eq "${expected_mebi}" "$(get_memory_size --units=Mi)"
+    done
 }
 
 ETEST_get_memory_gibi()
 {
-    assert_eq "46" "$(get_memory_size --units=Gi)"
+    for entry in 50142380032:46 67087843328:62 8589934592:8 66729205760:62; do
+        expected_bytes=${entry%%:*}
+        expected_gibi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_gibi)"
+        assert_eq "${expected_gibi}" "$(get_memory_size --units=Gi)"
+    done
 }
 
 ETEST_get_memory_tebi()
 {
-    assert_zero "$(get_memory_size --units=Ti)"
+    for entry in 1099511627776:1 50142380032:0 67087843328:0 8589934592:0 66729205760:0; do
+        expected_bytes=${entry%%:*}
+        expected_tebi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_tebi)"
+        assert_eq "${expected_tebi}" "$(get_memory_size --units=Ti)"
+    done
 }
 
 ETEST_get_memory_pebi()
 {
-    assert_zero "$(get_memory_size --units=Pi)"
+    for entry in 1125899906842624:1 1099511627776:0 50142380032:0 67087843328:0 67060191232:0 8589934592:0 66729205760:0; do
+        expected_bytes=${entry%%:*}
+        expected_pebi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_pebi)"
+        assert_eq "${expected_pebi}" "$(get_memory_size --units=Pi)"
+    done
 }
 
 ETEST_get_memory_invalid_units()
