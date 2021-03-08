@@ -11,7 +11,7 @@ env:
   TERM: "xterm-256color"
   COLUMNS: "120"
   EFUNCS_COLOR: "1"
-  EINTERACTIVE: "1"
+  EINTERACTIVE: "0"
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -60,7 +60,7 @@ jobs:
         run: bin/bashlint
 
       - name: Self Test
-        run: bin/selftest
+        run: bin/eretry bin/selftest
 
       - name: Test
         run: bin/etest --work-dir .work/output --failures 1

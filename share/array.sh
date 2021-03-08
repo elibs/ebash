@@ -19,7 +19,10 @@ array_init()
         "?__delim    | Optional delimiting characters to split on. Defaults to IFS.")
 
     # If nothing was provided to split on just return immediately
-    [[ -z ${__string} ]] && { eval "${__array}=()"; return 0; } || true
+    if [[ -z ${__string} ]]; then
+        eval "${__array}=()"
+        return 0
+    fi
 
     # Default bash IFS is space, tab, newline, so this will default to that
     : ${__delim:=$' \t\n'}

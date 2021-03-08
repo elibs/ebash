@@ -187,6 +187,13 @@ docker_build()
         fi
     fi
 
+    # If there exists a ${shafile_detail_prev} then display why we are rebuilding.
+    if [[ -e "${shafile_detail_prev}" ]]; then
+        ewarn "Rebuilding docker $(lval image) due to:"
+        diff --unified --color=always "${shafile_detail_prev}" "${shafile_detail}" \
+            | grep --color=never -P '^\e\[3[12]m' || true
+    fi
+
     if [[ "${pretend}" -eq 1 ]]; then
         ewarn "Build required for $(lval image) but pretend=1"
         return 1
@@ -216,6 +223,7 @@ docker_build()
     # Only create inspect (stamp) file at the very end after everything has been done.
     einfo "Creating stamp $(lval file=inspfile)"
     docker inspect "${image}" > "${inspfile}"
+    cp "${shafile_detail}" "${shafile_detail_prev}"
 }
 
 opt_usage docker_pull<<'END'
@@ -513,5 +521,69 @@ __docker_depends_sha_variables()
     echo 'eval local shafile_func="${artifactdir}/sha.func"; '
     echo 'eval local shafile_short="${artifactdir}/sha.short"; '
     echo 'eval local shafile_detail="${artifactdir}/sha.detail"; '
+    echo 'eval local shafile_detail_prev="${artifactdir}/sha.detail.prev"; '
     echo 'eval local sha_short; '
+}
+
+opt_usage docker_image_export <<'END'
+docker_image_export is a wrapper around "docker export" to make it more seamless to convert a provided docker image to
+various archive formats. This code intentionally does not use ebash archive module as that is too heavy weight for our
+needs and also requires the caller to be root to do the bind mounting.
+END
+docker_image_export()
+{
+    $(opt_parse \
+        ":type t  | Override automatic type detection and use explicit archive type." \
+        "tag      | Docker tag to to export in the form of name:tag."                 \
+        "output   | Output archive to create."                                        \
+    )
+
+    # "docker export" is the only way to create a flat archive but it operates only on containers and not images.
+    # So, we have to run the specified image so that we can export it.
+    local container_id
+    container_id=$(docker run --detach ${tag} tail -f /dev/null)
+    edebug "Exporting $(lval container_id tag output)"
+    trap_add "docker kill ${container_id} &>/dev/null || true"
+
+    # Figure out desired output_type and any compression program we should use.
+    local output_type="" prog=""
+    output_type=$(archive_type --type "${type}" "${output}")
+    if [[ ${output_type} == tar ]]; then
+        prog=$(archive_compress_program --type "${type}" "${output}")
+    elif [[ ${output_type} == squashfs ]]; then
+        prog=""
+    else
+        die "Unsupported $(lval output_type)"
+    fi
+
+    # Now we can export the running container
+    if [[ -z "${prog}" ]]; then
+        prog="gzip"
+    fi
+    edebug "Converting to $(lval output_type prog)"
+    local tmpout
+    tmpout=$(mktemp --tmpdir docker-image-export-XXXXXX)
+    docker export ${container_id} | ${prog} > "${tmpout}"
+    docker kill ${container_id} &>/dev/null
+
+    # If not squashfs, move final image over and return. Otherwise proceed with conversion.
+    if [[ ${output_type} != squashfs ]]; then
+        edebug "Export successful. Moving ${tmpout} to ${output}"
+        mv "${tmpout}" "${output}"
+        return 0
+    fi
+
+    # Squashfs conversion
+    local convert_dir convert_out
+    convert_dir=$(mktemp --tmpdir --directory docker-image-export-XXXXXX)
+    convert_out=$(mktemp --tmpdir docker-image-export-XXXXXX)
+    tar -C "${convert_dir}" -xzf "${tmpout}"
+
+    (
+        cd "${convert_dir}"
+        mksquashfs . "${convert_out}" -no-duplicates -no-recovery -no-exports -no-progress -noappend
+    )
+
+    edebug "Export successful. Moving ${convert_out} to ${output}"
+    mv "${convert_out}" "${output}"
 }
