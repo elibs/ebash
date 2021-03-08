@@ -690,7 +690,7 @@ ETEST_docker_build_overlay_systemctl_wrapper()
     image="$(cat .work/docker/ebash/image)"
     container_id=$(docker run --detach --network host "${image}")
     trap_add "docker kill ${container_id}"
-    eretry docker exec "${container_id}" bash -c "[[ -e /usr/local/bin/systemctl ]]"
+    docker exec "${container_id}" bash -c "[[ -e /usr/local/bin/systemctl ]]"
 
     etestmsg "Validate systemctl wrapper"
     docker exec "${container_id}" systemctl status sleeper1
@@ -706,15 +706,15 @@ ETEST_docker_build_overlay_systemctl_wrapper()
 
     etestmsg "Starting sleeper1"
     docker exec "${container_id}" systemctl start sleeper1
-    eretry docker exec "${container_id}" systemctl status sleeper1
+    eretry --max-timeout 30s docker exec "${container_id}" systemctl status sleeper1
 
     etestmsg "Restarting sleeper1"
     docker exec "${container_id}" systemctl restart sleeper1
-    eretry docker exec "${container_id}" systemctl status sleeper1
+    eretry --max-timeout 30s docker exec "${container_id}" systemctl status sleeper1
 
     etestmsg "Restarting sleeper2"
     docker exec "${container_id}" systemctl restart sleeper2
-    eretry docker exec "${container_id}" systemctl status sleeper2
+    eretry --max-timeout 30s docker exec "${container_id}" systemctl status sleeper2
 }
 
 ETEST_docker_depends_sha()
