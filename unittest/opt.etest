@@ -915,8 +915,6 @@ ETEST_opt_parse_accumalator_empty()
 
 ETEST_argcheck()
 {
-    declare -fp argcheck
-
     try
     {
         alpha="notempty"
