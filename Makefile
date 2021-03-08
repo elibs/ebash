@@ -39,7 +39,7 @@ clean:
 
 .PHONY: clobber
 clobber: clean
-	sudo bin/ebash rm -frv --one-file-system .work
+	sudo bin/ebash rm -frv --one-file-system .work selftest/selftest_output
 
 .PHONY: lint
 lint:
