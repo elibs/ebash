@@ -60,7 +60,7 @@ jobs:
         run: bin/bashlint
 
       - name: Self Test
-        run: bin/selftest
+        run: ebin/eretry bin/selftest
 
       - name: Test
         run: bin/etest --work-dir .work/output --failures 1
