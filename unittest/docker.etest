@@ -690,7 +690,7 @@ ETEST_docker_build_overlay_systemctl_wrapper()
     image="$(cat .work/docker/ebash/image)"
     container_id=$(docker run --detach --network host "${image}")
     trap_add "docker kill ${container_id}"
-    docker exec "${container_id}" bash -c "[[ -e /usr/local/bin/systemctl ]]"
+    eretry --max-timeout 30s docker exec "${container_id}" bash -c "[[ -e /usr/local/bin/systemctl ]]"
 
     etestmsg "Validate systemctl wrapper"
     docker exec "${container_id}" systemctl status sleeper1
