@@ -66,8 +66,7 @@ emounted()
 opt_usage ebindmount <<'END'
 Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of your mounts are private so that we don't see
 different behavior between systemd machines (where shared mounts are the default) and everywhere else (where private
-mounts are the default). This is not an issue if we are already running inside docker's namespace protection mechanisms.
-So this function is essentially a passthrough into "emount --rbind" if we are running inside docker.
+mounts are the default).
 
 Source and destination MUST be the first two parameters of this function. You may specify any other mount options after
 them.
@@ -78,14 +77,6 @@ ebindmount()
         "src" \
         "dest" \
         "@mount_options")
-
-    # If we are running inside docker then we already have docker's mount namespace protection mechanism enabled. As
-    # such we do not need to remount things with --make-rprivate in order to achieve that desired effect. In this case,
-    # ebindmount is essentially just a passthrough into "emount --rbind"
-    if running_in_docker; then
-        emount --rbind "${@}" "${src}" "${dest}"
-        return 0
-    fi
 
     # In order to avoid polluting other mount points that we recursively bind, we want to make sure that our mount
     # points are "private" (not seen by other mount namespaces).  For example, that prevents one chroot from messing

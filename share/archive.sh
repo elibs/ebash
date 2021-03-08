@@ -7,10 +7,6 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if [[ ${__EBASH_OS} != "Linux" ]] ; then
-    return 0
-fi
-
 #-----------------------------------------------------------------------------------------------------------------------
 # ARCHIVE.SH
 #
@@ -190,6 +186,11 @@ tar_ignore_modified_files()
         fi
     }
 }
+
+# NOTE: More advanced functions rely on bindmounting which only works on Linux
+if [[ ${__EBASH_OS} != "Linux" ]] ; then
+    return 0
+fi
 
 opt_usage archive_create <<END
 Generic function for creating an archive file of a given type from the given list of source paths and write it out to

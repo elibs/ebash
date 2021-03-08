@@ -39,7 +39,7 @@ clean:
 
 .PHONY: clobber
 clobber: clean
-	sudo bin/ebash rm -frv --one-file-system .work
+	sudo bin/ebash rm -frv --one-file-system .work selftest/selftest_output
 
 .PHONY: lint
 lint:
@@ -94,10 +94,10 @@ dtest-$1:
             --debug=${DEBUG}           \
             --exclude=${EXCLUDE}       \
             --filter=${FILTER}         \
-            --log-dir=.work/$2         \
+            --log-dir=.work            \
             --repeat=${REPEAT}         \
             --verbose=${V}             \
-            --work-dir=.work/$2/output"
+            --work-dir=.work/output"
 
 .PHONY: dshell-$1
 dshell-$1:

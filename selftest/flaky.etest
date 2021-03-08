@@ -28,7 +28,7 @@ ETEST_flaky_fails_once()
 ETEST_flaky_fails_twice()
 {
     count=$(test_and_set)
-    
+
     # This test should return success (0) if the count is greater than 0. So this expression as the last line of the
     # function becomes our return value.
     [[ "${count}" -gt 1 ]]

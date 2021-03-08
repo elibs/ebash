@@ -138,20 +138,16 @@ edebug_out()
     edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
-#opt_usage einteractive <<'END'
-#Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
-#This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
-#global variable EINTERACTIVE=1.
-#END
+# Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
+# This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
+# global variable EINTERACTIVE=1.
 einteractive()
 {
     [[ ${EINTERACTIVE:-0} -eq 1 ]] && return 0
     [[ -t 2 ]]
 }
 
-#opt_usage einteractive_as_bool <<'END'
-#Get einteractive value as a boolean string
-#END
+# Get einteractive value as a boolean string
 einteractive_as_bool()
 {
     if einteractive; then
@@ -248,10 +244,8 @@ ecolor_code()
    return 0
 }
 
-#opt_usage efuncs_color <<'END'
-#Determine value to use for efuncs_color.
-#If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
-#END
+# Determine value to use for efuncs_color.
+# If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
 efuncs_color()
 {
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
@@ -263,9 +257,7 @@ efuncs_color()
     [[ ${value} -eq 1 ]]
 }
 
-#opt_usage efuncs_color_as_bool <<'END'
-#Get efuncs_color as a boolean string.
-#END
+# Get efuncs_color as a boolean string.
 efuncs_color_as_bool()
 {
     if efuncs_color; then
@@ -367,7 +359,7 @@ ebanner()
         local cols lines entries
 
         echo ""
-        cols=${COLUMNS:-80}
+        cols=$(tput cols)
         cols=$((cols-2))
         local str=""
         eval "str=\$(printf -- '-%.0s' {1..${cols}})"
@@ -546,13 +538,18 @@ emsg()
     } >&2
 }
 
-#opt_usage tput <<'END'
-#Wrapper around tput to suppress and swallow errors. This is because tput is used only for formatting for console
-#output and should never cause an actual failure.
-#END
 tput()
 {
-    command tput $@ 2>/dev/null || true
+    # If we are looking for the number of columns and it's been explicitly set just use that instead of going to tput.
+    # This allows us greater control over the number of columns we want to display in this scenario instead of
+    # defaulting to 80.
+    #if ! einteractive && [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]]; then
+    if [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]]; then
+        echo "${COLUMNS}"
+        return 0
+    fi
+
+    command tput $@ || true
 }
 
 einfo()
@@ -631,20 +628,42 @@ eerror_stacktrace()
 
 eend()
 {
-    local rc=${1:-0}
+    $(opt_parse \
+        "+inline n=0        | Display eend inline rather than outputting a leading newline. The reason we emit a leading
+                              newline by default is to work properly with emsg functions (e.g. einfo, ewarn, eerror) as
+                              they all emit a message and then a trailing newline to move to the next line. When paired
+                              with an eend, we want that eend message to show up on the SAME line. So we emit some
+                              terminal magic to move up a line, and then right justify the eend message. This doesn't
+                              work very well for non-interactive displays or in CI/CD output so you can disable it."   \
+        ":inline_offset o=0 | Number of characters to offset inline mode by."                                          \
+        "return_code=0      | Return code of the command that last ran. Success (0) will cause an 'ok' message and any
+                              non-zero value will emit '!!'."                                                          \
+    )
 
-    if einteractive; then
-        # Terminal magic that:
-        #    1) Gets the number of columns on the screen, minus 6 because that's how many we're about to output
-        #    2) Moves up a line
-        #    3) Moves right the number of columns from #1
-        local colums=0 startcol=0
-        columns=$(tput cols)
+    # Get the number of columns
+    local colums=0 startcol=0
+    columns=$(tput cols)
+
+    # If interactive AND not inline mode, move cursor up a line and then move it over to the far right column
+    if einteractive && [[ ${inline} -eq 0 ]]; then
         startcol=$(( columns - 6 ))
-        [[ ${startcol} -gt 0 ]] && echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
+        if [[ ${startcol} -gt 0 ]]; then
+            echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
+        fi
+    else
+        startcol=$(( columns - inline_offset - 6 ))
+
+        if [[ ${startcol} -gt 0 ]]; then
+            # Do NOT use tput here for padding. If we're non-interactive, it's not going to do what we expect. Instead
+            # just print out a padded string that moves us to the desired position.
+            local eend_pad
+            eval "eend_pad=\$(printf -- ' %.0s' {1..${startcol}})"
+            echo -en "${eend_pad}" >&2
+        fi
     fi
 
-    if [[ ${rc} -eq 0 ]]; then
+    # NOW we can emit the actual success or failure message based on the provided return code.
+    if [[ ${return_code} -eq 0 ]]; then
         echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_INFO}) ok $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
     else
         echo -e "$(ecolor ${COLOR_BRACKET})[$(ecolor ${COLOR_ERROR}) !! $(ecolor ${COLOR_BRACKET})]$(ecolor none)" >&2
