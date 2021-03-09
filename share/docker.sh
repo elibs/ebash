@@ -266,7 +266,7 @@ docker_pull()
         fi
 
         # If the base image is available just re-tag it
-        if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
+        if [[ -n "${image}" && -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
             einfo "Tagging local ${image} -> ${tag}"
             docker tag "${image}" "${tag}"
             continue
