@@ -583,7 +583,7 @@ docker_image_export()
 
     (
         cd "${convert_dir}"
-        mksquashfs . "${convert_out}" -no-duplicates -no-recovery -no-exports -no-progress -noappend
+        mksquashfs . "${convert_out}" -no-duplicates -no-recovery -no-exports -no-progress -noappend | edebug
     )
 
     edebug "Export successful. Moving ${convert_out} to ${output}"
