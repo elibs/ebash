@@ -216,8 +216,8 @@ docker_build()
 
     if [[ ${push} -eq 1 ]]; then
         local push_tags
-        push_tags=( ${image} ${tag[@]} )
-        opt_forward docker_push registry username password -- ${push_tags[@]:-}
+        push_tags=( ${image} ${tag[@]:-} )
+        opt_forward docker_push registry username password -- ${push_tags[@]}
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
