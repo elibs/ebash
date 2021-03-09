@@ -538,6 +538,8 @@ docker_image_export()
         "output   | Output archive to create."                                        \
     )
 
+    eprogress "Exporting docker $(lval image=tag output)"
+
     # "docker export" is the only way to create a flat archive but it operates only on containers and not images.
     # So, we have to run the specified image so that we can export it.
     local container_id
@@ -586,4 +588,6 @@ docker_image_export()
 
     edebug "Export successful. Moving ${convert_out} to ${output}"
     mv "${convert_out}" "${output}"
+
+    eprogress_kill
 }
