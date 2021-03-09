@@ -155,11 +155,11 @@ docker_build()
     # Look for image locally first
     if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
 
-        checkbox "Using local ${image}"
+        einfo "Using local ${image}"
         docker history "${image}" > "${histfile}"
         docker inspect "${image}" > "${inspfile}"
 
-        opt_forward docker_pull registry username password cache_from -- ${tag[@]:-}
+        opt_forward docker_pull image registry username password cache_from -- ${tag[@]:-}
 
         return 0
 
@@ -167,11 +167,11 @@ docker_build()
     elif [[ "${pull}" -eq 1 ]]; then
 
         if docker pull "${image}" 2>/dev/null; then
-            checkbox "Using pulled ${image}"
+            einfo "Using pulled ${image}"
             docker history "${image}" > "${histfile}"
             docker inspect "${image}" > "${inspfile}"
 
-            opt_forward docker_pull registry username password cache_from -- ${tag[@]:-}
+            opt_forward docker_pull image registry username password cache_from -- ${tag[@]:-}
 
             return 0
         fi
@@ -182,7 +182,7 @@ docker_build()
         echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
 
         if docker_image_exists "${name}:${sha_short}"; then
-            checkbox "Remote exists ${image}"
+            einfo "Remote exists ${image}"
             return 0
         fi
     fi
@@ -240,6 +240,9 @@ docker_pull()
     $(opt_parse \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         ":cache_from                        | Images to consider as cache sources. Passthrough into docker build."     \
+        ":image                             | Base image to look for in the event we are unable to locate the requested
+                                              tags locally. This saves us from having to rebuild all the images if we
+                                              can simply tag them instead."                                            \
         ":registry=${DOCKER_REGISTRY:-}     | Remote docker registry for login. Defaults to DOCKER_REGISTRY env variable
                                               which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
         ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
@@ -258,7 +261,14 @@ docker_pull()
 
         # If it is available locally no need to pull!
         if [[ -n "$(docker images --quiet "${tag}" 2>/dev/null)" ]]; then
-            checkbox "Using local ${tag}"
+            einfo "Using local ${tag}"
+            continue
+        fi
+
+        # If the base image is available just re-tag it
+        if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
+            einfo "Tagging local ${image} -> ${tag}"
+            docker tag "${image}" "${tag}"
             continue
         fi
 
