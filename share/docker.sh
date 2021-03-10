@@ -535,12 +535,12 @@ __docker_depends_sha_variables()
     echo 'eval local sha_short; '
 }
 
-opt_usage docker_image_export <<'END'
-docker_image_export is a wrapper around "docker export" to make it more seamless to convert a provided docker image to
-various archive formats. This code intentionally does not use ebash archive module as that is too heavy weight for our
-needs and also requires the caller to be root to do the bind mounting.
+opt_usage docker_export <<'END'
+docker_export is a wrapper around "docker export" to make it more seamless to convert a provided docker image to various
+archive formats. This code intentionally does not use ebash archive module as that is too heavy weight for our needs and
+also requires the caller to be root to do the bind mounting.
 END
-docker_image_export()
+docker_export()
 {
     $(opt_parse \
         ":type t  | Override automatic type detection and use explicit archive type." \
