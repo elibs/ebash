@@ -866,7 +866,7 @@ ETEST_docker_depends_sha_exclude()
     assert_eq "sha256:${expected}" "$(cat .work/docker/ebash/sha)"
 }
 
-ETEST_docker_image_export_tgz()
+ETEST_docker_export_tgz()
 {
     unset docker
 
@@ -886,10 +886,10 @@ ETEST_docker_image_export_tgz()
     assert_docker_image_exists "${image}"
 
     etestmsg "Converting docker image to tgz"
-    docker_image_export "${image}" image.tgz
+    docker_export "${image}" image.tgz
 }
 
-ETEST_docker_image_export_squashfs()
+ETEST_docker_export_squashfs()
 {
     # This test only works on linux as it requires squashfs.
     if ! os Linux; then
@@ -915,5 +915,5 @@ ETEST_docker_image_export_squashfs()
     assert_docker_image_exists "${image}"
 
     etestmsg "Converting docker image to squashfs"
-    docker_image_export "${image}" image.squashfs
+    docker_export "${image}" image.squashfs
 }
