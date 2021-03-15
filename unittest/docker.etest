@@ -105,7 +105,7 @@ ETEST_docker_build_and_pretend()
     assert_docker_image_not_exists "${image}"
 }
 
-# Verify that provided build args are interpolated
+# Verify that provided build args are no longer interpolated (change from original behavior).
 ETEST_docker_build_args()
 {
     etestmsg "Creating Dockerfile"
@@ -134,40 +134,11 @@ ETEST_docker_build_args()
         ".work/docker/ebash/sha.short"  \
         ".work/docker/ebash/sha.detail" \
 
-    etestmsg "Validating provided BUILD_ARGS are interpolated"
-    assert_false diff "Dockerfile"            ".work/docker/ebash/dockerfile"
-    assert_false grep "ARG ARTIST"            ".work/docker/ebash/dockerfile"
-    assert_false grep "ARG SONG"              ".work/docker/ebash/dockerfile"
-    assert_true  grep 'RUN echo "James/Laid"' ".work/docker/ebash/dockerfile"
-}
-
-# Verify that missing build args are NOT interpolated
-ETEST_docker_build_args_missing()
-{
-    etestmsg "Creating Dockerfile"
-	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ARG UPR
-	END
-    cat Dockerfile
-
-    etestmsg "Building docker image (pretend)"
-    $(tryrc docker_build     \
-        --pretend            \
-        --name "elibs/ebash" \
-    )
-    assert_eq 1 "${rc}"
-
-    etestmsg "Validating docker_build artifacts"
-    assert_exists \
-        ".work/docker/ebash/dockerfile" \
-        ".work/docker/ebash/sha"        \
-        ".work/docker/ebash/sha.func"   \
-        ".work/docker/ebash/sha.short"  \
-        ".work/docker/ebash/sha.detail" \
-
-    etestmsg "Validating missing BUILD_ARGS are not interpolated"
-    diff "Dockerfile" ".work/docker/ebash/dockerfile"
+    etestmsg "Validating provided build_args are NOT interpolated"
+    assert_true  diff "Dockerfile"            ".work/docker/ebash/dockerfile"
+    assert_true  grep "ARG ARTIST"            ".work/docker/ebash/dockerfile"
+    assert_true  grep "ARG SONG"              ".work/docker/ebash/dockerfile"
+    assert_false grep 'RUN echo "James/Laid"' ".work/docker/ebash/dockerfile"
 }
 
 ETEST_docker_build_cache_from()
