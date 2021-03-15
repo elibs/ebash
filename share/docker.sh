@@ -200,11 +200,12 @@ docker_build()
     fi
 
     eprogress "Building docker $(lval image tags=tag)"
-    docker build                             \
-        --file "${dockerfile}"               \
-        --cache-from "${cache_from}"         \
-        --tag "${image}"                     \
-        $(array_join --before tag " --tag ") \
+    docker build                                         \
+        --file "${dockerfile}"                           \
+        --cache-from "${cache_from}"                     \
+        --tag "${image}"                                 \
+        $(array_join --before tag " --tag ")             \
+        $(array_join --before build_arg " --build-arg ") \
         . | tee "${buildlog}" | edebug
     eprogress_kill
 
@@ -354,7 +355,7 @@ This function will create some output state files underneath ${workdir}/docker/$
 internally by docker_build but also useful externally.
 
     - build.log  : Output from the docker build process
-    - dockerfile : Contains original dockerfile with variables interpolated and overlay information added by ebash
+    - dockerfile : Contains original dockerfile with overlay information added by ebash
     - history    : Contains output of 'docker history'
     - image      : The full image name including name:sha
     - inspect    : Contains output of 'docker inspect'
@@ -397,29 +398,8 @@ __docker_depends_sha()
     echo "${shafunc}" > "${shafile_func}"
     opt_dump | tee "${optfile}" | edebug
 
-    # Interpolate build_args
-    local entry="" build_arg_keys=()
-    for entry in "${build_arg[@]:-}"; do
-        [[ -z "${entry}" ]] && continue
-        local build_arg_key="${entry%%=*}"
-        local build_arg_val="${entry#*=}"
-        edebug "buildarg: $(lval entry build_arg_key build_arg_val)"
-
-        eval "export ${build_arg_key}=${build_arg_val}"
-        build_arg_keys+=( "\$${build_arg_key}" )
-    done
-
-    envsubst "$(array_join build_arg_keys ,)" < "${file}" > "${dockerfile}"
-
-    # Strip out ARGs that we've interpolated
-    for entry in "${build_arg[@]:-}"; do
-        [[ -z "${entry}" ]] && continue
-        build_arg_key="${entry%%=*}"
-        edebug "stripping buildarg: $(lval entry build_arg_key)"
-        sed -i -e "/ARG ${build_arg_key}/d" "${dockerfile}"
-    done
-
     # Append COPY directives for overlay modules
+    cp "${file}" "${dockerfile}"
     local overdir overlay_paths
     overdir="${workdir}/$(basename ${name})/overlay"
     mkdir -p "${overdir}"
