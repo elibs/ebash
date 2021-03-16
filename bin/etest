@@ -592,7 +592,7 @@ run_all_tests()
     OS="$(os_pretty_name)"
     local etest_name="ETEST"
     if [[ -n "${name}" ]]; then
-        etest_name+=" - \"${name}\""
+        etest_name+=" - \"${name//_/ }\""
     fi
 
     if [[ "${verbose}" -eq 1 ]]; then
