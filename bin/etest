@@ -257,7 +257,7 @@ assert_no_mount_leaks()
     mounts=( $(efindmnt "${path}" ) )
 
     if ! array_empty mounts; then
-        eunmount -a -r -d=${delete} "${path}"
+        eunmount --all --recursive --delete=${delete} "${path}"
         eerror "Leaked under $(lval mounts path)"$'\n'"$(array_join_nl mounts)"
         die "Leaked mounts"
     fi
@@ -606,7 +606,7 @@ run_all_tests()
             if [[ "${testfile}" =~ \.etest$ ]]; then
                 run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
             else
-                run_single_test --work-dir "${work_dir}/standalone" "${testfile}"
+                run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
             fi
 
             SUITE_RUNTIME[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
