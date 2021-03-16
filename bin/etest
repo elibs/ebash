@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
@@ -58,6 +58,7 @@ $(opt_parse \
     "+clean   c=0              | Clean only and then exit."                                                             \
     ":debug   D=${EDEBUG:-}    | EDEBUG output."                                                                        \
     "+delete  d=1              | Delete all output files when tests complete."                                          \
+    ":name                     | Name of this test run to use for artifacts and display purposes. Defaults to etest."   \
     "+print_only print p       | Print list of tests that would be executed based on provided filter and exclude to
                                  stdout and then exit without actually running any tests."                              \
     ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run."  \
@@ -158,9 +159,10 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
-ETEST_LOG=${log_dir}/etest.log
-ETEST_JSON=${log_dir}/etest.json
-ETEST_XML=${log_dir}/etest.xml
+artifact_name="$(echo "${log_dir}/${name:-etest}" | tr ' ' '_')"
+ETEST_LOG="${artifact_name}.log"
+ETEST_JSON="${artifact_name}.json"
+ETEST_XML="${artifact_name}.xml"
 
 elogrotate "${ETEST_JSON}"
 elogrotate "${ETEST_XML}"
@@ -588,10 +590,15 @@ find_matching_tests()
 run_all_tests()
 {
     OS="$(os_pretty_name)"
+    local etest_name="ETEST"
+    if [[ -n "${name}" ]]; then
+        etest_name+=" - \"${name}\""
+    fi
+
     if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "ETEST" OS break exclude failures filter repeat timeout total_timeout verbose
+        ebanner --uppercase "${etest_name}" OS break exclude failures filter repeat timeout total_timeout verbose
     else
-        ebanner --uppercase "ETEST" OS break exclude failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" OS break exclude failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
     fi
 
     for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
