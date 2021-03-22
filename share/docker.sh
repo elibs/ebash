@@ -427,11 +427,19 @@ __docker_depends_sha()
                 fi
             done
 
-            # Update EBASH_HOME in ebash so it works in the newly installed path.
-            if ! grep -q '^EBASH_HOME="/opt/ebash$"' "${overdir}/ebash/opt/ebash/bin/ebash"; then
-                edebug "Updating EBASH_HOME to point to /opt/ebash"
-                sed -i 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/opt/ebash"|' "${overdir}/ebash/opt/ebash/bin/ebash"
-            fi
+            # Update EBASH_HOME in ebash and other binaries so they work in the newly installed path.
+            for bin in ${overdir}/ebash/opt/ebash/bin/*; do
+
+                # Skip symlinks
+                if [[ -L "${bin}" ]]; then
+                    continue
+                fi
+
+                if ! grep -q '^EBASH_HOME="/opt/ebash$"' "${bin}"; then
+                    edebug "Updating EBASH_HOME in ${bin} to /opt/ebash"
+                    sed -i 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/opt/ebash"|' "${bin}"
+                fi
+            done
 
         elif [[ "${entry}" == file://* ]]; then
             mkdir -p "${overdir}/custom"
