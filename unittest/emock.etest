@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_emock()
+{
+    etestmsg "Mocking dmidecode"
+    emock "dmidecode"
+    assert_match "$(type dmidecode)" "dmidecode is a function"
+}
+
+ETEST_emock_and_path()
+{
+    etestmsg "Mocking dmidecode with full path"
+    emock "/usr/sbin/dmidecode"
+    assert_match "$(type /usr/sbin/dmidecode)" "dmidecode is a function"
+}
+
+ETEST_emock_and_unmock()
+{
+    etestmsg "Verifying find points to a binary"
+    assert_match "$(type find)" "find is /usr/bin/find"
+
+    etestmsg "Mocking find"
+    emock "find"
+    assert_match "$(type find)" "find is a function"
+
+    etestmsg "Unmocking find"
+    eunmock "find"
+    assert_match "$(type find)" "find is hashed"
+}
+
+ETEST_emock_called()
+{
+    func()
+    {
+        true
+    }
+
+    etestmsg "Mocking func"
+    emock "func"
+    assert_match "$(type func)" "func is a function"
+    assert_eq 0 "$(emock_called func)"
+    assert_emock_called "func" 0
+
+    etestmsg "Calling mocked func"
+    func
+    assert_eq 1 "$(emock_called func)"
+    assert_emock_called "func" 1
+
+    etestmsg "Calling mocked func"
+    func
+    assert_eq 2 "$(emock_called func)"
+    assert_emock_called "func" 2
+}
+
+ETEST_emock_real()
+{
+    etestmsg "Verifying find poitns to a binary"
+    assert_match "$(type find)" "find is /usr/bin/find"
+
+    etestmsg "Mocking find"
+    emock "find"
+    assert_match "$(type find)"      "find is a function"
+    assert_match "$(type find_real)" "find_real is a function"
+
+    # Verify we can _use_ the real function
+    etestmsg "Verifying we can call find_real wrapper"
+    find_real .
+}
+
+ETEST_emock_return_code()
+{
+    func()
+    {
+        return 1
+    }
+
+    etestmsg "Mocking func"
+    emock --return-code 0 "func"
+    assert_match "$(type func)" "func is a function"
+
+    etestmsg "Calling mocked func"
+    $(tryrc func)
+    assert_eq 0 ${rc}
+
+    etestmsg "Calling func_real"
+    $(tryrc func_real)
+    assert_eq 1 ${rc}
+}
+
+ETEST_emock_stdout()
+{
+    func()
+    {
+        echo "func stdout" >&1
+    }
+
+    etestmsg "Mocking with stdout"
+    emock --stdout "mock stdout" "func"
+    assert_match "$(type func)" "func is a function"
+
+    etestmsg "Calling mocked func"
+    $(tryrc --stdout=stdout func)
+    assert_eq "mock stdout" "${stdout}"
+    assert_eq "mock stdout" "$(emock_stdout "func")"
+    assert_emock_stdout "func" 0 "mock stdout"
+
+    etestmsg "Calling func_real"
+    $(tryrc --stdout=stdout func_real)
+    assert_eq "func stdout" "${stdout}"
+}
+
+ETEST_emock_stdout_repeat()
+{
+    func()
+    {
+        echo "func stdout" >&1
+    }
+
+    etestmsg "Mocking with stdout #0"
+    emock --stdout "mock stdout #0" "func"
+    assert_match "$(type func)" "func is a function"
+    $(tryrc --stdout=stdout func)
+    assert_eq "mock stdout #0" "${stdout}"
+    assert_eq "mock stdout #0" "$(emock_stdout "func")"
+    assert_eq "mock stdout #0" "$(emock_stdout "func" 0)"
+    assert_emock_stdout "func" 0 "mock stdout #0"
+
+    etestmsg "Mocking with stdout #1"
+    emock --stdout "mock stdout #1" "func"
+    $(tryrc --stdout=stdout func)
+    assert_eq "mock stdout #1" "${stdout}"
+    assert_eq 1 "$(emock_called func)"
+    assert_eq "mock stdout #1" "$(emock_stdout "func")"
+    assert_eq "mock stdout #1" "$(emock_stdout "func" 1)"
+    assert_emock_stdout "func" 1 "mock stdout #1"
+
+    etestmsg "Mocking with stdout #2"
+    emock --stdout "mock stdout #2" "func"
+    $(tryrc --stdout=stdout func)
+    assert_eq "mock stdout #2" "${stdout}"
+    assert_eq "mock stdout #2" "$(emock_stdout "func")"
+    assert_eq "mock stdout #2" "$(emock_stdout "func" 2)"
+    assert_emock_stdout "func" 2 "mock stdout #2"
+
+    etestmsg "Verifying older entries not erased"
+    assert_eq "mock stdout #1" "$(emock_stdout "func" 1)"
+    assert_emock_stdout "func" 1 "mock stdout #1"
+}
+
+ETEST_emock_stderr()
+{
+    func()
+    {
+        echo "func stdout" >&1
+        echo "func stderr" >&2
+        return 1
+    }
+
+    etestmsg "Mocking with stdout and stderr"
+    emock --return-code 0 --stdout "mock stdout" --stderr "mock stderr" "func"
+    assert_match "$(type func)" "func is a function"
+
+    etestmsg "Calling mocked func"
+    $(tryrc --stdout=stdout --stderr=stderr func)
+    assert_eq 0 ${rc}
+    assert_eq "mock stdout" "${stdout}"
+    assert_eq "mock stderr" "${stderr}"
+    assert_eq "mock stdout" "$(emock_stdout "func")"
+    assert_emock_stdout "func" 0 "mock stdout"
+
+    etestmsg "Calling func_real"
+    $(tryrc --stdout=stdout --stderr=stderr func_real)
+    assert_eq 1 ${rc}
+    assert_eq "func stdout" "${stdout}"
+    assert_eq "func stderr" "${stderr}"
+}
+
+ETEST_emock_args()
+{
+    func(){ true; }
+
+    etestmsg "Mocking func"
+    emock "func"
+    assert_match "$(type func)" "func is a function"
+
+    etestmsg "Calling func with arguments"
+    func "1" "2" "3" "dogs and cats" "Anarchy"
+    local args
+    args=( $(emock_args func) )
+
+    etestmsg "Captured func $(lval args)"
+    assert_eq 5 $(array_size args)
+    assert_eq "1" "${args[0]}"
+    assert_eq "2" "${args[1]}"
+    assert_eq "3" "${args[2]}"
+    assert_eq "dogs and cats" "${args[3]}"
+    assert_eq "Anarchy"       "${args[4]}"
+
+    assert_emock_called_with "func" 0 \
+        "1" "2" "3" "dogs and cats" "Anarchy"
+
+    expected=( "1" "2" "3" "docs and cats" "Anarchy" )
+    assert_emock_called_with "func" 0 "${expected[@]}"
+}
+
+ETEST_emock_body()
+{
+    func(){ true; }
+
+    etestmsg "Mocking with body"
+    emock func '
+    {
+        echo "Mocked with body called with args=$@"
+        if [[ $1 == "foo" ]]; then
+            return 1
+        else
+            return 0
+        fi
+    }'
+
+    assert_match "$(type func)" "func is a function"
+
+    etestmsg "Calling with args=bar (should succeed)"
+    $(tryrc func "bar")
+    assert_eq 0 ${rc}
+    etestmsg "Mocked function was called with:"
+    cat .emock/func/0/args
+    assert_emock_called_with "func" 0 "bar"
+
+    etestmsg "Calling with args=foo (should fail)"
+    $(tryrc func "foo")
+    assert_eq 1 ${rc}
+    etestmsg "Mocked function was called with:"
+    cat .emock/func/1/args
+    emock_args "func" 1
+    assert_emock_called_with "func" 1 "foo"
+}
