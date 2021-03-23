@@ -836,6 +836,12 @@ arguments preserve whitespace. To convert this back into an array, the best thin
 Alternatively, the helper idiom assert_emock_called_with is an extremely useful way to validate the arguments passed
 into a particular invocation.
 
+#### emock_return_code
+
+emock_return_code is a utility function to make it easier to get the return code from a particular invocation of a mocked
+function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to provide a
+clean abstraction. If the call number is not provided, this will default to the most recent invocation's return code.
+
 #### assert_emock_called
 
 assert_emock_called is used to assert that a mock is called the expected number of times. For example:
@@ -862,6 +868,17 @@ For example:
 ```
 assert_emock_stderr "func" 0 "This is the expected standard error for call #0"
 assert_emock_stderr "func" 1 "This is the expected standard error for call #1"
+```
+
+#### assert_emock_return_code
+
+assert_emock_return_code is used to assert that a particular invocation of a mock produced the expected return code.
+
+For example:
+
+```
+assert_emock_return_code "func" 0 0
+assert_emock_return_code "func" 0 1
 ```
 
 #### assert_emock_called_with

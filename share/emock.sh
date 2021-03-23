@@ -24,7 +24,7 @@ of the binary you wish to mock, such as:
 
 This will create and export a new function called 'dmidecode' that can be invoked instead of the real 'dmidecode'
 binary at '/usr/bin/dmidecode'. This also creates a function named 'dmidecode_real' which can be invoked to get access
-to the real underlying dmidecod binary at "/usr/sbin/dmidecode".
+to the real underlying dmidecode binary at "/usr/sbin/dmidecode".
 
 By default, this mock function will simply return '0' and produce no stdout or stderr. This behavior can be customized
 using the options --return-code, --stdout, and --stderr.
@@ -41,25 +41,25 @@ the real dmidecode binary. It will also create a "/usr/sbin/dmidecode_real" func
 in case you need to call it instead.
 
 emock tracks various metadata about mocked binaries for easier testability. This includes the number of times a mock is
-called, as well as the arguments (newline delimieted arg array), exit code, stdout, and stderr for each invocation. By
+called, as well as the arguments (newline delimieted arg array), return code, stdout, and stderr for each invocation. By
 default this is created in a local hidden directory named '.emock' and there will be a directory beneath that for each
 mock:
 
     # .emock/dmidecode/called
-    # .emock/dmidecode/0/{args,exit,stdout,stderr}
-    # .emock/dmidecode/1/{args,exit,stdout,stderr}
+    # .emock/dmidecode/0/{args,return_code,stdout,stderr,timestamp}
+    # .emock/dmidecode/1/{args,return_code,stdout,stderr,timestamp}
     # ...
 
 END
 emock()
 {
     $(opt_parse \
-        ":return_code r=0                   | What return code should the mock script use. By default this is 0."      \
+        ":return_code rc r=0                | What return code should the mock script use. By default this is 0."      \
         ":stdout      o                     | What standard output should be returned by the mock."                    \
         ":stderr      e                     | What standard error should be returned by the mock."                     \
         ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
-                                              as well as the exit code, stdout, and stderr for each invocation."       \
+                                              as well as the return code, stdout, and stderr for each invocation."     \
         "+delete      d                     | Delete existing mock state inside statedir from prior mock invocations." \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode). This
                                               must match the calling convention at the call site."                     \
@@ -83,8 +83,10 @@ emock()
         override_function die "{ true; }"
         set +u
 
-        # Update call count
+        # Create state directory
         mkdir -p '${statedir}'
+
+        # Update call count
         called=0
         if [[ -e "'${statedir}'/called" ]]; then
             called=$(cat "'${statedir}'/called")
@@ -95,7 +97,8 @@ emock()
         # Create directory to store files in for this invocation
         mkdir -p '${statedir}'/${called}
 
-        # Save off argument array
+        # Save off timestamp and argument array
+        etimestamp > "'${statedir}'/${called}/timestamp"
         printf "\"%s\" " "${@}" > '${statedir}'/${called}/args
     '
 
@@ -114,13 +117,19 @@ emock()
             echo -n "'${stderr}'" >&2
 
             # Return
+            echo -n '${return_code}' > '${statedir}'/${called}/return_code
             return '${return_code}'
         }'
     else
         body='
         {
             '${base_body}'
-            '${body}'
+            ( '${body}' )
+
+            # Return
+            local return_code=$?
+            echo -n ${return_code} > '${statedir}'/${called}/return_code
+            return ${return_code}
         }'
     fi
 
@@ -239,11 +248,11 @@ emock_stderr()
         "?num                               | The call number to get the standard error for."                          \
     )
 
-    statedir+="/$(basename "${name}")"
     if [[ -z "${num}" ]]; then
         num=$(opt_forward emock_called statedir -- ${name})
     fi
 
+    statedir+="/$(basename "${name}")"
     local actual=""
     if [[ -e "${statedir}/${num}/stderr" ]]; then
         actual="$(cat "${statedir}/${num}/stderr")"
@@ -275,13 +284,38 @@ emock_args()
         "?num                               | The call number to get the standard error for."                          \
     )
 
-    statedir+="/$(basename "${name}")"
     if [[ -z "${num}" ]]; then
         num=$(opt_forward emock_called statedir -- ${name})
     fi
 
+    statedir+="/$(basename "${name}")"
     if [[ -e "${statedir}/${num}/args" ]]; then
         cat "${statedir}/${num}/args"
+    fi
+}
+
+opt_usage emock_return_code <<'END'
+emock_return_code is a utility function to make it easier to get the return code from a particular invocation of a mocked
+function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to provide a
+clean abstraction. If the call number is not provided, this will default to the most recent invocation's return code.
+END
+emock_return_code()
+{
+    $(opt_parse \
+        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+                                              hold metadata information such as the number of times the mock was called
+                                              as well as the exit code, stdout, and stderr for each invocation."       \
+        "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
+        "?num                               | The call number to get the standard error for."                          \
+    )
+
+    if [[ -z "${num}" ]]; then
+        num=$(opt_forward emock_called statedir -- ${name})
+    fi
+
+    statedir+="/$(basename "${name}")"
+    if [[ -e "${statedir}/${num}/return_code" ]]; then
+        cat "${statedir}/${num}/return_code"
     fi
 }
 
@@ -350,6 +384,27 @@ assert_emock_stderr()
     )
 
     assert_eq "${stderr}" "$(opt_forward emock_stderr statedir -- ${name} ${num})"
+}
+
+opt_usage assert_emock_return_code <<'END'
+assert_emock_return_code is used to assert that a particular invocation of a mock produced the expected return code.
+For example:
+
+    # assert_emock_return_code "func" 0 0
+    # assert_emock_return_code "func" 0 1
+END
+assert_emock_return_code()
+{
+    $(opt_parse \
+        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+                                              hold metadata information such as the number of times the mock was called
+                                              as well as the exit code, stdout, and stderr for each invocation."       \
+        "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
+        "num                                | The call number to look at the arguments for."                           \
+        "return_code=0                      | The expected return code."                                               \
+    )
+
+    assert_eq "${return_code}" "$(opt_forward emock_return_code statedir -- ${name} ${num})"
 }
 
 opt_usage assert_emock_called_with <<'END'
