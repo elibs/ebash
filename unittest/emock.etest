@@ -6,23 +6,31 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+if os darwin; then
+    test_binary="gfind"
+    test_binary_path="/usr/local/bin/gfind"
+else
+    test_binary="find"
+    test_binary_path="$(which find)"
+fi
+
 ETEST_emock()
 {
-    etestmsg "Mocking find"
-    emock "find"
-    assert_match "$(type find)" "find is a function"
-    eunmock "find"
-    assert_match "$(hash -r; type find)" "find is /usr/[s]*bin/find"
+    etestmsg "Mocking ${test_binary}"
+    emock "${test_binary}"
+    assert_match "$(type ${test_binary})" "${test_binary} is a function"
+    eunmock "${test_binary}"
+    assert_match "$(hash -r; type ${test_binary})" "${test_binary} is ${test_binary_path}"
 }
 
 ETEST_emock_and_path()
 {
     hash -r
-    etestmsg "Mocking find with full path"
-    emock "/usr/bin/find"
-    assert_match "$(type /usr/bin/find)" "find is a function"
-    eunmock "find"
-    assert_match "$(hash -r; type find)" "find is /usr/[s]*bin/find"
+    etestmsg "Mocking ${test_binary} with full path"
+    emock "${test_binary_path}"
+    assert_match "$(type ${test_binary_path})" "${test_binary_path} is a function"
+    eunmock "${test_binary_path}"
+    assert_match "$(hash -r; type ${test_binary_path})" "${test_binary_path} is ${test_binary_path}"
 }
 
 ETEST_emock_called()
@@ -51,17 +59,17 @@ ETEST_emock_called()
 
 ETEST_emock_real()
 {
-    etestmsg "Verifying find poitns to a binary"
-    assert_match "$(type find)" "find is /usr/[s]*bin/find"
+    etestmsg "Verifying ${test_binary} points to a binary"
+    assert_match "$(type ${test_binary})" "${test_binary} is ${test_binary_path}"
 
-    etestmsg "Mocking find"
-    emock "find"
-    assert_match "$(type find)"      "find is a function"
-    assert_match "$(type find_real)" "find_real is a function"
+    etestmsg "Mocking ${test_binary}"
+    emock "${test_binary}"
+    assert_match "$(type ${test_binary})"      "${test_binary} is a function"
+    assert_match "$(type ${test_binary}_real)" "${test_binary}_real is a function"
 
     # Verify we can _use_ the real function
-    etestmsg "Verifying we can call find_real wrapper"
-    find_real .
+    etestmsg "Verifying we can call ${test_binary}_real wrapper"
+    ${test_binary}_real .
 }
 
 ETEST_emock_return_code()
