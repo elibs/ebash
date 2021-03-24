@@ -42,12 +42,12 @@ in case you need to call it instead.
 
 emock tracks various metadata about mocked binaries for easier testability. This includes the number of times a mock is
 called, as well as the arguments (newline delimieted arg array), return code, stdout, and stderr for each invocation. By
-default this is created in a local hidden directory named '.emock' and there will be a directory beneath that for each
-mock:
+default this is created in a local hidden directory named '.emock-$$' (where $$ is the current process PID) and there
+will be a directory beneath that for each mock:
 
-    # .emock/dmidecode/called
-    # .emock/dmidecode/0/{args,return_code,stdout,stderr,timestamp}
-    # .emock/dmidecode/1/{args,return_code,stdout,stderr,timestamp}
+    # .emock-$$/dmidecode/called
+    # .emock-$$/dmidecode/0/{args,return_code,stdout,stderr,timestamp}
+    # .emock-$$/dmidecode/1/{args,return_code,stdout,stderr,timestamp}
     # ...
 
 END
@@ -57,7 +57,7 @@ emock()
         ":return_code rc r=0                | What return code should the mock script use. By default this is 0."      \
         ":stdout      o                     | What standard output should be returned by the mock."                    \
         ":stderr      e                     | What standard error should be returned by the mock."                     \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the return code, stdout, and stderr for each invocation."     \
         "+delete      d                     | Delete existing mock state inside statedir from prior mock invocations." \
@@ -158,7 +158,7 @@ END
 eunmock()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -188,7 +188,7 @@ END
 emock_called()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -212,7 +212,7 @@ END
 emock_stdout()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -241,7 +241,7 @@ END
 emock_stderr()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -277,7 +277,7 @@ END
 emock_args()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -302,7 +302,7 @@ END
 emock_return_code()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -334,7 +334,7 @@ END
 assert_emock_called()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -354,7 +354,7 @@ END
 assert_emock_stdout()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -375,7 +375,7 @@ END
 assert_emock_stderr()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -396,7 +396,7 @@ END
 assert_emock_return_code()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -420,7 +420,7 @@ END
 assert_emock_called_with()
 {
     $(opt_parse \
-        ":statedir=.emock                   | This directory is used to track state about mocked binaries. This will
+        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
