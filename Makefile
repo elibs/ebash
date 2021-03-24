@@ -15,7 +15,7 @@
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
 BREAK   ?= $(or ${break},0)
-DEBUG   ?= $(or ${debug},0)
+EDEBUG  ?= $(or $(or ${edebug},${debug},))
 EXCLUDE ?= $(or ${exclude},)
 FILTER  ?= $(or ${filter},)
 REPEAT  ?= $(or ${repeat},0)
@@ -53,7 +53,7 @@ selftest:
 test:
 	bin/etest \
 		--break=${BREAK}        \
-		--debug=${DEBUG}        \
+		--debug=${EDEBUG}       \
 		--exclude=${EXCLUDE}    \
 		--filter=${FILTER}      \
 		--log-dir=.work         \
@@ -91,7 +91,7 @@ dtest-$1:
 	${DRUN} $2 sh -c "bin/ebash-install-deps && \
         bin/etest \
             --break                    \
-            --debug=${DEBUG}           \
+            --debug=${EDEBUG}          \
             --exclude=${EXCLUDE}       \
             --filter=${FILTER}         \
             --log-dir=.work            \

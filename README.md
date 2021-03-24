@@ -745,6 +745,155 @@ or file contents that might later make it a lot easier to figure out what went w
 All of this verbose output is actually available all the time.  It’s stored in a log file.  After your (verbose or
 non-verbose) `etest` run, look at `etest.log`.
 
+## Mocking
+
+Ebash supports an extensive mocking framework called `emock`. It integrates well into the rest of ebash and etest in
+particular to make it very easy to mock out real system binaries and replace them with mock instances which do something
+else. It is very flexible in the behavior of the mocked function utilizing the many provided option flags.
+
+The simplest invocation of emock is to use the default of function mocking. In this mode, you simply supply the name
+of the binary you wish to mock, such as:
+
+    # emock "dmidecode"
+
+This will create and export a new function called 'dmidecode' that can be invoked instead of the real 'dmidecode'
+binary at '/usr/bin/dmidecode'. This also creates a function named 'dmidecode_real' which can be invoked to get access
+to the real underlying dmidecod binary at "/usr/sbin/dmidecode".
+
+By default, this mock function will simply return '0' and produce no stdout or stderr. This behavior can be customized
+using the options --return-code, --stdout, and --stderr.
+
+Mocking a real binary with a simplex name like this is the simplest, but doesn't always work. In particular, if at the
+call site you call it with the fully-qualified path to the binary, as in 'usr/sbin/dmidecode', then our mocked function
+won't be called. In this scenario, you need to  mock it with the fully qualified path just as you would invoke it at the
+call site. For example:
+
+    # emock "/usr/sbin/dmidecode"
+
+Just as before, this will create and export a new function named "/usr/sbin/dmidecode" which will be called in place of
+the real dmidecode binary. It will also create a "/usr/sbin/dmidecode_real" function which will point to the real binary
+in case you need to call it instead.
+
+emock tracks various metadata about mocked binaries for easier testability. This includes the number of times a mock is
+called, as well as the arguments (newline delimieted arg array), exit code, stdout, and stderr for each invocation. By
+default this is created in a local hidden directory named '.emock' and there will be a directory beneath that for each
+mock:
+
+    # .emock/dmidecode/called
+    # .emock/dmidecode/0/{args,exit,stdout,stderr}
+    # .emock/dmidecode/1/{args,exit,stdout,stderr}
+    # ...
+
+
+### Mock Utility Functions
+
+There are many utility functions to help with mocking, including:
+
+#### eunmock
+
+eunmock is used in tandem with emock to remove a mock that has previosly been created. This essentially removes the
+wrapper functions we create and also cleans up the on-disk statedir for the mock.
+
+#### emock_called
+
+emock_called make it easier to check how many times a mock has been called. This is tracked on-disk in the statedir in
+the file named "called". While it's easy to manually retrieve from this file, this function should always be used to
+provide a clean abstraction.
+
+Just like a typical array in any language, the size, or count of the number of times that the
+mock has been called is 1-based but the actual index values we use to store the state files for each invocation is
+zero-based (again, just like an array).
+
+So if this has never been called, then emock_called will return 0, and there will be no on-disk state directory. The
+first time you call it, emock_called will return 1, and there will be a ${statedir}/0 directory storing the state files
+for that invocation.
+
+#### emock_stdout
+
+emock_stdout is a utility function to make it easier to get the standard output from a particular invocation of a
+mocked function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to
+provide a clean abstraction. If the call number is not provided, this will default to the most recent invocation's
+standard output.
+
+#### emock_stderr
+
+emock_stderr is a utility function to make it easier to get the standard error from a particular invocation of a
+mocked function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to
+provide a clean abstraction. If the call number is not provided, this will default to the most recent invocation's
+standard error.
+
+#### emock_args
+
+emock_args is a utility function to make it easier to get the argument array from a particular invocation of a mocked
+function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to provide a
+clean abstraction. If the call number is not provided, this will default to the most recent invocation's argument array.
+
+Inside the statedir, the argument array is stored with each argument fully quoted so that whitespace encapsulated
+arguments preserve whitespace. To convert this back into an array, the best thing to do is to use array_init:
+
+`array_init args "$(emock_args func)`
+
+Alternatively, the helper idiom assert_emock_called_with is an extremely useful way to validate the arguments passed
+into a particular invocation.
+
+#### emock_return_code
+
+emock_return_code is a utility function to make it easier to get the return code from a particular invocation of a mocked
+function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to provide a
+clean abstraction. If the call number is not provided, this will default to the most recent invocation's return code.
+
+#### assert_emock_called
+
+assert_emock_called is used to assert that a mock is called the expected number of times. For example:
+
+`assert_emock_called "func" 25`
+
+#### assert_emock_stdout
+
+assert_emock_stdout is used to assert that a particular invocation of a mock produced the expected standard output.
+
+For example:
+
+```
+assert_emock_stdout "func" 0 "This is the expected standard output for call #0"
+assert_emock_stdout "func" 1 "This is the expected standard output for call #1"
+```
+
+#### assert_emock_stderr
+
+assert_emock_stderr is used to assert that a particular invocation of a mock produced the expected standard error.
+
+For example:
+
+```
+assert_emock_stderr "func" 0 "This is the expected standard error for call #0"
+assert_emock_stderr "func" 1 "This is the expected standard error for call #1"
+```
+
+#### assert_emock_return_code
+
+assert_emock_return_code is used to assert that a particular invocation of a mock produced the expected return code.
+
+For example:
+
+```
+assert_emock_return_code "func" 0 0
+assert_emock_return_code "func" 0 1
+```
+
+#### assert_emock_called_with
+
+assert_emock_called_with is used to assert that a particular invocation of a mock was called with the expected arguments.
+All arguments are fully quoted to ensure whitepace is properly perserved.
+
+For example:
+
+```
+assert_emock_called_with "func" 0 "1" "2" "3" "docks and cats" "Anarchy"
+expected=( "1" "2" "3" "dogs and cats" "Anarchy" )
+assert_emock_caleld_with "func" 1 "${expected[@]}"
+```
+
 ### Don’t leak processes
 
 The test framework is strict about leaky processes.  If you start a background process that hasn’t closed by the time
