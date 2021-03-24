@@ -133,20 +133,33 @@ emock()
         }'
     fi
 
-    # Create _real function wrapper to call the real, unmodified function
-    edebug "Creating ${name}_real function"
-    if command ${name} &>/dev/null; then
-        eval "${name}_real () { command ${name} \"\${@}\"; }"
-    else
-        local real
-        real="$(declare -f ${name})"
-        eval "${name}_real${real#${name}}"
-    fi
+    # Create _real function wrapper to call the real, unmodified binary, function or builtin.
+    local real_type
+    real_type=$(type -t ${name})
+    edebug "Creating real function wrapper ${name}_real with $(lval real_type)"
+    case "${real_type}" in
+        file)
+            eval "${name}_real () { command ${name} \"\${@}\"; }"
+            ;;
+
+        builtin)
+            eval "${name}_real () { builtin ${name} \"\${@}\"; }"
+            ;;
+
+        function)
+            local real
+            real="$(declare -f ${name})"
+            eval "${name}_real${real#${name}}"
+            ;;
+
+        *)
+            die "Unsupported $(lval name real_type)"
+    esac
 
     eval "declare -f ${name}_real"
 
     # Create a function wrapper to call our mock function instead of the real function.
-    edebug "Creating ${name} mock function with $(lval body)"
+    edebug "Creating mock function with $(lval name body)"
     eval "${name} () ${body}"
     eval "declare -f ${name}"
 }
