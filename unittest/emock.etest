@@ -12,7 +12,7 @@ ETEST_emock()
     emock "find"
     assert_match "$(type find)" "find is a function"
     eunmock "find"
-    assert_match "$(hash -r; type find)" "find is /usr/bin/find"
+    assert_match "$(hash -r; type find)" "find is /usr/[s]*bin/find"
 }
 
 ETEST_emock_and_path()
@@ -22,7 +22,7 @@ ETEST_emock_and_path()
     emock "/usr/bin/find"
     assert_match "$(type /usr/bin/find)" "find is a function"
     eunmock "find"
-    assert_match "$(hash -r; type find)" "find is /usr/bin/find"
+    assert_match "$(hash -r; type find)" "find is /usr/[s]*bin/find"
 }
 
 ETEST_emock_called()
@@ -52,7 +52,7 @@ ETEST_emock_called()
 ETEST_emock_real()
 {
     etestmsg "Verifying find poitns to a binary"
-    assert_match "$(type find)" "find is /usr/bin/find"
+    assert_match "$(type find)" "find is /usr/[s]*bin/find"
 
     etestmsg "Mocking find"
     emock "find"
@@ -223,22 +223,22 @@ ETEST_emock_body()
     $(tryrc func "bar")
     assert_eq 0 ${rc}
     etestmsg "Mocked function was called with:"
-    cat .emock/func/0/args
+    cat .emock-$$/func/0/args
     assert_emock_called_with "func" 0 "bar"
 
     etestmsg "Mocked function return_code:"
-    cat .emock/func/0/return_code
+    cat .emock-$$/func/0/return_code
     assert_emock_return_code "func" 0 0
 
     etestmsg "Calling with args=foo (should fail)"
     $(tryrc func "foo")
     assert_eq 1 ${rc}
     etestmsg "Mocked function was called with:"
-    cat .emock/func/1/args
+    cat .emock-$$/func/1/args
     emock_args "func" 1
     assert_emock_called_with "func" 1 "foo"
 
     etestmsg "Mocked function return_code:"
-    cat .emock/func/1/return_code
+    cat .emock-$$/func/1/return_code
     assert_emock_return_code "func" 1 1
 }
