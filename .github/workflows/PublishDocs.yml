@@ -1,0 +1,12 @@
+name: Publish Docs
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+
+  publish_docs:
+    runs-on: ubuntu-latest
+    steps:
+      - run: bin/edoc --publish
