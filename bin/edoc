@@ -11,21 +11,38 @@
 __EBASH_SAVE_DOC=1
 source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
-# Pretend that this is ubuntu 16.04, whether it is or not
+$(opt_parse \
+    "+publish | Optionally publish the generated documents to GitHub Pages.")
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Infra
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ebanner "Generating Ebash Documentat" \
+    publish
+
+# Pretend that this is Linux so that all code gets emited
 os() { [[ ${1,,} == linux ]] && return 0 || return 1 ; }
 lsb_release() { echo "16.04" ; }
+
+# Generate an edoc.sh file that we can source below with necessary functions exported.
+edoc=$(mktemp --tmpdir edoc-XXXXXX)
 {
     echo 'export __EBASH_OS="Linux"'
     declare -f opt_usage
     declare -f os
     declare -f lsb_release
-} > edoc.sh
-trap_add "rm edoc.sh"
+} > ${edoc}
+trap_add "rm -f ${edoc}"
 
+# Create test directories and output
 dir="doc/module"
 efreshdir "${dir}"
 mkdir -p "${dir}"
 
+# Iterate over each MODULE
 for module in ${EBASH}/*.sh; do
 
     name=$(basename ${module} .sh)
@@ -34,7 +51,7 @@ for module in ${EBASH}/*.sh; do
         continue
     fi
 
-    ebanner "${name}"
+    einfo "${name}"
     echo "[${name}](${name}.md)" >> "${dir}/index.md.pending"
     printf "# Module ${name}\n\n" > "${dir}/${name}.md"
 
@@ -50,10 +67,10 @@ for module in ${EBASH}/*.sh; do
     fi
 
     ## ALIASES ##
-    for alias in $(env -i bash -c "source edoc.sh; source ${module}; alias | awk -F'=' '/^alias / {print \$1}' | sed 's|alias ||'"); do
+    for alias in $(env -i bash -c "source ${edoc}; source ${module}; alias | awk -F'=' '/^alias / {print \$1}' | sed 's|alias ||'"); do
 
         if [[ -v __EBASH_DOC[$alias] ]]; then
-            einfo "Alias:    ${alias}"
+            einfos "Alias:    ${alias}"
             {
                 printf "\n## alias ${alias}\n\n"
                 echo "${__EBASH_DOC[$alias]}"
@@ -62,7 +79,7 @@ for module in ${EBASH}/*.sh; do
     done
 
     ## FUNCTIONS ##
-    for function in $(env -i bash -c "source edoc.sh; source ${module}; declare -F" | sed -e 's|declare -f\S* ||' | tr ' ' '\n'); do
+    for function in $(env -i bash -c "source ${edoc}; source ${module}; declare -F" | sed -e 's|declare -f\S* ||' | tr ' ' '\n'); do
 
         if [[ "${function}" == "os" || "${function:0:1}" == "_" ]]; then
             continue
@@ -70,7 +87,7 @@ for module in ${EBASH}/*.sh; do
 
         # See if there is opt_usage for this function
         if [[ -v __EBASH_DOC[$function] ]]; then
-            einfo "Function: ${function}"
+            einfos "Function: ${function}"
             {
                 printf "\n## func ${function}\n\n"
 
@@ -93,3 +110,42 @@ done
 } > "${dir}/index.md"
 
 rm "${dir}/index.md.pending"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Publishing
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+if [[ ${publish} -eq 0 ]]; then
+    exit 0
+fi
+
+git_commit=$(git rev-parse HEAD)
+git_branch=$(git rev-parse --abbrev-ref HEAD)
+source_date=$(git log -1 --pretty=%ct)
+ebanner "Publishing to GitHub Pages"
+docroot=$(mktemp --tmpdir --directory edoc-XXXXXX)
+trap_add "rm -rf ${docroot}"
+
+# Setup Git
+git config --global user.name "${GITHUB_ACTOR}"
+git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+einfo "Staging Doc files into docroot"
+rsync -av "doc/"      "${docroot}"
+rsync -av "README.md" "${docroot}/index.md"
+pushd "${docroot}"
+
+einfo "Initializing Git Repo"
+git init
+git remote add deploy "https://token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+git checkout -b gh-pages
+git add .
+
+einfo "Commiting"
+git commit -am "Updating ebash Docs for commit ${git_commit} on `date -d"@${source_date}" --iso-8601=seconds` from branch ${git_branch} by ${GITHUB_ACTOR}"
+git push deploy gh-pages --force
+popd
+
+exit 0
