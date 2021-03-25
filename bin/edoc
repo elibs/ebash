@@ -31,9 +31,6 @@ lsb_release() { echo "16.04" ; }
 edoc=$(mktemp --tmpdir edoc-XXXXXX)
 {
     echo 'export __EBASH_OS="Linux"'
-    echo 'export EFUNCS_COLOR=0'
-    echo 'export EINTERACTIVE=0'
-    echo 'export COLUMNS=80'
     declare -f opt_usage
     declare -f os
     declare -f lsb_release
