@@ -378,7 +378,7 @@ SELFTEST_hang_override()
 
 ETEST=${EBASH_HOME}/bin/etest
 [[ -x ${ETEST} ]] || die "Unable to find etest $(lval ETEST EBASH EBASH_HOME)"
-cd ${EBASH_HOME}/selftest
+cd ${EBASH_HOME}/tests/self
 
 SELFTESTS=( $(declare -F | awk '$3 ~ "^SELFTEST_" {print $3}' || true) )
 array_sort SELFTESTS
@@ -390,7 +390,7 @@ array_sort SELFTESTS
 for selftest in ${SELFTESTS[@]}; do
 (
     declare -xg SELFTEST_DIR_OUTPUT
-    SELFTEST_DIR_OUTPUT="$(readlink -f selftest_output)"
+    SELFTEST_DIR_OUTPUT="$(readlink -f output)"
     efreshdir "${SELFTEST_DIR_OUTPUT}"
 
     "${selftest}"
