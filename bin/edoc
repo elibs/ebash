@@ -94,8 +94,10 @@ for module in ${EBASH}/*.sh; do
                 printf "\n## func ${function}\n\n"
 
                 if declare -pf "${function}" | grep --quiet '$(opt_parse '; then
-                    ${function} --help 2>&1 | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
-                                                  -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```Groff\n\1\2\n```/'
+                    ${function} --help 2>&1                                   \
+                        | noansi                                              \
+                        | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
+                              -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```Groff\n\1\2\n```/'
                 else
                     echo "${__EBASH_DOC[$function]}"
                 fi
