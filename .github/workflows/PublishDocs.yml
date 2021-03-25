@@ -9,4 +9,7 @@ jobs:
   publish_docs:
     runs-on: ubuntu-latest
     steps:
-      - run: bin/edoc --publish
+      - uses: actions/checkout@v2
+
+      - name: Publish Docs
+        run: bin/edoc --publish
