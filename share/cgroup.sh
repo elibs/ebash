@@ -8,29 +8,30 @@
 # version.
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Cgroups are a capability of the linux kernel designed for categorizing processes. They're most typically used in ways
-# that not only categorize processes, but also control them in some fasion. A popular reason is to limit the amount of
-# resources a particular process can use.
-#
-# Within each of many different _subsystems_ that are set up by code in the kernel, a process may exist at one point in
-# a hierarchy. That is, within the CPU subsystem, a process may only be owned by a single cgroup. And in the memory
-# subsystem, it may be owned by a different cgroup. For the purposes of THIS ebash code, though, we duplicate a similar
-# tree of groups within _all_ of the subsystems that we interact with.
-#
-# CGROUP_SUBSYSTEMS defines which subsystems those are. So when you use these functions, the hierarchy that you create
-# is created in parallel under all of the subsystems defined by CGROUP_SUBSYSTEMS
-#
-# Positions within the cgroup hierarchy created here are identified by names that look like relative directories. This
-# is no accident -- cgroups are represented to the kernel by a directory structure created within a filesystem of type
-# cgroups.
-#
-# Hopefully these functions make accessing the cgroups filesystem a little bit easier, and also help you to keep
-# parallel hierarchies identical across the various cgroups subsystems.
-#
-# NOTE ON DOCKER SUPPORT: The cgroups functions work when run within docker containers, operating on a cgroup inside the
-# one that docker set up for them. This requires said containers to be started with --privileged or suitable other
-# capabilities (which I have not investigated -- it could be done, though)
-#
+opt_usage module_cgroup <<'END'
+Cgroups are a capability of the linux kernel designed for categorizing processes. They're most typically used in ways
+that not only categorize processes, but also control them in some fasion. A popular reason is to limit the amount of
+resources a particular process can use.
+
+Within each of many different _subsystems_ that are set up by code in the kernel, a process may exist at one point in
+a hierarchy. That is, within the CPU subsystem, a process may only be owned by a single cgroup. And in the memory
+subsystem, it may be owned by a different cgroup. For the purposes of THIS ebash code, though, we duplicate a similar
+tree of groups within _all_ of the subsystems that we interact with.
+
+CGROUP_SUBSYSTEMS defines which subsystems those are. So when you use these functions, the hierarchy that you create
+is created in parallel under all of the subsystems defined by CGROUP_SUBSYSTEMS
+
+Positions within the cgroup hierarchy created here are identified by names that look like relative directories. This
+is no accident -- cgroups are represented to the kernel by a directory structure created within a filesystem of type
+cgroups.
+
+Hopefully these functions make accessing the cgroups filesystem a little bit easier, and also help you to keep
+parallel hierarchies identical across the various cgroups subsystems.
+
+NOTE ON DOCKER SUPPORT: The cgroups functions work when run within docker containers, operating on a cgroup inside the
+one that docker set up for them. This requires said containers to be started with --privileged or suitable other
+capabilities (which I have not investigated -- it could be done, though)
+END
 #-----------------------------------------------------------------------------------------------------------------------
 
 # systemd altered how it mounts the default cgroup subsystems. So explicitly look for old and new naming conventions.
@@ -353,7 +354,7 @@ Cgroup_tree will produce output as follows:
 END
 cgroup_tree()
 {
-    local cgroups=("${@}")
+    $(opt_parse "@cgroups")
 
     # If none were specified, we'll start at cgroup root
     [[ $(array_size cgroups) -gt 0 ]] || cgroups=("")
@@ -531,5 +532,3 @@ cgroup_find_setting_file()
     $(opt_parse cgroup setting)
     ls ${CGROUP_SYSFS}/*/${cgroup}/${setting}
 }
-
-return 0

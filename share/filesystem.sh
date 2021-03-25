@@ -34,11 +34,14 @@ echmodown is basically chmod and chown combined into one function.
 END
 echmodown()
 {
-    [[ $# -ge 3 ]] || die "echmodown requires 3 or more parameters. Called with $# parameters (chmodown $@)."
-    $(opt_parse mode owner)
+    $(opt_parse \
+        "mode   | Filesystem mode bit flag to pass into chmod." \
+        "owner  | Owner to pass into chown"                     \
+        "@files | The files to perform the operations on."      \
+    )
 
-    chmod ${mode} $@
-    chown ${owner} $@
+    chmod ${mode}  "${files[@]}"
+    chown ${owner} "${files[@]}"
 }
 
 opt_usage efreshdir <<'END'
@@ -96,5 +99,3 @@ directory_not_empty()
     $(opt_parse dir)
     find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
-
-return 0

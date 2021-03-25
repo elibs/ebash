@@ -117,5 +117,3 @@ etimeout()
         return ${rc}
     fi
 }
-
-return 0

@@ -104,5 +104,3 @@ dpkg_depends_apt()
         [[ ${p: -4} != ".deb" ]] && echo ${p} || true
     done
 }
-
-return 0

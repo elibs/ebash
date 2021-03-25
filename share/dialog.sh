@@ -46,12 +46,12 @@ dialog_load()
 dialog_load
 
 opt_usage dialog <<'END'
-This is a generic wrapper around dialog which adds --hide and --trace functionality across the board so that we don't
-have to implement wrappers for every widget. Moreover, it also deals with dialog behavior of returning non-zero for lots
-of not-fatal reasons. We don't want callers to throw fatal errors when that happens.  Intead they should inspect the
-error codes and output and take action accordingly. Secondly, we need to capture the stdout from dialog and then parse
-it accordingly. Using the tryrc idiom addresses these issues by capturing the return code into 'dialog_rc' and the
-output into 'dialog_output' for subsequent inspection and parsing.
+This is a generic wrapper around [dialog](https://invisible-island.net/dialog/#screenshot) which adds `--hide` and
+`--trace` options across the board so that we don't have to implement wrappers for every widget. Moreover, it also deals
+with dialog behavior of returning non-zero for lots of not-fatal reasons. We don't want callers to throw fatal errors
+when that happens.  Intead they should inspect the error codes and output and take action accordingly. Secondly, we need
+to capture the stdout from dialog and then parse it accordingly. Using the tryrc idiom addresses these issues by
+capturing the return code into `dialog_rc` and the output into `dialog_output` for subsequent inspection and parsing.
 END
 dialog()
 {
@@ -151,7 +151,7 @@ dialog()
 
 opt_usage dialog_info <<'END'
 Helper function to make it easier to display simple information boxes inside dialog. This is similar in purpose and
-usage to einfo and will display a dialog msgbox with the provided text.
+usage to `einfo` and will display a dialog msgbox with the provided text.
 END
 dialog_info()
 {
@@ -161,7 +161,7 @@ dialog_info()
 
 opt_usage dialog_warn <<'END'
 Helper function to make it easier to display simple warning boxes inside dialog. This is similar in purpose and
-usage to ewarn and will display a dialog msgbox with the provided text.
+usage to `ewarn` and will display a dialog msgbox with the provided text.
 END
 dialog_warn()
 {
@@ -171,7 +171,7 @@ dialog_warn()
 
 opt_usage dialog_error <<'END'
 Helper function to make it easier to display simple error boxes inside dialog. This is similar in purpose and
-usage to eerror and will display a dialog msgbox with the provided text.
+usage to `eerror` and will display a dialog msgbox with the provided text.
 END
 dialog_error()
 {
@@ -180,7 +180,7 @@ dialog_error()
 }
 
 opt_usage dialog_prgbox <<'END'
-Helper function to make it easier to use dialog --prgbox without buffering. This is done using stdbuf which can then
+Helper function to make it easier to use `dialog --prgbox` without buffering. This is done using stdbuf which can then
 disable buffering on stdout and stderr before invoking the command requested by the caller. This way we have a nice
 uniform way to call external programs and ensure their output is displayed in real-time instead of waiting until the
 program completes.
@@ -199,11 +199,12 @@ dialog_prgbox()
 }
 
 opt_usage dialog_read <<'END'
-Helper function for dialog_prompt to try to read a character from stdin. Unfortunately some arrow keys and other control
-characters are represented as multi-byte characters (see EBASH_KEY_UP, EBASH_KEY_RIGHT, EBASH_KEY_DOWN, EBASH_KEY_RIGHT,
-EBASH_KEY_DELETE, EBASH_KEY_BACKSPACE). So this function helps by reading a character and checking if it looks like the
-start of a multi-byte control character. If so, it will read the next character and so on until it has read the required
-4 characters to know if it is indeed a multi-byte control character or not.
+Helper function for `dialog_prompt` to try to read a character from stdin. Unfortunately some arrow keys and other
+control characters are represented as multi-byte characters (see `EBASH_KEY_UP`, `EBASH_KEY_RIGHT`, `EBASH_KEY_DOWN`,
+`EBASH_KEY_RIGHT`, `EBASH_KEY_DELETE`, `EBASH_KEY_BACKSPACE`, `EBASH_KEY_SPACE`). So this function helps by reading a
+character and checking if it looks like the start of a multi-byte control character. If so, it will read the next
+character and so on until it has read the required 4 characters to know if it is indeed a multi-byte control character
+or not.
 END
 dialog_read()
 {
@@ -242,7 +243,9 @@ dialog_read()
     return 0
 }
 
-# Helper function to provide a consistent and safe way to kill dialog subprocess that we spawn.
+opt_usage dialog_kill <<'END'
+`dialog_kill` is a helper function to provide a consistent and safe way to kill dialog subprocess that we spawn.
+END
 dialog_kill()
 {
     if [[ -n "${dialog_pid:-}" ]]; then
@@ -252,7 +255,9 @@ dialog_kill()
     fi
 }
 
-# Helper function to cancel the dialog process that we spawned in a consistent reusable way.
+opt_usage dialog_cancel <<'END'
+`dialog_cancel` is a helper function to cancel the dialog process that we spawned in a consistent reusable way.
+END
 dialog_cancel()
 {
     dialog_kill
@@ -261,19 +266,25 @@ dialog_cancel()
 }
 
 opt_usage dialog_prompt <<'END'
-dialog_prompt provides a very simple interface for the caller to prompt for one or more values from the user using
-the dialog(1) ncurses tool. Each named option passed into dialog_prompt will be displayed as a field within dialog.
-By default each value is initially empty, but the caller can override this by using 'option=value' syntax wherein
-'value' would be the initial value for 'option' and displayed in the dialog interface. By default all options are
-*required* and the user will be unable to exit the dialog interface until all required fields are provided. The caller
-can prefix an option with a '?' to annotate that it is optional. In the dialog interface, required options are marked
-as required with a preceeding '*'. After the user fills in all required fields, the provided option names will be
-set to the user provided values. This is done using the "eval command invocation string" idiom so that the code to
-set variables is executed in the caller's environment. For example: $(dialog_prompt field).
+`dialog_prompt` provides a very simple interface for the caller to prompt for one or more values from the user using the
+[dialog](https://invisible-island.net/dialog/#screenshot) ncurses tool. Each named option passed into `dialog_prompt`
+will be displayed as a field within dialog.  By default each value is initially empty, but the caller can override this
+by using `option=value` syntax wherein `value` would be the initial value for `option` and displayed in the dialog
+interface. By default all options are **required** and the user will be unable to exit the dialog interface until all
+required fields are provided. The caller can prefix an option with a `?` to annotate that it is optional. In the dialog
+interface, required options are marked as required with a preceeding `*`. After the user fills in all required fields,
+the provided option names will be set to the user provided values. This is done using the "eval command invocation
+string" idiom so that the code to set variables is executed in the caller's environment.
 
-dialog_prompt tries to intelligently auto detect the geometry of the window based on the number of fields being
-prompted for. It overcomes some annoyances with dialog not scaling very well with how it pads the fields in the
-window. But the caller is always allowed to override this with the --geometry option.
+For example:
+
+```shell
+$(dialog_prompt field)
+```
+
+`dialog_prompt` tries to intelligently auto detect the geometry of the window based on the number of fields being prompted
+for. It overcomes some annoyances with dialog not scaling very well with how it pads the fields in the window. But the
+caller is always allowed to override this with the `--geometry` option.
 END
 dialog_prompt()
 {
@@ -763,27 +774,29 @@ dialog_prompt_username_password_UI()
 }
 
 opt_usage __dialog_select_list <<'END'
-__dialog_select_list is an internal helper function for implementation of a wrapper around "dialog --checklist" and
-"dialog --radiolist" and potentially others in the future which have identical API.
+`__dialog_select_list` is an internal helper function for implementation of a wrapper around `dialog --checklist` and
+`dialog --radiolist` and potentially others in the future which have identical API.
 
 This helper function provides a very simpliist interface around these lower level widgets by simplying operating on an
 array variable. Instead of taking in raw strings and worrying about quoting and escaping this simply takes in the
 __name__ of an array and then directly operates on it. Each entry in the widget is composed of the first three elements
 in the array. So, typically you would format the array as follows:
 
+```shell
 array=()
 array+=( tag "item text with spaces" status )
+```
 
-WHere "status" is either "on" or "off"
+Where `status` is either `on` or `off`
 
-Each 3-tuple in the array will be parsed and presented in either a checklist or radiolist depending on --style passed
+Each 3-tuple in the array will be parsed and presented in either a checklist or radiolist depending on `--style` passed
 in. At the end, the output is parsed to determine which ones were selected and the input array is updated for the
-caller. With the --delete flag (on by default) it will delete anything in the array which was not selected. If this flag
-is not used, then the caller can manually look at the "status" field in each array element to see if it is "on" or
-"off".
+caller. With the `--delete` flag (on by default) it will delete anything in the array which was not selected. If this
+flag is not used, then the caller can manually look at the `status` field in each array element to see if it is `on` or
+`off`.
 
-dialog_checklist tries to intelligently auto detect the geometry of the window but the caller is always allowed to
-override this with --geometry option.
+`dialog_checklist` tries to intelligently auto detect the geometry of the window but the caller is always allowed to
+override this with `--geometry` option.
 END
 __dialog_select_list()
 {
@@ -922,23 +935,27 @@ __dialog_select_list()
 }
 
 opt_usage dialog_checklist <<'END'
-dialog_checklist provides a very simple interface around the dialog checklist widget by simplying operating on an array
-variable. Instead of taking in raw strings and worrying about quoting and escaping this simply takes in the __name__ of
-an array and then directly operates on it. Each entry in the widget is composed of the first three elements in the
-array. So, typically you would format the array as follows:
+`dialog_checklist` provides a very simple interface around the dialog checklist widget by simplying operating on an
+array variable. Instead of taking in raw strings and worrying about quoting and escaping this simply takes in the
+**name** of an array and then directly operates on it. Each entry in the widget is composed of the first three elements
+in the array.
 
+So, typically you would format the array as follows:
+
+```shell
 array=()
 array+=( tag "item text with spaces" status )
+```
 
-WHere "status" is either "on" or "off"
+Where `status` is either `on` or `off`
 
 Each 3-tuple in the array will be parsed and presented in a checklist widget. At the end, the output is parsed to
-determine which ones were selected and the input array is updated for the caller. With the --delete flag (on by default)
-it will delete anything in the array which was not selected. If this flag is not used, then the caller can manually look
-at the "status" field in each array element to see if it is "on" or "off".
+determine which ones were selected and the input array is updated for the caller. With the `--delete` flag (on by
+default) it will delete anything in the array which was not selected. If this flag is not used, then the caller can
+manually look at the `status` field in each array element to see if it is `on` or `off`.
 
-dialog_checklist tries to intelligently auto detect the geometry of the window but the caller is always allowed to
-override this with --geometry option.
+`dialog_checklist` tries to intelligently auto detect the geometry of the window but the caller is always allowed to
+override this with `--geometry` option.
 END
 dialog_checklist()
 {
@@ -946,23 +963,27 @@ dialog_checklist()
 }
 
 opt_usage dialog_radiolist <<'END'
-dialog_radiolist provides a very simple interface around the dialog radiolist widget by simplying operating on an array
-variable. Instead of taking in raw strings and worrying about quoting and escaping this simply takes in the __name__ of
-an array and then directly operates on it. Each entry in the widget is composed of the first three elements in the
-array. So, typically you would format the array as follows:
+`dialog_radiolist` provides a very simple interface around the dialog radiolist widget by simplying operating on an
+array variable. Instead of taking in raw strings and worrying about quoting and escaping this simply takes in the
+**name** of an array and then directly operates on it. Each entry in the widget is composed of the first three elements
+in the array.
 
+So, typically you would format the array as follows:
+
+```shell
 array=()
 array+=( tag "item text with spaces" status )
+```
 
-WHere "status" is either "on" or "off"
+WHere `status` is either `on` or `off`
 
 Each 3-tuple in the array will be parsed and presented in a radiolist widget. At the end, the output is parsed to
-determine which ones were selected and the input array is updated for the caller. With the --delete flag (on by default)
-it will delete anything in the array which was not selected. If this flag is not used, then the caller can manually look
-at the "status" field in each array element to see if it is "on" or "off".
+determine which ones were selected and the input array is updated for the caller. With the `--delete` flag (on by
+default) it will delete anything in the array which was not selected. If this flag is not used, then the caller can
+manually look at the `status` field in each array element to see if it is `on` or `off`.
 
-dialog_radiolist tries to intelligently auto detect the geometry of the window but the caller is always allowed to
-override this with --geometry option.
+`dialog_radiolist` tries to intelligently auto detect the geometry of the window but the caller is always allowed to
+override this with `--geometry` option.
 
 NOTE: A radiolist is almost identical to a checklist only the radiolist only allows a single element to be selected
 whereas a checklist allows multiple rows to be selected.

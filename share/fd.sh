@@ -42,13 +42,17 @@ expecting.)
 This function closes all open file descriptors EXCEPT stdin (0), stdout (1), and stderr (2). Technically, you can close
 those on your own if you want via syntax like this:
 
-   exec 0>&- 1>&- 2>&-
+```shell
+exec 0>&- 1>&- 2>&-
+```
 
 But practically speaking, it's likely to cause problems. For instance, hangs or errors when something tries to write to
 or read from one of those. It's a better idea to do this intead if you really don't want your stdin/stdout/stderr
 inherited:
 
-  exec 0</dev/null 1>/dev/null 2>/dev/null
+```shell
+exec 0</dev/null 1>/dev/null 2>/dev/null
+```
 
 We also never close fd 255. Bash considers that its own. For instance, sometimes that's open to the script you're
 currently executing.
@@ -84,5 +88,3 @@ fd_path()
         die "Unsupported OS $(lval __EBASH_OS)"
     fi
 }
-
-return 0

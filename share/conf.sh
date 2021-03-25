@@ -1,52 +1,57 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# General doc on ebash interpretation of what it means to be an INI file.
-declare _ebash_conf_ini_doc="These typically look something like the following:
+#-----------------------------------------------------------------------------------------------------------------------
+opt_usage module_conf <<'END'
+The conf module operates on INI configuration files. These are supported by many different tools and languages.
+Sometimes the rules vary a little. This implementation is based on [wikipedia's](https://en.wikipedia.org/wiki/INI_file)
+description of the INI format.
 
-    [section]
-    property=value
+These typically look something like the following:
 
-    [another_section]
-    property=different value
-    another_property=value
+```INI
+[section]
+property=value
+
+[another_section]
+property=different value
+another_property=value
+```
 
 Where a sequence of "properties" are stored in sections. There may be properties of the same name in different sections
 with different values. In this implementation, values that are not in a named section will be placed in a section named
 "default"
 
-You may specify multiple configuration files, in which case files that are _later_in the list will override the settings
-from configuration files specified earlier in the list. In other words, if you call conf_read like this, settings from
-~/.config/A will override those in /etc/A and all results will be stored in CONF
+You may specify multiple configuration files, in which case files that are *later* in the list will override the settings
+from configuration files specified earlier in the list. In other words, if you call `conf_read` like this, settings from
+`~/.config/A` will override those in `/etc/A` and all results will be stored in `CONF`
 
-    declare -A CONF
-    conf_read CONF /etc/A ~/.config/A
+```bash
+declare -A CONF
+conf_read CONF /etc/A ~/.config/A
+```
 
+Here the the details of the INI specification from wikipedia's description that ebash implements:
 
-Many different tools use INI configuration files. Sometimes the rules vary a little. This implementation is based on
-wikipedia's description of the ini format (https://en.wikipedia.org/wiki/INI_file) and has the following quirks:
-
-Comments
+### Comments
 
   - Both ; and # at the beginning of a line start a comment.
   - You can't create comments at the end of a line. Instead, whatever is on the line past the
     equal sign will become part of the property created on that line
 
-
-Sections
+### Sections
 
   - Section names may not contain whitespace, nor may they contain equal signs or periods.
   - Section names are case sensitive.
   - No section is required, properties without a section declaration are placed in "default"
 
-
-Properties
+### Properties
 
   - Property names may not contain whitespace, nor may they contain equal signs
   - Property names are case sensitive.
@@ -57,15 +62,13 @@ Properties
     that particular quote character on the line. No escaping is allowed.
   - When quoted, all whitespace in the value within the quotes is retained. This doesn't change
     that values cannot contain newlines.
-
-"
+END
+#-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage conf_read <<END
 Reads one or more "INI"-style configuration file into an associative array that you have prepared in advance. Keys in
 the associative array will be named for the sections of your INI file, and the entry will be a pack containing all
 configuration values from inside that section.
-
-${_ebash_conf_ini_doc}
 END
 conf_read()
 {
@@ -165,10 +168,8 @@ conf_contains()
     pack_contains "${__conf_store}[$section]" "${key}"
 }
 
-opt_usage conf_set<<END
+opt_usage conf_set <<'END'
 Set a value in an INI-style configuration file.
-
-${_ebash_conf_ini_doc}
 END
 conf_set()
 {
@@ -296,5 +297,3 @@ _conf_dump_helper()
 {
     printf "%s = %s\n" "$1" "$2"
 }
-
-unset _ebash_conf_ini_doc

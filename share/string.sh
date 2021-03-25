@@ -124,5 +124,3 @@ string_getline()
     assert_num_gt "${num}" "0" "Line number must be > 0"
     echo "${input}" | sed "${num}q;d"
 }
-
-return 0

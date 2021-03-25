@@ -144,13 +144,16 @@ os()
 opt_usage os_pretty_name <<'EOF'
 Get a prety name for this OS in the form of:
 
+```shell
 ${DISTRO} ${OS} ${RELEASE}
+```
 
 For example:
-
+```
 Gentoo Linux 2.7
 Alpine Linux 3.11
 Darwin 10.15.7
+```
 EOF
 os_pretty_name()
 {
@@ -164,8 +167,8 @@ os_pretty_name()
 }
 
 opt_usage command_exists <<'END'
-Helper function to check if a command exists. The actual implementation could be a function in
-our environment or an external program.
+Helper function to check if a command exists. The actual implementation could be a function in our environment or an
+external program.
 END
 command_exists()
 {

@@ -96,18 +96,22 @@ netns_exists()
 opt_usage netns_init <<'END'
 create a pack containing the network namespace parameters
 
-example: netns_init nsparams ns_name=mynamespace devname=mynamespace_eth0       \
-            peer_devname=eth0 connected_nic=eth0 bridge_cidr=<ipaddress>   \
-            nic_cidr=<ipaddress>
+example:
+```shell
+netns_init nsparams ns_name=mynamespace devname=mynamespace_eth0       \
+        peer_devname=eth0 connected_nic=eth0 bridge_cidr=<ipaddress>   \
+        nic_cidr=<ipaddress>
+```
 
- Where the options are:
+Where the options are:
+```shell
        ns_name        : The namespace name
        devname        : veth pair's external dev name
        peer_devname   : veth pair's internal dev name
        connected_nic  : nic that can talk to the internet
-       bridge_cidr    : cidr for the bridge (ex: 1.2.3.4/24)
+       bridge_cidr    : cidr for the bridge (ex: `1.2.3.4/24`)
        nic_cidr       : cidr for the internal nic (peer_devname)
-
+```
 END
 netns_init()
 {
@@ -187,6 +191,3 @@ netns_chroot_exec()
     edebug "Executing command in namespace [${ns_name}] and chroot [${chroot_root}]: ${cmd[@]}"
     netns_exec ${ns_name} chroot "${chroot_root}" "${cmd[@]}"
 }
-
-return 0
-

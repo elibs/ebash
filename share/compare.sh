@@ -58,5 +58,3 @@ compare_version()
 
     return 1
 }
-
-return 0
