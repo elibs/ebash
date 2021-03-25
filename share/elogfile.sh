@@ -142,5 +142,3 @@ elogfile()
         elogfile_redirect stderr "${@}"
     fi
 }
-
-return 0

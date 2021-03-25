@@ -208,5 +208,3 @@ enable_trace
 # process exits. Generally, this allows us to do any error handling and cleanup needed when a process exits. But the
 # main reason this exists is to ensure we can intercept abnormal exits from things like unbound variables (e.g. set -u).
 trap_add "" EXIT
-
-return 0

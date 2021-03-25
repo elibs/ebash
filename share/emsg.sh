@@ -956,5 +956,3 @@ lval()
         __lval_pre=" "
     done
 }
-
-return 0

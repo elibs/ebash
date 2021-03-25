@@ -465,5 +465,3 @@ netselect()
 
     echo -en "${best}"
 }
-
-return 0

@@ -112,5 +112,3 @@ checkbox_failed()
 {
     echo -e "$(tput setaf 1)$(tput bold)[✘] FAILED$(tput sgr0) ${@}" >&2
 }
-
-return 0

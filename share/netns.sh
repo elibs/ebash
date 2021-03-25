@@ -187,6 +187,3 @@ netns_chroot_exec()
     edebug "Executing command in namespace [${ns_name}] and chroot [${chroot_root}]: ${cmd[@]}"
     netns_exec ${ns_name} chroot "${chroot_root}" "${cmd[@]}"
 }
-
-return 0
-

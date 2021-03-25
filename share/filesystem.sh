@@ -96,5 +96,3 @@ directory_not_empty()
     $(opt_parse dir)
     find "${dir}" -mindepth 1 -print -quit | grep -q .
 }
-
-return 0

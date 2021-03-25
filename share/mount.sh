@@ -398,5 +398,3 @@ efindmnt()
     rpath=$(emount_realpath "${path}")
     list_mounts | grep --perl-regexp "(^| )(${path}|${rpath})[/ ]" | awk '{print $2}' | sed '/^$/d' || true
 }
-
-return 0

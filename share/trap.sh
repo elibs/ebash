@@ -114,5 +114,3 @@ trap()
 
     builtin trap "${@}"
 }
-
-return 0

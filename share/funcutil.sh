@@ -7,11 +7,11 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 #
 # Function Utilities
 #
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage save_function <<'END'
 save_function is used to safe off the contents of a previously declared function into ${1}_real to aid in overridding
@@ -50,5 +50,3 @@ override_function()
     eval "${expected}" &>/dev/null
     eval "declare -rf ${func}" &>/dev/null
 }
-
-return 0

@@ -279,5 +279,3 @@ pack_load()
     _pack_load_data="$(cat "${_pack_load_file}")"
     pack_copy _pack_load_data ${_pack_load_name}
 }
-
-return 0

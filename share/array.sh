@@ -349,5 +349,3 @@ array_copy()
     # Set the array contents
     eval "${__target}=( \"\${${__source}[@]}\" )"
 }
-
-return 0

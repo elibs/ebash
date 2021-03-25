@@ -222,5 +222,3 @@ You might want to use this in shells that you put in the background if you don't
 be notified via sigterm.
 END
 alias disable_die_parent="declare __EBASH_DISABLE_DIE_PARENT_PID=\${BASHPID}"
-
-return 0
