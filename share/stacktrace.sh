@@ -39,5 +39,3 @@ stacktrace_array()
 
     array_init_nl ${array} "$(stacktrace -f=${frame})"
 }
-
-return 0

@@ -84,5 +84,3 @@ fd_path()
         die "Unsupported OS $(lval __EBASH_OS)"
     fi
 }
-
-return 0

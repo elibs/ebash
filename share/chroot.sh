@@ -398,5 +398,3 @@ mkchroot()
 
     chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${UBUNTU_ARCH}
 }
-
-return 0

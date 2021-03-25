@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+__EBASH_SAVE_DOC=1
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+efreshdir "doc"
+
+# Pretend that this is ubuntu 16.04, whether it is or not
+os() { [[ ${1,,} == linux ]] && return 0 || return 1 ; }
+lsb_release() { echo "16.04" ; }
+{
+    echo 'export __EBASH_OS="Linux"'
+    declare -f opt_usage
+    declare -f os
+    declare -f lsb_release
+} > edoc.sh
+trap_add "rm edoc.sh"
+
+for module in ${EBASH}/*.sh; do
+
+    name=$(basename ${module} .sh)
+
+    if [[ "${name}" == @(ebash) ]]; then
+        continue
+    fi
+
+    ebanner "${name}"
+    dir="doc/module"
+    mkdir -p "${dir}"
+    printf "# Module ${name}\n\n" > "${dir}/${name}.md"
+
+    # Try to get any module level documentation (if any)
+    if [[ -v __EBASH_DOC[module_$name] ]]; then
+        echo "${__EBASH_DOC["module_$name"]}" >> "${dir}/${name}.md"
+    fi
+
+    # If this is the opt.sh module extract the module level documentation. This can't use normal opt_parse idiom as it
+    # IS the opt parsing code.
+    if [[ "${name}" == "opt" ]]; then
+        awk '/^END/ {exit} /: <</ {f=1; next} f' share/opt.sh >> "${dir}/opt.md"
+    fi
+
+    for function in $(env -i bash -c "source edoc.sh; source ${module}; declare -F" | sed -e 's|declare -f\S* ||' | tr ' ' '\n'); do
+
+        if [[ "${function}" == "os" || "${function:0:1}" == "_" ]]; then
+            continue
+        fi
+
+        # See if there is opt_usage for this function
+        if [[ -v __EBASH_DOC[$function] ]]; then
+            einfo "${function}"
+            {
+                printf "\n## func ${function}\n\n"
+
+                helptext=""
+                if ! helptext=$(${function} --help 2>&1); then
+                    helptext=${__EBASH_DOC[$function]}
+                fi
+
+                echo "${helptext}" \
+                    | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
+                          -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```\n\1\2\n```/'
+            } >> "${dir}/${name}.md"
+        fi
+    done
+done

@@ -504,5 +504,3 @@ daemon_not_running()
     $(tryrc daemon_status -q "${@}")
     [[ ${rc} -ne 0 ]]
 }
-
-return 0

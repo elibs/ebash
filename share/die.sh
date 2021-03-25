@@ -251,5 +251,3 @@ nodie_on_abort()
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
     trap - ${signals[@]}
 }
-
-return 0

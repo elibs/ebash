@@ -8,11 +8,8 @@
 # version.
 
 : <<'END'
-opt_parse
-============
 
-Terminology
------------
+## Terminology
 
 First a quick bit of background on the terminology used for ebash parameter parsing. Different well-meaning folks use
 different terms for the same things, but these are the definitions as they apply within ebash documentation.
@@ -44,8 +41,7 @@ matches with the --max-count option. This will print the first line in somefile 
 So we say that if --max-count is specified, it requires an _argument_.
 
 
-Arguments
----------
+## Arguments
 
 The simplest functions frequently just take an argument or two. We discovered early in the life of ebash a frequent
 pattern:
@@ -108,8 +104,7 @@ after other arguments are consumed. This may be zero or more, opt_parse does no 
 you may only use this in the final argument position.
 
 
-Options
---------
+## Options
 
 Options are specified in a similar form to arguments. The biggest difference is that options may have multiple names.
 Both short and long options are supported.
@@ -133,8 +128,7 @@ in the option name.
 At present, ebash supports the following types of options:
 
 
-Boolean Options
----------------
+## Boolean Options
 
 Word_regex and invert in the example above are both boolean options. That is, they're either on the command line (in
 which case opt_parse assigns 1 to the variable) or not on the command line (in which case opt_parse assigns 0 to the
@@ -155,8 +149,7 @@ For example, this is also equivalent to the above examples.
     cmd --no-invert --word-regex
 
 
-String Options
---------------
+## String Options
 
 Opt_parse also supports options whose value is a string. When specified on the command line, these _require_ an
 argument, even if it is an empty string. In order to get a string option, you prepend its name with a colon character.
@@ -178,8 +171,7 @@ argument, even if it is an empty string. In order to get a string option, you pr
     # output: STRING=""
 
 
-Required Non-Empty String Options
----------------------------------
+## Required Non-Empty String Options
 
 Opt_parse also supports required options whose value is a non-empty string. This is identical to a normal `:` string
 option only it is more strict in two ways:
@@ -209,8 +201,7 @@ In order to use this option, prepend its name with an equal character.
     # error: option --string is required.
 
 
-Accumulator Values
-------------------
+## Accumulator Values
 
 Opt parse also supports the ability to accumulate string values into an array when the option is given multiple times.
 In order to use an accumulator, you prepend its name with an ampersand character. The values placed into an accumulated
@@ -226,8 +217,7 @@ array cannot contain a newline character.
     # output -- FILES: alpha beta gamma
 
 
-Default Values
---------------
+## Default Values
 
 By default, the value of boolean options is false and string options are an empty string, but you can specify a default
 in your definition just as you would with arguments.
@@ -237,8 +227,7 @@ in your definition just as you would with arguments.
         ":string s=something | String option that defaults to "something")
 
 
-Automatic Help
---------------
+## Automatic Help
 
 Opt_parse automatically supports --help option and corresponding short option -? option for you, which will display a
 usage statement using the docstrings that you provided for each of the options and arguments.
@@ -1014,5 +1003,3 @@ directory itself. You can also map the contents of that directory into an altern
 
 # NOTE: The opt_usage function is in ebash.sh because it must be there before anything else is sourced to have
 # documentation work for files in ebash.
-
-return 0

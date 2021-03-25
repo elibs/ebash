@@ -138,12 +138,10 @@ elock_locked()
 }
 
 opt_usage elock_unlocked <<'END'
-Check if a file is not locked via elock. This simply loosk for the file inside our associative array because flock
+Check if a file is not locked via elock. This simply looks for the file inside our associative array because flock
 doesn't provide a native way to check if we have a file locked or not.
 END
 elock_unlocked()
 {
     ! elock_locked $@
 }
-
-return 0

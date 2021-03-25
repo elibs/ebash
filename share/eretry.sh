@@ -158,5 +158,3 @@ eretry_internal()
     # Return final return code
     return ${rc}
 }
-
-return 0

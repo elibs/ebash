@@ -98,5 +98,3 @@ quote_eval()
 
     eval "${cmd[@]}"
 }
-
-return 0
