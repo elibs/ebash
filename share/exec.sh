@@ -30,7 +30,7 @@ reexec()
     # contains at least one character in any one slot in the array.
     #
     if [[ -n "${__EBASH_FULL_ARGS[*]:-}" ]] ; then
-        __EBASH_REEXEC_CMD=( "${__EBASH_REEXEC_CMD[0]}" "${__EBASH_FULL_ARGS[@]}" )
+        __EBASH_REEXEC_CMD=( "${__EBASH_REEXEC_CMD[0]:-}" "${__EBASH_FULL_ARGS[@]}" )
     fi
 
     $(opt_parse \
