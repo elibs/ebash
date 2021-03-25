@@ -87,9 +87,8 @@ done
 
 {
     echo "# Modules"
-    echo "|<div style="width:290px"></div>|<div style="width:290px"></div>|"
-    echo "| ---- | ---- |"
-    cat "${dir}/index.md.pending" | column --output-width=80 | sed -e 's/^/| /g' -e 's/)\s*\[/) | [/g' -e 's/$/ |/g'
+    echo ""
+    cat "${dir}/index.md.pending" | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
 
 } > "${dir}/index.md"
 
