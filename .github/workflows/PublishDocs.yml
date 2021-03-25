@@ -20,4 +20,6 @@ jobs:
         run: bin/ebash-install-deps
 
       - name: Publish Docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bin/edoc --publish
