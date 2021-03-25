@@ -182,8 +182,8 @@ you have "/a -> /b" then calling chroot_readlink "/a" => "${CHROOT}/b"
 END
 chroot_readlink()
 {
-    argcheck CHROOT
     $(opt_parse path)
+    argcheck CHROOT
 
     echo -n "${CHROOT}$(chroot_cmd readlink -m "${path}" 2>/dev/null)"
 }
