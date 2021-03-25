@@ -108,9 +108,7 @@ is_function()
 opt_usage discard_qualifiers <<'END'
 This is an internal function used by ebash to strip off various type qualifiers from variables.
 END
-discard_qualifiers()
+__discard_qualifiers()
 {
     echo "${1##%}"
 }
-
-return 0

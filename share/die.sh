@@ -14,11 +14,11 @@
 #-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage die_on_error <<'END'
-die_on_error registers a trap handler for ERR. It is extremely important that we use this mechanism instead of the
-expected 'set -e' so that we have control over how the process exit is handled by calling our own internal 'die'
+`die_on_error` registers a trap handler for `ERR`. It is extremely important that we use this mechanism instead of the
+expected `set -e` so that we have control over how the process exit is handled by calling our own internal `die`
 handler. This allows us to either exit or kill the entire process tree as needed.
 
-NOTE: This is extremely unobvious, but setting a trap on ERR implicitly enables 'set -e'.
+NOTE: This is extremely unobvious, but setting a trap on `ERR` implicitly enables `set -e`.
 END
 die_on_error()
 {
@@ -26,8 +26,8 @@ die_on_error()
 }
 
 opt_usage nodie_on_error <<'END'
-disable the ebash ERR trap handler. Calling this is akin to calling 'set +e'. ebash will no longer detect errors for
-you in this shell.
+`nodie_on_error` disable the ebash `ERR` trap handler. Calling this is akin to calling `set +e`. ebash will no longer
+detect errors for you in this shell.
 END
 nodie_on_error()
 {
@@ -35,18 +35,19 @@ nodie_on_error()
 }
 
 opt_usage exit <<'END'
-Replace normal exit function with our own internal exit function so we can detect abnormal exit conditions through an
-EXIT trap which we setup to ensure die() is called on exit if it didn't go through our own internal exit mechanism.
+`exit` is a replacement for the builtin `exit` function with our own internal `exit` function so we can detect abnormal
+exit conditions through an `EXIT` trap which we setup to ensure `die` is called on exit if it didn't go through our own
+internal exit mechanism.
 
-The primary use case for this trickery is to detect and catch unset variables. With "set -u" turned on, bash
-immediately exits the program -- NOT by calling bash exit function but by calling the C exit(2) function. The problem is
-that even though it exits, it does NOT call the ERR trap. Thus die() doesn't get invoked even though there was a fatal
-error causing abnormal termination. We can catch this scenario by setting up an EXIT trap and invoking die() if exit was
-invoked outside of our internal exit function.
+The primary use case for this trickery is to detect and catch unset variables. With `set -u` turned on, bash immediately
+exits the program -- NOT by calling bash `exit` function but by calling the C `exit(2)` function. The problem is that
+even though it exits, it does NOT call the `ERR` trap. Thus `die` doesn't get invoked even though there was a fatal
+error causing abnormal termination. We can catch this scenario by setting up an `EXIT` trap and invoking `die` if exit
+was invoked outside of our internal exit function.
 
-The other advantage to this approach is that if someone calls exit directly inside bash code sourcing ebash in order to
-gracefully exit they probably do NOT want to see a stacktrace and have die() get invoked. This mechanism will ensure
-that works properly b/c they will go through our internal exit function and that will bypass die().
+The other advantage to this approach is that if someone calls `exit` directly inside bash code sourcing ebash in order to
+gracefully exit they probably do NOT want to see a stacktrace and have `die` get invoked. This mechanism will ensure
+that works properly because they will go through our internal exit function and that will bypass `die`.
 END
 exit()
 {
@@ -58,7 +59,8 @@ exit()
 }
 
 opt_usage disable_die_stacktrace <<'END'
-Convenience mechanism for disabling stacktraces emitted by die(). They can be re-enabled via enable_die_stacktrace.
+`disable_die_stacktrace` is a convenience mechanism for disabling stacktraces emitted by `die`. They can be re-enabled
+via `enable_die_stacktrace`.
 END
 disable_die_stacktrace()
 {
@@ -66,7 +68,8 @@ disable_die_stacktrace()
 }
 
 opt_usage enable_die_stacktrace <<'END'
-Convenience mechanism for enabling stacktraces emitted by die(). They can be disabled disable_die_stacktrace.
+`enable_die_stacktrace` is a convenience mechanism for enabling stacktraces emitted by `die`. They can be disabled via
+`disable_die_stacktrace`.
 END
 enable_die_stacktrace()
 {
@@ -74,7 +77,7 @@ enable_die_stacktrace()
 }
 
 opt_usage die_stacktrace_enabled <<'END'
-Returns success (0) if die() should emit stacktraces and failure (1) otherwise.
+`die_stacktrace_enabled` returns success (0) if `die` should emit stacktraces and failure (1) otherwise.
 END
 die_stacktrace_enabled()
 {
@@ -82,12 +85,12 @@ die_stacktrace_enabled()
 }
 
 opt_usage die <<'END'
-die is our central error handling function for all ebash code which is called on any unhandled error or via the ERR
+`die` is our central error handling function for all ebash code which is called on any unhandled error or via the `ERR`
 trap. It is responsible for printing a stacktrace to STDERR indicating the source of the fatal error and then killing
-our process tree and finally signalling our parent process that we died via SIGTERM. With this careful setup, we do not
-need to do any error checking in our bash scripts. Instead we rely on the ERR trap getting invoked for any unhandled
-error which will call die(). At that point we take extra care to ensure that process and all its children exit with
-error.
+our process tree and finally signalling our parent process that we died via `SIGTERM`. With this careful setup, we do
+not need to do any error checking in our bash scripts. Instead we rely on the `ERR` trap getting invoked for any
+unhandled error which will call `die`. At that point we take extra care to ensure that process and all its children exit
+with error.
 
 You may call die and tell it what message to print upon death if you'd like to produce a descriptive error message.
 END
@@ -129,7 +132,7 @@ die()
 
     else
         echo "" >&2
-        eerror_internal   -c="${COLOR_ERROR}" "${message[*]:-}"
+        __eerror_internal   -c="${COLOR_ERROR}" "${message[*]:-}"
         if [[ ${nostack} -eq 0 ]] ; then
             eerror_stacktrace -c="${COLOR_ERROR}" -f=${frames} -s
         fi
@@ -228,7 +231,7 @@ DIE_SIGNALS=( SIGHUP    SIGINT   SIGQUIT   SIGILL   SIGABRT   SIGFPE   SIGKILL
 TTY_SIGNALS=( SIGINT SIGQUIT SIGTSTP )
 
 opt_usage die_on_abort <<'END'
-Enable default traps for all DIE_SIGNALS to call die().
+Enable default traps for all DIE_SIGNALS to call `die`.
 END
 die_on_abort()
 {
@@ -251,5 +254,3 @@ nodie_on_abort()
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
     trap - ${signals[@]}
 }
-
-return 0

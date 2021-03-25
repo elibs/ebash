@@ -77,5 +77,3 @@ elogrotate()
             -o -type f -name "$(basename "${name}").[0-9]*" \
         | sort --version-sort | awk "NR>${count}" | xargs rm -f
 }
-
-return 0

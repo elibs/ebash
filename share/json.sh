@@ -17,7 +17,7 @@ to_json()
     for _arg in "${@}" ; do
         [[ -n ${_notfirst} ]] && echo -n ","
 
-        _arg_noqual=$(discard_qualifiers ${_arg})
+        _arg_noqual=$(__discard_qualifiers ${_arg})
         echo -n "$(json_escape ${_arg_noqual}):"
         if is_pack ${_arg} ; then
             pack_to_json ${_arg}
@@ -159,7 +159,7 @@ pack_to_json()
         "_pack      | Named pack to operate on.")
 
     local _pack _key _val _notfirst=""
-    _pack=$(discard_qualifiers ${_pack})
+    _pack=$(__discard_qualifiers ${_pack})
     echo -n "{"
 
     for _key in $(pack_keys ${_pack}) ; do
@@ -339,5 +339,3 @@ json_compare_files()
 
     json_compare "$(< "${left}")" "$(< "${right}")"
 }
-
-return 0

@@ -10,9 +10,9 @@
 # Set root of sysfs tree for easier mockability in unit tests
 SYSFS="/sys"
 
-#---------------------------------------------------------------------------------------------------
-# NETWORKING FUNCTIONS
-#---------------------------------------------------------------------------------------------------
+opt_usage valid_ip <<'END'
+Check if a given input is a syntactically valid IP Address.
+END
 valid_ip()
 {
     $(opt_parse ip)
@@ -26,6 +26,9 @@ valid_ip()
     return $stat
 }
 
+opt_usage valid_ip <<'END'
+Convert a given hostname to its corresponding IP Address.
+END
 hostname_to_ip()
 {
     $(opt_parse hostname)
@@ -42,6 +45,9 @@ hostname_to_ip()
     return 0
 }
 
+opt_usage fully_qualify_hostname <<'END'
+Convert the provided hostname into a fully qualified hostname.
+END
 fully_qualify_hostname()
 {
     local hostname=${1,,}
@@ -94,9 +100,10 @@ getnetmask()
 }
 
 opt_usage netmask2cidr <<'END'
-Convert a netmask in IPv4 dotted notation into CIDR notation (e.g 255.255.255.0 => 24). Below is the official chart
+Convert a netmask in IPv4 dotted notation into CIDR notation (e.g `255.255.255.0` => `24`). Below is the official chart
 of all possible valid Netmasks in quad-dotted decimal notation with the associated CIDR value:
 
+```shell
 { "255.255.255.255", 32 }, { "255.255.255.254", 31 }, { "255.255.255.252", 30 }, { "255.255.255.248", 29 },
 { "255.255.255.240", 28 }, { "255.255.255.224", 27 }, { "255.255.255.192", 26 }, { "255.255.255.128", 25 },
 { "255.255.255.0",   24 }, { "255.255.254.0",   23 }, { "255.255.252.0",   22 }, { "255.255.248.0",   21 },
@@ -105,6 +112,7 @@ of all possible valid Netmasks in quad-dotted decimal notation with the associat
 { "255.240.0.0",     12 }, { "255.224.0.0",     11 }, { "255.192.0.0",     10 }, { "255.128.0.0",      9 },
 { "255.0.0.0",        8 }, { "254.0.0.0",        7 }, { "252.0.0.0",        6 }, { "248.0.0.0",        5 },
 { "240.0.0.0",        4 }, { "224.0.0.0",        3 }, { "192.0.0.0",        2 }, { "128.0.0.0",        1 },
+```
 
 From: https://forums.gentoo.org/viewtopic-t-888736-start-0.html
 END
@@ -118,9 +126,9 @@ netmask2cidr ()
 }
 
 opt_usage cidr2netmask <<'END'
-Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. 24 => 255.255.255.0). This function takes input in
-the form of just a singular number (e.g. 24) and will echo to standard output the associated IPv4 dotted notation form
-of that netmask (e.g. 255.255.255.0).
+Convert a netmask in CIDR notation to an IPv4 dotted notation (e.g. `24` => `255.255.255.0`). This function takes input in
+the form of just a singular number (e.g. `24`) and will echo to standard output the associated IPv4 dotted notation form
+of that netmask (e.g. `255.255.255.0`).
 
 See comments in netmask2cidr for a table of all possible netmask/cidr mappings.
 
@@ -135,9 +143,9 @@ cidr2netmask()
 }
 
 opt_usage getbroadcast <<'END'
-Get the broadcast address for the requested interface, if any. It is not an error for a network
-interface not to have a broadcast address associated with it (e.g. loopback interfaces). If no
-broadcast address is set this will just echo an empty string.
+Get the broadcast address for the requested interface, if any. It is not an error for a network interface not to have a
+broadcast address associated with it (e.g. loopback interfaces). If no broadcast address is set this will just echo an
+empty string.
 END
 getbroadcast()
 {
@@ -157,10 +165,9 @@ getgateway()
 }
 
 opt_usage getsubnet <<'END'
-Compute the subnet given the current IPAddress (ip) and Netmask (nm). If either the provided
-IPAddress or Netmask is empty then we cannot compute the subnet. As it's not an error to have no
-IPAddress or Netmask assigned to an unbound interface, getsubnet will not fail in this case. The
-output will be an empty string and it will return 0.
+Compute the subnet given the current IPAddress (ip) and Netmask (nm). If either the provided IPAddress or Netmask is
+empty then we cannot compute the subnet. As it's not an error to have no IPAddress or Netmask assigned to an unbound
+interface, getsubnet will not fail in this case. The output will be an empty string and it will return 0.
 END
 getsubnet()
 {
@@ -324,13 +331,14 @@ stored in the variable passed to the function.
 
 For example:
 
-    declare -A ports
-    get_listening_ports ports
-    einfo $(lval %ports[5])
-    >> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
-    einfo $(lval %ports[42])
-    ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
-
+```shell
+declare -A ports
+get_listening_ports ports
+einfo $(lval %ports[5])
+>> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
+einfo $(lval %ports[42])
+ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
+```
 END
 get_network_ports()
 {
@@ -465,5 +473,3 @@ netselect()
 
     echo -en "${best}"
 }
-
-return 0

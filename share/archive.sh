@@ -8,37 +8,37 @@
 # version.
 
 #-----------------------------------------------------------------------------------------------------------------------
-# ARCHIVE.SH
-#
-# archive.sh is a generic module for dealing with various archive formats in a generic and consistent manner. It also
-# provides some really helpful and missing functionality not provided by upstream tools.
-#
-# At present the list of supported archive formats is as follows:
-#
-# SQUASHFS: Squashfs is a compressed read-only filesystem for Linux. Squashfs intended for general read-only filesystem
-# use, for archival use and in constrained block device/memory systems where low overhead is needed. Squashfs images are
-# rapidly becoming a very common medium used throughout our build, install, test and upgrade code due to their high
-# compressibility, small resultant size, massive parallelization on both create and unpack and that they can be directly
-# mounted and booted into.
-#
-# ISO: An ISO image is an archive file of an optical disc, a type of disk image composed of the data contents from every
-# written sector on an optical disc, including the optical disc file system. The name ISO is taken from the ISO
-# 9660 file system used with CD-ROM media, but what is known as an ISO image can contain other file systems.
-#
-# TAR: A tar file is an archive file format that may or may not be compressed. The archive data sets created by tar
-# contain various file system parameters, such as time stamps, ownership, file access permissions, and directory
-# organization. Our archive_compress_program function is used to generalize our use of tar so that compression format is
-# handled seamlessly based on the file extension in a way which picks the best compression program at runtime.
-#
-# CPIO: "cpio is a general file archiver utility and its associated file format. It is primarily installed on Unix-like
-# computer operating systems. The software utility was originally intended as a tape archiving program as part of the
-# Programmer's Workbench (PWB/UNIX), and has been a component of virtually every Unix operating system released
-# thereafter. Its name is derived from the phrase copy in and out, in close description of the program's use of standard
-# input and standard output in its operation. All variants of Unix also support other backup and archiving programs,
-# such as tar, which has become more widely recognized.[1] The use of cpio by the RPM Package Manager, in the initramfs
-# program of Linux kernel 2.6, and in Apple Computer's Installer (pax) make cpio an important archiving tool"
-# (https://en.wikipedia.org/wiki/Cpio).
-#-----------------------------------------------------------------------------------------------------
+opt_usage module_archive << 'END'
+archive.sh is a generic module for dealing with various archive formats in a generic and consistent manner. It also
+provides some really helpful and missing functionality not provided by upstream tools.
+
+At present the list of supported archive formats is as follows:
+
+* SQUASHFS: Squashfs is a compressed read-only filesystem for Linux. Squashfs intended for general read-only filesystem
+use, for archival use and in constrained block device/memory systems where low overhead is needed. Squashfs images are
+rapidly becoming a very common medium used throughout our build, install, test and upgrade code due to their high
+compressibility, small resultant size, massive parallelization on both create and unpack and that they can be directly
+mounted and booted into.
+
+* ISO: An ISO image is an archive file of an optical disc, a type of disk image composed of the data contents from every
+written sector on an optical disc, including the optical disc file system. The name ISO is taken from the ISO
+9660 file system used with CD-ROM media, but what is known as an ISO image can contain other file systems.
+
+* TAR: A tar file is an archive file format that may or may not be compressed. The archive data sets created by tar
+contain various file system parameters, such as time stamps, ownership, file access permissions, and directory
+organization. Our archive_compress_program function is used to generalize our use of tar so that compression format is
+handled seamlessly based on the file extension in a way which picks the best compression program at runtime.
+
+* CPIO: "cpio is a general file archiver utility and its associated file format. It is primarily installed on Unix-like
+computer operating systems. The software utility was originally intended as a tape archiving program as part of the
+Programmer's Workbench (PWB/UNIX), and has been a component of virtually every Unix operating system released
+thereafter. Its name is derived from the phrase copy in and out, in close description of the program's use of standard
+input and standard output in its operation. All variants of Unix also support other backup and archiving programs,
+such as tar, which has become more widely recognized.[1] The use of cpio by the RPM Package Manager, in the initramfs
+program of Linux kernel 2.6, and in Apple Computer's Installer (pax) make cpio an important archiving tool"
+(https://en.wikipedia.org/wiki/Cpio).
+END
+#-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage archive_suffixes <<'END'
 Echo a list of the supported archive suffixes for the optional provided type. If no type is given it returns a unified
@@ -192,12 +192,12 @@ if [[ ${__EBASH_OS} != "Linux" ]] ; then
     return 0
 fi
 
-opt_usage archive_create <<END
+opt_usage archive_create <<'END'
 Generic function for creating an archive file of a given type from the given list of source paths and write it out to
 the requested destination directory. This function will intelligently figure out the correct archive type based on the
 suffix of the destination file.
 
-${PATH_MAPPING_SYNTAX_DOC}
+This function suports the `PATH_MAPPING_SYNTAX` as described in [mount](mount.md).
 
 You can also optionally exclude certain paths from being included in the resultant archive. Unfortunately, each of the
 supported archive formats have different levels of support for excluding via filename, glob or regex. So, to provide a
@@ -696,13 +696,13 @@ archive_list()
     fi | sort --unique | sed '/^$/d'
 }
 
-opt_usage archive_append <<END
+opt_usage archive_append <<'END'
 Append a given list of paths to an existing archive atomically. The way this is done atomically is to do all the work on
 a temporary file and only move it over to the final file once all the append work is complete. The reason we do this
 atomically is to ensure that we never have a corrupt or half written archive which would be unusable. If the destination
 archive does not exist this will implicitly call archive_create much like 'cat foo >> nothere'.
 
-${PATH_MAPPING_SYNTAX_DOC}
+This function suports the `PATH_MAPPING_SYNTAX` as described in [mount](mount.md).
 
 NOTE: The implementation of this function purposefully doesn't use native --append functions in the various archive
 formats as they do not all support it. The ones which do support append do not implement in a remotely sane manner. You
@@ -855,5 +855,3 @@ archive_mount()
         archive_extract "${src}" "${dest}"
     fi
 }
-
-return 0

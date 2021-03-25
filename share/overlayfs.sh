@@ -10,16 +10,16 @@
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
 #-----------------------------------------------------------------------------------------------------------------------
-# OVERLAYFS
-#
-# The overlayfs module is the ebash interface around OverlayFS mounts. This is a really useful filesystem that allows
-# layering mounts into a single unified mount point with read-through semantics. This is the first official kernel
-# filesystem providing this functionality which replaces prior similar filesystems such as unionfs, aufs, etc.
-#
-# The implementation of the underlying kernel driver changed somewhat with different kernel versions. The first version
-# of the kernel which officially supported overlayfs was 3.18. This original API requires specifying the workdir option
-# for the scratch work performed by overlayfs. Overlayfs was available in older kernel versions but was not official and
-# did not have this additional "workdir" option.
+opt_usage module_overlayfs <<'END'
+The overlayfs module is the ebash interface around OverlayFS mounts. This is a really useful filesystem that allows
+layering mounts into a single unified mount point with read-through semantics. This is the first official kernel
+filesystem providing this functionality which replaces prior similar filesystems such as unionfs, aufs, etc.
+
+The implementation of the underlying kernel driver changed somewhat with different kernel versions. The first version
+of the kernel which officially supported overlayfs was 3.18. This original API requires specifying the workdir option
+for the scratch work performed by overlayfs. Overlayfs was available in older kernel versions but was not official and
+did not have this additional "workdir" option.
+END
 #-----------------------------------------------------------------------------------------------------------------------
 
 # Older kernel versions used the filesystem type 'overlayfs' whereas newer ones use just 'overlay' so dynamically
@@ -543,5 +543,3 @@ overlayfs_dedupe()
     # changes will be observed in the final mount point properly.
     emount -o remount "${mnt}"
 }
-
-return 0

@@ -1,4 +1,5 @@
 .bash_history
+doc/module
 etest.log*
 etest.html
 etest.json*

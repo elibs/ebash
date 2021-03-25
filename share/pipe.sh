@@ -49,5 +49,3 @@ pipe_read_quote()
         echo -n ""
     fi
 }
-
-return 0
