@@ -8,12 +8,13 @@ jobs:
 
   PublishDocs:
     runs-on: ubuntu-latest
+
+    container:
+      image: "alpine:latest"
+      options: --init --interactive --privileged --tty
+
     steps:
       - uses: actions/checkout@v2
-
-      - container:
-          image: "alpine:latest"
-          options: --init --interactive --privileged --tty
 
       - name: Install Dependencies
         run: bin/ebash-install-deps
