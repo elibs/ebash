@@ -379,7 +379,9 @@ emock_return_code()
 #-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage assert_emock_called <<'END'
-`assert_emock_called` is used to assert that a mock is called the expected number of times. For example:
+`assert_emock_called` is used to assert that a mock is called the expected number of times.
+
+For example:
 
 ```shell
 assert_emock_called "func" 25
