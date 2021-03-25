@@ -1,5 +1,4 @@
 [etest]
-log_dir = .
-work_dir = output
-tests = unittest
-
+log_dir = .work
+work_dir = .work/output
+tests = tests/unit
