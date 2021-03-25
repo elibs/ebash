@@ -11,8 +11,6 @@
 __EBASH_SAVE_DOC=1
 source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
-efreshdir "doc"
-
 # Pretend that this is ubuntu 16.04, whether it is or not
 os() { [[ ${1,,} == linux ]] && return 0 || return 1 ; }
 lsb_release() { echo "16.04" ; }
@@ -24,6 +22,11 @@ lsb_release() { echo "16.04" ; }
 } > edoc.sh
 trap_add "rm edoc.sh"
 
+dir="doc/module"
+efreshdir "${dir}"
+mkdir -p "${dir}"
+echo "# Modules" > "${dir}/index.md"
+
 for module in ${EBASH}/*.sh; do
 
     name=$(basename ${module} .sh)
@@ -33,8 +36,7 @@ for module in ${EBASH}/*.sh; do
     fi
 
     ebanner "${name}"
-    dir="doc/module"
-    mkdir -p "${dir}"
+    echo "[${name}](${name}.md)<br>" >> "${dir}/index.md"
     printf "# Module ${name}\n\n" > "${dir}/${name}.md"
 
     # Try to get any module level documentation (if any)
@@ -48,6 +50,19 @@ for module in ${EBASH}/*.sh; do
         awk '/^END/ {exit} /: <</ {f=1; next} f' share/opt.sh >> "${dir}/opt.md"
     fi
 
+    ## ALIASES ##
+    for alias in $(env -i bash -c "source edoc.sh; source ${module}; alias | awk -F'=' '/^alias / {print \$1}' | sed 's|alias ||'"); do
+
+        if [[ -v __EBASH_DOC[$alias] ]]; then
+            einfo "Alias:    ${alias}"
+            {
+                printf "\n## alias ${alias}\n\n"
+                echo "${__EBASH_DOC[$alias]}"
+            } >> "${dir}/${name}.md"
+        fi
+    done
+
+    ## FUNCTIONS ##
     for function in $(env -i bash -c "source edoc.sh; source ${module}; declare -F" | sed -e 's|declare -f\S* ||' | tr ' ' '\n'); do
 
         if [[ "${function}" == "os" || "${function:0:1}" == "_" ]]; then
@@ -56,18 +71,16 @@ for module in ${EBASH}/*.sh; do
 
         # See if there is opt_usage for this function
         if [[ -v __EBASH_DOC[$function] ]]; then
-            einfo "${function}"
+            einfo "Function: ${function}"
             {
                 printf "\n## func ${function}\n\n"
 
-                helptext=""
-                if ! helptext=$(${function} --help 2>&1); then
-                    helptext=${__EBASH_DOC[$function]}
+                if declare -pf "${function}" | grep --quiet '$(opt_parse '; then
+                    ${function} --help 2>&1 | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
+                                                  -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```Groff\n\1\2\n```/'
+                else
+                    echo "${__EBASH_DOC[$function]}"
                 fi
-
-                echo "${helptext}" \
-                    | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
-                          -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```\n\1\2\n```/'
             } >> "${dir}/${name}.md"
         fi
     done

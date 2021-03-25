@@ -37,8 +37,53 @@
 #   2) Emsg and other message producing internals (but not the message functions like edebug, einfo)
 #   3) Internals of die and stack generation (but leaving some parts of die so it's more clear what is happening.)
 #   4) Signame, which does translations amongst signal names in various styles and signal numbers.
-: ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|string_trim|print_value|lval|disable_signals|reenable_signals|eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
+: ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|string_trim|print_value|lval|disable_signals|reenable_signals|__eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
 
+opt_usage etrace <<'END'
+`etrace` is an extremely powerful debugging technique. It essentially allows you to selectively emit a colorized
+debugging message for **every line of code executed by ebash** without having to modify the source code and sprinkle it
+with lots of explicit debugging messages. This means you can dynamically debug code in the field without having to make
+and source code changes.
+
+This is similar to the builtin bash `set -x` option. But ebash takes this a little further by using selective controls
+for command tracing rather than blanket turning on `set -x` for the entire process lifetime. Additionally, the messages
+are prefixed with a configurable color message showing the filename, line number, function name, and PID of the caller.
+The color can be configured via `${COLOR_TRACE}`.
+
+For example, suppose I h ave the following script:
+
+```shell
+#!/bin/bash
+
+$(etrace --source)
+
+echo "Hi"
+a=alpha
+b=beta
+echo "$(lval a b)"
+```
+
+You can now run the above script with `etrace` enabled and get the following output. Not that rather than just the
+**command** being printed as you'd get with `set -x`, etraces emits the file, line number and process PID:
+
+```shell
+> ETRACE=etrace_test ./etrace_test
+[etrace_test:6:main:24467] echo "Hi"
+Hi
+[etrace_test:7:main:24467] a=alpha
+[etrace_test:8:main:24467] b=beta
+[etrace_test:9:main:24467] echo "$(lval a b)"
+[etrace_test:9:main:25252] lval a b
+a="alpha" b="beta"
+```
+
+Like `EDEBUG`, `ETRACE` is a space-separated list of patterns which will be matched against your current filename and
+function name.  The etrace functionality has a much higher overhead than does running with edebug enabled, but it can be
+immensely helpful when you really need it.
+
+One caveat: you can’t change the value of ETRACE on the fly.  The value it had when you sourced ebash is the one that
+will affect the entire runtime of the script.
+END
 etrace()
 {
     # This function returns as soon as it can decide that tracing should not happen. If it makes its way to the end,
@@ -77,6 +122,20 @@ etrace()
     } >&2
 }
 
+opt_usage edebug_enabled <<'END'
+`edebug_enabled` is a convenience function to check if edebug is currently enabled for the context the caller is calling
+from. This will return success (0) if `edebug` is enabled, and failure (1) if not. This can then be used to perform
+conditional code depending on if debugging is enabled or not.
+
+For example:
+
+```shell
+if edebug_enabled; then
+    dmesg > dmesg.out
+    ip    > ip.out
+fi
+```
+END
 edebug_enabled()
 {
     [[ -n ${1:-} ]] && die "edebug_enabled does not support arguments."
@@ -107,11 +166,45 @@ edebug_enabled()
     return 1
 }
 
+opt_usage edebug_disabled <<'END'
+`edebug_disabled` is the logical analogue of `edebug_enabled`. It returns success (0) if debugging is disabled and
+failure (1) if it is enabled.
+END
 edebug_disabled()
 {
     ! edebug_enabled
 }
 
+opt_usage edebug <<'END'
+`edebug` is a powerful debugging mechanism to conditionally emit **selective** debugging messages that are statically
+in the source code based on the `EDEBUG` environment variable. By default, `edebug` messages will not produce any output.
+Moreover, they do not add any overhead to the code as we return immediately from the `edebug` function if debugging is
+not enabled.
+
+For example, suppose I have the following in my source code:
+
+```shell
+edebug "foo just borked rc=${rc}"
+```
+
+You can activate the output from these `edebug` statements either wholesale or selectively by setting an environment
+variable. Setting `EDEBUG=1` will turn on all `edebug` output everywhere.  We use this pervasively, so that is probably
+going to way too much noise.
+
+Instead of turning everything on, you can turn on `edebug` just for code in certain files or functions. For example,
+using `EDEBUG="dtest dmake"` will turn on debugging for any `edebug` statements in any scripts named `dtest` or `dmake`
+or any functions named `dtest` or `dmake`.
+
+Another powerful feature `edebug` supports is to send the entire output of another command into `edebug` without having
+to put an `if` statement around it and worrying about sending the output to STDERR. This is super easy to do:
+
+```shell
+cmd | edebug
+```
+
+The value of `EDEBUG` is actually a space-separated list of terms. If any of those terms match the filename (just
+basename) **or** the name of the function that contains an `edebug` statement, it will generate output.
+END
 edebug()
 {
     # Take input either from arguments or if no arguments were provided take input from standard input.
@@ -138,16 +231,20 @@ edebug_out()
     edebug_enabled && echo -n "/dev/stderr" || echo -n "/dev/null"
 }
 
-# Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
-# This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
-# global variable EINTERACTIVE=1.
+opt_usage einteractive <<'END'
+Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
+This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
+global variable EINTERACTIVE=1.
+END
 einteractive()
 {
     [[ ${EINTERACTIVE:-0} -eq 1 ]] && return 0
     [[ -t 2 ]]
 }
 
-# Get einteractive value as a boolean string
+opt_usage einteractive_as_bool <<'END'
+Get einteractive value as a boolean string
+END
 einteractive_as_bool()
 {
     if einteractive; then
@@ -157,6 +254,10 @@ einteractive_as_bool()
     fi
 }
 
+opt_usage ecolor_code <<'END'
+`ecolor_code` is used to map human color names like `black` to the corresponding ANSII color escape code (e.g. `0`).
+This function supports the full 256 ANSII color code space.
+END
 ecolor_code()
 {
    case $1 in
@@ -244,8 +345,10 @@ ecolor_code()
    return 0
 }
 
-# Determine value to use for efuncs_color.
-# If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
+opt_usage efuncs_color <<'END'
+Determine value to use for efuncs_color. If `EFUNCS_COLOR` is empty then set it based on if STDERR is attached to a
+console or not.
+END
 efuncs_color()
 {
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
@@ -257,7 +360,9 @@ efuncs_color()
     [[ ${value} -eq 1 ]]
 }
 
-# Get efuncs_color as a boolean string.
+opt_usage efuncs_color_as_bool <<'END'
+Get efuncs_color as a boolean string.
+END
 efuncs_color_as_bool()
 {
     if efuncs_color; then
@@ -267,6 +372,14 @@ efuncs_color_as_bool()
     fi
 }
 
+opt_usage ecolor <<'END'
+`ecolor` is used to take a human color term such as `black` or with descriptors such as `bold black` and emit the ANSII
+escape sequences needed to print to the screen to produce the desired color. Since we use a LOT of color messages
+through ebash, this function caches the color codes in an associative array to avoid having to lookup the same values
+repeatedly.
+
+NOTE: If `EFUNCS_COLOR` is set to 0, then this function is disabled and will not return any ANSII escape sequences.
+END
 ecolor()
 {
     ## If EFUNCS_COLOR is empty then set it based on if STDERR is attached to a console
@@ -324,11 +437,19 @@ noansi()
     fi
 }
 
+opt_usage eclear <<'END'
+`eclear` is used to clear the screen. But it's more portable than the standard `clear` command as it uses `tput` to
+lookup the correct escape sequence needed to clear your terminal.
+END
 eclear()
 {
     tput clear >&2
 }
 
+opt_usage etimestamp <<'END'
+`etimestamp` is used to emit a timestamp in a standard format that we use through ebash. The format that we used is
+controlled via `ETIMESTAMP_FORMAT` and defaults to `RFC3339`.
+END
 etimestamp()
 {
     if [[ "${ETIMESTAMP_FORMAT:-}" == "StampMilli" ]]; then
@@ -340,6 +461,10 @@ etimestamp()
     fi
 }
 
+opt_usage etimestamp_rfc3339 <<'END'
+`etimestamp_rfc3339` is a more explicit version of `etimestamp` which emits the time format in `RFC3339` format regardless
+of the value of `ETIMESTAMP_FORMAT`.
+END
 etimestamp_rfc3339()
 {
     echo -en $(date '+%FT%TZ')
@@ -442,6 +567,35 @@ ebanner()
     return 0
 }
 
+opt_usage emsg <<'END'
+`emsg` is a common function called by all logging functions inside ebash to allow a very configurable and extensible
+logging format throughout all ebash code. The extremely configrable formatting of all ebash logging is controllable via
+the `EMSG_PREFIX` environment variable.
+
+Here are some examples showcasing how configurable this is:
+
+```shell
+> EMSG_PREFIX=time ~/ebash_guide
+[Nov 12 13:31:16] einfo
+[Nov 12 13:31:16] ewarn
+[Nov 12 13:31:16] eerror
+
+> EMSG_PREFIX=all ./ebash_guide
+[Nov 12 13:24:19|INFO|ebash_guide:6:main] einfo
+[Nov 12 13:24:19|WARN|ebash_guide:7:main] ewarn
+[Nov 12 13:24:19|ERROR|ebash_guide:8:main] eerror
+```
+
+In the above you can the timestamp, log level, function name, line number, and filename of the code that generated the
+message.
+
+Here's the full list of configurable things you can turn on:
+* time
+* level
+* caller
+* pid
+* all
+END
 emsg()
 {
     {
@@ -538,12 +692,14 @@ emsg()
     } >&2
 }
 
+opt_usage tput <<'END'
+`tput` is a wrapper around the real `tput` command that allows us more control over how to deal with `COLUMNS` not being
+set properly in non-interactive environments such as our CI/CD build system. We also allow explicitly setting `COLUMNS`
+to something and honoring that and bypassing calling `tput`. This is useful in our CI/CD build systems where we do not
+have a console so `tput cols` would return an error.
+END
 tput()
 {
-    # If we are looking for the number of columns and it's been explicitly set just use that instead of going to tput.
-    # This allows us greater control over the number of columns we want to display in this scenario instead of
-    # defaulting to 80.
-    #if ! einteractive && [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]]; then
     if [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]]; then
         echo "${COLUMNS}"
         return 0
@@ -552,37 +708,67 @@ tput()
     command tput $@ || true
 }
 
+opt_usage einfo <<'END'
+`einfo` is used to log informational messages to STDERR. They are prefixed with `>>` in `COLOR_INFO` which is `green` by
+default. `einfo` is called just like you would normally call `echo`.
+END
 einfo()
 {
     emsg "${COLOR_INFO}" ">>" "INFO" "$@"
 }
 
+opt_usage einfos <<'END'
+`einfos` is used to log informational **sub** messages to STDERR. They are intdented and prefixed with a `-` in
+`COLOR_INFOS` which is `cyan` by default. `einfos` is called just like you would normally call `echo`. This is designed
+to line up underneath `einfo` messages to show submessages.
+END
 einfos()
 {
     emsg "${COLOR_INFO}" "   -" "INFOS" "$@"
 }
 
+opt_usage ewarn <<'END'
+`ewarn` is used to log warning messages to STDERR. They are prefixed with `>>` in `COLOR_WARN` which is `yellow` by
+default. `ewarn` is called just like you would normally call `echo`.
+END
 ewarn()
 {
     emsg "${COLOR_WARN}" ">>" "WARN" "$@"
 }
 
+opt_usage ewarns <<'END'
+`ewarns` is used to log warning **sub** messages to STDERR. They are intdented and prefixed with a `-` in `COLOR_WARNS`
+which is `yellow` by default. `ewarns` is called just like you would normally call `echo`. This is designed to line up
+underneath `einfo` or `ewarn` messages to show submessages.
+END
 ewarns()
 {
     emsg "${COLOR_WARN}" "   -" "WARNS" "$@"
 }
 
-eerror_internal()
+opt_usage __eerror_internal <<'END'
+`__eerror_internal` is an internal helper method to help make calling `eerror` more reusable internally.
+END
+__eerror_internal()
 {
     $(opt_parse ":color c=${COLOR_ERROR} | Color to print the message in.")
     emsg "${color}" ">>" "ERROR" "$@"
 }
 
+opt_usage eerror <<'END'
+`eerror` is used to log error messages to STDERR. They are prefixed with `!!` in `COLOR_ERROR` which is `red` by
+default. `eerror` is called just like you would normally call `echo`.
+END
 eerror()
 {
     emsg "${COLOR_ERROR}" ">>" "ERROR" "$@"
 }
 
+opt_usage etestmsg <<'END'
+`etestmsg` is used to log informational testing related messages to STDERR. This is typically used inside `etest` test
+code. These log messages are prefixed with `##` in `cyan`. `etestmsg` is called just like you would normally call
+`echo`.
+END
 etestmsg()
 {
     EMSG_COLOR="all" emsg "cyan" "##" "WARN" "$@"
@@ -604,7 +790,7 @@ eerror_stacktrace()
 
     if [[ ${skip} -eq 0 ]]; then
         echo "" >&2
-        eerror_internal -c="${color}" "$@"
+        __eerror_internal -c="${color}" "$@"
     fi
 
     local frames=() frame
@@ -626,6 +812,10 @@ eerror_stacktrace()
     done
 }
 
+opt_usage eend <<'END'
+`eend` is used to print an informational ending message suitable to be called after an `emsg` function. The format of
+this message is dependent upon the `return_code`. If `0`, this will print `[ ok ]` and if non-zero it will print `[ !! ]`.
+END
 eend()
 {
     $(opt_parse \
@@ -670,6 +860,9 @@ eend()
     fi
 }
 
+opt_usage spintout <<'END'
+`spinout` is used to print a spinner to STDERR and is used by various function such as `eprogress`.
+END
 spinout()
 {
     local char="$1"
@@ -677,6 +870,17 @@ spinout()
     sleep 0.10
 }
 
+opt_usage eprogress <<'END'
+`eprogress` is used to print a progress bar to STDERR in a highly configurable format. The typical use case for this is
+to handle very long-running commands and give the user some indication that the command is still in-progress rather than
+hung. The ticker can be customized:
+
+* Disabled entirely using `EPROGRESS=0`
+* Show on the left or right via `--align`
+* Change how often it is printed via `--delay`
+* Show the **timer** but not the **spinner** via `--no-spinner`
+* Display contents of a **file** on each iteration
+END
 eprogress()
 {
     $(opt_parse \
@@ -884,9 +1088,9 @@ Specifically:
   3) Packs: You must preceed the pack name with a percent sign (i.e. %pack)
 
 Examples:
-  1) String: "value1"
-  2) Arrays: ("value1" "value2 with spaces" "another")
-  3) Associative Arrays: ([key1]="value1" [key2]="value2 with spaces" )
+  1) String: `"value1"`
+  2) Arrays: `("value1" "value2 with spaces" "another")`
+  3) Associative Arrays: `([key1]="value1" [key2]="value2 with spaces" )`
 END
 print_value()
 {

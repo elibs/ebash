@@ -192,12 +192,12 @@ if [[ ${__EBASH_OS} != "Linux" ]] ; then
     return 0
 fi
 
-opt_usage archive_create <<END
+opt_usage archive_create <<'END'
 Generic function for creating an archive file of a given type from the given list of source paths and write it out to
 the requested destination directory. This function will intelligently figure out the correct archive type based on the
 suffix of the destination file.
 
-${PATH_MAPPING_SYNTAX_DOC}
+This function suports the `PATH_MAPPING_SYNTAX` as described in [mount](mount.md).
 
 You can also optionally exclude certain paths from being included in the resultant archive. Unfortunately, each of the
 supported archive formats have different levels of support for excluding via filename, glob or regex. So, to provide a
@@ -696,13 +696,13 @@ archive_list()
     fi | sort --unique | sed '/^$/d'
 }
 
-opt_usage archive_append <<END
+opt_usage archive_append <<'END'
 Append a given list of paths to an existing archive atomically. The way this is done atomically is to do all the work on
 a temporary file and only move it over to the final file once all the append work is complete. The reason we do this
 atomically is to ensure that we never have a corrupt or half written archive which would be unusable. If the destination
 archive does not exist this will implicitly call archive_create much like 'cat foo >> nothere'.
 
-${PATH_MAPPING_SYNTAX_DOC}
+This function suports the `PATH_MAPPING_SYNTAX` as described in [mount](mount.md).
 
 NOTE: The implementation of this function purposefully doesn't use native --append functions in the various archive
 formats as they do not all support it. The ones which do support append do not implement in a remotely sane manner. You

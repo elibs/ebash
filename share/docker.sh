@@ -24,10 +24,10 @@ EBASH_DOCKER_REGISTRY="https://index.docker.io/v1/"
 : ${DOCKER_REGISTRY:=${EBASH_DOCKER_REGISTRY}}
 
 opt_usage docker_build <<'END'
-docker_build is used to intelligently build a docker image from a Dockerfile using an external cache docker registry/repo
-which may be the same or different from the production registry/repo. For example, we typically have a dedicated
-registry/repo for CI/CD images which are treated only as a cache and can be prunned or blown away entirely as needed. We
-have a separate registry/repo for our official released builds which we want to keep uncluttered.
+`docker_build` is used to intelligently build a docker image from a Dockerfile using an external cache docker
+registry/repo which may be the same or different from the production registry/repo. For example, we typically have a
+dedicated registry/repo for CI/CD images which are treated only as a cache and can be prunned or blown away entirely as
+needed. We have a separate registry/repo for our official released builds which we want to keep uncluttered.
 
 The main functionality added by docker_build is to avoid building redudant, identical docker images. The most common use
 case here is lots of git branches all trying to build and tag docker images which are essentially identical. Even with
@@ -47,8 +47,7 @@ captures the content of the provided Dockerfile as well as any files which are d
 directives in the Dockerfile as well as any build arguements. We then simply use that dynamically generated content
 based tag to easily be able to look for the image in the cache repository. For more details see docker_depends_sha.
 
-Overlay Modules
-===============
+### Overlay Modules
 
 docker_build supports the concept of overlay modules which facilitates copying files into the resulting docker image
 that we build. The purpose of this is to provide dockerized versions of things that would otherwise not work properly
@@ -91,10 +90,8 @@ Finally, you can install your own custom overlay files via --overlay-tree=<path>
 will be copied into the root of the created container. For example, if you had "overlay/usr/local/bin/foo" and you
 called "docker_build --overlay-tree overlay" then inside the container you will have "/usr/local/bin/foo".
 
-Notes
-=====
-(1) If you want to push any tags you need to provide --username and --password arguments or have DOCKER_USERNAME and
-DOCKER_PASSWORD environment variables set.
+If you want to push any tags you need to provide `--username` and `--password` arguments or have `DOCKER_USERNAME` and
+`DOCKER_PASSWORD` environment variables set.
 
 END
 docker_build()
@@ -227,9 +224,9 @@ docker_build()
     cp "${shafile_detail}" "${shafile_detail_prev}"
 }
 
-opt_usage docker_pull<<'END'
-docker_pull is an intelligent wrapper around vanilla "docker pull" which integrates more nicely with ebash. In addition
-to the normal additional error checking and hardening the ebash variety brings, this also provide the following
+opt_usage docker_pull <<'END'
+`docker_pull` is an intelligent wrapper around vanilla `docker pull` which integrates more nicely with ebash. In
+addition to the normal additional error checking and hardening the ebash variety brings, this also provide the following
 functionality:
 
     1) Seamlessly login to docker registry before pushing as-needed.
@@ -298,8 +295,8 @@ docker_pull()
 }
 
 opt_usage docker_push<<'END'
-docker_push is an intelligent wrapper around vanilla "docker push" which integrates more nicely with ebash. In addition
-to the normal additional error checking and hardening the ebash variety brings, this also provide the following
+`docker_push` is an intelligent wrapper around vanilla `docker push` which integrates more nicely with ebash. In
+addition to the normal additional error checking and hardening the ebash variety brings, this also provide the following
 functionality:
 
     1) Seamlessly login to docker registry before pushing as-needed.
@@ -335,7 +332,7 @@ docker_push()
 }
 
 opt_usage docker_image_exists <<'END'
-docker_image_exists is a simple function to easily check if a remote docker image exists. This makes use of an
+`docker_image_exists` is a simple function to easily check if a remote docker image exists. This makes use of an
 experimental feature in docker cli to be able to inspect a remote manifest without having to first pull it.
 END
 docker_image_exists()
@@ -347,8 +344,8 @@ docker_image_exists()
 }
 
 opt_usage docker_depends_sha<<'END'
-docker_depends_sha is used to compute the dependency SHA for a dockerfile as well as any additional files it copies into
-the resulting docker image (including overlay modules and overlay_tree files) and also and build arguments used to
+`docker_depends_sha` is used to compute the dependency SHA for a dockerfile as well as any additional files it copies
+into the resulting docker image (including overlay modules and overlay_tree files) and also and build arguments used to
 create it. This is used by docker_build to avoid building docker images when none of the dependencies have changed.
 
 This function will create some output state files underneath ${workdir}/docker/$(basename ${name}) that are used
@@ -387,7 +384,7 @@ docker_depends_sha()
 }
 
 opt_usage __docker_depends_sha <<'END'
-__docker_depends_sha is the internal implementation function implementing the algorithm described in docker_depends_sha.
+`__docker_depends_sha` is the internal implementation function implementing the algorithm described in docker_depends_sha.
 The actual implementation is broken out into this internal-only function for better code reuse and testability.
 END
 __docker_depends_sha()
@@ -500,7 +497,7 @@ __docker_depends_sha()
 }
 
 opt_usage __docker_depends_sha_variables<<'END'
-__docker_depends_sha_variables is an internal only function which provides a central function for declaring all the
+`__docker_depends_sha_variables` is an internal only function which provides a central function for declaring all the
 internally used dependency SHA variables used throughout the docker module.
 END
 __docker_depends_sha_variables()
@@ -524,9 +521,9 @@ __docker_depends_sha_variables()
 }
 
 opt_usage docker_export <<'END'
-docker_export is a wrapper around "docker export" to make it more seamless to convert a provided docker image to various
-archive formats. This code intentionally does not use ebash archive module as that is too heavy weight for our needs and
-also requires the caller to be root to do the bind mounting.
+`docker_export` is a wrapper around `docker export` to make it more seamless to convert a provided docker image to
+various archive formats. This code intentionally does not use ebash archive module as that is too heavy weight for our
+needs and also requires the caller to be root to do the bind mounting.
 END
 docker_export()
 {
