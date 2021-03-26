@@ -12,7 +12,7 @@ $(${EBASH_HOME}/bin/ebash --source)
 #-----------------------------------------------------------------------------------------------------------------------
 # SANITY TEST OF DIE FUNCTIONALITY
 #
-# NOTE: This is intentionally NOT an etest.  This script must be run in its own TOP-LEVEL shell to be able to test
+# NOTE: This is intentionally NOT an etest. This script must be run in its own TOP-LEVEL shell to be able to test
 # whether die_handler works, because die_handler is only called in the top level shell level.
 #
 # It's run early on by the etest framework, because if die doesn't work, etest isn't likely to work either.

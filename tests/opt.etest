@@ -695,16 +695,16 @@ ETEST_opt_parse_help()
     assert_match "${usage}" "Units of tender"
     assert_match "${usage}" "degrees of value"
 
-    # This check is dependant on the specific output format.  You might have to adjust it for reality if you change, for
+    # This check is dependant on the specific output format. You might have to adjust it for reality if you change, for
     # instance, the number of columns of output produced by opt_display_usage
     etestmsg "Verify that the super-long docstring is broken into lines differently than it"
-    etestmsg "is in the code.  In other words that opt_parse formats it appropriately to fit"
+    etestmsg "is in the code. In other words that opt_parse formats it appropriately to fit"
     etestmsg "available space."
     assert_match "${usage}" "docstring which"
 
     etestmsg "Further verify the first line"
     # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right info (because it was
-    # displayed above in the log).  Not sure what happened there, but the following statements will still catch errors
+    # displayed above in the log). Not sure what happened there, but the following statements will still catch errors
     # even if we ignore the failure in head.
     local firstline=""
     firstline=$(echo "${usage}" | head -n 3 | tail -n 1 || true)
@@ -757,16 +757,16 @@ ETEST_opt_parse_help_short()
     assert_match "${usage}" "Units of tender"
     assert_match "${usage}" "degrees of value"
 
-    # This check is dependant on the specific output format.  You might have to adjust it for reality if you change, for
+    # This check is dependant on the specific output format. You might have to adjust it for reality if you change, for
     # instance, the number of columns of output produced by opt_display_usage
     etestmsg "Verify that the super-long docstring is broken into lines differently than it"
-    etestmsg "is in the code.  In other words that opt_parse formats it appropriately to fit"
+    etestmsg "is in the code. In other words that opt_parse formats it appropriately to fit"
     etestmsg "available space."
     assert_match "${usage}" "docstring which"
 
     etestmsg "Further verify the first line"
     # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right info (because it was
-    # displayed above in the log).  Not sure what happened there, but the following statements will still catch errors
+    # displayed above in the log). Not sure what happened there, but the following statements will still catch errors
     # even if we ignore the failure in head.
     local firstline=""
     firstline=$(echo "${usage}" | head -n 3 | tail -n 1 || true)

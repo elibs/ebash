@@ -14,7 +14,7 @@
 opt_usage get_memory_size <<'END'
 Get the size of memory on the system in various units. This works properly on both Linux and Mac.
 
-The --units option allows you to specify the desired 1 or 2 character code of the units to express the size in. Both
+The `--units` option allows you to specify the desired 1 or 2 character code of the units to express the size in. Both
 SI and IEC units are supported.
 
 Here is the list of supported unit codes (case-sensitive) along with their meanings:

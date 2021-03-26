@@ -10,11 +10,11 @@ For example, since you should **never** modify `IFS`, you might be interested in
 by splitting on a particular separator. For example:
 
 ```shell
-> array_init array "one|two|three" "|"
-> declare -p array
+$ array_init array "one|two|three" "|"
+$ declare -p array
 declare -a array='([0]="one" [1]="two" [2]="three")'
-> array_init array "aJbJcJd" "J"
-> declare -p array
+$ array_init array "aJbJcJd" "J"
+$ declare -p array
 declare -a array='([0]="a" [1]="b" [2]="c" [3]="d")'
 ```
 
@@ -36,19 +36,19 @@ value for data stored in the pack is not allowed to contain newline or null char
 So how do you use it?
 
 ```shell
-> pack_set my_pack A=1 B=2 C=3
-> pack_get my_pack A
+$ pack_set my_pack A=1 B=2 C=3
+$ pack_get my_pack A
 1
-> pack_get my_pack B
+$ pack_get my_pack B
 2
 ```
 
 You can continue to change values in the pack over time in the same way.
 
 ```shell
-> pack_set my_pack B=40 pack_get my_pack A
+$ pack_set my_pack B=40 pack_get my_pack A
 1
-> pack_get my_pack B
+$ pack_get my_pack B
 40
 ```
 
@@ -57,16 +57,16 @@ them as local variables while you're working, and then put them all back in the 
 [pack_export](module/pack.md#func-pack_export) were designed for just such a case.
 
 ```shell
-> $(pack_import my_pack) echo $A
+$ $(pack_import my_pack) echo $A
 1
-> echo $B
+$ echo $B
 40
-> A=15
-> B=20
-> pack_export my_pack A B
-> pack_get my_pack A
+$ A=15
+$ B=20
+$ pack_export my_pack A B
+$ pack_get my_pack A
 15
-> pack_get my_pack B
+$ pack_get my_pack B
 20
 ```
 
@@ -79,7 +79,7 @@ One more quick tool for using packs. Our `lval` knows how to read them explicitl
 variable is a pack by prepending it with a percent sign.
 
 ```shell
-> echo "$(lval %my_pack)"
+$ echo "$(lval %my_pack)"
 my_pack=([C]="3" [A]="15" [B]="20" )
 ```
 Another super helpful pair of functions are [pack_save](module/pack.md#func-pack_save) and [pack_load](module/pack.md#func-pack_load) to easily save a pack to an on-disk file and then

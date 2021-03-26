@@ -243,7 +243,7 @@ ETEST_cgroup_move_ignores_empties()
     trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
     cgroup_create ${CGROUP}
     (
-        # Adding an empty string to the tasks file in the cgroup filesystem would typically blow up.  cgroup_move
+        # Adding an empty string to the tasks file in the cgroup filesystem would typically blow up. cgroup_move
         # intentionally skips empty strings to make life a bit easier.
         cgroup_move ${CGROUP} "" ${BASHPID} ""
     )

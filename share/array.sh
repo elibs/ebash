@@ -276,15 +276,17 @@ opt_usage array_regex <<'END'
 Create a regular expression that will match any one of the items in this array. Suppose you had an array containing the
 first four letters of the alphabet. Calling array_regex on that array will produce:
 
-   (a|b|c|d)
+```shell
+(a|b|c|d)
+```
 
 Perhaps this is an esoteric thing to do, but it's pretty handy when you want it.
 
-NOTE: Be sure to quote the output of your array_regex call, because bash finds parantheses and pipe characters to be
+> **_NOTE:_** Quote the output of your array_regex call, because bash finds parantheses and pipe characters to be
 very important.
 
-WARNING: This probably only works if your array contains items that do not have whitespace or regex-y characters in
-them. Pids are good. Other stuff, probably not so much.
+> **_WARNING:_** This probably only works if your array contains items that do not have whitespace or regex-y characters
+in them. Pids are good. Other stuff, probably not so much.
 END
 array_regex()
 {
@@ -322,14 +324,16 @@ array_sort()
 
 opt_usage array_copy <<'END'
 array_copy is a convenience function for copying one array to another. This is easier to use than raw bash code as it
-handles empty arrays sensibly to avoid tripping up "set -e" and "set -u" settings. It also deals with properly quoting
+handles empty arrays sensibly to avoid tripping up `set -e` and `set -u` settings. It also deals with properly quoting
 the array contents properly so you don't have to worry about it.
 
 Examples:
-  local source=("a 1" "b 2" "c 3" "d 4")
-  local target
-  array_copy source target
 
+```shell
+local source=("a 1" "b 2" "c 3" "d 4")
+local target
+array_copy source target
+```
 END
 array_copy()
 {

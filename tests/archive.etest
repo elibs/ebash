@@ -295,7 +295,7 @@ ETEST_archive_create_symlinks_contents()
         touch src/{file1,file2}
         echo "foo" > foo
         ln -s ${PWD}/foo src/filelnk
-        ln -s ${PWD}/.   src/dirlnk
+        ln -s ${PWD}/.  src/dirlnk
         find src -ls
 
         etestmsg "Creating dest.${ftype}"
@@ -1277,7 +1277,7 @@ ETEST_archive_extract_strip_collisions()
         assert_directory_contents dest f f.~1~ f.~2~
 
         # We can't guarantee the order the files are copied in b/c that's dependant on the inode structure and
-        # filesystem.  So instead we just assert that we see all three files with the three different contents we expect
+        # filesystem. So instead we just assert that we see all three files with the three different contents we expect
         # to see.
         assert_eq $'s1\ns2\ns3' "$(cat dest/f dest/f.~1~ dest/f.~2~ | sort)"
     }

@@ -16,50 +16,57 @@
 opt_usage etable <<'END'
 etable is designed to be able to easily produce a nicely formatted ASCII, HTML or "box-drawing" or "boxart" tables with
 columns and rows. The input passed into this function is essentially a variadic number of strings, where each string
-represents a row in the table.  Each entry provided has the columns encoded with a vertical pipe character separating
+represents a row in the table. Each entry provided has the columns encoded with a vertical pipe character separating
 each column.
 
 For example, suppose you wanted to produce this ASCII table:
 
-    +------+-------------+-------------+
-    | Repo | Source      | Target      |
-    +------+-------------+-------------+
-    | api  | develop-2.5 | release-2.5 |
-    | os   | release-2.4 | develop-2.5 |
-    | ui   | develop-2.5 | release-2.5 |
-    +------+-------------+-------------+
+```
++------+-------------+-------------+
+| Repo | Source      | Target      |
++------+-------------+-------------+
+| api  | develop-2.5 | release-2.5 |
+| os   | release-2.4 | develop-2.5 |
+| ui   | develop-2.5 | release-2.5 |
++------+-------------+-------------+
+```
 
 The raw input you would need to pass is as follows:
 
-    $ bin/etable "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
+```shell
+bin/etable "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
+```
 
 This can be cumbersome to create, so there are helper methods to make this easier. For example:
 
-    $ array_init_nl table "Repo|Source|Target"
-    $ array_add_nl  table "api|develop-2.5|release-2.5"
-    $ array_add_nl  table "os|develop-2.4|release-2.5"
-    $ array_add_nl  table "ui|develop-2.5|release-2.5"
-    $ etable "${table[@]}"
+```shell
+array_init_nl table "Repo|Source|Target"
+array_add_nl  table "api|develop-2.5|release-2.5"
+array_add_nl  table "os|develop-2.4|release-2.5"
+array_add_nl  table "ui|develop-2.5|release-2.5"
+etable "${table[@]}"
+```
 
 You can also optionally get a line separating each row, via:
 
-    $ etable --rowlines "${table[@]}"
-
-Which would produce:
-
-    +------+-------------+-------------+
-    | Repo | Source      | Target      |
-    +------+-------------+-------------+
-    | api  | develop-2.5 | release-2.5 |
-    |------|-------------|-------------|
-    | os   | release-2.4 | develop-2.5 |
-    |------|-------------|-------------|
-    | ui   | develop-2.5 | release-2.5 |
-    +------+-------------+-------------+
+```shell
+$ etable --rowlines "${table[@]}"
++------+-------------+-------------+
+| Repo | Source      | Target      |
++------+-------------+-------------+
+| api  | develop-2.5 | release-2.5 |
+|------|-------------|-------------|
+| os   | release-2.4 | develop-2.5 |
+|------|-------------|-------------|
+| ui   | develop-2.5 | release-2.5 |
++------+-------------+-------------+
+```
 
 If instead you wanted to produce an HTML formatted table, you would use the exact same input as above only you would
-pass in `--style=html` usage flag.
+pass in `--style=html` usage flag. This would produce:
 
+```
+$ etable --style=html "${table[@]}"
 <table>
     <tbody>
         <tr>
@@ -84,33 +91,37 @@ pass in `--style=html` usage flag.
         </tr>
     </tbody>
 </table>
+```
 
 Finally, etable also supports box-drawing boxart characters instead of ASCII
 
-    $ bin/etable --style=boxart --rowlines "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
+```shell
+$ bin/etable --style=boxart --rowlines "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
 
-    ┌──────┬─────────────┬─────────────┐
-    │ Repo │ Source      │ Target      │
-    ├──────┼─────────────┼─────────────┤
-    │ api  │ develop-2.5 │ release-2.5 │
-    ├──────┼─────────────┼─────────────┤
-    │ os   │ release-2.4 │ develop-2.5 │
-    ├──────┼─────────────┼─────────────┤
-    │ ui   │ develop-2.5 │ release-2.5 │
-    └──────┴─────────────┴─────────────┘
+┌──────┬─────────────┬─────────────┐
+│ Repo │ Source      │ Target      │
+├──────┼─────────────┼─────────────┤
+│ api  │ develop-2.5 │ release-2.5 │
+├──────┼─────────────┼─────────────┤
+│ os   │ release-2.4 │ develop-2.5 │
+├──────┼─────────────┼─────────────┤
+│ ui   │ develop-2.5 │ release-2.5 │
+└──────┴─────────────┴─────────────┘
+```
 
 Or without rowlines:
 
-    $ bin/etable --style=boxart "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
+```shell
+$ bin/etable --style=boxart "Repo|Source|Target" "api|develop-2.5|release-2.5" "os|release-2.4|develop-2.5" "ui|develop-2.5|release-2.5"
 
-    ┌──────┬─────────────┬─────────────┐
-    │ Repo │ Source      │ Target      │
-    ├──────┼─────────────┼─────────────┤
-    │ api  │ develop-2.5 │ release-2.5 │
-    │ os   │ release-2.4 │ develop-2.5 │
-    │ ui   │ develop-2.5 │ release-2.5 │
-    └──────┴─────────────┴─────────────┘
-
+┌──────┬─────────────┬─────────────┐
+│ Repo │ Source      │ Target      │
+├──────┼─────────────┼─────────────┤
+│ api  │ develop-2.5 │ release-2.5 │
+│ os   │ release-2.4 │ develop-2.5 │
+│ ui   │ develop-2.5 │ release-2.5 │
+└──────┴─────────────┴─────────────┘
+```
 END
 etable()
 {
@@ -338,44 +349,44 @@ string or an array it will be expanded into the value as you'd expect. If the va
 pack, the keys and values will be unpacked and displayed in the KEY/VALUE columns in an exploded manner. This function
 relies on print_value() for pretty printing arrays.
 
-For example, if you passed in:
+For example:
 
-    $ etable_values HOME USER
-
-This would produce
-
-    +------+----------------+
-    | Key  | Value          |
-    +------+----------------+
-    | HOME | /home/marshall |
-    | USER | marshall       |
-    +------+----------------+
+```shell
+$ etable_values HOME USER
++------+----------------+
+| Key  | Value          |
++------+----------------+
+| HOME | /home/marshall |
+| USER | marshall       |
++------+----------------+
+```
 
 If you have an associative array:
 
-    $ declare -A data([key1]="value1" [key2]="value2")
-    $ etable_values data
-
-This would produce
-
-    +------+--------+
-    | Key  | Value  |
-    +------+--------+
-    | key1 | value1 |
-    | key2 | value2 |
-    +------+--------+
+```shell
+$ declare -A data([key1]="value1" [key2]="value2")
+$ etable_values data
++------+--------+
+| Key  | Value  |
++------+--------+
+| key1 | value1 |
+| key2 | value2 |
++------+--------+
+```
 
 With a pack:
 
-    $ pack_set data key1="value1" key2="value2"
-    $ etable_values %data
+```shell
+$ pack_set data key1="value1" key2="value2"
+$ etable_values %data
 
-    +------+--------+
-    | Key  | Value  |
-    +------+--------+
-    | key1 | value1 |
-    | key2 | value2 |
-    +------+--------+
++------+--------+
+| Key  | Value  |
++------+--------+
+| key1 | value1 |
+| key2 | value2 |
++------+--------+
+```
 
 Similar to ebanner there is an --uppercase and a --lowercase if you want to have all the keys in all uppercase or
 lowercase for consistency.

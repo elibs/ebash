@@ -47,7 +47,7 @@ echmodown()
 opt_usage efreshdir <<'END'
 Recursively unmount the named directories and remove them (if they exist) then create new ones.
 
-NOTE: Unlike earlier implementations, this handles multiple arguments properly.
+> **_NOTE:_** Unlike earlier implementations, this handles multiple arguments properly.
 END
 efreshdir()
 {

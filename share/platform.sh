@@ -39,7 +39,7 @@ if [[ ${__EBASH_OS} == "Linux" ]]; then
     }
 
     # We presently assume that linux boxes will have a proper gnu toolchain in
-    # the default path.  For them, nothing need be done so just return.
+    # the default path. For them, nothing need be done so just return.
     return 0
 fi
 
@@ -51,7 +51,7 @@ fi
 # For instance, GNU grep gets installed as ggrep.
 #
 # This would probably be a nice area to allow for configuration, but for now we assume that the GNU toolchain is
-# installed in that fashion on anything that is not Linux.  (GNU/Linux? ;-)
+# installed in that fashion on anything that is not Linux. (GNU/Linux? ;-)
 #
 #
 __EBASH_GNU_TOOLS=(

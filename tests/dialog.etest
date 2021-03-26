@@ -400,7 +400,7 @@ ETEST_dialog_prompt_invalid_input()
 fake_password_dialog_state=0
 fake_password_dialog_test_id=1
 
-# Create an override function for the password dialog UI.  This allows us to feed fake data
+# Create an override function for the password dialog UI. This allows us to feed fake data
 # into the business logic of the username/password prompt dialog.
 fake_password_dialog_ui='
 {
@@ -443,7 +443,7 @@ EOFA
         # data from this function call sequence.
         case ${fake_password_dialog_test_id} in
 
-            # Username/password was valid.  We should not get here if the data was valid.
+            # Username/password was valid. We should not get here if the data was valid.
             1) username="ValidInputWasRejected";;
 
             # Test that the password argument is not set.
@@ -455,7 +455,7 @@ EOFA
                ;;
         esac
 
-        # Reset so we can gracefully end the test.  This allows us to drop out of the call to
+        # Reset so we can gracefully end the test. This allows us to drop out of the call to
         # dialog_prompt_username_password and check the test status passed in the username.
         echo "eval declare fake_password_dialog_state=2"
         dialog_output=$(cat << EOFB

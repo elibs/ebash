@@ -11,15 +11,17 @@ opt_usage pack_set <<'END'
 Consider a "pack" to be a "new" data type for bash. It stores a set of key/value pairs in an arbitrary format inside
 a normal bash (string) variable. This is much like an associative array, but has a few differences
 
-  1) You can store packs INSIDE associative arrays (example in unit tests)
-  2) The "keys" in a pack may not contain an equal sign, nor may they contain whitespace.
-  3) Packed values cannot contain newlines.
+- You can store packs INSIDE associative arrays (example in unit tests)
+- The "keys" in a pack may not contain an equal sign, nor may they contain whitespace.
+- Packed values cannot contain newlines.
 
 For a (new or existing) variable whose contents are formatted as a pack, set one or more keys to values. For example,
 the following will create a new variable packvar that will contain three keys (alpha, beta, n) with associated values
 (a, b, 7)
 
-  pack_set packvar alpha=a beta=b n=7
+```shell
+pack_set packvar alpha=a beta=b n=7
+```
 END
 pack_set()
 {
@@ -96,9 +98,12 @@ Copy a packed value from one variable to another. Either variable may be part of
 inclined.
 
 Examples:
-  pack_copy A B
-  pack_copy B A["alpha"]
-  pack_copy A["alpha"] B[1]
+
+```shell
+pack_copy A B
+pack_copy B A["alpha"]
+pack_copy A["alpha"] B[1]
+```
 END
 pack_copy()
 {
@@ -136,13 +141,16 @@ every item in the pack. This uses the "eval command invocation string" which the
 manifest the commands. For instance, if your pack contains keys a and b with respective values 1 and 2, you can create
 locals a=1 and b=2 by running:
 
-    $(pack_import pack)
+```shell
+$(pack_import pack)
+```
 
 If you don't want the pack's entire contents, but only a limited subset, you may specify them. For instance, in the
 same example scenario, the following will create a local a=1, but not a local for b.
 
-    $(pack_import pack a)
-
+```shell
+$(pack_import pack a)
+```
 END
 pack_import()
 {
@@ -174,11 +182,15 @@ opt_usage pack_export <<'END'
 Assigns values into a pack by extracting them from the caller environment. For instance, if you have locals a=1 and b=2
 and run the following:
 
-    pack_export pack a b
+```shell
+pack_export pack a b
+```
 
 You will be left with the same pack as if you instead said:
 
-    pack_set pack a=${a} b=${b}
+```shell
+pack_set pack a=${a} b=${b}
+```
 END
 pack_export()
 {

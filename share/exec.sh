@@ -59,16 +59,20 @@ Ever want to evaluate a bash command that is stored in an array?  It's mostly a 
 various arguments separate in the array means you don't have to worry about quoting. Bash keeps the quoting you gave it
 in the first place. So the typical way to run such a command is like this:
 
-    > cmd=(echo "\$\$")
-    > "${cmd[@]}"
-    $$
+```shell
+> cmd=(echo "\$\$")
+> "${cmd[@]}"
+$$
+```
 
 As you can see, since the dollar signs were quoted as the command was put into the array, so the quoting was retained
 when the command was executed. If you had instead used eval, you wouldn't get that behavior:
 
-    > cmd=(echo "\$\$")
-    > "${cmd[@]}"
-    53355
+```shell
+> cmd=(echo "\$\$")
+> "${cmd[@]}"
+53355
+```
 
 Instead, the argument gets "evaluated" by bash, turning it into the current process id. So if you're storing commands in
 an array, you can see that you typically don't want to use eval.
@@ -81,11 +85,11 @@ So what can you do if you want alias expansion to happen but also want things in
 `quote_array`. It will ensure that all of the arguments don't get evaluated by bash, but that the name of the command
 _does_ go through alias expansion.
 
-    > cmd=(echo "\$\$")
-    > quote_eval "${cmd[@]}"
-    $$
-
-There, wasn't that simple?
+```shell
+> cmd=(echo "\$\$")
+> quote_eval "${cmd[@]}"
+$$
+```
 END
 quote_eval()
 {

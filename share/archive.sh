@@ -14,22 +14,22 @@ provides some really helpful and missing functionality not provided by upstream 
 
 At present the list of supported archive formats is as follows:
 
-* SQUASHFS: Squashfs is a compressed read-only filesystem for Linux. Squashfs intended for general read-only filesystem
+- **SQUASHFS**: Squashfs is a compressed read-only filesystem for Linux. Squashfs intended for general read-only filesystem
 use, for archival use and in constrained block device/memory systems where low overhead is needed. Squashfs images are
 rapidly becoming a very common medium used throughout our build, install, test and upgrade code due to their high
 compressibility, small resultant size, massive parallelization on both create and unpack and that they can be directly
 mounted and booted into.
 
-* ISO: An ISO image is an archive file of an optical disc, a type of disk image composed of the data contents from every
+- **ISO**: An ISO image is an archive file of an optical disc, a type of disk image composed of the data contents from every
 written sector on an optical disc, including the optical disc file system. The name ISO is taken from the ISO
 9660 file system used with CD-ROM media, but what is known as an ISO image can contain other file systems.
 
-* TAR: A tar file is an archive file format that may or may not be compressed. The archive data sets created by tar
+- **TAR**: A tar file is an archive file format that may or may not be compressed. The archive data sets created by tar
 contain various file system parameters, such as time stamps, ownership, file access permissions, and directory
 organization. Our archive_compress_program function is used to generalize our use of tar so that compression format is
 handled seamlessly based on the file extension in a way which picks the best compression program at runtime.
 
-* CPIO: "cpio is a general file archiver utility and its associated file format. It is primarily installed on Unix-like
+- **CPIO**: "cpio is a general file archiver utility and its associated file format. It is primarily installed on Unix-like
 computer operating systems. The software utility was originally intended as a tape archiving program as part of the
 Programmer's Workbench (PWB/UNIX), and has been a component of virtually every Unix operating system released
 thereafter. Its name is derived from the phrase copy in and out, in close description of the program's use of standard
@@ -89,9 +89,8 @@ archive_suffixes()
 }
 
 opt_usage archive_type <<'END'
-Determine archive format based on the file suffix. You can override type detection by
-passing in explicit -t=type where type is one of the supported file extension types (e.g. squashfs, iso, tar, tgz, cpio,
-cgz, etc).
+Determine archive format based on the file suffix. You can override type detection by passing in explicit -t=type where
+type is one of the supported file extension types (e.g. squashfs, iso, tar, tgz, cpio, cgz, etc).
 END
 archive_type()
 {
@@ -210,19 +209,23 @@ how mksquashfs and mkiso normally behave.
 
 A few examples will help clarify the behavior:
 
-Example #1: Suppose you have a directory "a" with the files 1,2,3 and you call "archive_create a dest.squashfs".
+Example #1: Suppose you have a directory `a` with the files `1,2,3` and you call `archive_create a dest.squashfs`.
 archive_create will then yield the following:
 
-    a/1
-    a/2
-    a/3
+```shell
+a/1
+a/2
+a/3
+```
 
-Example #2: Suppose you have these files spread out across three directories: a/1 b/2 c/3 and you call "archive_create a
-b c dest.squashfs". archive_create will then yield the following:
+Example #2: Suppose you have these files spread out across three directories: `a/1` `b/2` `c/3` and you call
+`archive_create a b c dest.squashfs`. `archive_create` will then yield the following:
 
-    a/1
-    b/2
-    c/3
+```shell
+a/1
+b/2
+c/3
+```
 
 In the above examples note that the contents are consistent regardless of whether you provide a single file, single
 directory or list of files or list of directories.
@@ -704,7 +707,7 @@ archive does not exist this will implicitly call archive_create much like 'cat f
 
 This function suports the `PATH_MAPPING_SYNTAX` as described in [mount](mount.md).
 
-NOTE: The implementation of this function purposefully doesn't use native --append functions in the various archive
+> **_NOTE:_** The implementation of this function purposefully doesn't use native `--append` functions in the archive
 formats as they do not all support it. The ones which do support append do not implement in a remotely sane manner. You
 might ask why we don't use overlayfs for this. First, overlayfs with bindmounting and chroots on older kernels causes
 some serious problems wherein orphaned mounts become unmountable and the file systems containing them cannot be

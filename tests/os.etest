@@ -31,7 +31,7 @@ ETEST_os_distro()
         assert_true  os_distro a b c "${distro^^}" e f g
 
     else
-        etestmsg "Not on linux.  Shouldn't match any specific distro"
+        etestmsg "Not on linux. Shouldn't match any specific distro"
         assert_false os_distro SomeDistro
 
         etestmsg "But it should still be safe to call the function"

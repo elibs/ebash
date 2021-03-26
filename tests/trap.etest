@@ -31,7 +31,7 @@ ETEST_err_and_debug_traps_are_inherited()
         assert_eq "${expected}" "$(trap -p ERR DEBUG)"
 
         # Without ebash shenanigans, bash will reset your inherited error trap after you set any other trap including
-        # SIGUSR1.  But ebash overrides this and restores the ERR trap.
+        # SIGUSR1. But ebash overrides this and restores the ERR trap.
         etestmsg "Verifying that it remains after a call to trap."
         trap on_usr1 SIGUSR1
         assert_eq "${expected}" "$(trap -p ERR DEBUG)"

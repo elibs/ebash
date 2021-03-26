@@ -82,7 +82,7 @@ emounted()
 }
 
 opt_usage ebindmount <<'END'
-Bind mount $1 over the top of $2.  Ebindmount works to ensure that all of your mounts are private so that we don't see
+Bind mount $1 over the top of $2. Ebindmount works to ensure that all of your mounts are private so that we don't see
 different behavior between systemd machines (where shared mounts are the default) and everywhere else (where private
 mounts are the default).
 
@@ -97,20 +97,20 @@ ebindmount()
         "@mount_options")
 
     # In order to avoid polluting other mount points that we recursively bind, we want to make sure that our mount
-    # points are "private" (not seen by other mount namespaces).  For example, that prevents one chroot from messing
+    # points are "private" (not seen by other mount namespaces). For example, that prevents one chroot from messing
     # with another's mounts.
     #
     # We must make sure the source mount is private first, because otherwise when we bind mount our location into our
-    # mount namespace, it will start off as shared.  And the shared version will be seen across _other_ mount
-    # namespaces.  Sure, we can subsequently mark it private in our own, but that action won't actually affect the
+    # mount namespace, it will start off as shared. And the shared version will be seen across _other_ mount
+    # namespaces. Sure, we can subsequently mark it private in our own, but that action won't actually affect the
     # others.
     #
     # stat --format %m <file> lists the mount point that a particular file is on.
     local source_mountpoint
     source_mountpoint="$(stat -c %m "${src}")"
 
-    # Then we look in the mount table to make sure we can access the mount point.  We might not be able to see it if
-    # we're in a chroot, for instance.  NOTE: If /proc/self/mountinfo is not present then we need to mount it.
+    # Then we look in the mount table to make sure we can access the mount point. We might not be able to see it if
+    # we're in a chroot, for instance. NOTE: If /proc/self/mountinfo is not present then we need to mount it.
     if ! emounted /proc; then
         mount -t proc proc /proc
     fi
@@ -153,13 +153,13 @@ This example is true of directories as well with the important caveat that the d
 files shadow over one another. Consider the following example:
 
 ```shell
-echo "src1" >src1/foo/file0
-echo "src1" >src1/foo/file1
-echo "src2" >src2/foo/file1
-ebindmount_into dest src1/. src2/.
-cat dest/foo/file1
+$ echo "src1" >src1/foo/file0
+$ echo "src1" >src1/foo/file1
+$ echo "src2" >src2/foo/file1
+$ ebindmount_into dest src1/. src2/.
+$ cat dest/foo/file1
 src2
-ls dest
+$ ls dest
 foo/file0 foo/file1
 ```
 
@@ -211,7 +211,7 @@ ebindmount_into()
 
             # If the destination parent directory has already been created then we have to be careful not to shadow
             # mount over as we'd mask it's contents. So if it is there bind mount the contents of the src directory into
-            # the parent directory.  Otherwise we can simply bind mount the directory into thd destination directory.
+            # the parent directory. Otherwise we can simply bind mount the directory into thd destination directory.
             if [[ -d "${parent}" ]]; then
                 local contents
                 contents=$(find . -maxdepth 1 -printf '%P\n')
@@ -243,7 +243,7 @@ ebindmount_into()
         # path. Taking care to create the proper tree structure inside destination path.
         else
 
-            # If the source path is a symlink, just copy the symlink directly since we do not follow symlinks.  There is
+            # If the source path is a symlink, just copy the symlink directly since we do not follow symlinks. There is
             # a 'continue' if it's a symlink because we do not want to do the ebindmount that is outside the if/else
             # statement that we normally do for non-symlinks.
             if [[ -L "${src}" ]]; then
@@ -403,8 +403,8 @@ list_mounts()
 
 opt_usage efindmnt <<'END'
 Recursively find all mount points beneath a given root. This is like findmnt with a few additional enhancements:
-    1) Automatically recusrive
-    2) findmnt doesn't find mount points beneath a non-root directory
+- Automatically recusrive
+- findmnt doesn't find mount points beneath a non-root directory
 END
 efindmnt()
 {

@@ -42,7 +42,7 @@ CI/CD build system for example.
 For example, you might want to show timestamps on all log messages:
 
 ```shell
-> EMSG_PREFIX=time ~/ebash_guide
+$ EMSG_PREFIX=time ~/ebash_guide
 [Nov 12 13:31:16] einfo
 [Nov 12 13:31:16] ewarn
 [Nov 12 13:31:16] eerror
@@ -51,7 +51,7 @@ For example, you might want to show timestamps on all log messages:
 Or, to request all information that ebash will produce, you can set `EMSG_PREFIX` to `all`:
 
 ```shell
-> EMSG_PREFIX=all ./ebash_guide
+$ EMSG_PREFIX=all ./ebash_guide
 [Nov 12 13:24:19|INFO|ebash_guide:6:main] einfo
 [Nov 12 13:24:19|WARN|ebash_guide:7:main] ewarn
 [Nov 12 13:24:19|ERROR|ebash_guide:8:main] eerror
@@ -69,7 +69,7 @@ All of this is implemented with [print_value](module/emsg.md#func-print_value) f
 types.
 
 ```shell
-> ebanner "Here’s a banner"
+$ ebanner "Here’s a banner"
 +------------------------------------------------------------------------------------------------+
 |
 | Here's a banner
@@ -80,7 +80,7 @@ types.
 Here's an example with additional arguments to display:
 
 ```shell
-> ebanner "Hello world" HOME USER PWD
+$ ebanner "Hello world" HOME USER PWD
 +------------------------------------------------------------------------------------------------+
 |
 | Hello world

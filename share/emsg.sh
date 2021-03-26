@@ -50,7 +50,7 @@ for command tracing rather than blanket turning on `set -x` for the entire proce
 are prefixed with a configurable color message showing the filename, line number, function name, and PID of the caller.
 The color can be configured via `${COLOR_TRACE}`.
 
-For example, suppose I h ave the following script:
+For example, suppose I have the following script:
 
 ```shell
 #!/bin/bash
@@ -67,7 +67,7 @@ You can now run the above script with `etrace` enabled and get the following out
 **command** being printed as you'd get with `set -x`, etraces emits the file, line number and process PID:
 
 ```shell
-> ETRACE=etrace_test ./etrace_test
+$ ETRACE=etrace_test ./etrace_test
 [etrace_test:6:main:24467] echo "Hi"
 Hi
 [etrace_test:7:main:24467] a=alpha
@@ -78,10 +78,10 @@ a="alpha" b="beta"
 ```
 
 Like `EDEBUG`, `ETRACE` is a space-separated list of patterns which will be matched against your current filename and
-function name.  The etrace functionality has a much higher overhead than does running with edebug enabled, but it can be
+function name. The etrace functionality has a much higher overhead than does running with edebug enabled, but it can be
 immensely helpful when you really need it.
 
-One caveat: you can’t change the value of ETRACE on the fly.  The value it had when you sourced ebash is the one that
+One caveat: you can’t change the value of ETRACE on the fly. The value it had when you sourced ebash is the one that
 will affect the entire runtime of the script.
 END
 etrace()
@@ -188,7 +188,7 @@ edebug "foo just borked rc=${rc}"
 ```
 
 You can activate the output from these `edebug` statements either wholesale or selectively by setting an environment
-variable. Setting `EDEBUG=1` will turn on all `edebug` output everywhere.  We use this pervasively, so that is probably
+variable. Setting `EDEBUG=1` will turn on all `edebug` output everywhere. We use this pervasively, so that is probably
 going to way too much noise.
 
 Instead of turning everything on, you can turn on `edebug` just for code in certain files or functions. For example,
@@ -378,7 +378,7 @@ escape sequences needed to print to the screen to produce the desired color. Sin
 through ebash, this function caches the color codes in an associative array to avoid having to lookup the same values
 repeatedly.
 
-NOTE: If `EFUNCS_COLOR` is set to 0, then this function is disabled and will not return any ANSII escape sequences.
+> **_NOTE:_** If `EFUNCS_COLOR` is set to `0`, this function is disabled and will not return any ANSII escape sequences.
 END
 ecolor()
 {
@@ -575,12 +575,12 @@ the `EMSG_PREFIX` environment variable.
 Here are some examples showcasing how configurable this is:
 
 ```shell
-> EMSG_PREFIX=time ~/ebash_guide
+$ EMSG_PREFIX=time ~/ebash_guide
 [Nov 12 13:31:16] einfo
 [Nov 12 13:31:16] ewarn
 [Nov 12 13:31:16] eerror
 
-> EMSG_PREFIX=all ./ebash_guide
+$ EMSG_PREFIX=all ./ebash_guide
 [Nov 12 13:24:19|INFO|ebash_guide:6:main] einfo
 [Nov 12 13:24:19|WARN|ebash_guide:7:main] ewarn
 [Nov 12 13:24:19|ERROR|ebash_guide:8:main] eerror
@@ -590,11 +590,11 @@ In the above you can the timestamp, log level, function name, line number, and f
 message.
 
 Here's the full list of configurable things you can turn on:
-* time
-* level
-* caller
-* pid
-* all
+- time
+- level
+- caller
+- pid
+- all
 END
 emsg()
 {
@@ -875,11 +875,11 @@ opt_usage eprogress <<'END'
 to handle very long-running commands and give the user some indication that the command is still in-progress rather than
 hung. The ticker can be customized:
 
-* Disabled entirely using `EPROGRESS=0`
-* Show on the left or right via `--align`
-* Change how often it is printed via `--delay`
-* Show the **timer** but not the **spinner** via `--no-spinner`
-* Display contents of a **file** on each iteration
+- Disabled entirely using `EPROGRESS=0`
+- Show on the left or right via `--align`
+- Change how often it is printed via `--delay`
+- Show the **timer** but not the **spinner** via `--no-spinner`
+- Display contents of a **file** on each iteration
 END
 eprogress()
 {

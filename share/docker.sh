@@ -38,9 +38,9 @@ if another developer has already built and published. Ebash's "docker_build" add
 
 The algorithm we employ is as follows:
 
-    1) Look for the image locally
-    2) Try to download the underlying content-based SHA image from docker cache repository
-    3) Build the docker image from scratch
+- Look for the image locally
+- Try to download the underlying content-based SHA image from docker cache repository
+- Build the docker image from scratch
 
 This entire algorithm is built on a simple idea of essentially computing our own simplistic sha256 dependency SHA which
 captures the content of the provided Dockerfile as well as any files which are dynamically copied or added via COPY/ADD
@@ -62,37 +62,36 @@ docker_build.
 There are several built-in overlay modules provided by ebash that you can enable via --overlay=<module>. This is an
 accumulator so you can pass it in multiple times to enable multiple overlay modules.
 
-    1) systemd
+- **systemd**
 
-       This provides several critical binary replacements to provide seamless systemd-like functionality:
+  This provides several critical binary replacements to provide seamless systemd-like functionality:
 
-         a) /usr/local/bin/systemctl: manage multiple ebash controlled daemons. This supports 'start', 'stop', 'status',
-            'restart' actions on each daemon.
-         b) /usr/local/bin/timedatectl: simulate systemd timedatectl functionality. This supports being called with no
-            arguments and it will output something similar to the real timedatectl. It also supports being called with
-            "set-timezone ZONE".
-         c) /usr/local/bin/journalctl: This does not implement the full journalctl functionality but instead acts as a
-            lightweight wrapper around rsyslog logger. By default if you call this with no arguments it will simply cat
-            /var/log/messages and pass them into your pager. If you pass in -f or --follow it will tail the log file.
+  - **/usr/local/bin/systemctl**: manage multiple ebash controlled daemons. This supports `start`, `stop`, `status`,
+    `restart` actions on each daemon.
+  - **/usr/local/bin/timedatectl**: simulate systemd timedatectl functionality. This supports being called with no
+    arguments and it will output something similar to the real timedatectl. It also supports being called with
+    `set-timezone ZONE`.
+  - **/usr/local/bin/journalctl**: This does not implement the full journalctl functionality but instead acts as a
+    lightweight wrapper around rsyslog logger. By default if you call this with no arguments it will simply cat
+    `/var/log/messages` and pass them into your pager. If you pass in `-f` or `--follow` it will tail the log file.
 
-    2) rsyslog
+- **rsyslog**
 
-       This is *NOT* a full replacement for rsyslog. Instead it simply provides a custom /etc/rsylog.conf file which
-       allows rsyslog to function properly inside docker. You also need to __install__ rsyslog in your container and
-       must also start it up as a daemon (probably using ebash controlled init script).
+   This is *NOT* a full replacement for rsyslog. Instead it simply provides a custom `/etc/rsylog.conf` file which
+   allows rsyslog to function properly inside docker. You also need to __install__ rsyslog in your container and
+   must also start it up as a daemon (probably using ebash controlled init script).
 
-    3) selinux
+- **selinux**
 
-       This is *NOT* a full replacement for selinux. Instead it simply provides a custom /etc/selinux/config file which
-       completely disables selinux entirely as it doesn't work inside docker.
+   This is *NOT* a full replacement for selinux. Instead it simply provides a custom `/etc/selinux/config` file which
+   completely disables selinux entirely as it doesn't work inside docker.
 
-Finally, you can install your own custom overlay files via --overlay-tree=<path>. The entire tree of the provided path
-will be copied into the root of the created container. For example, if you had "overlay/usr/local/bin/foo" and you
-called "docker_build --overlay-tree overlay" then inside the container you will have "/usr/local/bin/foo".
+Finally, you can install your own custom overlay files via `--overlay-tree=<path>`. The entire tree of the provided path
+will be copied into the root of the created container. For example, if you had `overlay/usr/local/bin/foo` and you
+called `docker_build --overlay-tree overlay` then inside the container you will have `/usr/local/bin/foo`.
 
 If you want to push any tags you need to provide `--username` and `--password` arguments or have `DOCKER_USERNAME` and
 `DOCKER_PASSWORD` environment variables set.
-
 END
 docker_build()
 {
@@ -229,9 +228,9 @@ opt_usage docker_pull <<'END'
 addition to the normal additional error checking and hardening the ebash variety brings, this also provide the following
 functionality:
 
-    1) Seamlessly login to docker registry before pushing as-needed.
-    2) Accepts an array of tags to pull and pulls them all.
-    3) Fallback to local build if remote pull fails.
+- Seamlessly login to docker registry before pushing as-needed.
+- Accepts an array of tags to pull and pulls them all.
+- Fallback to local build if remote pull fails.
 END
 docker_pull()
 {
@@ -299,8 +298,8 @@ opt_usage docker_push<<'END'
 addition to the normal additional error checking and hardening the ebash variety brings, this also provide the following
 functionality:
 
-    1) Seamlessly login to docker registry before pushing as-needed.
-    2) Accepts an array of tags to push and pushes them all.
+- Seamlessly login to docker registry before pushing as-needed.
+- Accepts an array of tags to push and pushes them all.
 END
 docker_push()
 {
@@ -351,17 +350,16 @@ create it. This is used by docker_build to avoid building docker images when non
 This function will create some output state files underneath ${workdir}/docker/$(basename ${name}) that are used
 internally by docker_build but also useful externally.
 
-    - build.log  : Output from the docker build process
-    - dockerfile : Contains original dockerfile with overlay information added by ebash
-    - history    : Contains output of 'docker history'
-    - image      : The full image name including name:sha
-    - inspect    : Contains output of 'docker inspect'
-    - options    : Options passed into docker_build
-    - sha        : Contains full content based sha of the dependencies to create the docker image
-    - sha.detail : Contains details of all the dependencies that affect the image along with their respective SHAs.
-    - sha.func   : Contains the SHA function used (e.g. sha256)
-    - sha.short  : Contains first 12 characters of the full SHA of the dependencies of the image
-}
+- **build.log**  : Output from the docker build process
+- **dockerfile** : Contains original dockerfile with overlay information added by ebash
+- **history**    : Contains output of 'docker history'
+- **image**      : The full image name including name:sha
+- **inspect**    : Contains output of 'docker inspect'
+- **options**    : Options passed into docker_build
+- **sha**        : Contains full content based sha of the dependencies to create the docker image
+- **sha.detail** : Contains details of all the dependencies that affect the image along with their respective SHAs.
+- **sha.func**   : Contains the SHA function used (e.g. sha256)
+- **sha.short**  : Contains first 12 characters of the full SHA of the dependencies of the image
 END
 docker_depends_sha()
 {

@@ -49,7 +49,7 @@ opt_usage dialog <<'END'
 This is a generic wrapper around [dialog](https://invisible-island.net/dialog/#screenshot) which adds `--hide` and
 `--trace` options across the board so that we don't have to implement wrappers for every widget. Moreover, it also deals
 with dialog behavior of returning non-zero for lots of not-fatal reasons. We don't want callers to throw fatal errors
-when that happens.  Intead they should inspect the error codes and output and take action accordingly. Secondly, we need
+when that happens. Intead they should inspect the error codes and output and take action accordingly. Secondly, we need
 to capture the stdout from dialog and then parse it accordingly. Using the tryrc idiom addresses these issues by
 capturing the return code into `dialog_rc` and the output into `dialog_output` for subsequent inspection and parsing.
 END
@@ -268,7 +268,7 @@ dialog_cancel()
 opt_usage dialog_prompt <<'END'
 `dialog_prompt` provides a very simple interface for the caller to prompt for one or more values from the user using the
 [dialog](https://invisible-island.net/dialog/#screenshot) ncurses tool. Each named option passed into `dialog_prompt`
-will be displayed as a field within dialog.  By default each value is initially empty, but the caller can override this
+will be displayed as a field within dialog. By default each value is initially empty, but the caller can override this
 by using `option=value` syntax wherein `value` would be the initial value for `option` and displayed in the dialog
 interface. By default all options are **required** and the user will be unable to exit the dialog interface until all
 required fields are provided. The caller can prefix an option with a `?` to annotate that it is optional. In the dialog
@@ -639,7 +639,7 @@ dialog_prompt()
             done
         fi
 
-        # Now check if we are done or not. We should only check this if the user just hit the "OK" button.  Then, we
+        # Now check if we are done or not. We should only check this if the user just hit the "OK" button. Then, we
         # have to check if any required fields that have not been provided display an error and re-prompt them for the
         # required fields.
         if [[ ${default_button} == "ok" && "${char}" == "${EBASH_KEY_ENTER}" ]]; then
@@ -975,7 +975,7 @@ array=()
 array+=( tag "item text with spaces" status )
 ```
 
-WHere `status` is either `on` or `off`
+Where `status` is either `on` or `off`
 
 Each 3-tuple in the array will be parsed and presented in a radiolist widget. At the end, the output is parsed to
 determine which ones were selected and the input array is updated for the caller. With the `--delete` flag (on by
@@ -985,7 +985,7 @@ manually look at the `status` field in each array element to see if it is `on` o
 `dialog_radiolist` tries to intelligently auto detect the geometry of the window but the caller is always allowed to
 override this with `--geometry` option.
 
-NOTE: A radiolist is almost identical to a checklist only the radiolist only allows a single element to be selected
+> **_NOTE:_** A radiolist is almost identical to a checklist only the radiolist only allows a single element to be selected
 whereas a checklist allows multiple rows to be selected.
 END
 dialog_radiolist()

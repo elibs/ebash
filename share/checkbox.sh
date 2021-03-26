@@ -59,9 +59,9 @@ checkbox_open_timer()
 }
 
 opt_usage checkbox_close <<'END'
-This is used to close a previosly opened checkbox with optional return code.  The default if no return code is passed in
-is 0 for success. This will move the curser up a line and fill in the open [ ] checkbox with a checkmark on success and
-an X on failure.
+This is used to close a previosly opened checkbox with optional return code. The default if no return code is passed in
+is `0` for success. This will move the curser up a line and fill in the open `[ ]` checkbox with a checkmark on success
+and an `X` on failure.
 END
 checkbox_close()
 {

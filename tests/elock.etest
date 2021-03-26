@@ -127,7 +127,7 @@ ETEST_elock_inherit_unlock()
     # Parent now should see it as unlocked
     assert elock_unlocked lfile
 
-    # At this point we'll have a stale entry in our lock map.  elock should handle this gracefully.
+    # At this point we'll have a stale entry in our lock map. elock should handle this gracefully.
     elock lfile
     assert elock_locked lfile
 }

@@ -34,7 +34,7 @@ ETEST_array_that_is_holey()
 
 ETEST_array_size_zero()
 {
-    # NOTE: there is no distinction in bash between empty arrays and unset variables.  Really.
+    # NOTE: there is no distinction in bash between empty arrays and unset variables. Really.
     V=()
 
     size=$(array_size V)
@@ -51,7 +51,7 @@ ETEST_array_empty()
 
 ETEST_array_empty_first_element_empty()
 {
-    # Validate behavior of array_empty when the array contains only empty strings.  See the big comment block in
+    # Validate behavior of array_empty when the array contains only empty strings. See the big comment block in
     # array_empty regarding why this is done in order to accomodate greater compatibility with bash-4.2.
     A=("")
     assert_true array_empty A

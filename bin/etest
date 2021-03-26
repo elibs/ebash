@@ -17,7 +17,7 @@ if [[ ${__EBASH_OS} == "Linux" ]] ; then
     reexec --sudo
 fi
 
-# Normalize EBASH path in case any tests depend on it looking... normal.  Note: wait until after sourcing so that we can
+# Normalize EBASH path in case any tests depend on it looking... normal. Note: wait until after sourcing so that we can
 # let ebash make sure we get GNU readlink rater than BSD readlink.
 EBASH_HOME=$(readlink -f "${EBASH_HOME}")
 EBASH=$(readlink -f "${EBASH}")
@@ -335,7 +335,7 @@ run_single_test()
 
     local rc=0
 
-    # Record start time of the test and at the end of the test we'll update the total runtime for the test.  This will
+    # Record start time of the test and at the end of the test we'll update the total runtime for the test. This will
     # be total runtime including any suite setup, test setup, test teardown and suite teardown.
     local start_time="${SECONDS}"
 

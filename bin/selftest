@@ -54,14 +54,14 @@ run_etest()
 # etest via run_etest.
 #
 # WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
-# to the end of the other test name.  Just don't do that in the tests or fix these asserts
+# to the end of the other test name. Just don't do that in the tests or fix these asserts
 assert_test_fail()
 {
     local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
-        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # result are on two separate lines. Grab both and make sure it's listed as OK. We'll catch errors in the
         # assert call, so ignore them for the initial grab
         output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
         assert_match "${output_state}" "${this_test}"
@@ -86,14 +86,14 @@ assert_test_fail()
 # etest via run_etest.
 #
 # WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
-# to the end of the other test name.  Just don't do that in the tests or fix these asserts
+# to the end of the other test name. Just don't do that in the tests or fix these asserts
 assert_test_pass()
 {
     local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
-        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # result are on two separate lines. Grab both and make sure it's listed as OK. We'll catch errors in the
         # assert call, so ignore them for the initial grab
         output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
         echo "${output_state}" | grep -q "ok" || true
@@ -121,14 +121,14 @@ assert_test_pass()
 # etest via run_etest.
 #
 # WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
-# to the end of the other test name.  Just don't do that in the tests or fix these asserts
+# to the end of the other test name. Just don't do that in the tests or fix these asserts
 assert_test_flaky()
 {
     local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
-        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # result are on two separate lines. Grab both and make sure it's listed as OK. We'll catch errors in the
         # assert call, so ignore them for the initial grab
         output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
         echo "${output_state}" | grep -q "ok" || true
@@ -155,7 +155,7 @@ assert_test_flaky()
     assert_eq "$#" "$(jq --raw-output .numTestsFlaky  "${ETEST_JSON}")"
 }
 
-# Verifies that output and log looks correct for a specified number of tests attempted and passed.  For instance, if you
+# Verifies that output and log looks correct for a specified number of tests attempted and passed. For instance, if you
 # call assert_test_count 2 2, that should mean that 2 tests were run and both passed. It also looks at the new json
 # output file and makes sure the numbers are correct.
 #

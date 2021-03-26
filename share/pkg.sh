@@ -10,8 +10,8 @@
 os darwin && return 0
 
 opt_usage pkg_known <<'END'
-Determine if the package management system locally knows of a package with the specified name.  This won't update the
-package database to do its check.  Note that this does _not_ mean the package is installed.  Just that the package
+Determine if the package management system locally knows of a package with the specified name. This won't update the
+package database to do its check. Note that this does _not_ mean the package is installed. Just that the package
 system believes it could install it.
 
 See pkg_installed to check if a package is actually installed.
@@ -53,10 +53,10 @@ pkg_known()
 }
 
 opt_usage pkg_gentoo_canonicalize <<'END'
-Takes as input a package name that may or may not have a category identifier on it.  If it does not have a category
+Takes as input a package name that may or may not have a category identifier on it. If it does not have a category
 (e.g. app-misc or dev-util), then find the category that contains the specified package.
 
-NOTE: If the results would be ambiguous, fails and indicates that a category is required.
+> **_NOTE:_** If the results would be ambiguous, fails and indicates that a category is required.
 END
 pkg_gentoo_canonicalize()
 {
@@ -83,7 +83,7 @@ pkg_gentoo_canonicalize()
             echo "${found[0]}"
 
         else
-            eerror "${name} is ambiguous.  You must specify a category."
+            eerror "${name} is ambiguous. You must specify a category."
             return 2
         fi
     fi
@@ -131,7 +131,7 @@ pkg_installed()
 }
 
 opt_usage pkg_install <<'END'
-Install some set of packages whose names are specified.  Note that while this function supports several different
+Install some set of packages whose names are specified. Note that while this function supports several different
 package managers, packages may have different names on different systems.
 END
 pkg_install()

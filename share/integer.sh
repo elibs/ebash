@@ -22,17 +22,22 @@ The other idiom we frequently use is "(( i += 1 ))". This idiom also has problem
 to zero or decremented to zero. This gets confusingly reported as an error by bash which ebash will then detect and abort
 on. The safest idiom to use , which works in every scenario, is as follows:
 
-    i=$(( i -= 1 ))
+```shell
+i=$(( i -= 1 ))
+```
 
 However, that's pretty ugly syntax and easy to mess up. So the ebash solution is to simply call the "increment"
 function:
 
-    increment i
+```shell
+increment i
+```
 
 The other useful feature of increment is that you can pass in an optional amount to increment by, which defaults to 1:
 
-    increment i 100
-
+```shell
+increment i 100
+```
 END
 increment()
 {
@@ -53,12 +58,16 @@ The other idiom we frequently use is "(( i -= 1 ))". This idiom also has problem
 to zero. This gets confusingly reported as an error by bash which ebash will then detect and abort on. The safest idiom
 to use , which works in every scenario, is as follows:
 
-    i=$(( i -= 1 ))
+```shell
+i=$(( i -= 1 ))
+```
 
 However, that's pretty ugly syntax and easy to mess up. So the ebash solution is to simply call the "decrement"
 function:
 
-    decrement i
+```shell
+decrement i
+```
 
 The other useful feature of decrement is that you can pass in an optional amount to decrement by, which defaults to 1:
 

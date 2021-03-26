@@ -181,15 +181,15 @@ func()
     echo "STRING="${string}""
 }
 
-func --string "alpha"
-# output: STRING="alpha"
-func --string ""
-# output: STRING=""
+$ func --string "alpha"
+STRING="alpha"
+$ func --string ""
+STRING=""
 
-func --string=alpha
-# output: STRING="alpha"
+$ func --string=alpha
+STRING="alpha"
 func --string=
-# output: STRING=""
+STRING=""
 ```
 
 ### Required Non-Empty String Options
@@ -197,8 +197,8 @@ func --string=
 Opt_parse also supports required options whose value is a non-empty string. This is identical to a normal `:` string
 option only it is more strict in two ways:
 
-    1) The option and argument MUST be provided
-    2) The string argument must be non-empty
+- The option and argument MUST be provided
+- The string argument must be non-empty
 
 In order to use this option, prepend its name with an equal character.
 
@@ -209,18 +209,18 @@ func()
     echo "STRING="${string}""
 }
 
-func --string "alpha"
-# output: STRING="alpha"
-func --string ""
-# error: option --string requires a non-empty argument.
+$ func --string "alpha"
+STRING="alpha"
+$ func --string ""
+error: option --string requires a non-empty argument.
 
-func --string=alpha
-# output: STRING="alpha"
-func --string=
-# error: option --string requires a non-empty argument.
+$ func --string=alpha
+STRING="alpha"
+$ func --string=
+error: option --string requires a non-empty argument.
 
-func
-# error: option --string is required.
+$ func
+error: option --string is required.
 ```
 
 ### Accumulator Values
@@ -236,8 +236,8 @@ func()
     echo "FILES: ${files[@]}"
 }
 
-func --files "alpha" --files "beta" --files "gamma"
-# output -- FILES: alpha beta gamma
+$ func --files "alpha" --files "beta" --files "gamma"
+FILES: alpha beta gamma
 ```
 
 ### Default Values
@@ -889,7 +889,7 @@ opt_display_usage()
 
 : <<'END'
 opt_dump is used to dump all the options to STDOUT in a pretty-printed format suitable for human consumption or for
-debugging.  This is not meant to be used programmatically. The options are sorted by option name (or key) and the value
+debugging. This is not meant to be used programmatically. The options are sorted by option name (or key) and the value
 are pretty-printed using print_value.
 END
 opt_dump()
