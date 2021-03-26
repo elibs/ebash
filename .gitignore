@@ -1,7 +1,8 @@
 .bash_history
-doc/binaries
-doc/module
-doc/toc.md
-.work
 .tags
+.work
+doc/binaries
+doc/index.md
+doc/modules
+doc/toc.md
 tests/self/output
