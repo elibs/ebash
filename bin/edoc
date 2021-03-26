@@ -20,9 +20,6 @@ $(opt_parse \
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
-ebanner "Generating Ebash Documentat" \
-    publish
-
 # Pretend that this is Linux so that all code gets emited
 os() { [[ ${1,,} == linux ]] && return 0 || return 1 ; }
 lsb_release() { echo "16.04" ; }
@@ -36,6 +33,15 @@ edoc=$(mktemp --tmpdir edoc-XXXXXX)
     declare -f lsb_release
 } > ${edoc}
 trap_add "rm -f ${edoc}"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Modules
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ebanner "Generating Ebash Documentation (modules)" \
+    publish
 
 # Create test directories and output
 dir="doc/module"
@@ -106,6 +112,54 @@ done
 
 {
     echo "# Modules"
+    echo ""
+    cat "${dir}/index.md.pending" | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
+
+} > "${dir}/index.md"
+
+rm "${dir}/index.md.pending"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Binaries
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ebanner "Generating Ebash Documentation (binaries)" \
+    publish
+
+# Create test directories and output
+dir="doc/binaries"
+efreshdir "${dir}"
+mkdir -p "${dir}"
+
+# Iterate over each binary that is NOT a symlink
+for binary in ${EBASH_HOME}/bin/*; do
+
+    if [[ -L "${binary}" ]]; then
+        continue
+    fi
+
+    name=$(basename ${binary})
+
+    einfo "${name}"
+    echo "[${name}](${name}.md)" >> "${dir}/index.md.pending"
+    printf "# Binary ${name}\n\n" > "${dir}/${name}.md"
+
+    # See if there is opt_usage for this function
+    einfos "Binary: ${binary}"
+    {
+        if grep --quiet '$(opt_parse ' "${binary}"; then
+            ${binary} --help 2>&1                                     \
+                | noansi                                              \
+                | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
+                      -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```Groff\n\1\2\n```/'
+        fi
+    } >> "${dir}/${name}.md"
+done
+
+{
+    echo "# Binaries"
     echo ""
     cat "${dir}/index.md.pending" | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
 
