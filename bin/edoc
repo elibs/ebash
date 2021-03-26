@@ -27,15 +27,18 @@ $(opt_parse \
 #-----------------------------------------------------------------------------------------------------------------------
 
 # Pretend that this is Linux so that all code gets emited
-os() { [[ ${1,,} == linux ]] && return 0 || return 1 ; }
+os()          { [[ ${1,,} == linux ]] && return 0 || return 1; }
+os_distro()   { [[ ${1,,} == linux ]] && return 0 || return 1; }
 lsb_release() { echo "16.04" ; }
 
 # Generate an edoc.sh file that we can source below with necessary functions exported.
 edoc=$(mktemp --tmpdir edoc-XXXXXX)
 {
-    echo 'export __EBASH_OS="Linux"'
+    echo 'export __EBASH_OS=Linux'
+    echo 'export TERM=xterm-256color'
     declare -f opt_usage
     declare -f os
+    declare -f os_distro
     declare -f lsb_release
 } > ${edoc}
 trap_add "rm -f ${edoc}"
@@ -186,10 +189,23 @@ ebanner "Table of Contents"
     einfo "Documents"
     echo "# Documents"
     echo ""
+
+    idx=0
     for name in doc/*.md; do
+        if [[ "${name}" == @(index|toc) ]]; then
+            continue
+        fi
         einfos "${name}"
-        echo "[$(basename ${name} .md)]($(basename ${name}))<br>"
-    done
+
+        delim="\n"
+        if [[ $(( idx % 2)) -eq 0 ]]; then
+            delim=" | "
+        fi
+
+        printf "[$(basename ${name} .md)]($(basename ${name}))${delim}"
+        increment idx
+
+    done | column --output-width=200 --table
 
     einfo "Binaries"
     echo ""
@@ -199,7 +215,7 @@ ebanner "Table of Contents"
     echo ""
     cat "doc/modules/index.md" | sed -e 's|(\([^)]*\))|(modules/\1)|g'
 
-} > "doc/toc.md"
+} | sed -e 's|# |#|' | column  --table | sed -e 's|#|\n# |' > "doc/toc.md"
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
