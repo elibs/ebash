@@ -24,10 +24,10 @@ info-level messages, yellow for warning, and red for errors.
 ```
 
 For more details see documentation:
-* [einfo](module/emsg.md#func-einfo)
-* [ewarn](module/emsg.md#func-ewarn)
-* [eerror](module/emsg.md#func-eerror)
-* [emsg](module/emsg.md#func-emsg)
+* [einfo](modules/emsg.md#func-einfo)
+* [ewarn](modules/emsg.md#func-ewarn)
+* [eerror](modules/emsg.md#func-eerror)
+* [emsg](modules/emsg.md#func-emsg)
 
 ## Customizing Log Format
 
@@ -58,14 +58,14 @@ $ EMSG_PREFIX=all ./ebash_guide
 ```
 
 Here you can see the timestamp, log level, function name, line number, and filename of the code that generated the
-message.There's a lot more you can do which are fully documented in [emsg documentation](module/emsg.md#func-emsg).
+message.There's a lot more you can do which are fully documented in [emsg documentation](modules/emsg.md#func-emsg).
 
 ## Banner
 
-Another useful built-in output tool is [ebanner](module/emsg.md#func-ebanner). This displays a very prominent banner
+Another useful built-in output tool is [ebanner](modules/emsg.md#func-ebanner). This displays a very prominent banner
 with a provided message which may be multi-line as well as the ability to provide an arbitrary number of extra arguments
 which will be included in the banner in a pretty printed `tag: value` optionally uppercasing the keys for consistency.
-All of this is implemented with [print_value](module/emsg.md#func-print_value) for consistency in logging different
+All of this is implemented with [print_value](modules/emsg.md#func-print_value) for consistency in logging different
 types.
 
 ```shell
@@ -95,7 +95,7 @@ $ ebanner "Hello world" HOME USER PWD
 ## `lval` for simple verbose logging
 
 Because we frequently found ourselves typing things like `rc=${rc}` in our `edebug` and other logging statements, we
-created a function called [`lval`](module/emsg.md#func-lval) to help with this. If you instead use `$(lval rc)`, it will
+created a function called [lval](modules/emsg.md#func-lval) to help with this. If you instead use `$(lval rc)`, it will
 produce the same output.
 
 It also prints the output in a consistent format that makes it clear what is in your variable, even when it contains
@@ -118,7 +118,7 @@ aa=([bar]="2" [foo]="1" ) var="hello world" array=("alpha" "beta")
 ## Table
 
 We frequently found ourselves wanting to generate nicely formatted tables show information or results of an operation.
-For that we created [`etable`](module/etable.md).
+For that we created [etable](modules/etable.md).
 
 etable is designed to be able to easily produce a nicely formatted ASCII, HTML or "box-drawing" or "boxart" tables with
 columns and rows. The input passed into this function is essentially a variadic number of strings, where each string
@@ -150,7 +150,7 @@ bin/etable \
 ## Progress Bar
 
 We frequently have to run very long-running tasks which can take tens of minutes. This makes the user wonder if the
-process has hung or if it's still making progress. So we invented [`eprogress`](module/emsg.md#func-eprogress) to make
+process has hung or if it's still making progress. So we invented [eprogress](modules/emsg.md#func-eprogress) to make
 this very easy to do in a very configurable manner.
 
 This shows an animated spinner and a time counter:

@@ -16,7 +16,7 @@ foo()
 }
 ```
 
-[`argcheck`](module/opt.md#func-argcheck) verifies that the named variables contained some value. But the rest of this
+[argcheck](modules/opt.md#func-argcheck) verifies that the named variables contained some value. But the rest of this
 felt a little too much like boilerplate. For short functions, this argument parsing amounted to more than the actual
 work that the function performed, so we decided to try to reduce the noise.
 
@@ -48,7 +48,7 @@ $(opt_parse \
     "arg2=b | Argument that defaults to b)
 ```
 
-`opt_parse` can even deal with short and gnu-style long options. There's much more information in the [`opt` documentation](module/opt.md)
+`opt_parse` can even deal with short and gnu-style long options. There's much more information in the [opt documentation](modules/opt.md)
 but here's an example to whet your appetite:
 
 ```shell
@@ -162,11 +162,11 @@ $(opt_parse \
 
 `opt_parse` automatically supports `--help` option and corresponding short option `-?` option for you, which will display
 a usage statement using the docstrings that you provided for each of the options and arguments. It will also pull in
-any docstring attached to the function via (`opt_usage`)[module/opt.md#func-opt_usage).
+any docstring attached to the function via [opt_usage](modules/opt.md#func-opt_usage).
 
 Functions called with `--help` or `-?` as processed by opt_parse will not perform their typical operation and will instead
 return successfully after printing this usage statement.
 
 ## Further Details
 
-* [`opt` documentation](module/opt.md)
+* [opt documentation](modules/opt.md)
