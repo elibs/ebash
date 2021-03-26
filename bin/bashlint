@@ -11,6 +11,12 @@
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
+opt_usage main <<'END'
+Analyze all the requested bash scripts in the specified directories and pass them through bash -n mode which asks bash
+to make sure the syntax looks okay without actually running anything. Additionally, perform several additional
+strictness checks that we have found to be sources of really subtle problems.  Also checks some stylistic issues for
+consistent coding.
+END
 $(opt_parse \
     "+break b | Break on first failure."          \
     "+quiet q | Make bashlint produce no output." \
@@ -33,10 +39,6 @@ fail()
     RC=1
 }
 
-# Analyze all the requested bash scripts in the specified directories and pass them through bash -n mode which asks bash
-# to make sure the syntax looks okay without actually running anything. Additionally, perform several additional
-# strictness checks that we have found to be sources of really subtle problems.  Also checks some stylistic issues for
-# consistent coding.
 ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
 
