@@ -71,9 +71,9 @@ jobs:
         with:
           name: ${{ env.OSNAME }}
           path: |
-            etest.log
-            etest.json
-            etest.xml
+            .work/etest.log
+            .work/etest.json
+            .work/etest.xml
 
   #--------------------------------------------------------------------------------------------------------------------
   #
@@ -106,9 +106,9 @@ jobs:
         with:
           name: macos-${{ matrix.os }}
           path: |
-            etest.log
-            etest.json
-            etest.xml
+            .work/etest.log
+            .work/etest.json
+            .work/etest.xml
 
   #--------------------------------------------------------------------------------------------------------------------
   #
@@ -116,7 +116,7 @@ jobs:
   #
   #--------------------------------------------------------------------------------------------------------------------
   publish-test-results:
-    name: "Publish Unit Tests Results"
+    name: "Publish Tests Results"
     needs: [Linux, MacOS]
     runs-on: ubuntu-latest
     # the build-and-test job might be skipped, we don't need to run this job then
@@ -131,9 +131,9 @@ jobs:
       - name: Details
         run: find artifacts
 
-      - name: Publish Unit Test Results
+      - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v1.6
         with:
-          check_name: Unit Test Results
+          check_name: Test Results
           github_token: ${{ secrets.GITHUB_TOKEN }}
           files: artifacts/**/etest.xml

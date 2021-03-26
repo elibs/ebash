@@ -9,7 +9,7 @@
 
 [[ ${__EBASH_OS} == Linux ]] || return 0
 
-source ${EBASH_HOME}/unittest/daemon_expect.sh
+source ${EBASH_HOME}/tests/daemon_expect.sh
 
 # Enable chroot debugging for this module. This doesn't affect the caller's environment just our local process that is
 # running etest for this test suite.
