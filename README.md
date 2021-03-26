@@ -8,10 +8,10 @@
 
 # Overview
 
-ebash is an open source project developed at [SolidFire](https://www.solidfire.com) for 8 years under the name `bashutils`. It was forked and
-renamed to ebash by the original [developer](https://github.com/marshall-mcmullen) upon his departure after successful acquisition by NetApp. The primary goal of
-ebash is to significantly enhance bash code and make it more *robust*, *feature rich* and *simple* which greatly
-accelerates developer productivity.
+ebash is an open source project developed at [SolidFire](https://www.solidfire.com) for 8 years under the name `bashutils`. As the original developer
+and copyright holder, [I](https://github.com/marshall-mcmullen) forked it and renamed it to ebash after my departure from SolidFire after its successful
+acquisition by NetApp. The primary goal of ebash is to significantly enhance bash code and make it more *robust*,
+*feature rich* and *simple* which greatly accelerates developer productivity.
 
 ## Why _bash_
 
