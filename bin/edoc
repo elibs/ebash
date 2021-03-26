@@ -239,7 +239,7 @@ git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
 einfo "Staging Doc files into docroot"
 cp -av "doc/." "${docroot}"
-cat "README.md" | sed -e 's|(doc/|(|g' > "${docroot}/index.md"
+cat "README.md" | grep -v ">.*Documentation is best viewed" | sed -e 's|(doc/|(|g' > "${docroot}/index.md"
 pushd "${docroot}"
 
 einfo "Initializing Git Repo"
