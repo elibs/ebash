@@ -472,7 +472,7 @@ etimestamp_rfc3339()
 
 opt_usage ebanner<<'END'
 Display a very prominent banner with a provided message which may be multi-line as well as the ability to provide any
-number of extra arguments which will be included in the banner in a pretty printed tag=value optionally upercasing the
+number of extra arguments which will be included in the banner in a pretty printed tag=value optionally uppercasing the
 keys if requested. All of this is implemented with print_value to give consistency in how we log and present information.
 END
 ebanner()
@@ -1143,7 +1143,9 @@ This is implemented via calling print_value on each entry in the argument list. 
 does is understand our C++ LVAL2 idiom where you want to log something with a _different_ key. So you can say nice
 things like:
 
+```shell
 $(lval PWD=$(pwd) VARS=myuglylocalvariablename)
+```
 END
 lval()
 {

@@ -1,12 +1,7 @@
 .bash_history
+doc/binaries
 doc/module
-etest.log*
-etest.html
-etest.json*
-etest.xml*
-results
-output
-results
+doc/toc.md
 .work
 .tags
-selftest/output.log
+tests/self/output
