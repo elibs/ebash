@@ -10,9 +10,9 @@
 # version.
 
 # Test-only PGP files
-ETEST_PGP_PUBLIC="${EBASH_HOME}/unittest/etest_pgp_public.asc"
-ETEST_PGP_PRIVATE="${EBASH_HOME}/unittest/etest_pgp_private.asc"
-ETEST_PGP_PHRASE="${EBASH_HOME}/unittest/etest_pgp_phrase.txt"
+ETEST_PGP_PUBLIC="${EBASH_HOME}/tests/etest_pgp_public.asc"
+ETEST_PGP_PRIVATE="${EBASH_HOME}/tests/etest_pgp_private.asc"
+ETEST_PGP_PHRASE="${EBASH_HOME}/tests/etest_pgp_phrase.txt"
 
 # Test helper for doing a git commit with a known user configuration
 git_commit()

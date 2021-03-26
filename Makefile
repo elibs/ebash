@@ -30,7 +30,7 @@ V       ?= $(or $v,0)
 #----------------------------------------------------------------------------------------------------------------------
 
 .PHONY: ctags
-ctags: unittest/*.sh unittest/*.etest share/*.sh bin/*
+ctags: tests/unit/*.sh tests/unit/*.etest share/*.sh bin/*
 	ctags -f .tags . $^
 
 .PHONY: clean
@@ -39,7 +39,7 @@ clean:
 
 .PHONY: clobber
 clobber: clean
-	sudo bin/ebash rm -frv --one-file-system .work selftest/selftest_output
+	sudo bin/ebash rm -frv --one-file-system .work tests/self/output
 
 .PHONY: lint
 lint:
@@ -54,12 +54,10 @@ test:
 	bin/etest \
 		--break=${BREAK}        \
 		--debug=${EDEBUG}       \
-		--exclude=${EXCLUDE}    \
-		--filter=${FILTER}      \
-		--log-dir=.work         \
+		--exclude="${EXCLUDE}"  \
+		--filter="${FILTER}"    \
 		--repeat=${REPEAT}      \
-		--verbose=${V}          \
-		--work-dir=.work/output
+		--verbose=${V}
 
 .PHONY: doc
 doc:
