@@ -24,27 +24,27 @@ invoking simple shell commands on a system for a number of reasons:
 
 Because bash is a lower level language, it lacks some of the features and more advanced data structures typically found
 in higher level languages. ebash aims to be _the_ answer to this problem. The most important and compelling feature of
-ebash is [implicit error detection](implicit-error-detection.md). This typically results in bash scripts being 75% shorter due to removal of explicit
-error handling and the ability to leverage extensive [ebash modules](module/index).
+ebash is [implicit error detection](doc/implicit-error-detection.md). This typically results in bash scripts being 75% shorter due to removal of explicit
+error handling and the ability to leverage extensive [ebash modules](doc/module/index).
 
-* [Implicit error detection](implicit-error-detection.md)
-* [Logging framework](logging.md)
-* [Debugging](debugging.md)
-* [Data structures](data-structures.md)
-* [Option parsing](opt.md)
-* [Testing](etest.md)
-* [Mocking](emock.md)
-* [Linting](binaries/bashlint.md)
-* [Benchmarking](binaries/ebench.md)
-* [Compatibility](compatibility.md)
+* [Implicit error detection](doc/implicit-error-detection.md)
+* [Logging framework](doc/logging.md)
+* [Debugging](doc/debugging.md)
+* [Data structures](doc/data-structures.md)
+* [Option parsing](doc/opt.md)
+* [Testing](doc/etest.md)
+* [Mocking](doc/emock.md)
+* [Linting](doc/binaries/bashlint.md)
+* [Benchmarking](doc/binaries/ebench.md)
+* [Compatibility](doc/compatibility.md)
 
 ## Quick Start
 
-* [Installation](installation.md)
-* [Usage](usage.md)
-* [Porting](porting.md)
-* [Modules documentation](modules/index.md)
-* [Binaries documentation](binaries/index.md)
-* [Style Guide](style.md)
-* [Bash Gotchas](gotchas.md)
-* [Bash Resources](links.md)
+* [Installation](doc/installation.md)
+* [Usage](doc/usage.md)
+* [Porting](doc/porting.md)
+* [Modules documentation](doc/modules/index.md)
+* [Binaries documentation](doc/binaries/index.md)
+* [Style Guide](doc/style.md)
+* [Bash Gotchas](doc/gotchas.md)
+* [Bash Resources](doc/links.md)
