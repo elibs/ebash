@@ -46,23 +46,23 @@ Or you can always just give the full path:
 
 ## Interactive ebash
 
-One of the cool things ebash provides is an interactive [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop] interface. This
+one of the cool things ebash provides is an interactive [repl](https://en.wikipedia.org/wiki/read%e2%80%93eval%e2%80%93print_loop] interface. this
 makes it super easy to interactively test out code to see how it behaves or debug failures.
 
-Here's an example:
+here's an example:
 
 ```shell
 $ .ebash/bin/ebash
->> ebash EBASH="/home/marshall/code/liqid/os/.ebash/share"
-EBASH> einfo "Testing"
->> Testing
-EBASH> assert_true true
-EBASH> assert_false true
+>> ebash ebash="/home/marshall/code/liqid/os/.ebash/share"
+ebash> einfo "testing"
+>> testing
+ebash> assert_true true
+ebash> assert_false true
 
 >> assert failed (rc=0) :: true
    :: assert.sh:72         | assert_false
    :: ebash-repl:64        | repl
    :: ebash-repl:91        | main
-EBASH> exit
+ebash> exit
  marshall@caprica  ~/.../liqid/os   liqswos-537  v2.4.1.11-1-ge5c6b83156 
 ```
