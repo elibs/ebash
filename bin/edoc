@@ -215,7 +215,7 @@ ebanner "Table of Contents"
     echo ""
     cat "doc/modules/index.md" | sed -e 's|(\([^)]*\))|(modules/\1)|g'
 
-} | sed -e 's|# |#|' | column  --table | sed -e 's|#|\n# |' > "doc/toc.md"
+} | sed -e 's|# |#|' | column  --table | sed -e 's|#\(.*\)|\n# \1\n|' > "doc/toc.md"
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
