@@ -7,7 +7,7 @@ It`s a powerful test strategy that is not limited to just object-oriented langua
 low-level OS testing as well where you basically want to test just your code and not the entire OS. The typical strategy
 here is to essentially create a mock function or script which gets called instead of the real OS level component.
 
-ebash supports an extensive mocking framework called [emock](module/emock.md). It integrates well into the rest of ebash and etest in
+ebash supports an extensive mocking framework called [emock](modules/emock.md). It integrates well into the rest of ebash and etest in
 particular to make it very easy to mock out real system binaries and replace them with mock instances which do something
 else. It is very flexible in the behavior of the mocked function utilizing the many provided option flags.
 

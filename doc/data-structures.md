@@ -2,7 +2,7 @@
 
 ## Arrays
 
-In the [array module](module/array.md) there are several helpers for dealing with standard bash arrays. These are
+In the [array module](modules/array.md) there are several helpers for dealing with standard bash arrays. These are
 helpers for dealing with standard bash arrays. Definitely read the full documentation but let's highlight some of the
 more interesting functions.
 
@@ -19,14 +19,14 @@ declare -a array='([0]="a" [1]="b" [2]="c" [3]="d")'
 ```
 
 The default separator is any whitespace. If you'd like to split up a file by line (retaining whitespace within
-individual lines), you can use [array_init_nl](module/array.md#func-array_init_nl). There's also [array_init_json](module/array.md#func-array_init_json) to slurp JSON data into an array.
+individual lines), you can use [array_init_nl](modules/array.md#func-array_init_nl). There's also [array_init_json](modules/array.md#func-array_init_json) to slurp JSON data into an array.
 
-You can use [array_contains](module/array.md#func-array_contains) to find out if a specific value is in an array, [array_sort](module/array.md#func-array_sort) to sort an array, and [array_remote](module/array.md#func-array_remove)
+You can use [array_contains](modules/array.md#func-array_contains) to find out if a specific value is in an array, [array_sort](modules/array.md#func-array_sort) to sort an array, and [array_remote](modules/array.md#func-array_remove)
 to remove specific items out of an array.
 
 ## Packs
 
-[Packs](module/pack.md) are an entirely new data structure for bash. They're pretty similar to associative arrays, but have compelling
+[Packs](modules/pack.md) are an entirely new data structure for bash. They're pretty similar to associative arrays, but have compelling
 benefits in a few cases. The best one is that you can store packs inside an array or associative array, so you can more
 easily keep track of multidimensional data.
 
@@ -53,8 +53,8 @@ $ pack_get my_pack B
 ```
 
 But sometimes that gets cumbersome. When you want to work with a lot of the variables, sometimes it's easier to store
-them as local variables while you're working, and then put them all back in the pack when you're done. [pack_import](module/pack.md#func-pack_import) and
-[pack_export](module/pack.md#func-pack_export) were designed for just such a case.
+them as local variables while you're working, and then put them all back in the pack when you're done. [pack_import](modules/pack.md#func-pack_import) and
+[pack_export](modules/pack.md#func-pack_export) were designed for just such a case.
 
 ```shell
 $ $(pack_import my_pack) echo $A
@@ -72,7 +72,7 @@ $ pack_get my_pack B
 
 You can see that after `pack_import,` `A` and `B` were local variables that had values that were extracted from the
 pack. After the `pack_export`, the values inside the pack were synced back to the values that had been assigned to the
-local variables. You could certainly do this by hand with [pack_set](module/pack.md#func-pack_set) and [pack_get](module/pack.md#func-pack_get) but `pack_import` and `pack_export`
+local variables. You could certainly do this by hand with [pack_set](modules/pack.md#func-pack_set) and [pack_get](modules/pack.md#func-pack_get) but `pack_import` and `pack_export`
 are often more convenient.
 
 One more quick tool for using packs. Our `lval` knows how to read them explicitly, but you must tell it that the
@@ -82,15 +82,15 @@ variable is a pack by prepending it with a percent sign.
 $ echo "$(lval %my_pack)"
 my_pack=([C]="3" [A]="15" [B]="20" )
 ```
-Another super helpful pair of functions are [pack_save](module/pack.md#func-pack_save) and [pack_load](module/pack.md#func-pack_load) to easily save a pack to an on-disk file and then
+Another super helpful pair of functions are [pack_save](modules/pack.md#func-pack_save) and [pack_load](modules/pack.md#func-pack_load) to easily save a pack to an on-disk file and then
 later load it from that file back into memory.
 
 ## json
 
-ebash has extensive [json](module/json.md) functions to make it dramatically easier to use JSON inside bash code. A lot of the heavy-lifting
+ebash has extensive [json](modules/json.md) functions to make it dramatically easier to use JSON inside bash code. A lot of the heavy-lifting
 to accomplish this is accomplished using the fantastic tool [jq](https://stedolan.github.io/jq).
 
-The most important function is [json_import](module/json.md#func-json_import).
+The most important function is [json_import](modules/json.md#func-json_import).
 
 `json_import` imports all of the `key:value` pairs from a non-nested JSON object directly into the caller's environment as
 proper bash variables. By default this will import all the keys available into the caller's environment. Alternatively

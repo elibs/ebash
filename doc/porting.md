@@ -142,7 +142,7 @@ i=$(( i+= 1 ))
 i=$(( i-= 1 ))
 ```
 
-This is all super cumbersome and easy to get wrong. So ebash provides [increment](module/integer.md#func-increment) and
+This is all super cumbersome and easy to get wrong. So ebash provides [increment](modules/integer.md#func-increment) and
 [decrement](doc/integer.md#func-decrement) functions to make this trivial.
 
 
@@ -159,7 +159,7 @@ decrement i
 ebash provides a very nice mechanism for handling lockfiles using `elock` and `eunlock`. This is basically an intelligent
 wrapper around flock.
 
-Usage is basically `elock <fname>` and `eunlock <fname>`. See [elock](module/elock.md).
+Usage is basically `elock <fname>` and `eunlock <fname>`. See [elock](modules/elock.md).
 
 One really cool thing about `elock` is it will automatically unlock for you when the shell exits. You can take
 advantage of this to do something slick like this:

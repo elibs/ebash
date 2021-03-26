@@ -30,15 +30,15 @@ will have `[UnhandledError]` in its message.
 
 * Second, we ensure that the error trap is inherited by all subshells, because sometimes you need them, and often it's
 difficult to know where there will actually be a subshell.
-
+<!-- -->
 Sometimes bash really wants to ignore a return code. For instance, if command substitution isn't part of the first
 command on a line, as in both of the following lines of code, bash will ignore any return code of `cmd`.
-
+<!-- -->
 ```shell
 echo "$(cmd)"
 local var=$(cmd)
 ```
-
+<!-- -->
 ebash enhances bash's error detection to catch this case. The error trap is inherited by the shell inside the command
 substitution, and when it calls `die`, it will actually send a signal to its parent shell. When the parent shell
 receives that signal, it generates a stack trace and blows up, which is exactly what we were looking for.
@@ -125,7 +125,7 @@ shell as surrounding code.
 
 One workaround is to write data to a file inside the block and read it outside. Another alternative is `tryrc`.
 
-For more details about `try` and `catch` see the documentation in [try](module/try_catch.md#alias-try) and [catch](module/try_catch.md#alias-catch) and the many examples in the
+For more details about `try` and `catch` see the documentation in [try](modules/try_catch.md#alias-try) and [catch](modules/try_catch.md#alias-catch) and the many examples in the
 [tests](https://github.com/elibs/ebash/blob/master/tests/try_catch.etest).
 
 ### Use `tryrc` to handle errors in simple commands
@@ -173,4 +173,4 @@ echo "${out}"
 echo "${err}" >&2
 ```
 
-For more details about `tryrc` see the [tryrc documentation](module/try_catch.md#func-tryrc) and the many examples in the [tests](https://github.com/elibs/ebash/blob/master/tests/try_catch.etest).
+For more details about `tryrc` see the [tryrc documentation](modules/try_catch.md#func-tryrc) and the many examples in the [tests](https://github.com/elibs/ebash/blob/master/tests/try_catch.etest).

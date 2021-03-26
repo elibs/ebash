@@ -32,7 +32,7 @@ See [etest usage](binaries/etest.md)
 
 ebash and etest provide an extremely rich interface for testing code via various `assert` functions. If an assertion
 fails, the test fails and a stack trace is printed to show you the cause and location of the failure. The complete list
-of assertions is available in [assert.sh](module/assert.md) but some of the most useful are:
+of assertions is available in [assert](modules/assert.md) but some of the most useful are:
 
 * `assert`
 * `assert_true`
@@ -164,7 +164,7 @@ ebash supports an extensive mocking framework called emock. It integrates well i
 particular to make it very easy to mock out real system binaries and replace them with mock instances which do something
 else. It is very flexible in the behavior of the mocked function utilizing the many provided option flags.
 
-This is an absolutely indispensable test strategy. Please see [mocking](module/emock.md) for all the details.
+This is an absolutely indispensable test strategy. Please see [mocking](modules/emock.md) for all the details.
 
 ## Long Running Commands
 
@@ -178,7 +178,7 @@ arbitrary amount of time?
 test which will eat up all our build minutes. So we'd like to timeout the check at some point.
 * We'd like some progress output to indicate what the test is doing so we don't think it is hung.
 
-All of these requirements can be easily addressed with [eretry](module/eretry.md). In it's simplest form all you have to
+All of these requirements can be easily addressed with [eretry](modules/eretry.md). In it's simplest form all you have to
 do is prefix your normal bash command with `eretry`. By default, it will try the command 5 times, with a sleep of 1
 second between each iteration. If the command returns success then it will stop retrying. If the condition never becomes
 true, then the test will fail!
