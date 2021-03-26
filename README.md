@@ -4,6 +4,8 @@
     <img alt="Bash" src="https://raw.githubusercontent.com/odb/official-bash-logo/master/assets/Logos/Identity/PNG/BASH_logo-transparent-bg-color.png">
 </p>
 
+> **_NOTE:_** **Documentation is best viewed on [github-pages](https://elibs.github.io/ebash)**
+
 # Overview
 
 ebash is an open source project developed at [SolidFire](https://www.solidfire.com) for 8 years under the name `bashutils`. It was forked and
