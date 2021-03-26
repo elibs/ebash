@@ -1,4 +1,5 @@
 [etest]
 log_dir = .work
 work_dir = .work/output
-tests = tests/unit
+tests = tests
+exclude = tests/self

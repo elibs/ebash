@@ -54,8 +54,8 @@ test:
 	bin/etest \
 		--break=${BREAK}        \
 		--debug=${EDEBUG}       \
-		--exclude=${EXCLUDE}    \
-		--filter=${FILTER}      \
+		--exclude="${EXCLUDE}"  \
+		--filter="${FILTER}"    \
 		--repeat=${REPEAT}      \
 		--verbose=${V}
 
