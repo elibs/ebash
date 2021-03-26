@@ -173,4 +173,7 @@ echo "${out}"
 echo "${err}" >&2
 ```
 
-For more details about `tryrc` see the [tryrc documentation](modules/try_catch.md#func-tryrc) and the many examples in the [tests](https://github.com/elibs/ebash/blob/master/tests/try_catch.etest).
+## Further Details
+
+- [tryrc documentation](modules/try_catch.md#func-tryrc)
+- Examples in [tests](https://github.com/elibs/ebash/blob/master/tests/try_catch.etest)

@@ -27,7 +27,7 @@ invoking simple shell commands on a system for a number of reasons:
 Because bash is a lower level language, it lacks some of the features and more advanced data structures typically found
 in higher level languages. ebash aims to be _the_ answer to this problem. The most important and compelling feature of
 ebash is [implicit error detection](doc/implicit-error-detection.md). This typically results in bash scripts being 75% shorter due to removal of explicit
-error handling and the ability to leverage extensive [ebash modules](doc/module/index).
+error handling and the ability to leverage extensive [ebash modules](doc/modules/index).
 
 * [Implicit error detection](doc/implicit-error-detection.md)
 * [Logging framework](doc/logging.md)
