@@ -8,10 +8,12 @@
 
 # Overview
 
-ebash is an open source project developed at [SolidFire](https://www.solidfire.com) for 8 years under the name `bashutils`. As the original developer
-and copyright holder, [I](https://github.com/marshall-mcmullen) forked it and renamed it to ebash after my departure from SolidFire after its successful
-acquisition by NetApp. The primary goal of ebash is to significantly enhance bash code and make it more *robust*,
-*feature rich* and *simple* which greatly accelerates developer productivity.
+ebash is an open source project developed at [NetApp/SolidFire](https://www.netapp.com/data-storage/solidfire) as an open source project from 2011-2018 under the name `bashutils`
+and the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0). [I](https://github.com/marshall-mcmullen) forked `bashutils` into `ebash` upon my departure from NetApp/SolidFire to continue active
+development and ensure it remained free and open source.
+
+The primary goal of ebash is to significantly enhance bash code and make it more *robust*, *feature rich* and *simple* which
+greatly accelerates developer productivity.
 
 ## Why _bash_
 
