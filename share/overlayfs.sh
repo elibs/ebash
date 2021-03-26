@@ -235,12 +235,12 @@ opt_usage overlayfs_layers <<'END'
 Parse an overlayfs mount point and populate a pack with entries for the sources, lowerdirs, lowest, upperdir, workdir,
 and src and mnt.
 
-NOTE: Because 'lowerdir' may actually be stacked its value may contain multiple whitespace separated entries we use the
-key 'lowerdirs' instead of 'lowerdir' to more accurately reflect that it's multiple entries instead of a single entry.
-There is an additional 'lowest' key we put in the pack that is the bottom-most 'lowerdir' when we need to directly
-access it.
+> **_NOTE:_** Because 'lowerdir' may actually be stacked its value may contain multiple whitespace separated entries we
+use the key 'lowerdirs' instead of 'lowerdir' to more accurately reflect that it's multiple entries instead of a single
+entry. There is an additional 'lowest' key we put in the pack that is the bottom-most 'lowerdir' when we need to
+directly access it.
 
-NOTE: Depending on kernel version, 'workdir' may be empty as it may not be used.
+> **_NOTE:_** Depending on kernel version, 'workdir' may be empty as it may not be used.
 END
 overlayfs_layers()
 {
@@ -316,8 +316,8 @@ overlayfs mount. The intention of this function is that you should call it when 
 and you want its changes to persist back to the original archive. To avoid doing any unecessary work, this function will
 first call overlayfs_dedupe and only if something has changed will it actually write out a new archive.
 
-NOTE: You can't just save the overlayfs mounted directory back to the original archive while it's mounted or you'll
-corrupt the currently mounted overlayfs. To work around this, we archive the overlayfs mount point to a temporary
+> **_NOTE:_** You can't just save the overlayfs mounted directory back to the original archive while it's mounted or
+you'll corrupt the currently mounted overlayfs. To work around this, we archive the overlayfs mount point to a temporary
 archive, then we unmount the current mount point so that we can safely copy the new archive over the original archive.
 END
 overlayfs_commit()

@@ -434,7 +434,7 @@ ETEST_eprogress_ticker_align_right()
     # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
     sed -i "s|:01\]|:00\]|g" ${OUTPUT}
 
-    # Different terms have different codes.  Ignore the number in the ANSI code.
+    # Different terms have different codes. Ignore the number in the ANSI code.
     sed -i "s|\[[0-9]\+C||" ${OUTPUT}
 
     # Different size screens will show different output based on the size of the display so replace it with something
@@ -470,7 +470,7 @@ ETEST_eprogress_ticker_align_left()
     # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
     sed -i "s|:01\]|:00\]|g" ${OUTPUT}
 
-    # Different terms have different codes.  Ignore the number in the ANSI code.
+    # Different terms have different codes. Ignore the number in the ANSI code.
     sed -i "s|\[[0-9]\+C||" ${OUTPUT}
 
     assert_eq --hexdump ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|"$'\x20\x24\x0a'"^[M^[[ ok ]\$" "$(cat -evt ${OUTPUT})"

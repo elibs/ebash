@@ -28,7 +28,7 @@ The inputfile will be modified IN PLACE to contain:
 
 SETVARS_ALLOW_EMPTY=(0|1)
     By default, empty values are NOT allowed. Meaning that if the provided key evaluates to an empty string, it will NOT
-    replace the __key__ in the file.  if you require that functionality, simply use SETVARS_ALLOW_EMPTY=1 and it will
+    replace the __key__ in the file. if you require that functionality, simply use SETVARS_ALLOW_EMPTY=1 and it will
     happily allow you to replace __key__ with an empty string.
 
     After all variables have been expanded in the provided file, a final check is performed to see if all variables were
@@ -38,7 +38,7 @@ SETVARS_WARN=(0|1)
     To aid in debugging this will display a warning on any unset variables.
 
 OPTIONAL CALLBACK:
-    You may provided an optional callback as the second parameter to this function.  The callback will be called with
+    You may provided an optional callback as the second parameter to this function. The callback will be called with
     the key and the value it obtained from the environment (if any). The callback is then free to make whatever
     modifications or filtering it desires and then echo the new value to stdout. This value will then be used by setvars
     as the replacement value.
@@ -68,7 +68,7 @@ setvars()
         # Call provided callback if one was provided which by contract should print the new resulting value to be used
         [[ -n ${callback} ]] && val=$(${callback} "${key}" "${val}")
 
-        # If we got an empty value back and empty values aren't allowed then continue.  We do NOT call die here as we'll
+        # If we got an empty value back and empty values aren't allowed then continue. We do NOT call die here as we'll
         # deal with that at the end after we have tried to expand all variables.
         [[ -n ${val} || ${SETVARS_ALLOW_EMPTY:-0} -eq 1 ]] || continue
 

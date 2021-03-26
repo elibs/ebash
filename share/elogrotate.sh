@@ -14,18 +14,19 @@
 #-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage elogrotate <<'END'
-elogrotate rotates all the log files with a given basename similar to what happens with logrotate.
-It will always touch an empty non-versioned file just log logrotate.
+elogrotate rotates all the log files with a given basename similar to what happens with logrotate. It will always touch
+an empty non-versioned file just log logrotate.
 
-For example, if you pass in the pathname '/var/log/foo' and ask to keep a max of 5, it will do the
-following:
+For example, if you pass in the pathname '/var/log/foo' and ask to keep a max of 5, it will do the following:
 
-    /var/log/foo.4 -> /var/log/foo.5
-    /var/log/foo.3 -> /var/log/foo.4
-    /var/log/foo.2 -> /var/log/foo.3
-    /var/log/foo.1 -> /var/log/foo.2
-    /var/log/foo   -> /var/log/foo.1
-    touch /var/log/foo
+```shell
+mv /var/log/foo.4 /var/log/foo.5
+mv /var/log/foo.3 /var/log/foo.4
+mv /var/log/foo.2 /var/log/foo.3
+mv /var/log/foo.1 /var/log/foo.2
+mv /var/log/foo   /var/log/foo.1
+touch /var/log/foo
+```
 END
 elogrotate()
 {

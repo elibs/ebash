@@ -27,7 +27,7 @@ opt_usage is_num <<'END'
 Returns success (0) if the input string is a number and failure (1) otherwise. May have a leading '-' or '+' to indicate
 the number is negative or positive. Unlike is_integer, this function properly handles floating point numbers.
 
-is_num at present does not handle fractions or exponents or numbers is other bases (e.g. hex).  But in the future we may
+is_num at present does not handle fractions or exponents or numbers is other bases (e.g. hex). But in the future we may
 add support for these as needed. As such we decided not to limit ourselves with calling this just is_float.
 END
 is_num()
@@ -40,9 +40,11 @@ Returns success (0) if the variable name provided refers to an array and failure
 
 For example:
 
-    $ arr=(1 2 3)
-    $ is_array arr
-    # returns: 0 (success)
+```shell
+arr=(1 2 3)
+is_array arr
+# returns: 0 (success)
+```
 
 In the above example notice that we use `is_array arr` and not `is_array ${arr}`.
 END
@@ -56,10 +58,12 @@ Returns success (0) if the variable name provided refers to an associative array
 
 For example:
 
-    $ declare -A data
-    $ data[key]="value"
-    $ is_associative_array data
-    # returns: 0 (success)
+```shell
+declare -A data
+data[key]="value"
+is_associative_array data
+# returns: 0 (success)
+```
 
 In the above example notice that we use `is_associative_array data` and not `is_associative_array ${data}`.
 END
@@ -73,11 +77,12 @@ Returns success (0) if the variable name provided refers to a pack and failure (
 
 For example:
 
-    $ declare mypack=""
-    $ pack_set mypack a=foo b=bar
-    $ is_pack mypack
-    # returns: 0 (success)
-
+```shell
+declare mypack=""
+pack_set mypack a=foo b=bar
+is_pack mypack
+# returns: 0 (success)
+```
 In the above example notice that we use `is_pack mypack` and not `is_pack ${mypack}`.
 END
 is_pack()
@@ -91,10 +96,11 @@ Returns success (0) if the variable name provided refers to a function and failu
 
 For example:
 
-    $ foo() { echo "foo"; }
-    $ is_function foo
-    # returns: 0 (success)
-
+```shell
+foo() { echo "foo"; }
+is_function foo
+# returns: 0 (success)
+```
 END
 is_function()
 {

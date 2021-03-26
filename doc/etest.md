@@ -87,7 +87,7 @@ that's one of the ways etest determines whether it can execute a file. Plus it m
 syntax highlighting.
 
 ```shell
-> ./etest -f=mytest.etest
+$ ./etest -f=mytest.etest
 >> Starting tests in /home/modell/sf/ebash/mytest.etest
    - ETEST_will_fail                                             [ !! ]
    - ETEST_will_pass                                             [ ok ]
@@ -130,7 +130,7 @@ ETEST_will_pass()
 Non-verbose mode would look the same, so we'll run it in verbose mode:
 
 ```shell
-> ./etest -f=pass -v
+$ ./etest -f=pass -v
 +-----------------------------------------------------------------+
 |
 | ETEST_will_pass

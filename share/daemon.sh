@@ -27,114 +27,75 @@ execute a given hook you're responsible for doing that yourself.
 
 The following are the keys used to control daemon functionality:
 
-### autostart
+- **autostart**: Automatically start the configured daemon after a successful daemon_init. This is off by default to
+  allow the caller more granular control. Valid values are "yes" and "no" (ignoring case).
 
-Automatically start the configured daemon after a successful daemon_init. This is off by default to allow the caller
-more granular control. Valid values are "yes" and "no" (ignoring case).
+- **bindmounts**: Optional whitespace separated list of additional paths which whould be bind mounted into the chroot by
+  the daemon process during daemon_start. A trap will be setup so that the bind mounts are automatically unmounted when
+  the process exits. The syntax for these bind mounts allow mounting them into alternative paths inside the chroot using
+  a colon to delimit the source path outside the chroot and the desired mount point inside the chroot. (e.g.
+  `/var/log/kern.log:/var/log/host_kern.log`)
 
-### bindmounts
+- **cfgfile**: This is a file that ebash will store the pack configuration information about the daemon. By default this
+  is `${__EBASH_DAEMON_RUNDIR}`. This allows external integration into other parts of ebash such as the docker systemctl
+  wrapper which can be used to start/stop and query the status of daemons. Set this to an empty string if you want to
+  disable this.
 
-Optional whitespace separated list of additional paths which whould be bind mounted into the chroot by the daemon
-process during daemon_start. A trap will be setup so that the bind mounts are automatically unmounted when the process
-exits. The syntax for these bind mounts allow mounting them into alternative paths inside the chroot using a colon to
-delimit the source path outside the chroot and the desired mount point inside the chroot. (e.g.
-`/var/log/kern.log:/var/log/host_kern.log`)
+- **cgroup**: Optional cgroup to run the daemon in. If the cgroup does not exist it will be created for you. The daemon
+  assumes ownership of ALL processes in that cgroup and will kill them at shutdown time. (So give it its own cgroup).
+  See cgroups.sh for more information.
 
-### cfgfile
+- **chroot**: Optional CHROOT to run the daemon in. chroot_cmd will be used to execute the provided command line but all
+  other hooks will be performed outside of the chroot. Though the CHROOT variable will be availble in the hooks if
+  needed.
 
-This is a file that ebash will store the pack configuration information about the daemon. By default this is
-`${__EBASH_DAEMON_RUNDIR}`. This allows external integration into other parts of ebash such as the docker systemctl
-wrapper which can be used to start/stop and query the status of daemons. Set this to an empty string if you want to
-disable this.
+- **cmdline**: The command line to be run as a daemon. This includes the executable as well as any of its arguments.
 
-### cgroup
+- **delay**: The delay to wait, in sleep(1) syntax, before attempting to restart the daemon when it exits. This should
+  never be <1s otherwise race conditions in startup and shutdown are possible. Defaults to 1s.
 
-Optional cgroup to run the daemon in. If the cgroup does not exist it will be created for you. The daemon assumes
-ownership of ALL processes in that cgroup and will kill them at shutdown time. (So give it its own cgroup). See
-cgroups.sh for more information.
+- **logfile**: Optional logfile to send all stdout and stderr to for the daemon. Since it generally doesn't make sense
+  for the stdout/stderr of the daemon to spew into the caller's stdout/stderr, these will default to /dev/null if not
+  otherwise specified.
 
-### chroot
+- **logfile_count**: Maximum number of logfiles to keep (defaults to 5). See elogfile and elogrotate for more details.
 
-Optional CHROOT to run the daemon in. chroot_cmd will be used to execute the provided command line but all other hooks
-will be performed outside of the chroot. Though the CHROOT variable will be availble in the hooks if needed.
+- **logfile_size**: Maximum logfile size before logfiles should be rotated. This defaults to zero such that if you
+  provide any logfile it will be rotated automatially. See elogfile and elogrotate for more details.
 
-### cmdline
+- **name**: The name of the daemon, for readability purposes. By default this will use the name of the configuration
+  pack.
 
-The command line to be run as a daemon. This includes the executable as well as any of its arguments.
+- **pidfile**: Path to the pidfile for the daemon. By default this is the name of the configuration pack and is stored
+  in `${__EBASH_DAEMON_RUNDIR}/${name}.pid`
 
-### delay
+- **pre_start**: Optional hook to be executed before starting the daemon. Must be a single command to be executed. If
+  more complexity is required use a function. If this hook fails, the daemon will NOT be started or respawned.
 
-The delay to wait, in sleep(1) syntax, before attempting to restart the daemon when it exits. This should never be <1s
-otherwise race conditions in startup and shutdown are possible. Defaults to 1s.
+- **pre_stop**: Optional hook to be executed before stopping the daemon. Must be a single command to be executed. If
+  more complexity is required use a function. Any errors from this hook are ignored.
 
-### logfile
+- **post_mount**: Optional hook to be executed after bind mounts have been created but before starting the daemon. Must
+  be a single command to be executed. If more complexity is required use a function. This hook is invoked regardless of
+  whether this daemon has bind mounts. Any errors from this hook are ignored
 
-Optional logfile to send all stdout and stderr to for the daemon. Since it generally doesn't make sense for the
-stdout/stderr of the daemon to spew into the caller's stdout/stderr, these will default to /dev/null if not otherwise
-specified.
+- **post_stop**: Optional hook to be exected after stopping the daemon. Must be a single command to be executed. If more
+  complexity is required use a function. Any errors from this hook are ignored.
 
-### logfile_count
+- **post_crash**: Optional hook to be executed after the daemon stops abnormally (i.e not through daemon_stop). Errors
+  from this hook are ignored.
 
-Maximum number of logfiles to keep (defaults to 5). See elogfile and elogrotate for more details.
+- **post_abort**: Optional hook to be called after the daemon aborts due to crashing too many times. Errors from this
+  hook are ignored.
 
-### logfile_size
+- **respawns**: The maximum number of times to respawn the daemon command before just giving up. Defaults to 10.
 
-Maximum logfile size before logfiles should be rotated. This defaults to zero such that if you provide any logfile it
-will be rotated automatially. See elogfile and elogrotate for more details.
+- **respawn_interval**: Amount of seconds the process must stay up for it to be considered a successful start. This is
+  used in conjunction with respawn similar to upstart/systemd. If the process is respawned more than ${respawns} times
+  within ${respawn_interval} seconds, the process will no longer be respawned.
 
-### name
-
-The name of the daemon, for readability purposes. By default this will use the name of the configuration pack.
-
-### pidfile
-
-Path to the pidfile for the daemon. By default this is the name of the configuration pack and is stored in
-`${__EBASH_DAEMON_RUNDIR}/${name}.pid`
-
-### pre_start
-
-Optional hook to be executed before starting the daemon. Must be a single command to be executed.  If more complexity
-is required use a function. If this hook fails, the daemon will NOT be started or respawned.
-
-### pre_stop
-
-Optional hook to be executed before stopping the daemon. Must be a single command to be executed.  If more complexity
-is required use a function. Any errors from this hook are ignored.
-
-### post_mount
-
-Optional hook to be executed after bind mounts have been created but before starting the daemon.  Must be a single
-command to be executed. If more complexity is required use a function. This hook is invoked regardless of whether this
-daemon has bind mounts. Any errors from this hook are ignored
-
-### post_stop
-
-Optional hook to be exected after stopping the daemon. Must be a single command to be executed. If more complexity is
-required use a function. Any errors from this hook are ignored.
-
-### post_crash
-
-Optional hook to be executed after the daemon stops abnormally (i.e not through daemon_stop).  Errors from this hook
-are ignored.
-
-### post_abort
-
-Optional hook to be called after the daemon aborts due to crashing too many times. Errors from this hook are ignored.
-
-### respawns
-
-The maximum number of times to respawn the daemon command before just giving up. Defaults to 10.
-
-### respawn_interval
-
-Amount of seconds the process must stay up for it to be considered a successful start. This is used in conjunction
-with respawn similar to upstart/systemd. If the process is respawned more than ${respawns} times within
-${respawn_interval} seconds, the process will no longer be respawned.
-
-### netns_name
-
-Network namespce to run the daemon in.  The namespace must be created and properly configured before use. If you use
-this, you need to source netns.sh from ebash prior to calling daemon_start
+- **netns_name**: Network namespce to run the daemon in. The namespace must be created and properly configured before
+  use. If you use this, you need to source netns.sh from ebash prior to calling daemon_start
 END
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -274,7 +235,7 @@ daemon_start()
                 disable_die_parent
                 enable_trace
 
-                # Normal shutdown for the daemon will cause SIGTERM to this process.  That's great, we'll let it shut us
+                # Normal shutdown for the daemon will cause SIGTERM to this process. That's great, we'll let it shut us
                 # down, but without printing a stack trace because this is a normal situation.
                 trap - SIGTERM
 
@@ -328,7 +289,7 @@ daemon_start()
             wait ${pid} &>/dev/null || true
 
             # Note: it would be quite possible to accomplish this as a trap in the shell where the mount is created, but
-            # traps are less-than-perfectly-reliable on Ubuntu 12.04.  To be sure we clean up mounts, we do it here
+            # traps are less-than-perfectly-reliable on Ubuntu 12.04. To be sure we clean up mounts, we do it here
             # explicitly.
             if [[ -n ${bindmounts} ]] ; then
                 local to_unmount=( ${bindmounts} )
@@ -411,9 +372,8 @@ daemon_stop()
     # Execute optional pre_stop hook. Ignore any errors.
     $(tryrc ${pre_stop})
 
-    # If it is remove the pidfile then stop the process with provided signal.
-    # NOTE: It's important we remove the pidfile BEFORE we kill the process so that
-    # it won't try to respawn!
+    # If it is remove the pidfile then stop the process with provided signal. NOTE: It's important we remove the
+    # pidfile BEFORE we kill the process so that it won't try to respawn!
     local pid
     pid=$(cat ${pidfile} 2>/dev/null || true)
     rm --force ${pidfile}
@@ -421,8 +381,8 @@ daemon_stop()
         # kill the process with requested signal
         ekilltree -s=${signal} ${pid}
 
-        # Use eretry to wait up to the maximum timeout for the process to exit.
-        # if it fails to exit, then elevate the signal and use SIGKILL.
+        # Use eretry to wait up to the maximum timeout for the process to exit. If it fails to exit, then elevate the
+        # signal and use SIGKILL.
         $(tryrc eretry -T=${timeout} -d=.1s process_not_running ${pid})
         if [[ ${rc} -ne 0 ]] ; then
             ekilltree -s=SIGKILL ${pid}

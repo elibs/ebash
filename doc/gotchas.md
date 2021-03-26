@@ -8,12 +8,12 @@ associative arrays except that bash forces the indexes to be numerical.
 For instance:
 
 ```shell
-> ARRAY=(A B C D) declare -p ARRAY
+$ ARRAY=(A B C D) declare -p ARRAY
 declare -a ARRAY='([0]="A" [1]="B" [2]="C" [3]="D")'
 
-> unset ARRAY[B]
-> unset ARRAY[D]
-> declare -p ARRAY
+$ unset ARRAY[B]
+$ unset ARRAY[D]
+$ declare -p ARRAY
 declare -a ARRAY='([1]="B" [2]="C" [3]="D")'
 ```
 
@@ -52,7 +52,7 @@ that it doesn't need to be quoted, just put double quotes around the variable an
 commonly-known case of this relates to filenames and white space.
 
 ```shell
-> filename="contains spaces.txt"
+$ filename="contains spaces.txt"
 touch $filename
 ```
 
@@ -61,11 +61,11 @@ matters. For instance, any text that bash could interpret as a glob operator may
 the contents of your file system:
 
 ```shell
-> a=[x]
-> echo ${a}
+$ a=[x]
+$ echo ${a}
 [x]
-> touch x
-> echo ${a}
+$ touch x
+$ echo ${a}
 x
 ```
 

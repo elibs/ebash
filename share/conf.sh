@@ -41,27 +41,26 @@ Here the the details of the INI specification from wikipedia's description that 
 
 ### Comments
 
-  - Both ; and # at the beginning of a line start a comment.
-  - You can't create comments at the end of a line. Instead, whatever is on the line past the
-    equal sign will become part of the property created on that line
+- Both ; and # at the beginning of a line start a comment.
+- You can't create comments at the end of a line. Instead, whatever is on the line past the equal sign will become part
+  of the property created on that line
 
 ### Sections
 
-  - Section names may not contain whitespace, nor may they contain equal signs or periods.
-  - Section names are case sensitive.
-  - No section is required, properties without a section declaration are placed in "default"
+- Section names may not contain whitespace, nor may they contain equal signs or periods.
+- Section names are case sensitive.
+- No section is required, properties without a section declaration are placed in "default"
 
 ### Properties
 
-  - Property names may not contain whitespace, nor may they contain equal signs
-  - Property names are case sensitive.
-  - Whitespace around the name is ignored.
-  - Values cannot contain newlines. Whitespace is stripped from the ends, but retained within the
-    value
-  - Values can be surrounded by single or double quotes, in which case there must only be two of
-    that particular quote character on the line. No escaping is allowed.
-  - When quoted, all whitespace in the value within the quotes is retained. This doesn't change
-    that values cannot contain newlines.
+- Property names may not contain whitespace, nor may they contain equal signs
+- Property names are case sensitive.
+- Whitespace around the name is ignored.
+- Values cannot contain newlines. Whitespace is stripped from the ends, but retained within the value
+- Values can be surrounded by single or double quotes, in which case there must only be two of that particular quote
+  character on the line. No escaping is allowed.
+- When quoted, all whitespace in the value within the quotes is retained. This doesn't change that values cannot contain
+  newlines.
 END
 #-----------------------------------------------------------------------------------------------------------------------
 

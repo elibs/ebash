@@ -32,14 +32,14 @@ netns_teardown_traphandler()
 netns_setup_connected_network()
 {
     $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+        "netns_args_packname | Name of variable containing netns information. (Was created by netns
                                init with a name you chose)")
 
     netns_check_pack ${netns_args_packname}
 
     $(pack_import ${netns_args_packname})
 
-    # this allows packets to come in on the real nic and be forwarded to the virtual nic.  It turns on routing in the
+    # this allows packets to come in on the real nic and be forwarded to the virtual nic. It turns on routing in the
     # kernel.
     echo 1 > /proc/sys/net/ipv4/ip_forward
 
@@ -54,7 +54,7 @@ netns_setup_connected_network()
         return 0
     fi
 
-    # We create all the virtual things we need.  A veth pair, a tap adapter and a virtual bridge
+    # We create all the virtual things we need. A veth pair, a tap adapter and a virtual bridge
     ip link add dev ${devname} type veth peer name ${devname}p
     ip link set dev ${devname} up
     ip tuntap add ${ns_name}_t mode tap
@@ -95,7 +95,7 @@ netns_setup_connected_network()
 netns_remove_network()
 {
     $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+        "netns_args_packname | Name of variable containing netns information. (Was created by netns
                                init with a name you chose)")
 
     netns_check_pack ${netns_args_packname}
@@ -117,7 +117,7 @@ netns_remove_network()
 netns_add_iptables_rules()
 {
     $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+        "netns_args_packname | Name of variable containing netns information. (Was created by netns
                                init with a name you chose)")
 
     netns_supported iptables || return 0
@@ -137,7 +137,7 @@ netns_add_iptables_rules()
 netns_remove_iptables_rules()
 {
     $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+        "netns_args_packname | Name of variable containing netns information. (Was created by netns
                                init with a name you chose)")
 
     netns_supported iptables || return 0
@@ -157,7 +157,7 @@ netns_remove_iptables_rules()
 netns_iptables_rule_exists()
 {
     $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+        "netns_args_packname | Name of variable containing netns information. (Was created by netns
                                init with a name you chose)" \
         "devname             | Network device to operate on.")
 
@@ -350,10 +350,10 @@ ETEST_daemon_start_stop_start()
     assert_not_exists pidfile
 }
 
-# This test is different.  12.04 doesn't have a way to ask the system what netns a program is running in, and it's
+# This test is different. 12.04 doesn't have a way to ask the system what netns a program is running in, and it's
 # difficult to tell when you are in a namespace that you are there, and if you are there, which one you are in.
 #
-# So, I'm naming the internal nic something unique that I can look for.  Then I I run a script in the namespace that
+# So, I'm naming the internal nic something unique that I can look for. Then I I run a script in the namespace that
 # will return 1 if the nic doesn't exist and sleep forever (like a daemon) if it does find it.
 ETEST_daemon_netns()
 {
@@ -418,7 +418,7 @@ END
     chmod +x netns_runner
 
     # This script is run from the directory output/daemon.sh/ETEST_daemon.sh/, which is a transient directory that only
-    # exists during the test run and is cleaned up immediately after.  Regardless, that is why the cmdline specifies the
+    # exists during the test run and is cleaned up immediately after. Regardless, that is why the cmdline specifies the
     # script to run the way it does.
     etestmsg "Starting infinity daemon"
     daemon_init sleep_daemon                     \

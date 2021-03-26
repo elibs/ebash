@@ -31,7 +31,7 @@ to_json()
         else
             # You don't strictly need the test here to determine if ${_arg} contains the name of a variable, but if we
             # skip the check then bash generates an error message that just says "!_arg: unbound variable" which really
-            # isn't all that helpful.  This way we can spit out the name of the bad variable.
+            # isn't all that helpful. This way we can spit out the name of the bad variable.
             [[ -v ${_arg} ]] || die "Cannot create json from unbound variable ${_arg}."
             json_escape "${!_arg}"
         fi
@@ -50,7 +50,7 @@ array_to_json()
     $(opt_parse __array)
 
     # Return immediately if if array is not set. The reason we don't error out on an unset array is because bash doesn't
-    # save arrays with no members.  For instance A=() unsets array A. Instead simply echo "[]" for the json equivalent
+    # save arrays with no members. For instance A=() unsets array A. Instead simply echo "[]" for the json equivalent
     # of an empty array.
     if array_empty ${__array}; then
         echo -n "[]"
@@ -99,24 +99,24 @@ each entry in the associative array on the provided delimiter into an array.
 
 For example:
 
-    declare -A data
-    data[key1]="value1 value2 value3"
-    data[key2]="entry1 entry2 entry3"
-
-    associative_array_to_json_split data " " | jq .
-    # output:
-    # {
-    #   "key1": [
-    #       "value1",
-    #       "value2",
-    #       "value3"
-    #   ],
-    #   "key2": [
-    #       "entry1",
-    #       "entry2",
-    #       "entry3"
-    #   ]
-    # }
+```shell
+$ declare -A data
+$ data[key1]="value1 value2 value3"
+$ data[key2]="entry1 entry2 entry3"
+$ associative_array_to_json_split data " " | jq .
+{
+    "key1": [
+        "value1",
+        "value2",
+        "value3"
+    ],
+    "key2": [
+        "entry1",
+        "entry2",
+        "entry3"
+    ]
+}
+```
 END
 associative_array_to_json_split()
 {
@@ -189,7 +189,7 @@ json.
 END
 json_escape()
 {
-    # Newer jq has a -j flag to join newlines into a single flat string.  To workaround the lack of this flag in older
+    # Newer jq has a -j flag to join newlines into a single flat string. To workaround the lack of this flag in older
     # versions, we wrap the call to jq in a subshell which is not quoted to strip off the final newline.
     echo -n $(echo -n "$1" | jq --raw-input --slurp .)
 }
@@ -204,13 +204,16 @@ prefix before the key name in which case they will be set to an empty string if 
 Similar to a lot of other  methods inside ebash, this uses the "eval command invocation string" idom. So, the proper
 calling convention for this is:
 
-    $(json_import)
+```shell
+$(json_import)
+```
 
 By default this function operates on stdin. Alternatively you can change it to operate on a file via -f. To use via
 STDIN use one of these idioms:
 
-    $(json_import <<< ${json}) $(curl ... | $(json_import)
-
+```shell
+$(json_import <<< ${json}) $(curl ... | $(json_import)
+```
 END
 json_import()
 {
@@ -222,7 +225,7 @@ json_import()
         ":prefix p           | Prefix all keys with the provided required prefix." \
         ":query jq q         | Use JQ style query expression on given JSON before parsing." \
         ":exclude x          | Whitespace separated list of keys to exclude while importing." \
-        "@_json_import_keys  | Optional list of json keys to import.  If none, all are imported." )
+        "@_json_import_keys  | Optional list of json keys to import. If none, all are imported." )
 
     # Determine flags to pass into declare
     local dflags=""
@@ -232,7 +235,7 @@ json_import()
     # optional jq query, or . which selects everything in jq
     : ${query:=.}
 
-    # Lookup optional filename to use. If no filename was given then we're operating on STDIN.  In either case read into
+    # Lookup optional filename to use. If no filename was given then we're operating on STDIN. In either case read into
     # a local variable so we can parse it repeatedly in this function.
     local _json_import_input _json_import_data
     _json_import_input=$(cat ${file} || true)
@@ -323,13 +326,13 @@ json_compare()
         die "ERROR: invalid json $(lval second)"
     fi
 
-    # Using diff rather than cmp, you get a hint if what didn't compare.  Otherwise, they are both silent.
+    # Using diff rather than cmp, you get a hint if what didn't compare. Otherwise, they are both silent.
     diff <(echo "${first}"  | jq --compact-output --sort-keys .) \
          <(echo "${second}" | jq --compact-output --sort-keys .)
 }
 
 opt_usage json_compare_files <<'END'
-Compare two json files.  The files can only contain a single json object.
+Compare two json files. The files can only contain a single json object.
 END
 json_compare_files()
 {

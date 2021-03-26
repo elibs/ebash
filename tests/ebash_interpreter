@@ -8,7 +8,7 @@
 
 set -eu
 
-# If ebash was able to be sourced, this should pass.  If not, einfo won't be a recognized command and the set -eu above
+# If ebash was able to be sourced, this should pass. If not, einfo won't be a recognized command and the set -eu above
 # will ensure that it fails
 einfo hi
 

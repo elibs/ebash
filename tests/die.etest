@@ -79,7 +79,7 @@ ETEST_die_traps_parent()
     assert test ! -e ${fname2}
 }
 
-# Ensure trap_add works properly and appends traps to existing ones.  NOTE: Use different signals throughout this test
+# Ensure trap_add works properly and appends traps to existing ones. NOTE: Use different signals throughout this test
 # since trap_add operates on all of DIE_SIGNALS.
 ETEST_die_trap_add()
 {

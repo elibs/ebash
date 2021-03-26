@@ -257,7 +257,7 @@ get_network_interfaces_10g()
 opt_usage get_permanent_mac_address <<'END'
 Get the permanent MAC address for given ifname.
 
-NOTE: "ethtool -P" is not 100% reliable on all cards since the firmware has to support it properly. So on Linux we
+> **_NOTE:_** `ethtool -P` is not reliable on all cards since the firmware has to support it properly. So on Linux we
 instead look in SYSFS since this is far more reliable as we're talking direct to the kernel. But on OSX we instead just
 use ethtool.
 END
@@ -283,7 +283,7 @@ get_permanent_mac_address()
 opt_usage get_network_pci_device <<'END'
 Get the PCI device location for a given ifname
 
-NOTE: This is only useful for physical devices, such as eth0, eth1, etc.
+> **_NOTE:_** This is only useful for physical devices, such as eth0, eth1, etc.
 END
 get_network_pci_device()
 {
@@ -332,11 +332,11 @@ stored in the variable passed to the function.
 For example:
 
 ```shell
-declare -A ports
-get_listening_ports ports
-einfo $(lval %ports[5])
+$ declare -A ports
+$ get_listening_ports ports
+$ einfo $(lval %ports[5])
 >> ports[5]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="0.0.0.0" [local_port]="22" [remote_addr]="0.0.0.0" [remote_port]="0" [state]="LISTEN" [pid]="9278" [prog]="sshd" )
-einfo $(lval %ports[42])
+$ einfo $(lval %ports[42])
 ports[42]=([proto]="tcp" [recvq]="0" [sendq]="0" [local_addr]="172.17.5.208" [local_port]="48899" [remote_addr]="173.194.115.70" [remote_port]="443" [state]="ESTABLISHED" [pid]="28073" [prog]="chrome" )
 ```
 END

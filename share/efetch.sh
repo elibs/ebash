@@ -36,7 +36,7 @@ For example:
 ```shell
 efetch --output efetch.output <url1> <url2> ... <destination> &
 efetch_pid=$!
-<do other stuff>
+# ... do other stuff ...
 efetch_wait --tail ${efetch_pid}
 ```
 END
@@ -52,7 +52,7 @@ efetch()
         "@urls          | URLs to fetch. The last one in this array will be considered as the destionation directory.")
     (
         # This needs to be in a subshell because we could end up redirecting our stdout and stderr file descriptors to
-        # /dev/null.  if we aren't in a subshell, we'll change our callers descriptors.
+        # /dev/null. if we aren't in a subshell, we'll change our callers descriptors.
 
         if einteractive; then
             EINTERACTIVE=1
@@ -104,8 +104,8 @@ packs. This allows us to store a bunch of metadata on each URL we are fetching s
 path and progress file, etc., in a single place and all the functions that operate on this metadata can just use these
 variables without having them each reimplement the parsing logic.
 
-NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-      avoid the overhead of needlessly calling opt_parse again.
+> **_NOTE:_** This is an internal only method which uses the variables created by the caller to allow sharing state and
+to avoid the overhead of needlessly calling opt_parse again.
 END
 __efetch_load_info()
 {
@@ -189,8 +189,8 @@ to curl for each URL requested in efetch with a progress ticker showing percent 
 redirected to the progress file for each URL. We store the PID off of the backgrounded process so we can wait on them
 in __efetch_download_wait.
 
-NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-      avoid the overhead of needlessly calling opt_parse again.
+> **_NOTE:_** This is an internal only method which uses the variables created by the caller to allow sharing state and
+to avoid the overhead of needlessly calling opt_parse again.
 END
 __efetch_download()
 {
@@ -199,7 +199,7 @@ __efetch_download()
         $(pack_import data[$url])
 
         # Call curl with explicit COLUMNS so that the progress bar will fit into the amount of room left on the
-        # console after we print the filename.  default COLUMNS to 80 for the case of no tty.  in that case, it doesn't
+        # console after we print the filename. default COLUMNS to 80 for the case of no tty. in that case, it doesn't
         # matter what the value is.
         COLUMNS=$(( ${COLUMNS:-80}-${pad}-1)) curl --location --fail --show-error --insecure --progress-bar ${timecond} \
             --output "${dest}.pending" "${url}" &> "${progress}" &
@@ -215,8 +215,8 @@ On each iteration of the loop in this function it will print the file name and t
 Then it will move back up to the first file and print it again so that we see a nice output table of all the files
 being downloaded.
 
-NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-      avoid the overhead of needlessly calling opt_parse again.
+> **_NOTE:_** This is an internal only method which uses the variables created by the caller to allow sharing state and
+to avoid the overhead of needlessly calling opt_parse again.
 END
 __efetch_download_wait()
 {
@@ -290,8 +290,8 @@ Internel helper method to check if any of the fetch jobs were incomplete or fail
 moves the *.pending file to its final destination. If it failed, then we remove the incomplete file as well as its
 *.md5 and *.meta file.
 
-NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-      avoid the overhead of needlessly calling opt_parse again.
+> **_NOTE:_** This is an internal only method which uses the variables created by the caller to allow sharing state and
+to avoid the overhead of needlessly calling opt_parse again.
 END
 __efetch_check_incomplete_or_failed()
 {
@@ -327,8 +327,8 @@ opt_usage __efetch_digest_validation <<'END'
 Internel helper method to validate the files we downloaded against companion md5 or our newer more powerful *.meta
 files which includes optional PGP signature validation. If any files we downloaded are corrupt then they are deleted.
 
-NOTE: This is an internal only method which uses the variables created by the caller to allow sharing state and to
-      avoid the overhead of needlessly calling opt_parse again.
+> **_NOTE:_** This is an internal only method which uses the variables created by the caller to allow sharing state and
+to avoid the overhead of needlessly calling opt_parse again.
 END
 __efetch_digest_validation()
 {
@@ -348,7 +348,7 @@ __efetch_digest_validation()
         {
             if [[ "${md5}" -eq 1 ]]; then
 
-                # If the requested destination was different than what was originally in the MD5 it will fail.  Or if
+                # If the requested destination was different than what was originally in the MD5 it will fail. Or if
                 # the md5sum file was generated with a different path in it it will fail. This just sanititizes it to
                 # have the current working directory and the name of the file we downloaded to.
                 assert_exists "${dest}.md5"

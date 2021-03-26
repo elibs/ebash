@@ -28,7 +28,7 @@ cgroups.
 Hopefully these functions make accessing the cgroups filesystem a little bit easier, and also help you to keep
 parallel hierarchies identical across the various cgroups subsystems.
 
-NOTE ON DOCKER SUPPORT: The cgroups functions work when run within docker containers, operating on a cgroup inside the
+> **_NOTE:_** On Docker, The cgroups functions work when run within docker containers, operating on a cgroup inside the
 one that docker set up for them. This requires said containers to be started with --privileged or suitable other
 capabilities (which I have not investigated -- it could be done, though)
 END
@@ -106,7 +106,7 @@ cgroup_create()
 opt_usage cgroup_destroy <<'END'
 If you want to get rid of a cgroup, you can do so by calling cgroup_destroy.
 
-NOTE: It is an error to try to destroy a cgroup that contains any processes or any child cgroups. You can use
+> **_NOTE:_**: It is an error to try to destroy a cgroup that contains any processes or any child cgroups. You can use
 cgroup_kill_and_wait to ensure that they are if you like.
 END
 cgroup_destroy()
@@ -200,7 +200,9 @@ opt_usage cgroup_set <<'END'
 Change the value of a cgroups subsystem setting for the specified cgroup. For instance, by using the memory subsystem,
 you could limit the amount of memory used by all pids underneath the distbox hierarchy like this:
 
-    cgroup_set distbox memory.kmem.limit_in.bytes $((4*1024*1024*1024))
+```shell
+cgroup_set distbox memory.kmem.limit_in.bytes $((4*1024*1024*1024))
+```
 END
 cgroup_set()
 {
@@ -333,24 +335,27 @@ cgroup_ps()
 }
 
 opt_usage cgroup_tree <<'END'
-Return all items in the cgroup hierarchy. By default this will echo to
-stdout all directories in the cgroup hierarchy. You may optionally specify
-one or more cgroups and then only those cgroups descended from them it will
-be returned.
+Return all items in the cgroup hierarchy. By default this will echo to stdout all directories in the cgroup hierarchy.
+You may optionally specify one or more cgroups and then only those cgroups descended from them it will be returned.
 
-For example, if you've run this cgroup_create command...
-   cgroup_create a/{1,2,3} b/{10,20} c
+For example, if you've run this cgroup_create command:
 
-Cgroup_tree will produce output as follows:
+```shell
+cgroup_create a/{1,2,3} b/{10,20} c
+```
 
-   % cgroup_tree
-   a/1 a/2 a/3 b/10 b/20 c
+`cgroup_tree` will produce output as follows:
 
-   % cgroup_tree a
-   a/1 a/2 a/3
+```
+$ cgroup_tree
+a/1 a/2 a/3 b/10 b/20 c
 
-   % cgroup_tree b c
-   b/10 b/20 c
+$ cgroup_tree a
+a/1 a/2 a/3
+
+$ cgroup_tree b c
+b/10 b/20 c
+```
 END
 cgroup_tree()
 {
@@ -388,8 +393,7 @@ cgroup_tree()
 
 
 opt_usage cgroup_pstree <<'END'
-Display a graphical representation of all cgroups descended from those
-specified as arguments.
+Display a graphical representation of all cgroups descended from those specified as arguments.
 END
 cgroup_pstree()
 {
@@ -410,8 +414,7 @@ cgroup_pstree()
 
 
 opt_usage cgroup_current <<'END'
-Display the name of the cgroup that the specified process is in. Defaults to the current process
-(i.e. ${BASHPID}).
+Display the name of the cgroup that the specified process is in. Defaults to the current process (i.e. ${BASHPID}).
 END
 cgroup_current()
 {
@@ -425,10 +428,10 @@ cgroup_current()
 
 
 opt_usage cgroup_kill <<'END'
-Recursively KILL (or send a signal to) all of the pids that live underneath all of the specified
-cgroups (and their children!). Accepts any number of cgroups.
+Recursively KILL (or send a signal to) all of the pids that live underneath all of the specified cgroups (and their
+children!). Accepts any number of cgroups.
 
-NOTE: $$ and $BASHPID are always added to this list so as to not kill the calling process
+> **_NOTE:_** `$$` and `$BASHPID` are always added to this list so as to not kill the calling process
 END
 cgroup_kill()
 {
@@ -465,10 +468,10 @@ cgroup_kill()
 }
 
 opt_usage cgroup_kill_and_wait <<'END'
-Ensure that no processes are running all of the specified cgroups by killing all of them and waiting
-until the group is empty.
+Ensure that no processes are running all of the specified cgroups by killing all of them and waiting until the group is
+empty.
 
-NOTE: This probably won't work well if your script is already in that cgroup.
+> **_NOTE:_** This probably won't work well if your script is already in that cgroup.
 END
 cgroup_kill_and_wait()
 {

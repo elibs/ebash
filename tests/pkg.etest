@@ -51,7 +51,7 @@ ETEST_pkg_install_and_upgrade()
     assert_false pkg_installed ${PKG_TO_INSTALL}
 
     # NOTE: Some packaging systems (e.g. dpkg) don't deal well with different processes trying to install things at the
-    # same time.  The retries here are intended to harden against issues like that.
+    # same time. The retries here are intended to harden against issues like that.
     etestmsg "Install $(lval PKG_TO_INSTALL)"
     eretry --delay 5s --retries 5 pkg_install ${PKG_TO_INSTALL}
 

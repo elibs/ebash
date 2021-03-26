@@ -18,7 +18,7 @@ opt_usage die_on_error <<'END'
 expected `set -e` so that we have control over how the process exit is handled by calling our own internal `die`
 handler. This allows us to either exit or kill the entire process tree as needed.
 
-NOTE: This is extremely unobvious, but setting a trap on `ERR` implicitly enables `set -e`.
+> **_NOTE:_** This is extremely unobvious, but setting a trap on `ERR` implicitly enables `set -e`.
 END
 die_on_error()
 {

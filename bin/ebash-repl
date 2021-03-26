@@ -35,7 +35,7 @@ protected_read()
     # I don't strictly understand this bash behavior, but having "return" in this trap ensures that when you start
     # typing on a line and hit Ctrl-C, that you get a new clean line.
     #
-    # The return code does not get passed to the caller, which is strange.  But having return there definitely makes a
+    # The return code does not get passed to the caller, which is strange. But having return there definitely makes a
     # behavior difference.
     trap "cmd='' ; echo ; ${DEFAULT_SIGINT} ; return 0" SIGINT
     read "${@}"
@@ -65,7 +65,7 @@ repl()
 # It's really annoying to die when you're working interactively and you type an unbound variable.
 set +u
 
-# Likewise, it's a shame to lose your shell and all its variables just because die was called.  This way, you print the
+# Likewise, it's a shame to lose your shell and all its variables just because die was called. This way, you print the
 # stack trace, but proceed to work in the same shell afterward.
 die_handler()
 {

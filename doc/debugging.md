@@ -50,7 +50,7 @@ I ran the script with `etrace` enabled and got this output. Note that rather tha
 give you), `etrace` adds the file, line number, and current process PID.
 
 ```shell
-> ETRACE=etrace_test ./etrace_test
+$ ETRACE=etrace_test ./etrace_test
 [etrace_test:6:main:24467] echo "Hi"
 Hi
 [etrace_test:7:main:24467] a=alpha

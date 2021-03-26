@@ -115,7 +115,7 @@ ETEST_efetch_fail_preserves_meta()
 }
 
 # Older curl versions wrongly refused to create an empty file even if an empty file was successfully fetched. This test
-# verifies efetch works around this dumb bug.  See: https://github.com/curl/curl/issues/183
+# verifies efetch works around this dumb bug. See: https://github.com/curl/curl/issues/183
 ETEST_efetch_empty_file()
 {
     local tmpfile

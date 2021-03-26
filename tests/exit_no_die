@@ -12,7 +12,7 @@ $(${EBASH_HOME}/bin/ebash --source)
 #-----------------------------------------------------------------------------------------------------------------------
 # SANITY TEST EXPLICITLY CALLING EXIT TO ENSURE DIE IS NOT CALLED
 #
-# NOTE: This is intentionally NOT an etest.  This script must be run in its own TOP-LEVEL shell.
+# NOTE: This is intentionally NOT an etest. This script must be run in its own TOP-LEVEL shell.
 #-----------------------------------------------------------------------------------------------------------------------
 
 # Create a script to run

@@ -12,7 +12,7 @@ $(${EBASH_HOME}/bin/ebash --source)
 #-----------------------------------------------------------------------------------------------------------------------
 # SANITY TEST OF UNBOUND VARIABLE ERROR HANDLING
 #
-# NOTE: This is intentionally NOT an etest.  This script must be run in its own TOP-LEVEL shell to be able to test
+# NOTE: This is intentionally NOT an etest. This script must be run in its own TOP-LEVEL shell to be able to test
 # whether die gets called when there is an unbound variable.
 #-----------------------------------------------------------------------------------------------------------------------
 

@@ -78,7 +78,7 @@ process_tree()
 
 opt_usage process_children <<'END'
 Print the pids of all children of the specified list of processes. If no processes were specified, default to
-${BASHPID}.
+`${BASHPID}`.
 
 Note, this doesn't print grandchildren and other descendants. Just children. See process_tree for a recursive tree of
 descendants.
@@ -223,7 +223,7 @@ ekill()
 opt_usage ekilltree <<'END'
 Kill entire process tree for each provided pid by doing a depth first search to find all the descendents of each pid and
 kill all leaf nodes in the process tree first. Then it walks back up and kills the parent pids as it traverses back up
-the tree. Like ekill(), this function is best effort only. If you want more robust guarantees consider
+the tree. Like `ekill`, this function is best effort only. If you want more robust guarantees consider
 process_not_running or cgroups.
 
 Note that ekilltree will never kill the current process or ancestors of the current process, as that would cause

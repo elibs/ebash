@@ -99,7 +99,7 @@ chroot_cmd()
 }
 
 opt_usage chroot_kill <<'END'
-Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT}) that match the given regex.  [note: regex
+Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT}) that match the given regex. [note: regex
 support is identical to pgrep]
 END
 chroot_kill()
@@ -108,7 +108,7 @@ chroot_kill()
         ":signal s=TERM   | The signal to send to killed pids." \
         ":kill_after k    | Also send SIGKILL to processes that are still alive after this duration.
                             (Does not block)" \
-        "?regex           | Pgrep regex that should match processes you'd like to signal.  If none
+        "?regex           | Pgrep regex that should match processes you'd like to signal. If none
                             is specified, all processes in the chroot will be killed.")
 
     argcheck CHROOT
@@ -178,7 +178,12 @@ chroot_pids()
 
 opt_usage chroot_readlink <<'END'
 Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE the chroot. For example, if inside the CHROOT
-you have "/a -> /b" then calling chroot_readlink "/a" => "${CHROOT}/b"
+you have `/a` -> `/b` then:
+
+```shell
+$ chroot_readlink "/a"
+"${CHROOT}/b"
+```
 END
 chroot_readlink()
 {

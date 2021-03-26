@@ -46,10 +46,10 @@ Or you can always just give the full path:
 
 ## Interactive ebash
 
-one of the cool things ebash provides is an interactive [repl](https://en.wikipedia.org/wiki/read%e2%80%93eval%e2%80%93print_loop] interface. this
+One of the cool things ebash provides is an interactive [REPL](https://en.wikipedia.org/wiki/read%e2%80%93eval%e2%80%93print_loop) interface. This
 makes it super easy to interactively test out code to see how it behaves or debug failures.
 
-here's an example:
+Here's an example:
 
 ```shell
 $ .ebash/bin/ebash

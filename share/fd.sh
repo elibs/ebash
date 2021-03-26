@@ -16,9 +16,9 @@
 opt_usage get_stream_fd <<'END'
 Convert stream names (e.g. 'stdout') to cannonical file descriptor numbers:
 
-  stdin=0
-  stdout=1
-  stderr=2
+- **stdin**: 0
+- **stdout**: 1
+- **stderr**: 2
 
 Any other names will result in an error.
 END

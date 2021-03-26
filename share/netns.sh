@@ -104,14 +104,12 @@ netns_init nsparams ns_name=mynamespace devname=mynamespace_eth0       \
 ```
 
 Where the options are:
-```shell
-       ns_name        : The namespace name
-       devname        : veth pair's external dev name
-       peer_devname   : veth pair's internal dev name
-       connected_nic  : nic that can talk to the internet
-       bridge_cidr    : cidr for the bridge (ex: `1.2.3.4/24`)
-       nic_cidr       : cidr for the internal nic (peer_devname)
-```
+- **ns_name**        : The namespace name
+- **devname**        : veth pair's external dev name
+- **peer_devname**   : veth pair's internal dev name
+- **connected_nic**  : nic that can talk to the internet
+- **bridge_cidr**    : cidr for the bridge (ex: `1.2.3.4/24`)
+- **nic_cidr**       : cidr for the internal nic (peer_devname)
 END
 netns_init()
 {
@@ -140,7 +138,7 @@ END
 netns_check_pack()
 {
     $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+        "netns_args_packname | Name of variable containing netns information. (Was created by netns
                                init with a name you chose)")
 
     local key
@@ -157,8 +155,8 @@ netns_check_pack()
     [[ ${#peer_devname} -le 16 ]] || die "ERROR: peer_devname too long (Max: 16 chars)"
     [[ ${#connected_nic} -le 16 ]] || die "ERROR: connected_nic too long (Max: 16 chars)"
 
-    # a cidr is an ip address with the number of static (or network) bits added to the end.  It is typically of the form
-    # "A.B.C.D/##".  the "ip" utility uses cidr addresses rather than netmasks, as they serve the same purpose.  This
+    # a cidr is an ip address with the number of static (or network) bits added to the end. It is typically of the form
+    # "A.B.C.D/##". the "ip" utility uses cidr addresses rather than netmasks, as they serve the same purpose. This
     # regex ensures that the address is a cidr address.
     local cidr_regex="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}"
 
@@ -181,7 +179,7 @@ END
 netns_chroot_exec()
 {
     $(opt_parse \
-        "netns_args_packname | Name of variable containing netns information.  (Was created by netns
+        "netns_args_packname | Name of variable containing netns information. (Was created by netns
                                init with a name you chose)" \
         "chroot_root         | Existing chroot to run within." \
         "@command            | Command and arguments.")
