@@ -14,7 +14,7 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
-source ${EBASH_HOME}/tests/unit/daemon_expect.sh
+source ${EBASH_HOME}/tests/daemon_expect.sh
 
 netns_teardown_traphandler()
 {

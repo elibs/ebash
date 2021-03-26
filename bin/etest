@@ -93,12 +93,6 @@ $(opt_parse \
                                  which case etest will recursively find executables and .etest files and treat them in
                                  similar fashion.")
 
-# Default settings for filter an exclude. Note that we can't use the opt_parse "default value" feature for this,
-# because our values are regular expressions. That is, they're fairly likely to contain pipe characters and that would
-# cause opt_parse to do crazy things.
-: ${filter:=${FILTER:-}}
-: ${exclude:=${EXCLUDE:-}}
-
 # Use mount namespaces as long as:
 #   1) they weren't forcibly turned off
 #   2) we're on linux
@@ -120,11 +114,21 @@ START_TIME=${SECONDS}
 : ${log_dir:=.}
 log_dir=$(readlink -f ${log_dir})
 
-# Default set of tests from conf file if unspecified on the command line
-if array_empty tests && array_empty test_list ; then
-    tests=( $(conf_get _EBASH_CONF etest.tests) )
-fi
+# Layer the filter setting by first looking for any static filter settings in the config file, then any explicit filter
+# options passed in on the command-line. Join any whitespace with a '|' to convert it to a bash style regex.
+base_filter=$(conf_get _EBASH_CONF etest.filter)
+: ${filter:=${FILTER:-}}
+filter=$(echo "${base_filter} ${filter}" | tr ' ' '|' | sed -e 's/^|//' -e 's/|$//')
 
+# Layer the exclude setting by first looking for any static exclusions in the config file, then any explicit exclusions
+# passed in on the command-line. Join any whitespace with a '|' to convert it to a bash style regex.
+base_exclude=$(conf_get _EBASH_CONF etest.exclude)
+: ${exclude:=${EXCLUDE:-}}
+exclude=$(echo "${base_exclude} ${exclude}" | tr ' ' '|' | sed -e 's/^|//' -e 's/|$//')
+
+# Layer the list of tests by first looking for any static tests in the config file, then any explicit tests
+# passed in on the command-line. Append all of these into a single array.
+tests+=( $(conf_get _EBASH_CONF etest.tests) )
 if array_not_empty test_list ; then
     # Read non-comment lines from test_list and treat them as if they were passed as arguments to this script
     edebug "Grabbing test list from $(lval test_list)"
@@ -341,7 +345,7 @@ run_single_test()
     fi
 
     local index_string="${testidx}/${testidx_total}"
-    ebanner --uppercase "${testname}" OS break exclude failures REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
+    ebanner --uppercase "${testname}" OS break exclude failures filter REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
