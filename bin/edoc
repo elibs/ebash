@@ -223,8 +223,7 @@ git config --global user.name "${GITHUB_ACTOR}"
 git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
 einfo "Staging Doc files into docroot"
-cp -av "doc/."     "${docroot}"
-cp -av "README.md" "${docroot}/index.md"
+cp -av "doc/." "${docroot}"
 pushd "${docroot}"
 
 einfo "Initializing Git Repo"
