@@ -11,6 +11,12 @@
 __EBASH_SAVE_DOC=1
 source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
+opt_usage main <<'END'
+edoc is used to automatically generate markdown documentation from the source code docstrings through the `opt_usage`
+and `opt_parse` mechanisms. It also takes care of creating various index.md files to stitch all the documents together
+in a more easily to navigate fashion. And finally it provides the ability to publish the generated documentation to
+GitHub pages.
+END
 $(opt_parse \
     "+publish | Optionally publish the generated documents to GitHub Pages.")
 
@@ -19,9 +25,6 @@ $(opt_parse \
 # Infra
 #
 #-----------------------------------------------------------------------------------------------------------------------
-
-ebanner "Generating Ebash Documentat" \
-    publish
 
 # Pretend that this is Linux so that all code gets emited
 os() { [[ ${1,,} == linux ]] && return 0 || return 1 ; }
@@ -36,6 +39,15 @@ edoc=$(mktemp --tmpdir edoc-XXXXXX)
     declare -f lsb_release
 } > ${edoc}
 trap_add "rm -f ${edoc}"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Modules
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ebanner "Generating Ebash Documentation (modules)" \
+    publish
 
 # Create test directories and output
 dir="doc/module"
@@ -112,6 +124,83 @@ done
 } > "${dir}/index.md"
 
 rm "${dir}/index.md.pending"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Binaries
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ebanner "Generating Ebash Documentation (binaries)" \
+    publish
+
+# Create test directories and output
+dir="doc/binaries"
+efreshdir "${dir}"
+mkdir -p "${dir}"
+
+# Iterate over each binary that is NOT a symlink
+for binary in ${EBASH_HOME}/bin/*; do
+
+    name=$(basename ${binary})
+
+    if [[ -L "${binary}" || "${name}" == @(ebash-install-deps|selftest) ]]; then
+        continue
+    fi
+
+    einfo "${name}"
+    echo "[${name}](${name}.md)" >> "${dir}/index.md.pending"
+    printf "# Binary ${name}\n\n" > "${dir}/${name}.md"
+
+    # See if there is opt_usage for this function
+    einfos "Binary: ${binary}"
+    {
+        if grep --quiet '$(opt_parse ' "${binary}"; then
+            ${binary} --help 2>&1                                     \
+                | noansi                                              \
+                | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
+                      -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```Groff\n\1\2\n```/'
+        fi
+    } >> "${dir}/${name}.md"
+done
+
+{
+    echo "# Binaries"
+    echo ""
+    cat "${dir}/index.md.pending" | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
+
+} > "${dir}/index.md"
+
+rm "${dir}/index.md.pending"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Table of Contents
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Join the binaries/index.md and modules/index.md into a single toc.md and also include a listing of all our static
+# files.
+ebanner "Table of Contents"
+{
+    # Documents
+    einfo "Documents"
+    echo "# Documents"
+    echo ""
+    for name in doc/*.md; do
+        einfos "${name}"
+        echo "[$(basename ${name} .md)](${name})"
+    done | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
+
+    einfo "Binaries"
+    echo ""
+    cat "doc/binaries/index.md"
+
+    einfo "Modules"
+    echo ""
+    cat "doc/module/index.md"
+
+} > "doc/toc.md"
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
