@@ -188,11 +188,8 @@ ebanner "Table of Contents"
     echo ""
     for name in doc/*.md; do
         einfos "${name}"
-        echo "[$(basename ${name} .md)]($(basename ${name}))"
-    done > "doc/toc.md.pending"
-
-    cat "doc/toc.md.pending" | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
-    rm "doc/toc.md.pending"
+        echo "[$(basename ${name} .md)]($(basename ${name}))<br>"
+    done
 
     einfo "Binaries"
     echo ""
