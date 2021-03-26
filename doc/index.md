@@ -16,9 +16,9 @@ accelerates developer productivity.
 Bash is the ideal language of choice for writing low-level shell scripts and tools requiring direct shell access
 invoking simple shell commands on a system for a number of reasons:
 
-* Prolific. Already installed on nearly every UNIX machine, minimizing dependencies, install complexity and size.
-* Extremely lightweight with low memory and CPU requirements suitable for appliances and embedded systems.
-* Ideal for tasks involving running shell commands as it is native, and **far** simpler than in higher level languages.
+* Prolific. Installed on every UNIX machine, minimizing dependencies, install complexity and size.
+* Lightweight with low memory and CPU requirements suitable for appliances and embedded systems.
+* Ideal for tasks running shell commands as it is native, and simpler than in higher level languages.
 
 ## Why _ebash_
 
@@ -43,7 +43,8 @@ error handling and the ability to leverage extensive [ebash modules](module/inde
 * [Installation](installation.md)
 * [Usage](usage.md)
 * [Porting](porting.md)
-* [Module documentation](module/index.md)
+* [Modules documentation](modules/index.md)
+* [Binaries documentation](binaries/index.md)
 * [Style Guide](style.md)
 * [Bash Gotchas](gotchas.md)
 * [Bash Resources](links.md)

@@ -50,7 +50,7 @@ ebanner "Generating Ebash Documentation (modules)" \
     publish
 
 # Create test directories and output
-dir="doc/module"
+dir="doc/modules"
 efreshdir "${dir}"
 mkdir -p "${dir}"
 
@@ -153,7 +153,6 @@ for binary in ${EBASH_HOME}/bin/*; do
     printf "# Binary ${name}\n\n" > "${dir}/${name}.md"
 
     # See if there is opt_usage for this function
-    einfos "Binary: ${binary}"
     {
         if grep --quiet '$(opt_parse ' "${binary}"; then
             ${binary} --help 2>&1                                     \
@@ -189,16 +188,19 @@ ebanner "Table of Contents"
     echo ""
     for name in doc/*.md; do
         einfos "${name}"
-        echo "[$(basename ${name} .md)](${name})"
-    done | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
+        echo "[$(basename ${name} .md)]($(basename ${name}))"
+    done > "doc/toc.md.pending"
+
+    cat "doc/toc.md.pending" | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
+    rm "doc/toc.md.pending"
 
     einfo "Binaries"
     echo ""
-    cat "doc/binaries/index.md"
+    cat "doc/binaries/index.md" | sed -e 's|(\([^)]*\))|(binaries/\1)|g'
 
     einfo "Modules"
     echo ""
-    cat "doc/module/index.md"
+    cat "doc/modules/index.md" | sed -e 's|(\([^)]*\))|(modules/\1)|g'
 
 } > "doc/toc.md"
 
