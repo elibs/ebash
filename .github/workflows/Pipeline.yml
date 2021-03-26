@@ -71,9 +71,9 @@ jobs:
         with:
           name: ${{ env.OSNAME }}
           path: |
-            etest.log
-            etest.json
-            etest.xml
+            .work/etest.log
+            .work/etest.json
+            .work/etest.xml
 
   #--------------------------------------------------------------------------------------------------------------------
   #
@@ -106,9 +106,9 @@ jobs:
         with:
           name: macos-${{ matrix.os }}
           path: |
-            etest.log
-            etest.json
-            etest.xml
+            .work/etest.log
+            .work/etest.json
+            .work/etest.xml
 
   #--------------------------------------------------------------------------------------------------------------------
   #
