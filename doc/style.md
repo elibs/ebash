@@ -152,20 +152,19 @@ value of `IFS` and call any ebash code, expect things to break most likely in su
 
 ## Markdown Style
 
-Adhere to the guidance in the fantastic (Markdown Style Guide)[https://cirosantilli.com/markdown-style-guide]. Particular choices
+Adhere to the guidance in the fantastic [Markdown Style Guide](https://cirosantilli.com/markdown-style-guide). Particular choices
 we have made to use ebash:
 
 - **Bullets**: Use `-` instead of `*` for bullets. This avoids confusion with bold and italics and is rendered the same.
 - **Code Blocks**: Use triple backticks instead of merely indentation. Combined with explicit language of the code block
   this is rendered with syntax highlighting and looks much better.
-- **Dollar signs in code blocks**: Follow the guidance in (Dollar signs in shell code)[https://cirosantilli.com/markdown-style-guide/#dollar-signs-in-shell-code].
+- **Dollar signs in code blocks**: Follow the guidance in [Dollar signs in shell code](https://cirosantilli.com/markdown-style-guide/#dollar-signs-in-shell-code).
   Specifically:
   - _Do Not_ universally prefix all shell code inside a code block with a dollar sign `$` as this creates a lot of noise.
   - Code cannot be copy-pasted properly if they have leading dollar signs.
   - The leading dollar sign can be confused with subshell invocations, e.g. `$(find ...)`.
   - The only time you _should_ use the `$` prefix is when you are trying to show a clear example that differentiates
-    the command being run from its output. Or alternatively you may use a comment in the code block to illustrate
-    what the output would be, as in: `# output: This is the standard output`
+    the command being run from its output.
   - Sometimes we may prefer to use `>` prefix instead of `$` to avoid ambiguity with subshell invocations.
 - For **NOTES** and **WARNINGS** inside markdown, use `> **_NOTE:_**` and `> **_WARNING:_**`
-- Generally, prefer to use `-` in lists instead of `1.` numbered lists.
+- Generally, prefer to use `-` in lists instead of numbered lists using `1.`
