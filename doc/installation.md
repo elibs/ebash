@@ -18,7 +18,7 @@ This means you need to add `ebash` into `${PATH}` inside your shell's configurat
 For example:
 
 ```shell
-$ echo "PATH+=${HOME}/code/ebash/bin/ebash" >> ~/.bashrc
+$ echo "PATH+=:${HOME}/code/ebash/bin/ebash" >> ~/.bashrc
 $ source ~/.bashrc
 $ which ebash
 /home/marshall/code/ebash/bin/ebash
