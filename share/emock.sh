@@ -481,7 +481,7 @@ For example:
 ```shell
 assert_emock_called_with "func" 0 "1" "2" "3" "docks and cats" "Anarchy"
 expected=( "1" "2" "3" "dogs and cats" "Anarchy" )
-assert_emock_caleld_with "func" 1 "${expected[@]}"
+assert_emock_called_with "func" 1 "${expected[@]}"
 ```
 END
 assert_emock_called_with()
