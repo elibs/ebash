@@ -33,7 +33,7 @@ binary at `/usr/bin/dmidecode`. This also creates a function named `dmidecode_re
 to the real underlying dmidecode binary at `/usr/sbin/dmidecode`.
 
 By default, this mock function will simply return `0` and produce no stdout or stderr. This behavior can be customized
-via `--return-code`, `--stdout`, and `--stderr`.
+via `--return`, `--stdout`, and `--stderr`.
 
 Mocking a real binary with a simplex name like this is the simplest, but doesn't always work. In particular, if at the
 call site you call it with the fully-qualified path to the binary, as in `/usr/sbin/dmidecode`, then our mocked function
@@ -54,10 +54,15 @@ local hidden directory named '.emock-$$' (where $$ is the current process PID) a
 that for each mock:
 
 ```shell
-.emock-$$/dmidecode/called
-.emock-$$/dmidecode/0/{args,return_code,stdout,stderr,timestamp}
-.emock-$$/dmidecode/1/{args,return_code,stdout,stderr,timestamp}
+${PWD}/.emock-$$/dmidecode/called
+${PWD}/.emock-$$/dmidecode/mode
+${PWD}/.emock-$$/dmidecode/0/{args,return_code,stdout,stderr,timestamp}
+${PWD}/.emock-$$/dmidecode/1/{args,return_code,stdout,stderr,timestamp}
 ```
+
+Finally, you can pass in the `--filesystem` option and emock will write out the mock to the filesystem itself rather than
+only creating an in-memory mock. This facilitates more complex testing where the mock is called by a 3rd party script
+and we want to still be able to mock things out properly.
 END
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -76,7 +81,7 @@ binary at `/usr/bin/dmidecode`. This also creates a function named `dmidecode_re
 to the real underlying dmidecode binary at `/usr/sbin/dmidecode`.
 
 By default, this mock function will simply return `0` and produce no stdout or stderr. This behavior can be customized
-via `--return-code`, `--stdout`, and `--stderr`.
+via `--return`, `--stdout`, and `--stderr`.
 
 You can also mock out binaries that are invoked using fully-qualified paths, as in:
 
@@ -91,10 +96,11 @@ END
 emock()
 {
     $(opt_parse \
-        ":return_code rc r=0                | What return code should the mock script use. By default this is 0."      \
+        ":return_code return rc r=0         | What return code should the mock script use. By default this is 0."      \
         ":stdout      o                     | What standard output should be returned by the mock."                    \
         ":stderr      e                     | What standard error should be returned by the mock."                     \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        "+filesystem  f                     | Write out the mock to the filesystem."                                   \
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the return code, stdout, and stderr for each invocation."     \
         "+delete      d                     | Delete existing mock state inside statedir from prior mock invocations." \
@@ -107,6 +113,7 @@ emock()
                                               to what you would use with override_function."                           \
     )
 
+    # Prepare statedir
     statedir+="/$(basename "${name}")"
     if [[ "${delete}" -eq 1 ]]; then
         efreshdir "${statedir}"
@@ -114,29 +121,41 @@ emock()
         mkdir -p "${statedir}"
     fi
 
-    local base_body='
-        nodie_on_error
-        disable_die_parent
-        override_function die "{ true; }"
-        set +u
+    # Prepare the base of the mock function body. We have to put a proper interpreter if we're in filesystem mode
+    # and otherwise we need to prepare the function by removing some of our ebash protections.
+    local base_body="" return_statement=""
+    if [[ "${filesystem}" -eq 1 ]]; then
+        base_body="#!/bin/bash"
+        return_statement="exit"
+    else
+        base_body='
+            nodie_on_error
+            disable_die_parent
+            override_function die "{ true; }"
+            set +u
+        '
+        return_statement="return"
+    fi
 
+    # Next part of the body will update the called count along with timestamp and saving off our arguments
+    base_body+='
         # Create state directory
-        mkdir -p '${statedir}'
+        statedir="'${statedir}'"
 
         # Update call count
         called=0
-        if [[ -e "'${statedir}'/called" ]]; then
-            called=$(cat "'${statedir}'/called")
+        if [[ -e "${statedir}/called" ]]; then
+            called=$(cat "${statedir}/called")
             (( called++ ))
         fi
-        echo ${called} > '${statedir}'/called
+        echo ${called} > "${statedir}/called"
 
         # Create directory to store files in for this invocation
-        mkdir -p '${statedir}'/${called}
+        mkdir -p "${statedir}/${called}"
 
         # Save off timestamp and argument array
-        etimestamp > "'${statedir}'/${called}/timestamp"
-        printf "\"%s\" " "${@}" > '${statedir}'/${called}/args
+        echo -en $(date "+%FT%TZ") > "${statedir}/${called}/timestamp"
+        printf "\"%s\" " "${@}" > "${statedir}/${called}/args"
     '
 
     # Create the mock
@@ -146,16 +165,16 @@ emock()
             '${base_body}'
 
             # Save off stdout and stderr
-            echo -n "'${stdout}'" > '${statedir}'/${called}/stdout
-            echo -n "'${stderr}'" > '${statedir}'/${called}/stderr
+            echo -n "'${stdout}'" > "${statedir}/${called}/stdout"
+            echo -n "'${stderr}'" > "${statedir}/${called}/stderr"
 
             # Write stdout and stderr to streams
             echo -n "'${stdout}'" >&1
             echo -n "'${stderr}'" >&2
 
-            # Return
-            echo -n '${return_code}' > '${statedir}'/${called}/return_code
-            return '${return_code}'
+            # Return / Exit
+            echo -n '${return_code}' > "${statedir}/${called}/return_code"
+            '${return_statement}' '${return_code}'
         }'
     else
         body='
@@ -163,42 +182,61 @@ emock()
             '${base_body}'
             ( '${body}' )
 
-            # Return
+            # Return / Exit
             local return_code=$?
-            echo -n ${return_code} > '${statedir}'/${called}/return_code
-            return ${return_code}
+            echo -n ${return_code} > "${statedir}/${called}/return_code"
+            '${return_statement}' ${return_code}
         }'
     fi
 
-    # Create _real function wrapper to call the real, unmodified binary, function or builtin.
-    local real_type
-    real_type=$(type -t ${name})
-    edebug "Creating real function wrapper ${name}_real with $(lval real_type)"
-    case "${real_type}" in
-        file)
-            eval "${name}_real () { command ${name} \"\${@}\"; }"
-            ;;
+    # Now, if we're in filesystem mode, creat the mock on-disk. Otherwise create in-memory mocks.
+    if [[ "${filesystem}" -eq 0 ]]; then
+        edebug "Creating function mocks"
+        echo "function" > "${statedir}/mode"
 
-        builtin)
-            eval "${name}_real () { builtin ${name} \"\${@}\"; }"
-            ;;
+        # Create _real function wrapper to call the real, unmodified binary, function or builtin.
+        local real_type
+        real_type=$(type -t ${name})
+        edebug "Creating real function wrapper ${name}_real with $(lval real_type)"
+        case "${real_type}" in
+            file)
+                eval "${name}_real () { command ${name} \"\${@}\"; }"
+                ;;
 
-        function)
-            local real
-            real="$(declare -f ${name})"
-            eval "${name}_real${real#${name}}"
-            ;;
+            builtin)
+                eval "${name}_real () { builtin ${name} \"\${@}\"; }"
+                ;;
 
-        *)
-            die "Unsupported $(lval name real_type)"
-    esac
+            function)
+                local real
+                real="$(declare -f ${name})"
+                eval "${name}_real${real#${name}}"
+                ;;
 
-    eval "declare -f ${name}_real"
+            *)
+                die "Unsupported $(lval name real_type)"
+        esac
 
-    # Create a function wrapper to call our mock function instead of the real function.
-    edebug "Creating mock function with $(lval name body)"
-    eval "${name} () ${body}"
-    eval "declare -f ${name}"
+        eval "declare -f ${name}_real"
+
+        # Create a function wrapper to call our mock function instead of the real function.
+        edebug "Creating mock function with $(lval name body)"
+        eval "${name} () ${body}"
+        eval "declare -f ${name}"
+
+    else
+        edebug "Writing mock to filesystem"
+        echo "filesystem" > "${statedir}/mode"
+
+        # If _real already exists do NOT replace it as this just means the caller is re-mocking
+        if [[ ! -e "${name}_real" ]]; then
+            edebug "Saving ${name} -> ${name}_real"
+            mv "${name}" "${name}_real"
+        fi
+
+        echo "${body}" > "${name}"
+        chmod +x "${name}"
+    fi
 }
 
 opt_usage unmock <<'END'
@@ -208,15 +246,25 @@ END
 eunmock()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
     )
 
-    edebug "Removing ${name} mock function"
-    unset -f "${name}_real"
-    unset -f "${name}"
+    statedir+="/$(basename "${name}")"
+
+    # If the mock was written out to disk remove it
+    local mode
+    mode=$(cat "${statedir}/mode")
+    if [[ "${mode}" == "filesystem" ]]; then
+        edebug "Removing filesystem mock"
+        mv "${name}_real" "${name}"
+    elif [[ "${mode}" == "function" ]]; then
+        edebug "Removing ${name} mock function"
+        unset -f "${name}_real"
+        unset -f "${name}"
+    fi
 
     edebug "Removing ${name} mock state"
     rm -rf "${statedir}/$(basename "${name}")"
@@ -238,7 +286,7 @@ END
 emock_called()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -262,7 +310,7 @@ END
 emock_stdout()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -291,7 +339,7 @@ END
 emock_stderr()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -329,7 +377,7 @@ END
 emock_args()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -342,6 +390,7 @@ emock_args()
 
     statedir+="/$(basename "${name}")"
     if [[ -e "${statedir}/${num}/args" ]]; then
+        cat "${statedir}/${num}/args" | edebug
         cat "${statedir}/${num}/args"
     fi
 }
@@ -355,7 +404,7 @@ END
 emock_return_code()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -370,6 +419,24 @@ emock_return_code()
     if [[ -e "${statedir}/${num}/return_code" ]]; then
         cat "${statedir}/${num}/return_code"
     fi
+}
+
+opt_usage emock_mode <<'END'
+`emock_mode` is a utility function to make it easier to get the mocking mode that a mock was created with. This is stored
+on-disk and is easy to manually retrieve, but this function should always be used to provide a clean abstraction. The
+mocking mode will be one of either `function` or `filesystem`.
+END
+emock_mode()
+{
+    $(opt_parse \
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
+                                              hold metadata information such as the number of times the mock was called
+                                              as well as the exit code, stdout, and stderr for each invocation."       \
+        "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
+    )
+
+    statedir+="/$(basename "${name}")"
+    cat "${statedir}/mode"
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -390,7 +457,7 @@ END
 assert_emock_called()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -413,7 +480,7 @@ END
 assert_emock_stdout()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -437,7 +504,7 @@ END
 assert_emock_stderr()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -461,7 +528,7 @@ END
 assert_emock_return_code()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
@@ -487,7 +554,7 @@ END
 assert_emock_called_with()
 {
     $(opt_parse \
-        ":statedir=.emock-$$                | This directory is used to track state about mocked binaries. This will
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
