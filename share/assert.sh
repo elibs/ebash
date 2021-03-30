@@ -32,8 +32,8 @@ test 1 -eq 2
 ```
 
 There it seems ideal. But if you have an empty variable, things get a bit annoying. For instance, this command will
-blow up because inside assert bash will try to evaluate [[ -z ]] without any arguments to -z. (Note -- it still blows
-up, just not in quite the way you'd expect)
+exit with a failure because inside assert bash will try to evaluate [[ -z ]] without any arguments to -z. (Note -- it
+still exits with a failure, just not in quite the way you'd expect)
 
 ```shell
 empty="" assert test -z ${empty}
@@ -198,7 +198,7 @@ assert_exists()
     done
 }
 
-opt_usage assert_exists <<'END'
+opt_usage assert_not_exists <<'END'
 Accepts any number of filenames. Blows up if any of the named files exist.
 END
 assert_not_exists()
