@@ -25,12 +25,51 @@ ETEST_emock()
 
 ETEST_emock_and_path()
 {
-    hash -r
     etestmsg "Mocking ${test_binary} with full path"
     emock "${test_binary_path}"
     assert_match "$(type ${test_binary_path})" "${test_binary_path} is a function"
     eunmock "${test_binary_path}"
     assert_match "$(hash -r; type ${test_binary_path})" "${test_binary_path} is ${test_binary_path}"
+}
+
+ETEST_emock_and_filesystem()
+{
+    # Skip if we are not running in docker to avoid changing root filesystem
+    $(skip_if "! running_in_docker")
+
+    etestmsg "Mocking ${test_binary} with full path and --filesystem"
+    emock --filesystem "${test_binary_path}"
+    trap_add "eunmock ${test_binary_path}"
+
+    assert_eq "file" "$(type -t ${test_binary_path})"
+    assert_eq "file" "$(type -t ${test_binary_path}_real)"
+    assert_eq "filesystem" "$(emock_mode "${test_binary}")"
+    assert_exists "${test_binary_path}_real"
+}
+
+ETEST_emock_and_filesystem_multiple()
+{
+    # Skip if we are not running in docker to avoid changing root filesystem
+    $(skip_if "! running_in_docker")
+
+    etestmsg "Mocking ${test_binary} with full path and --filesystem"
+    emock --filesystem "${test_binary_path}"
+    assert_eq "file" "$(type -t ${test_binary_path})"
+    assert_eq "file" "$(type -t ${test_binary_path}_real)"
+    assert_eq "filesystem" "$(emock_mode "${test_binary}")"
+    file "${test_binary_path}" | grep -Pq "(ASCII text|bash script|Bourne-Again shell script)"
+
+    etestmsg "Mocking ${test_binary} with --filesystem and --return 1"
+    emock --filesystem --return 1 "${test_binary_path}"
+    grep "exit 1" "${test_binary_path}"
+
+    etestmsg "Mocking ${test_binary} with --filesystem and --return 2"
+    emock --filesystem --return 2 "${test_binary_path}"
+    grep "exit 2" "${test_binary_path}"
+
+    etestmsg "Unmocking"
+    eunmock "${test_binary_path}"
+    file "${test_binary_path}" | grep -Pq "ELF"
 }
 
 ETEST_emock_called()
@@ -55,6 +94,36 @@ ETEST_emock_called()
     func
     assert_eq 2 "$(emock_called func)"
     assert_emock_called "func" 2
+}
+
+ETEST_emock_called_filesystem()
+{
+    # Skip if we are not running in docker to avoid changing root filesystem
+    $(skip_if "! running_in_docker")
+
+    etestmsg "Mocking ${test_binary} with full path and --filesystem"
+    emock --filesystem "${test_binary_path}"
+    trap_add "eunmock ${test_binary_path}"
+
+    assert_eq "file" "$(type -t ${test_binary_path})"
+    assert_eq "file" "$(type -t ${test_binary_path}_real)"
+    assert_eq "filesystem" "$(emock_mode "${test_binary}")"
+    assert_exists "${test_binary_path}_real"
+
+    assert_eq 0 "$(emock_called ${test_binary_path})"
+    assert_emock_called "${test_binary_path}" 0
+
+    etestmsg "Calling mock"
+    ${test_binary_path}
+    find .emock-$$
+    cat .emock-$$/${test_binary}/called
+    assert_eq 1 "$(emock_called ${test_binary_path})"
+    assert_emock_called "${test_binary_path}" 1
+
+    etestmsg "Calling mocked"
+    ${test_binary_path}
+    assert_eq 2 "$(emock_called ${test_binary_path})"
+    assert_emock_called "${test_binary_path}" 2
 }
 
 ETEST_emock_real()
@@ -192,6 +261,8 @@ ETEST_emock_args()
 
     etestmsg "Calling func with arguments"
     func "1" "2" "3" "dogs and cats" "Anarchy"
+    cat ".emock-$$/func/0/args"
+    echo
     local args
     args=( $(emock_args func) )
 
