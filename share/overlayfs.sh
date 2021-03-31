@@ -136,10 +136,10 @@ overlayfs_mount()
             ln -s "${src}" "${lower_src}"
 
             # but, what if an image isn't an image and is actually a directory
-            if [[ -f "${lower}" ]] ; then
-              archive_mount "${src}" "${lower}"
+            if [[ -n $(archive_type --no-die ${src}) ]] ; then
+                archive_mount "${src}" "${lower}"
             else
-              ln -s "${src}" "${lower}"
+                ln -s "${src}" "${lower}"
             fi
         done
 
