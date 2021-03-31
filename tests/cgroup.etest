@@ -1,0 +1,378 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+cgroup_supported || return 0
+
+ETEST_cgroup_tree()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    A=(${CGROUP}/a/{1,2,3})
+    B=(${CGROUP}/b/{10,20})
+    C=(${CGROUP}/c)
+
+    cgroup_create "${A[@]}" "${B[@]}" "${C[@]}"
+
+    etestmsg "Testing full cgroup_tree"
+    found_tree=($(cgroup_tree))
+    for item in ${A[@]} ${B[@]} ${C[@]} ; do
+        assert array_contains found_tree $item
+    done
+
+
+    etestmsg "Testing that / is the root cgroup_tree"
+    found_tree=($(cgroup_tree /))
+    for item in ${A[@]} ${B[@]} ${C[@]} ; do
+        assert array_contains found_tree $item
+    done
+
+    etestmsg "Testing cgroup_tree a"
+    found_tree=($(cgroup_tree ${CGROUP}/a))
+    for item in ${A[@]} ; do
+        assert array_contains found_tree $item
+    done
+
+    etestmsg "Testing cgroup_tree with multiple parameters"
+    found_tree=($(cgroup_tree ${CGROUP}/b ${CGROUP}/c))
+    for item in ${B[@]} ${C[@]} ; do
+        assert array_contains found_tree $item
+    done
+}
+
+ETEST_cgroup_pstree()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    cgroup_create ${CGROUP}/{a,b,c}
+    (
+        cgroup_move ${CGROUP} ${BASHPID}
+
+        sleep infinity&
+        sleep1=$!
+        cgroup_move ${CGROUP}/a ${sleep1}
+
+        sleep infinity&
+        sleep2=$!
+        cgroup_move ${CGROUP}/b ${sleep2}
+
+        local output
+        output="$(EDEBUG=0 ETRACE=0 EFUNCS_COLOR=0 cgroup_pstree ${CGROUP} 2>&1 )"
+
+        etestmsg "Actual pstree output $(lval sleep1 sleep2 CGROUP)"
+        echo "${output}"
+
+        # Make sure the output contains some handy strings that I know should be there, such as the PIDs of the two
+        # sleeps.
+        etestmsg "Checking the output:"
+        (
+            echo "${output}" | grep -w ${sleep1}
+            echo "${output}" | grep -w ${sleep2}
+            echo "${output}" | grep "${CGROUP}/a"
+            echo "${output}" | grep "${CGROUP}/b"
+            echo "${output}" | grep "${CGROUP}/c"
+        )
+        etestmsg "Done checking"
+    )
+}
+
+ETEST_cgroup_destroy_recursive()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    cgroup_create ${CGROUP}/{a,b,c,d}
+    assert cgroup_exists ${CGROUP}/{a,b,c,d}
+
+    cgroup_destroy -r ${CGROUP}
+
+    assert_false cgroup_exists ${CGROUP}/{a,b,c,d} ${CGROUP}
+}
+
+ETEST_cgroup_create_destroy()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    # Create cgroup and make sure the directories exist in each subsystem
+    cgroup_create ${CGROUP}
+    for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
+        assert test -d /sys/fs/cgroup/${subsys}/${CGROUP}
+    done
+
+    cgroup_exists ${CGROUP}
+
+    # And make sure they get cleaned up
+    cgroup_destroy ${CGROUP}
+    for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
+        assert test ! -d /sys/fs/cgroup/${subsys}/${CGROUP}
+    done
+}
+
+ETEST_cgroup_create_twice()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    cgroup_create ${CGROUP}
+    cgroup_exists ${CGROUP}
+    cgroup_create ${CGROUP}
+    cgroup_exists ${CGROUP}
+}
+
+ETEST_cgroup_exists()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    etestmsg "Checking detection of destroyed cgroup"
+    cgroup_destroy -r ${CGROUP}
+    cgroup_exists ${CGROUP} || rc=$?
+    assert test ${rc} -eq 1
+
+    etestmsg "Checking detection of created cgroup"
+    rc=0
+    cgroup_create ${CGROUP}
+    assert cgroup_exists ${CGROUP}
+
+    etestmsg "Generates special exit code for inconsistent cgroup"
+    rc=0
+    rmdir /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${CGROUP}
+    find /sys/fs/cgroup -wholename "${CGROUP}" -ls
+    $(tryrc cgroup_exists ${CGROUP})
+    assert test ${rc} -eq 2
+}
+
+
+ETEST_cgroup_pids_recursive()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    cgroup_create ${CGROUP} ${CGROUP}/subgroup
+    (
+        cgroup_move ${CGROUP} ${BASHPID}
+        PARENT_PID=${BASHPID}
+        (
+            cgroup_move ${CGROUP}/subgroup ${BASHPID}
+
+            local allPids
+            allPids=($(cgroup_pids -r ${CGROUP}))
+
+            etestmsg BASHPID=${BASHPID} $(lval allPids PARENT_PID)
+
+            assert_true array_contains allPids ${BASHPID}
+            assert_true array_contains allPids ${PARENT_PID}
+        )
+    )
+}
+
+ETEST_cgroup_move_multiple_pids_at_once()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    cgroup_create ${CGROUP}
+
+    local PIDS=()
+    sleep infinity &
+    PIDS+=($!)
+    sleep infinity &
+    PIDS+=($!)
+
+    etestmsg "Started sleep processes $(lval PIDS)"
+    cgroup_move ${CGROUP} "${PIDS[@]}"
+
+    local foundPids
+    foundPids=($(cgroup_pids -r ${CGROUP}))
+    for pid in "${PIDS[@]}" ; do
+        etestmsg "Checking ${pid}"
+        assert_true array_contains foundPids ${pid}
+        assert_eq "${CGROUP}" "$(cgroup_current $pid)" "cgroup for pid ${pid}"
+    done
+
+}
+
+ETEST_cgroup_pids_except()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    cgroup_create ${CGROUP}
+    (
+        cgroup_move ${CGROUP} ${BASHPID}
+
+        local found_pids pid=${BASHPID}
+        array_init found_pids "$(cgroup_pids -r -x="${pid}" ${CGROUP})"
+        ewarn "${pid} found: $(lval found_pids)"
+        assert_false array_contains found_pids "${pid}"
+    )
+}
+
+ETEST_cgroup_pids_missing_cgroup()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    cgroup_create ${CGROUP}/a
+    (
+        local found_pids pid=${BASHPID} rc=0
+
+        cgroup_move ${CGROUP}/a ${pid}
+
+        # cgroup_pids should echo the proper pids to stdout
+        array_init found_pids "$(cgroup_pids -r ${CGROUP}/{a,b,c} || true)"
+        edebug "$(lval found_pids pid CGROUP)"
+        assert array_contains found_pids ${pid}
+
+        # And it should return an error code, specifically two for the two cgroups (b and c) that do not exist
+        cgroup_pids -r ${CGROUP}/{a,b,c} || rc=$?
+        assert test ${rc} -eq 2
+    )
+}
+
+ETEST_cgroup_move_ignores_empties()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    cgroup_create ${CGROUP}
+    (
+        # Adding an empty string to the tasks file in the cgroup filesystem would typically blow up. cgroup_move
+        # intentionally skips empty strings to make life a bit easier.
+        cgroup_move ${CGROUP} "" ${BASHPID} ""
+    )
+}
+
+ETEST_cgroup_move_blows_up_if_cgroup_not_created()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    assert_false cgroup_move ${CGROUP} ${BASHPID}
+}
+
+ETEST_cgroup_pids_checks_all_subsystems()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    cgroup_create ${CGROUP}
+
+    # Create a process in the cgroup
+    sleep infinity&
+    local pid=$!
+    cgroup_move ${CGROUP} ${pid}
+
+    etestmsg "Created a sleep process $(lval pid)"
+
+    # Remove it from the cgroup in a single subsystem (arbitrarily #1)
+    echo ${pid} > /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[1]}/tasks
+
+    # Make sure it still shows up in the list of pids
+    foundPids=($( cgroup_pids -r ${CGROUP}))
+    einfo "$(lval pid foundPids)"
+    einfo "$(ps hp $pid)"
+
+    assert_true array_contains foundPids ${pid}
+
+}
+
+ETEST_cgroup_kill_excepts_current_process()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    cgroup_create ${CGROUP}
+
+
+    (
+        # NOTE: You must add ${BASHPID}, not $$ here because we only want the subshell inside this cgroup
+        cgroup_move ${CGROUP} ${BASHPID}
+        etestmsg "Joined cgroup $(lval CGROUP) \$\$=$$ \$BASHPID=${BASHPID} pids=$(cgroup_pids -r ${CGROUP})"
+        cgroup_kill_and_wait -x="${BASHPID} $$" ${CGROUP}
+
+        etestmsg "Subshell still exists after cgroup_kill_and_wait"
+    )
+
+    [[ $? -eq 0 ]] || die "Subshell should not have been killed by cgroup_kill, but it was."
+}
+
+ETEST_cgroup_functions_like_empty_cgroups()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    cgroup_create ${CGROUP}
+
+    local empty
+    empty=$(cgroup_pids -r ${CGROUP})
+    assert_var_empty empty
+
+    cgroup_kill ${CGROUP}
+    cgroup_kill_and_wait ${CGROUP}
+
+    cgroup_destroy ${CGROUP}
+}
+
+ETEST_cgroup_pids_blows_up_on_nonexistent_cgroups()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    assert_false cgroup_pids ${CGROUP}
+}
+
+ETEST_cgroup_kill_and_destroy_ingore_nonexistent_cgroups()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+
+    # Even if it had accidentally been created, if you destroy the cgroup twice it definitely should've been gone once
+    cgroup_destroy ${CGROUP}
+    cgroup_destroy ${CGROUP}
+
+    # And now that it's gone, make sure kill can deal with that, too
+    cgroup_kill ${CGROUP}
+}
+
+ETEST_cgroup_kill_and_wait_timeout()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
+    cgroup_create ${CGROUP}
+
+cat >hang <<END
+#!/usr/bin/env bash
+trap "echo caught sigterm" SIGTERM
+while true ; do : ; done
+END
+    chmod +x ./hang
+
+    etestmsg "Starting process that ignores sigterm"
+    (
+        cgroup_move ${CGROUP} ${BASHPID}
+        ./hang
+    ) &
+    cgroup_pstree ${CGROUP}
+
+    etestmsg "Trying to kill that process with sigterm (which shouldn't succeed)"
+    assert_false cgroup_kill_and_wait -s=TERM -t=2 ${CGROUP}
+
+    etestmsg "pstree after attempting to kill with sigterm"
+    cgroup_pstree ${CGROUP}
+
+    cgroup_kill -s=KILL ${CGROUP}
+}
+
+ETEST_cgroup_current()
+{
+    etestmsg "cgroup info"
+    cat /proc/$$/cgroup
+
+    einfo "$(lval CGROUP_SYSFS CGROUP_ROOT)"
+
+    local current
+    current=$(cgroup_current)
+    assert_eq "${ETEST_CGROUP}" "${current}" "cgroup"
+}

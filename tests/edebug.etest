@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_edebug_one_and_zero()
+{
+    EDEBUG=1 edebug_enabled || die "edebug should be enabled"
+    EDEBUG=0 edebug_enabled && die "edebug should not be enabled" || true
+}
+
+ETEST_edebug_enabled_matcher()
+{
+    etestmsg FUNCNAME
+    EDEBUG="${FUNCNAME}"                edebug_enabled
+    etestmsg "edebug"
+    EDEBUG="edebug"                     edebug_enabled
+    etestmsg "something else entirely"
+    EDEBUG="something else entirely"    edebug_disabled
+    etestmsg "else and edebug"
+    EDEBUG="else and edebug"            edebug_enabled
+    etestmsg "blank string"
+    EDEBUG=""                           edebug_disabled
+}
+
+ETEST_edebug_and_etrace()
+{
+    EDEBUG=""            ETRACE="${FUNCNAME}"   edebug_enabled
+    EDEBUG="${FUNCNAME}" ETRACE=""              edebug_enabled
+    EDEBUG="${FUNCNAME}" ETRACE=0               edebug_enabled
+    EDEBUG=1             ETRACE=""              edebug_enabled
+    EDEBUG=1             ETRACE=0               edebug_enabled
+    EDEBUG=""            ETRACE=1               edebug_enabled
+    EDEBUG=0             ETRACE=1               edebug_enabled
+
+    EDEBUG=""            ETRACE=""              edebug_disabled
+    EDEBUG=0             ETRACE=0               edebug_disabled
+    EDEBUG="NOT"         ETRACE="HERE"          edebug_disabled
+}
+
+ETEST_edebug_enabled_skips_edebug_in_stack_frame()
+{
+    local output
+    output=$(EDEBUG=${FUNCNAME}; edebug "hello" 2>&1)
+    assert_match "${output}" "hello"
+}
+
+ETEST_edebug_pipe_input()
+{
+    local output
+    output=$(EDEBUG=${FUNCNAME}; echo "foo" | edebug 2>&1)
+    assert_match "${output}" "foo"
+}
+
+ETEST_edebug_pipe_empty()
+{
+    local output
+    output=$(EMSG_PREFIX="" ; EDEBUG=${FUNCNAME}; true | edebug 2>&1)
+    assert_empty "${output}"
+}
+
+ETEST_edebug_pipe_return_code()
+{
+    try
+    {
+        false |& edebug
+        throw 100
+    }
+    catch
+    {
+        [[ $? -eq 100 ]] && die "edebug suppressed a failure"
+        return 0
+    }
+
+    die "Test should have thrown or returned"
+}
+
+ETEST_edebug_filename()
+{
+    EDEBUG=${BASH_SOURCE[0]} edebug_enabled
+}
+
+if ! os linux ; then
+    return 0
+fi
+
+ETEST_edebug_pipe_multiple_lines()
+{
+    local intput output
+    input="$(find ${EBASH} -type f | shuf -n 20)"
+    output="$(EMSG_PREFIX=""; EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")"
+
+    diff --unified --ignore-blank-lines <(echo -en "${input}") <(echo -en "${output}")
+}
+

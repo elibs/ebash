@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+
+os darwin && return 0
+
+setup()
+{
+    PKG_KNOWN=coreutils
+    PKG_UNKNOWN=does-not-exist
+    PKG_INSTALLED=coreutils
+    PKG_CANDIDATES=(hello banner lolcat fortune)
+
+    # Find package we can install from PKG_CANDIDATES
+    local pkg="" found=0
+    for pkg in ${PKG_CANDIDATES[@]}; do
+        etestmsg "Checking $(lval pkg PKG_CANDIDATES)"
+        if pkg_known ${pkg} && ! pkg_installed ${pkg}; then
+            found=1
+            break
+        fi
+    done
+
+    assert_eq 1 "${found}" "Failed to find installable package from $(lval PKG_CANDIDATES)"
+
+    PKG_TO_INSTALL="${pkg}"
+    etestmsg "$(lval PKG_KNOWN PKG_UNKNOWN PKG_INSTALLED PKG_TO_INSTALL)"
+}
+
+ETEST_pkg_0001_manager()
+{
+    assert_ne "unknown" "$(pkg_manager)"
+}
+
+ETEST_pkg_known()
+{
+    pkg_known ${PKG_KNOWN}
+    assert_false pkg_known ${PKG_UNKNOWN}
+}
+
+ETEST_pkg_install_and_upgrade()
+{
+    etestmsg "First make sure $(lval PKG_TO_INSTALL) is not installed."
+    pkg_known ${PKG_TO_INSTALL}
+    assert_false pkg_installed ${PKG_TO_INSTALL}
+
+    # NOTE: Some packaging systems (e.g. dpkg) don't deal well with different processes trying to install things at the
+    # same time. The retries here are intended to harden against issues like that.
+    etestmsg "Install $(lval PKG_TO_INSTALL)"
+    eretry --delay 5s --retries 5 pkg_install ${PKG_TO_INSTALL}
+
+    # Make sure things get cleaned up, even if something goes wrong after this point
+    trap_add "etestmsg CLEANUP ; pkg_uninstall ${PKG_TO_INSTALL} || true"
+
+    etestmsg "Verify $(lval PKG_TO_INSTALL) exists and can be verified as installed."
+    pkg_known ${PKG_TO_INSTALL}
+    pkg_installed ${PKG_TO_INSTALL}
+
+    etestmsg "Attempt upgrade on $(lval PKG_TO_INSTALL)"
+    eretry --delay 5s --retries 5 pkg_upgrade ${PKG_TO_INSTALL}
+    pkg_known ${PKG_TO_INSTALL}
+    pkg_installed ${PKG_TO_INSTALL}
+
+    etestmsg "Uninstall $(lval PKG_TO_INSTALL)"
+    eretry --delay 5s --retries 5 pkg_uninstall ${PKG_TO_INSTALL}
+
+    etestmsg "and verify that we don't believe $(lval PKG_TO_INSTALL) is installed."
+    pkg_known ${PKG_TO_INSTALL}
+    assert_false pkg_installed ${PKG_TO_INSTALL}
+}
+
+if os_distro gentoo ember ; then
+
+    ETEST_pkg_gentoo_find()
+    {
+        assert_eq "www-servers/nginx" "$(pkg_gentoo_canonicalize nginx)"
+    }
+
+    ETEST_pkg_gentoo_find_ambiguous()
+    {
+        etestmsg "Looking for category for ssh app, which lives in virtual AND python-dev"
+        $(tryrc --stderr stderr pkg_gentoo_canonicalize ssh)
+        assert_ne 0 ${rc}
+        assert_match "${stderr}" "ambiguous"
+    }
+
+fi

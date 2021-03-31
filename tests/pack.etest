@@ -1,0 +1,353 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_pack_one()
+{
+    pack_set P a=alpha
+
+    assert_zero $?
+    assert_eq "alpha" $(pack_get P a)
+    assert_eq 1 $(pack_size P)
+}
+
+ETEST_pack_empty_values()
+{
+    local val
+    pack_set P a= b=
+
+    val=$(pack_get P a)
+    assert_zero $?
+    assert_var_empty val
+
+    val=$(pack_get P b)
+    assert_zero $?
+    assert_var_empty val
+
+    assert_eq 2 $(pack_size P)
+}
+
+ETEST_pack_many()
+{
+    pack_set P a= b=3 c=7 n=1 x=alpha y=beta z=10
+
+    assert_false      pack_contains P a
+    assert_eq "3"     $(pack_get P b)
+    assert_eq "7"     $(pack_get P c)
+    assert_eq "1"     $(pack_get P n)
+    assert_eq "alpha" $(pack_get P x)
+    assert_eq "beta"  $(pack_get P y)
+    assert_eq "10"    $(pack_get P z)
+}
+
+ETEST_pack_save_load()
+{
+    pack_set P a=1 b=3 c=7 n=1 x=alpha y=beta z=10
+    etestmsg "Creating pack $(lval %P)"
+
+    etestmsg "Saving to output.pack"
+    pack_save P output.pack
+    cat output.pack
+
+    etestmsg "Loading into Q"
+    pack_load Q output.pack
+
+    assert_eq "1"     $(pack_get Q a)
+    assert_eq "3"     $(pack_get Q b)
+    assert_eq "7"     $(pack_get Q c)
+    assert_eq "1"     $(pack_get Q n)
+    assert_eq "alpha" $(pack_get Q x)
+    assert_eq "beta"  $(pack_get Q y)
+    assert_eq "10"    $(pack_get Q z)
+}
+
+ETEST_pack_sequential()
+{
+    pack_set P a=alpha
+    assert_eq "alpha" $(pack_get P a)
+
+    pack_set P b=2
+    assert_eq "alpha" $(pack_get P a)
+    assert_eq "2"     $(pack_get P b)
+
+    pack_set P c=300
+    assert_eq "alpha" $(pack_get P a)
+    assert_eq "2"     $(pack_get P b)
+    assert_eq "300"   $(pack_get P c)
+}
+
+ETEST_pack_nonexistent()
+{
+    pack_set P a=1
+
+    b=$(pack_get P b)
+    assert_var_empty b
+    assert_false pack_contains P b
+}
+
+ETEST_pack_into_associative_array()
+{
+    local -A AA
+    AA[n]=1
+
+    pack_set AA[p] a=7 b=8
+    assert_eq 1  ${AA[n]}
+
+    assert_eq 7 $(pack_get AA[p] a)
+    assert_eq 8 $(pack_get AA[p] b)
+}
+
+ETEST_pack_values_containing_equal_sign()
+{
+    pack_set P a=1==b c===d
+
+    assert_eq "1==b" $(pack_get P a)
+    assert_eq "==d"  $(pack_get P c)
+}
+
+ETEST_pack_get_from_empty()
+{
+    a=$(pack_get P a)
+
+    assert_false pack_contains P a
+    assert_var_empty a
+}
+
+ETEST_pack_last_of_dupes()
+{
+    pack_set P a=1 a=7 a=10
+    assert_eq 10 $(pack_get P a)
+
+    pack_set P a=3
+    assert_eq 3  $(pack_get P a)
+}
+
+_pack_iterate_count=0
+_pack_iterate_checker()
+{
+    local key=$1
+    local val=$2
+
+    einfo "_pack_iterate_checker: $(lval key val _pack_iterate_count)"
+    [[ $key == "a" || $key == "b" || $key == "c" || $key == "white" ]] || die
+
+    [[ $key != "white" ]] && assert_eq  "val" "$val"
+    [[ $key == "white" ]] && assert_eq  "val with spaces" "$val"
+
+    (( _pack_iterate_count += 1 ))
+}
+
+ETEST_pack_iterate()
+{
+    pack_set P a=val b=val c=val white="val with spaces"
+    pack_iterate _pack_iterate_checker P
+
+    assert_eq 4 ${_pack_iterate_count}
+}
+
+ETEST_pack_keys_are_not_case_insensitive()
+{
+    pack_set P a="alpha"
+    assert_eq "alpha" $(pack_get P a)
+    assert_false      pack_contains P A
+
+    pack_set P A="beta"
+    assert_eq "alpha" $(pack_get P a)
+    assert_eq "beta"  $(pack_get P A)
+}
+
+ETEST_pack_values_can_contain_whitespace()
+{
+    pack_set P "a=alpha beta" "g=gamma kappa"
+
+    assert_eq 2 $(pack_size P)
+    assert_eq "alpha beta"  "$(pack_get P a)"
+    assert_eq "gamma kappa" "$(pack_get P g)"
+
+    keys=($(pack_keys P))
+    assert_eq "a" ${keys[0]}
+    assert_eq "g" ${keys[1]}
+}
+
+ETEST_pack_update_empty_stays_empty()
+{
+    pack_update P a=1 b=2 c=3
+    assert_var_empty P
+}
+
+ETEST_pack_update_updates_values()
+{
+    pack_set P a=1 b=2 c=3
+    pack_contains P a
+    pack_contains P b
+    pack_contains P c
+
+    pack_update P a=10 b=20 d=40
+
+    assert_eq "10" $(pack_get P a)
+    assert_eq "20" $(pack_get P b)
+    assert_eq "3"  $(pack_get P c)
+    assert_false   pack_contains P d
+}
+
+ETEST_pack_avoid_common_variable_conflicts()
+{
+    POTENTIAL_VARS=(arg val key tag)
+    for VAR in ${POTENTIAL_VARS[@]} ; do
+        einfo "Testing for conflicts in variable name ${VAR}"
+
+        pack_set ${VAR} a=1 b=2 c=3
+        pack_update ${VAR} a=10 b=20 c=30 d=40
+
+        assert_eq 10 $(pack_get ${VAR} a)
+        assert_eq 20 $(pack_get ${VAR} b)
+        assert_eq 30 $(pack_get ${VAR} c)
+
+    done
+}
+
+ETEST_pack_no_newlines()
+{
+    try
+    {
+        output=$(pack_set P "a=$(printf "\na\nb\n")" 2>&1)
+
+        # Should never get here
+        die "pack_set should have failed due to newlines: $(lval output)"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "unit test should have returned"
+}
+
+ETEST_pack_lots_of_data()
+{
+    A="http://bdr-distbox.engr.solidfire.net:8080/jobs/dtest_modell/10234"
+    pack_set P A=${A} B=${A} C=${A}
+
+    assert_eq "${A}" "$(pack_get P A)"
+    assert_eq "${A}" "$(pack_get P B)"
+    assert_eq "${A}" "$(pack_get P C)"
+}
+
+ETEST_pack_lval()
+{
+    pack_set P A=1 B=2
+    assert_eq 'P=([A]="1" [B]="2" )' "$(lval %P)"
+}
+
+ETEST_pack_update_only_complete_matches()
+{
+    pack_set P ALPHA=1
+    assert_eq 1 $(pack_size P)
+
+    pack_update P A=1
+    pack_update P AL=1
+    pack_update P ALP=1
+    pack_update P ALPH=1
+    pack_update P ALPHA_=1
+    assert_eq 1 $(pack_size P)
+}
+
+ETEST_pack_update_key_not_insensitive()
+{
+    pack_set P A=1 B=2
+
+    pack_update P a=10 b=20
+
+    assert_eq 1  $(pack_get P A)
+    assert_eq 2  $(pack_get P B)
+    assert_false pack_contains P a
+    assert_false pack_contains P b
+}
+
+ETEST_pack_copy_empty()
+{
+    A=""
+    B=""
+    assert_true pack_copy A B
+}
+
+ETEST_pack_copy_over()
+{
+    pack_set P A=1 B=2
+    declare -A B
+    pack_set B[alpha] C=10 D=20
+
+    einfo $(lval %P %B[alpha])
+    assert_eq 1 $(pack_get P A)
+    assert_eq 2 $(pack_get P B)
+
+    pack_copy P B[alpha]
+    einfo $(lval %P %B[alpha])
+    assert_eq 1 $(pack_get B[alpha] A)
+    assert_eq 2 $(pack_get B[alpha] B)
+    assert_eq 1 $(pack_get P A)
+    assert_eq 2 $(pack_get P B)
+}
+
+ETEST_pack_import_all()
+{
+    assert_var_empty a b
+
+    pack_set P a=10 b=20
+    $(pack_import P)
+
+    assert_eq 10 ${a}
+    assert_eq 20 ${b}
+}
+
+ETEST_pack_import_specific()
+{
+    assert_var_empty a b c
+
+    pack_set P a=1 b=2 c=3
+    $(pack_import P a b)
+
+    assert_eq 1  ${a}
+    assert_eq 2  ${b}
+    assert_var_empty c
+}
+
+ETEST_pack_export()
+{
+    a=1
+    b=2
+    c=3
+
+    pack_export P a b c
+
+    assert_eq ${a} "$(pack_get P a)"
+    assert_eq ${b} "$(pack_get P b)"
+    assert_eq ${c} "$(pack_get P c)"
+}
+
+# Make sure pack_export doesn't blow up on undefined values
+ETEST_pack_export_undefined()
+{
+    pack_export P a
+}
+
+# Make sure pack values can contain the full character set (excluding null)
+ETEST_pack_full_character_set()
+{
+    # Get all the characters except null
+    CHARSET=""
+    for char in $(seq 1 255) ; do
+        CHARSET+=$(perl -e 'printf "%c", '$char' ;')
+    done
+
+    # Set a pack entry to contain all of them
+    pack_set P charset="${CHARSET}"
+
+    # And make sure it does
+    [[ "$CHARSET" == "$(pack_get P charset)" ]] || { eerror "P/charset not as expected [$(pack_get P charset)]" ; return 1 ; }
+}

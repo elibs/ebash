@@ -7,90 +7,70 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-#
-# This tool is designed to run individual commands in a ebash environment.
-# It can effectively turns ebash functions into commands that can easily be
-# run from a shell prompt.
-#
-# The first simple use case happens when the binary is called "ebash".  In
-# this mode, everything after ebash on the command line is evaluated inside
-# a bash interpreter that has sourced the various ebash source files.
-#
-# But ebash can be symlinked to other names.  ebash pays attention to
-# the name that it is called by.  When it's not called as ebash, it tries
-# to run ebash functions intead.  First, it looks to see if the symlink
-# name is the name of a "namespace" of ebash commands.  For instance, the
-# string commands can be used in this way.  Assuming a "string" symlink, then
-#
-#     string trim " a string to trim "
-#
-# will call the string_trim function, passing it that string as an argument.
-# If there is no function that's a combination of the symlink name and the
-# first argument, then ebash will look for a function of the same name as
-# the symlink and call it passing all arguments to the function.  For instance,
-# given a symlink called eunmount, then you could call
-#
-#     eunmount /path/to/unmount /another/path
-#
-# And both "/path/to/unmount" and "/another/path" will be passed as arguments
-# to eunmount.
-#
-#-------------------------------------------------------------------------------
-
-
-# To be able to make good use of function documentation in places where we do
-# something like this, we need to save function documentation off into
-# variables (or else we'd have to parse bash source code enough to extract it,
-# which sounds very error prone)
-#
-#     somefunc --help
-#
-# But we don't want to bloat the interpreter with a bunch of documentation
-# every time we source ebash.  Our solution is to only save them at times
-# where we believe the variables are going to be needed.  There's no reason to
-# expect they will be necessary unless `--help` is on the command line
-# somewhere.  Or for those few cases where it's needed, they can set this
-# variable, too.
-#
-# And for this to work in all of the ebash files, we must do it before
-# sourcing them.
-for arg in "$@" ; do
-    if [[ ${arg} == "--help" ]] ; then
-        __EBASH_SAVE_DOC=1
-    fi
-done
-
-
 : ${EBASH_HOME:=$(dirname $0)/..}
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
-# Canonicalize EBASH_HOME and EBASH _after_ sourcing ebash because it makes sure readlink behaves the same for
-# both mac and linux
+opt_usage ebash <<'END'
+This tool is designed to run individual commands in a ebash environment. It can effectively turns ebash functions
+into commands that can easily be run from a shell prompt.
+
+The first simple use case happens when the binary is called "ebash". In this mode, everything after ebash on the
+command line is evaluated inside a bash interpreter that has sourced the various ebash source files.
+
+But ebash can be symlinked to other names. ebash pays attention to the name that it is called by. When it's not
+called as ebash, it tries to run ebash functions intead. First, it looks to see if the symlink name is the name of a
+"namespace" of ebash commands. For instance, the string commands can be used in this way. Assuming a "string"
+symlink, then
+
+    string trim " a string to trim "
+
+will call the string_trim function, passing it that string as an argument. If there is no function that's a
+combination of the symlink name and the first argument, then ebash will look for a function of the same name as the
+symlink and call it passing all arguments to the function. For instance, given a symlink called eunmount, then you
+could call
+
+    eunmount /path/to/unmount /another/path
+
+And both "/path/to/unmount" and "/another/path" will be passed as arguments to eunmount.
+END
+
+# Canonicalize EBASH_HOME and EBASH _after_ sourcing ebash because it makes sure readlink behaves the same for both mac
+# and linux
 EBASH=$(readlink -f "${EBASH}")
 EBASH_HOME=$(readlink -f "${EBASH_HOME}")
 
-
-declare name=${0##*/}
-
 # If we were called as "ebash", then the caller can specify options to this script.
+declare name=${0##*/}
 if [[ ${name} == "ebash" ]] ; then
 
     $(opt_parse \
-        ":load l          | ebash should source the specified file before attempting to run the specified command." \
-        "+source s        | Print commands that would load ebash from its existing location on disk into the current
-                            shell and then exit.  You'd use this in a script like this: \$(ebash --source)" \
-        "+print_environment printenv p | Dump environment variables that ebash would like to use in a format bash
-                            can interpret" \
-        ":name n=${0##*/} | Name to use as a starting point for finding functions.  I.e pretend ebash is running
-                            with the specified name.")
+        ":load l                                | ebash should source the specified file before attempting to run the
+                                                  specified command." \
+        "+source s                              | Print commands that would load ebash from its existing location on
+                                                  disk into the current shell and then exit. You'd use this in a script
+                                                  like this: \$(ebash --source)" \
+        "+print_environment printenv p          | Dump environment variables that ebash would like to use in a format
+                                                  bash can interpret" \
+        ":name n=${0##*/}                       | Name to use as a starting point for finding functions. This basically
+                                                  pretends that ebash is running with the specified name." \
+        "+color c=$(efuncs_color_as_bool)       | Force explicit color mode." \
+        ":msg_prefix m                          | Prefix to use for all emsg messages." \
+        "+interactive i=$(einteractive_as_bool) | Force interactive mode even if we are not attached to a terminal.")
 
     if [[ -n ${load} ]] ; then
         source "${load}"
     fi
 
+    # Setup ebash environment variables
+    export EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE
+    EFUNCS_COLOR="${color}"
+    EMSG_PREFIX=$(string_trim "${EMSG_PREFIX} ${msg_prefix}")
+    EINTERACTIVE="${interactive}"
+
     if [[ ${source} -eq 1 ]] ; then
-        echo "eval export EBASH=${EBASH} EBASH_HOME=${EBASH_HOME} ; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }"
+        export_string="$(declare -p EBASH EBASH_HOME EFUNCS_COLOR EMSG_PREFIX EINTERACTIVE | sed -e 's|declare -[-x] ||' | tr '\n' ' ')"
+        echo "eval export ${export_string}; source \"${EBASH}/ebash.sh\" || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }"
         exit 0
     elif [[ ${print_environment} -eq 1 ]] ; then
         printf "export EBASH=%q\n" "${EBASH}"
@@ -118,28 +98,39 @@ else
     # Use all arguments to ebash as a command to execute
     if [[ ${#@} -gt 0 ]] ; then
 
-        # If we were given the path to another script run it inside ebash environment
-        if [[ ${#@} -eq 1 && -e "${1}" ]]; then
-
-            export EBASH EBASH_HOME
-
-            SOURCE="${1}"
-            SCRIPT=$(mktemp --tmpdir ebash-script-XXXXXX)
-            trap_add "rm -f ${SCRIPT}"
-
-            cp "${SOURCE}" "${SCRIPT}"
-            sed -i -e "s%^#!.*%source ${EBASH}/ebash.sh || { echo \"Unable to source ${EBASH}/ebash.sh\" ; exit 1 ; }%" "${SCRIPT}"
-            chmod +x "${SCRIPT}"
-
-            exec "${SCRIPT}"
+        # ebash shebang interpreter.
+        #
+        # If our first argument is ANOTHER BASH script then we've been invoked as an interpreter and we need to actually
+        # execute the other script we were given along with any of its arguments.
+        #
+        # The tricky part here is we don't want to simply execute the script, but instead we want to run it within our
+        # existing ebash context. This way the called script inherits all the benefits of ebash without having to do
+        # anything tricky in their script other than simply using the ebash shebang.
+        #
+        # Originally we copied the script we were given into a temporary directory and then modified it to source the
+        # ebash environment at the top of the script. That had several undesirable side-effects:
+        #
+        # 1) Required file operations just to run a script
+        # 2) Extra overhead of fork/exec to run the external script.
+        # 3) Error prone to be running sed commands on arbitrary script contents
+        # 4) Alters the called script's ${BASH_SOURCE} such that it looked like the script path is /tmp/blahXXXX rather
+        #    than the actual location of the script. This is really bad since the caller may want to have access to
+        #    files relative to it's source directory.
+        #
+        # So, a much simpler, and more correct solution is to simply SOURCE the external script (along with arguments).
+        # This has the same effect as executing a script only it is run within our existing process context rather than
+        # as an external script.
+        if file "${1}" 2>/dev/null | grep -Pq "(ASCII text|bash script|Bourne-Again shell script)"; then
+            source "${@}"
+            exit $?
         fi
 
         # Run the command, but pretend to be inside a try so that die doesn't print an ugly stack trace.
         quote_eval "${@}"
 
-    # Or run iebash if nothing was specified
+    # Or run ebash-repl if nothing was specified
     else
-        exec ${EBASH_HOME}/bin/iebash --load "${load}"
+        exec ${EBASH_HOME}/bin/ebash-repl --load "${load}"
     fi
 
 fi

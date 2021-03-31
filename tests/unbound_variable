@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+$(${EBASH_HOME}/bin/ebash --source)
+
+#-----------------------------------------------------------------------------------------------------------------------
+# SANITY TEST OF UNBOUND VARIABLE ERROR HANDLING
+#
+# NOTE: This is intentionally NOT an etest. This script must be run in its own TOP-LEVEL shell to be able to test
+# whether die gets called when there is an unbound variable.
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Create a script to run
+OUTPUT=$(mktemp --tmpdir etest-output-txt-XXXXXX)
+SCRIPT=$(mktemp --tmpdir etest-script-sh-XXXXXX)
+trap_add "rm --force ${OUTPUT} ${SCRIPT}"
+
+einfo "Creating ${SCRIPT}"
+cat <<EOF >${SCRIPT}
+
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" >&2 ; exit 1 ; }
+
+die_handler()
+{
+    \$(opt_parse \
+        ":return_code rc r=1 | Return code that die will eventually exit with." \
+        ":signal s           | Signal that caused this die to occur." \
+        ":color c            | DEPRECATED OPTION -- no longer has any effect." \
+        ":frames f=3         | Number of stack frames to skip.")
+
+    einfo "DIE_HANDLER called with \$(lval return_code)"
+
+    # On unbound variables, bash exits with 1
+    assert_eq 1 \${return_code}
+
+    echo "DIE" >> "${OUTPUT}"
+
+    # Don't exit with failure
+    exit 0
+}
+
+# Setup trap that we expect to run despite die getting called by unbound variable
+trap_add "echo TRAP >> ${OUTPUT}"
+die -c=grey19 "Fake death..."
+
+echo "$0: Try to use an unbound variable. This should cause exit to get invoked and die thereafter."
+echo "\${UNBOUND_VARIABLE}"
+
+eerror "If we got here something is wrong!!"
+exit 1
+EOF
+chmod +x ${SCRIPT}
+
+# Run the script we created above
+einfo "Running ${SCRIPT}"
+${SCRIPT}
+
+einfo "It produced output file:"
+cat ${OUTPUT}
+assert_eq 2 $(wc -l ${OUTPUT})
+first=$(head -1 ${OUTPUT})
+last=$(tail -1 ${OUTPUT})
+
+einfo "Asserting proper order:"
+assert_eq "DIE" "${first}" "die() not called first"
+assert_eq "TRAP" "${last}" "trap not called second"
+
+exit 0

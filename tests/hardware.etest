@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Test Helpers
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+expected_bytes="50142380032"
+
+# Mock out "free --bytes" to return a fixed known number. If any other parameters are passed in return an error.
+free()
+{
+    assert_eq -- "--bytes" "$*" "Unsupported options to mock free"
+
+    cat <<-EOF
+	Mem:    ${expected_bytes} 10511736832 22768001024  1010593792 16862642176 38247469056
+	Swap:             0           0           0
+	EOF
+}
+
+# Mock out "sysctl -n hw.memsize" for MACs. If any other parameters are passed in return an error.
+sysctl()
+{
+    assert_eq -- "-n hw.memsize" "$*" "Unsupported options to mock sysctl"
+
+    echo "${expected_bytes}"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Unit Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_get_memory_bytes()
+{
+    assert_eq "${expected_bytes}" "$(get_memory_size)"
+}
+
+ETEST_get_memory_kilo()
+{
+    for entry in 50142380032:50142380 67087843328:67087843 8589934592:8589934 66729205760:66729205; do
+        expected_bytes=${entry%%:*}
+        expected_kilo=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_kilo)"
+        assert_eq "${expected_kilo}" "$(get_memory_size --units=K)"
+    done
+}
+
+ETEST_get_memory_mega()
+{
+    for entry in 50142380032:50142 67087843328:67087 8589934592:8589 66729205760:66729; do
+        expected_bytes=${entry%%:*}
+        expected_mega=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_mega)"
+        assert_eq "${expected_mega}" "$(get_memory_size --units=M)"
+    done
+}
+
+ETEST_get_memory_giga()
+{
+    for entry in 50142380032:50 67087843328:67 8589934592:8 66729205760:66; do
+        expected_bytes=${entry%%:*}
+        expected_giga=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_giga)"
+        assert_eq "${expected_giga}" "$(get_memory_size --units=G)"
+    done
+}
+
+ETEST_get_memory_tera()
+{
+    for entry in 1000000000000:1 50142380032:0 67087843328:0 8589934592:0 66729205760:0; do
+        expected_bytes=${entry%%:*}
+        expected_tera=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_tera)"
+        assert_eq "${expected_tera}" "$(get_memory_size --units=T)"
+    done
+}
+
+ETEST_get_memory_peta()
+{
+    for entry in 1000000000000000:1 1000000000000:0 50142380032:0 67087843328:0 8589934592:0 66729205760:0; do
+        expected_bytes=${entry%%:*}
+        expected_peta=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_peta)"
+        assert_eq "${expected_peta}" "$(get_memory_size --units=P)"
+    done
+}
+
+ETEST_get_memory_kibi()
+{
+    for entry in 50142380032:48967168 67087843328:65515472 8589934592:8388608 66729205760:65165240; do
+        expected_bytes=${entry%%:*}
+        expected_kibi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_kibi)"
+        assert_eq "${expected_kibi}" "$(get_memory_size --units=Ki)"
+    done
+}
+
+ETEST_get_memory_mebi()
+{
+    for entry in 50142380032:47819 67087843328:63979 8589934592:8192 66729205760:63637; do
+        expected_bytes=${entry%%:*}
+        expected_mebi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_mebi)"
+        assert_eq "${expected_mebi}" "$(get_memory_size --units=Mi)"
+    done
+}
+
+ETEST_get_memory_gibi()
+{
+    for entry in 50142380032:46 67087843328:62 8589934592:8 66729205760:62; do
+        expected_bytes=${entry%%:*}
+        expected_gibi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_gibi)"
+        assert_eq "${expected_gibi}" "$(get_memory_size --units=Gi)"
+    done
+}
+
+ETEST_get_memory_tebi()
+{
+    for entry in 1099511627776:1 50142380032:0 67087843328:0 8589934592:0 66729205760:0; do
+        expected_bytes=${entry%%:*}
+        expected_tebi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_tebi)"
+        assert_eq "${expected_tebi}" "$(get_memory_size --units=Ti)"
+    done
+}
+
+ETEST_get_memory_pebi()
+{
+    for entry in 1125899906842624:1 1099511627776:0 50142380032:0 67087843328:0 67060191232:0 8589934592:0 66729205760:0; do
+        expected_bytes=${entry%%:*}
+        expected_pebi=${entry#*:}
+
+        etestmsg "$(lval expected_bytes expected_pebi)"
+        assert_eq "${expected_pebi}" "$(get_memory_size --units=Pi)"
+    done
+}
+
+ETEST_get_memory_invalid_units()
+{
+    etestmsg "Testing invalid units"
+
+    invalid=(
+        k
+        m
+        g
+        t
+        p
+        ki
+        mi
+        gi
+        ti
+        pi
+        bytes
+        kilobytes
+        megabytes
+        gigabytes
+        terabytes
+        petabytes
+        kibibyte
+        mebibyte
+        gibibyte
+        tebibyte
+        pebibyte
+        foo
+        bar
+        zap
+    )
+
+    for arg in ${invalid[@]}; do
+        echo "${arg}"
+        assert_false get_memory_size --unites=${arg}
+    done
+}

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+$(${EBASH_HOME}/bin/ebash --source)
+
+#-----------------------------------------------------------------------------------------------------------------------
+# SANITY TEST OF DIE FUNCTIONALITY
+#
+# NOTE: This is intentionally NOT an etest. This script must be run in its own TOP-LEVEL shell to be able to test
+# whether die_handler works, because die_handler is only called in the top level shell level.
+#
+# It's run early on by the etest framework, because if die doesn't work, etest isn't likely to work either.
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Create a script to run
+OUTPUT=$(mktemp --tmpdir etest-output-txt-XXXXXX)
+SCRIPT=$(mktemp --tmpdir etest-script-sh-XXXXXX)
+trap_add "rm --force ${OUTPUT} ${SCRIPT}"
+
+cat <<EOF >${SCRIPT}
+
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" >&2 ; exit 1 ; }
+
+die_handler()
+{
+    einfo "$0: DIE_HANDLER called"
+    echo "DIE" >> "${OUTPUT}"
+}
+
+trap_add "echo TRAP >> ${OUTPUT}"
+die -c=grey19 "Fake death..."
+
+exit 0
+EOF
+chmod +x ${SCRIPT}
+
+einfo "Running generated script ${SCRIPT}"
+${SCRIPT}
+
+einfo "It produced output file:"
+cat ${OUTPUT}
+assert_eq 2 $(wc -l ${OUTPUT})
+first=$(head -1 ${OUTPUT})
+last=$(tail -1 ${OUTPUT})
+
+einfo "Asserting proper ordering in that file."
+assert_eq "DIE" "${first}" "die() not called first"
+assert_eq "TRAP" "${last}" "trap not called second"
+
+exit 0

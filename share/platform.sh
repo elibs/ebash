@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -8,19 +8,11 @@
 # version.
 
 if [[ ${__EBASH_OS} == Linux ]] ; then
-    BU_WORD_BEGIN='\<'
-    BU_WORD_END='\>'
+    EBASH_WORD_BEGIN='\<'
+    EBASH_WORD_END='\>'
 elif [[ ${__EBASH_OS} == Darwin ]] ; then
-    BU_WORD_BEGIN='[[:<:]]'
-    BU_WORD_END='[[:>:]]'
-fi
-
-if [[ "${__EBASH_OS}" == Linux ]] ; then
-    export LC_ALL="en_US.utf8"
-    export LANG="en_US.utf8"
-elif [[ "${__EBASH_OS}" == Darwin ]] ; then
-    export LC_ALL="en_US.UTF-8"
-    export LANG="en_US.UTF-8"
+    EBASH_WORD_BEGIN='[[:<:]]'
+    EBASH_WORD_END='[[:>:]]'
 fi
 
 #---------------------------------------------------------------------------------------------------
@@ -37,11 +29,17 @@ if [[ ${__EBASH_OS} == "Linux" ]]; then
     # Replace rm to ensure we always pass in --one-file-system flag.
     rm()
     {
-        command rm --one-file-system "${@}" 
+        command rm --one-file-system "${@}"
+    }
+
+    # Replace sort with explicit LC_COLLATE so that we always get consistent sorting regardless of the user's locale.
+    sort()
+    {
+        LC_COLLATE="C" command sort "${@}"
     }
 
     # We presently assume that linux boxes will have a proper gnu toolchain in
-    # the default path.  For them, nothing need be done so just return.
+    # the default path. For them, nothing need be done so just return.
     return 0
 fi
 
@@ -49,13 +47,11 @@ fi
 # OTHER
 #---------------------------------------------------------------------------------------------------
 
-# But for others OSes, it's typical to install the gnu toolchain as
-# binaries whose name is prefixed with a letter "g".  For instance, GNU
-# grep gets installed as ggrep.
+# But for others OSes, it's typical to install the gnu toolchain as binaries whose name is prefixed with a letter "g".
+# For instance, GNU grep gets installed as ggrep.
 #
-# This would probably be a nice area to allow for configuration, but for
-# now we assume that the GNU toolchain is installed in that fashion on anything
-# that is not Linux.  (GNU/Linux? ;-)
+# This would probably be a nice area to allow for configuration, but for now we assume that the GNU toolchain is
+# installed in that fashion on anything that is not Linux. (GNU/Linux? ;-)
 #
 #
 __EBASH_GNU_TOOLS=(
@@ -122,11 +118,11 @@ __EBASH_GNU_TOOLS=(
     # printf
     ptx
     # NOTE: Don't override bash builtin with function
-    #pwd
+    # pwd
     readlink
     realpath
-    # NOTE: Don't override rm as we do that one one-off below.
-    #rm
+    # NOTE: Don't override 'rm' as we have a function for it below.
+    # rm
     rmdir
     runcon
     seq
@@ -138,7 +134,8 @@ __EBASH_GNU_TOOLS=(
     shred
     shuf
     sleep
-    sort
+    # NOTE: Don't override 'sort' as we have a function for it below.
+    # sort
     split
     stat
     stdbuf
@@ -192,7 +189,13 @@ redirect_gnu_tools
 # Replace rm to ensure we always pass in --one-file-system flag.
 rm()
 {
-    command grm --one-file-system "${@}" 
+    command grm --one-file-system "${@}"
+}
+
+# Replace sort with explicit LC_COLLATE so that we always get consistent sorting regardless of the user's locale.
+sort()
+{
+    LC_COLLATE="C" command gsort "${@}"
 }
 
 return 0

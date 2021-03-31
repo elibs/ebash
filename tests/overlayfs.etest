@@ -1,0 +1,317 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+[[ ${__EBASH_OS} == Linux ]] || return 0
+
+banner_width=50
+archive_types=(
+    squashfs
+    iso
+    tar
+    tar.gz
+)
+
+ETEST_overlayfs_mount()
+{
+    local idx=0
+    for idx in $(array_indexes archive_types); do
+        local ftype="${archive_types[$idx]}"
+        COLUMNS=${banner_width} ebanner "${ftype} ($((idx+1))/${#archive_types[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src/.
+
+        etestmsg "Mounting src.${ftype} at dest"
+        overlayfs_mount src.${ftype} dest
+        assert_eq "${__EBASH_OVERLAYFS}" "$(emount_type dest)"
+        overlayfs_tree dest
+        assert_directory_contents dest file1 file2
+        diff --recursive src dest
+
+        # Unmount it
+        overlayfs_unmount dest
+        assert_not_exists dest/file1 dest/file2
+    done
+}
+
+ETEST_overlayfs_eunmount()
+{
+    etestmsg "Populating source directory"
+    efreshdir src
+    touch src/{file1,file2}
+    find src
+
+    etestmsg "Creating src.squashfs"
+    archive_create src.squashfs src/.
+    archive_list src.squashfs
+
+    etestmsg "Mounting src.squashfs at dest"
+    overlayfs_mount src.squashfs dest
+    overlayfs_tree dest
+    assert_directory_contents dest file1 file2
+    diff --recursive src dest
+
+    # Unmount it through eunmount
+    eunmount -a -r -d dest
+    assert_not_exists dest/file1 dest/file2 dest
+}
+
+ETEST_overlayfs_modify()
+{
+    local idx=0
+    for idx in $(array_indexes archive_types); do
+        local ftype="${archive_types[$idx]}"
+        COLUMNS=${banner_width} ebanner "${ftype} ($((idx+1))/${#archive_types[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file0,file1,file2}
+        archive_create src.${ftype} src/.
+        archive_list src.${ftype}
+
+        etestmsg "Mounting at dest"
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        assert_false overlayfs_changed dest
+
+        etestmsg "Modifying mounted files"
+        echo "File#1" > dest/file1
+        echo "File#2" > dest/file2
+        assert_eq "File#1" "$(cat dest/file1)"
+        assert_eq "File#2" "$(cat dest/file2)"
+
+        etestmsg "Saving RW layer as rw.${ftype} then unmounting"
+        assert_true overlayfs_changed dest
+        etestmsg "Listing changes"
+        overlayfs_list_changes -l dest
+        etestmsg "Saving changes"
+        overlayfs_save_changes dest rw.${ftype}
+        overlayfs_unmount dest
+
+        etestmsg "Mounting again -- ensuring original files unmodified"
+        efreshdir dest
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        assert_false overlayfs_changed dest
+        assert_empty "$(cat dest/file0)"
+        assert_empty "$(cat dest/file1)"
+        assert_empty "$(cat dest/file2)"
+        overlayfs_unmount dest
+
+        # RW layer should only have the MODIFIED files in it (we never modifvied file0)
+        assert_archive_contents rw.${ftype} file1 file2
+
+        # Mount the RW layer and ensure contents are as expected
+        etestmsg "Mounting RW layer to validate its contents"
+        efreshdir dest
+        overlayfs_mount rw.${ftype} dest
+        overlayfs_tree dest
+        assert_eq "File#1" "$(cat dest/file1)"
+        assert_eq "File#2" "$(cat dest/file2)"
+        overlayfs_unmount dest
+    done
+}
+
+ETEST_overlayfs_commit()
+{
+    local idx=0
+    for idx in $(array_indexes archive_types); do
+        local ftype="${archive_types[$idx]}"
+        COLUMNS=${banner_width} ebanner "${ftype} ($((idx+1))/${#archive_types[@]})"
+
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file0,file1,file2}
+        archive_create src.${ftype} src/.
+        archive_list src.${ftype}
+
+        etestmsg "Mounting at dest"
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        assert_false overlayfs_changed dest
+
+        etestmsg "Modifying mounted files"
+        echo "File#1" > dest/file1
+        echo "File#2" > dest/file2
+        assert_eq "File#1" "$(cat dest/file1)"
+        assert_eq "File#2" "$(cat dest/file2)"
+
+        etestmsg "Committing changes"
+        assert_true emounted dest
+        assert_true overlayfs_changed dest
+        overlayfs_commit --list --diff dest
+        assert_false emounted dest
+
+        etestmsg "Mounting again -- ensuring files show new content"
+        efreshdir dest
+        overlayfs_mount src.${ftype} dest
+        overlayfs_tree dest
+        assert_false overlayfs_changed dest
+        assert_eq "File#1" "$(cat dest/file1)"
+        assert_eq "File#2" "$(cat dest/file2)"
+        overlayfs_unmount dest
+    done
+}
+
+ETEST_overlayfs_commit_nochanges()
+{
+    etestmsg "Populating source directory"
+    efreshdir src dest
+    touch src/{file0,file1,file2}
+    archive_create src.squashfs src/.
+    archive_list src.squashfs
+
+    etestmsg "Mounting at dest"
+    overlayfs_mount src.squashfs dest
+    overlayfs_tree dest
+    assert_false overlayfs_changed dest
+
+    etestmsg "Committing unchanged overlayfs"
+    local md5 mod
+    md5=$(md5sum src.squashfs)
+    mod=$(stat -c %y src.squashfs)
+    assert_true emounted dest
+    assert_false overlayfs_changed dest
+    overlayfs_commit --list --diff dest
+    assert_false emounted dest
+
+    etestmsg "Ensuring archive is unmodified"
+    assert_eq "${md5}" "$(md5sum src.squashfs)"
+    assert_eq "${mod}" "$(stat -c %y src.squashfs)"
+}
+
+ETEST_overlayfs_commit_dedupe()
+{
+    etestmsg "Populating source directory"
+    efreshdir src dest
+    touch src/{file0,file1,file2}
+    archive_create src.squashfs src/.
+    archive_list src.squashfs
+
+    etestmsg "Mounting at dest"
+    overlayfs_mount src.squashfs dest
+    overlayfs_tree dest
+    assert_false overlayfs_changed dest
+
+    etestmsg "Creating duplicate files in RW later"
+    cp src/file0 dest/file0
+    cp src/file1 dest/file1
+    cp src/file2 dest/file2
+
+    etestmsg "Committing unchanged overlayfs"
+    local md5 mod
+    md5=$(md5sum src.squashfs)
+    mod=$(stat -c %y src.squashfs)
+    assert_true emounted dest
+
+    # Note: although we only copied files effectively over themselves, we should see them as changes unless someone
+    # calls overlayfs_dedupe
+    overlayfs_changed dest
+
+    overlayfs_commit --list --diff dest
+    assert_false emounted dest
+
+    etestmsg "Ensuring archive is unmodified"
+    assert_eq "${md5}" "$(md5sum src.squashfs)"
+    assert_eq "${mod}" "$(stat -c %y src.squashfs)"
+}
+
+ETEST_overlayfs_multilayer()
+{
+    etestmsg "Creating multiple squashfs images"
+    mkdir -p src1 src2 src3
+    touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
+    archive_create src1.squashfs src1/.
+    archive_create src2.squashfs src2/.
+    archive_create src3.squashfs src3/.
+
+    # Mount all three images and verify expected contents
+    etestmsg "Mounting all squashfs images into single dest directory"
+    mkdir -p dest
+    overlayfs_mount src1.squashfs src2.squashfs src3.squashfs dest
+    overlayfs_tree dest
+    assert_directory_contents dest {file1,file2,file3,file4,file5,file6}
+
+    # Unmount all images
+    etestmsg "Unmounting final image"
+    overlayfs_unmount dest
+    assert_not_exists dest/{file1,file2,file3,file4,file5,file6}
+    list_mounts | assert_false grep "src1.squashfs"
+    list_mounts | assert_false grep "src2.squashfs"
+    list_mounts | assert_false grep "src3.squashfs"
+}
+
+ETEST_overlayfs_multilayer_mixed_types()
+{
+    etestmsg "Creating squashfs, ISO and TAR files"
+    mkdir -p src1 src2 src3
+    touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
+    archive_create src1.squashfs src1/.
+    archive_create src2.iso src2/.
+    archive_create src3.tgz src3/.
+
+    etestmsg "Mounting all files into single dest directory"
+    efreshdir dest
+    overlayfs_mount src1.squashfs src2.iso src3.tgz dest
+    overlayfs_tree dest
+    assert_directory_contents dest {file1,file2,file3,file4,file5,file6}
+
+    etestmsg "Unmounting final image"
+    overlayfs_unmount dest
+    assert_not_exists dest/{file1,file2,file3,file4,file5,file6}
+}
+
+ETEST_overlayfs_dedupe()
+{
+    etestmsg "Populating source directory"
+    efreshdir src dest
+    echo "File#0" > src/file0
+    echo "File#1" > src/file1
+    archive_create src.squashfs src/.
+    archive_list src.squashfs
+
+    etestmsg "Mounting at dest"
+    overlayfs_mount src.squashfs dest
+    overlayfs_tree dest
+    assert_false overlayfs_changed dest
+
+    etestmsg "Modifying existing files"
+    > dest/file0
+    > dest/file1
+    assert_empty "$(cat dest/file0)"
+    assert_empty "$(cat dest/file1)"
+
+    etestmsg "Verifying files modified"
+    assert_true overlayfs_changed dest
+    overlayfs_list_changes -l dest
+
+    etestmsg "Reverting file contents"
+    echo "File#0" > dest/file0
+    echo "File#1" > dest/file1
+
+    etestmsg "Verifying files still modified (even though contents are now the same)"
+    assert_true overlayfs_changed dest
+    overlayfs_list_changes -l dest
+
+    etestmsg "Dedup'ing"
+    overlayfs_dedupe dest
+
+    etestmsg "Verifying nothing changed now"
+    assert_false overlayfs_changed dest
+    assert_eq "File#0" "$(cat dest/file0)"
+    assert_eq "File#1" "$(cat dest/file1)"
+
+    # Unmount everything
+    etestmsg "Unmounting image"
+    overlayfs_unmount dest
+}

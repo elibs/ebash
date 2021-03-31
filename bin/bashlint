@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -11,13 +11,20 @@
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
-# Options:
-# -q Quiet mode
+opt_usage main <<'END'
+Analyze all the requested bash scripts in the specified directories and pass them through bash -n mode which asks bash
+to make sure the syntax looks okay without actually running anything. Additionally, perform several additional
+strictness checks that we have found to be sources of really subtle problems. Also checks some stylistic issues for
+consistent coding.
+END
 $(opt_parse \
-    "+break b | Break on first failure." \
-    "+quiet q | Make bashlint produce no output.")
+    "+break b | Break on first failure."          \
+    "+quiet q | Make bashlint produce no output." \
+)
 
-[[ ${quiet} -eq 1 ]] && exec &> >(edebug)
+if [[ ${quiet} -eq 1 ]]; then
+    exec &> >(edebug)
+fi
 
 # Paths to recursively parse
 PATHS=( ${@:-.} )
@@ -32,34 +39,30 @@ fail()
     RC=1
 }
 
-# Analyze all the requested bash scripts in the specified directories and pass
-# them through bash -n mode which asks bash to make sure the syntax looks okay
-# without actually running anything. Additionally, perform several additional
-# strictness checks that we have found to be sources of really subtle problems.
-# Also checks some stylistic issues for consistent coding.
 ebanner "Validating bash scripts" PATHS
 for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
- 
+
     # If this isn't a bash script skip it
     file ${fname} | grep -Pq "(bash script|Bourne-Again shell script)" || continue
 
-    # Never do any further parsing on our own file since they would all 
-    # be false positives
+    # Never do any further parsing on our own file since they would all be false positives
     [[ "$(readlink -f ${fname})" == "$(readlink -f $0)" ]] && continue
 
     # Display what file we are processing
-    einfo "${fname}"
+    EFUNCS_COLOR=$(efuncs_color_as_bool)
+    einfo_message=$(einfo -n "${fname}" 2>&1)
+    einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
+    echo -n "${einfo_message}" >&2
     bash -n ${fname}
 
-    # Read file into variable so we can do a little preprocessing on it before
-    # passing it into the various grep commands below to strip out particular
-    # patterns which would otherwise cause false positives.
+    # Read file into variable so we can do a little preprocessing on it before passing it into the various grep commands
+    # below to strip out particular patterns which would otherwise cause false positives.
     CONTENTS=$(cat ${fname}              \
         | grep -vP '^\s*#'               \
         | grep -vP '#\s*BASHLINT_IGNORE' \
         | grep -vP '^\s*function \w+'    \
         | grep -vP '^\s*\w+\s*\(\)\s*$')
-    
+
     # Initial error state
     RC=0
 
@@ -70,7 +73,7 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     # Ensure not using removed $(esource ...)
     echo "${CONTENTS}" | egrep '\s*\$\(esource ' \
         && fail "Using removed esource function"
-    
+
     # Ensure not using removed argument parsing functions
     echo "${CONTENTS}" | egrep '(declare_globals|declare_exports|declare_args|declare_opts)' \
         && fail "Using removed declare_globals|declare_exports functions"
@@ -79,9 +82,8 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | egrep '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
         && fail "Using non-existent deprecated ifs_* functions"
 
-    # Ensure we don't have any sloppy 'return' statements which don't specify what
-    # return code to use. Because this usually returns the prior return code which
-    # is generally not what is intended and causes 'set -e' problems.
+    # Ensure we don't have any sloppy 'return' statements which don't specify what return code to use. Because this
+    # usually returns the prior return code which is generally not what is intended and causes 'set -e' problems.
     echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
         && fail "Ambiguous return statements"
 
@@ -91,10 +93,15 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo "${CONTENTS}" | grep -P '(assert|assert_true|assert_false)\s+\[\[' \
         && fail "Assert commands cannot be followed by a double bracket expression"
 
-    echo "${CONTENTS}" | egrep '(local|export|declare|readonly).*=.*\$\(' \
+    echo "${CONTENTS}" | egrep '(local|export|declare|readonly)\s+.*=.*\$\(' \
         && fail "Combined local variable declaration and assignment masks fatal errors"
 
-    [[ ${RC} -eq 0 ]] && eend 0 || { FAILURES+=(${fname}); eend 1; }
+    if [[ ${RC} -eq 0 ]]; then
+        eend --inline --inline-offset=${einfo_message_length} 0
+    else
+        FAILURES+=(${fname})
+        eend --inline --inline-offset=${einfo_message_length} 1
+    fi
 
     if [[ "${break}" -eq 1 && ${RC} -ne 0 ]]; then
         break
@@ -102,4 +109,9 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
 done
 
 # Display any errors to STDERR regardless if we've redirected output
-array_empty FAILURES && exit 0 || { eerror "Bashlint detected failures in the following $(lval files=FAILURES)" &>/dev/stderr; exit ${#FAILURES[@]}; }
+if array_empty FAILURES; then
+    exit 0
+else
+    eerror "Bashlint detected failures in the following $(lval files=FAILURES)" &>/dev/stderr
+    exit ${#FAILURES[@]}
+fi

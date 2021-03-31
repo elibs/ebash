@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_integer_increment()
+{
+    local idx=0
+    increment idx
+    assert_eq 1 ${idx}
+}
+
+ETEST_integer_increment_amount()
+{
+    local idx=0
+    increment idx 10
+    assert_eq 10 ${idx}
+}
+
+ETEST_integer_increment_loop()
+{
+    local val=0
+
+    for (( idx=0; idx < 10; idx++ )); do
+        etestmsg "$(lval idx val)"
+        assert_eq ${idx} ${val}
+        increment val
+    done
+
+    assert_eq 10 ${val}
+}
+
+ETEST_integer_decrement()
+{
+    local idx=10
+    decrement idx
+    assert_eq 9 ${idx}
+}
+
+ETEST_integer_decrement_amount()
+{
+    local idx=10
+    decrement idx 10
+    assert_eq 0 ${idx}
+}
+
+ETEST_integer_decrement_loop()
+{
+    local val=10
+
+    for (( idx=10; idx > 0; idx-- )); do
+        etestmsg "$(lval idx val)"
+        assert_eq ${idx} ${val}
+        decrement val
+    done
+
+    assert_eq 0 ${val}
+}

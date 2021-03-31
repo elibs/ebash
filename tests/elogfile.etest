@@ -1,0 +1,356 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_elogfile()
+{
+    (
+        elogfile ${FUNCNAME}.log
+        echo >&1 "stdout"
+        echo >&2 "stderr"
+    )
+
+    etestmsg "LOG file contents"
+    eretry cat ${FUNCNAME}.log
+
+    # Ensure both stdout and stderr
+    grep -q "stdout" ${FUNCNAME}.log
+    grep -q "stderr" ${FUNCNAME}.log
+}
+
+ETEST_elogfile_term()
+{
+    # Parent 'main' process
+    (
+        # Child process running long-running process writing to a logfile
+        (
+            nodie_on_error
+
+            elogfile ${FUNCNAME}.log
+
+            SECONDS=0
+            while true; do
+                echo ${SECONDS}
+                sleep 1
+            done
+
+        ) &>/dev/null &
+
+        # Wait on our background process above. This ensures two important things:
+        # 1) Entire subshell won't exit
+        # 2) Process we kill will get reaped properly and not appear to still be running
+        wait || true
+
+    ) &
+
+    local pid=$!
+
+    eprogress "Running background process for 3 seconds"
+    sleep 3
+    eprogress_kill
+
+    etestmsg "Killing backgrounded process BASHPID=${BASHPID}"
+    ekilltree -s=SIGTERM ${pid}
+
+    eretry -T=30s process_not_running ${pid}
+    process_not_running ${pid}
+
+    etestmsg "Showing output"
+    eretry -T=30s cat ${FUNCNAME}.log
+}
+
+ETEST_elogfile_nostderr()
+{
+    (
+        elogfile -e=0 ${FUNCNAME}.log
+
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    etestmsg "Verifying file"
+    eretry cat ${FUNCNAME}.log
+    assert_eq "stdout" "$(cat ${FUNCNAME}.log)"
+}
+
+ETEST_elogfile_nostdout()
+{
+    (
+        EDEBUG=0
+        elogfile -o=0 ${FUNCNAME}.log
+
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    etestmsg "Verifying file"
+    eretry cat ${FUNCNAME}.log
+    assert_eq "stderr" "$(cat ${FUNCNAME}.log)"
+}
+
+ETEST_elogfile_none()
+{
+    touch ${FUNCNAME}.log
+
+    (
+        elogfile -o=0 -e=0 ${FUNCNAME}.log
+
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    etestmsg "Verifying file"
+    eretry cat ${FUNCNAME}.log
+    assert_eq "" "$(cat ${FUNCNAME}.log)"
+}
+
+# Test elogfile with logrotation.
+ETEST_elogfile_rotate()
+{
+    touch ${FUNCNAME}.log{,.1,.2,.3,.4,.5,.6}
+    assert_exists ${FUNCNAME}.log ${FUNCNAME}.log.{1,2,3,4,5,6}
+
+    (
+        elogfile -r=3 ${FUNCNAME}.log
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    find . | sort --version-sort
+    assert_exists ${FUNCNAME}.log ${FUNCNAME}.log.{1,2}
+    assert_not_exists ${FUNCNAME}.log.{3,4,5,6,7}
+
+    etestmsg "LOG file contents"
+    eretry cat ${FUNCNAME}.log
+    grep -q "stdout" ${FUNCNAME}.log
+    grep -q "stderr" ${FUNCNAME}.log
+}
+
+# Test elogfile with logrotation.
+ETEST_elogfile_rotate_multi()
+{
+    touch ${FUNCNAME}-{1,2}.log{,.1,.2,.3,.4,.5,.6}
+    assert_exists ${FUNCNAME}-{1,2}.log ${FUNCNAME}-{1,2}.log.{1,2,3,4,5,6}
+
+    (
+        elogfile -r=3 ${FUNCNAME}-{1,2}.log
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    find . | sort --version-sort
+    assert_exists ${FUNCNAME}-{1,2}.log ${FUNCNAME}-{1,2}.log.{1,2}
+    assert_not_exists ${FUNCNAME}-{1,2}.log.{3,4,5,6,7}
+
+    etestmsg "LOG file contents"
+    eretry cat ${FUNCNAME}-{1,2}.log
+    grep -q "stdout" ${FUNCNAME}-1.log
+    grep -q "stdout" ${FUNCNAME}-2.log
+    grep -q "stderr" ${FUNCNAME}-1.log
+    grep -q "stderr" ${FUNCNAME}-2.log
+}
+
+# Test elogfile when the file has a path component
+ETEST_elogfile_path()
+{
+    local logname="var/log/${FUNCNAME}.log"
+    mkdir -p $(dirname ${logname})
+
+    (
+        elogfile -r=3 ${logname}
+
+        echo "stdout" >&1
+        echo "stderr" >&2
+    )
+
+    etestmsg "LOG file contents"
+    eretry cat ${logname}
+    grep -q "stdout" ${logname}
+    grep -q "stderr" ${logname}
+}
+
+ETEST_elogfile_truncate()
+{
+    > ${FUNCNAME}.log
+
+    (
+        elogfile ${FUNCNAME}.log
+        EDEBUG=1
+
+        echo "/dev/stdout" >/dev/stdout
+        echo "/dev/stderr" >/dev/stderr
+        echo "/dev/fd/1"   >/dev/fd/1
+        echo "/dev/fd/2"   >/dev/fd/2
+        echo "edebug"      |& edebug
+        echo "&1"          >&1
+        echo "&2"          >&2
+    )
+
+    etestmsg "Whole log file:"
+    cat ${FUNCNAME}.log
+
+    etestmsg "Verifying specific contents"
+    for match in "/dev/stdout" "/dev/stderr" "/dev/fd/1" "/dev/fd/2" "edebug" "&1" "&2"; do
+        einfo "Verifying $(lval match)"
+        eretry --max-timeout 30s grep --quiet "${match}" ${FUNCNAME}.log
+    done
+}
+
+# Verify we can send logfile to multiple output files
+ETEST_elogfile_multiple()
+{
+    (
+        elogfile ${FUNCNAME}1.log ${FUNCNAME}2.log
+        etestmsg "Test"
+    )
+
+    for fname in ${FUNCNAME}{1,2}.log; do
+        assert_exists ${fname}
+        grep --quiet "Test" ${fname}
+    done
+}
+
+# Verify elogfile doesn't blow up if given no files.
+ETEST_elogfile_nofiles()
+{
+    (
+        elogfile
+        etestmsg "Test"
+    )
+}
+
+ETEST_elogfile_multiple_spaces()
+{
+    local fname1="foo 1.log"
+    local fname2="foo 2.log"
+
+    (
+        elogfile "${fname1}" "${fname2}"
+        etestmsg "Test"
+    )
+
+    etestmsg "${fname1} contents"
+    cat "${fname1}"
+
+    etestmsg "${fname2} contents"
+    cat "${fname2}"
+
+    for fname in "${fname1}" "${fname2}"; do
+        assert_exists "${fname}"
+        grep --quiet "Test" "${fname}"
+    done
+}
+
+ETEST_elogfile_devices()
+{
+    local mlog="${FUNCNAME}.log"
+
+    (
+        elogfile -r=1 ${mlog} "/dev/stdout" "/dev/stderr"
+        etestmsg "Test"
+    )
+}
+
+ETEST_elogfile_double_fork()
+{
+    (
+        etestmsg "Ensuring tee processes are not in our process tree"
+        elogfile -r=1 ${FUNCNAME}.log
+        $(tryrc pstree -p $$)
+        assert_empty "$(pstree -p ${BASHPID} | grep tee || true)"
+    )
+}
+
+ETEST_elogfile_hang_ekilltree()
+{
+    EDEBUG=ekill
+
+    local mlog="${FUNCNAME}.log"
+    trap_add "ewarn AIEEEEE"
+
+    elogfile -r=1 ${mlog}
+    etestmsg "Test"
+    $(tryrc pstree -p $$)
+    ekilltree -s=SIGTERM ${BASHPID}
+    ekilltree -s=SIGKILL ${BASHPID}
+}
+
+ETEST_elogfile_hang_kill_tee()
+{
+    (
+        EDEBUG=ekill
+
+        local mlog="${FUNCNAME}.log"
+        trap_add "ewarn AIEEEEE"
+
+        elogfile -r=1 ${mlog}
+        etestmsg "Test"
+        $(tryrc pstree -lp $$)
+
+        local pid=${BASHPID}
+
+        local processes
+        processes=$(pstree -lp ${pid} | grep tee | grep -o "([[:digit:]]*)" | grep -o "[[:digit:]]*" || true)
+        etestmsg "Killing tee processes $(lval processes)"
+        ekilltree -s=SIGKILL ${processes}
+        etestmsg "After killing tee"
+        $(tryrc pstree -lp ${pid})
+    )
+}
+
+ETEST_elogfile_merge_off()
+{
+    (
+        exec 1>stdout
+        exec 2>stderr
+
+        (
+            EDEBUG=0
+            EFUNCS_COLOR=0
+
+            elogfile -m=0 ${FUNCNAME}.log
+
+            echo "stdout" >&1
+            echo "stderr" >&2
+
+        )
+    )
+
+    etestmsg "Verifying file"
+    eretry cat ${FUNCNAME}.log
+    assert_match "$(cat ${FUNCNAME}.log)" "stdout"
+    assert_match "$(cat ${FUNCNAME}.log)" "stderr"
+    assert_eq "stdout" "$(cat stdout)"
+    assert_eq "stderr" "$(cat stderr)"
+}
+
+ETEST_elogfile_merge_on()
+{
+    (
+        exec 1>stdout
+        exec 2>stderr
+
+        (
+            EDEBUG=0
+            EFUNCS_COLOR=0
+
+            elogfile -m=1 ${FUNCNAME}.log
+
+            echo "stdout" >&1
+            echo "stderr" >&2
+
+        )
+    )
+
+    etestmsg "Verifying file"
+    eretry cat ${FUNCNAME}.log
+    assert_eq stdout$'\n'stderr "$(cat ${FUNCNAME}.log)"
+    assert_eq stdout$'\n'stderr "$(cat stdout)"
+    assert_empty                "$(cat stderr)"
+}
+

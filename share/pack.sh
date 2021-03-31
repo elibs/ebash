@@ -1,32 +1,28 @@
 #!/bin/bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-#
-# Consider a "pack" to be a "new" data type for bash.  It stores a set of
-# key/value pairs in an arbitrary format inside a normal bash (string)
-# variable.  This is much like an associative array, but has a few differences
-#
-#   1) You can store packs INSIDE associative arrays (example in unit tests)
-#   2) The "keys" in a pack may not contain an equal sign, nor may they contain
-#      whitespace.
-#   3) Packed values cannot contain newlines.
-#
-#
+opt_usage pack_set <<'END'
+Consider a "pack" to be a "new" data type for bash. It stores a set of key/value pairs in an arbitrary format inside
+a normal bash (string) variable. This is much like an associative array, but has a few differences
 
-#
-# For a (new or existing) variable whose contents are formatted as a pack, set
-# one or more keys to values.  For example, the following will create a new
-# variable packvar that will contain three keys (alpha, beta, n) with
-# associated values (a, b, 7)
-#
-#  pack_set packvar alpha=a beta=b n=7
-#
+- You can store packs INSIDE associative arrays (example in unit tests)
+- The "keys" in a pack may not contain an equal sign, nor may they contain whitespace.
+- Packed values cannot contain newlines.
+
+For a (new or existing) variable whose contents are formatted as a pack, set one or more keys to values. For example,
+the following will create a new variable packvar that will contain three keys (alpha, beta, n) with associated values
+(a, b, 7)
+
+```shell
+pack_set packvar alpha=a beta=b n=7
+```
+END
 pack_set()
 {
     local _pack_set_pack=$1 ; shift
@@ -39,11 +35,10 @@ pack_set()
     done
 }
 
-#
-# Much like pack_set, and takes arguments of the same form.  The difference is
-# that pack_update will create no new keys -- it will only update keys that
-# already exist.
-#
+opt_usage pack_update <<'END'
+ Much like pack_set, and takes arguments of the same form. The difference is that pack_update will create no new keys
+ -- it will only update keys that already exist.
+END
 pack_update()
 {
     local _pack_update_pack=$1 ; shift
@@ -52,9 +47,10 @@ pack_update()
         local _pack_update_key="${_pack_update_arg%%=*}"
         local _pack_update_val="${_pack_update_arg#*=}"
 
-        pack_keys ${_pack_update_pack} | grep -aPq "\b${_pack_update_key}\b" \
-            && pack_set_internal "${_pack_update_pack}" "${_pack_update_key}" "${_pack_update_val}" \
-            || true
+        if pack_contains ${_pack_update_pack} "${_pack_update_key}"; then
+            pack_set_internal "${_pack_update_pack}" "${_pack_update_key}" "${_pack_update_val}"
+        fi
+
     done
 }
 
@@ -76,9 +72,9 @@ pack_set_internal()
     printf -v "${1}" "${_packed}"
 }
 
-#
-# Get the last value assigned to a particular key in this pack.
-#
+opt_usage pack_get <<'END'
+Get the last value assigned to a particular key in this pack.
+END
 pack_get()
 {
     local _pack_pack_get=$1
@@ -97,26 +93,28 @@ pack_contains()
     [[ -n $(pack_get $@) ]]
 }
 
-#
-# Copy a packed value from one variable to another.  Either variable may be
-# part of an associative array, if you're so inclined.
-#
-# Examples:
-#   pack_copy A B
-#   pack_copy B A["alpha"]
-#   pack_copy A["alpha"] B[1]
-#
+opt_usage pack_copy <<'END'
+Copy a packed value from one variable to another. Either variable may be part of an associative array, if you're so
+inclined.
+
+Examples:
+
+```shell
+pack_copy A B
+pack_copy B A["alpha"]
+pack_copy A["alpha"] B[1]
+```
+END
 pack_copy()
 {
     argcheck 1 2
     eval "${2}=\"\${!1}\""
 }
 
-#
-# Call provided callback function on each entry in the pack. The callback function
-# should take two arguments, and it will be called once for each item in the
-# pack and passed the key as the first value and its value as the second value.
-#
+opt_usage pack_iterate <<'END'
+Call provided callback function on each entry in the pack. The callback function should take two arguments, and it
+will be called once for each item in the pack and passed the key as the first value and its value as the second value.
+END
 pack_iterate()
 {
     local _func=$1
@@ -138,19 +136,21 @@ pack_iterate()
 }
 
 opt_usage pack_import <<'END'
-Spews bash commands that, when executed will declare a series of variables in the caller's
-environment for each and every item in the pack. This uses the "eval command invocation string"
-which the caller then executes in order to manifest the commands. For instance, if your pack
-contains keys a and b with respective values 1 and 2, you can create locals a=1 and b=2 by running:
+Spews bash commands that, when executed will declare a series of variables in the caller's environment for each and
+every item in the pack. This uses the "eval command invocation string" which the caller then executes in order to
+manifest the commands. For instance, if your pack contains keys a and b with respective values 1 and 2, you can create
+locals a=1 and b=2 by running:
 
-    $(pack_import pack)
+```shell
+$(pack_import pack)
+```
 
-If you don't want the pack's entire contents, but only a limited subset, you may specify them.  For
-instance, in the same example scenario, the following will create a local a=1, but not a local
-for b.
+If you don't want the pack's entire contents, but only a limited subset, you may specify them. For instance, in the
+same example scenario, the following will create a local a=1, but not a local for b.
 
-    $(pack_import pack a)
-
+```shell
+$(pack_import pack a)
+```
 END
 pack_import()
 {
@@ -179,16 +179,19 @@ pack_import()
 }
 
 opt_usage pack_export <<'END'
-Assigns values into a pack by extracting them from the caller environment. For instance, if you have
-locals a=1 and b=2 and run the following:
+Assigns values into a pack by extracting them from the caller environment. For instance, if you have locals a=1 and b=2
+and run the following:
 
-    pack_export pack a b
+```shell
+pack_export pack a b
+```
 
 You will be left with the same pack as if you instead said:
 
-    pack_set pack a=${a} b=${b}
+```shell
+pack_set pack a=${a} b=${b}
+```
 END
-
 pack_export()
 {
     local _pack_export_pack=$1 ; shift
@@ -207,17 +210,26 @@ pack_size()
     echo -n "${!1}" | _unpack | wc -l
 }
 
-#
-# Echo a whitespace-separated list of the keys in the specified pack to stdout.
-#
+opt_usage pack_keys <<'END'
+Echo a whitespace-separated list of the keys in the specified pack to stdout.
+END
 pack_keys()
 {
     [[ -z ${1} ]] && die "pack_keys requires a pack to be specified as \$1"
     echo "${!1:-}" | _unpack | sed 's/=.*$//'
 }
 
-# Note: To support working with print_value, pack_print does NOT print a
-# newline at the end of its output
+opt_usage pack_keys_sort <<'END'
+Echo a whitespace-separated list of the sorted keys in the specified pack to stdout.
+END
+pack_keys_sort()
+{
+    pack_keys "${@}" | sort
+}
+
+opt_usage pack_print <<'END'
+Note: To support working with print_value, pack_print does NOT print a newline at the end of its output
+END
 pack_print()
 {
     local _pack_pack_print=$1
@@ -235,16 +247,47 @@ _pack_print_item()
 
 _unpack()
 {
-    # NOTE: BSD base64 is really chatty and this is the reason we discard its
-    # error output
+    # NOTE: BSD base64 is really chatty and this is the reason we discard its error output
     base64 --decode 2>/dev/null | tr '\0' '\n'
 }
 
 _pack()
 {
-    # NOTE: BSD base64 is really chatty and this is the reason we discard its
-    # error output
+    # NOTE: BSD base64 is really chatty and this is the reason we discard its error output
     grep -av '^$' | tr '\n' '\0' | base64 2>/dev/null
 }
 
-return 0
+pack_encode()
+{
+    [[ -z ${1} ]] && die "pack_encode requires a pack to be specified as \$1"
+    echo -n "${!1}"
+}
+
+pack_decode()
+{
+    [[ -z ${1} ]] && die "pack_decode requires an encoded pack to be specified as \$1"
+    echo -n "${1}" | _unpack
+}
+
+pack_save()
+{
+    $(opt_parse \
+        "_pack_save_name | Name of the pack to save to disk."      \
+        "_pack_save_file | Name of the file to save the pack to."  \
+    )
+
+    mkdir -p "$(dirname "${_pack_save_file}")"
+    pack_encode "${_pack_save_name}" > "${_pack_save_file}"
+}
+
+pack_load()
+{
+    $(opt_parse \
+        "_pack_load_name   | Name of the pack to read into from disk."      \
+        "_pack_load_file   | Name of the file to read the pack from."  \
+    )
+
+    local _pack_load_data
+    _pack_load_data="$(cat "${_pack_load_file}")"
+    pack_copy _pack_load_data ${_pack_load_name}
+}

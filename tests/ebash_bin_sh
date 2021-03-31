@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# Copyright 2020, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+$(${EBASH_HOME}/bin/ebash --source)
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Check if we call an ebash-enabled script through /bin/sh (which enables posix mode) doesn't cause errors.
+#
+# NOTE: This is intentionally NOT an etest. This script must be run in its own TOP-LEVEL shell.
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Create a script to run
+OUTPUT=$(mktemp --tmpdir etest-output-txt-XXXXXX)
+SCRIPT=$(mktemp --tmpdir etest-script-sh-XXXXXX)
+trap_add "rm --force ${OUTPUT} ${SCRIPT}"
+
+cat <<EOF >${SCRIPT}
+#!/bin/bash
+
+$(${EBASH_HOME}/bin/ebash --source)
+
+set -e
+
+einfo "Testing ebash from posix shell"
+echo "HELLO WORLD" > "${OUTPUT}"
+
+EOF
+chmod +x ${SCRIPT}
+
+# Run the script we created above using `sh` interpreter which forces it into POSIX mode.
+if os_distro debian ubuntu; then
+    sh -c "${SCRIPT}"
+else
+    sh "${SCRIPT}"
+fi
+
+# Assert proper order of events happened
+einfo "Output file:"
+cat ${OUTPUT}
+assert_eq 1 $(wc -l ${OUTPUT})
+first=$(head -1 ${OUTPUT})
+
+assert_eq "HELLO WORLD" "${first}"

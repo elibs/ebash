@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_err_and_debug_traps_are_inherited()
+{
+    on_error()
+    {
+        echo "ERROR $BASHPID"
+    }
+
+    on_debug()
+    {
+        true
+    }
+
+    trap on_error ERR
+    trap on_debug DEBUG
+    local expected
+    expected=$(trap -p ERR DEBUG)
+
+    etestmsg "Error trap is $(lval expected)"
+
+    (
+        etestmsg "Inside subshell you can see it."
+        assert_eq "${expected}" "$(trap -p ERR DEBUG)"
+
+        # Without ebash shenanigans, bash will reset your inherited error trap after you set any other trap including
+        # SIGUSR1. But ebash overrides this and restores the ERR trap.
+        etestmsg "Verifying that it remains after a call to trap."
+        trap on_usr1 SIGUSR1
+        assert_eq "${expected}" "$(trap -p ERR DEBUG)"
+
+        (
+            etestmsg "Inside a second subshell."
+            assert_eq "${expected}" "$(trap -p ERR DEBUG)"
+
+            etestmsg "Verifying it still remains after a call to trap_add."
+            trap_add "true"
+            assert_eq "${expected}" "$(trap -p ERR DEBUG)"
+        )
+    )
+    etestmsg "End test."
+}
+
+ETEST_trap_add_two_per_shell()
+{
+    assert_not_exists {a,b,c,d,e,f}
+
+    (
+        trap_add "touch a"
+        trap_add "touch b"
+        (
+            trap_add "touch c"
+            trap_add "touch d"
+            (
+                trap_add "touch e"
+                trap_add "touch f"
+            )
+            assert_exists e f
+        )
+        assert_exists c d
+    )
+    assert_exists a b
+
+    rm -f {a,b,c,d,e,f}
+}

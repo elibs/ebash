@@ -1,60 +1,54 @@
 #!/bin/bash
 #
-# Copyright 2016-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2016-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2016-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+opt_usage assert <<'END'
+Executes a command (simply type the command after assert as if you were running it without assert) and calls die if
+that command returns a bad exit code.
 
-# Executes a command (simply type the command after assert as if you were
-# running it without assert) and calls die if that command returns a bad exit
-# code.
-#
-# For example:
-#    assert test 0 -eq 1
-#
-# There's a subtlety here that I don't think can easily be fixed given bash's
-# semantics.  All of the arguments get evaluated prior to assert ever seeing
-# them.  So it doesn't know what variables you passed in to an expression, just
-# what the expression was.  This is pretty handy in cases like this one:
-#
-#   a=1
-#   b=2
-#   assert test "${a}" -eq "${b}"
-#
-# because assert will tell you that the command that it executed was 
-#
-#     test 1 -eq 2
-#
-# There it seems ideal.  But if you have an empty variable, things get a bit
-# annoying.  For instance, this command will blow up because inside assert bash
-# will try to evaluate [[ -z ]] without any arguments to -z.  (Note -- it still
-# blows up, just not in quite the way you'd expect)
-#
-#    empty=""
-#    assert test -z ${empty}
-#
-# To make this particular case easier to deal with, we also have assert_empty
-# which you could use like this:
-#
-#    assert_empty empty
-#
-#
-# IMPLEMENTATION NOTE: This doesn't work with bash double-bracket expressions.  Use test instead.
-# To the best of my (Odell) understanding (as of 2016-07-01) bash must treat [[ ]] syntax specially.
-# The problem is that we have two options for trying to run what is passed in to assert.
-#
-#     1) Pass it through eval, which will drop one more layer of quoting that we'd normally expect
-#        (because it already dropped 1 layer of quoting when assert was called)
-#     2) Just execute the command as something inside an array.  For instance, we could run it like
-#        this
-#           "${cmd[@]"
-#        It works great for most commands, but blows up complaining that [[ isn't known as a valid
-#        command.  Perhaps you can't run builtins in this manner?  Or at the very least you can't
-#        run [[.
-#
+For example:
+
+```shell
+assert test 0 -eq 1
+```
+
+There's a subtlety here that I don't think can easily be fixed given bash's semantics. All of the arguments get
+evaluated prior to assert ever seeing them. So it doesn't know what variables you passed in to an expression, just
+what the expression was. This is pretty handy in cases like this one:
+
+```shell
+a=1 b=2 assert test "${a}" -eq "${b}"
+```
+
+Because assert will tell you that the command that it executed was
+
+```shell
+test 1 -eq 2
+```
+
+There it seems ideal. But if you have an empty variable, things get a bit annoying. For instance, this command will
+exit with a failure because inside assert bash will try to evaluate [[ -z ]] without any arguments to -z. (Note -- it
+still exits with a failure, just not in quite the way you'd expect)
+
+```shell
+empty="" assert test -z ${empty}
+```
+
+To make this particular case easier to deal with, we also have assert_empty which you could use like this:
+
+```shell
+assert_empty empty
+```
+
+> **_NOTE:_** `assert` doesn't work with bash double-bracket expressions. The simplest solution is to use `test` as in
+`assert test <expression>` or just leave off the `assert` entirely since it's largely syntactic convenience and just use
+`[[ ... ]]`
+END
 assert()
 {
     "${@}"
@@ -68,7 +62,7 @@ assert_true()
 assert_false()
 {
     local cmd=( "${@}" )
-    
+
     local rc=0
     try
     {
@@ -84,8 +78,7 @@ assert_false()
 assert_eq()
 {
     $(opt_parse \
-        "+hexdump h | If there is a failure, display contents of both values through a hex dump
-                      tool." \
+        "+hexdump h | If there is a failure, display contents of both values through a hex dump tool." \
         "?expected  | The first of two values you expect to be equivalent." \
         "?actual    | The second of two values you expect to be equivalent." \
         "?msg       | Optional message to display in the output if there is a failure")
@@ -157,9 +150,8 @@ assert_not_zero()
     [[ ${1:-1} -ne 0 ]] || die "assert_not_zero received ${1}."
 }
 
-opt_usage assert_empty<<'END'
-All arguments passed to assert_empty must be empty strings or else it will die and display the first
-that is not.
+opt_usage assert_empty <<'END'
+All arguments passed to assert_empty must be empty strings or else it will die and display the first that is not.
 END
 assert_empty()
 {
@@ -169,9 +161,9 @@ assert_empty()
     done
 }
 
-opt_usage assert_not_empty<<'END'
-All arguments passed to assert_not_empty must be non-empty strings or else it will die and display
-the first that is not.
+opt_usage assert_not_empty <<'END'
+All arguments passed to assert_not_empty must be non-empty strings or else it will die and display the first that is
+not.
 END
 assert_not_empty()
 {
@@ -181,11 +173,11 @@ assert_not_empty()
     done
 }
 
-opt_usage assert_var_empty<<'END'
-Accepts variable names as parameters.  All passed in variable names must be either unset or must
-contain only an empty string.
+opt_usage assert_var_empty <<'END'
+Accepts variable names as parameters. All passed in variable names must be either unset or must contain only an empty
+string.
 
-Note: there is not an analogue assert_var_not_empty.  Use argcheck instead.
+Note: there is not an analogue assert_var_not_empty. Use argcheck instead.
 END
 assert_var_empty()
 {
@@ -195,8 +187,8 @@ assert_var_empty()
     done
 }
 
-opt_usage assert_exists<<'END'
-Accepts any number of filenames.  Blows up if any of the named files do not exist.
+opt_usage assert_exists <<'END'
+Accepts any number of filenames. Blows up if any of the named files do not exist.
 END
 assert_exists()
 {
@@ -206,8 +198,8 @@ assert_exists()
     done
 }
 
-opt_usage assert_exists<<'END'
-Accepts any number of filenames.  Blows up if any of the named files exist.
+opt_usage assert_not_exists <<'END'
+Accepts any number of filenames. Blows up if any of the named files exist.
 END
 assert_not_exists()
 {
@@ -217,22 +209,29 @@ assert_not_exists()
     done
 }
 
+opt_usage assert_archive_contents <<'END'
+Assert that the provided archive contains the expected content. If there are any additional files in the archive not
+specified on the list of expected files then this assertion will fail.
+END
 assert_archive_contents()
 {
-    $(opt_parse archive)
-    edebug "Validating $(lval archive)"
-   
+    $(opt_parse \
+        ":type t | Override automatic type detection and use explicit archive type." \
+        "archive | Archive whose contents should be listed.")
+
+    edebug "Validating $(lval archive type)"
+
     local expect=() actual=() expect_tmp="" actual_tmp=""
 
     expect=( "${@}" )
     array_sort expect
 
     assert_exists "${archive}"
-    actual=( $(archive_list ${archive}) )
+    actual=( $(opt_forward archive_list type -- ${archive}) )
 
     expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
     echo "$(array_join_nl expect)" | sort --unique > "${expect_tmp}"
-    
+
     actual_tmp=$(mktemp --tmpdir assert_directory_contents-actual-XXXXXX)
     echo "$(array_join_nl actual)" | sort --unique > "${actual_tmp}"
 
@@ -248,13 +247,13 @@ assert_directory_contents()
 
     expect=( "${@}" )
     array_sort expect
-    
+
     assert_exists "${directory}"
     actual=( $(find "${directory}" -printf '%P\n' | sort) )
 
     expect_tmp=$(mktemp --tmpdir assert_directory_contents-expect-XXXXXX)
     echo "$(array_join_nl expect)" | sort --unique > "${expect_tmp}"
-    
+
     actual_tmp=$(mktemp --tmpdir assert_directory_contents-actual-XXXXXX)
     echo "$(array_join_nl actual)" | sort --unique > "${actual_tmp}"
 
@@ -317,4 +316,22 @@ assert_num_ge()
     $(opt_parse "lh" "rh" "?msg")
     assert_num "${lh}" "${rh}"
     assert_ge "${lh}" "${rh}" "${msg}"
+}
+
+opt_usage assert_docker_image_exists <<'END'
+This function asserts that a docker image exists locally.
+END
+assert_docker_image_exists()
+{
+    $(opt_parse image)
+    docker inspect --type image --format . "${image}" &> /dev/null || die "docker $(lval image) does not exist"
+}
+
+opt_usage assert_docker_image_not_exists <<'END'
+This function asserts that a docker image does not exists locally.
+END
+assert_docker_image_not_exists()
+{
+    $(opt_parse image)
+    ! docker inspect --type image --format . "${image}" &> /dev/null || die "docker $(lval image) exists and should not"
 }

@@ -1,0 +1,947 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_opt_parse()
+{
+    set -- --file some_file --longer --long --whitespace "arg with whitespace" -shktlc blue -m -n arg1 arg2 arg3
+    $(opt_parse                                                             \
+        ":file f                     |   Which file should be processed."   \
+        ":color c=yellow             |   Color to be used."                 \
+        "+long l longer s h k t m n  |   option with lots of variants"      \
+        ":whitespace w               |   option expecting to receive something containing whitespace")
+    etestmsg "$(opt_dump)"
+
+    assert_eq "blue" "${color}"
+    assert_eq "some_file" "${file}"
+
+    assert_eq "arg1" "$1"
+    assert_eq "arg2" "$2"
+    assert_eq "arg3" "$3"
+}
+
+ETEST_opt_parse_boolean()
+{
+    set -- -a -b -c d e f
+    $(opt_parse "+a" "+b" "+c" "+d" "+e" "+f" )
+    etestmsg "$(opt_dump)"
+
+    assert_eq 1 "${a}"
+    assert_eq 1 "${b}"
+    assert_eq 1 "${c}"
+
+    assert_ne 1 "${d:-0}"
+    assert_ne 1 "${e:-0}"
+    assert_ne 1 "${f:-0}"
+}
+
+ETEST_opt_parse_boolean_multi()
+{
+    set -- --another -va --verbose -vv -s --else
+    $(opt_parse          \
+        "+verbose v"     \
+        "+another a"     \
+        "+something s"   \
+        "+else e")
+    etestmsg "$(opt_dump)"
+
+    assert_eq 1 "${verbose}"
+    assert_eq 1 "${another}"
+    assert_eq 1 "${something}"
+    assert_eq 1 "${else}"
+}
+
+ETEST_opt_parse_short()
+{
+    set -- -bf a_file -c salmon -d=door
+    $(opt_parse                      \
+        ":file f    | the file"      \
+        "+booealn b | boolean opt"   \
+        ":color c   | the color"     \
+        ":door d    | another argument")
+    etestmsg "$(opt_dump)"
+
+
+    assert_eq "a_file" "${file}"
+    assert_eq "salmon" "${color}"
+    assert_eq "door"   "${door}"
+}
+
+ETEST_opt_parse_long()
+{
+    set -- --foo alpha --bar 10 --baz=30
+    $(opt_parse \
+        ":foo"  \
+        ":bar"  \
+        ":baz")
+    etestmsg "$(opt_dump)"
+
+    assert_eq "alpha" "${foo}"
+    assert_eq "10"    "${bar}"
+    assert_eq "30"    "${baz}"
+}
+
+ETEST_opt_parse_required_arg()
+{
+    set -- -a
+    try
+    {
+        $(opt_parse ":a")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed parsing options."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_required_nonempty_missing_arg()
+{
+    set -- -a
+    try
+    {
+        $(opt_parse "=a")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed parsing options."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_required_nonempty_empty_arg()
+{
+    set -- -a ""
+    try
+    {
+        $(opt_parse "=a")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed parsing options."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_shorts_crammed_together_with_arg()
+{
+    set -- -abc optarg arg
+    $(opt_parse "+a" "+b" ":c")
+    etestmsg "$(opt_dump)"
+
+    assert_eq 1 "${a}"
+    assert_eq 1 "${b}"
+    assert_eq optarg "${c}"
+
+    assert_eq "arg" "$1"
+}
+
+ETEST_opt_parse_shorts_crammed_together_required_arg()
+{
+    set -- -abc
+    try
+    {
+        $(opt_parse "+a" "+b" ":c")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed when parsing options but did not."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_shorts_crammed_together_required_opt_missing_arg()
+{
+    set -- -abc
+    try
+    {
+        $(opt_parse "+a" "+b" "=c")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed when parsing options but did not."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_shorts_crammed_together_required_opt_missing_opt()
+{
+    set -- -ab
+    try
+    {
+        $(opt_parse "+a" "+b" "=c")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed when parsing options but did not."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_shorts_crammed_together_required_opt_empty_arg()
+{
+    set -- -abc ""
+    try
+    {
+        $(opt_parse "+a" "+b" "=c")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Should have failed when parsing options but did not."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_crazy_option_args()
+{
+    real_alpha="how about	whitespace?"
+    real_beta="[]"
+    real_gamma="*"
+    real_kappa="\$1"
+
+    set -- --alpha "${real_alpha}" --beta "${real_beta}" --gamma "${real_gamma}" --kappa "${real_kappa}"
+    $(opt_parse ":alpha" ":beta" ":gamma" ":kappa")
+    etestmsg "$(opt_dump)"
+
+    assert_eq "${real_alpha}" "${alpha}"
+    assert_eq "${real_gamma}" "${gamma}"
+    assert_eq "${real_beta}"  "${beta}"
+    assert_eq "${real_kappa}" "${kappa}"
+}
+
+ETEST_opt_parse_arg_hyphen()
+{
+    set -- --foo - arg1
+    $(opt_parse ":foo")
+    etestmsg "$(opt_dump)"
+
+    [[ "${foo}" == "-" ]] || die "Foo argument was wrong"
+
+    assert_eq "arg1" "$1"
+}
+
+ETEST_opt_parse_in_option_names_hyphen_and_underscore_are_equivalent()
+{
+    a=1
+    b="a b c"
+    c="  d  e  f  "
+    subfunc()
+    {
+        $(opt_parse ":x_a" ":x_b" ":x_c_1")
+
+        declare -p __EBASH_OPT_REGEX __EBASH_OPT
+
+        assert_eq "${x_a}" "${a}"
+        assert_eq "${x_b}" "${b}"
+        assert_eq "${x_c_1}" "${c}"
+    }
+
+    subfunc --x-a="${a}" --x-b="${b}" --x-c-1="${c}"
+    subfunc --x_a="${a}" --x_b="${b}" --x_c_1="${c}"
+
+
+}
+
+ETEST_opt_parse_unexpected_short()
+{
+    set -- -a
+    try
+    {
+        $(opt_parse "+b")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Failed to blow up on unexpected option"
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_unexpected_long()
+{
+    set -- --foo
+    try
+    {
+        $(opt_parse "+bar")
+        etestmsg "$(opt_dump)"
+
+        die -r=243 "Failed to blow up on unexpected option"
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_equal_empty()
+{
+    set -- -f=
+    $(opt_parse ":foo f")
+    etestmsg "$(opt_dump)"
+    assert_empty "${foo}"
+}
+
+ETEST_opt_parse_default()
+{
+    set --
+    # Note whitespace at beginning of option definition here to verify that opt_parse handles it properly.
+    $(opt_parse \
+        "   +alpha a=1"                \
+        "   :beta b=3"                 \
+        "   :white w=with whitespace")
+    etestmsg "$(opt_dump)"
+
+    assert_eq 1 "${alpha}"
+    assert_eq 3 "${beta}"
+    assert_eq "with whitespace" "${white}"
+}
+
+ETEST_opt_parse_boolean_defaults()
+{
+    set -- -a -b
+    $(opt_parse "+a=0" "+b=1" "+c=0" "+d=1")
+    etestmsg "$(opt_dump)"
+
+    assert_eq 1  "${a}"
+    assert_eq 1  "${b}"
+    assert_eq 0  "${c}"
+    assert_eq 1  "${d}"
+}
+
+ETEST_opt_parse_recursive()
+{
+    foo()
+    {
+        $(opt_parse    \
+            ":as a"    \
+            ":be b"    \
+            ":c")
+        etestmsg "${FUNCNAME}: $(opt_dump)"
+
+        bar --as 6 -b=5 -c 4
+
+        assert_eq 3 "${as}"
+        assert_eq 2 "${be}"
+        assert_eq 1 "${c}"
+    }
+
+    bar()
+    {
+        $(opt_parse    \
+            ":as a"    \
+            ":be b"    \
+            ":c")
+        etestmsg "${FUNCNAME}: $(opt_dump)"
+
+        assert_eq 6 "${as}"
+        assert_eq 5 "${be}"
+        assert_eq 4 "${c}"
+
+    }
+
+    foo  --as 3 -b=2 -c 1
+}
+
+ETEST_opt_parse_dump()
+{
+    set -- --alpha 10 --beta 20 --gamma 30
+    $(opt_parse ":alpha" ":beta" "=gamma")
+
+    etestmsg "$(opt_dump)"
+
+    assert_eq 10 "${alpha}"
+    assert_eq 20 "${beta}"
+    assert_eq 30 "${gamma}"
+
+    local dump=""
+    dump=$(opt_dump)
+    [[ "${dump}" =~ alpha ]]
+    [[ "${dump}" =~ 10 ]]
+    [[ "${dump}" =~ beta ]]
+    [[ "${dump}" =~ 20 ]]
+    [[ "${dump}" =~ gamma ]]
+    [[ "${dump}" =~ 30 ]]
+}
+
+ETEST_opt_parse_without_options()
+{
+    etestmsg "Trying to run opt_parse in a function that received no arguments or options"
+    set --
+    $(opt_parse "+a" ":b" "+c=0" "=d=foobar")
+    etestmsg "$(opt_dump)"
+    etestmsg "Succcess."
+}
+
+ETEST_opt_parse_no_hyphen_in_name()
+{
+    try
+    {
+        set --
+        $(opt_parse "+a-b")
+
+        die -r=243 "Should have failed before this."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+
+}
+
+ETEST_opt_parse_refuses_option_starting_with_no()
+{
+    try
+    {
+        $(opt_parse "+no_option")
+
+        die -r=243 "Should have failed before reaching this point."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_no()
+{
+    set -- --no-a --no-b --c --d --no-can-do
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
+
+    declare -p __EBASH_OPT __EBASH_OPT_REGEX __EBASH_OPT_TYPE
+
+    assert_eq "0" "${a}"
+    assert_eq "0" "${b}"
+    assert_eq "1" "${c}"
+    assert_eq "1" "${d}"
+    assert_eq "0" "${can_do}"
+
+    can_do=1
+    # Try the other permutations of underscores and hyphens
+    set -- --no_a --no_b --c --d --no_can_do
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
+    assert_eq "0" "${a}"
+    assert_eq "0" "${b}"
+    assert_eq "0" "${can_do}"
+
+    can_do=1
+    set -- --no-a --no-b --c --d --no-can_do
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
+    assert_eq "0" "${can_do}"
+
+    can_do=1
+    set -- --no-a --no-b --c --d --no_can-do
+    $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
+    assert_eq "0" "${can_do}"
+}
+
+ETEST_opt_parse_boolean_specify()
+{
+    set -- -a=0 -b=1 --no_c=0 --no_d=1
+
+    $(opt_parse "+a" "+b" "+c" "+d")
+
+    assert_eq "0" "${a}"
+    assert_eq "1" "${b}"
+    assert_eq "1" "${c}"
+    assert_eq "0" "${d}"
+}
+
+ETEST_opt_parse_boolean_validate()
+{
+    set -- -a=10
+    try
+    {
+        $(opt_parse "+a")
+        die -r=243 "Should have already failed."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_args()
+{
+    set -- -o option -r required one two more
+    $(opt_parse \
+        ":option o" \
+        "=required r" \
+        "arg1" \
+        "arg2")
+
+    assert_eq "option" "${option}"
+    assert_eq "required" "${required}"
+    assert_eq "one" "${arg1}"
+    assert_eq "two" "${arg2}"
+    assert_eq 1 $#
+    assert_eq more $1
+}
+
+ETEST_opt_parse_arg_default()
+{
+    set --
+    $(opt_parse "arg1=alpha")
+    assert_eq "alpha" "${arg1}"
+
+    set -- b
+    $(opt_parse "arg1=alpha")
+    assert_eq "b" "${arg1}"
+}
+
+ETEST_opt_parse_arg_required()
+{
+    set --
+    try
+    {
+        $(opt_parse "a")
+        die -r=243 "Should have already died."
+    }
+    catch
+    {
+        assert_ne 243 $?
+    }
+}
+
+ETEST_opt_parse_arg_eats_underscores()
+{
+    set -- one two three more
+    $(opt_parse "alpha" "_" "beta")
+    declare -p __EBASH_ARG{,_NAMES,_REQUIRED}
+    assert_eq "one" "${alpha}"
+    assert_eq "three" "${beta}"
+    assert_eq "more" "$*"
+    assert_eq 1 $#
+}
+
+ETEST_opt_parse_arg_whitespace()
+{
+    ONE="a b c"
+    TWO="  D  E  F  "
+    set -- "${ONE}" "${TWO}"
+    $(opt_parse "one | docstring" "two | docstring")
+    declare -p ONE one TWO two
+    assert_eq "${ONE}" "${one}"
+    assert_eq "${TWO}" "${two}"
+}
+
+
+ETEST_opt_parse_arg_optional()
+{
+    set -- "" ""
+    $(opt_parse "?a=alpha" "?b")
+
+    assert_eq "" "${a}"
+    assert_eq "" "${b}"
+}
+
+ETEST_opt_forward()
+{
+    A_STRING="string with whitespace"
+    B_STRING="non-empty string"
+    EXTRA1="EXTRA_1"
+    EXTRA2="EXTRA  WITH  WHITESPACE"
+
+    subfunc()
+    {
+        etestmsg "In subfunc"
+        local raw_args=( "$@" )
+        einfo "$(ecolor cyan)$(lval raw_args)"
+        $(opt_parse \
+            ":string"   \
+            "=required" \
+            "+bool"     \
+            "+other_bool")
+        einfo "$(ecolor cyan)$(declare -p __EBASH_OPT)"
+        assert_eq "${A_STRING}" "${string}"
+        assert_eq "${B_STRING}" "${required}"
+        assert_eq 1 "${bool}"
+        assert_eq 0 "${other_bool}"
+    }
+
+    subfunc_extra()
+    {
+        etestmsg "In subfunc"
+        local raw_args=( "$@" )
+        einfo "$(ecolor orchid)$(lval raw_args)"
+        $(opt_parse \
+            ":string"   \
+            "=required" \
+            "+bool"     \
+            "+other_bool")
+        einfo "$(ecolor orchid)$(declare -p __EBASH_OPT)"
+        assert_eq "${A_STRING}" "${string}"
+        assert_eq "${B_STRING}" "${required}"
+        assert_eq 1 "${bool}"
+        assert_eq 0 "${other_bool}"
+
+        assert_eq "$1" "${EXTRA1}"
+        assert_eq "$2" "${EXTRA2}"
+    }
+
+    set -- --string "${A_STRING}" --required "${B_STRING}" --bool argument --no-other-bool
+    local raw_args=( "$@" )
+    einfo "$(ecolor green)$(lval raw_args)"
+    $(opt_parse \
+        ":string"   \
+        "=required" \
+        "+bool"     \
+        "+other_bool")
+
+    einfo "$(ecolor green)$(declare -p __EBASH_OPT)"
+    assert_eq "${A_STRING}" "${string}"
+    assert_eq "${B_STRING}" "${required}"
+    assert_eq 1 "${bool}"
+    assert_eq 0 "${other_bool}"
+
+    etestmsg "calling subfunc"
+    opt_forward subfunc string required bool other_bool
+
+    etestmsg "Calling subfunc with hyphens"
+    opt_forward subfunc string required bool other-bool
+
+    etestmsg "calling subfunc with only -- after it"
+    opt_forward subfunc string required bool --
+
+    etestmsg "calling subfunc_extra"
+    opt_forward subfunc_extra string required bool -- "${EXTRA1}" "${EXTRA2}"
+}
+
+ETEST_opt_forward_different_name()
+{
+    OPTION=" a b  c "
+    set -- --option "${OPTION}"
+    $(opt_parse ":option")
+
+    subfunc()
+    {
+        einfo "ARGS=${@}"
+        $(opt_parse ":altname")
+
+        assert_eq "${altname}" "${OPTION}"
+    }
+
+    opt_forward subfunc option:altname
+}
+
+ETEST_opt_parse_help_not_allowed()
+{
+    foo()
+    {
+        $(opt_parse ":help")
+    }
+
+    bar()
+    {
+        $(opt_parse ":h help")
+    }
+
+    assert_false foo
+    assert_false bar
+}
+
+ETEST_opt_parse_help()
+{
+    local tmpfile=${FUNCNAME}.tmp
+    rm -f ${tmpfile}
+    assert_not_exists ${tmpfile}
+
+    set -- --help
+    foo()
+    {
+        $(opt_parse \
+            ":money m       | Units of tender" \
+            ":number n      | degrees of value" \
+            "+bool b        | on or off" \
+            "+long_option l | Here's an option that has a really really long docstring
+                              which is broken across multiple lines in order to
+                              do some level of validation that opt_parse can handle such
+                              things." \
+            "arg1           | First argument" \
+            "?arg2          | Second argument")
+
+        touch ${tmpfile}
+    }
+
+    etestmsg "Run with usage and make sure the function didn't perform its normal operation"
+    local usage=""
+    usage=$(ECOLOR=0 COLUMNS=80 foo --help 2>&1)
+    echo "${usage}"
+    assert_not_exists ${tmpfile}
+
+    etestmsg "Make sure the usage statement looks right"
+    assert_match "${usage}" "--bool"
+    assert_match "${usage}" "--money"
+    assert_match "${usage}" "--number"
+    assert_match "${usage}" "Units of tender"
+    assert_match "${usage}" "degrees of value"
+
+    # This check is dependant on the specific output format. You might have to adjust it for reality if you change, for
+    # instance, the number of columns of output produced by opt_display_usage
+    etestmsg "Verify that the super-long docstring is broken into lines differently than it"
+    etestmsg "is in the code. In other words that opt_parse formats it appropriately to fit"
+    etestmsg "available space."
+    assert_match "${usage}" "docstring which"
+
+    etestmsg "Further verify the first line"
+    # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right info (because it was
+    # displayed above in the log). Not sure what happened there, but the following statements will still catch errors
+    # even if we ignore the failure in head.
+    local firstline=""
+    firstline=$(echo "${usage}" | head -n 3 | tail -n 1 || true)
+    etestmsg "$(lval firstline)"
+
+    assert_match "${firstline}" "Usage"
+    assert_match "${firstline}" "foo"
+    assert_match "${firstline}" "\[option\]\.\.\."
+    assert_match "${firstline}" "arg1"
+    assert_match "${firstline}" "\[arg2\]"
+
+    etestmsg "Make sure a call to the function without --help works as expected."
+    foo a
+    assert_exists ${tmpfile}
+}
+
+ETEST_opt_parse_help_short()
+{
+    local tmpfile=${FUNCNAME}.tmp
+    rm -f ${tmpfile}
+    assert_not_exists ${tmpfile}
+
+    set -- -?
+    foo()
+    {
+        $(opt_parse \
+            ":money m       | Units of tender" \
+            ":number n      | degrees of value" \
+            "+bool b        | on or off" \
+            "+long_option l | Here's an option that has a really really long docstring
+                              which is broken across multiple lines in order to
+                              do some level of validation that opt_parse can handle such
+                              things." \
+            "arg1           | First argument" \
+            "?arg2          | Second argument")
+
+        touch ${tmpfile}
+    }
+
+    etestmsg "Run with usage and make sure the function didn't perform its normal operation"
+    local usage=""
+    usage=$(ECOLOR=0 COLUMNS=80 foo -? 2>&1)
+    echo "${usage}"
+    assert_not_exists ${tmpfile}
+
+    etestmsg "Make sure the usage statement looks right"
+    assert_match "${usage}" "--bool"
+    assert_match "${usage}" "--money"
+    assert_match "${usage}" "--number"
+    assert_match "${usage}" "Units of tender"
+    assert_match "${usage}" "degrees of value"
+
+    # This check is dependant on the specific output format. You might have to adjust it for reality if you change, for
+    # instance, the number of columns of output produced by opt_display_usage
+    etestmsg "Verify that the super-long docstring is broken into lines differently than it"
+    etestmsg "is in the code. In other words that opt_parse formats it appropriately to fit"
+    etestmsg "available space."
+    assert_match "${usage}" "docstring which"
+
+    etestmsg "Further verify the first line"
+    # NOTE: EMBER-133: The head call here failed in a run where usage clearly contained the right info (because it was
+    # displayed above in the log). Not sure what happened there, but the following statements will still catch errors
+    # even if we ignore the failure in head.
+    local firstline=""
+    firstline=$(echo "${usage}" | head -n 3 | tail -n 1 || true)
+    etestmsg "$(lval firstline)"
+
+    assert_match "${firstline}" "Usage"
+    assert_match "${firstline}" "foo"
+    assert_match "${firstline}" "\[option\]\.\.\."
+    assert_match "${firstline}" "arg1"
+    assert_match "${firstline}" "\[arg2\]"
+
+    etestmsg "Make sure a call to the function without -? works as expected."
+    foo a
+    assert_exists ${tmpfile}
+}
+
+ETEST_opt_parse_rest()
+{
+    A="a"
+    B="*"
+    C="  c  with doubled  whitespace  "
+    D="b & 3"
+
+    set -- first "${A}" "${B}" "${C}" "${D}"
+    $(opt_parse first "@rest")
+
+    etestmsg "Making sure \"rest\" options are saved properly despite crazy contents"
+    declare -p first rest || true
+
+    assert_eq "first" "${first}"
+    assert_eq "${A}"  "${rest[0]}"
+    assert_eq "${B}"  "${rest[1]}"
+    assert_eq "${C}"  "${rest[2]}"
+    assert_eq "${D}"  "${rest[3]}"
+}
+
+ETEST_opt_parse_rest_error_cases()
+{
+    etestmsg "Opt_parse should fail when passed two @ arguments."
+    foo()
+    {
+        $(opt_parse "@a" "@b")
+        true
+    }
+    assert_false foo
+
+
+    etestmsg "Opt_parse should fail when @ argument is not last."
+    bar()
+    {
+        $(opt_parse "@a" "b")
+        true
+    }
+    assert_false bar
+
+}
+
+ETEST_opt_parse_accumulator()
+{
+    validate()
+    {
+        assert_eq 3    $(array_size i)
+        assert_eq "foo" "${i[0]}"
+        assert_eq "bar" "${i[1]}"
+        assert_eq "zap" "${i[2]}"
+    }
+
+    set -- --i=foo --i=bar --i=zap
+    $(opt_parse "&i")
+    etestmsg "With equals sign: $(opt_dump)"
+    einfo "$(ecolor green)$(declare -p __EBASH_OPT)"
+    validate
+
+    set -- --i foo --i bar --i zap
+    $(opt_parse "&i")
+    etestmsg "Without equals sign: $(opt_dump)"
+    einfo "$(ecolor green)$(declare -p __EBASH_OPT)"
+    validate
+}
+
+ETEST_opt_parse_accumulator_forward()
+{
+    validate()
+    {
+        assert_eq 3    $(array_size i)
+        assert_eq "foo" "${i[0]}"
+        assert_eq "bar" "${i[1]}"
+        assert_eq "zap" "${i[2]}"
+    }
+
+    subfunc()
+    {
+        etestmsg "In subfunc"
+        local raw_args=( "$@" )
+        einfo "$(ecolor cyan)$(lval raw_args)"
+        unset i
+        $(opt_parse "&i")
+        einfo "$(ecolor cyan)$(declare -p __EBASH_OPT)"
+        validate
+    }
+
+    set -- --i=foo --i=bar --i=zap
+    $(opt_parse "&i")
+    validate
+    opt_forward subfunc i
+}
+
+ETEST_opt_parse_accumulator_whitespace()
+{
+    validate()
+    {
+        assert_eq 3         $(array_size i)
+        assert_eq "a b c"   "${i[0]}"
+        assert_eq "foo bar" "${i[1]}"
+        assert_eq "zap"     "${i[2]}"
+    }
+
+    set -- --i="a b c" --i="foo bar" --i=zap
+    $(opt_parse "&i" )
+    etestmsg "With equals sign: $(opt_dump)"
+    validate
+
+    set -- --i "a b c" --i "foo bar" --i "zap"
+    $(opt_parse "&i" )
+    etestmsg "Without equals sign: $(opt_dump)"
+    validate
+}
+
+# Ensure we only have a single entry in the array if only given the option once
+ETEST_opt_parse_accumulator_single()
+{
+    set -- --files apples
+    $(opt_parse "&files")
+    etestmsg "$(opt_dump)"
+
+    assert_eq 1       $(array_size files)
+    assert_eq "apples" "${files[0]}"
+}
+
+ETEST_opt_parse_accumalator_empty()
+{
+    $(opt_parse "&files")
+    etestmsg "$(opt_dump)"
+    assert_zero "$(array_size files)"
+}
+
+ETEST_argcheck()
+{
+    try
+    {
+        alpha="notempty"
+        argcheck alpha beta
+        die "argcheck should have thrown"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "argcheck should have thrown"
+}
+
+ETEST_argcheck_nodie()
+{
+    local die_called=0
+    die_handler()
+    {
+        die_called=1
+        eerror "die should not have been called"
+        return 1
+    }
+
+    alpha="notempty"
+    if ! argcheck alpha beta; then
+        etestmsg "As Expected -- not all variables were set"
+    fi
+    assert_eq 0 "${die_called}"
+}

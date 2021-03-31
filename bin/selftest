@@ -1,23 +1,37 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Setup
+#
+#----------------------------------------------------------------------------------------------------------------------
+
 # Source ebash from the same directory as this script
 $( $(dirname $0)/ebash --source )
 
 # Some ebash recognized environment variables interfer with functionality of the selftests so we need to unset them.
-unset FILTER
-unset REPEAT
 unset BREAK
 unset EDEBUG
+unset EFUNCS_COLOR
+unset EINTERACTIVE
 unset FAILURES
+unset FILTER
+unset REPEAT
 unset REPEAT
 unset VERBOSE
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Test Helpers
+#
+#----------------------------------------------------------------------------------------------------------------------
 
 # All of the asserts below depend on etest having been run by this function, which sets up the values of ETEST_OUTPUT,
 # ETEST_LOG, and ETEST_RC.
@@ -40,14 +54,14 @@ run_etest()
 # etest via run_etest.
 #
 # WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
-# to the end of the other test name.  Just don't do that in the tests or fix these asserts
+# to the end of the other test name. Just don't do that in the tests or fix these asserts
 assert_test_fail()
 {
-    local this_test 
+    local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
-        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # result are on two separate lines. Grab both and make sure it's listed as OK. We'll catch errors in the
         # assert call, so ignore them for the initial grab
         output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
         assert_match "${output_state}" "${this_test}"
@@ -72,14 +86,14 @@ assert_test_fail()
 # etest via run_etest.
 #
 # WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
-# to the end of the other test name.  Just don't do that in the tests or fix these asserts
+# to the end of the other test name. Just don't do that in the tests or fix these asserts
 assert_test_pass()
 {
-    local this_test 
+    local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
-        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # result are on two separate lines. Grab both and make sure it's listed as OK. We'll catch errors in the
         # assert call, so ignore them for the initial grab
         output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
         echo "${output_state}" | grep -q "ok" || true
@@ -107,14 +121,14 @@ assert_test_pass()
 # etest via run_etest.
 #
 # WARNING: Won't deal well when facing two or more tests where the name of one test is simply an addition of characters
-# to the end of the other test name.  Just don't do that in the tests or fix these asserts
+# to the end of the other test name. Just don't do that in the tests or fix these asserts
 assert_test_flaky()
 {
-    local this_test 
+    local this_test
     for this_test in "${@}" ; do
 
         # If you're not paying attention to ansi codes that move your cursor, it looks like the test name and its
-        # result are on two separate lines.  Grab both and make sure it's listed as OK.  We'll catch errors in the
+        # result are on two separate lines. Grab both and make sure it's listed as OK. We'll catch errors in the
         # assert call, so ignore them for the initial grab
         output_state="$(echo "${ETEST_OUTPUT}" | grep -PA1 "${this_test}\b" || true)"
         echo "${output_state}" | grep -q "ok" || true
@@ -141,8 +155,8 @@ assert_test_flaky()
     assert_eq "$#" "$(jq --raw-output .numTestsFlaky  "${ETEST_JSON}")"
 }
 
-# Verifies that output and log looks correct for a specified number of tests attempted and passed.  For instance, if you
-# call assert_test_count 2 2, that should mean that 2 tests were run and both passed. It also looks at the new json 
+# Verifies that output and log looks correct for a specified number of tests attempted and passed. For instance, if you
+# call assert_test_count 2 2, that should mean that 2 tests were run and both passed. It also looks at the new json
 # output file and makes sure the numbers are correct.
 #
 # You must call etest by the run_etest function to use this assert.
@@ -173,12 +187,44 @@ assert_test_count()
     assert_eq "${total}" "$(jq --raw-output .numTestsExecuted "${ETEST_JSON}")"
 }
 
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Tests
+#
+#----------------------------------------------------------------------------------------------------------------------
 
-ETEST=${EBASH_HOME}/bin/etest
+# Verify setup/teardown correctness:
+# - suite_setup called once
+# - suite_teardown called once
+# - setup called for each test
+# - teardown called for each test
+SELFTEST_assert_setup_teardown()
+{
+    local output="setup_teardown.out"
+    > "${output}"
+    trap_add "rm ${output}"
 
-[[ -x ${ETEST} ]] || die "Unable to find etest $(lval ETEST EBASH EBASH_HOME)"
+    run_etest setup_teardown.etest
+    assert_test_count --pass 3 --fail 0 --flaky 0 --total 3
+    assert_exists "${output}"
 
-cd ${EBASH_HOME}/selftest
+    expected=$(cat <<- 'END'
+	suite_setup
+	setup
+	1
+	teardown
+	setup
+	2
+	teardown
+	setup
+	3
+	teardown
+	suite_teardown
+	END
+    )
+
+    assert_eq "${expected}" "$(cat ${output})"
+}
 
 # Just passing standalone tests
 SELFTEST_simple()
@@ -268,7 +314,7 @@ SELFTEST_flaky_failures_1()
     assert_test_flaky ETEST_flaky_fails_once
 }
 
-# Test passes third time failures=1 
+# Test passes third time failures=1
 SELFTEST_flaky_failures_2()
 {
     run_etest --filter flaky_fails_twice --failures 1 flaky.etest
@@ -295,20 +341,56 @@ SELFTEST_flaky_failures_mixed()
     assert_test_flaky ETEST_flaky_fails_once
 }
 
+SELFTEST_hang_standalone()
+{
+    run_etest --timeout 5s hang_standalone
+    assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
+    assert_test_fail hang_standalone
+}
+
+SELFTEST_hang_total_timeout()
+{
+    run_etest --timeout 30s hang.etest
+    assert_test_count --pass 2 --fail 1 --flaky 0 --total 3
+    assert_test_pass hang_001_short hang_002_long
+    assert_test_fail hang_003_infinity
+}
+
+SELFTEST_hang_override()
+{
+    start=${SECONDS}
+
+    # Set a very large timeout. The test overrides this with 5s. So make sure it doesn't hang for the full 5m.
+    run_etest --timeout 5m "hang_override.etest"
+    assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
+    assert_test_fail hang_infinity
+
+    runtime=$(( SECONDS - start ))
+
+    assert_lt "${runtime}" 30
+}
+
 #----------------------------------------------------------------------------------------------------------------------
-# RUN ALL SELFTESTS
+#
+# MAIN
+#
 #----------------------------------------------------------------------------------------------------------------------
+
+ETEST=${EBASH_HOME}/bin/etest
+[[ -x ${ETEST} ]] || die "Unable to find etest $(lval ETEST EBASH EBASH_HOME)"
+cd ${EBASH_HOME}/tests/self
+
 SELFTESTS=( $(declare -F | awk '$3 ~ "^SELFTEST_" {print $3}' || true) )
 array_sort SELFTESTS
 
 # Run each selftest in its own subshell. Also create a output directory for the selftest to use that is persistent
-# outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a 
+# outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a
 # test to have a persistent place to store things. This is necessary for our flaky tests where we need to keep track
 # of how many times the test has been executed so we need a persistent place to store that information.
 for selftest in ${SELFTESTS[@]}; do
 (
     declare -xg SELFTEST_DIR_OUTPUT
-    SELFTEST_DIR_OUTPUT="$(readlink -f selftest_output)"
+    SELFTEST_DIR_OUTPUT="$(readlink -f output)"
     efreshdir "${SELFTEST_DIR_OUTPUT}"
 
     "${selftest}"

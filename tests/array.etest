@@ -1,0 +1,574 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_array_size_empty_and_undefined()
+{
+    declare -a empty_array
+    declare -A empty_aa
+
+    assert_eq 0 $(array_size empty_array)
+    assert_eq 0 $(array_size empty_aa)
+
+    empty_string=""
+    assert array_empty empty_string
+    assert_false array_not_empty empty_string
+
+    unset C
+    assert_eq 0 $(array_size C)
+}
+
+ETEST_array_that_is_holey()
+{
+    A=(1 2 3 4)
+    unset A[0]
+    unset A[2]
+
+    assert_false array_empty A
+}
+
+ETEST_array_size_zero()
+{
+    # NOTE: there is no distinction in bash between empty arrays and unset variables. Really.
+    V=()
+
+    size=$(array_size V)
+    [[ ${size} -eq 0 ]] || die "Size was wrong $(lval size)"
+}
+
+ETEST_array_empty()
+{
+    array_init arr "" "\n"
+    declare -p arr
+
+    assert_eq 0 $(array_size arr)
+}
+
+ETEST_array_empty_first_element_empty()
+{
+    # Validate behavior of array_empty when the array contains only empty strings. See the big comment block in
+    # array_empty regarding why this is done in order to accomodate greater compatibility with bash-4.2.
+    A=("")
+    assert_true array_empty A
+}
+
+ETEST_array_empty_reuse()
+{
+    array_init arr "alpha|beta|delta" "|"
+    declare -p arr
+    assert_eq 3 $(array_size arr)
+
+    array_init arr ""
+    declare -p arr
+    assert_eq 0 $(array_size arr)
+}
+
+ETEST_array_init()
+{
+    array_init arr "alpha|beta|delta" "|"
+    declare -p arr
+
+    assert_eq "alpha" "${arr[0]}"
+    assert_eq "beta"  "${arr[1]}"
+    assert_eq "delta" "${arr[2]}"
+    assert_eq 3       "${#arr[@]}"
+    assert_eq 3       $(array_size arr)
+}
+
+ETEST_array_init_nl1()
+{
+    array_init_nl arr $'a b\nc\td\ne f'
+    declare -p arr
+
+    assert_eq "a b"   "${arr[0]}"
+    assert_eq $'c\td' "${arr[1]}"
+    assert_eq "e f"   "${arr[2]}"
+    assert_eq 3       "${#arr[@]}"
+    assert_eq 3       $(array_size arr)
+}
+
+ETEST_array_init_nl2()
+{
+    array_init_nl arr "Foo
+Bar"
+    declare -p arr
+
+    assert_eq "Foo" "${arr[0]}"
+    assert_eq "Bar" "${arr[1]}"
+    assert_eq 2     "${#arr[@]}"
+    assert_eq 2     $(array_size arr)
+}
+
+ETEST_array_init_multiple_delim()
+{
+    array_init arr "a1b2c3d4e" "4321"
+    declare -p arr
+
+    assert_eq "a" "${arr[0]}"
+    assert_eq "b" "${arr[1]}"
+    assert_eq "c" "${arr[2]}"
+    assert_eq "d" "${arr[3]}"
+    assert_eq "e" "${arr[4]}"
+    assert_eq 5   "${#arr[@]}"
+    assert_eq 5   $(array_size arr)
+}
+
+ETEST_array_init_ulgy_delim()
+{
+    array_init arr "a(b)c" "()"
+    declare -p arr
+
+    assert_eq "a" "${arr[0]}"
+    assert_eq "b" "${arr[1]}"
+    assert_eq "c" "${arr[2]}"
+    assert_eq 3   "${#arr[@]}"
+    assert_eq 3   $(array_size arr)
+}
+
+ETEST_array_init_quote_delim()
+{
+    array_init arr "a'b" "'"
+    declare -p arr
+
+    assert_eq "a" "${arr[0]}"
+    assert_eq "b" "${arr[1]}"
+    assert_eq 2   "${#arr[@]}"
+    assert_eq 2   $(array_size arr)
+
+    array_init arr 'a"b' '"'
+    declare -p arr
+
+    assert_eq "a" "${arr[0]}"
+    assert_eq "b" "${arr[1]}"
+    assert_eq 2   "${#arr[@]}"
+    assert_eq 2   $(array_size arr)
+}
+
+ETEST_array_init_default_delim()
+{
+    # NOTE: Bash splits when the delimiter is whitespace just lump all of the delimiters together and remove them, while
+    # splits with non-whitespace generate a field between every two delimiters, even if they're sequential.
+    array_init arr $'a\nb\tc d  e'
+    declare -p arr
+
+    assert_eq "a" "${arr[0]}"
+    assert_eq "b" "${arr[1]}"
+    assert_eq "c" "${arr[2]}"
+    assert_eq "d" "${arr[3]}"
+    assert_eq "e" "${arr[4]}"
+    assert_eq 5   $(array_size arr)
+}
+
+ETEST_array_init_json()
+{
+    array_init_json arr '[ "Immanual Kant", "Thomas Hobbes", "John Locke" ]'
+    declare -p arr
+    assert_eq 3 $(array_size arr)
+
+    assert_eq "Immanual Kant" "${arr[0]}"
+    assert_eq "Thomas Hobbes" "${arr[1]}"
+    assert_eq "John Locke"    "${arr[2]}"
+}
+
+ETEST_array_contains()
+{
+    array_init arr "a b c d"
+    declare -p arr
+
+    assert_true  array_contains arr "a"
+    assert_true  array_contains arr "b"
+    assert_true  array_contains arr "c"
+    assert_true  array_contains arr "d"
+    assert_false array_contains arr "e"
+}
+
+ETEST_array_contains_empty()
+{
+    array_init arr "a b c d"
+    declare -p arr
+    assert_false array_contains arr
+
+    array_init arr
+    declare -p arr
+    assert_false array_contains arr ""
+}
+
+ETEST_array_add()
+{
+    array_init arr "a b c d"
+    declare -p arr
+
+    assert_true  array_contains arr "a"
+    assert_true  array_contains arr "b"
+    assert_true  array_contains arr "c"
+    assert_true  array_contains arr "d"
+    assert_false array_contains arr "e"
+    assert_eq 4  $(array_size arr)
+
+    # Add another element
+    array_add arr "e"
+
+    assert_true  array_contains arr "a"
+    assert_true  array_contains arr "b"
+    assert_true  array_contains arr "c"
+    assert_true  array_contains arr "d"
+    assert_true  array_contains arr "e"
+    assert_eq 5  $(array_size arr)
+}
+
+ETEST_array_add_nl()
+{
+    array_init_nl arr $'a\nb\nc\nd'
+    declare -p arr
+
+    assert_true  array_contains arr "a"
+    assert_true  array_contains arr "b"
+    assert_true  array_contains arr "c"
+    assert_true  array_contains arr "d"
+    assert_false array_contains arr "e"
+    assert_eq 4  $(array_size arr)
+
+    # Add another element
+    array_add_nl arr "e"
+    declare -p arr
+
+    assert_true  array_contains arr "a"
+    assert_true  array_contains arr "b"
+    assert_true  array_contains arr "c"
+    assert_true  array_contains arr "d"
+    assert_true  array_contains arr "e"
+    assert_eq 5  $(array_size arr)
+
+    # Add multiple elements
+    array_add_nl arr $'f\ng'
+    declare -p arr
+
+    assert_true  array_contains arr "a"
+    assert_true  array_contains arr "b"
+    assert_true  array_contains arr "c"
+    assert_true  array_contains arr "d"
+    assert_true  array_contains arr "e"
+    assert_true  array_contains arr "f"
+    assert_true  array_contains arr "g"
+    assert_eq 7  $(array_size arr)
+}
+
+ETEST_array_add_different_delim()
+{
+    array_init arr "a b"
+    declare -p arr
+
+    assert_true array_contains arr "a"
+    assert_true array_contains arr "b"
+    assert_eq 2 $(array_size arr)
+
+    # Append a couple more elements with different delimiter
+    array_add_nl arr $'c\nd'
+    declare -p arr
+
+    assert_true array_contains arr "a"
+    assert_true array_contains arr "b"
+    assert_true array_contains arr "c"
+    assert_true array_contains arr "d"
+    assert_eq 4 $(array_size arr)
+}
+
+ETEST_array_add_different_delim_noresplit()
+{
+    array_init arr "a%b c%d"
+    declare -p arr
+
+    assert_true array_contains arr "a%b"
+    assert_true array_contains arr "c%d"
+    assert_eq 2 $(array_size arr)
+
+    # Append more elements with a different delimiter contained in existing elements
+    array_add arr 'e%f' '%'
+    declare -p arr
+
+    assert_true array_contains arr "a%b"
+    assert_true array_contains arr "c%d"
+    assert_true array_contains arr "e"
+    assert_true array_contains arr "f"
+    assert_eq 4 $(array_size arr)
+}
+
+ETEST_array_join()
+{
+    local input="a b c d" output=""
+    array_init arr "${input}"
+    declare -p arr
+
+    output=$(array_join arr)
+    assert_eq "${input}" "${output}"
+}
+
+ETEST_array_join_nl()
+{
+    local input=$'a\nb\tc d  e' output=""
+    array_init_nl arr "${input}"
+    declare -p arr
+
+    output=$(array_join_nl arr)
+    assert_eq "${input}" "${output}"
+}
+
+ETEST_array_join_custom()
+{
+    local input="a b|c d|e f" output=""
+    array_init arr "${input}" "|"
+    declare -p arr
+
+    output=$(array_join arr "|")
+    assert_eq "${input}" "${output}"
+}
+
+ETEST_array_join_multi_character_delim()
+{
+    local input="a b c d" output=""
+    array_init arr "${input}"
+    declare -p arr
+
+    output=$(array_join arr "X Y Z")
+    assert_eq "aX Y ZbX Y ZcX Y Zd" "${output}"
+}
+
+ETEST_array_join_before_after()
+{
+    local input="a b c d" output=""
+    array_init arr "${input}"
+    declare -p arr
+
+    etestmsg "Before only"
+    output=$(array_join -b arr "+")
+    echo "${output}"
+    assert_eq "+a+b+c+d" "${output}"
+
+    etestmsg "After only"
+    output=$(array_join -a arr "+")
+    echo "${output}"
+    assert_eq "a+b+c+d+" "${output}"
+
+    etestmsg "Both before and after"
+    output=$(array_join -b -a arr "+")
+    echo "${output}"
+    assert_eq "+a+b+c+d+" "${output}"
+}
+
+ETEST_array_remove()
+{
+    local input="a b c d"
+    array_init array "${input}"
+    declare -p array
+
+    array_remove array b
+    assert_eq "a c d" "$(array_join array)"
+}
+
+ETEST_array_remove_all()
+{
+    local input="a b a c a d a e"
+    array_init array "${input}"
+    declare -p array
+
+    etestmsg "Removing all a(s)"
+    array_remove -a array a
+    declare -p array
+
+    assert_eq "b c d e" "$(array_join array)"
+}
+
+ETEST_array_remove_multi()
+{
+    local input="1 2 3 4 5 6"
+    array_init array "${input}"
+    declare -p array
+
+    array_remove array 1 3 5
+    assert_eq "2 4 6" "$(array_join array)"
+}
+
+ETEST_array_remove_multi_all()
+{
+    local input="1 2 3 4 1 2 3 4"
+    array_init array "${input}"
+    declare -p array
+
+    array_remove -a array 1 3
+    assert_eq "2 4 2 4" "$(array_join array)"
+}
+
+ETEST_array_remove_first()
+{
+    local input="a b a c a d a e"
+    array_init array "${input}"
+    declare -p array
+
+    etestmsg "Removing first a"
+    array_remove array a
+    declare -p array
+
+    assert_eq "b a c a d a e" "$(array_join array)"
+}
+
+ETEST_array_remove_multi_first()
+{
+    local input="a b a c a d a e"
+    array_init array "${input}"
+    declare -p array
+
+    etestmsg "Removing first a multiple times"
+    array_remove array a a a
+    declare -p array
+
+    assert_eq "b c d a e" "$(array_join array)"
+}
+
+ETEST_array_remove_whitespace()
+{
+    local input=$'a\nb\nc d  e'
+    array_init_nl array "${input}"
+    declare -p array
+
+    array_remove array "c d  e"
+    assert_eq $'a\nb' "$(array_join_nl array)"
+}
+
+ETEST_array_sort()
+{
+    array=(a c b "f f" 3 5)
+    array_sort array
+    assert_eq "3|5|a|b|c|f f" "$(array_join array '|')"
+}
+
+ETEST_array_sort_unique()
+{
+    array=(a c b a)
+    array_sort -u array
+    assert_eq "a|b|c" "$(array_join array '|')"
+}
+
+ETEST_array_sort_version()
+{
+    local array=(a.1 a.2 a.100)
+    array_sort -V array
+    assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
+}
+
+ETEST_array_indexes()
+{
+    A=(1 2 3 4)
+    unset A[0]
+    unset A[2]
+
+    local indexes
+    indexes=$(array_indexes A)
+    assert_eq "1 3" "${indexes}"
+}
+
+ETEST_array_rindexes()
+{
+    A=(1 2 3 4)
+    unset A[0]
+    unset A[2]
+
+    local indexes
+    indexes=$(array_rindexes A)
+    assert_eq "3 1" "${indexes}"
+}
+
+# There was a bug in array_rindexes where it was reversing multi-digits indexes e.g. "10" was getting converted to "01".
+# So this test verifies that doesn't happen
+ETEST_array_rindexes_multi_digit()
+{
+    A=(a b c d e f g h i j k l m n o p q r s t u v w z y z)
+
+    local indexes
+    indexes=$(array_rindexes A)
+    assert_eq "25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0" "${indexes}"
+}
+
+ETEST_array_associative_indexes_sort()
+{
+    declare -A values=(
+        [b]="1"
+        [z]="2"
+        [a]="3"
+        [d]="4"
+        [m]="5"
+        [c]="6"
+    )
+
+    local indexes
+    indexes=$(array_indexes_sort values)
+    assert_eq "a b c d m z" "${indexes}"
+}
+
+ETEST_array_copy()
+{
+    local source=("a 1" "b 2" "c 3" "d 4")
+    local target
+    array_copy source target
+
+    assert_eq 4 "$(array_size source)"
+    assert_eq 4 "$(array_size target)"
+
+    assert_eq "a 1|b 2|c 3|d 4" "$(array_join source '|')"
+    assert_eq "a 1|b 2|c 3|d 4" "$(array_join target '|')"
+}
+
+ETEST_array_copy_empty()
+{
+    local source=()
+    local target=()
+    array_copy source target
+
+    assert_eq 0 "$(array_size source)"
+    assert_eq 0 "$(array_size target)"
+}
+
+ETEST_array_copy_empty_replace()
+{
+    local source=()
+    local target=("a 1")
+    array_copy source target
+
+    assert_eq 0 "$(array_size source)"
+    assert_eq 0 "$(array_size target)"
+}
+
+ETEST_array_copy_add()
+{
+    local source=("a 1" "b 2" "c 3" "d 4")
+    local target
+    array_copy   source target
+    array_add_nl target "e 5"
+
+    assert_eq 4 "$(array_size source)"
+    assert_eq 5 "$(array_size target)"
+
+    assert_eq "a 1|b 2|c 3|d 4"     "$(array_join source '|')"
+    assert_eq "a 1|b 2|c 3|d 4|e 5" "$(array_join target '|')"
+}
+
+ETEST_array_copy_add_empty_values()
+{
+    local source=("a 1" "b 2" "c 3" "d 4")
+    local target
+    array_copy   source target
+
+    local empty=""
+    array_add_nl target ""
+    array_add_nl target "${empty}"
+
+    assert_eq 4 "$(array_size source)"
+    assert_eq 4 "$(array_size target)"
+
+    assert_eq "a 1|b 2|c 3|d 4" "$(array_join source '|')"
+    assert_eq "a 1|b 2|c 3|d 4" "$(array_join target '|')"
+}

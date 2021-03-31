@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2012-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2012-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2012-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -9,9 +9,9 @@
 
 [[ ${__EBASH_OS} != Linux ]] && return 0
 
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 # CORE CHROOT FUNCTIONS
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 CHROOT_MOUNTS=( /dev /proc /sys )
 
 chroot_mount()
@@ -82,8 +82,8 @@ chroot_shell()
     # Setup CHROOT prompt
     chroot_prompt ${name}
 
-    # Mount then enter chroot. Ensure we setup a trap so that we'll unmount the chroot 
-    # regardless of how we leave this function.
+    # Mount then enter chroot. Ensure we setup a trap so that we'll unmount the chroot regardless of how we leave this
+    # function.
     chroot_mount
     trap_add "chroot_unmount"
     # CHROOT_ENV here refers to bash, so we're starting a bash shell here
@@ -94,74 +94,108 @@ chroot_cmd()
 {
     argcheck CHROOT
 
-    einfos $@
+    edebug "[${CHROOT}] $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
 }
 
 opt_usage chroot_kill <<'END'
-Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT}) that match the given
-regex.  [note: regex support is identical to pgrep]
+Send a signal to processes inside _this_ CHROOT (designated by ${CHROOT}) that match the given regex. [note: regex
+support is identical to pgrep]
 END
-#
-# $1: Optional pgrep pattern that match the processes you'd like to signal.
-#        If no pattern is specified, ALL proceses in the chroot will be
-#        signalled.
-#
 chroot_kill()
 {
     $(opt_parse \
         ":signal s=TERM   | The signal to send to killed pids." \
         ":kill_after k    | Also send SIGKILL to processes that are still alive after this duration.
                             (Does not block)" \
-        "?regex           | Pgrep regex that should match processes you'd like to signal.  If none
+        "?regex           | Pgrep regex that should match processes you'd like to signal. If none
                             is specified, all processes in the chroot will be killed.")
 
     argcheck CHROOT
 
-    local pids=""
-    local errors=0
-    [[ -n ${regex} ]] && pids=$(pgrep "${regex}" || return 0) || pids=$(ps -eo "%p")
-    edebug $(lval regex signal pids)
+    # Get a list of all pids running in the chroot with optional regex provided.
+    local pids
+    pids=( $(opt_forward chroot_pids regex) )
 
-    local pid link
-    for pid in ${pids}; do
-        link=$(readlink "/proc/${pid}/root" || true)
+    edebug $(lval CHROOT signal regex pids)
+    if array_empty pids; then
+        edebug "No processes selected to kill in $(lval CHROOT)"
+        return 0
+    fi
 
-        # Skip processes started in NO chroot or ANOTHER chroot
-        [[ -z ${link} || ${link} != ${CHROOT} ]] && continue
-
-        # Kill this process
+    local pid
+    for pid in ${pids[@]}; do
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
-        ekilltree -s=${signal} --kill-after=${kill_after} ${pid} || (( errors+=1 ))
+        ekilltree --signal=${signal} --kill-after=${kill_after} ${pid}
     done
-
-    [[ ${errors} -eq 0 ]]
 }
 
-# Cleanly exit a chroot by:
-# (1) Kill any processes started inside chroot (chroot_kill)
-# (2) Recursively unmount the chroot and anything mounted underneath it
+opt_usage cgroup_exit <<'END'
+Cleanly exit a chroot by:
+  1) Kill any processes started inside chroot (chroot_kill)
+  2) Recursively unmount the chroot and anything mounted underneath it
+END
 chroot_exit()
 {
-    chroot_kill
+    chroot_kill --signal SIGKILL
     eunmount -r ${CHROOT}
 }
 
+opt_usage chroot_pids <<'END'
+Get a listing of all the pids running inside a chroot (if any). It is not an error for there to be no pids running in
+a chroot so this will not return an error in that scenario.
+END
+chroot_pids()
+{
+    $(opt_parse \
+        ":regex | Pgrep regex that should match processes you'd like returned. If none is specified, all processes in
+                  the chroot will be listed.")
+
+    argcheck CHROOT
+
+    # Instead of having to iterate over every file in /proc we can just have a one-liner `find` command here and look
+    # for ones whose root link points to the specified CHROOT then parse out the PID from the path.
+    local all_pids pids
+    all_pids=( $(find -L /proc/*/root -maxdepth 1 -samefile "${CHROOT}" 2>/dev/null | awk -F/ '{print $3}' || true) )
+    if array_empty all_pids; then
+        return 0
+    fi
+
+    # If a regex was given, filter out any PIDs that do not match
+    if [[ -n "${regex}" ]]; then
+        local pid
+        for pid in $(pgrep -f "${regex}"); do
+            if array_contains all_pids "${pid}"; then
+                pids+=( ${pid} )
+            fi
+        done
+    else
+        pids=( "${all_pids[@]}" )
+    fi
+
+    echo "${pids[@]}"
+}
+
 opt_usage chroot_readlink <<'END'
-Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE the chroot. For example, if
-inside the CHROOT you have "/a -> /b" then calling chroot_readlink "/a" => "${CHROOT}/b"
+Read a symlink inside a CHROOT and give full path to the symlink OUTSIDE the chroot. For example, if inside the CHROOT
+you have `/a` -> `/b` then:
+
+```shell
+$ chroot_readlink "/a"
+"${CHROOT}/b"
+```
 END
 chroot_readlink()
 {
-    argcheck CHROOT
     $(opt_parse path)
+    argcheck CHROOT
 
     echo -n "${CHROOT}$(chroot_cmd readlink -m "${path}" 2>/dev/null)"
 }
 
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 # APT-CHROOT FUNCTIONS
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 
 ## APT SETTINGS ##
 CHROOT_APT="aptitude -f -y"
@@ -183,16 +217,18 @@ chroot_install_with_apt_get()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    einfos "Installing $@"
+    edebug "[${CHROOT}] Installing $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "apt-get -f -qq -y --force-yes install $*"
 }
 
-# Check if all the packages listed can be installed
+opt_usage chroot_install_check <<'END'
+Check if all the packages listed can be installed
+END
 chroot_install_check()
 {
     # BUG: https://bugs.launchpad.net/ubuntu/+source/aptitude/+bug/919216
-    # 'aptitude install' silently fails with success if a bogus package is given whereas 'aptitude show'
-    # gives back a proper error code. So first do a check with aptitude show first.
+    # 'aptitude install' silently fails with success if a bogus package is given whereas 'aptitude show' gives back a
+    # proper error code. So first do a check with aptitude show first.
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} show $(echo $* | sed -e 's/\(>=\|<=\)/=/g')" |& edebug
 }
 
@@ -209,8 +245,8 @@ chroot_install()
     # Do actual install
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} install $(echo $* | sed -e 's/\(>=\|<=\)/=/g')"
 
-    # Post-install validation because ubuntu is entirely stupid and apt-get and aptitude can return
-    # success even though the package is not installed successfully
+    # Post-install validation because ubuntu is entirely stupid and apt-get and aptitude can return success even though
+    # the package is not installed successfully
     for p in $@; do
 
         local pn=${p}
@@ -252,7 +288,7 @@ chroot_dpkg()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    einfos "dpkg $@"
+    edebug "[${CHROOT}] dpkg $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*"
 }
 
@@ -261,7 +297,7 @@ chroot_apt()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    einfos "${CHROOT_APT} $@"
+    edebug "[${CHROOT}] ${CHROOT_APT} $@"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*"
 }
 
@@ -316,14 +352,13 @@ chroot_setup()
 
     # Put this into a subshell to ensure error handling is done correctly on shell teardown
     (
-        # Make /etc/mtab a symlink to /proc/mounts so that it is never out of sync with
-        # our mount points. This matches how more modern Linux distributions work.
+        # Make /etc/mtab a symlink to /proc/mounts so that it is never out of sync with our mount points. This matches
+        # how more modern Linux distributions work.
         chroot_cmd "ln -sf /proc/mounts /etc/mtab"
 
-        # Because of how we mount things while building up our chroot sometimes
-        # /etc/resolv.conf will be bind mounted into ${CHROOT}. When that happens
-        # calling 'cp' will fail b/c they refer to the same inodes. So we need
-        # to explicitly check for that here.
+        # Because of how we mount things while building up our chroot sometimes /etc/resolv.conf will be bind mounted
+        # into ${CHROOT}. When that happens calling 'cp' will fail b/c they refer to the same inodes. So we need to
+        # explicitly check for that here.
         for src in /etc/resolv.conf /etc/hosts; do
             local dst="${CHROOT}${src}"
             [[ "$(stat --format=%d.%i ${src})" != "$(stat --format=%d.%i ${dst})" ]] && cp -arL ${src} ${dst}
@@ -360,9 +395,6 @@ mkchroot()
     $(opt_parse CHROOT UBUNTU_RELEASE UBUNTU_ARCH)
     edebug "$(lval CHROOT UBUNTU_RELEASE UBUNTU_ARCH)"
 
-    ## Make sure that debootstrap is installed
-    which debootstrap > /dev/null
-
     # Debootstrap image
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
     einfo "Creating $(lval CHROOT UBUNTU_RELEASE UBUNTU_ARCH)"
@@ -371,8 +403,3 @@ mkchroot()
 
     chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${UBUNTU_ARCH}
 }
-
-#---------------------------------------------------------------------------------------------------
-# SOURCING
-#---------------------------------------------------------------------------------------------------
-return 0

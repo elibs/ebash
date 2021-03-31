@@ -1,0 +1,336 @@
+#!/usr/bin/env bash
+#
+# vim: textwidth=120 colorcolumn=120
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+# Test-only PGP files
+ETEST_PGP_PUBLIC="${EBASH_HOME}/tests/etest_pgp_public.asc"
+ETEST_PGP_PRIVATE="${EBASH_HOME}/tests/etest_pgp_private.asc"
+ETEST_PGP_PHRASE="${EBASH_HOME}/tests/etest_pgp_phrase.txt"
+
+# Test helper for doing a git commit with a known user configuration
+git_commit()
+{
+    git -c user.name='Neo' -c user.email='neo@matrix.com' commit "${@}"
+}
+
+make_testfile()
+{
+    # Generate some data into a file that we can checksum and such
+    local testfile=testfile
+
+    date > "${testfile}"
+    echo "These are a few simple file contents that we can run some checksums against." >> "${testfile}"
+    ls / >> "${testfile}"
+
+    echo "${testfile}"
+}
+
+ETEST_emetadata_basic()
+{
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+
+    emetadata ${src} > ${meta}
+    cat ${meta}
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+
+    assert_eq "${Filename}" "$(basename "${src}")"
+    assert_eq "${Size}"     "$(stat --printf='%s' ${src})"
+    assert_eq "${MD5}"      "$(md5sum    ${src} | awk '{print $1}')"
+    assert_eq "${SHA256}"   "$(sha256sum ${src} | awk '{print $1}')"
+    assert_eq "${SHA512}"   "$(sha512sum ${src} | awk '{print $1}')"
+
+    # Ensure SHA1 has not been exported anymore since it's been broken and is not secure.
+    assert_var_empty SHA1
+}
+
+ETEST_emetadata_build_date()
+{
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+
+    # Mock out date() function so we get consistent output
+    local expected
+    expected="$(date "+%FT%T%Z")"
+    date() { echo "${expected}"; }
+
+    # By default emetadata should produce BuildDate
+    etestmsg "Default should include BuildDate"
+    emetadata ${src} > ${meta}
+    cat ${meta}
+    MPACK=""
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+    assert_eq "${BuildDate}" "${expected}"
+
+    # Allow opting out of BuildDate
+    etestmsg "Opt out of BuildDate"
+    emetadata --no-build-date ${src} > ${meta}
+    cat ${meta}
+    MPACK=""
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+    assert_false pack_contains MPACK "BuildDate"
+}
+
+ETEST_emetadata_git()
+{
+    # Mock out a git repository here in our current working directory. This way we can have a very controlled
+    # environment and make tighter assertions.
+    git init
+    touch "file1.txt"
+    git add "file1.txt"
+    git_commit -am "Add file1.txt"
+
+    # Metadata for known file
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+
+    # By default emetadata should produce Git metadata
+    etestmsg "Default should include Git Metadata"
+    emetadata ${src} > ${meta}
+    cat ${meta}
+    MPACK=""
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+    assert_eq "BuildDate Filename GitBranch GitCommit GitOriginUrl GitVersion MD5 SHA256 SHA512 Size " "$(pack_keys MPACK | tr '\n' ' ')"
+    assert_empty "${GitOriginUrl}"
+    assert_eq "${GitBranch}"    "$(git rev-parse --abbrev-ref HEAD)"
+    assert_eq "${GitVersion}"   "$(git describe --always --tags --match "v*.*.*" --abbrev=10)"
+    assert_eq "${GitCommit}"    "$(git rev-parse HEAD)"
+
+    # Allow opting out of Git Metadata
+    etestmsg "Opt out of Git Metadata"
+    emetadata --no-git ${src} > ${meta}
+    cat ${meta}
+    MPACK=""
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+    assert_false pack_contains MPACK GitOriginUrl GitBranch GitVersion GitCommit
+}
+
+ETEST_emetadata_git_outside_git_tree()
+{
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+
+    # Mock out git() command to return error if asked if we're in a git tree
+    git() { return 1; }
+
+    # By default emetadata should produce Git metadata
+    etestmsg "Git outside Git tree"
+    emetadata ${src} > ${meta}
+    cat ${meta}
+    MPACK=""
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+    assert_false pack_contains MPACK GitOriginUrl GitBranch GitVersion GitCommit
+}
+
+ETEST_emetadata_custom_entries()
+{
+    # Mock out a git repository here in our current working directory. This way we can have a very controlled
+    # environment and make tighter assertions.
+    git init
+    touch "file1.txt"
+    git add "file1.txt"
+    git_commit -am "Add file1.txt"
+
+    # Metadata for known file
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+
+    etestmsg "Custom Entries"
+
+    emetadata ${src} Homepage="google.com" Version="1.2.3.4" ReleaseCandidate="true" > ${meta}
+    cat ${meta}
+    pack_set MPACK $(cat ${meta})
+    assert_eq "BuildDate Filename GitBranch GitCommit GitOriginUrl GitVersion Homepage MD5 ReleaseCandidate SHA256 SHA512 Size Version " "$(pack_keys MPACK | tr '\n' ' ')"
+    $(pack_import MPACK)
+    assert_true pack_contains MPACK Homepage Version ReleaseCandidate USER
+    assert_eq "${Homepage}"         "google.com"
+    assert_eq "${Version}"          "1.2.3.4"
+    assert_eq "${ReleaseCandidate}" "true"
+}
+
+ETEST_emetadata_symlink()
+{
+    local src lnk meta
+    src="$(make_testfile)"
+    ln -s "${src}" "${src}.lnk"
+    lnk="${src}.lnk"
+    meta="${lnk}.meta"
+
+    emetadata ${lnk} > ${meta}
+    cat ${meta}
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+
+    assert_eq "${Filename}" "$(basename "${lnk}")"
+    assert_eq "${Size}"     "$(stat --printf='%s' ${src})"
+    assert_eq "${MD5}"      "$(md5sum    ${src} | awk '{print $1}')"
+    assert_eq "${SHA256}"   "$(sha256sum ${src} | awk '{print $1}')"
+    assert_eq "${SHA512}"   "$(sha512sum ${src} | awk '{print $1}')"
+
+    # Ensure SHA1 has not been exported anymore since it's been broken and is not secure.
+    assert_var_empty SHA1
+}
+
+# Verify emetadata_check still validates SHA1 field if present even if we don't use it anymore
+ETEST_emetadata_sha1_backwards_compatible()
+{
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+    emetadata ${src} > ${meta}
+
+    # Insert legacy SHA1 field by hand since emetadata doesn't do it anymore. This way we can validate that
+    # emetadata_check still checks it.
+    echo "SHA1=$(sha1sum ${src} | awk '{print $1}')" >> ${meta}
+    cat ${meta}
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+
+    assert_eq "${Filename}" "$(basename "${src}")"
+    assert_eq "${Size}"     "$(stat --printf='%s' ${src})"
+    assert_eq "${MD5}"      "$(md5sum    ${src} | awk '{print $1}')"
+    assert_eq "${SHA1}"     "$(sha1sum   ${src} | awk '{print $1}')"
+    assert_eq "${SHA256}"   "$(sha256sum ${src} | awk '{print $1}')"
+    assert_eq "${SHA512}"   "$(sha512sum ${src} | awk '{print $1}')"
+
+    emetadata_check ${src}
+}
+
+ETEST_emetadata_pgp()
+{
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+    emetadata -p="${ETEST_PGP_PRIVATE}" -k="$(cat ${ETEST_PGP_PHRASE})" ${src} > ${meta}
+    cat ${meta}
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+
+    # Now validate what we just signed using public key
+    emetadata_check -p="${ETEST_PGP_PUBLIC}" ${src}
+}
+
+ETEST_emetadata_failure()
+{
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.meta"
+
+    emetadata ${src} > ${meta}
+    cat ${meta}
+    pack_set MPACK $(cat ${meta})
+    $(pack_import MPACK)
+
+    echo "${SECONDS}" >> ${src}
+    assert_false emetadata_check ${src}
+}
+
+ETEST_emd5sum()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum ${src} > ${md5}
+    cat ${md5}
+
+    # Our output MUST match md5sum output
+    assert_eq "$(md5sum ${src})" "$(cat ${md5})"
+}
+
+ETEST_emd5sum_strip_path()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum "$(readlink -m ${src})" > ${md5}
+    cat ${md5}
+
+    # Our output MUST match md5sum output
+    assert_eq "$(md5sum ${src})" "$(cat ${md5})"
+}
+
+ETEST_emd5sum_check()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum ${src} > ${md5}
+    cat ${md5}
+
+    # Our output MUST match md5sum output
+    assert_eq "$(md5sum ${src})" "$(cat ${md5})"
+    emd5sum_check "${src}"
+}
+
+ETEST_emd5sum_check_absolute_path()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum ${src} > ${md5}
+    cat ${md5}
+
+    # Out output MUST match md5sum output except stripped path
+    assert_eq "$(md5sum ${src})" "$(cat ${md5})"
+    emd5sum_check "$(readlink -m ${src})"
+}
+
+ETEST_emd5sum_check_strip_path()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    # Genereate md5 file with vanilla md5sum with a full path
+    md5sum "$(readlink -m ${src})" > "${md5}"
+    cat ${md5}
+
+    # Our output MUST match md5sum output
+    assert_eq "$(md5sum $(readlink -m ${src}))" "$(cat ${md5})"
+    emd5sum_check "${src}"
+}
+
+ETEST_emd5sum_fail()
+{
+    local src md5
+    src="$(make_testfile)"
+    md5="${src}.md5"
+
+    emd5sum "${src}" > "${md5}"
+    cat ${md5}
+
+    # Modify the source file and verify this causes md5sum mismath
+    date >> "${src}"
+    try
+    {
+        emd5sum_check "${src}"
+        die "Expected MD5 mismatch"
+    }
+    catch
+    {
+        etestmsg "MD5 mismatch properly detected"
+    }
+}
+

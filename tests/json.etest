@@ -1,0 +1,582 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_json_escape()
+{
+    local string actual expect
+    string=$'escape " these \n chars'
+    actual=$(json_escape "${string}")
+    expect='"escape \" these \n chars"'
+    assert_eq "${expect}" "${actual}"
+}
+
+ETEST_array_to_json()
+{
+    ARR=(a "b c" d)
+
+    json=$(array_to_json ARR)
+    echo "json: ${json}"
+
+    for (( i = 0 ; i < ${#ARR[@]} ; i++ )) ; do
+        assert_eq "${ARR[$i]}" "$(echo "${json}" | jq --raw-output ".[$i]")"
+    done
+}
+
+ETEST_empty_array_to_json()
+{
+    ARR=()
+    json=$(array_to_json ARR)
+    assert_eq "[]" "${json}"
+}
+
+ETEST_pack_to_json()
+{
+    pack_set P A="alpha 1" B="beta 2"
+
+    json=$(pack_to_json P)
+    echo "json ${json}"
+}
+
+ETEST_stacktrace_to_json()
+{
+    array_init_nl frames "$(stacktrace)"
+    json=$(array_to_json frames)
+
+    # Make sure this ends up being valid json
+    echo ${json} | jq --monochrome-output .
+    assert_zero $?
+
+    ebanner msg json
+}
+
+ETEST_all_to_json()
+{
+    pack_set P A=1 B="2 3 4" C="alpha beta"
+    A=1
+    ARRAY=(a "b c" d)
+
+    declare -A AA
+    AA[alpha]="10 20 30"
+    AA[beta]="100 200 300"
+
+    json=$(to_json AA A ARRAY %P)
+
+    # Dump the json and make sure it validates
+    echo ${json} | jq .
+    assert_zero $?
+
+    # And spot check a few values to make sure they match
+    assert_eq "$(pack_get P A)" "$(echo ${json} | jq .P.A --raw-output)"
+    assert_eq "$(pack_get P B)" "$(echo ${json} | jq .P.B --raw-output)"
+    assert_eq "$(pack_get P C)" "$(echo ${json} | jq .P.C --raw-output)"
+
+    assert_eq "${A}" "$(echo ${json} | jq .A --raw-output)"
+
+    assert_eq "${AA[alpha]}" "$(echo ${json} | jq .AA.alpha --raw-output)"
+    assert_eq "${AA[beta]}"  "$(echo ${json} | jq .AA.beta --raw-output)"
+
+    # Verify entire json string encoding
+    local actual expect
+    actual=$(to_json AA A ARRAY %P)
+    expect=$'{"AA":{"alpha":"10 20 30","beta":"100 200 300"},"A":"1","ARRAY":["a","b c","d"],"P":{"A":"1","B":"2 3 4","C":"alpha beta"}}'
+    assert_eq "${expect}" "${actual}"
+}
+
+ETEST_AA_to_json()
+{
+    declare -A AA
+    AA[alpha]="b c"
+    AA[beta]="1 2 3"
+
+    json=$(associative_array_to_json AA)
+
+    assert_eq "${AA[alpha]}" "$(echo ${json} | jq --raw-output .alpha)"
+    assert_eq "${AA[beta]}"  "$(echo ${json} | jq --raw-output .beta)"
+}
+
+ETEST_AA_to_json_split()
+{
+    declare -A AA
+    AA[alpha]="b c"
+    AA[beta]="1 2 3"
+
+    expect='
+    {
+        "alpha": ["b", "c"],
+        "beta": ["1", "2", "3"]
+    }'
+
+    actual=$(associative_array_to_json_split AA)
+
+    etestmsg "Expect"
+    echo "${expect}" | jq .
+
+    etestmsg "Actual"
+    echo "${actual}" | jq .
+
+    json_compare "${expect}" "${actual}"
+}
+
+ETEST_AA_to_json_split_delim()
+{
+    declare -A AA
+    AA[alpha]="b|c"
+    AA[beta]="1|2|3"
+
+    expect='
+    {
+        "alpha": ["b", "c"],
+        "beta": ["1", "2", "3"]
+    }'
+
+    actual=$(associative_array_to_json_split AA "|")
+
+    etestmsg "Expect"
+    echo "${expect}" | jq .
+
+    etestmsg "Actual"
+    echo "${actual}" | jq .
+
+    json_compare "${expect}" "${actual}"
+}
+
+ETEST_AA_to_json_split_delim_with_spaces()
+{
+    declare -A AA
+    AA[alpha]="This is the first|This is the second"
+    AA[beta]="Spaces|Are Not That Much Fun"
+
+    expect='
+    {
+        "alpha": ["This is the first", "This is the second"],
+        "beta": ["Spaces", "Are Not That Much Fun"]
+    }'
+
+    actual=$(associative_array_to_json_split AA "|")
+
+    etestmsg "Expect"
+    echo "${expect}" | jq .
+
+    etestmsg "Actual"
+    echo "${actual}" | jq .
+
+    json_compare "${expect}" "${actual}"
+}
+
+ETEST_AA_to_json_split_empty()
+{
+    declare -A AA
+
+    expect="{}"
+    actual=$(associative_array_to_json_split AA)
+
+    etestmsg "Expect"
+    echo "${expect}" | jq .
+
+    etestmsg "Actual"
+    echo "${actual}" | jq .
+
+    json_compare "${expect}" "${actual}"
+}
+
+ETEST_file_to_json()
+{
+    cat <<-"EOF" >data.txt
+	Filename=platformconfig-9.1.0.48.tbz2
+	Size=5423
+	MD5=48880ec09bd56c2f5367b9e4258f8200
+	SHA256=df1ae6f732804dd5b9ced2dccf501fb6926aaf6d7c679ac77f8c095ce8744bac
+	SHA512=5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a
+	PGPKey=solidfire_packaging_private.asc
+	PGPSignature=MYSIGN ATURE$FOO
+	Spaces=Some Data With Spaces
+	EOF
+
+    local raw
+    raw=$(file_to_json --exports data.txt)
+    $(json_import <<< "${raw}")
+    assert_eq "platformconfig-9.1.0.48.tbz2"     "${Filename}"
+    assert_eq "5423"                             "${Size}"
+    assert_eq "48880ec09bd56c2f5367b9e4258f8200" "${MD5}"
+    assert_eq "df1ae6f732804dd5b9ced2dccf501fb6926aaf6d7c679ac77f8c095ce8744bac" "${SHA256}"
+    assert_eq "5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a" "${SHA512}"
+    assert_eq "solidfire_packaging_private.asc" "${PGPKey}"
+    assert_eq 'MYSIGN ATURE$FOO' "${PGPSignature}"
+    assert_eq "Some Data With Spaces" "${Spaces}"
+}
+
+ETEST_file_to_json_lowercase()
+{
+    cat <<-"EOF" >data.txt
+	File=platformconfig-9.1.0.48.tbz2
+	Size=5423
+	MD5=48880ec09bd56c2f5367b9e4258f8200
+	SHA_256=df1ae6f732804dd5b9ced2dccf501fb6926aaf6d7c679ac77f8c095ce8744bac
+	SHA_512=5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a
+	PGP_Key=solidfire_packaging_private.asc
+	PGP_Signature=MYSIGN ATURE$FOO
+	Spaces=Some Data With Spaces
+	EOF
+
+    local raw
+    raw=$(file_to_json --lowercase --exports data.txt)
+    $(json_import <<< "${raw}")
+    assert_eq "platformconfig-9.1.0.48.tbz2"     "${file}"
+    assert_eq "5423"                             "${size}"
+    assert_eq "48880ec09bd56c2f5367b9e4258f8200" "${md5}"
+    assert_eq "df1ae6f732804dd5b9ced2dccf501fb6926aaf6d7c679ac77f8c095ce8744bac" "${sha_256}"
+    assert_eq "5b2267dcf6fb6ffdda7e64f1397af9092f58fb3507fa275a7590881a5820b18f713e07ef55eea50c3282a69610ef7e89b9f9941866ef08acb17ee95eb4beee3a" "${sha_512}"
+    assert_eq "solidfire_packaging_private.asc" "${pgp_key}"
+    assert_eq 'MYSIGN ATURE$FOO' "${pgp_signature}"
+    assert_eq "Some Data With Spaces" "${spaces}"
+}
+
+ETEST_to_json_single()
+{
+    A="1 2 3"
+    json=$(to_json A)
+
+    echo ${json} | jq .
+    assert_eq "${A}" "$(echo ${json} | jq --raw-output .A)"
+}
+
+ETEST_json_import()
+{
+    $(json_import <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    argcheck driveSize lsiFirmware
+    assert_eq "100"     "${driveSize}"
+    assert_eq "1.0.2.3" "${lsiFirmware}"
+}
+
+ETEST_json_import_explicit_keys()
+{
+    $(json_import driveSize lsiFirmware <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
+    argcheck driveSize lsiFirmware
+    assert_eq "100"     "${driveSize}"
+    assert_eq "1.0.2.3" "${lsiFirmware}"
+    assert_var_empty    sliceDriveSize
+}
+
+ETEST_json_import_optional_keys()
+{
+    $(json_import ?driveA driveSize ?driveB lsiFirmware ?driveC <<< '{ "driveA": 5, "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
+    argcheck driveSize lsiFirmware
+    assert_eq "100"     "${driveSize}"
+    assert_eq "1.0.2.3" "${lsiFirmware}"
+    assert_eq "5"       "${driveA}"
+    assert_empty        "${driveB}" "${driveC}"
+}
+
+ETEST_json_import_missing_keys()
+{
+    try
+    {
+        $(json_import driveSize lsiFirmware driveVendor <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
+        throw 101
+    }
+    catch
+    {
+        assert_ne 101 $?
+        return 0
+    }
+
+    die "json_import should have thrown an exception"
+}
+
+ETEST_json_import_upper_snake_case()
+{
+    $(json_import -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+
+    argcheck DRIVE_SIZE LSI_FIRMWARE
+    assert_eq "100"     "${DRIVE_SIZE}"
+    assert_eq "1.0.2.3" "${LSI_FIRMWARE}"
+}
+
+assert_declare()
+{
+    $(opt_parse data)
+
+    local key val
+    for key in $(pack_keys ${data}); do
+        val="$(pack_get ${data} ${key})"
+
+        expect="declare -- ${key}=${val}"
+        actual="$(declare -p ${key})"
+        assert_eq "${expect}" "${actual}"
+    done
+}
+
+ETEST_json_import_default_local()
+{
+    $(json_import -u <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+	argcheck DRIVE_SIZE LSI_FIRMWARE
+
+    local actual
+    actual="$(declare -p DRIVE_SIZE)"
+    assert_eq 'declare -- DRIVE_SIZE="100"'       "${actual}"
+
+    actual="$(declare -p LSI_FIRMWARE)"
+    assert_eq 'declare -- LSI_FIRMWARE="1.0.2.3"' "${actual}"
+}
+
+ETEST_json_import_export()
+{
+    $(json_import -ue <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    argcheck DRIVE_SIZE LSI_FIRMWARE
+
+    local actual
+    actual="$(declare -p DRIVE_SIZE)"
+    assert_eq 'declare -x DRIVE_SIZE="100"'       "${actual}"
+    actual="$(declare -p LSI_FIRMWARE)"
+    assert_eq 'declare -x LSI_FIRMWARE="1.0.2.3"' "${actual}"
+}
+
+ETEST_json_import_prefix()
+{
+    $(json_import -u -p=FOO_ <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3" }')
+    argcheck FOO_DRIVE_SIZE FOO_LSI_FIRMWARE
+
+    assert_eq "100"     "${FOO_DRIVE_SIZE}"
+    assert_eq "1.0.2.3" "${FOO_LSI_FIRMWARE}"
+}
+
+ETEST_json_import_query()
+{
+    $(json_import -q=".R620.SF6010" <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    argcheck driveSize foo
+
+    assert_eq "200" "${driveSize}"
+    assert_eq "2"   "${foo}"
+}
+
+ETEST_json_import_query_keys()
+{
+    $(json_import -q=".R620.SF6010" driveSize <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    argcheck driveSize
+
+    assert_eq "200" "${driveSize}"
+    assert_var_empty foo
+}
+
+ETEST_json_import_exclude_keys()
+{
+    $(json_import -q=".R620.SF3010" -x=driveSize <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1, "bar": 3 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    argcheck foo bar
+
+    assert_eq "1" "${foo}"
+    assert_eq "3" "${bar}"
+    assert_var_empty  driveSize
+}
+
+ETEST_json_import_exclude_multiple_keys()
+{
+    $(json_import -q=".R620.SF3010" -x="driveSize bar" <<< '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1, "bar": 3 }, "SF6010": { "driveSize": 200, "foo": 2 } } }')
+    argcheck foo
+
+    assert_eq "1" "${foo}"
+    assert_var_empty  bar
+    assert_var_empty  driveSize
+}
+
+ETEST_json_import_query_keys_file()
+{
+    echo '{ "R620": { "SF3010": { "driveSize": 100, "foo": 1 }, "SF6010": { "driveSize": 200, "foo": 2 } } }' > file.json
+    cat file.json
+    $(json_import -q=".R620.SF6010" -f=file.json driveSize)
+
+    argcheck driveSize
+
+    assert_eq "200" "${driveSize}"
+    assert_var_empty foo
+}
+
+ETEST_json_import_query_platform()
+{
+    local json='
+    { "hardwareConfig": [
+        {
+            "chassisType": "R620",
+            "nodeType": "SF3010",
+            "biosRevision": "1.0",
+            "biosVendor": "SolidFire",
+            "biosVersion": "1.1.2",
+            "blockDriveSize": "300069052416",
+            "bmcFirmwareRevision": "1.6",
+            "bmcIpmiVersion": "2.0",
+            "cpu": "Intel(R) Xeon(R) CPU E5-2640 0 @ 2.50GHz",
+            "cpuCores": "6",
+            "cpuCoresEnabled": "6",
+            "cpuThreads": "12",
+            "driveSizeInternal": "400088457216",
+            "idracVersion": "1.06.06",
+            "lifecycleVersion": "1.0.0.5747",
+            "memoryGbPretty": "72",
+            "memoryKb": "70000000",
+            "memoryMhz": "1333",
+            "networkDriver": "^bnx2x$",
+            "numCpu": "2",
+            "numDrives": "10",
+            "numDrivesInternal": "1",
+            "rootDrive": "/dev/sdimm0",
+            "rpcPostCallbackThreads": "8",
+            "scsiBusExternalDriver": "mpt2sas",
+            "scsiBusInternalDriver": "ahci",
+            "sliceBufferCacheGb": "16",
+            "sliceDriveSize": "299992412160"
+        },
+        {
+            "chassisType": "R620",
+            "nodeType": "SF6010",
+            "biosRevision": "1.0",
+            "biosVendor": "SolidFire",
+            "biosVersion": "1.1.2",
+            "blockDriveSize": "600127266816",
+            "bmcFirmwareRevision": "1.6",
+            "bmcIpmiVersion": "2.0",
+            "cpu": "Intel(R) Xeon(R) CPU E5-2640 0 @ 2.50GHz",
+            "cpuCores": "6",
+            "cpuCoresEnabled": "6",
+            "cpuThreads": "12",
+            "driveSizeInternal": "100030242816",
+            "idracVersion": "1.06.06",
+            "lifecycleVersion": "1.0.0.5747",
+            "memoryGbPretty": "72",
+            "memoryKb": "70000000",
+            "memoryMhz": "1333",
+            "networkDriver": "^bnx2x$",
+            "numCpu": "2",
+            "numDrives": "10",
+            "numDrivesInternal": "1",
+            "rootDrive": "/dev/sdimm0",
+            "rpcPostCallbackThreads": "8",
+            "scsiBusExternalDriver": "mpt2sas",
+            "scsiBusInternalDriver": "ahci",
+            "sliceBufferCacheGb": "64",
+            "sliceDriveSize": "299992412160"
+        }
+    ]}'
+
+    local CHASSIS_TYPE="R620"
+    local NODE_TYPE="SF3010"
+    $(json_import -u -q='.hardwareConfig[]|select(.chassisType == "'${CHASSIS_TYPE}'" and .nodeType == "'${NODE_TYPE}'")' blockDriveSize sliceBufferCacheGb <<< ${json})
+    argcheck BLOCK_DRIVE_SIZE SLICE_BUFFER_CACHE_GB
+
+    assert_eq "300069052416" "${BLOCK_DRIVE_SIZE}"
+    assert_eq "16"           "${SLICE_BUFFER_CACHE_GB}"
+}
+
+ETEST_json_import_array()
+{
+    echo '{ "R620": { "SF3010": { "sliceDrives": [ "/dev/slot0" ], "blockDrives": [ "/dev/slot1", "/dev/slot2"] } } }' > file.json
+    cat file.json
+    $(json_import -u -q=".R620.SF3010" -f=file.json)
+
+    argcheck SLICE_DRIVES BLOCK_DRIVES
+    einfo "$(lval SLICE_DRIVES BLOCK_DRIVES)"
+
+    local slice_expect=( "/dev/slot0" )
+    local block_expect=( "/dev/slot1" "/dev/slot2" )
+
+    assert_eq "${slice_expect[*]}" "${SLICE_DRIVES[*]}"
+    assert_eq "${block_expect[*]}" "${BLOCK_DRIVES[*]}"
+}
+
+ETEST_json_import_array_empty()
+{
+    echo '{ "R620": { "SF3010": { "sliceDrives": [ ], "blockDrives": [ "/dev/slot1", "/dev/slot2"] } } }' > file.json
+    cat file.json
+    $(json_import -u -q=".R620.SF3010" -f=file.json)
+
+    einfo "$(lval SLICE_DRIVES BLOCK_DRIVES)"
+    local slice_expect=( )
+    local block_expect=( "/dev/slot1" "/dev/slot2" )
+
+    assert_eq "${slice_expect[*]:-}" "${SLICE_DRIVES[*]:-}"
+    assert_eq "${block_expect[*]}" "${BLOCK_DRIVES[*]}"
+}
+
+ETEST_json_import_array_spaces()
+{
+    echo '{ "R620": { "SF3010": { "sliceDrives": [ "/dev/slot0", "/dev/slot with spaces" ], "blockDrives": [ "/dev/slot1", "/dev/slot2"] } } }' > file.json
+    cat file.json
+    $(json_import -u -q=".R620.SF3010" -f=file.json)
+
+    argcheck SLICE_DRIVES BLOCK_DRIVES
+    einfo "$(lval SLICE_DRIVES BLOCK_DRIVES)"
+
+    local slice_expect=( "/dev/slot0" "/dev/slot with spaces" )
+    local block_expect=( "/dev/slot1" "/dev/slot2" )
+
+    assert_eq "${slice_expect[*]}" "${SLICE_DRIVES[*]}"
+    assert_eq "${#slice_expect[@]}" "${#SLICE_DRIVES[@]}"
+    assert_eq "${block_expect[*]}" "${BLOCK_DRIVES[*]}"
+    assert_eq "${#block_expect[@]}" "${#BLOCK_DRIVES[@]}"
+}
+ETEST_json_import_array_space_and_hashtag()
+{
+    echo '{ "R620": { "SF3010": { "sliceDrives": [ "/dev/slot0", "/dev/slot #withHashtag" ], "blockDrives": [ "/dev/slot1", "/dev/slot2"] } } }' > file.json
+    cat file.json
+    $(json_import -u -q=".R620.SF3010" -f=file.json)
+
+    argcheck SLICE_DRIVES BLOCK_DRIVES
+    einfo "$(lval SLICE_DRIVES BLOCK_DRIVES)"
+
+    local slice_expect=( "/dev/slot0" "/dev/slot #withHashtag" )
+    local block_expect=( "/dev/slot1" "/dev/slot2" )
+
+    assert_eq "${slice_expect[*]}" "${SLICE_DRIVES[*]}"
+    assert_eq "${#slice_expect[@]}" "${#SLICE_DRIVES[@]}"
+    assert_eq "${block_expect[*]}" "${BLOCK_DRIVES[*]}"
+    assert_eq "${#block_expect[@]}" "${#BLOCK_DRIVES[@]}"
+}
+
+ETEST_json_compare()
+{
+    local json1='{"one":1}'
+    local json1_again='{"one":1}'
+    local json1_sp='{  "one"  : 1}'
+    local json2='{"one":1,"two":2}'
+    local bad_json='{one:1}'
+
+    # a more complicated example
+    local comp1='{"num":1,"letter":"a","obj":{"field2":2,"newobj":"yes"},"arrayofnum":[1,2,3],"arrayofobj":[{"data":"foo","objnum":1},{"data":"bar","objnum":2},{"data":"baz","objnum":3}]}'
+
+    # comp1 with the key order changed (keys are unordered, so this shoudln't matter)
+    local comp2='{"arrayofnum":[1,2,3],"arrayofobj":[{"data":"foo","objnum":1},{"data":"bar","objnum":2},{"data":"baz","objnum":3}],"letter":"a","num":1,"obj":{"field2":2,"newobj":"yes"}}'
+
+    # comp1 with the list order changed (lists are ordered, this should matter)
+    local comp3='{"num":1,"letter":"a","obj":{"field2":2,"newobj":"yes"},"arrayofnum":[2,1,3],"arrayofobj":[{"data":"foo","objnum":1},{"data":"bar","objnum":2},{"data":"baz","objnum":3}]}'
+
+    local empty='{}'
+
+    einfo "$(lval bad_json)"
+    assert_false json_compare "${bad_json}" "${bad_json}"
+    exit 0
+
+    assert_true  json_compare "${json1}"    "${json1_again}"
+    assert_true  json_compare "${json1}"    "${json1_sp}"
+    assert_false json_compare "${json1}"    "${json2}"
+    assert_true  json_compare "${comp1}"    "${comp2}"
+    assert_false json_compare "${comp1}"    "${comp3}"
+    assert_true  json_compare "${empty}"    "${empty}"
+    assert_false json_compare "${comp1}"    "${empty}"
+
+    echo "${json1}"       > 1.json
+    echo "${json1_again}" > 1_again.json
+    echo "${json1_sp}"    > 1_sp.json
+    echo "${json2}"       > 2.json
+    echo "${bad_json}"    > badness.json
+
+    assert_true json_compare_files 1.json 1_again.json
+    assert_true json_compare_files 1.json 1_sp.json
+    assert_false json_compare_files 1.json 2.json
+    assert_false json_compare_files badness.json badness.json
+
+}
+

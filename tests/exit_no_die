@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+$(${EBASH_HOME}/bin/ebash --source)
+
+#-----------------------------------------------------------------------------------------------------------------------
+# SANITY TEST EXPLICITLY CALLING EXIT TO ENSURE DIE IS NOT CALLED
+#
+# NOTE: This is intentionally NOT an etest. This script must be run in its own TOP-LEVEL shell.
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Create a script to run
+OUTPUT=$(mktemp --tmpdir etest-output-txt-XXXXXX)
+SCRIPT=$(mktemp --tmpdir etest-script-sh-XXXXXX)
+trap_add "rm --force ${OUTPUT} ${SCRIPT}"
+
+cat <<EOF >${SCRIPT}
+
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" >&2 ; exit 1 ; }
+
+die_handler()
+{
+    # Die handler should NOT GET CALLED so if it is FAIL.
+    edebug "DIE_HANDLER called"
+    echo "DIE" >> "${OUTPUT}"
+
+    exit 1
+}
+
+# Explicitly call exit 5 and ensure die is NOT called
+echo "MAIN" >> "${OUTPUT}"
+exit 5
+EOF
+chmod +x ${SCRIPT}
+
+# Run the script we created above - have to disable die_on_error or else we'd blow up here since the script exits with
+# non-zero.
+nodie_on_error
+${SCRIPT}
+rc=$?
+die_on_error
+
+# Assert proper order of events happened
+einfo "Output file:"
+cat ${OUTPUT}
+assert_eq 1 $(wc -l ${OUTPUT})
+first=$(head -1 ${OUTPUT})
+
+assert_eq "MAIN" "${first}" "main() not called first"
+assert_eq 5 "${rc}"
+
+exit 0

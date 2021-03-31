@@ -1,0 +1,278 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_assert_true()
+{
+    assert_true true
+    $(tryrc assert_true false)
+    [[ ${rc} -ne 0 ]]
+
+    assert_true test a == a
+
+    a=" 1 2 3 "
+    b=" 4  5  6 "
+    assert_true test "${a}" == "${a}"
+    $(tryrc assert_true test "${a}" == "${b}")
+    [[ ${rc} -ne 0 ]]
+}
+
+ETEST_assert_false()
+{
+    etestmsg "assert_false false is true"
+    assert_false false
+
+    etestmsg "assert_false true is false"
+    $(tryrc assert_false true)
+    [[ ${rc} -ne 0 ]]
+}
+
+ETEST_assert_empty()
+{
+    assert_empty ""
+    assert_false assert_empty "a"
+    assert_false assert_empty " "
+
+    assert_empty "" "" ""
+    assert_false assert_empty "" "" "a" "" ""
+}
+
+ETEST_assert_not_empty()
+{
+    assert_not_empty "a"
+    assert_not_empty " "
+    assert_false assert_not_empty ""
+
+    assert_not_empty "a" "a" "a" "a" "a b"
+    assert_false assert_not_empty "a" "a" "a" "" "a b" "a"
+}
+
+ETEST_assert_var_empty()
+{
+    local empty=""
+    local not_empty="a"
+
+    assert_var_empty empty
+    assert_false assert_var_empty not_empty
+}
+
+ETEST_assert_exists()
+{
+    touch "file"
+    assert_exists file
+    rm "file"
+    assert_false assert_exists file
+}
+
+ETEST_assert_exists_filename_with_whitespace()
+{
+    touch "a b"
+    assert_exists "a b"
+    rm "a b"
+    assert_false assert_exists "a b"
+}
+
+ETEST_assert_not_exists()
+{
+    assert_not_exists "file"
+    touch file
+    assert_false assert_not_exists "file"
+}
+
+ETEST_assert_not_exists_filename_with_whitespace()
+{
+    touch "a b"
+    assert_false assert_not_exists "a b"
+    rm "a b"
+    assert_not_exists "a b"
+}
+
+ETEST_assert_eq()
+{
+    assert_eq "a" "a"
+    assert_eq "a b" "a b"
+    assert_false assert_eq "a" "b"
+    assert_false assert_eq "a b" "a"
+}
+
+ETEST_assert_ne()
+{
+    assert_ne "a" "b"
+    assert_ne "a" "a b"
+    assert_ne 0 1
+
+    assert_false assert_ne "a" "a"
+    assert_false assert_ne "a b" "a b"
+}
+
+ETEST_assert_lt()
+{
+    assert_lt "a" "b"
+    assert_lt "a b" "a c"
+    assert_lt 0 1
+
+    assert_false assert_lt "a" "a"
+    assert_false assert_lt "a b" "a"
+}
+
+ETEST_assert_le()
+{
+    assert_le "a" "b"
+    assert_le "a" "a b"
+    assert_le "a" "a"
+    assert_le 1 1
+    assert_le 0 1
+
+    assert_false assert_le "c" "a"
+    assert_false assert_le "a c" "a b"
+}
+
+ETEST_assert_gt()
+{
+    assert_gt "b" "a"
+    assert_gt "a c" "a b"
+    assert_gt 1 0
+
+    assert_false assert_gt "a" "a"
+    assert_false assert_gt "a" "a b"
+}
+
+ETEST_assert_ge()
+{
+    assert_ge "b" "a"
+    assert_ge "a b" "a"
+    assert_ge "a" "a"
+    assert_ge 1 1
+    assert_ge 1 0
+
+    assert_false assert_ge "a" "c"
+    assert_false assert_ge "a b" "a c"
+}
+
+ETEST_assert_match()
+{
+    assert_match "hallowed" "hall"
+    assert_false assert_match "hall" "hallowed"
+
+    assert_match "a b c" "b c"
+    assert_false assert_match "c b a" "a b"
+}
+
+ETEST_assert_zero()
+{
+    assert_zero 0
+    assert_false assert_zero 1
+}
+
+ETEST_assert_zero()
+{
+    assert_not_zero 1
+    assert_false assert_not_zero 0
+}
+
+ETEST_assert_int()
+{
+    assert_int 0 5 10 -1 +1
+
+    # Negative tests
+    assert_false assert_int "1.0"
+    assert_false assert_int "apples"
+}
+
+ETEST_assert_num()
+{
+    assert_num 0 5 10 -1 -1.0 -1.1234 +1.1234
+
+    # Negative tests
+    assert_false assert_num "zen"
+    assert_false assert_num "2.0.2"
+}
+
+ETEST_assert_num_eq()
+{
+    assert_num_eq 0 0
+    assert_num_eq 7 7
+    assert_false assert_num_eq 1 2
+    assert_false assert_num_eq a a
+}
+
+ETEST_assert_num_ne()
+{
+    assert_num_ne 0 1
+    assert_num_ne 0 7
+
+    assert_false assert_num_ne a a
+    assert_false assert_num_ne 0 0
+    assert_false assert_num_ne 7 7
+}
+
+ETEST_assert_num_lt()
+{
+    # Integers
+    assert_num_lt 1 2
+    assert_false assert_num_lt 2 1
+    assert_false assert_num_lt 2 2
+
+    # Floating point
+    assert_num_lt 1.0 2.0
+    assert_num_lt 1   2.0
+    assert_false assert_num_lt 2.01 1.01
+    assert_false assert_num_lt 2.01 2.01
+
+    # Non-numeric
+    assert_false assert_num_lt a dogs
+}
+
+ETEST_assert_num_le()
+{
+    # Integers
+    assert_num_le 1 2
+    assert_num_le 2 2
+    assert_false assert_num_le 2 1
+
+    # Floating point
+    assert_num_le 1.0 2.0
+    assert_num_le 2.01234 2.01234
+    assert_false assert_num_le 1.234 0.234
+
+    # Non-numeric
+    assert_false assert_num_le apples zen
+}
+
+ETEST_assert_num_gt()
+{
+    # Integers
+    assert_num_gt 2 1
+    assert_false assert_num_gt 2 2
+    assert_false assert_num_gt 2 10
+
+    # Floating point
+    assert_num_gt 2.0 1.0
+    assert_num_gt 2   1
+    assert_false assert_num_gt 1.01 2.01
+    assert_false assert_num_gt 2.01 2.01
+
+    # Non-numeric
+    assert_false assert_num_gt zen apples
+}
+
+ETEST_assert_num_ge()
+{
+    # Integers
+    assert_num_ge 10 10
+    assert_num_ge 10 1
+    assert_false assert_num_ge 2 10
+
+    # Floating point
+    assert_num_ge 2.0 1.0
+    assert_num_ge 2.01234 2.01234
+    assert_false assert_num_ge 0.234 1.234
+
+    # Non-numeric
+    assert_false assert_num_gt zen apples
+}

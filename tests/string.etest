@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_to_upper_snake_case_units_end()
+{
+    assert_eq "NODE_KB" $(to_upper_snake_case "nodeKB")
+    assert_eq "NODE_MB" $(to_upper_snake_case "nodeMB")
+    assert_eq "NODE_GB" $(to_upper_snake_case "nodeGB")
+    assert_eq "NODE_TB" $(to_upper_snake_case "nodeTB")
+}
+
+ETEST_to_upper_snake_case_units_middle()
+{
+    assert_eq "NODE_KB_FREE" $(to_upper_snake_case "nodeKBFree")
+    assert_eq "NODE_MB_FREE" $(to_upper_snake_case "nodeMBFree")
+    assert_eq "NODE_GB_FREE" $(to_upper_snake_case "nodeGBFree")
+    assert_eq "NODE_TB_FREE" $(to_upper_snake_case "nodeTBFree")
+}
+
+ETEST_to_upper_snake_case_units_mixed()
+{
+    assert_eq "NODE_KB_FREE_WITH_MB_USED" $(to_upper_snake_case "nodeKBFreeWithMBUsed")
+    assert_eq "KB_FREE_WITH_MB_USED_GB"   $(to_upper_snake_case "KBFreeWithMBUsedGB")
+}
+
+ETEST_to_lower_snake_case_units_end()
+{
+    assert_eq "node_kb" $(to_lower_snake_case "nodeKB")
+    assert_eq "node_mb" $(to_lower_snake_case "nodeMB")
+    assert_eq "node_gb" $(to_lower_snake_case "nodeGB")
+    assert_eq "node_tb" $(to_lower_snake_case "nodeTB")
+}
+
+ETEST_to_lower_snake_case_units_middle()
+{
+    assert_eq "node_kb_free" $(to_lower_snake_case "nodeKBFree")
+    assert_eq "node_mb_free" $(to_lower_snake_case "nodeMBFree")
+    assert_eq "node_gb_free" $(to_lower_snake_case "nodeGBFree")
+    assert_eq "node_tb_free" $(to_lower_snake_case "nodeTBFree")
+}
+
+ETEST_to_lower_snake_case_units_mixed()
+{
+    assert_eq "node_kb_free_with_mb_used" $(to_lower_snake_case "nodeKBFreeWithMBUsed")
+    assert_eq "kb_free_with_mb_used_gb"   $(to_lower_snake_case "KBFreeWithMBUsedGB")
+}
+
+ETEST_string_getline_empty()
+{
+    assert_empty "$(string_getline "" 1)"
+    assert_empty "$(string_getline "" 2)"
+}
+
+ETEST_string_getline_bounds()
+{
+    $(tryrc --stdout=ignore --stderr=ignore string_getline "" 0)
+    assert_eq 1 ${rc}
+
+    $(tryrc --stdout=ignore --stderr=ignore string_getline "" 100)
+    assert_eq 0 ${rc}
+}
+
+ETEST_string_getline()
+{
+    local message=$'Line #1\nLine #2\nLine #3\nLine #4'
+    assert_eq "Line #1" "$(string_getline "${message}" 1)"
+    assert_eq "Line #2" "$(string_getline "${message}" 2)"
+    assert_eq "Line #3" "$(string_getline "${message}" 3)"
+    assert_eq "Line #4" "$(string_getline "${message}" 4)"
+
+    # If we try to fetch anything beyond the file we should get back an empty string.
+    assert_empty "$(string_getline "${message}" 5)"
+}
+
+ETEST_string_truncate()
+{
+    string=1234567890
+
+    assert_eq "123"        "$(string_truncate 3  "${string}")"
+    assert_eq "1234567890" "$(string_truncate 10 "${string}")"
+    assert_eq "1234567890" "$(string_truncate 99 "${string}")"
+
+    assert_eq "1234..."    "$(string_truncate -e 7  "${string}")"
+    assert_eq "123456..."  "$(string_truncate -e 9  "${string}")"
+    assert_eq "1234567890" "$(string_truncate -e 10 "${string}")"
+    assert_eq "1234567890" "$(string_truncate -e 99 "${string}")"
+
+    string=" something   with   whitespace "
+    assert_eq "${string}"         "$(string_truncate -e 100 "${string}")"
+    assert_eq "${string}"         "$(string_truncate -e 100 "${string}")"
+    assert_eq "${string}"         "$(string_truncate -e  31 "${string}")"
+    assert_eq "${string:0:15}"    "$(string_truncate     15 "${string}")"
+    assert_eq "${string:0:12}..." "$(string_truncate -e  15 "${string}")"
+}

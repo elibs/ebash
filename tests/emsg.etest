@@ -1,0 +1,583 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+show_text()
+{
+    [[ ${TEXT:-0} -eq 1 ]] || return 0
+    head /etc/fstab
+    return 0
+}
+
+emsg_aux()
+{
+    ## EINFO ##
+    einfo "Building RTFI";  show_text
+    einfos "Copying file1"; show_text
+    einfos "Copying file2"; show_text
+
+    ## WARN ##
+    ewarn "OOPS -- there was a potential problem"; show_text
+    ewarns "On file1"; show_text
+    ewarns "Or file2"; show_text
+
+    ## ERROR ##
+    eerror "Aieee! Something terrible happened"; show_text
+    ## DEBUG ##
+    EDEBUG=emsg_aux edebug  "This is a debugging message"; show_text
+}
+
+ETEST_emsg()
+{
+    emsg_aux
+}
+
+ETEST_emsg_time()
+{
+    EMSG_PREFIX="time" emsg_aux
+}
+
+ETEST_emsg_time_rfc3339()
+{
+    EMSG_PREFIX="time_rfc3339" emsg_aux
+}
+
+# Function to normalize seconds and milliseconds to avoid slight time delta false positive
+normalize_time_stamp()
+{
+    sed 's|[0-9].[0-9][0-9][0-9]|0.000|'
+}
+
+# Function to normalize rfc3339 time to avoid slight time delta false positive
+normalize_time_rfc3339()
+{
+    sed 's|[0-9]:[0-9][0-9]Z|0:00Z|'
+}
+
+ETEST_etimestamp_format()
+{
+    (
+        ETIMESTAMP_FORMAT="StampMilli"
+        expect="$(date '+%b %d %T.%3N' | normalize_time_stamp)"
+        actual="$(etimestamp | normalize_time_stamp)"
+        einfo "$(lval ETIMESTAMP_FORMAT expect actual)"
+        assert_eq "${expect}" "${actual}"
+
+        ETIMESTAMP_FORMAT="RFC3339"
+        expect="$(date '+%FT%TZ' | normalize_time_rfc3339)"
+        actual="$(etimestamp | normalize_time_rfc3339)"
+        einfo "$(lval ETIMESTAMP_FORMAT expect actual)"
+        assert_eq "${expect}" "${actual}"
+    )
+}
+
+ETEST_emsg_time_legacy()
+{
+    EFUNCS_TIME=1 emsg_aux
+    ETIMESTAMP_FORMAT=StampMilli emsg_aux
+}
+
+ETEST_emsg_level()
+{
+    EMSG_PREFIX="level" emsg_aux
+}
+
+ETEST_emsg_caller()
+{
+    EMSG_PREFIX="caller" emsg_aux
+}
+
+ETEST_emsg_time_level()
+{
+    EMSG_PREFIX="time level" emsg_aux
+}
+
+ETEST_emsg_time_caller()
+{
+    EMSG_PREFIX="time caller" emsg_aux
+}
+
+ETEST_emsg_time_level_caller()
+{
+    EMSG_PREFIX="time level caller" emsg_aux
+}
+
+ETEST_emsg_nocolor()
+{
+    EFUNCS_COLOR=0 EMSG_PREFIX="time level caller" emsg_aux
+}
+
+ETEST_emsg_msgcolor_all()
+{
+    EMSG_COLOR="all" EMSG_PREFIX="time level caller" emsg_aux
+    EMSG_COLOR="time level caller msg" EMSG_PREFIX="time level caller" emsg_aux
+}
+
+ETEST_emsg_rainbow_of_pain()
+{
+    EMSG_COLOR="time" EMSG_PREFIX="time level caller" emsg_aux
+    EMSG_COLOR="level" EMSG_PREFIX="time level caller" emsg_aux
+    EMSG_COLOR="caller" EMSG_PREFIX="time level caller" emsg_aux
+    EMSG_COLOR="time level" EMSG_PREFIX="time level caller" emsg_aux
+    EMSG_COLOR="time level caller" EMSG_PREFIX="time level caller" emsg_aux
+    EMSG_COLOR="time level caller pid" EMSG_PREFIX="time level caller pid" emsg_aux
+    etestmsg "All colors and levels specified individually"
+    EMSG_COLOR="time level caller pid msg" EMSG_PREFIX="time level caller pid" emsg_aux
+    etestmsg "All colors and levels specified as 'all'"
+    EMSG_COLOR="all" EMSG_PREFIX="all" emsg_aux
+
+    etestmsg "No colors with all levels"
+    EMSG_COLOR=" " EMSG_PREFIX="time level caller pid" emsg_aux
+}
+
+# Not really a unit test but simply display all possible colors
+ETEST_COLORS=(
+    black           red             green           yellow          blue            magenta
+    cyan            white           navyblue        darkgreen       deepskyblue     dodgerblue
+    springgreen     darkturqouise   turquoise       blueviolet      orange          slateblue
+    paleturquoise   steelblue       cornflowerblue  aquamarine      darkred         darkmagenta
+    plum            wheat           lightslategrey  darkseagreen    darkviolet      darkorange
+    hotpink         mediumorchid    lightsalmon     gold            darkkhaki       indianred
+    orchid          violet          tan             lightyellow     honeydew        salmon
+    pink            thistle         grey0           grey3           grey7           grey11
+    grey15          grey19          grey23          grey27          grey30          grey35
+    grey39          grey42          grey46          grey50          grey54          grey58
+    grey62          grey66          grey70          grey74          grey78          grey82
+    grey85          grey89          grey93          grey100
+)
+
+ETEST_ecolor_chart()
+{
+    local pad padlength line c
+
+    pad=$(printf '%0.1s' " "{1..60})
+    padlength=20
+    line=0
+
+    for c in ${ETEST_COLORS[@]}; do
+        printf "%s%*.*s" "$(ecolor $c)${c}$(ecolor none)" 0 $((padlength - ${#c} )) "${pad}"
+        (( ++line % 8 == 0 )) && printf "\n" || true
+
+        c="dim ${c}"
+        printf "%s%*.*s" "$(ecolor $c)${c}$(ecolor none)" 0 $((padlength - ${#c} )) "${pad}"
+        (( ++line % 8 == 0 )) && printf "\n" || true
+
+    done
+
+    echo ""
+}
+
+ETEST_print_value()
+{
+    VAR=a
+    assert_eq '"a"' "$(print_value VAR)"
+
+    VAR="A[b]"
+    assert_eq '"A[b]"' "$(print_value VAR)"
+
+    ARRAY=(a b "c d")
+    assert_eq '("a" "b" "c d")' "$(print_value ARRAY)"
+
+    declare -A AA
+    AA[alpha]="1 2 3"
+    AA[beta]="4 5 6"
+
+    assert_eq '([alpha]="1 2 3" [beta]="4 5 6" )' "$(print_value AA)"
+
+    unset V
+    assert_eq '""' "$(print_value V)"
+
+    assert_eq '""' "$(print_value /usr/local/share)"
+}
+
+ETEST_etrace()
+{
+    func_to_trace()
+    {
+        echo A
+        echo B
+        echo C
+    }
+
+    ETRACE=func_to_trace
+    etestmsg "Running func_to_trace with $(lval ETRACE)"
+    $(tryrc -o=stdout -e=stderr func_to_trace)
+
+    etestmsg "Ran func_to_trace which produced this output (note: stdout and stderr are no longer interleaved)"
+    echo "${stdout}"
+    echo "${stderr}"
+
+    # Output from the echos
+    assert_eq "3" "$(echo "${stdout}" | wc -l)"
+
+    # Each of the echo lines, plus the original function call
+    assert_eq "4" "$(echo "${stderr}" | wc -l)"
+
+    assert_match "${stderr}" "echo A"
+    assert_match "${stderr}" "echo B"
+    assert_match "${stderr}" "echo B"
+
+    assert_match "${stderr}" "func_to_trace"
+    assert_match "${stderr}" "${BASH_SOURCE##*/}"
+
+    ETRACE=""
+    etestmsg "Running func_to_trace with $(lval ETRACE)"
+    $(tryrc -o=stdout -e=stderr func_to_trace)
+
+    assert_eq "3" "$(echo "${stdout}" | wc -l)"
+    assert_empty "${stderr}"
+}
+
+ETEST_emsg_reset_at_end_when_needed()
+{
+    local output output_short
+    output=$(EMSG_PREFIX="" emsg "red" "XX" "WARN" "message" 2>&1)
+    output_short=$(echo "${output}" | sed 's/^.*XX.*mess//')
+
+    echo "output: ${output}" | cat -evt
+    echo "output_short: ${output_short}" | cat -evt
+
+    assert_ne "${output_short}" "age"
+    assert_eq "age" "$(echo "${output_short}" | noansi)"
+}
+
+ETEST_emsg_reset_not_at_end_when_unnecessary()
+{
+    local output output_short
+    output=$(EMSG_PREFIX="" emsg "red" "XX" "INFO" "message" 2>&1)
+    output_short=$(echo "${output}" | sed 's/^.*XX.*mess//')
+
+    echo "output: ${output}" | cat -evt
+    echo "output_short: ${output_short}" | cat -evt
+
+    assert_eq "${output_short}" "age"
+}
+
+ETEST_emsg_final_newline()
+{
+    einfo    with-newline    2> with-newline
+    einfo -n without-newline 2> without-newline
+
+    assert_eq "1" "$(wc -l < with-newline)"
+    assert_eq "0" "$(wc -l < without-newline)"
+}
+
+ETEST_noansi_pipe()
+{
+    etestmsg "This line shouldn't be colored." |& noansi
+
+    declare without_color wit_color
+    without_color=$(EFUNCS_COLOR=1 ewarn "HELLO" |& noansi)
+    with_color=$(EFUNCS_COLOR=1 ewarn "HELLO" 2>&1 )
+
+    declare -p without_color with_color
+
+    assert_match "${with_color}" "HELLO"
+    assert_match "${without_color}" "HELLO"
+    assert_ne "${without_color}" "${with_color}"
+}
+
+ETEST_noansi_files()
+{
+    EFUNCS_COLOR=1 EMSG_PREFIX="" ewarn "A" 2> file_a
+    EFUNCS_COLOR=1 EMSG_PREFIX="" ewarn "B" 2> file_b
+
+    declare a_contents b_contents
+    a_contents="$(cat file_a)"
+    b_contents="$(cat file_b)"
+
+    assert_ne "A" "${a_contents}"
+    assert_ne "B" "${b_contents}"
+
+    noansi file_a file_b
+
+    a_contents="$(cat file_a)"
+    b_contents="$(cat file_b)"
+
+    assert_eq ">> A" "${a_contents}"
+    assert_eq ">> B" "${b_contents}"
+}
+
+OUTPUT=ticks-$$
+
+# Fake EPROGRESS function body to use in some of the tests which
+# don't want the real eprogress
+FAKE_EPROGRESS='
+{
+    (
+        trap "exit 0" ${DIE_SIGNALS[@]}
+
+        local tick=0
+        rm --force ${OUTPUT}
+
+        while true; do
+            echo "${tick}" >> ${OUTPUT}
+            (( tick++ )) || true
+            sleep 0.10   || true
+        done
+    ) &
+
+    __EBASH_EPROGRESS_PIDS+=( $! )
+    trap_add "eprogress_kill -r=1 $!"
+}
+'
+
+wait_for_eprogress()
+{
+    while true; do
+        [[ -s ${OUTPUT} ]] && return 0
+        sleep .1
+    done
+}
+
+wait_for_ticks()
+{
+    $(opt_parse expected)
+
+    local actual
+    while true; do
+        actual=$(tail -1 ${OUTPUT} || true)
+        [[ ${actual} -ge ${expected} ]] && return 0
+
+        echo "Ticks: ${actual}/${expected}"
+        sleep .1
+    done
+}
+
+ETEST_eprogress_ticks()
+{
+    override_function eprogress "${FAKE_EPROGRESS}"
+
+    eprogress "Waiting 1 second"
+    wait_for_ticks 9
+    eprogress_kill
+}
+
+ETEST_eprogress_ticks_reuse()
+{
+    override_function eprogress "${FAKE_EPROGRESS}"
+
+    eprogress "Waiting for Ubuntu to stop sucking"
+    wait_for_ticks 5
+    eprogress_kill
+
+    eprogress "Waiting for Gentoo to replace Ubuntu"
+    wait_for_ticks 5
+    eprogress_kill
+}
+
+# Verify EPROGRESS=0 can be used to forcibly disable ticker
+ETEST_eprogress_ticker_off()
+{
+    (
+        exec &> ${OUTPUT}
+        COLUMNS=0
+        EFUNCS_COLOR=0
+        EDEBUG=0
+        ETRACE=0
+        EINTERACTIVE=0
+        EPROGRESS=0
+        EMSG_PREFIX=""
+        eprogress "Waiting"
+        eprogress_kill
+    )
+
+    assert_eq --hexdump ">> Waiting [ ok ]" "$(cat ${OUTPUT})"
+}
+
+ETEST_eprogress_ticker_align_invalid()
+{
+    $(tryrc eprogress --align)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align top)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align middle)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align LEFT)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align RIGHT)
+    assert_eq 1 "${rc}"
+}
+
+ETEST_eprogress_ticker_align_right()
+{
+    etestmsg "Starting background process that writes to ${OUTPUT}"
+    (
+        exec &> ${OUTPUT}
+
+        COLUMNS=28
+        EFUNCS_COLOR=0
+        EDEBUG=0
+        ETRACE=0
+        EINTERACTIVE=1
+        EMSG_PREFIX=""
+        # Output stored in this test expects what it would look like if term were screen-256color
+        TERM=screen-256color
+        eprogress --align right "Waiting"
+        eprogress_kill
+    )
+
+    etestmsg "${OUTPUT} contents"
+    cat -evt ${OUTPUT}
+    etestmsg "End ${OUTPUT} contents"
+
+    # The ticker may actually run for slightly longer than we requested due to how sleep works. Change instances of
+    # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
+    sed -i "s|:01\]|:00\]|g" ${OUTPUT}
+
+    # Different terms have different codes. Ignore the number in the ANSI code.
+    sed -i "s|\[[0-9]\+C||" ${OUTPUT}
+
+    # Different size screens will show different output based on the size of the display so replace it with something
+    # fixed.
+    sed -i "s|\[[0-9]\+;[0-9]\+H||" ${OUTPUT}
+
+    assert_eq --hexdump ">> Waiting"$'^[ [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H| $\x0a^[M^[[ ok ]$' "$(cat -evt ${OUTPUT})"
+}
+
+ETEST_eprogress_ticker_align_left()
+{
+    etestmsg "Starting background process that writes to ${OUTPUT}"
+    (
+        exec &> ${OUTPUT}
+
+        COLUMNS=28
+        EFUNCS_COLOR=0
+        EDEBUG=0
+        ETRACE=0
+        EINTERACTIVE=1
+        EMSG_PREFIX=""
+        # Output stored in this test expects what it would look like if term were screen-256color
+        TERM=screen-256color
+        eprogress --align left "Waiting"
+        eprogress_kill
+    )
+
+    etestmsg "${OUTPUT} contents"
+    cat -evt ${OUTPUT}
+    etestmsg "End ${OUTPUT} contents"
+
+    # The ticker may actuall run for slightly longer than we requested due to how sleep works. Change instances of
+    # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
+    sed -i "s|:01\]|:00\]|g" ${OUTPUT}
+
+    # Different terms have different codes. Ignore the number in the ANSI code.
+    sed -i "s|\[[0-9]\+C||" ${OUTPUT}
+
+    assert_eq --hexdump ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|"$'\x20\x24\x0a'"^[M^[[ ok ]\$" "$(cat -evt ${OUTPUT})"
+}
+
+ETEST_eprogress_inside_eretry()
+{
+    override_function eprogress "${FAKE_EPROGRESS}"
+
+    etestmsg "Starting eprogress"
+    eprogress "Waiting for eretry"
+    $(tryrc eretry false)
+    eprogress_kill
+    assert test "$(tail -1 ${OUTPUT} || true)" -ge 5
+}
+
+ETEST_eprogress_kill_before_eprogress()
+{
+    eprogress_kill
+}
+
+ETEST_eprogress_killall()
+{
+    eprogress "Processing" &> /dev/null
+    eprogress "More Stuff" &> /dev/null
+
+    local pids=( "${__EBASH_EPROGRESS_PIDS[@]}" )
+    assert_eq 2 $(array_size pids)
+
+    local pid=
+    for pid in "${pids[@]}"; do
+        assert process_running ${pid}
+    done
+
+    # Kill all eprogress pids and verify they exit
+    eprogress_kill -a
+    for pid in "${pids[@]}"; do
+        eretry -t=2s -T=10s process_not_running ${pid}
+    done
+}
+
+ETEST_eprogress_file()
+{
+    local file=${FUNCNAME}.txt
+    echo "HELLO" > ${file}
+
+    {
+        eprogress --no-time --file ${file}
+        eprogress_kill
+    } &> output
+
+    etestmsg "output"
+    cat output
+    etestmsg "end output"
+
+    assert_match "$(cat output)" "HELLO"
+    assert_match "$(cat output)" "ok"
+
+    # File should get deleted.
+    assert_not_exists "${file}"
+}
+
+ETEST_eprogress_file_no_delete()
+{
+    local file=${FUNCNAME}.txt
+    echo "HELLO" > ${file}
+
+    {
+        eprogress --no-time --file ${file} --no-delete
+        eprogress_kill
+    } &> output
+
+    etestmsg "output"
+    cat output
+    etestmsg "end output"
+
+    assert_exists "${file}"
+}
+
+ETEST_eprogress_killall_empty()
+{
+    eprogress_kill -a
+}
+
+ETEST_no_stdout_contamination()
+{
+    foo()
+    {
+        echo "EXPECTED"
+        eprogress progress
+        edebug edebug
+        einfo einfo
+        einfos einfos
+        ewarn ewarn
+        ewarns ewarns
+        eerror eerror
+        ebanner ebanner
+        etestmsg etestmsg
+        eerror_stacktrace "PHONY ERROR"
+        eend 0
+        eend 1
+        sleep .5
+        eprogress_kill --rc 0
+    }
+
+    local capture
+    capture=$(EFUNCS_COLOR=1 EINTERACTIVE=1 ETRACE=foo EDEBUG=foo foo)
+
+    assert_eq "EXPECTED" "${capture}"
+}

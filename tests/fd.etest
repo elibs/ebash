@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_close_fds()
+{
+    touch ${FUNCNAME}_{A..C}
+
+    etestmsg "Opening file descriptors to my test files"
+    exec 53>${FUNCNAME}_A 54>${FUNCNAME}_B 55>${FUNCNAME}_C
+    local localpid=$BASHPID
+    ls -ltr $(fd_path)
+
+    # Yup, they're open
+    assert test -e $(fd_path)/53
+    assert test -e $(fd_path)/54
+    assert test -e $(fd_path)/55
+
+    etestmsg "Closing file descriptors"
+    close_fds
+    ls -ltr $(fd_path)
+
+    # Yup, they're closed
+    assert_false test -e $(fd_path)/53
+    assert_false test -e $(fd_path)/54
+    assert_false test -e $(fd_path)/55
+}

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+# Get the current value of the count file, then increment the file. Finally, echo pre-incremented value. Always return
+# 0 to avoid failures.
+test_and_set()
+{
+    local old new count_file
+    count_file=${SELFTEST_DIR_OUTPUT}/$(caller 0 | awk '{print $2}').count
+
+    old=$(cat ${count_file} 2>/dev/null || echo "0")
+    new=$(( old + 1 ))
+
+    echo "${new}" > ${count_file}
+    einfo "Count: ${old} -> ${new} $(lval count_file)"
+
+    echo "${old}"
+}
+
+ETEST_flaky_fails_once()
+{
+    count=$(test_and_set)
+
+    # This test should return success (0) if the count is greater than 0. So this expression as the last line of the
+    # function becomes our return value.
+    [[ "${count}" -gt 0 ]]
+}
+
+ETEST_flaky_fails_twice()
+{
+    count=$(test_and_set)
+
+    # This test should return success (0) if the count is greater than 0. So this expression as the last line of the
+    # function becomes our return value.
+    [[ "${count}" -gt 1 ]]
+}

@@ -1,0 +1,263 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+__EBASH_SAVE_DOC=1
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+opt_usage main <<'END'
+edoc is used to automatically generate markdown documentation from the source code docstrings through the `opt_usage`
+and `opt_parse` mechanisms. It also takes care of creating various index.md files to stitch all the documents together
+in a more easily to navigate fashion. And finally it provides the ability to publish the generated documentation to
+GitHub pages.
+END
+$(opt_parse \
+    "+publish | Optionally publish the generated documents to GitHub Pages.")
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Infra
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Pretend that this is Linux so that all code gets emited
+os()          { [[ ${1,,} == linux ]] && return 0 || return 1; }
+os_distro()   { [[ ${1,,} == linux ]] && return 0 || return 1; }
+
+# Generate an edoc.sh file that we can source below with necessary functions exported.
+edoc=$(mktemp --tmpdir edoc-XXXXXX)
+{
+    echo 'export __EBASH_OS=Linux'
+    echo 'export TERM=xterm-256color'
+    declare -f opt_usage
+    declare -f os
+    declare -f os_distro
+} > ${edoc}
+trap_add "rm -f ${edoc}"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Modules
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ebanner "Generating Ebash Documentation (modules)" \
+    publish
+
+# Create test directories and output
+dir="doc/modules"
+efreshdir "${dir}"
+mkdir -p "${dir}"
+
+# Iterate over each MODULE
+for module in ${EBASH}/*.sh; do
+
+    name=$(basename ${module} .sh)
+
+    if [[ "${name}" == @(ebash) ]]; then
+        continue
+    fi
+
+    einfo "${name}"
+    echo "[${name}](${name}.md)" >> "${dir}/index.md.pending"
+    printf "# Module ${name}\n\n" > "${dir}/${name}.md"
+
+    # Try to get any module level documentation (if any)
+    if [[ -v __EBASH_DOC[module_$name] ]]; then
+        echo "${__EBASH_DOC["module_$name"]}" >> "${dir}/${name}.md"
+    fi
+
+    # If this is the opt.sh module extract the module level documentation. This can't use normal opt_parse idiom as it
+    # IS the opt parsing code.
+    if [[ "${name}" == "opt" ]]; then
+        awk '/^END/ {exit} /: <</ {f=1; next} f' share/opt.sh >> "${dir}/opt.md"
+    fi
+
+    ## ALIASES ##
+    for alias in $(env -i bash -c "source ${edoc}; source ${module}; alias | awk -F'=' '/^alias / {print \$1}' | sed 's|alias ||'"); do
+
+        if [[ -v __EBASH_DOC[$alias] ]]; then
+            einfos "Alias:    ${alias}"
+            {
+                printf "\n## alias ${alias}\n\n"
+                echo "${__EBASH_DOC[$alias]}"
+            } >> "${dir}/${name}.md"
+        fi
+    done
+
+    ## FUNCTIONS ##
+    for function in $(env -i bash -c "source ${edoc}; source ${module}; declare -F" | sed -e 's|declare -f\S* ||' | tr ' ' '\n'); do
+
+        if [[ "${function:0:1}" == "_" ]]; then
+            continue
+        fi
+
+        # We export os and os_distro functions into ALL Modules, so skip them if we're not in the OS module.
+        if [[ "${module}" != "os" && "${function}" == @(os|os_distro) ]]; then
+            continue
+        fi
+
+        # See if there is opt_usage for this function
+        if [[ -v __EBASH_DOC[$function] ]]; then
+            einfos "Function: ${function}"
+            {
+                printf "\n## func ${function}\n\n"
+
+                if declare -pf "${function}" | grep --quiet '$(opt_parse '; then
+                    ${function} --help 2>&1                                   \
+                        | noansi                                              \
+                        | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
+                              -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```Groff\n\1\2\n```/'
+                else
+                    echo "${__EBASH_DOC[$function]}"
+                fi
+            } >> "${dir}/${name}.md"
+        fi
+    done
+done
+
+{
+    echo "# Modules"
+    echo ""
+    cat "${dir}/index.md.pending" | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
+
+} > "${dir}/index.md"
+
+rm "${dir}/index.md.pending"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Binaries
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ebanner "Generating Ebash Documentation (binaries)" \
+    publish
+
+# Create test directories and output
+dir="doc/binaries"
+efreshdir "${dir}"
+mkdir -p "${dir}"
+
+# Iterate over each binary that is NOT a symlink
+for binary in ${EBASH_HOME}/bin/*; do
+
+    name=$(basename ${binary})
+
+    if [[ -L "${binary}" || "${name}" == @(ebash-install-deps|selftest) ]]; then
+        continue
+    fi
+
+    einfo "${name}"
+    echo "[${name}](${name}.md)" >> "${dir}/index.md.pending"
+    printf "# Binary ${name}\n\n" > "${dir}/${name}.md"
+
+    # See if there is opt_usage for this function
+    {
+        if grep --quiet '$(opt_parse ' "${binary}"; then
+            ${binary} --help 2>&1                                     \
+                | noansi                                              \
+                | sed -e '/SYNOPSIS/,/DESCRIPTION/d' -e '0,/^$/{//d}' \
+                      -e ':a;N;$!ba;s/\(ARGUMENTS\|OPTIONS\)\(.*\)/```Groff\n\1\2\n```/'
+        fi
+    } >> "${dir}/${name}.md"
+done
+
+{
+    echo "# Binaries"
+    echo ""
+    cat "${dir}/index.md.pending" | column --output-width=80 | sed -e 's/)\s*\[/) | [/g' | column --table
+
+} > "${dir}/index.md"
+
+rm "${dir}/index.md.pending"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Table of Contents
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Join the binaries/index.md and modules/index.md into a single toc.md and also include a listing of all our static
+# files.
+ebanner "Table of Contents"
+{
+    # Documents
+    einfo "Documents"
+    echo "# Documents"
+    echo ""
+
+    idx=0
+    for doc in doc/*.md; do
+
+        name=$(basename "${doc}" .md)
+
+        if [[ "${name}" == @(index|toc) ]]; then
+            continue
+        fi
+
+        einfos "${name}"
+
+        delim="\n"
+        if [[ $(( idx % 2)) -eq 0 ]]; then
+            delim=" | "
+        fi
+
+        printf "[${name}]($(basename ${doc}))${delim}"
+        increment idx
+
+    done | column --output-width=200 --table
+
+    einfo "Binaries"
+    echo ""
+    cat "doc/binaries/index.md" | sed -e 's|(\([^)]*\))|(binaries/\1)|g'
+
+    einfo "Modules"
+    echo ""
+    cat "doc/modules/index.md" | sed -e 's|(\([^)]*\))|(modules/\1)|g'
+
+} | sed -e 's|# |#|' | column  --table | sed -e 's|#\(.*\)|\n# \1\n|' > "doc/toc.md"
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Publishing
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+if [[ ${publish} -eq 0 ]]; then
+    exit 0
+fi
+
+: ${GITHUB_SHA:=$(git rev-parse HEAD)}
+: ${GITHUB_REF:=$(git rev-parse --abbrev-ref HEAD)}
+ebanner "Publishing to GitHub Pages"
+docroot=$(mktemp --tmpdir --directory edoc-XXXXXX)
+trap_add "rm -rf ${docroot}"
+
+# Setup Git
+git config --global user.name "${GITHUB_ACTOR}"
+git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+einfo "Staging Doc files into docroot"
+cp -av "doc/." "${docroot}"
+cat "README.md" | grep -v ">.*Documentation is best viewed" | sed -e 's|(doc/|(|g' > "${docroot}/index.md"
+pushd "${docroot}"
+
+einfo "Initializing Git Repo"
+git init
+git remote add deploy "https://token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+git checkout -b gh-pages
+git add .
+
+einfo "Commiting"
+git commit -am "Updating ebash Docs for commit ${GITHUB_SHA} on ${GITHUB_REF} by ${GITHUB_ACTOR}"
+git push deploy gh-pages --force
+popd
+
+exit 0

@@ -1,10 +1,8 @@
 .bash_history
-etest.log*
-etest.html
-etest.json*
-results
-output
-results
-.forge/work
 .tags
-selftest/output.log
+.work
+doc/binaries
+doc/index.md
+doc/modules
+doc/toc.md
+tests/self/output

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -11,46 +11,30 @@
 : ${EBASH:=${EBASH_HOME}/share}
 source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
-#-------------------------------------------------------------------------------
-# ebench
-#
-#   This utility isn't yet all that advanced, but it's good for timing various
-#   operations in bash and helping you to understand the time spent on each.
-#
-#   This should at least help us determine what sort of performance effects we
-#   have as we change things in ebash.  Or at least, it would do that once
-#   we actually test useful things in here.  For now, it's mostly useful when
-#   you're willing to edit the script and add the timing of things you're
-#   curious about.
-#
-# Options:
-#
-#   -c=<count>
-#      Each item to be benchmarked will be run <count> times.  By default, this
-#      is 1000.
-#
-#   -f=<filter>
-#      Only tests whose name matches <filter> will be run.
-#
-#   -x=<exclude filter>
-#      Any tests whose name matches <exclude filter> will NOT be run.
-#
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
+opt_usage main <<'END'
+This utility isn't yet all that advanced, but it's good for timing various operations in bash and helping you to
+understand the time spent on each.
 
+This should at least help us determine what sort of performance effects we have as we change things in ebash. Or at
+least, it would do that once we actually test useful things in here. For now, it's mostly useful when you're willing to
+edit the script and add the timing of things you're curious about.
 
-#-------------------------------------------------------------------------------
-# Notes to developers:
-#
-#    If you add a function BENCH_<something>, you will have created a new item
-#    to benchmark.  Next time you run ebench, it will be run <count> times.
-#
-#    If you add an additional function named PREBENCH_<something>, where
-#    <something> is the same as above, that function will be run once prior to
-#    the repeated runs of BENCH_<something>.
-#
-#    You can also create POSTBENCH_<something> for cleanup if need be.
-#
-#-------------------------------------------------------------------------------
+Notes to developers:
+
+   * If you add a function BENCH_<something>, you will have created a new item to benchmark. Next time you run ebench,
+     it will be run <count> times.
+
+   * If you add an additional function named PREBENCH_<something>, where
+     <something> is the same as above, that function will be run once prior to the repeated runs of BENCH_<something>.
+
+   * You can also create POSTBENCH_<something> for cleanup if need be.
+END
+$(opt_parse \
+    ":filter f     | Only benchmarks matching this filter will be run. By default all are run." \
+    ":exclude x    | Benchmarks whose name match this filter will not be run. By default, all are run." \
+    ":count c=1000 | Basline number of times to run each test.")
+
 
 timestamp()
 {
@@ -210,14 +194,11 @@ BENCH_array_join_sed()
     output=$(echo "${suffixes[@]}" | sed -e 's/ /|/g')
 }
 
-#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
+#
 # MAIN
-#-----------------------------------------------------------------------------
-
-$(opt_parse \
-    ":filter f     | Only benchmarks matching this filter will be run.  By default all are run." \
-    ":exclude x    | Benchmarks whose name match this filter will not be run.  By default, all are run." \
-    ":count c=1000 | Basline number of times to run each test.")
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 BENCH_FUNCS=( $(declare -F | awk '$3 ~ "^BENCH_" {print $3}') )
 
@@ -228,16 +209,13 @@ export EINTERACTIVE=1
 
 for func in "${BENCH_FUNCS[@]}" ; do
 
-    # Skip things that a) don't match a filter if one was specified or b) do
-    # match the exclude if one was specified.
+    # Skip things that a) don't match a filter if one was specified or b) do match the exclude if one was specified.
     [[ -n ${filter:-}  && ! ${func} =~ ${filter}  ]] && continue
     [[ -n ${exclude:-} &&   ${func} =~ ${exclude} ]] && continue
 
-    # Toss it all in a subshell so individual runs can't create state that
-    # other ones would see
+    # Toss it all in a subshell so individual runs can't create state that other ones would see
     (
-        # Run a setup function that can prepare for this benchmark without
-        # being included in the total time.
+        # Run a setup function that can prepare for this benchmark without being included in the total time.
         if declare -f "PRE${func}" &>/dev/null ; then
             "PRE${func}"
         fi
@@ -251,8 +229,7 @@ for func in "${BENCH_FUNCS[@]}" ; do
 
         einfos "$(( final - initial ))ms" |& tee -a ${RESULTS_FILE}
 
-        # Run a teardown function that can prepare for this benchmark without being
-        # included in the total time.
+        # Run a teardown function that can prepare for this benchmark without being included in the total time.
         if declare -f "POST${func}" &>/dev/null ; then
             "POST${func}"
         fi

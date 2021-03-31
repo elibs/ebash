@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_detect_var_types()
+{
+    A=a
+    ARRAY=(1 2 3)
+
+    declare -A AA
+    AA[alpha]=1
+    AA[beta]=2
+
+    pack_set P A=1
+
+    is_array               A && die
+    is_associative_array   A && die
+    is_pack                A && die
+
+    is_array               ARRAY || die
+    is_associative_array   ARRAY && die
+    is_pack                ARRAY && dei
+
+    is_array               AA && die
+    is_associative_array   AA || die
+    is_pack                AA && die
+
+    is_array               %P && die
+    is_associative_array   %P && die
+    is_pack                %P || die
+}

@@ -1,6 +1,6 @@
 #!/bin/bash
-# 
-# Copyright 2012-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+#
+# Copyright 2012-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2012-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -104,8 +104,3 @@ dpkg_depends_apt()
         [[ ${p: -4} != ".deb" ]] && echo ${p} || true
     done
 }
-
-#---------------------------------------------------------------------------------------------------
-# SOURCING
-#---------------------------------------------------------------------------------------------------
-return 0

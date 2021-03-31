@@ -1,0 +1,1531 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+[[ ${__EBASH_OS} == Linux ]] || return 0
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Test Helpers
+#
+#-----------------------------------------------------------------------------------------------------------------------
+archive_types=(
+    cgz
+    cpio
+    cxz
+    iso
+    squashfs
+    tar
+    tar.gz
+    tlz
+)
+
+# This test requires a lot of loopback devices because each time we mount an ISO or SQUASHFS a /dev/loop* is required.
+# By default on most systems we only have 8 loopback devices. So this suite_setup code will go through and create a
+# bunch of additional ones. The default Linux kernel allows up to 255 loopback devices and their presence doesn't hurt
+# anything.
+suite_setup()
+{
+    etestmsg "Creating up to 255 loopback devices"
+    for (( idx=0; idx < 255; idx++ )); do
+        [[ -e "/dev/loop${idx}" ]] && continue
+
+        echo -n "${idx} "
+        mknod -m 660 /dev/loop${idx} b 7 ${idx}
+    done
+
+    echo ""
+}
+
+# Helper function to run a provided callback test function on every supported archive type. It does them all in their
+# own separate unique directories and does them all in parallel to make overall test time faster.
+test_all_archives()
+{
+    $(opt_parse callback)
+
+    local idx=0
+    declare -A pids
+    for idx in $(array_indexes archive_types); do
+
+        local rcfile="${PWD}/${idx}.rc"
+
+        (
+            local ftype="${archive_types[$idx]}"
+            einfos "${ftype}"
+
+            COLUMNS=50 ebanner "${ftype} ($((idx+1))/${#archive_types[@]})"
+
+            mkdir -p "${idx}"
+            cd "${idx}"
+
+            try
+            {
+                ${callback}
+                echo -n 0 > ${rcfile}
+            }
+            catch
+            {
+                echo -n $? > ${rcfile}
+            }
+
+        ) &> ${idx}.log &
+
+        pids[$idx]=$!
+    done
+
+    eprogress "Waiting"
+    wait ${pids[@]}
+    eprogress_kill
+
+    local rc=0 idx_rc=0 ftype=""
+    for idx in $(array_indexes archive_types); do
+
+        cat ${idx}.log
+
+        ftype="${archive_types[$idx]}"
+        idx_rc=$(cat ${idx}.rc)
+        etestmsg "Archive $(lval idx ftype idx_rc)"
+
+        if [[ ${idx_rc} -ne 0 ]]; then
+            eerror "Error in $(lval ftype idx idx_rc)"
+        fi
+
+        (( rc += idx_rc )) || true
+    done
+
+    return "${rc}"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_archive_compress_program()
+{
+    assert_empty "$(archive_compress_program foobar)"
+    assert_empty "$(archive_compress_program tarfoo)"
+    assert_empty "$(archive_compress_program foo.squashfs)"
+    assert_empty "$(archive_compress_program foo.tar)"
+    assert_empty "$(archive_compress_program foo.iso)"
+    assert_empty "$(archive_compress_program foo.cpio)"
+    assert_match "$(archive_compress_program foo.tbz2)"       "bzip2|lbzip2|pbzip2"
+    assert_match "$(archive_compress_program foo.tar.gz)"     "gzip|pigz"
+    assert_match "$(archive_compress_program foo.cgz)"        "gzip|pigz"
+    assert_match "$(archive_compress_program foo.cxz)"        "lzma|xz"
+    assert_match "$(archive_compress_program foo.tar.xz)"     "lzma|xz"
+    assert_match "$(archive_compress_program foo.tar.lz)"     "lzma|xz"
+}
+
+ETEST_archive_suffixes()
+{
+    assert_eq ".squashfs" "$(archive_suffixes squashfs)"
+    assert_eq ".iso"      "$(archive_suffixes iso)"
+
+    assert_eq ".tar .tar.gz .tgz .taz .tar.bz2 .tz2 .tbz2 .tbz .tar.xz .txz .tar.lz .tlz" \
+        "$(archive_suffixes tar)"
+
+    assert_eq ".cpio .cpio.gz .cgz .caz .cpio.bz2 .cz2 .cbz2 .cbz .cpio.xz .cxz .cpio.lz .clz" \
+        "$(archive_suffixes cpio)"
+
+    assert_eq ".squashfs .iso .tar .tar.gz .tgz .taz .tar.bz2 .tz2 .tbz2 .tbz .tar.xz .txz .tar.lz .tlz .cpio .cpio.gz .cgz .caz .cpio.bz2 .cz2 .cbz2 .cbz .cpio.xz .cxz .cpio.lz .clz" \
+        "$(archive_suffixes squashfs iso tar cpio)"
+
+    assert_false archive_suffixes invalid
+}
+
+ETEST_archive_suffixes_wildcard()
+{
+    assert_eq "*.squashfs" "$(archive_suffixes --wildcard squashfs)"
+    assert_eq "*.iso"      "$(archive_suffixes --wildcard iso)"
+
+    assert_eq "*.tar *.tar.gz *.tgz *.taz *.tar.bz2 *.tz2 *.tbz2 *.tbz *.tar.xz *.txz *.tar.lz *.tlz" \
+        "$(archive_suffixes --wildcard tar)"
+
+    assert_eq "*.cpio *.cpio.gz *.cgz *.caz *.cpio.bz2 *.cz2 *.cbz2 *.cbz *.cpio.xz *.cxz *.cpio.lz *.clz" \
+        "$(archive_suffixes --wildcard cpio)"
+
+    assert_eq "*.squashfs *.iso *.tar *.tar.gz *.tgz *.taz *.tar.bz2 *.tz2 *.tbz2 *.tbz *.tar.xz *.txz *.tar.lz *.tlz *.cpio *.cpio.gz *.cgz *.caz *.cpio.bz2 *.cz2 *.cbz2 *.cbz *.cpio.xz *.cxz *.cpio.lz *.clz" \
+        "$(archive_suffixes --wildcard squashfs iso tar cpio)"
+}
+
+ETEST_archive_suffixes_pattern_list()
+{
+    assert_eq ".squashfs" "$(archive_suffixes --pattern squashfs)"
+    assert_eq ".iso"      "$(archive_suffixes --pattern iso)"
+
+    assert_eq ".tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.tar.xz|.txz|.tar.lz|.tlz" \
+        "$(archive_suffixes --pattern tar)"
+
+    assert_eq ".cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cpio.xz|.cxz|.cpio.lz|.clz" \
+        "$(archive_suffixes --pattern cpio)"
+
+    assert_eq ".squashfs|.iso|.tar|.tar.gz|.tgz|.taz|.tar.bz2|.tz2|.tbz2|.tbz|.tar.xz|.txz|.tar.lz|.tlz|.cpio|.cpio.gz|.cgz|.caz|.cpio.bz2|.cz2|.cbz2|.cbz|.cpio.xz|.cxz|.cpio.lz|.clz" \
+        "$(archive_suffixes --pattern squashfs iso tar cpio)"
+}
+
+ETEST_archive_suffixes_pattern_list_wildcard()
+{
+    assert_eq "*.squashfs" "$(archive_suffixes --pattern --wildcard squashfs)"
+    assert_eq "*.iso"      "$(archive_suffixes --pattern --wildcard iso)"
+
+    assert_eq "*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz" \
+        "$(archive_suffixes --pattern --wildcard tar)"
+
+    assert_eq "*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cpio.xz|*.cxz|*.cpio.lz|*.clz" \
+        "$(archive_suffixes --pattern --wildcard cpio)"
+
+    assert_eq "*.squashfs|*.iso|*.tar|*.tar.gz|*.tgz|*.taz|*.tar.bz2|*.tz2|*.tbz2|*.tbz|*.tar.xz|*.txz|*.tar.lz|*.tlz|*.cpio|*.cpio.gz|*.cgz|*.caz|*.cpio.bz2|*.cz2|*.cbz2|*.cbz|*.cpio.xz|*.cxz|*.cpio.lz|*.clz" \
+        "$(archive_suffixes --pattern --wildcard squashfs iso tar cpio)"
+}
+
+ETEST_archive_create()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create dest.${ftype} src
+        archive_list dest.${ftype}
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+
+        # Verify source files still exist since we did not specify --delete
+        assert_exists src src/file1 src/file2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_type()
+{
+    etestmsg "Populating source directory"
+    efreshdir src
+    touch src/{file1,file2}
+
+    etestmsg "Creating dest.img (cpio)"
+    archive_create -t=cpio dest.img src
+    assert_match "$(file dest.img)" "ASCII cpio archive"
+    archive_list -t=cpio dest.img
+
+    etestmsg "Creating dest.img (cgz)"
+    archive_create -t=cgz dest.img src
+    assert_match "$(file dest.img)" "gzip compressed data"
+    archive_list -t=cgz dest.img
+}
+
+ETEST_archive_create_delete()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create --delete dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+
+        etestmsg "Ensuring source files were deleted"
+        assert_not_exists src src/file1 src/file2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_delete_contents()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create --delete dest.${ftype} src/.
+        assert_archive_contents dest.${ftype} file1 file2
+
+        etestmsg "Ensuring source files were deleted"
+        assert_not_exists src src/file1 src/file2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_symlinks()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+        mkdir src/dir1
+        echo "foo" > foo
+        ln -s ./foo  src/filelnk
+        ln -s ./dir1 src/dirlnk
+        find src -ls
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/dir1 src/dirlnk src/filelnk src/file1 src/file2
+
+        etestmsg "Ensuring symlinks preserved"
+        archive_extract dest.${ftype} dest
+        [[ -L dest/src/filelnk ]]
+        [[ -L dest/src/dirlnk  ]]
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_symlinks_contents()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory with symlinks"
+        efreshdir src
+        touch src/{file1,file2}
+        echo "foo" > foo
+        ln -s ${PWD}/foo src/filelnk
+        ln -s ${PWD}/.  src/dirlnk
+        find src -ls
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create dest.${ftype} src/.
+        assert_archive_contents dest.${ftype} filelnk file1 file2 dirlnk
+
+        etestmsg "Ensuring symlinks preserved"
+        archive_extract dest.${ftype} dest
+        [[ -L dest/filelnk ]]
+        [[ -L dest/dirlnk  ]]
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_symlinks_dereference_not_supported()
+{
+    test_body()
+    {
+        # --dereference flag only supported for tar formats.
+        if [[ $(archive_type "dest.${ftype}") != "tar" ]]; then
+            etestmsg "Creating dest.${ftype} (should fail)"
+            mkdir -p src
+            assert_false archive_create --dereference dest.${ftype} src
+        fi
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_symlinks_dereference()
+{
+    archive_types=( tar tar.gz )
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+        echo "foo" > foo
+        ln -s ${PWD}/foo src/filelnk
+        find src -ls
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create --dereference dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/filelnk src/file1 src/file2
+
+        etestmsg "Ensuring symlinks dereferenced"
+        archive_extract dest.${ftype} dest
+        find dest -ls
+        [[ ! -L dest/src/filelnk ]]
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_level()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create --level 1 dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+        rm dest.${ftype}
+
+        archive_create --level 9 dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+        rm dest.${ftype}
+
+        archive_create --fast dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+        rm dest.${ftype}
+
+        archive_create --best dest.${ftype} src
+        assert_archive_contents dest.${ftype} src src/file1 src/file2
+        rm dest.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_single_file()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        cd src
+        touch file1
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create dest.${ftype} file1
+        assert_archive_contents dest.${ftype} file1
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_single_filetree()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        mkdir -p src/sub1/sub2
+        touch src/sub1/sub2/file1
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create dest.${ftype} src/sub1/sub2/file1
+        assert_archive_contents dest.${ftype} src src/sub1 src/sub1/sub2 src/sub1/sub2/file1
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_directory_dot()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src/.
+        assert_archive_contents src.${ftype} file1 file2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_directory()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        assert_not_exists DIR
+        archive_create DIR/src.${ftype} src
+        assert_archive_contents DIR/src.${ftype} src src/file1 src/file2
+        rm -rf DIR
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_files()
+{
+    test_body()
+    {
+        etestmsg "Creating files"
+        touch {file1,file2,file3,file4}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} file1 file2 file3 file4
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
+
+        rm --force src.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_missing_files()
+{
+    test_body()
+    {
+        etestmsg "Creating files"
+        touch {file1,file2,file3,file4}
+
+        etestmsg "Creating src.${ftype} (should do nothing)"
+        archive_create -i src.${ftype} NOT1 NOT2
+        assert_not_exists src.${ftype}
+
+        etestmsg "Creating src.${ftype} (should fail)"
+        assert_false archive_create src.${ftype} NOT1 file1 file2 file3 file4 NOT2
+        #BUG: assert_not_exists src.${ftype}
+
+        etestmsg "Creating src.${ftype} (ignoring missing files -- should pass)"
+        archive_create -i src.${ftype} NOT1 file1 file2 file3 file4 NOT2
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
+
+        rm src.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_mixed_files_directories()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src1 src2
+        touch file0 src1/{file1,file2} src2/{file3,file4}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} file0 src1 src2
+        assert_archive_contents src.${ftype} file0 src1 src1/{file1,file2} src2 src2/{file3,file4}
+
+        rm src.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_alternate_paths()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src1 src2
+        touch file0 src1/{file1,file2} src2/{file3,file4}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} file0:a_file0 src1:b_src1 src2:c_src2
+        assert_archive_contents src.${ftype} a_file0 b_src1 b_src1/{file1,file2} c_src2 c_src2/{file3,file4}
+
+        rm src.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_alternate_paths_multiroot()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src1 src2
+        touch src1/{file1,file2} src2/{file3,file4}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src1/. src2/.
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
+
+        rm src.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_exclude()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create -x="src/XXX src/YYY" src.${ftype} src
+        assert_archive_contents src.${ftype} src src/file1 src/file2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_exclude_illegal_prefix()
+{
+    test_body()
+    {
+        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative path to be used (which is an illegal
+        # prefix to the archive formats).
+        etestmsg "Populating source directory"
+        src=$(mktemp --tmpdir=/tmp --directory archive-XXXXXX)
+        touch ${src}/{file1,file2}
+
+        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative path to be used (which is an illegal
+        # prefix to the archive formats).
+        etestmsg "Creating src/dest.${ftype}"
+        dest=$(mktemp --tmpdir=/tmp archive-XXXXXX.${ftype})
+        archive_create ${dest} ${src}
+        assert_archive_contents ${dest} $(dirname ${src##/}) ${src##/} ${src##/}/file1 ${src##/}/file2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_exclude_glob()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src src/tmp
+        touch src/{file1,file2}
+        touch src/tmp/{t1,t2,t3,t10,x1,x2,x3}
+
+        etestmsg "Creating src.${ftype} (excluding tmp/*)"
+        archive_create -x="src/tmp/*" src.${ftype} src
+        assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp
+        rm src.${ftype}
+
+        etestmsg "Creating src.${ftype} (excluding tmp/t?)"
+        archive_create -x="src/tmp/t?" src.${ftype} src
+        assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp src/tmp/t10 src/tmp/x1 src/tmp/x2 src/tmp/x3
+
+        etestmsg "Creating src.${ftype} (excluding tmp/t* tmp/x*)"
+        archive_create -x="src/tmp/t* src/tmp/x*" src.${ftype} src
+        assert_archive_contents src.${ftype} src src/file1 src/file2 src/tmp
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_exclude_self()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating src/dest.${ftype}"
+        archive_create src/dest.${ftype} src
+        assert_archive_contents src/dest.${ftype} src src/file1 src/file2
+    }
+
+    test_all_archives test_body
+}
+
+# Ensure extra slashes in destination path doesn't cause archive_create to fail.
+ETEST_archive_create_exclude_self_canonicalize()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating src/dest.${ftype}"
+        archive_create src///././///dest.${ftype} src
+        assert_archive_contents src/dest.${ftype} src src/file1 src/file2
+    }
+
+    test_all_archives test_body
+}
+
+# Realistic test of archiving pivot rooted rootfs
+ETEST_archive_create_pivot_root()
+{
+    test_body()
+    {
+        # NOTE: Need to use --tmpdir=/tmp because we want an absolute non-relative path to be used (which is an illegal
+        # prefix to the archive formats).
+        oldroot=$(mktemp --tmpdir=/tmp --directory oldroot-XXXXXX)
+
+        etestmsg "Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        archive_create ${oldroot}//var/log/sfbackup.${ftype} ${oldroot}
+        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
+            tmp                                                \
+            ${oldroot#/}                                       \
+            ${oldroot#/}/boot                                  \
+            ${oldroot#/}/boot/initramfs-x86_64-3.12.13-gentoo  \
+            ${oldroot#/}/boot/kernel-x86_64-3.12.13-gentoo     \
+            ${oldroot#/}/boot/System.map-x86_64-3.12.13-gentoo \
+            ${oldroot#/}/var                                   \
+            ${oldroot#/}/var/log                               \
+            ${oldroot#/}/var/log/sf-master-10.info             \
+            ${oldroot#/}/var/log/sf-master-1.info              \
+            ${oldroot#/}/var/log/sf-master-2.info              \
+            ${oldroot#/}/var/log/sf-master-3.info              \
+            ${oldroot#/}/var/log/sf-master-4.info              \
+            ${oldroot#/}/var/log/sf-master-5.info              \
+            ${oldroot#/}/var/log/sf-master-6.info              \
+            ${oldroot#/}/var/log/sf-master-7.info              \
+            ${oldroot#/}/var/log/sf-master-8.info              \
+            ${oldroot#/}/var/log/sf-master-9.info
+    }
+
+    test_all_archives test_body
+}
+
+# Realistic test of archiving pivot rooted rootfs
+ETEST_archive_create_pivot_root_cd_manual()
+{
+    test_body()
+    {
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        etestmsg "Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        (
+            cd ${oldroot}
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} .
+        )
+
+        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info
+    }
+
+    test_all_archives test_body
+}
+
+# Realistic test of archiving pivot rooted rootfs
+ETEST_archive_create_pivot_root_cd()
+{
+    test_body()
+    {
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        etestmsg "Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        archive_create ${oldroot}/var/log/sfbackup.${ftype} "${oldroot}/."
+
+        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info
+    }
+
+    test_all_archives test_body
+}
+
+# Realistic test of archiving pivot rooted rootfs with multiple paths specified
+ETEST_archive_create_pivot_root_multi()
+{
+    test_body()
+    {
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        etestmsg "Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+
+        KEEP_PATHS=( /boot /var )
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        archive_create -d="${oldroot}" ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
+
+        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info
+    }
+
+    test_all_archives test_body
+}
+
+# Realistic test of archiving pivot rooted rootfs with multiple paths specified
+ETEST_archive_create_pivot_root_multi_cd_manual()
+{
+    test_body()
+    {
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        etestmsg "Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+
+        KEEP_PATHS=( /boot /var )
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        (
+            cd ${oldroot}
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
+        )
+
+        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_exclude_self_multi()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src1 src2
+        touch src1/{file1,file2} src2/{file3,file4}
+
+        etestmsg "Creating src1/dest.${ftype}"
+        archive_create src1/dest.${ftype} src1 src2
+        assert_archive_contents src1/dest.${ftype} src1 src1/{file1,file2} src2 src2/{file3,file4}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_exclude_files()
+{
+    test_body()
+    {
+        etestmsg "Creating files"
+        touch {file1,file2,file3,file4,XXX,YYY}
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create -x="XXX YYY" src.${ftype} file1 file2 file3 file4 XXX YYY
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
+        rm src.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_create_custom_suffix()
+{
+    etestmsg "Populating source directory"
+    efreshdir src
+    touch src/{file1,file2}
+
+    etestmsg "Creating dest.upr"
+    archive_create --type=tar dest.upr src
+    archive_list --type=tar dest.upr
+    assert_archive_contents --type=tar dest.upr src src/file1 src/file2
+}
+
+ETEST_archive_create_mount()
+{
+    test_body()
+    {
+        etestmsg "Creating files"
+        touch {file1,file2,file3,file4,XXX,YYY}
+
+        etestmsg "Creating dest.${ftype}"
+        archive_create -x="XXX YYY" src.${ftype} file1 file2 file3 file4 XXX YYY
+
+        # Mount it and verify mount type
+        archive_mount src.${ftype} dest
+        atype=$(archive_type .${ftype})
+        if [[ ${atype} =~ tar|cpio ]]; then
+            assert_false emount_type dest
+        elif [[ ${atype} == iso ]]; then
+            assert_eq "iso9660" "$(emount_type dest)"
+        else
+            assert_eq "${atype}" "$(emount_type dest)"
+        fi
+
+        eunmount --all --recursive --delete dest src.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        diff --unified --recursive src dest/src
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_type()
+{
+    etestmsg "Populating source directory"
+    efreshdir src dest
+    touch src/{file1,file2}
+
+    etestmsg "Creating src.img"
+    archive_create -t=clz src.img src
+
+    etestmsg "Extracting src.img to dest (clz)"
+    archive_extract -t=clz src.img dest
+
+    etestmsg "Validating src and dest"
+    diff --unified --recursive src dest/src
+}
+
+ETEST_archive_extract_files_same()
+{
+    test_body()
+    {
+        etestmsg "Creating files"
+        touch {file1,file2,file3,file4}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} file1 file2 file3 file4
+        assert_archive_contents src.${ftype} file1 file2 file3 file4
+
+        etestmsg "Extracting src.${ftype} over original source files"
+        archive_extract src.${ftype} . file1 file2 file3 file4
+
+        rm --force src.${ftype}
+    }
+
+    test_all_archives test_body
+}
+
+
+ETEST_archive_extract_pivot_root_multi_deep()
+{
+    test_body()
+    {
+        oldroot=$(mktemp --tmpdir --directory oldroot-XXXXXX)
+        etestmsg "Populating oldroot directory"
+        mkdir -p ${oldroot}/{boot,var/log}
+        touch ${oldroot}/boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+        touch ${oldroot}/var/log/sf-master-{1..10}.info
+
+        KEEP_PATHS=( /boot/{initramfs-x86_64-3.12.13-gentoo,kernel-x86_64-3.12.13-gentoo,System.map-x86_64-3.12.13-gentoo}
+                     /var/log/sf-master-{1..10}.info
+                    )
+
+        expect=(                                    \
+            boot                                    \
+            boot/initramfs-x86_64-3.12.13-gentoo    \
+            boot/kernel-x86_64-3.12.13-gentoo       \
+            boot/System.map-x86_64-3.12.13-gentoo   \
+            var                                     \
+            var/log                                 \
+            var/log/sf-master-10.info               \
+            var/log/sf-master-1.info                \
+            var/log/sf-master-2.info                \
+            var/log/sf-master-3.info                \
+            var/log/sf-master-4.info                \
+            var/log/sf-master-5.info                \
+            var/log/sf-master-6.info                \
+            var/log/sf-master-7.info                \
+            var/log/sf-master-8.info                \
+            var/log/sf-master-9.info                \
+        )
+
+        etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
+        (
+            cd ${oldroot}
+            find . -printf '%P\n'
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
+        )
+        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} ${expect[@]}
+
+        etestmsg "Extracting"
+        archive_extract ${oldroot}/var/log/sfbackup.${ftype} restore ${KEEP_PATHS[@]##/}
+        assert_directory_contents restore ${expect[@]}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_specific_files()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype}/{file1,file2} to dest"
+        archive_extract src.${ftype} dest src/{file1,file2}
+        assert_directory_contents dest src src/file1 src/file2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_missing_required_files()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_ignore_missing()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2,XXX,YYY}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype}/{file1,file2} to dest (should fail)"
+        assert_false archive_extract src.${ftype} dest src/NOT1 src/file1 src/file2 src/NOT2
+        #BUG: assert directory_empty dest
+        rm -rf dest
+
+        etestmsg "Extracting src.${ftype}/{file1,file2} to dest (should NOT fail -- ignoring missing files)"
+        archive_extract -i src.${ftype} dest src/NOT1 src/file1 src/file2 src/NOT2
+        assert_directory_contents dest src src/file1 src/file2
+        rm -rf dest
+
+        etestmsg "Extracting src.${ftype} with nothing to do"
+        archive_extract -i src.${ftype} dest NOT1 NOT2
+        assert directory_empty dest
+        rm -rf dest
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_glob()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src src/tmp dest
+        touch src/{file1,file2,XXX,YYY,tmp/1,tmp/2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+        archive_list src.${ftype}
+
+        etestmsg "Extracting src.${ftype}/{file*,tmp/*} to dest"
+        archive_extract src.${ftype} dest "src/file*" "src/tmp/*"
+        assert_directory_contents dest src src/{file1,file2,tmp,tmp/1,tmp/2}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_content()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+        echo "data1" >src/file1
+        echo "data2" >src/file2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        diff --unified --recursive src dest/src
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_strip_invalid()
+{
+    $(tryrc archive_extract --strip-components -1 src dest)
+    assert_eq 1 "${rc}"
+
+    $(tryrc archive_extract --strip-components  a  src dest)
+    assert_eq 1 "${rc}"
+
+    $(tryrc archive_extract --strip-components  "" src dest)
+    assert_eq 1 "${rc}"
+}
+
+ETEST_archive_extract_strip1()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1
+        mkdir -p src/s2
+        mkdir -p src/s3
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 1 src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest s1 s2 s3
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_strip1_deep()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1/s1a src/s1/s1b; touch src/s1/s1f src/s1/s1a/s1af src/s1/s1a/s1bf1 src/s1/s1a/s1bf2
+        mkdir -p src/s2/s2a src/s2/s2b; touch src/s2/s2f src/s2/s2a/s2af src/s2/s2a/s2bf1 src/s2/s2a/s2bf2
+        mkdir -p src/s3/s3a src/s3/s3b; touch src/s3/s3f src/s3/s3a/s3af src/s3/s3a/s3bf1 src/s3/s3a/s3bf2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 1 src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest                                              \
+            s1 s1/s1a s1/s1b s1/s1f s1/s1a/s1af s1/s1a/s1bf1 s1/s1a/s1bf2           \
+            s2 s2/s2a s2/s2b s2/s2f s2/s2a s2/s2a/s2af s2/s2a/s2bf1 s2/s2a/s2bf2    \
+            s3 s3/s3a s3/s3b s3/s3f s3/s3a s3/s3a/s3af s3/s3a/s3bf1 s3/s3a/s3bf2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_strip2()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1/s1a
+        mkdir -p src/s2/s2a
+        mkdir -p src/s3/s3a
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 2 src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest \
+            s1a \
+            s2a \
+            s3a
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_strip2_deep()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1/s1a src/s1/s1b; touch src/s1/s1f src/s1/s1a/s1af src/s1/s1a/s1bf1 src/s1/s1a/s1bf2
+        mkdir -p src/s2/s2a src/s2/s2b; touch src/s2/s2f src/s2/s2a/s2af src/s2/s2a/s2bf1 src/s2/s2a/s2bf2
+        mkdir -p src/s3/s3a src/s3/s3b; touch src/s3/s3f src/s3/s3a/s3af src/s3/s3a/s3bf1 src/s3/s3a/s3bf2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 2 src.${ftype} dest
+        find dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest                  \
+            s1a s1b s1f s1a/s1af s1a/s1bf1 s1a/s1bf2    \
+            s2a s2b s2f s2a/s2af s2a/s2bf1 s2a/s2bf2    \
+            s3a s3b s3f s3a/s3af s3a/s3bf1 s3a/s3bf2
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_strip_more_than_exists()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/s1/s1a src/s1/s1b; touch src/s1/s1f src/s1/s1a/s1af src/s1/s1a/s1bf1 src/s1/s1a/s1bf2
+        mkdir -p src/s2/s2a src/s2/s2b; touch src/s2/s2f src/s2/s2a/s2af src/s2/s2a/s2bf1 src/s2/s2a/s2bf2
+        mkdir -p src/s3/s3a src/s3/s3b; touch src/s3/s3f src/s3/s3a/s3af src/s3/s3a/s3bf1 src/s3/s3a/s3bf2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 10 src.${ftype} dest
+        find dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_extract_strip_collisions()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        mkdir -p src/{s1,s2,s3}
+        touch    src/{s1,s2,s3}/f
+        echo "s1" > src/s1/f
+        echo "s2" > src/s2/f
+        echo "s3" > src/s3/f
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --strip-components 2 src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        assert_directory_contents dest f f.~1~ f.~2~
+
+        # We can't guarantee the order the files are copied in b/c that's dependant on the inode structure and
+        # filesystem. So instead we just assert that we see all three files with the three different contents we expect
+        # to see.
+        assert_eq $'s1\ns2\ns3' "$(cat dest/f dest/f.~1~ dest/f.~2~ | sort)"
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_append()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        touch file3 file4
+        archive_append src.${ftype} file3:src/file3 file4:src/file4
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2,file3,file4}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_append_delete()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create --delete src.${ftype} src
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        touch file3 file4
+        archive_append --delete src.${ftype} file3:src/file3 file4:src/file4
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2,file3,file4}
+
+        # Ensure source files were deleted
+        assert_not_exists src src/file1 src/file2 file3 file4
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_append_overwrite()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+        echo "data1" >src/file1
+        echo "data2" >src/file2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+        assert_exists src.${ftype}
+
+        etestmsg "Appending file with new content"
+        echo "XXXX1" >file3
+        echo "XXXX2" >file4
+        archive_append src.${ftype} file3:src/file1 file4:src/file2
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2}
+
+        etestmsg "Validating updated contents"
+        assert_eq "XXXX1" "$(cat dest/src/file1)"
+        assert_eq "XXXX2" "$(cat dest/src/file2)"
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_append_no_shadow_mount_files()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir dest
+        touch file1 file2
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} file1 file2
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        efreshdir new
+        touch new/file3 new/file4
+        archive_append src.${ftype} new/.
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest file1 file2 file3 file4
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_append_no_shadow_mount_directory()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+        assert_exists src.${ftype}
+
+        etestmsg "Appending new files"
+        efreshdir src
+        touch src/{file3,file4}
+        archive_append src.${ftype} src
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2,file3,file4}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_append_nonexisting()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_append src.${ftype} src
+        assert_exists src.${ftype}
+
+        etestmsg "Extracting"
+        archive_extract src.${ftype} dest
+        assert_directory_contents dest src src/{file1,file2}
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_xnice()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src dest
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create --nice src.${ftype} src
+
+        etestmsg "Extracting src.${ftype} to dest"
+        archive_extract --nice src.${ftype} dest
+
+        etestmsg "Validating src and dest"
+        diff --unified --recursive src dest/src
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_xconvert()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        local other src_contents cpy_contents src_contents_join cpy_contents_join
+        for other in ${archive_types[@]}; do
+
+            etestmsg "Converting src.${ftype} to cpy.${other}"
+            archive_convert src.${ftype} cpy.${other}
+
+            etestmsg "Validating contents of cpy.${other}"
+            src_contents=( $(archive_list src.${ftype}) )
+            cpy_contents=( $(archive_list cpy.${other}) )
+            etestmsg "$(lval src_contents cpy_contents)"
+            assert_eq $(array_size src_contents) $(array_size cpy_contents)
+
+            # Also compare and diff as arrays
+            src_contents_join=$(array_join src_contents :)
+            cpy_contents_join=$(array_join cpy_contents :)
+            assert_eq "${src_contents_join}" "${cpy_contents_join}"
+        done
+    }
+
+    test_all_archives test_body
+}
+
+ETEST_archive_xdiff()
+{
+    test_body()
+    {
+        etestmsg "Populating source directory"
+        efreshdir src
+        touch src/{file1,file2}
+
+        etestmsg "Creating src.${ftype}"
+        archive_create src.${ftype} src
+
+        # Iterate over all types and create copy -- diff should match
+        for other in ${archive_types[@]}; do
+
+            etestmsg "Creating cpy.${other}"
+            archive_create cpy.${other} src
+
+            etestmsg "Diffing against cpy.${other}"
+            archive_diff src.${ftype} cpy.${other}
+        done
+
+        # Iterate over all types and create a different copy with extra file diff should not match.
+        for other in ${archive_types[@]}; do
+
+            etestmsg "Creating diff.${other}"
+            efreshdir diff
+            cp src/* diff
+            touch diff/EXTRA_FILE
+            archive_create diff.${other} diff
+
+            etestmsg "Diffing against diff.${other} (should fail)"
+            $(tryrc archive_diff src.${ftype} diff.${other})
+            assert_ne 0 ${rc}
+        done
+    }
+
+    test_all_archives test_body
+}

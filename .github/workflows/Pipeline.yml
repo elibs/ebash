@@ -1,4 +1,4 @@
-name: Pipeline
+name: "CI/CD"
 
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
@@ -6,47 +6,134 @@ on:
   push:
     branches: '**'
 
+# GLobal environment variables
 env:
   TERM: "xterm-256color"
   COLUMNS: "120"
   EFUNCS_COLOR: "1"
-  EINTERACTIVE: "1"
-  UBUNTU_PACKAGES: "aptitude cgroup-lite debootstrap dialog mkisofs squashfs-tools"
-  MACOS_PACKAGES: "bash curl coreutils findutils gnu-sed gnupg grep jq pstree"
+  EINTERACTIVE: "0"
 
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Pipeline Jobs
+#
+#----------------------------------------------------------------------------------------------------------------------
 jobs:
 
-  lint:
+  #--------------------------------------------------------------------------------------------------------------------
+  #
+  # LINUX
+  #
+  #--------------------------------------------------------------------------------------------------------------------
+  Linux:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        container:
+          - "alpine:3.13"
+          - "alpine:3.12"
+          - "archlinux"
+          - "centos:8"
+          - "centos:7"
+          - "debian:10"
+          - "debian:9"
+          - "fedora:33"
+          - "fedora:32"
+          - "gentoo/stage3"
+          - "ubuntu:20.04"
+          - "ubuntu:18.04"
+
+    container:
+      image: ${{ matrix.container }}
+      options: --init --interactive --privileged --tty
+
     steps:
       - uses: actions/checkout@v2
-      - name: Prepare
-        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
+      - run: echo "OSNAME=$(echo ${{ matrix.container }} | sed -e 's|:|-|' -e 's|/stage3||')" >> ${GITHUB_ENV}
+
+      - name: Install Dependencies
+        run: bin/ebash-install-deps
+
       - name: Lint
         run: bin/bashlint
 
-  selftest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Prepare
-        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
-      - name: Test
-        run: bin/selftest
+      - name: Self Test
+        run: bin/eretry bin/selftest
 
-  shard:
+      - name: Test
+        run: bin/etest --work-dir .work/output --failures 1
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.OSNAME }}
+          path: |
+            .work/etest.log
+            .work/etest.json
+            .work/etest.xml
+
+  #--------------------------------------------------------------------------------------------------------------------
+  #
+  # MacOS
+  #
+  #--------------------------------------------------------------------------------------------------------------------
+  MacOS:
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-16.04, macos-11.0, macos-10.15]
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    runs-on: ${{ matrix.os }}
+        os: ["11.0", "10.15"]
+    runs-on: macos-${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - name: Prepare Ubuntu
-        if: startsWith(matrix.os, 'ubuntu-')
-        run: sudo apt-get update && sudo apt-get install -y ${UBUNTU_PACKAGES}
-      - name: Prepare MacOS
-        if: startsWith(matrix.os, 'macos-')
-        run: brew update && brew install ${MACOS_PACKAGES}
+
+      - name: Install Dependencies
+        run: bin/ebash-install-deps
+
+      - name: Lint
+        run: bin/bashlint
+
+      - name: Self Test
+        run: bin/eretry bin/selftest
+
       - name: Test
-        run: bin/etest --break --verbose --summary --shard-index ${{ matrix.shard }} --total-shards 10
+        run: bin/etest --work-dir .work/output --failures 1
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: macos-${{ matrix.os }}
+          path: |
+            .work/etest.log
+            .work/etest.json
+            .work/etest.xml
+
+  #--------------------------------------------------------------------------------------------------------------------
+  #
+  # Test Results
+  #
+  #--------------------------------------------------------------------------------------------------------------------
+  publish-test-results:
+    name: "Publish Tests Results"
+    needs: [Linux, MacOS]
+    runs-on: ubuntu-latest
+    # the build-and-test job might be skipped, we don't need to run this job then
+    if: success() || failure()
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+
+      - name: Details
+        run: find artifacts
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1.6
+        with:
+          check_name: Test Results
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          files: artifacts/**/etest.xml

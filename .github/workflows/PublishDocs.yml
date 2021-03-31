@@ -1,0 +1,31 @@
+name: Publish Docs
+
+on:
+  push:
+    branches: [ master ]
+
+# GLobal environment variables
+env:
+  TERM: "xterm-256color"
+  COLUMNS: "100"
+  EFUNCS_COLOR: "1"
+  EINTERACTIVE: "0"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+
+  PublishDocs:
+    runs-on: ubuntu-latest
+
+    container:
+      image: "alpine:latest"
+      options: --init --interactive --privileged --tty
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: bin/ebash-install-deps
+
+      - name: Publish Docs
+        run: bin/edoc --publish

@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_setvars_basic()
+{
+    local file="setvars_basic.txt"
+    local name="Immanual Kant"
+    echo "name=[__name__]" > "${file}"
+
+    setvars "${file}"
+    assert_eq "name=[${name}]" "$(cat ${file})"
+}
+
+ETEST_setvars_multi()
+{
+    local file="setvars_multi.txt"
+    local arg1="Foo"
+    local arg2="Bar"
+    echo "__arg1__ __arg2__" > "${file}"
+
+    setvars "${file}"
+    assert_eq "${arg1} ${arg2}" "$(cat ${file})"
+}
+
+# Test when variables are not fully expanded that setvars fails.
+ETEST_setvars_error()
+{
+    local file="setvars_multi.txt"
+
+    try
+    {
+        local arg1="Foo"
+        echo "__arg1__ __arg2__" > "${file}"
+        setvars "${file}"
+    }
+    catch
+    {
+        return 0
+    }
+
+    die "catch block should have returned"
+}
+
+adjust_version()
+{
+    local key=$1
+    local val=$2
+    einfo "$(lval key val)"
+
+    # If we've patched the firmware package itself it's version will change but the underlying version of the reported
+    # firmware itself is unchanged. So we need to strip off any -pXXX on the version string.
+    [[ ${key} =~ .*_DRIVER_VERSION$ || ${key} =~ .*_FIRMWARE_VERSION$ ]] && val=${val%%-p*}
+
+    echo -n "${val}"
+}
+
+ETEST_setvars_callback()
+{
+    local file="setvars_callback.txt"
+    local MARVELL_VERSION="1.7.2-p1"
+    local MARVELL_DRIVER_VERSION=${MARVELL_VERSION}
+    local MARVELL_FIRMWARE_VERSION=${MARVELL_VERSION}
+    echo "__MARVELL_VERSION__ __MARVELL_DRIVER_VERSION__ __MARVELL_FIRMWARE_VERSION__" > "${file}"
+
+    setvars "${file}" adjust_version
+    assert_eq "1.7.2-p1 1.7.2 1.7.2" "$(cat ${file})"
+}
+
+ETEST_setvars_with_newlines()
+{
+    local file="setvars_with_newlines.txt"
+
+    echo "A __B__ C" > ${file}
+
+    B="a
+b
+c"
+
+    expected="A a
+b
+c C"
+
+    setvars "${file}"
+
+    assert_eq "${expected}" "$(cat $file)"
+}
+
+ETEST_setvars_punctuation()
+{
+    PUNCT="!@#$%^&*()-=[]{};'\",.<>/?|"
+
+    local file="setvars_punctuation.txt"
+
+    # Iterate over the above string of punctuation marks
+    for (( i=0 ; i < ${#PUNCT} ; ++i )) ; do
+        local mark=${PUNCT:$i:1}
+        local endmark=${mark}
+
+        [[ $mark == "(" ]] && endmark=")"
+        [[ $mark == "[" ]] && endmark="]"
+        [[ $mark == "{" ]] && endmark="}"
+        [[ $mark == "<" ]] && endmark=">"
+
+        einfo "$(lval mark endmark)"
+
+        # Create a simple file to setvars in, and replace part of it with a string containing that punctuation mark
+        echo "A __B__ C" > ${file}
+        B=jan${mark}feb${endmark}march
+        setvars "${file}"
+
+        assert_eq "A jan${mark}feb${endmark}march C" "$(cat ${file})"
+
+        cat "${file}"
+    done
+}
