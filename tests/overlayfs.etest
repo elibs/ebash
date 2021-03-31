@@ -17,6 +17,23 @@ archive_types=(
     tar.gz
 )
 
+# This test requires a lot of loopback devices because each time we mount an ISO or SQUASHFS a /dev/loop* is required.
+# By default on most systems we only have 8 loopback devices. So this suite_setup code will go through and create a
+# bunch of additional ones. The default Linux kernel allows up to 255 loopback devices and their presence doesn't hurt
+# anything.
+suite_setup()
+{
+    etestmsg "Creating up to 255 loopback devices"
+    for (( idx=0; idx < 255; idx++ )); do
+        [[ -e "/dev/loop${idx}" ]] && continue
+
+        echo -n "${idx} "
+        mknod -m 660 /dev/loop${idx} b 7 ${idx}
+    done
+
+    echo ""
+}
+
 ETEST_overlayfs_mount()
 {
     local idx=0
