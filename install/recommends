@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+opt_usage main <<'END'
+This script is used to install additional recommended binaries onto a system. This is done using the portable ebash
+provided `pkg_install --binaries` to avoid having to deal with package names across different distributions.
+END
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Main
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+ebanner "Installing recommended packages" \
+    exclude
+
+pkg_install --binaries  \
+    curl                \
+    bzip2               \
+    lbzip2              \
+    column              \
+    cpio                \
+    curl                \
+    debootstrap         \
+    dialog              \
+    git                 \
+    gzip                \
+    pigz                \
+    ip                  \
+    iptables            \
+    jq                  \
+    lzma                \
+    xz                  \
+    mkisofs             \
+    mksquashfs          \
+    mount               \
+    netstat             \
+    pgrep               \
+    ping                \
+    pstree              \
+    tar                 \
+

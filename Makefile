@@ -86,12 +86,12 @@ define DOCKER_TEST_TEMPLATE
 .PHONY: dselftest-$1
 dselftest-$1:
 	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "bin/ebash-install-deps && bin/selftest"
+	${DRUN} $2 sh -c "install/all && bin/selftest"
 
 .PHONY: dtest-$1
 dtest-$1:
 	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "bin/ebash-install-deps && \
+	${DRUN} $2 sh -c "install/all && \
         bin/etest \
             --break                    \
             --debug=${EDEBUG}          \
@@ -105,7 +105,7 @@ dtest-$1:
 .PHONY: dshell-$1
 dshell-$1:
 	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "bin/ebash-install-deps && /bin/bash"
+	${DRUN} $2 sh -c "install/all && /bin/bash"
 
 endef
 
