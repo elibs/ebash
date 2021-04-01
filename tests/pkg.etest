@@ -113,7 +113,7 @@ ETEST_pkg_binary()
         assert_eq "coreutils"                       "$(pkg_binary true fold)"
         assert_eq "bash"                            "$(pkg_binary bash)"
         assert_eq "grep"                            "$(pkg_binary grep)"
-        assert_eq "lshw openssh"                    "$(pkg_binary lshw sshd)"
+        assert_eq "bash findutils"                  "$(pkg_binary bash find)"
         assert_eq "perl"                            "$(pkg_binary perl)"
 
     elif os_distro alpine; then
