@@ -80,6 +80,7 @@ DRUN = docker run      \
        --mount type=bind,source=${PWD},target=/ebash \
        --workdir /ebash \
        --rm
+
 define DOCKER_TEST_TEMPLATE
 
 .PHONY: dselftest-$1
@@ -122,7 +123,7 @@ DISTROS =           \
 	ubuntu:20.04    \
 	ubuntu:18.04    \
 
-$(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t})))
+$(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst /stage3,,$(subst :,-,$t)),${t})))
 
 PHONY: dtest
 dtest:	    $(foreach d, $(subst :,-,${DISTROS}), dtest-${d})

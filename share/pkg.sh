@@ -213,13 +213,11 @@ pkg_binary()
     $(opt_parse "@names | Names of binaries to map to the corresponding OS Package that needs to be installed.")
 
     local packages=()
-    local pkg_manager
-    pkg_manager=$(pkg_manager)
 
     # Check each package
     local name installable
     for name in "${names[@]}"; do
-        installable=( $(__pkg_binary "${pkg_manager}" "${name}" ) )
+        installable=( $(__pkg_binary "${name}" ) )
         assert_eq 1 "$(array_size installable)" "${name} did not resolve to a single $(lval installable)."
         packages+=( "${installable[0]}" )
     done
@@ -236,13 +234,12 @@ END
 __pkg_binary()
 {
     $(opt_parse \
-        "pkg_manager | The package manager we are using for our OS." \
         "name        | The name of the package we are looking up."   \
     )
 
     edebug "Mapping binary $(lval name) to package"
 
-    case ${pkg_manager} in
+    case $(pkg_manager) in
 
         apk)
             curl -s "https://command-not-found.com/${name}" | grep -Po "apk add \K[^\<]*" | sort -u
@@ -430,8 +427,13 @@ pkg_upgrade()
     esac
 }
 
+# EBASH_PKG_MANAGER is used to cache results from pkg_manager to avoid doing repeated lookups when it will never
+# change from one call to the next. It also allows customization inside the user's environment to use an explicit
+# package manager (e.g. portage on a non-gentoo OS).
+: ${EBASH_PKG_MANAGER:=}
+
 opt_usage pkg_manager <<'END'
-Determine the package manager to use for the system we are running on. For example:
+Determine the package manager to use for the system we are running on. Specifically:
   - alpine -> apk
   - arch   -> pacman
   - centos -> yum
@@ -442,29 +444,34 @@ Determine the package manager to use for the system we are running on. For examp
   - gentoo -> portage
   - mint   -> apt
   - ubuntu -> apt
+
+> **_NOTE:_** This honors EBASH_PKG_MANAGER if it has been set to allow the caller complete control over what package
+manager to use on their system without auto detection. This might be useful if you wanted to use portage on a non-gentoo
+OS for example or on a gentoo derivative that ebash doesn't know about.
 END
 pkg_manager()
 {
-    if os darwin; then
-        echo "brew"
-
-    elif os_distro alpine; then
-        echo "apk"
-
-    elif os_distro debian mint ubuntu; then
-        echo "apt"
-
-    elif os_distro arch; then
-        echo "pacman"
-
-    elif os_distro gentoo ember; then
-        echo "portage"
-
-    elif os_distro centos fedora; then
-        echo "yum"
-
-    else
-        echo "unknown"
-        return 1
+    # Cache results in __EBASH_PKG_MANAGER
+    if [[ -n "${__EBASH_PKG_MANAGER}" ]]; then
+        echo "${__EBASH_PKG_MANAGER}"
+        return 0
     fi
+
+    if os darwin; then
+        EBASH_PKG_MANAGER="brew"
+    elif os_distro alpine; then
+        EBASH_PKG_MANAGER="apk"
+    elif os_distro debian mint ubuntu; then
+        EBASH_PKG_MANAGER="apt"
+    elif os_distro arch; then
+        EBASH_PKG_MANAGER="pacman"
+    elif os_distro gentoo ember; then
+        EBASH_PKG_MANAGER="portage"
+    elif os_distro centos fedora; then
+        EBASH_PKG_MANAGER="yum"
+    else
+        die "Unknown pkg manager for $(os_pretty_name)"
+    fi
+
+    echo "${EBASH_PKG_MANAGER}"
 }
