@@ -170,7 +170,15 @@ pkg_install()
             ;;
 
         brew)
-            brew install "${names[@]}"
+
+            # Brew is lame. If you try to install something that's already installed and needs an upgrade, it returns
+            # an error. So we have to first check each package to see if they are installed and skip them if so.
+            local name
+            for name in "${names[@]}"; do
+                if ! brew ls --versions "${name}"; then
+                    brew install "${name}"
+                fi
+            done
             ;;
 
         pacman)
