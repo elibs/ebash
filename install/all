@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -e
+
+########################################################################################################################
+####
+#### WARNING: This script is meant to be runnable in any Linux OS including older ones which do not have bash installed.
+####
+#### DO NOT change the she-bang at the top to bash.
+####
+########################################################################################################################
+
+if [ -z "${EBASH_HOME}" ]; then
+    EBASH_HOME="$(dirname $0)/.."
+fi
+
+${EBASH_HOME}/install/depends
+${EBASH_HOME}/install/recommends
+${EBASH_HOME}/install/extra --docker --docker-config
