@@ -9,4 +9,4 @@
 
 set -eu
 
-${EBASH_HOME}/bin/ebash --install-all
+sudo ${EBASH_HOME}/bin/ebash --install-all
