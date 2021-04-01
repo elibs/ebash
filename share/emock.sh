@@ -143,19 +143,20 @@ emock()
         statedir="'${statedir}'"
 
         # Update call count
-        called=0
+        called=1
         if [[ -e "${statedir}/called" ]]; then
             called=$(cat "${statedir}/called")
             (( called++ ))
-        fi
-        echo ${called} > "${statedir}/called"
-
+        fi 
+   
         # Create directory to store files in for this invocation
         mkdir -p "${statedir}/${called}"
 
         # Save off timestamp and argument array
         echo -en $(date "+%FT%TZ") > "${statedir}/${called}/timestamp"
         printf "\"%s\" " "${@}" > "${statedir}/${called}/args"
+        
+        echo ${called} > "${statedir}/called"
     '
 
     # Create the mock

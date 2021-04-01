@@ -155,8 +155,8 @@ ETEST_emock_return_code()
     etestmsg "Calling mocked func"
     $(tryrc func)
     assert_eq 0 ${rc}
-    assert_eq 0 "$(emock_return_code "func" 0)"
-    assert_emock_return_code "func" 0 0
+    assert_eq 0 "$(emock_return_code "func" 1)"
+    assert_emock_return_code "func" 1 0
 
     etestmsg "Calling func_real"
     $(tryrc func_real)
@@ -178,7 +178,7 @@ ETEST_emock_stdout()
     $(tryrc --stdout=stdout func)
     assert_eq "mock stdout" "${stdout}"
     assert_eq "mock stdout" "$(emock_stdout "func")"
-    assert_emock_stdout "func" 0 "mock stdout"
+    assert_emock_stdout "func" 1 "mock stdout"
 
     etestmsg "Calling func_real"
     $(tryrc --stdout=stdout func_real)
@@ -192,20 +192,11 @@ ETEST_emock_stdout_repeat()
         echo "func stdout" >&1
     }
 
-    etestmsg "Mocking with stdout #0"
-    emock --stdout "mock stdout #0" "func"
-    assert_match "$(type func)" "func is a function"
-    $(tryrc --stdout=stdout func)
-    assert_eq "mock stdout #0" "${stdout}"
-    assert_eq "mock stdout #0" "$(emock_stdout "func")"
-    assert_eq "mock stdout #0" "$(emock_stdout "func" 0)"
-    assert_emock_stdout "func" 0 "mock stdout #0"
-
     etestmsg "Mocking with stdout #1"
     emock --stdout "mock stdout #1" "func"
+    assert_match "$(type func)" "func is a function"
     $(tryrc --stdout=stdout func)
     assert_eq "mock stdout #1" "${stdout}"
-    assert_eq 1 "$(emock_called func)"
     assert_eq "mock stdout #1" "$(emock_stdout "func")"
     assert_eq "mock stdout #1" "$(emock_stdout "func" 1)"
     assert_emock_stdout "func" 1 "mock stdout #1"
@@ -214,9 +205,18 @@ ETEST_emock_stdout_repeat()
     emock --stdout "mock stdout #2" "func"
     $(tryrc --stdout=stdout func)
     assert_eq "mock stdout #2" "${stdout}"
+    assert_eq 2 "$(emock_called func)"
     assert_eq "mock stdout #2" "$(emock_stdout "func")"
     assert_eq "mock stdout #2" "$(emock_stdout "func" 2)"
     assert_emock_stdout "func" 2 "mock stdout #2"
+
+    etestmsg "Mocking with stdout #3"
+    emock --stdout "mock stdout #3" "func"
+    $(tryrc --stdout=stdout func)
+    assert_eq "mock stdout #3" "${stdout}"
+    assert_eq "mock stdout #3" "$(emock_stdout "func")"
+    assert_eq "mock stdout #3" "$(emock_stdout "func" 3)"
+    assert_emock_stdout "func" 3 "mock stdout #3"
 
     etestmsg "Verifying older entries not erased"
     assert_eq "mock stdout #1" "$(emock_stdout "func" 1)"
@@ -242,7 +242,7 @@ ETEST_emock_stderr()
     assert_eq "mock stdout" "${stdout}"
     assert_eq "mock stderr" "${stderr}"
     assert_eq "mock stdout" "$(emock_stdout "func")"
-    assert_emock_stdout "func" 0 "mock stdout"
+    assert_emock_stdout "func" 1 "mock stdout"
 
     etestmsg "Calling func_real"
     $(tryrc --stdout=stdout --stderr=stderr func_real)
@@ -300,24 +300,26 @@ ETEST_emock_body()
 
     etestmsg "Calling with args=bar (should succeed)"
     $(tryrc func "bar")
+
     assert_eq 0 ${rc}
     etestmsg "Mocked function was called with:"
-    cat .emock-$$/func/0/args
-    assert_emock_called_with "func" 0 "bar"
+    cat .emock-$$/func/1/args
+    assert_emock_called_with "func" 1 "bar"
+ 
 
     etestmsg "Mocked function return_code:"
-    cat .emock-$$/func/0/return_code
-    assert_emock_return_code "func" 0 0
+    cat .emock-$$/func/1/return_code
+    assert_emock_return_code "func" 1 0
 
     etestmsg "Calling with args=foo (should fail)"
     $(tryrc func "foo")
     assert_eq 1 ${rc}
     etestmsg "Mocked function was called with:"
-    cat .emock-$$/func/1/args
-    emock_args "func" 1
-    assert_emock_called_with "func" 1 "foo"
+    cat .emock-$$/func/2/args
+    emock_args "func" 2
+    assert_emock_called_with "func" 2 "foo"
 
     etestmsg "Mocked function return_code:"
-    cat .emock-$$/func/1/return_code
-    assert_emock_return_code "func" 1 1
+    cat .emock-$$/func/2/return_code
+    assert_emock_return_code "func" 2 1
 }
