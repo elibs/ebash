@@ -108,32 +108,32 @@ ETEST_pkg_binary()
     etestmsg "Converting binary to package name"
 
     if os darwin; then
-        assert_eq "coreutils"  "$(pkg_binary chroot)"
-        assert_eq "coreutils"  "$(pkg_binary true fold)"
-        assert_eq "bash"       "$(pkg_binary bash)"
-        assert_eq "grep"       "$(pkg_binary grep)"
-        assert_eq "lshw sshd"  "$(pkg_binary lshw sshd)"
+        assert_eq "coreutils"       "$(pkg_binary chroot)"
+        assert_eq "coreutils"       "$(pkg_binary true fold)"
+        assert_eq "bash"            "$(pkg_binary bash)"
+        assert_eq "grep"            "$(pkg_binary grep)"
+        assert_eq "lshw openssh"    "$(pkg_binary lshw sshd)"
 
     elif os_distro alpine; then
-        assert_eq "coreutils"  "$(pkg_binary chroot)"
-        assert_eq "coreutils"  "$(pkg_binary true fold)"
-        assert_eq "bash"       "$(pkg_binary bash)"
-        assert_eq "grep"       "$(pkg_binary grep)"
-        assert_eq "lshw sshd"  "$(pkg_binary lshw sshd)"
+        assert_eq "coreutils"       "$(pkg_binary chroot)"
+        assert_eq "coreutils"       "$(pkg_binary true fold)"
+        assert_eq "bash"            "$(pkg_binary bash)"
+        assert_eq "grep"            "$(pkg_binary grep)"
+        assert_eq "lshw openssh"    "$(pkg_binary lshw sshd)"
 
     elif os_distro debian mint ubuntu; then
-        assert_eq "coreutils"  "$(pkg_binary chroot)"
-        assert_eq "coreutils"  "$(pkg_binary true fold)"
-        assert_eq "bash"       "$(pkg_binary bash)"
-        assert_eq "grep"       "$(pkg_binary grep)"
-        assert_eq "lshw sshd"  "$(pkg_binary lshw sshd)"
+        assert_eq "coreutils"       "$(pkg_binary chroot)"
+        assert_eq "coreutils"       "$(pkg_binary true fold)"
+        assert_eq "bash"            "$(pkg_binary bash)"
+        assert_eq "grep"            "$(pkg_binary grep)"
+        assert_eq "lshw openssh"    "$(pkg_binary lshw sshd)"
 
     elif os_distro arch; then
-        assert_eq "coreutils"  "$(pkg_binary chroot)"
-        assert_eq "coreutils"  "$(pkg_binary true fold)"
-        assert_eq "bash"       "$(pkg_binary bash)"
-        assert_eq "grep"       "$(pkg_binary grep)"
-        assert_eq "lshw sshd"  "$(pkg_binary lshw sshd)"
+        assert_eq "coreutils"       "$(pkg_binary chroot)"
+        assert_eq "coreutils"       "$(pkg_binary true fold)"
+        assert_eq "bash"            "$(pkg_binary bash)"
+        assert_eq "grep"            "$(pkg_binary grep)"
+        assert_eq "lshw openssh"    "$(pkg_binary lshw sshd)"
 
     elif os_distro gentoo ember; then
         assert_eq "sys-apps/coreutils"             "$(pkg_binary chroot)"
@@ -143,11 +143,11 @@ ETEST_pkg_binary()
         assert_eq "net-misc/openssh sys-apps/lshw" "$(pkg_binary lshw sshd)"
 
     elif os_distro centos fedora; then
-        assert_eq "coreutils"   "$(pkg_binary chroot)"
-        assert_eq "coreutils"   "$(pkg_binary true fold)"
-        assert_eq "bash"        "$(pkg_binary bash)"
-        assert_eq "grep"        "$(pkg_binary grep)"
-        assert_eq "lshw sshd"   "$(pkg_binary lshw sshd)"
+        assert_eq "coreutils"       "$(pkg_binary chroot)"
+        assert_eq "coreutils"       "$(pkg_binary true fold)"
+        assert_eq "bash"            "$(pkg_binary bash)"
+        assert_eq "grep"            "$(pkg_binary grep)"
+        assert_eq "lshw openssh"    "$(pkg_binary lshw sshd)"
 
     else
         die "Unsupported OS: $(os_pretty_name)"
