@@ -451,9 +451,9 @@ OS for example or on a gentoo derivative that ebash doesn't know about.
 END
 pkg_manager()
 {
-    # Cache results in __EBASH_PKG_MANAGER
-    if [[ -n "${__EBASH_PKG_MANAGER}" ]]; then
-        echo "${__EBASH_PKG_MANAGER}"
+    # Cache results in EBASH_PKG_MANAGER
+    if [[ -n "${EBASH_PKG_MANAGER}" ]]; then
+        echo "${EBASH_PKG_MANAGER}"
         return 0
     fi
 
