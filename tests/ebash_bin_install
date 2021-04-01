@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
-# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
@@ -9,4 +8,7 @@
 
 set -eu
 
+sudo ${EBASH_HOME}/bin/ebash --install-all
+sudo ${EBASH_HOME}/bin/ebash --install-depends
+sudo ${EBASH_HOME}/bin/ebash --install-recommends
 sudo ${EBASH_HOME}/bin/ebash --install-extra
