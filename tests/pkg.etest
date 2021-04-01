@@ -7,9 +7,6 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-
-os darwin && return 0
-
 setup()
 {
     PKG_KNOWN=coreutils
@@ -44,6 +41,37 @@ ETEST_pkg_known()
     assert_false pkg_known ${PKG_UNKNOWN}
 }
 
+ETEST_pkg_install_twice()
+{
+    etestmsg "First make sure $(lval PKG_TO_INSTALL) is not installed."
+    pkg_known ${PKG_TO_INSTALL}
+    assert_false pkg_installed ${PKG_TO_INSTALL}
+
+    # NOTE: Some packaging systems (e.g. dpkg) don't deal well with different processes trying to install things at the
+    # same time. The retries here are intended to harden against issues like that.
+    etestmsg "Install $(lval PKG_TO_INSTALL)"
+    eretry --delay 5s --retries 5 pkg_install ${PKG_TO_INSTALL}
+
+    # Make sure things get cleaned up, even if something goes wrong after this point
+    trap_add "etestmsg CLEANUP ; pkg_uninstall ${PKG_TO_INSTALL} || true"
+
+    etestmsg "Verify $(lval PKG_TO_INSTALL) exists and can be verified as installed."
+    pkg_known ${PKG_TO_INSTALL}
+    pkg_installed ${PKG_TO_INSTALL}
+
+    etestmsg "Attempt secondary install on $(lval PKG_TO_INSTALL)"
+    eretry --delay 5s --retries 5 pkg_install ${PKG_TO_INSTALL}
+    pkg_known ${PKG_TO_INSTALL}
+    pkg_installed ${PKG_TO_INSTALL}
+
+    etestmsg "Uninstall $(lval PKG_TO_INSTALL)"
+    eretry --delay 5s --retries 5 pkg_uninstall ${PKG_TO_INSTALL}
+
+    etestmsg "and verify that we don't believe $(lval PKG_TO_INSTALL) is installed."
+    pkg_known ${PKG_TO_INSTALL}
+    assert_false pkg_installed ${PKG_TO_INSTALL}
+}
+
 ETEST_pkg_install_and_upgrade()
 {
     etestmsg "First make sure $(lval PKG_TO_INSTALL) is not installed."
@@ -75,6 +103,51 @@ ETEST_pkg_install_and_upgrade()
     assert_false pkg_installed ${PKG_TO_INSTALL}
 }
 
+ETEST_pkg_binary()
+{
+    etestmsg "Converting binary to package name"
+
+    if os darwin; then
+        assert_eq "coreutils" $(pkg_binary "chroot")
+        assert_eq "coreutils" $(pkg_binary "true" "fold")
+        assert_eq "bash"      $(pkg_binary "bash")
+        assert_eq "grep"      $(pkg_binary "grep")
+
+    elif os_distro alpine; then
+        assert_eq "coreutils" $(pkg_binary "chroot")
+        assert_eq "coreutils" $(pkg_binary "true" "fold")
+        assert_eq "bash"      $(pkg_binary "bash")
+        assert_eq "grep"      $(pkg_binary "grep")
+
+    elif os_distro debian mint ubuntu; then
+        assert_eq "coreutils" $(pkg_binary "chroot")
+        assert_eq "coreutils" $(pkg_binary "true" "fold")
+        assert_eq "bash"      $(pkg_binary "bash")
+        assert_eq "grep"      $(pkg_binary "grep")
+
+    elif os_distro arch; then
+        assert_eq "coreutils" $(pkg_binary "chroot")
+        assert_eq "coreutils" $(pkg_binary "true" "fold")
+        assert_eq "bash"      $(pkg_binary "bash")
+        assert_eq "grep"      $(pkg_binary "grep")
+
+    elif os_distro gentoo ember; then
+        assert_eq "sys-apps/coreutils" $(pkg_binary "chroot")
+        assert_eq "sys-apps/coreutils" $(pkg_binary "true" "fold")
+        assert_eq "app-shells/bash"    $(pkg_binary "bash")
+        assert_eq "sys-apps/grep"      $(pkg_binary "grep")
+
+    elif os_distro centos fedora; then
+        assert_eq "coreutils" $(pkg_binary "chroot")
+        assert_eq "coreutils" $(pkg_binary "true" "fold")
+        assert_eq "bash"      $(pkg_binary "bash")
+        assert_eq "grep"      $(pkg_binary "grep")
+
+    else
+        die "Unsupported OS: $(os_pretty_name)"
+    fi
+}
+
 if os_distro gentoo ember ; then
 
     ETEST_pkg_gentoo_find()
@@ -89,5 +162,4 @@ if os_distro gentoo ember ; then
         assert_ne 0 ${rc}
         assert_match "${stderr}" "ambiguous"
     }
-
 fi

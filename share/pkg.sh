@@ -7,43 +7,46 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-os darwin && return 0
-
 opt_usage pkg_known <<'END'
-Determine if the package management system locally knows of a package with the specified name. This won't update the
-package database to do its check. Note that this does _not_ mean the package is installed. Just that the package
-system believes it could install it.
+Determine if the package manager locally knows of all of the packages specified. This won't update the pacakge database
+to do its check. Note that this does *not* mean the package is installed. Just that the package manager knows about the
+package and could install it.
 
 See pkg_installed to check if a package is actually installed.
 END
 pkg_known()
 {
-    $(opt_parse \
-        "name | Name of package to look for.")
+    $(opt_parse "@names | Names of package to check.")
 
     case $(pkg_manager) in
         apk)
-            [[ -n "$(apk list ${name} 2>/dev/null)" ]]
+            [[ -n "$(apk list ${names[@]} 2>/dev/null)" ]]
             ;;
 
         apt)
-            apt-cache show ${name} &>/dev/null
+            apt-cache show ${names[@]} &>/dev/null
+            ;;
+
+        brew)
+            brew search ${names[@]} &>/dev/null
             ;;
 
         pacman)
-            pacman -Ss ${name} &>/dev/null
+            pacman -Ss ${names[@]} &>/dev/null
             ;;
 
         portage)
 
-            name=$(pkg_gentoo_canonicalize ${name})
-            local portdir
-            portdir=$(portageq get_repo_path / gentoo)
-            [[ -d "${portdir}/${name}" ]]
+            local name portdir
+            for name in "${names[@]}"; do
+                name=$(pkg_gentoo_canonicalize ${name})
+                portdir=$(portageq get_repo_path / gentoo)
+                [[ -d "${portdir}/${name}" ]]
+            done
             ;;
 
         yum)
-            yum list ${name} &>/dev/null
+            yum list ${names[@]} &>/dev/null
             ;;
 
         *)
@@ -90,38 +93,37 @@ pkg_gentoo_canonicalize()
 }
 
 opt_usage pkg_installed <<'END'
-Returns success if the specified package has been installed on this machine and false if it has not.
+Returns success (0) if all the specified packages are installed on this machine and failure (1) if not.
 END
 pkg_installed()
 {
     $(opt_parse \
-        "name | Name of package to look for.")
+        "@names | Name of the packages to check if they are installed.")
 
-    local pkg_status=""
     case $(pkg_manager) in
 
         apk)
-            apk -e info "${name}" &>/dev/null
+            apk -e info ${names[@]} &>/dev/null
             ;;
 
         apt)
-            dpkg -s "${name}" &>/dev/null
+            dpkg -s ${names[@]} &>/dev/null
+            ;;
+
+        brew)
+            brew list ${names[@]} &>/dev/null
             ;;
 
         pacman)
-            pacman -Q ${name} &>/dev/null
+            pacman -Q ${names[@]} &>/dev/null
             ;;
 
         portage)
-            name=$(pkg_gentoo_canonicalize ${name})
-            pushd /var/db/pkg
-            local all_versions=( ${name}* )
-            popd
-            [[ ${#all_versions[@]} -gt 0 && -d /var/db/pkg/${all_versions[0]} ]]
+            qlist --installed --exact ${names[@]} &>/dev/null
             ;;
 
         yum)
-            yum list installed ${name} &>/dev/null
+            yum list installed ${names[@]} &>/dev/null
             ;;
 
         *)
@@ -131,50 +133,131 @@ pkg_installed()
 }
 
 opt_usage pkg_install <<'END'
-Install some set of packages whose names are specified. Note that while this function supports several different
-package managers, packages may have different names on different systems.
+Install a list of packages whose names are specified. This function supports several different package managers correctly,
+but the actual package names are very frequently different on different OS or distros.
+
+To that end, there is a `--binaries` flag which will interpret the list of names as binaries to install rather than
+packages. When run in this mode, we use the appropriate package manager for the system in question to determine the
+names of the packages to install in order to get the desired binaries installed.
 END
 pkg_install()
 {
-    $(opt_parse "@names | Names of package to install.")
+    $(opt_parse \
+        "+sync     | Perform pkg_sync before trying to lookup and install the packages." \
+        "+binaries | Interpret the names as binaries to install rather than actual package names. In this mode the
+                     package manager is queried via pkg_binary to map the binaries to package names." \
+        "@names    | Names of packages or binaries to install." \
+    )
 
+    if [[ ${sync} -eq 1 ]]; then
+        pkg_sync
+    fi
+
+    if [[ ${binaries} -eq 1 ]]; then
+        edebug "Pre-converting binaries to packages $(lval names)"
+        names=( $(pkg_binary ${names[@]}) )
+        edebug "Post-converring binaries to packages $(lval names)"
+    fi
+
+    case $(pkg_manager) in
+
+        apk)
+            apk add "${names[@]}"
+            ;;
+
+        apt)
+            DEBIAN_FRONTEND=noninteractive apt install -y "${names[@]}"
+            ;;
+
+        brew)
+            brew install "${names[@]}"
+            ;;
+
+        pacman)
+            pacman -S --noconfirm "${names[@]}"
+            ;;
+
+        portage)
+            emerge --ask=n "${names[@]}"
+            ;;
+
+        yum)
+            yum install -y "${names[@]}"
+            ;;
+
+        *)
+            die "Unsupported $(lval pkg_manager)"
+            ;;
+    esac
+}
+
+opt_usage pkg_binary <<'END'
+Take a list of binaries and figure out what package would need to be installed to get the specified binary. Since this
+sort of lookup is not possible with most package managers, we delegate this work out to the fantastic service provided
+by [command-not-found](https://command-not-found.com). This will return what command should be executed to install a
+command on various operating systems. This includes OS X, and almost all of our supported Linux distros. The one
+exception to that is Gentoo. In which case we delegate this task to the similar [portage-file-list](https://www.portagefilelist.de/site/query).
+In the gentoo case, we often get duplicate results back in which case we examine filter the results down to one which
+would be in our PATH.
+END
+pkg_binary()
+{
+    $(opt_parse "@names | Names of binaries to map to the corresponding OS Package that needs to be installed.")
+
+    local packages=()
     local pkg_manager
     pkg_manager=$(pkg_manager)
 
-    if ! pkg_known "${@}" ; then
-        pkg_sync
-    fi
+    # Check each package
+    local name installable
+    for name in "${names[@]}"; do
+        installable=( $(__pkg_binary "${pkg_manager}" "${name}" ) )
+        assert_eq 1 "$(array_size installable)" "${name} did not resolve to a single $(lval installable)."
+        packages+=( "${installable[0]}" )
+    done
+
+    echo "${packages[@]}"
+}
+
+opt_usage __pkg_binary <<'END'
+__pkg_binary is an internal helper method called by pkg_binary to make the code more reusable inside a loop. This is
+what does the heavy lifting of calling out to command-not-found.com or using e-file to map a binary name to a package.
+END
+__pkg_binary()
+{
+    $(opt_parse \
+        "pkg_manager | The package manager we are using for our OS." \
+        "name        | The name of the package we are looking up."   \
+    )
 
     case ${pkg_manager} in
 
         apk)
-            apk add "${@}"
+            curl -s "https://command-not-found.com/${name}" | grep -Po "apk add \K[^\<]*" | sort -u
             ;;
 
         apt)
-            $(tryrc DEBIAN_FRONTEND=noninteractive apt install -y "${@}")
+            curl -s "https://command-not-found.com/${name}" | grep -Po "apt-get install \K[^\<]*" | sort -u
+            ;;
 
-            if [[ ${rc} -ne 0 ]] ; then
-                DEBIAN_FRONTEND=noninteractive dpkg --force-confdef --force-confold --configure -a
-                DEBIAN_FRONTEND=noninteractive apt -f -y --force-yes install
-                DEBIAN_FRONTEND=noninteractive apt install -y "${@}"
-            fi
+        brew)
+            curl -s "https://command-not-found.com/${name}" | grep -Po "brew install \K[^\<]*" | sort -u
             ;;
 
         pacman)
-            pacman -S --noconfirm "${@}"
+            curl -s "https://command-not-found.com/${name}" | grep -Po "pacman -S \K[^\<]*" | sort -u
             ;;
 
         portage)
-            emerge --ask=n "${@}"
+            e-file -c never "${name}" | grep -B5 "/usr/bin/${name}" | head -1 | sed -e 's|\[I\] ||' -e 's| * ||'
             ;;
 
         yum)
-            yum install -y "${@}"
+            curl -s "https://command-not-found.com/${name}" | grep -Po "yum install \K[^\<]*" | sort -u
             ;;
 
         *)
-            die "Unsupported package manager $(pkg_manager)"
+            die "Unsupported $(lval pkg_manager)"
             ;;
     esac
 }
@@ -193,6 +276,10 @@ pkg_uninstall()
 
         apt)
             DEBIAN_FRONTEND=noninteractive apt remove --purge -y "${@}"
+            ;;
+
+        brew)
+            brew uninstall "${@}"
             ;;
 
         pacman)
@@ -228,6 +315,10 @@ pkg_sync()
             apt update
             ;;
 
+        brew)
+            brew update
+            ;;
+
         pacman)
             pacman -Sy
             ;;
@@ -259,6 +350,10 @@ pkg_clean()
 
         apt)
             find /var/lib/apt/lists -type f -a ! -name lock -a ! -name partial -delete
+            ;;
+
+        brew)
+            brew cleanup
             ;;
 
         pacman)
@@ -301,6 +396,10 @@ pkg_upgrade()
             DEBIAN_FRONTEND=noninteractive apt install -y "${name}"
             ;;
 
+        brew)
+            brew upgrade "${name}"
+            ;;
+
         pacman)
             pacman -S --noconfirm "${name}"
             ;;
@@ -319,9 +418,25 @@ pkg_upgrade()
     esac
 }
 
+opt_usage pkg_manager <<'END'
+Determine the package manager to use for the system we are running on. For example:
+  - alpine -> apk
+  - arch   -> pacman
+  - centos -> yum
+  - darwin -> brew
+  - debian -> apt
+  - ember  -> portage
+  - fedora -> yum
+  - gentoo -> portage
+  - mint   -> apt
+  - ubuntu -> apt
+END
 pkg_manager()
 {
-    if os_distro alpine; then
+    if os darwin; then
+        echo "brew"
+
+    elif os_distro alpine; then
         echo "apk"
 
     elif os_distro debian mint ubuntu; then
