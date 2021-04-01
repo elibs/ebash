@@ -9,4 +9,4 @@
 
 set -eu
 
-${EBASH_HOME}/bin/ebash --install-extra
+sudo ${EBASH_HOME}/bin/ebash --install-extra

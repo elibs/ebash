@@ -147,6 +147,7 @@ ETEST_pkg_binary()
         assert_eq "sys-apps/grep"                   "$(pkg_binary grep)"
         assert_eq "net-misc/openssh sys-apps/lshw"  "$(pkg_binary lshw sshd)"
         assert_eq "dev-lang/perl"                   "$(pkg_binary perl)"
+        assert_eq "app-arch/gzip app-arch/pigz"     "$(pkg_binary gzip)"
 
     elif os_distro centos fedora; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
