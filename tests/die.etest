@@ -147,10 +147,11 @@ ETEST_err_trap_output_shorten_multiline_cmd()
     local script=./multiline_cmd_error
 cat<<EOF >${script}
 EBASH=${EBASH}
+export COLUMNS=80
 source "${EBASH}/ebash.sh" || exit 1
 (
     false
-    echo "Here is a really really really long message"
+    echo "Here is a really really really long message that must be longer than the number of columns so we can test message truncation."
     baz
 )
 EOF
