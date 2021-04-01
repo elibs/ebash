@@ -147,10 +147,10 @@ emock()
         if [[ -e "${statedir}/called" ]]; then
             called=$(cat "${statedir}/called")
             (( called++ ))
-        fi 
+        fi
         echo ${called} > "${statedir}/called"
- 
-       # Create directory to store files in for this invocation
+
+        # Create directory to store files in for this invocation
         mkdir -p "${statedir}/${called}"
 
         # Save off timestamp and argument array
