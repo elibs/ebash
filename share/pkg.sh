@@ -224,6 +224,8 @@ pkg_binary()
         packages+=( "${installable[0]}" )
     done
 
+    array_sort --unique packages
+    edebug "Package $(lval names) -> $(lval packages)"
     echo "${packages[@]}"
 }
 
@@ -237,6 +239,8 @@ __pkg_binary()
         "pkg_manager | The package manager we are using for our OS." \
         "name        | The name of the package we are looking up."   \
     )
+
+    edebug "Mapping binary $(lval name) to package"
 
     case ${pkg_manager} in
 
@@ -257,7 +261,7 @@ __pkg_binary()
             ;;
 
         portage)
-            e-file -c never "${name}" | grep -B5 "/usr/bin/${name}" | head -1 | sed -e 's|\[I\] ||' -e 's| * ||'
+            e-file -c never "${name}" | grep -B5 "/usr/[s]*bin/${name}" | head -1 | sed -e 's|\[I\] ||' -e 's| * ||'
             ;;
 
         yum)
