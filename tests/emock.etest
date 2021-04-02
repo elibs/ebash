@@ -12,7 +12,11 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
-test_binary="yes"
+# Binary we can mock out. This should ideally be one that:
+# (1) Exists on all target systems we run tests on
+# (2) We do not need to use inside this test or in any functions we call. Since we're mocking it out it won't be
+#     callable.
+test_binary="perlbug"
 test_binary_path="$(which ${test_binary})"
 
 dump_state()
