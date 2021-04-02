@@ -75,9 +75,7 @@ elif [ "${DISTRO}" = "arch" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "centos" ]; then
 
-    VERSION=$(awk -F'[="]*' '/^VERSION_ID=/ {print $2}' /etc/os-release)
-
-    yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-${VERSION}.noarch.rpm
+    yum install epel-release -y
 
     yum install -y          \
         curl                \

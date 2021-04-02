@@ -9,25 +9,25 @@
 
 setup()
 {
-    PKG_KNOWN=coreutils
-    PKG_UNKNOWN=does-not-exist
-    PKG_INSTALLED=coreutils
-    PKG_CANDIDATES=(hello banner lolcat fortune)
+    pkg_known=coreutils
+    pkg_unknown=does-not-exist
+    pkg_installed=coreutils
+    pkg_candidates=(hello banner lolcat fortune)
 
-    # Find package we can install from PKG_CANDIDATES
+    # Find package we can install from pkg_candidates
     local pkg="" found=0
-    for pkg in ${PKG_CANDIDATES[@]}; do
-        etestmsg "Checking $(lval pkg PKG_CANDIDATES)"
+    for pkg in ${pkg_candidates[@]}; do
+        etestmsg "Checking $(lval pkg pkg_candidates)"
         if pkg_known ${pkg} && ! pkg_installed ${pkg}; then
             found=1
             break
         fi
     done
 
-    assert_eq 1 "${found}" "Failed to find installable package from $(lval PKG_CANDIDATES)"
+    assert_eq 1 "${found}" "Failed to find installable package from $(lval pkg_candidates)"
 
-    PKG_TO_INSTALL="${pkg}"
-    etestmsg "$(lval PKG_KNOWN PKG_UNKNOWN PKG_INSTALLED PKG_TO_INSTALL)"
+    pkg_to_install="${pkg}"
+    etestmsg "$(lval pkg_known pkg_unknown pkg_installed pkg_to_install)"
 }
 
 ETEST_pkg_0001_manager()
@@ -37,70 +37,70 @@ ETEST_pkg_0001_manager()
 
 ETEST_pkg_known()
 {
-    pkg_known ${PKG_KNOWN}
-    assert_false pkg_known ${PKG_UNKNOWN}
+    pkg_known ${pkg_known}
+    assert_false pkg_known ${pkg_unknown}
 }
 
 ETEST_pkg_install_twice()
 {
-    etestmsg "First make sure $(lval PKG_TO_INSTALL) is not installed."
-    pkg_known ${PKG_TO_INSTALL}
-    assert_false pkg_installed ${PKG_TO_INSTALL}
+    etestmsg "First make sure $(lval pkg_to_install) is not installed."
+    pkg_known ${pkg_to_install}
+    assert_false pkg_installed ${pkg_to_install}
 
     # NOTE: Some packaging systems (e.g. dpkg) don't deal well with different processes trying to install things at the
     # same time. The retries here are intended to harden against issues like that.
-    etestmsg "Install $(lval PKG_TO_INSTALL)"
-    eretry --delay 5s --retries 5 pkg_install ${PKG_TO_INSTALL}
+    etestmsg "Install $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_install ${pkg_to_install}
 
     # Make sure things get cleaned up, even if something goes wrong after this point
-    trap_add "etestmsg CLEANUP ; pkg_uninstall ${PKG_TO_INSTALL} || true"
+    trap_add "etestmsg CLEANUP ; pkg_uninstall ${pkg_to_install} || true"
 
-    etestmsg "Verify $(lval PKG_TO_INSTALL) exists and can be verified as installed."
-    pkg_known ${PKG_TO_INSTALL}
-    pkg_installed ${PKG_TO_INSTALL}
+    etestmsg "Verify $(lval pkg_to_install) exists and can be verified as installed."
+    pkg_known ${pkg_to_install}
+    pkg_installed ${pkg_to_install}
 
-    etestmsg "Attempt secondary install on $(lval PKG_TO_INSTALL)"
-    eretry --delay 5s --retries 5 pkg_install ${PKG_TO_INSTALL}
-    pkg_known ${PKG_TO_INSTALL}
-    pkg_installed ${PKG_TO_INSTALL}
+    etestmsg "Attempt secondary install on $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_install ${pkg_to_install}
+    pkg_known ${pkg_to_install}
+    pkg_installed ${pkg_to_install}
 
-    etestmsg "Uninstall $(lval PKG_TO_INSTALL)"
-    eretry --delay 5s --retries 5 pkg_uninstall ${PKG_TO_INSTALL}
+    etestmsg "Uninstall $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_uninstall ${pkg_to_install}
 
-    etestmsg "and verify that we don't believe $(lval PKG_TO_INSTALL) is installed."
-    pkg_known ${PKG_TO_INSTALL}
-    assert_false pkg_installed ${PKG_TO_INSTALL}
+    etestmsg "and verify that we don't believe $(lval pkg_to_install) is installed."
+    pkg_known ${pkg_to_install}
+    assert_false pkg_installed ${pkg_to_install}
 }
 
 ETEST_pkg_install_and_upgrade()
 {
-    etestmsg "First make sure $(lval PKG_TO_INSTALL) is not installed."
-    pkg_known ${PKG_TO_INSTALL}
-    assert_false pkg_installed ${PKG_TO_INSTALL}
+    etestmsg "First make sure $(lval pkg_to_install) is not installed."
+    pkg_known ${pkg_to_install}
+    assert_false pkg_installed ${pkg_to_install}
 
     # NOTE: Some packaging systems (e.g. dpkg) don't deal well with different processes trying to install things at the
     # same time. The retries here are intended to harden against issues like that.
-    etestmsg "Install $(lval PKG_TO_INSTALL)"
-    eretry --delay 5s --retries 5 pkg_install ${PKG_TO_INSTALL}
+    etestmsg "Install $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_install ${pkg_to_install}
 
     # Make sure things get cleaned up, even if something goes wrong after this point
-    trap_add "etestmsg CLEANUP ; pkg_uninstall ${PKG_TO_INSTALL} || true"
+    trap_add "etestmsg CLEANUP ; pkg_uninstall ${pkg_to_install} || true"
 
-    etestmsg "Verify $(lval PKG_TO_INSTALL) exists and can be verified as installed."
-    pkg_known ${PKG_TO_INSTALL}
-    pkg_installed ${PKG_TO_INSTALL}
+    etestmsg "Verify $(lval pkg_to_install) exists and can be verified as installed."
+    pkg_known ${pkg_to_install}
+    pkg_installed ${pkg_to_install}
 
-    etestmsg "Attempt upgrade on $(lval PKG_TO_INSTALL)"
-    eretry --delay 5s --retries 5 pkg_upgrade ${PKG_TO_INSTALL}
-    pkg_known ${PKG_TO_INSTALL}
-    pkg_installed ${PKG_TO_INSTALL}
+    etestmsg "Attempt upgrade on $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_upgrade ${pkg_to_install}
+    pkg_known ${pkg_to_install}
+    pkg_installed ${pkg_to_install}
 
-    etestmsg "Uninstall $(lval PKG_TO_INSTALL)"
-    eretry --delay 5s --retries 5 pkg_uninstall ${PKG_TO_INSTALL}
+    etestmsg "Uninstall $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_uninstall ${pkg_to_install}
 
-    etestmsg "and verify that we don't believe $(lval PKG_TO_INSTALL) is installed."
-    pkg_known ${PKG_TO_INSTALL}
-    assert_false pkg_installed ${PKG_TO_INSTALL}
+    etestmsg "and verify that we don't believe $(lval pkg_to_install) is installed."
+    pkg_known ${pkg_to_install}
+    assert_false pkg_installed ${pkg_to_install}
 }
 
 ETEST_pkg_binary()
@@ -116,6 +116,8 @@ ETEST_pkg_binary()
         assert_eq "lshw openssh"                    "$(pkg_binary lshw sshd)"
         assert_eq "perl"                            "$(pkg_binary perl)"
         assert_eq "xorriso"                         "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
+        assert_eq "debootstrap"                     "$(pkg_binary debootstrap)"
+        assert_eq "jq"                              "$(pkg_binary jq)"
 
     elif os_distro alpine; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -125,6 +127,8 @@ ETEST_pkg_binary()
         assert_eq "lshw openssh"                    "$(pkg_binary lshw sshd)"
         assert_eq "perl"                            "$(pkg_binary perl)"
         assert_eq "libisoburn"                      "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
+        assert_eq "debootstrap"                     "$(pkg_binary debootstrap)"
+        assert_eq "jq"                              "$(pkg_binary jq)"
 
     elif os_distro debian mint ubuntu; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -135,6 +139,8 @@ ETEST_pkg_binary()
         assert_eq "perl-base"                       "$(pkg_binary perl)"
         assert_eq "genisoimage"                     "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
         assert_eq "genisoimage"                     "$(pkg_binary "genisoimage|xorrisofs")"
+        assert_eq "debootstrap"                     "$(pkg_binary debootstrap)"
+        assert_eq "jq"                              "$(pkg_binary jq)"
 
     elif os_distro arch; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -146,6 +152,8 @@ ETEST_pkg_binary()
         assert_eq "cdrtools"                        "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
         assert_eq "genisoimage"                     "$(pkg_binary "genisoimage|xorrisofs")"
         assert_eq "libisoburn"                      "$(pkg_binary "xorrisofs")"
+        assert_eq "debootstrap"                     "$(pkg_binary debootstrap)"
+        assert_eq "jq"                              "$(pkg_binary jq)"
 
     elif os_distro gentoo ember; then
         assert_eq "sys-apps/coreutils"              "$(pkg_binary chroot)"
@@ -155,9 +163,11 @@ ETEST_pkg_binary()
         assert_eq "net-misc/openssh sys-apps/lshw"  "$(pkg_binary lshw sshd)"
         assert_eq "dev-lang/perl"                   "$(pkg_binary perl)"
         assert_eq "app-arch/gzip"                   "$(pkg_binary gzip)"
-        assert_eq "app-arch/pbzip2"                 "$(pkg_binary "bzip2|lbzip2|pbzip2")"
-        assert_eq "app-arch/pbzip2"                 "$(pkg_binary "NOPACKAGE|bzip2|lbzip2|pbzip2")"
-        assert_eq "app-cdr/cdrtools"                "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
+        assert_eq "app-arch/bzip2"                  "$(pkg_binary "bzip2|lbzip2|pbzip2")"
+        assert_eq "app-arch/bzip2"                  "$(pkg_binary "NOPACKAGE|bzip2|lbzip2|pbzip2")"
+        assert_eq "app-cdr/cdrkit app-cdr/cdrtools" "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
+        assert_eq "dev-util/debootstrap"            "$(pkg_binary debootstrap)"
+        assert_eq "app-misc/jq"                     "$(pkg_binary jq)"
 
     elif os_distro centos fedora; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -165,9 +175,11 @@ ETEST_pkg_binary()
         assert_eq "bash"                            "$(pkg_binary bash)"
         assert_eq "grep"                            "$(pkg_binary grep)"
         assert_eq "lshw openssh-server"             "$(pkg_binary lshw sshd)"
-        assert_eq "perl-base"                       "$(pkg_binary perl)"
+        assert_eq "perl"                            "$(pkg_binary perl)"
         assert_eq "genisoimage"                     "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
         assert_eq "genisoimage"                     "$(pkg_binary "genisoimage|xorrisofs")"
+        assert_eq "debootstrap"                     "$(pkg_binary debootstrap)"
+        assert_eq "jq"                              "$(pkg_binary jq)"
 
     else
         die "Unsupported OS: $(os_pretty_name)"
