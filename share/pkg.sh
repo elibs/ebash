@@ -263,10 +263,14 @@ __pkg_binary()
             ;;
 
         portage)
-            e-file -c never "${name}"              \
-                | grep -B5 "/usr/[s]*bin/${name}"  \
-                | sed -e 's|\[I\] ||' -e 's| * ||' \
-                | grep "^\S\+"                     \
+            if edebug_enabled; then
+                e-file -c never "${name}" | edebug
+            fi
+
+            e-file -c never "${name}"                   \
+                | grep -B5 "/usr/[s]*bin/${name}"       \
+                | sed -e 's|\[I\] ||' -e 's|\s*\*\s*||' \
+                | grep "^\S\+"                          \
                 | grep -v -- "--"
             ;;
 
