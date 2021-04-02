@@ -103,7 +103,7 @@ emock()
         ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the return code, stdout, and stderr for each invocation."     \
-        "+delete      d                     | Delete existing mock state inside statedir from prior mock invocations." \
+        "+reset       r                     | Reset existing mock state inside statedir from prior mock invocations." \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode). This
                                               must match the calling convention at the call site."                     \
         "?body                              | This allows fine-grained control over the body of the mocked function that
@@ -115,7 +115,7 @@ emock()
 
     # Prepare statedir
     statedir+="/$(basename "${name}")"
-    if [[ "${delete}" -eq 1 ]]; then
+    if [[ "${reset}" -eq 1 ]]; then
         efreshdir "${statedir}"
     else
         mkdir -p "${statedir}"

@@ -16,8 +16,9 @@
 # (1) Exists on all target systems we run tests on
 # (2) We do not need to use inside this test or in any functions we call. Since we're mocking it out it won't be
 #     callable.
-test_binary="perlbug"
+test_binary="reset"
 test_binary_path="$(which ${test_binary})"
+test_binary_flag="-V"
 
 dump_state()
 {
@@ -82,7 +83,7 @@ ETEST_emock_and_filesystem_multiple()
     assert_eq "file" "$(type -t ${test_binary_path})"
     assert_eq "file" "$(type -t ${test_binary_path}_real)"
     assert_eq "filesystem" "$(emock_mode "${test_binary}")"
-    file "${test_binary_path}" | grep -Pq "(ASCII text|bash script|Bourne-Again shell script)"
+    file -L "${test_binary_path}" | grep -Pq "(ASCII text|bash script|Bourne-Again shell script)"
 
     etestmsg "Mocking ${test_binary} with --filesystem and --return 1"
     emock --filesystem --return 1 "${test_binary_path}"
@@ -94,7 +95,7 @@ ETEST_emock_and_filesystem_multiple()
 
     etestmsg "Unmocking"
     eunmock "${test_binary_path}"
-    file "${test_binary_path}" | grep -Pq "ELF"
+    file -L "${test_binary_path}" | grep -Pq "ELF"
 }
 
 ETEST_emock_called()
@@ -173,7 +174,7 @@ ETEST_emock_called_filesystem()
     assert_eq 1 "$(cat .emock-$$/${test_binary}/called)"
     assert_eq 1 "$(emock_called ${test_binary_path})"
     assert_emock_called "${test_binary_path}" 1
-    assert_eq "0" "$(emock_indexes --last "func")"
+    assert_eq "0" "$(emock_indexes --last "${test_binary_path}")"
     assert_directory_contents .emock-$$/${test_binary} \
         called        \
         mode          \
@@ -249,7 +250,7 @@ ETEST_emock_real()
 
     # Verify we can _use_ the real function
     etestmsg "Verifying we can call ${test_binary}_real wrapper"
-    ${test_binary}_real .
+    ${test_binary}_real ${test_binary_flag}
 }
 
 ETEST_emock_return_code()
