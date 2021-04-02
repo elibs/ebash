@@ -6,19 +6,45 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if os darwin; then
-    test_binary="gfind"
-    test_binary_path="/usr/local/bin/gfind"
-else
-    test_binary="find"
-    test_binary_path="$(which find)"
-fi
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Setup
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
+# Binary we can mock out. This should ideally be one that:
+# (1) Exists on all target systems we run tests on
+# (2) We do not need to use inside this test or in any functions we call. Since we're mocking it out it won't be
+#     callable.
+test_binary="reset"
+test_binary_path="$(which ${test_binary})"
+test_binary_flag="-V"
+
+dump_state()
+{
+    local fname="" contents=""
+    for fname in $(find .emock-$$ -type f); do
+        contents=""
+        if [[ $(basename "${fname}") == "args" ]]; then
+            array_init_nl contents "$(cat ${fname})"
+        else
+            contents="$(cat "${fname}")"
+        fi
+
+        etestmsg "$(lval fname contents)"
+    done
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
 ETEST_emock()
 {
     etestmsg "Mocking ${test_binary}"
     emock "${test_binary}"
-    assert_match "$(type ${test_binary})" "${test_binary} is a function"
+    assert_eq "function" "$(type -t ${test_binary})"
     eunmock "${test_binary}"
     assert_match "$(hash -r; type ${test_binary})" "${test_binary} is ${test_binary_path}"
 }
@@ -27,7 +53,7 @@ ETEST_emock_and_path()
 {
     etestmsg "Mocking ${test_binary} with full path"
     emock "${test_binary_path}"
-    assert_match "$(type ${test_binary_path})" "${test_binary_path} is a function"
+    assert_eq "function" "$(type -t ${test_binary_path})"
     eunmock "${test_binary_path}"
     assert_match "$(hash -r; type ${test_binary_path})" "${test_binary_path} is ${test_binary_path}"
 }
@@ -57,7 +83,7 @@ ETEST_emock_and_filesystem_multiple()
     assert_eq "file" "$(type -t ${test_binary_path})"
     assert_eq "file" "$(type -t ${test_binary_path}_real)"
     assert_eq "filesystem" "$(emock_mode "${test_binary}")"
-    file "${test_binary_path}" | grep -Pq "(ASCII text|bash script|Bourne-Again shell script)"
+    file -L "${test_binary_path}" | grep -Pq "(ASCII text|bash script|Bourne-Again shell script)"
 
     etestmsg "Mocking ${test_binary} with --filesystem and --return 1"
     emock --filesystem --return 1 "${test_binary_path}"
@@ -69,31 +95,63 @@ ETEST_emock_and_filesystem_multiple()
 
     etestmsg "Unmocking"
     eunmock "${test_binary_path}"
-    file "${test_binary_path}" | grep -Pq "ELF"
+    file -L "${test_binary_path}" | grep -Pq "ELF"
 }
 
 ETEST_emock_called()
 {
-    func()
-    {
-        true
-    }
+    func() { true; }
 
     etestmsg "Mocking func"
     emock "func"
-    assert_match "$(type func)" "func is a function"
+    dump_state
+    assert_eq 0 "$(cat .emock-$$/func/called)"
     assert_eq 0 "$(emock_called func)"
     assert_emock_called "func" 0
 
-    etestmsg "Calling mocked func"
+    ## CALL 1 (index 0) ##
+    etestmsg "Calling mock#1 index=0"
     func
+    dump_state
+    assert_eq 1 "$(cat .emock-$$/func/called)"
     assert_eq 1 "$(emock_called func)"
     assert_emock_called "func" 1
+    assert_eq "0" "$(emock_indexes "func")"
+    assert_directory_contents .emock-$$/func \
+        called        \
+        mode          \
+        0             \
+        0/return_code \
+        0/stdout      \
+        0/stderr      \
+        0/timestamp   \
+        0/args
 
-    etestmsg "Calling mocked func"
+    ## CALL 2 (index 1) ##
+    echo
+    etestmsg "Calling mock#1 index=1"
     func
+    dump_state
+    assert_eq 2 "$(cat .emock-$$/func/called)"
     assert_eq 2 "$(emock_called func)"
     assert_emock_called "func" 2
+    assert_eq "0 1" "$(emock_indexes "func")"
+    assert_eq "1" "$(emock_indexes --last "func")"
+    assert_directory_contents .emock-$$/func \
+        called        \
+        mode          \
+        0             \
+        0/return_code \
+        0/stdout      \
+        0/stderr      \
+        0/timestamp   \
+        0/args        \
+        1             \
+        1/return_code \
+        1/stdout      \
+        1/stderr      \
+        1/timestamp   \
+        1/args
 }
 
 ETEST_emock_called_filesystem()
@@ -104,26 +162,80 @@ ETEST_emock_called_filesystem()
     etestmsg "Mocking ${test_binary} with full path and --filesystem"
     emock --filesystem "${test_binary_path}"
     trap_add "eunmock ${test_binary_path}"
-
-    assert_eq "file" "$(type -t ${test_binary_path})"
-    assert_eq "file" "$(type -t ${test_binary_path}_real)"
     assert_eq "filesystem" "$(emock_mode "${test_binary}")"
     assert_exists "${test_binary_path}_real"
-
     assert_eq 0 "$(emock_called ${test_binary_path})"
     assert_emock_called "${test_binary_path}" 0
 
-    etestmsg "Calling mock"
+    ## CALL 1 (index 0) ##
+    etestmsg "Calling mock#1 index=0"
     ${test_binary_path}
-    find .emock-$$
-    cat .emock-$$/${test_binary}/called
+    dump_state
+    assert_eq 1 "$(cat .emock-$$/${test_binary}/called)"
     assert_eq 1 "$(emock_called ${test_binary_path})"
     assert_emock_called "${test_binary_path}" 1
+    assert_eq "0" "$(emock_indexes --last "${test_binary_path}")"
+    assert_directory_contents .emock-$$/${test_binary} \
+        called        \
+        mode          \
+        0             \
+        0/return_code \
+        0/stdout      \
+        0/stderr      \
+        0/timestamp   \
+        0/args
 
-    etestmsg "Calling mocked"
+    ## CALL 2 (index 1) ##
+    echo
+    etestmsg "Calling mock#2 index=1"
     ${test_binary_path}
+    dump_state
+    assert_eq 2 "$(cat .emock-$$/${test_binary}/called)"
     assert_eq 2 "$(emock_called ${test_binary_path})"
     assert_emock_called "${test_binary_path}" 2
+    assert_directory_contents .emock-$$/${test_binary} \
+        called        \
+        mode          \
+        0             \
+        0/return_code \
+        0/stdout      \
+        0/stderr      \
+        0/timestamp   \
+        0/args        \
+        1             \
+        1/return_code \
+        1/stdout      \
+        1/stderr      \
+        1/timestamp   \
+        1/args
+}
+
+ETEST_emock_indexes()
+{
+    func() { true; }
+
+    etestmsg "Mocking func"
+    emock "func"
+    dump_state
+    assert_emock_called "func" 0
+    assert_empty "$(emock_indexes "func")"
+
+    ## CALL 1 (index 0) ##
+    etestmsg "Calling mock#1 index=0"
+    func
+    dump_state
+    assert_emock_called "func" 1
+    assert_eq "0" "$(emock_indexes "func")"
+
+    ## CALL 2 (index 1) ##
+    echo
+    etestmsg "Calling mock#2 index=1"
+    func
+    dump_state
+    assert_emock_called "func" 2
+    assert_eq "0 1" "$(emock_indexes "func")"
+    assert_eq "1"   "$(emock_indexes --last "func")"
+
 }
 
 ETEST_emock_real()
@@ -133,12 +245,12 @@ ETEST_emock_real()
 
     etestmsg "Mocking ${test_binary}"
     emock "${test_binary}"
-    assert_match "$(type ${test_binary})"      "${test_binary} is a function"
-    assert_match "$(type ${test_binary}_real)" "${test_binary}_real is a function"
+    assert_eq "function" "$(type -t ${test_binary})"
+    assert_eq "function" "$(type -t ${test_binary}_real)"
 
     # Verify we can _use_ the real function
     etestmsg "Verifying we can call ${test_binary}_real wrapper"
-    ${test_binary}_real .
+    ${test_binary}_real ${test_binary_flag}
 }
 
 ETEST_emock_return_code()
@@ -150,7 +262,6 @@ ETEST_emock_return_code()
 
     etestmsg "Mocking func"
     emock --return-code 0 "func"
-    assert_match "$(type func)" "func is a function"
 
     etestmsg "Calling mocked func"
     $(tryrc func)
@@ -172,7 +283,6 @@ ETEST_emock_stdout()
 
     etestmsg "Mocking with stdout"
     emock --stdout "mock stdout" "func"
-    assert_match "$(type func)" "func is a function"
 
     etestmsg "Calling mocked func"
     $(tryrc --stdout=stdout func)
@@ -192,27 +302,36 @@ ETEST_emock_stdout_repeat()
         echo "func stdout" >&1
     }
 
-    etestmsg "Mocking with stdout #0"
+    ## CALL 1 (index 0) ##
+    etestmsg "Calling mock#1 index=0 (with stdout #0)"
     emock --stdout "mock stdout #0" "func"
-    assert_match "$(type func)" "func is a function"
     $(tryrc --stdout=stdout func)
+    assert_eq 1 "$(emock_called func)"
+    assert_eq 0 "$(emock_indexes func)"
     assert_eq "mock stdout #0" "${stdout}"
     assert_eq "mock stdout #0" "$(emock_stdout "func")"
     assert_eq "mock stdout #0" "$(emock_stdout "func" 0)"
     assert_emock_stdout "func" 0 "mock stdout #0"
 
-    etestmsg "Mocking with stdout #1"
+    ## CALL 2 (index 1) ##
+    etestmsg "Calling mock#2 index=1 (with stdout #1)"
     emock --stdout "mock stdout #1" "func"
     $(tryrc --stdout=stdout func)
+    assert_eq 2 "$(emock_called func)"
+    assert_eq "0 1" "$(emock_indexes func)"
+    assert_eq "1" "$(emock_indexes --last func)"
     assert_eq "mock stdout #1" "${stdout}"
-    assert_eq 1 "$(emock_called func)"
     assert_eq "mock stdout #1" "$(emock_stdout "func")"
     assert_eq "mock stdout #1" "$(emock_stdout "func" 1)"
     assert_emock_stdout "func" 1 "mock stdout #1"
 
-    etestmsg "Mocking with stdout #2"
+    ## CALL 3 (index 2) ##
+    etestmsg "Calling mock#3 index=2 (with stdout #2)"
     emock --stdout "mock stdout #2" "func"
     $(tryrc --stdout=stdout func)
+    assert_eq 3 "$(emock_called func)"
+    assert_eq "0 1 2" "$(emock_indexes func)"
+    assert_eq 2 "$(emock_indexes --last func)"
     assert_eq "mock stdout #2" "${stdout}"
     assert_eq "mock stdout #2" "$(emock_stdout "func")"
     assert_eq "mock stdout #2" "$(emock_stdout "func" 2)"
@@ -234,7 +353,6 @@ ETEST_emock_stderr()
 
     etestmsg "Mocking with stdout and stderr"
     emock --return-code 0 --stdout "mock stdout" --stderr "mock stderr" "func"
-    assert_match "$(type func)" "func is a function"
 
     etestmsg "Calling mocked func"
     $(tryrc --stdout=stdout --stderr=stderr func)
@@ -257,14 +375,13 @@ ETEST_emock_args()
 
     etestmsg "Mocking func"
     emock "func"
-    assert_match "$(type func)" "func is a function"
 
+    ## CALL 1 (index 0) ##
     etestmsg "Calling func with arguments"
     func "1" "2" "3" "dogs and cats" "Anarchy"
-    cat ".emock-$$/func/0/args"
-    echo
+    dump_state
     local args
-    args=( $(emock_args func) )
+    array_init_nl args "$(emock_args func)"
 
     etestmsg "Captured func $(lval args)"
     assert_eq 5 $(array_size args)
@@ -277,7 +394,7 @@ ETEST_emock_args()
     assert_emock_called_with "func" 0 \
         "1" "2" "3" "dogs and cats" "Anarchy"
 
-    expected=( "1" "2" "3" "docs and cats" "Anarchy" )
+    expected=( "1" "2" "3" "dogs and cats" "Anarchy" )
     assert_emock_called_with "func" 0 "${expected[@]}"
 }
 
@@ -296,10 +413,9 @@ ETEST_emock_body()
         fi
     }'
 
-    assert_match "$(type func)" "func is a function"
-
     etestmsg "Calling with args=bar (should succeed)"
     $(tryrc func "bar")
+    dump_state
     assert_eq 0 ${rc}
     etestmsg "Mocked function was called with:"
     cat .emock-$$/func/0/args
@@ -311,6 +427,7 @@ ETEST_emock_body()
 
     etestmsg "Calling with args=foo (should fail)"
     $(tryrc func "foo")
+    dump_state
     assert_eq 1 ${rc}
     etestmsg "Mocked function was called with:"
     cat .emock-$$/func/1/args
