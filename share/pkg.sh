@@ -149,6 +149,13 @@ pkg_install()
         "@names    | Names of packages or binaries to install." \
     )
 
+    # If no package names requested just return
+    if array_empty names; then
+        return 0
+    fi
+
+    einfo "Installing packages $(lval names sync)"
+
     if [[ ${sync} -eq 1 ]]; then
         pkg_sync
     fi
@@ -215,11 +222,9 @@ pkg_binary()
     local packages=()
 
     # Check each package
-    local name installable
+    local name
     for name in "${names[@]}"; do
-        installable=( $(__pkg_binary "${name}" ) )
-        assert_eq 1 "$(array_size installable)" "${name} did not resolve to a single $(lval installable)."
-        packages+=( "${installable[0]}" )
+        packages+=( $(__pkg_binary "${name}" ) )
     done
 
     array_sort --unique packages
@@ -258,7 +263,11 @@ __pkg_binary()
             ;;
 
         portage)
-            e-file -c never "${name}" | grep -B5 "/usr/[s]*bin/${name}" | head -1 | sed -e 's|\[I\] ||' -e 's| * ||'
+            e-file -c never "${name}"              \
+                | grep -B5 "/usr/[s]*bin/${name}"  \
+                | sed -e 's|\[I\] ||' -e 's| * ||' \
+                | grep "^\S\+"                     \
+                | grep -v -- "--"
             ;;
 
         yum)
@@ -277,6 +286,8 @@ END
 pkg_uninstall()
 {
     $(opt_parse "@names | Names of package to install.")
+
+    einfo "Unistalling packages $(lval names)"
 
     case $(pkg_manager) in
         apk)
@@ -392,33 +403,35 @@ END
 pkg_upgrade()
 {
     $(opt_parse \
-        "name | Name of the package that should be upgraded to the newest possible version.")
+        "@names | Names of the packages that should be upgraded to the newest possible versions.")
 
-    pkg_installed ${name}
+    pkg_installed ${names[@]}
+
+    einfo "Upgrading packages $(lval names)"
 
     case $(pkg_manager) in
         apk)
-            apk upgrade "${name}"
+            apk upgrade "${names[@]}"
             ;;
 
         apt)
-            DEBIAN_FRONTEND=noninteractive apt install -y "${name}"
+            DEBIAN_FRONTEND=noninteractive apt install -y "${names[@]}"
             ;;
 
         brew)
-            brew upgrade "${name}"
+            brew upgrade "${names[@]}"
             ;;
 
         pacman)
-            pacman -S --noconfirm "${name}"
+            pacman -S --noconfirm "${names[@]}"
             ;;
 
         portage)
-            emerge --update "${name}"
+            emerge --update "${names[@]}"
             ;;
 
         yum)
-            yum update -y "${name}"
+            yum update -y "${names[@]}"
             ;;
 
         *)
