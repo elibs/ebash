@@ -239,7 +239,7 @@ die_on_abort()
 
     local signal
     for signal in "${DIE_SIGNALS[@]}" ; do
-        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\$(string_truncate -e 60 \${BASH_COMMAND})\"]" ${signal}
+        trap "die -s=${signal} \"[Caught ${signal} pid=\${BASHPID} cmd=\$(string_truncate -e \$(tput cols) \${BASH_COMMAND})\"]" ${signal}
     done
 }
 
