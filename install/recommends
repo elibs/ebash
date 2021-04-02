@@ -21,32 +21,30 @@ END
 #
 #----------------------------------------------------------------------------------------------------------------------
 
-ebanner "Installing recommended packages" \
-    exclude
+OS=$(os_pretty_name)
+ebanner --uppercase "Installing recommended packages" \
+    OS
 
-pkg_install --binaries  \
-    curl                \
-    bzip2               \
-    lbzip2              \
-    column              \
-    cpio                \
-    curl                \
-    debootstrap         \
-    dialog              \
-    git                 \
-    gzip                \
-    pigz                \
-    ip                  \
-    iptables            \
-    jq                  \
-    lzma                \
-    xz                  \
-    mkisofs             \
-    mksquashfs          \
-    mount               \
-    netstat             \
-    pgrep               \
-    ping                \
-    pstree              \
-    tar                 \
+binaries=(
+    "bzip2|lbzip2|pbzip2"
+    "column"
+    "cpio"
+    "debootstrap"
+    "dialog"
+    "git"
+    "gzip|pigz"
+    "ip"
+    "iptables"
+    "jq"
+    "mkisofs|genisoimage|xorrisofs"
+    "mksquashfs"
+    "netstat"
+    "pgrep"
+    "ping"
+    "pstree"
+    "tar"
+    "xz|lzma"
+)
 
+edebug "Installing $(lval binaries)"
+pkg_install --binaries "${binaries[@]}"

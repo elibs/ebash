@@ -139,6 +139,11 @@ but the actual package names are very frequently different on different OS or di
 To that end, there is a `--binaries` flag which will interpret the list of names as binaries to install rather than
 packages. When run in this mode, we use the appropriate package manager for the system in question to determine the
 names of the packages to install in order to get the desired binaries installed.
+
+Because some distros provide various binaries which might suit your needs, the syntax for the binaries to install is
+very flexible via the `alternative` operator as in `mkisofs|genisoimage|xorrisofs`. When given a binary name which has
+the alternative operator in it, ebash will split on the `|` and try them one at a time. The first one which it can
+successfully map to an installable package will be used.
 END
 pkg_install()
 {
@@ -146,7 +151,7 @@ pkg_install()
         "+sync     | Perform pkg_sync before trying to lookup and install the packages." \
         "+binaries | Interpret the names as binaries to install rather than actual package names. In this mode the
                      package manager is queried via pkg_binary to map the binaries to package names." \
-        "@names    | Names of packages or binaries to install." \
+        "@names    | Names of packages or binaries (with optional alternatives) to install." \
     )
 
     # If no package names requested just return
@@ -154,16 +159,16 @@ pkg_install()
         return 0
     fi
 
-    einfo "Installing packages $(lval names sync)"
+    einfo "Installing packages $(lval binaries names sync)"
 
     if [[ ${sync} -eq 1 ]]; then
         pkg_sync
     fi
 
     if [[ ${binaries} -eq 1 ]]; then
-        edebug "Pre-converting binaries to packages $(lval names)"
+        edebug "Converting binaries to packages $(lval names)"
         names=( $(pkg_binary ${names[@]}) )
-        edebug "Post-converring binaries to packages $(lval names)"
+        edebug "Converted binaries to packages $(lval names)"
     fi
 
     case $(pkg_manager) in
@@ -189,7 +194,7 @@ pkg_install()
             ;;
 
         pacman)
-            pacman -S --noconfirm "${names[@]}"
+            pacman -S --noconfirm --needed "${names[@]}"
             ;;
 
         portage)
@@ -207,13 +212,17 @@ pkg_install()
 }
 
 opt_usage pkg_binary <<'END'
-Take a list of binaries and figure out what package would need to be installed to get the specified binary. Since this
-sort of lookup is not possible with most package managers, we delegate this work out to the fantastic service provided
-by [command-not-found](https://command-not-found.com). This will return what command should be executed to install a
-command on various operating systems. This includes OS X, and almost all of our supported Linux distros. The one
-exception to that is Gentoo. In which case we delegate this task to the similar [portage-file-list](https://www.portagefilelist.de/site/query).
-In the gentoo case, we often get duplicate results back in which case we examine filter the results down to one which
-would be in our PATH.
+Take a list of binaries with optional `alternative` operator `|` and figure out what package would need to be installed
+to get the specified binary. Since this sort of lookup is not possible with most package managers, we delegate this work
+out to the fantastic service provided by [command-not-found](https://command-not-found.com). This returns the command
+to be executed to install a command on various operating systems. This includes all our supported OS and distros with
+the exception of Gentoo.
+
+So for Gentoo, we delegate this task to the similar [portage-file-list](https://www.portagefilelist.de/site/query) which
+is wrapped by the helpful tool `e-file` as part of the `pfl` package. In the gentoo case, we often get duplicate results
+back because different packages can install the same binary and USE flags dicate which one would get used. In this case
+we simply iterate over our PATH and pick the first installable package which would install a binary earliest in our
+PATH.
 END
 pkg_binary()
 {
@@ -224,7 +233,23 @@ pkg_binary()
     # Check each package
     local name
     for name in "${names[@]}"; do
-        packages+=( $(__pkg_binary "${name}" ) )
+        edebug "Converting $(lval name) to package"
+
+        # If the name contains a list of alternatives, split on "|" and try each on in turn, stopping on the first one
+        # that is valid for this OS.
+        if [[ "${name}" =~ "|" ]]; then
+            local part parts=()
+            array_init parts "${name}" "|"
+            for part in "${parts[@]}"; do
+                local match
+                if match=$(__pkg_binary "${part}"); then
+                    packages+=( "${match}" )
+                    break
+                fi
+            done
+        else
+            packages+=( $(__pkg_binary "${name}" || die "Failed to find a matching package for binary=${name}") )
+        fi
     done
 
     array_sort --unique packages
@@ -235,6 +260,7 @@ pkg_binary()
 opt_usage __pkg_binary <<'END'
 __pkg_binary is an internal helper method called by pkg_binary to make the code more reusable inside a loop. This is
 what does the heavy lifting of calling out to command-not-found.com or using e-file to map a binary name to a package.
+The binary name cannot contain any paths in it. For example, you can pass in 'bash' but not '/bin/bash'.
 END
 __pkg_binary()
 {
@@ -243,6 +269,8 @@ __pkg_binary()
     )
 
     edebug "Mapping binary $(lval name) to package"
+    assert_not_match "${name}" "/" "${name} cannot contain path separator '/'"
+    assert_not_match "${name}" "|" "${name} cannot contain alternation separator '|'"
 
     case $(pkg_manager) in
 
@@ -263,11 +291,22 @@ __pkg_binary()
             ;;
 
         portage)
-            e-file -c never "${name}"              \
-                | grep -B5 "/usr/[s]*bin/${name}"  \
-                | sed -e 's|\[I\] ||' -e 's| * ||' \
-                | grep "^\S\+"                     \
-                | grep -v -- "--"
+
+            # Split PATH into directories and search each one looking for a package which provides that binary. This
+            # way we are ensured to stop on the first one that would normally be installed and used on this system. It
+            # also avoids having to really gross parsing of e-file's output if we did a lookup with just '${name}' as
+            # it would find sub-string matches which we would have to filter out.
+            local path parts matches=()
+            array_init parts "${PATH}" ":"
+            for path in "${parts[@]}"; do
+                if e-file -c never "${path}/${name}" | grep -Po '^(\[I\]| \* ) \K.*'; then
+                    return 0
+                fi
+            done
+
+            edebug "Failed to map $(lval name) to a package"
+            return 1
+
             ;;
 
         yum)
