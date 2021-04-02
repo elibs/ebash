@@ -106,7 +106,7 @@ ETEST_pkg_install_and_upgrade()
 ETEST_pkg_binary()
 {
     etestmsg "Converting binary to package name"
-    EDEBUG+=" pkg_binary"
+    EDEBUG+=" pkg_binary __pkg_binary"
 
     if os darwin; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
