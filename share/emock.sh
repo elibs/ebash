@@ -103,7 +103,7 @@ emock()
         ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the return code, stdout, and stderr for each invocation."     \
-        "+delete      d                     | Delete existing mock state inside statedir from prior mock invocations." \
+        "+reset       r                     | Reset existing mock state inside statedir from prior mock invocations." \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode). This
                                               must match the calling convention at the call site."                     \
         "?body                              | This allows fine-grained control over the body of the mocked function that
@@ -115,10 +115,15 @@ emock()
 
     # Prepare statedir
     statedir+="/$(basename "${name}")"
-    if [[ "${delete}" -eq 1 ]]; then
+    if [[ "${reset}" -eq 1 ]]; then
         efreshdir "${statedir}"
     else
         mkdir -p "${statedir}"
+    fi
+
+    # Create called file if it doesnt' exist.
+    if [[ ! -e "${statedir}/called" ]]; then
+        echo "0" > "${statedir}/called"
     fi
 
     # Prepare the base of the mock function body. We have to put a proper interpreter if we're in filesystem mode
@@ -142,26 +147,23 @@ emock()
         # Create state directory
         statedir="'${statedir}'"
 
-        # Update call count
-        called=0
-        if [[ -e "${statedir}/called" ]]; then
-            called=$(cat "${statedir}/called")
-            (( called++ ))
-        fi
-        echo ${called} > "${statedir}/called"
+        # Get current call count for all our state files. Then update called count inside the file.
+        # Do not modify our local variable as that would cause us to write out to the wrong state files.
+        called=$(cat "${statedir}/called")
+        echo "$(( called + 1 ))" > "${statedir}/called"
 
         # Create directory to store files in for this invocation
         mkdir -p "${statedir}/${called}"
 
         # Save off timestamp and argument array
         echo -en $(date "+%FT%TZ") > "${statedir}/${called}/timestamp"
-        printf "\"%s\" " "${@}" > "${statedir}/${called}/args"
+        printf "%s\n" "${@}" > "${statedir}/${called}/args"
     '
 
     # Create the mock
     if [[ -z "${body}" ]]; then
         body='
-        {
+        (
             '${base_body}'
 
             # Save off stdout and stderr
@@ -175,10 +177,10 @@ emock()
             # Return / Exit
             echo -n '${return_code}' > "${statedir}/${called}/return_code"
             '${return_statement}' '${return_code}'
-        }'
+        )'
     else
         body='
-        {
+        (
             '${base_body}'
             ( '${body}' )
 
@@ -186,7 +188,7 @@ emock()
             local return_code=$?
             echo -n ${return_code} > "${statedir}/${called}/return_code"
             '${return_statement}' ${return_code}
-        }'
+        )'
     fi
 
     # Now, if we're in filesystem mode, creat the mock on-disk. Otherwise create in-memory mocks.
@@ -301,6 +303,47 @@ emock_called()
     echo -n "${called}"
 }
 
+opt_usage emock_indexes <<'END'
+`emock_indexes` makes it easier to get the call indexes for the mock invocations. Think of this as the array
+indexes where the first call will have a call index of `0`, the second call will have a call index of `1`, etc. This is
+different than `emock_called` which a 1-based count. This is a 0-based list of call invocation numbers.
+
+So if this has never been called, then `emock_indexes` will echo an empty string. If it has been called 3 times then
+this will echo `0 1 2`. These corresponding to the directories: `${statedir}/0 ${statedir}/1 ${statedir}/2`.
+END
+emock_indexes()
+{
+    $(opt_parse \
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
+                                              hold metadata information such as the number of times the mock was called
+                                              as well as the exit code, stdout, and stderr for each invocation."       \
+        "+last                              | Display the LAST index only rather than all indexes."                    \
+        "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
+    )
+
+    local path base indexes=()
+    statedir+="/$(basename "${name}")"
+    for path in "${statedir}"/*; do
+        base=$(basename "${path}")
+        if [[ -d "${path}" ]] && is_int "${base}"; then
+            indexes+=( "${base}" )
+        fi
+    done
+
+    # If there was nothing found just return immediately.
+    if array_empty indexes; then
+        return 0
+    fi
+
+    array_sort --version indexes
+
+    if [[ ${last} -eq 0 ]]; then
+        echo "${indexes[@]}"
+    else
+        echo "${indexes[-1]}"
+    fi
+}
+
 opt_usage emock_stdout <<'END'
 `emock_stdout` is a utility function to make it easier to get the standard output from a particular invocation of a
 mocked function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to
@@ -318,7 +361,7 @@ emock_stdout()
     )
 
     if [[ -z "${num}" ]]; then
-        num=$(opt_forward emock_called statedir -- ${name})
+        num=$(opt_forward emock_indexes statedir -- --last ${name})
     fi
 
     statedir+="/$(basename "${name}")"
@@ -347,7 +390,7 @@ emock_stderr()
     )
 
     if [[ -z "${num}" ]]; then
-        num=$(opt_forward emock_called statedir -- ${name})
+        num=$(opt_forward emock_indexes statedir -- --last ${name})
     fi
 
     statedir+="/$(basename "${name}")"
@@ -364,11 +407,11 @@ opt_usage emock_args <<'END'
 function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to provide a
 clean abstraction. If the call number is not provided, this will default to the most recent invocation's argument array.
 
-Inside the statedir, the argument array is stored with each argument fully quoted so that whitespace encapsulated
-arguments preserve whitespace. To convert this back into an array, the best thing to do is to use array_init:
+Inside the statedir, the argument array is stored as a newline separated file so that whitespace is preserved.
+To convert this back into an array, the best thing to do is to use array_init_nl:
 
 ```shell
-array_init args "$(emock_args func)"
+array_init_nl args "$(emock_args func)"
 ```
 
 Alternatively, the helper `assert_emock_called_with` is an extremely useful way to validate the arguments passed
@@ -385,12 +428,11 @@ emock_args()
     )
 
     if [[ -z "${num}" ]]; then
-        num=$(opt_forward emock_called statedir -- ${name})
+        num=$(opt_forward emock_indexes statedir -- --last ${name})
     fi
 
     statedir+="/$(basename "${name}")"
     if [[ -e "${statedir}/${num}/args" ]]; then
-        cat "${statedir}/${num}/args" | edebug
         cat "${statedir}/${num}/args"
     fi
 }
@@ -412,7 +454,7 @@ emock_return_code()
     )
 
     if [[ -z "${num}" ]]; then
-        num=$(opt_forward emock_called statedir -- ${name})
+        num=$(opt_forward emock_indexes statedir -- --last ${name})
     fi
 
     statedir+="/$(basename "${name}")"
@@ -559,10 +601,16 @@ assert_emock_called_with()
                                               as well as the exit code, stdout, and stderr for each invocation."       \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
         "num                                | The call number to look at the arguments for."                           \
-        "@args                              | Argument array we expect the mock function to have been called with."    \
+        "@expect                            | Argument array we expect the mock function to have been called with."    \
     )
 
     local actual=""
-    array_init actual "$(opt_forward emock_args statedir -- ${name} ${num})"
-    diff --unified <(printf "\"%s\" " "${args[@]}") <(echo -n "${actual[@]} ")
+    array_init_nl actual "$(opt_forward emock_args statedir -- ${name} ${num})"
+
+    if edebug_enabled; then
+        edebug "EXPECT: $(lval expect)"
+        edebug "ACTUAL: $(lval actual)"
+    fi
+
+    diff <(printf "%s\n" "${expect[@]}") <(printf "%s\n" "${actual[@]}")
 }
