@@ -242,6 +242,7 @@ elif [ "${DISTRO}" = "gentoo" ]; then
         gettext              \
         jq                   \
         net-tools            \
+        pfl                  \
         squashfs-tools
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -291,6 +292,11 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "darwin" ]; then
 
+    if ! which brew &>/dev/null; then
+        echo ">> Installing Homebrew"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
+
     brew update-reset
 
     # Brew is lame. If you try to install something that's already installed it returns an error. So we have to first
@@ -306,16 +312,23 @@ elif [ "${DISTRO}" = "darwin" ]; then
 
     brew_install       \
         bash           \
-        curl           \
-        docker         \
-        docker-machine \
         coreutils      \
+        curl           \
         findutils      \
-        iproute2mac    \
+        gawk           \
         gnu-sed        \
+        gnu-tar        \
+        gnu-which      \
         grep           \
+        iproute2mac    \
         jq             \
         pstree
+
+    # Do not install docker if it is already installed since typically docker is installed on a Mac via
+    # docker-for-desktop rather than through brew.
+    if ! which docker &> /dev/null; then
+        brew_install docker docker-machine
+    fi
 
 #----------------------------------------------------------------------------------------------------------------------
 #
