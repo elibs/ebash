@@ -106,7 +106,7 @@ ETEST_pkg_install_and_upgrade()
 ETEST_pkg_binary()
 {
     etestmsg "Converting binary to package name"
-    EDEBUG+=" pkg_binary"
+    EDEBUG+=" pkg_binary __pkg_binary"
 
     if os darwin; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -115,6 +115,7 @@ ETEST_pkg_binary()
         assert_eq "grep"                            "$(pkg_binary grep)"
         assert_eq "lshw openssh"                    "$(pkg_binary lshw sshd)"
         assert_eq "perl"                            "$(pkg_binary perl)"
+        assert_eq "xorriso"                         "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
 
     elif os_distro alpine; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -123,6 +124,7 @@ ETEST_pkg_binary()
         assert_eq "grep"                            "$(pkg_binary grep)"
         assert_eq "lshw openssh"                    "$(pkg_binary lshw sshd)"
         assert_eq "perl"                            "$(pkg_binary perl)"
+        assert_eq "libisoburn"                      "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
 
     elif os_distro debian mint ubuntu; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -131,6 +133,8 @@ ETEST_pkg_binary()
         assert_eq "grep"                            "$(pkg_binary grep)"
         assert_eq "lshw openssh-server"             "$(pkg_binary lshw sshd)"
         assert_eq "perl-base"                       "$(pkg_binary perl)"
+        assert_eq "genisoimage"                     "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
+        assert_eq "genisoimage"                     "$(pkg_binary "genisoimage|xorrisofs")"
 
     elif os_distro arch; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -139,6 +143,9 @@ ETEST_pkg_binary()
         assert_eq "grep"                            "$(pkg_binary grep)"
         assert_eq "lshw openssh"                    "$(pkg_binary lshw sshd)"
         assert_eq "perl"                            "$(pkg_binary perl)"
+        assert_eq "cdrtools"                        "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
+        assert_eq "genisoimage"                     "$(pkg_binary "genisoimage|xorrisofs")"
+        assert_eq "libisoburn"                      "$(pkg_binary "xorrisofs")"
 
     elif os_distro gentoo ember; then
         assert_eq "sys-apps/coreutils"              "$(pkg_binary chroot)"
@@ -147,7 +154,10 @@ ETEST_pkg_binary()
         assert_eq "sys-apps/grep"                   "$(pkg_binary grep)"
         assert_eq "net-misc/openssh sys-apps/lshw"  "$(pkg_binary lshw sshd)"
         assert_eq "dev-lang/perl"                   "$(pkg_binary perl)"
-        assert_eq "app-arch/gzip app-arch/pigz"     "$(pkg_binary gzip)"
+        assert_eq "app-arch/gzip"                   "$(pkg_binary gzip)"
+        assert_eq "app-arch/pbzip2"                 "$(pkg_binary "bzip2|lbzip2|pbzip2")"
+        assert_eq "app-arch/pbzip2"                 "$(pkg_binary "NOPACKAGE|bzip2|lbzip2|pbzip2")"
+        assert_eq "app-cdr/cdrtools"                "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
 
     elif os_distro centos fedora; then
         assert_eq "coreutils"                       "$(pkg_binary chroot)"
@@ -156,10 +166,21 @@ ETEST_pkg_binary()
         assert_eq "grep"                            "$(pkg_binary grep)"
         assert_eq "lshw openssh-server"             "$(pkg_binary lshw sshd)"
         assert_eq "perl-base"                       "$(pkg_binary perl)"
+        assert_eq "genisoimage"                     "$(pkg_binary "mkisofs|genisoimage|xorrisofs")"
+        assert_eq "genisoimage"                     "$(pkg_binary "genisoimage|xorrisofs")"
 
     else
         die "Unsupported OS: $(os_pretty_name)"
     fi
+}
+
+ETEST_pkg_binary_invalid()
+{
+    etestmsg "Testing invalid binary names"
+    EDEBUG+=" pkg_binary __pkg_binary"
+
+    assert_false pkg_binary "/bin/bash"
+    assert_false pkg_binary "not-a-real-package"
 }
 
 if os_distro gentoo ember ; then
