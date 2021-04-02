@@ -20,7 +20,7 @@ $(opt_parse \
 )
 
 OS="$(os_pretty_name)"
-ebanner "Installing extra packages for $(lval OS)" \
+ebanner --uppercase "Installing extra packages for $(lval OS)" \
     docker              \
     docker_config
 

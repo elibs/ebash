@@ -25,35 +25,26 @@ OS=$(os_pretty_name)
 ebanner --uppercase "Installing recommended packages" \
     OS
 
-# Some packages need to be explicitly installed as they don't map from binary to package name properly. In these cases
-# make sure that these names are universal to avoid inconsistent package naming on different distros preventing the
-# installation.
-packages=(
-    "debootstrap"
-)
-
 # List of binaries and any alternatives we need to install. These are done in a very portable manner using the
 # pkg_install --binaries mechanism.
-binaries=(
-    "bzip2|lbzip2|pbzip2"
-    "column"
-    "cpio"
-    "dialog"
-    "git"
-    "gzip|pigz"
-    "ip"
-    "iptables"
-    "jq"
-    "mkisofs|genisoimage|xorrisofs"
-    "mksquashfs"
-    "netstat"
-    "pgrep"
-    "ping"
-    "pstree"
-    "tar"
-    "xz|lzma"
-)
+pkg_install --sync --binaries       \
+    "bzip2|lbzip2|pbzip2"           \
+    "column"                        \
+    "cpio"                          \
+    "debootstrap"                   \
+    "dialog"                        \
+    "git"                           \
+    "gzip|pigz"                     \
+    "net-tools|ip"                  \
+    "iptables"                      \
+    "jq"                            \
+    "mkisofs|genisoimage|xorrisofs" \
+    "mksquashfs"                    \
+    "netstat"                       \
+    "pgrep"                         \
+    "ping"                          \
+    "pstree"                        \
+    "tar"                           \
+    "tput"                          \
+    "xz|lzma"                       \
 
-edebug "Installing $(lval packages binaries)"
-pkg_install "${packages[@]}"
-pkg_install --binaries "${binaries[@]}"

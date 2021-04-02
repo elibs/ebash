@@ -53,7 +53,7 @@ selftest:
 test:
 	bin/etest \
 		--break=${BREAK}        \
-		--debug=${EDEBUG}       \
+		--debug="${EDEBUG}"     \
 		--exclude="${EXCLUDE}"  \
 		--filter="${FILTER}"    \
 		--repeat=${REPEAT}      \
@@ -86,17 +86,17 @@ define DOCKER_TEST_TEMPLATE
 .PHONY: dselftest-$1
 dselftest-$1:
 	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "install/all && bin/selftest"
+	${DRUN} $2 sh -c "EDEBUG=${EDEBUG} install/all && bin/selftest"
 
 .PHONY: dtest-$1
 dtest-$1:
 	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "install/all && \
+	${DRUN} $2 sh -c "EDEBUG=${EDEBUG} install/all && \
         bin/etest \
             --break                    \
-            --debug=${EDEBUG}          \
-            --exclude=${EXCLUDE}       \
-            --filter=${FILTER}         \
+            --debug="${EDEBUG}"        \
+            --exclude="${EXCLUDE}"     \
+            --filter="${FILTER}"       \
             --log-dir=.work            \
             --repeat=${REPEAT}         \
             --verbose=${V}             \
@@ -105,7 +105,7 @@ dtest-$1:
 .PHONY: dshell-$1
 dshell-$1:
 	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "install/all && /bin/bash"
+	${DRUN} $2 sh -c "EDEBUG=${EDEBUG} install/all && /bin/bash"
 
 endef
 

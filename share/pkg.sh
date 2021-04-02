@@ -18,78 +18,99 @@ pkg_known()
 {
     $(opt_parse "@names | Names of package to check.")
 
-    case $(pkg_manager) in
-        apk)
-            [[ -n "$(apk list ${names[@]} 2>/dev/null)" ]]
-            ;;
+    edebug "Checking existence of $(lval names)"
 
-        apt)
-            apt-cache show ${names[@]} &>/dev/null
-            ;;
+    local name
+    for name in "${names[@]}"; do
+        case $(pkg_manager) in
+            apk)
+                [[ -n "$(apk list ${name} 2>/dev/null)" ]]
+                ;;
 
-        brew)
-            brew search ${names[@]} &>/dev/null
-            ;;
+            apt)
+                apt info ${name} &>/dev/null
+                ;;
 
-        pacman)
-            pacman -Ss ${names[@]} &>/dev/null
-            ;;
+            brew)
+                brew search ${name} &>/dev/null
+                ;;
 
-        portage)
+            pacman)
+                pacman -Si ${name} &>/dev/null
+                ;;
 
-            local name portdir
-            for name in "${names[@]}"; do
-                name=$(pkg_gentoo_canonicalize ${name})
-                portdir=$(portageq get_repo_path / gentoo)
-                [[ -d "${portdir}/${name}" ]]
-            done
-            ;;
+            portage)
 
-        yum)
-            yum list ${names[@]} &>/dev/null
-            ;;
+                if name=$(pkg_canonicalize "${name}"); then
+                    return 0
+                else
+                    return 1
+                fi
 
-        *)
-            die "Unsupported package manager $(pkg_manager)"
-            ;;
-    esac
+                ;;
+
+            yum)
+                yum list ${name} &>/dev/null
+                ;;
+
+            *)
+                die "Unsupported package manager $(pkg_manager)"
+                ;;
+        esac
+    done
 }
 
-opt_usage pkg_gentoo_canonicalize <<'END'
-Takes as input a package name that may or may not have a category identifier on it. If it does not have a category
-(e.g. app-misc or dev-util), then find the category that contains the specified package.
+opt_usage pkg_canonicalize <<'END'
+Takes as input a package name and converts it to a canonical name. This is largely only an issue on Portage where package
+names are fully qualified with a category name. If this is called on a distro that does not use portage, this will just
+return the original input.
+
+On a portage based system it will proceed as follows. The input may or may not have a category identifier on it. If it
+does not have a category (e.g. app-misc or dev-util), then find the category that contains the specified package.
 
 > **_NOTE:_** If the results would be ambiguous, fails and indicates that a category is required.
 END
-pkg_gentoo_canonicalize()
+pkg_canonicalize()
 {
     $(opt_parse "name | Package name whose category you'd like to find.")
+
+    edebug "Canonicalizing $(lval name)"
+
+    if [[ $(pkg_manager) != "portage" ]]; then
+        echo "${name}"
+        return 0
+    fi
 
     if [[ ${name} == */* ]] ; then
         echo "${name}"
 
     else
 
-        local portdir
-        portdir=$(portageq get_repo_path / gentoo)
-        pushd "${portdir}"
+        local matches size
+        matches=( $(qsearch --name-only --nocolor "${name}$" | grep "/${name}$" 2>/dev/null) )
+        size=$(array_size matches)
+        edebug "$(lval name matches size)"
 
-        local found=() size=0
-        found=( */${name} )
-        size=$(array_size found)
-        popd
-
-        if [[ ${size} -eq 0 ]] ; then
+        if [[ "${size}" -eq 0 ]]; then
             return 1
 
         elif [[ ${size} -eq 1 ]] ; then
-            echo "${found[0]}"
+            echo "${matches[0]}"
+            return 0
 
         else
-            eerror "${name} is ambiguous. You must specify a category."
+            eerror "${name} is ambiguous: $(lval matches)"
             return 2
         fi
     fi
+}
+
+opt_usage pkg_gentoo_canonicalize <<'END'
+This is a legacy wrapper around pkg_canonicalize using the old gentoo-specific name.
+END
+pkg_gentoo_canonicalize()
+{
+    pkg_canonicalize "${@}"
 }
 
 opt_usage pkg_installed <<'END'
@@ -133,25 +154,29 @@ pkg_installed()
 }
 
 opt_usage pkg_install <<'END'
-Install a list of packages whose names are specified. This function supports several different package managers correctly,
-but the actual package names are very frequently different on different OS or distros.
+Install a list of packages whose names are specified. This function abstracts out the complication of installing packages
+on multiple OS and Distros with different package managers. Generally this approach works pretty well. But one of the
+big problems is taht the **names** of packages are not always consistent across different OS or distros.
 
-To that end, there is a `--binaries` flag which will interpret the list of names as binaries to install rather than
-packages. When run in this mode, we use the appropriate package manager for the system in question to determine the
-names of the packages to install in order to get the desired binaries installed.
+To that end, there is a `--binaries` flag which will interpret the list of names more liberally as **either** packages OR
+raw binary names that we want the controlling packages to be installed for. This is not something that package managers
+natively support, so we implement this in `pkg_binary` which itself delegates most of the heavy lifting off to a third
+party service to lookup what pacakges provide the binary in question.
 
 Because some distros provide various binaries which might suit your needs, the syntax for the binaries to install is
 very flexible via the `alternative` operator as in `mkisofs|genisoimage|xorrisofs`. When given a binary name which has
 the alternative operator in it, ebash will split on the `|` and try them one at a time. The first one which it can
-successfully map to an installable package will be used.
+successfully map to an installable package will be used. For maximum flexibility, you can mix and match the names of
+packages and binaries within the list of alternatives to
+try to install.
+
 END
 pkg_install()
 {
     $(opt_parse \
-        "+sync     | Perform pkg_sync before trying to lookup and install the packages." \
-        "+binaries | Interpret the names as binaries to install rather than actual package names. In this mode the
-                     package manager is queried via pkg_binary to map the binaries to package names." \
-        "@names    | Names of packages or binaries (with optional alternatives) to install." \
+        "+sync     | Perform pkg_sync before trying to lookup and install the packages."                      \
+        "+binaries | Interpret the names as either packages or binaries to install using pkg_binary lookups." \
+        "@names    | Names of packages or binaries (with optional alternatives) to install."                  \
     )
 
     # If no package names requested just return
@@ -238,10 +263,9 @@ pkg_binary()
         # If the name contains a list of alternatives, split on "|" and try each on in turn, stopping on the first one
         # that is valid for this OS.
         if [[ "${name}" =~ "|" ]]; then
-            local part parts=()
+            local match part parts=()
             array_init parts "${name}" "|"
             for part in "${parts[@]}"; do
-                local match
                 if match=$(__pkg_binary "${part}"); then
                     packages+=( "${match}" )
                     break
@@ -272,6 +296,17 @@ __pkg_binary()
     assert_not_match "${name}" "/" "${name} cannot contain path separator '/'"
     assert_not_match "${name}" "|" "${name} cannot contain alternation separator '|'"
 
+    # If we failed to find a match above, then it may be that there isn't information available for this
+    # binary at command-not-found. As a fallback, if there is a package that directly matches the name of
+    # the binary, then this is very likely what we want to install. This handles cases like "jq" and
+    # "debootstrap".
+    local match
+    if pkg_known "${name}" &>/dev/null && match=$(pkg_canonicalize "${name}" 2>/dev/null); then
+        echo "${match}"
+        return 0
+    fi
+
+    # Otherwise, go out to external package database services and lookup what package provides this binary.
     case $(pkg_manager) in
 
         apk)
@@ -300,6 +335,7 @@ __pkg_binary()
             array_init parts "${PATH}" ":"
             for path in "${parts[@]}"; do
                 if e-file -c never "${path}/${name}" | grep -Po '^(\[I\]| \* ) \K.*'; then
+                    e-file -c never "${path}/${name}" | grep -Po '^(\[I\]| \* ) \K.*' >&2
                     return 0
                 fi
             done
