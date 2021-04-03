@@ -8,7 +8,7 @@
 
 set -eu
 
-sudo ${EBASH_HOME}/bin/ebash --install-all
-sudo ${EBASH_HOME}/bin/ebash --install-depends
-sudo ${EBASH_HOME}/bin/ebash --install-recommends
-sudo ${EBASH_HOME}/bin/ebash --install-extra
+${EBASH_HOME}/bin/ebash --install-all
+${EBASH_HOME}/bin/ebash --install-depends
+${EBASH_HOME}/bin/ebash --install-recommends
+${EBASH_HOME}/bin/ebash --install-extra
