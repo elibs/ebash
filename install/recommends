@@ -27,24 +27,24 @@ ebanner --uppercase "Installing recommended packages" \
 
 # List of binaries and any alternatives we need to install. These are done in a very portable manner using the
 # pkg_install --binaries mechanism.
-pkg_install --sync --binaries       \
-    "bzip2|lbzip2|pbzip2"           \
-    "column"                        \
-    "cpio"                          \
-    "debootstrap"                   \
-    "dialog"                        \
-    "git"                           \
-    "gzip|pigz"                     \
-    "net-tools|ip"                  \
-    "iptables"                      \
-    "jq"                            \
-    "mkisofs|genisoimage|xorrisofs" \
-    "mksquashfs"                    \
-    "netstat"                       \
-    "pgrep"                         \
-    "ping"                          \
-    "pstree"                        \
-    "tar"                           \
-    "tput"                          \
-    "xz|lzma"                       \
+pkg_install --sync --binaries     \
+    "bzip2|lbzip2|pbzip2"         \
+    "column"                      \
+    "cpio"                        \
+    "debootstrap"                 \
+    "dialog"                      \
+    "git"                         \
+    "gzip|pigz"                   \
+    "iproute|iproute2|ip"         \
+    "iptables"                    \
+    "jq"                          \
+    "mkisofs|genisoimage|xorriso" \
+    "mksquashfs"                  \
+    "netstat"                     \
+    "pgrep"                       \
+    "ping"                        \
+    "pstree"                      \
+    "tar"                         \
+    "tput"                        \
+    "xz|lzma"                     \
 

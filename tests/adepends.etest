@@ -80,7 +80,7 @@ ETEST_recommends()
         "iptables"
         "jq"
         "lzma|xz"
-        "mkisofs|genisoimage|xorrisofs"
+        "mkisofs|genisoimage|xorriso"
         "mksquashfs"
         "mount"
         "netstat"
