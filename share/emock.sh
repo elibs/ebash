@@ -185,7 +185,7 @@ emock()
             ( '${body}' )
 
             # Return / Exit
-            local return_code=$?
+            return_code=$?
             echo -n ${return_code} > "${statedir}/${called}/return_code"
             '${return_statement}' ${return_code}
         )'
