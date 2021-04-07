@@ -12,7 +12,7 @@ source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit
 
 opt_usage main <<'END'
 This script is used to install additional recommended binaries onto a system. This is done using the portable ebash
-provided `pkg_install --binaries` to avoid having to deal with package names across different distributions.
+provided `pkg_install` which deals with the package names across different distros sensibly.
 END
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -25,26 +25,29 @@ OS=$(os_pretty_name)
 ebanner --uppercase "Installing recommended packages" \
     OS
 
-# List of binaries and any alternatives we need to install. These are done in a very portable manner using the
-# pkg_install --binaries mechanism.
-pkg_install --sync --binaries     \
-    "bzip2|lbzip2|pbzip2"         \
-    "column"                      \
-    "cpio"                        \
-    "debootstrap"                 \
-    "dialog"                      \
-    "git"                         \
-    "gzip|pigz"                   \
-    "iproute|iproute2|ip"         \
-    "iptables"                    \
-    "jq"                          \
-    "mkisofs|genisoimage|xorriso" \
-    "mksquashfs"                  \
-    "netstat"                     \
-    "pgrep"                       \
-    "ping"                        \
-    "pstree"                      \
-    "tar"                         \
-    "tput"                        \
-    "xz|lzma"                     \
+# Non-distro specific pacakges we need to install
+pkg_install --sync                \
+    bzip2                         \
+    cpio                          \
+    curl                          \
+    debootstrap                   \
+    dialog                        \
+    gettext                       \
+    git                           \
+    gzip                          \
+    jq                            \
+    squashfs-tools                \
+    util-linux                    \
 
+# Distro specific packages
+if os darwin; then
+    pkg_install gnu-tar iproute2mac
+elif os_distro alpine; then
+    pkg_install cdrkit gnupg iproute2 iputils ncurses ncurses-terminfo net-tools pstree xz
+elif os_distro centos debian fedora; then
+    pkg_install genisoimage iproute iptables ncurses net-tools psmisc xz
+elif os_distro gentoo; then
+    pkg_install cdrtools lbzip2 net-tools pigz psmisc
+elif os_distro ubuntu; then
+    pkg_install cgroup-lite gnupg-agent iproute2 iptables iptuils-ping mkisofs net-tools psmisc xz-utils
+fi
