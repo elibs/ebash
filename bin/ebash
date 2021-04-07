@@ -16,13 +16,8 @@
 # WARNING: This section of code must use POSIX compliant shell code only. This is because this section is designed to
 # bootstrap ebash itself and install any dependencies (including bash!). So do not use bash extensions in this block
 # of code.
-if [ -z "${EBASH_HOME}" ]; then
-    EBASH_HOME="$(dirname $0)/.."
-fi
-
-if [ -z "${EBASH}" ]; then
-    EBASH="${EBASH_HOME}/share"
-fi
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
 
 # Perform pre-ebash option parsing. This code must be done separately and before we invoke opt_parse.
 #
