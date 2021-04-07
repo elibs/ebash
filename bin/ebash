@@ -13,6 +13,9 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
+# WARNING: This section of code must use POSIX compliant shell code only. This is because this section is designed to
+# bootstrap ebash itself and install any dependencies (including bash!). So do not use bash extensions in this block
+# of code.
 if [ -z "${EBASH_HOME}" ]; then
     EBASH_HOME="$(dirname $0)/.."
 fi
@@ -21,6 +24,8 @@ if [ -z "${EBASH}" ]; then
     EBASH="${EBASH_HOME}/share"
 fi
 
+# Perform pre-ebash option parsing. This code must be done separately and before we invoke opt_parse.
+#
 # All functions and ebash based scripts which utilize `opt_parse` get automatic documentation and usage information.
 # This is automatically available via `--help` or `-?` options. For this to work, we have to store off the docstrings
 # above each function into variables for subsequent output when the usage is requested via `--help` or `-?`.
@@ -37,10 +42,6 @@ for arg in "$@" ; do
             __EBASH_SAVE_DOC=1
             ;;
 
-        --install)
-            exec "${EBASH_HOME}/install/ebash"
-            ;;
-
         --install-*)
             exec "${EBASH_HOME}/install/$(echo "${arg}" | sed -e 's/--install-//')"
             ;;
@@ -49,37 +50,45 @@ done
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
-# MAIN
+# USAGE / OPTIONS
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
 opt_usage ebash <<'END'
+ebash is an open source project developed at NetApp/SolidFire as an open source project from 2011-2018 under the name
+bashutils and the Apache 2.0 License. I forked bashutils into ebash upon my departure from NetApp/SolidFire to continue
+active development and ensure it remained free and open source.
 
-TODO: REWRITE THIS DOC STRING
+The primary goal of ebash is to significantly enhance bash code and make it more robust, feature rich and simple which
+greatly accelerates developer productivity.
 
-This tool is designed to run individual commands in a ebash environment. It can effectively turns ebash functions
-into commands that can easily be run from a shell prompt.
+Because bash is a lower level language, it lacks some of the features and more advanced data structures typically found
+in higher level languages. ebash aims to be the answer to this problem. The most important and compelling feature of
+ebash is implicit error detection. This typically results in bash scripts being 75% shorter due to removal of explicit
+error handling and the ability to leverage extensive ebash modules.
 
-The first simple use case happens when the binary is called "ebash". In this mode, everything after ebash on the
-command line is evaluated inside a bash interpreter that has sourced the various ebash source files.
+The ebash script itself is the primary entry point into ebash. It supports various modes of operation as outlined in
+[usage](doc/usage.md):
 
-But ebash can be symlinked to other names. ebash pays attention to the name that it is called by. When it's not
-called as ebash, it tries to run ebash functions intead. First, it looks to see if the symlink name is the name of a
-"namespace" of ebash commands. For instance, the string commands can be used in this way. Assuming a "string"
-symlink, then
+- Sourcing. You can use ebash code in your bash script by adding the following to the top of your script. This assumes
+  you have `ebash` in `${PATH}`. For example: `$(ebash --source)`
 
-    string trim " a string to trim "
+- Interpreter. Another very simple approach is to have ebash in your `${PATH}` and then simply change the interpreter
+  at the top of your shell script to find `ebash` using `env`. For example: `#!/usr/bin/env ebash`
 
-will call the string_trim function, passing it that string as an argument. If there is no function that's a
-combination of the symlink name and the first argument, then ebash will look for a function of the same name as the
-symlink and call it passing all arguments to the function. For instance, given a symlink called eunmount, then you
-could call
+- Interactive ebash. One of the cool things ebash provides is an interactive REPL interface. This makes it super easy to
+  interactively test out code to see how it behaves or debug failures. Simply invoke `ebash` and you'll be presented a
+  prompt that you can use to run commands in.
 
-    eunmount /path/to/unmount /another/path
+- ebash binaries. Ebash provides multiple [binaries](https://elibs.github.io/ebash/binaries) which are essentially just
+  scripts which magically invoke functions of the same name within ebash. Each of these binaries is really just a symlink
+  to ebash itself. These work similarly to `busybox` in that if you invoke one of these symlinks, then `ebash` will look
+  for a function matching the name of the binary. If it finds one, it will call it with the options and arguments passed
+  in. This makes it easy to write modular, functional code and still expose it as a callable binary.
 
-And both "/path/to/unmount" and "/another/path" will be passed as arguments to eunmount.
+See also: [Ebash Documentation](https://elibs.github.io/ebash/index.html).
 END
 
 # Canonicalize EBASH_HOME and EBASH _after_ sourcing ebash because it makes sure readlink behaves the same for both mac
@@ -92,6 +101,22 @@ declare name=${0##*/}
 if [[ ${name} == "ebash" ]] ; then
 
     $(opt_parse \
+        "+install_all                           | Install all ebash dependencies normally installed via --install-depends,
+                                                  --install-recommends, and --install-extra. This installs everything
+                                                  that ebash could every possibly need including required, recommended,
+                                                  and extra dependencies."                                             \
+        "+install_depends                       | Install a minimal set of dependencies that ebash requires in order to
+                                                  work properly. This uses the install/depends script and works on all
+                                                  OS and distributions that ebash officially supports as documented at
+                                                  https://elibs.github.io/ebash/compatibility.html."                   \
+        "+install_recommends                    | Install recommended packages that ebash uses in some of its optional
+                                                  modules. These packages are not required by ebash but recommended to
+                                                  take full advantage of all the ebash modules (most notable archive).
+                                                  If ebash code fails due to a command not being found, then this is a
+                                                  good next step."                                                     \
+        "+install_extra                         | Install extra packages not required by core ebash or its modules. This
+                                                  is generally used by ebash's CI/CD infrastructure or for bootstrapping
+                                                  ebash installations and is not normally required or suggested."      \
         ":load l                                | ebash should source the specified file before attempting to run the
                                                   specified command." \
         "+source s                              | Print commands that would load ebash from its existing location on
@@ -126,20 +151,34 @@ if [[ ${name} == "ebash" ]] ; then
     fi
 fi
 
-# If not called as ebash...
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# EBASH FUNCTION
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 if [[ "${name}" != "ebash" ]] ; then
 
     # If there's a function in the group with the specified command name call it
     if [[ -n ${1:-} ]] && declare -f "${name}_${1}" &>/dev/null ; then
-
         quote_eval "${name}_${1}" "${@:2}"
+
+    # Allow the name to have '-' instead of '_' so that the binary can be called 'module-action' and it will call the
+    # 'module_action'
+    elif [[ -n ${1:-} ]] && declare -f "${name//-/_}" &>/dev/null ; then
+        quote_eval "${name//-/_}" "${@:1}"
 
     # Otherwise assume the called name is also the name of a ebash function and pass everything as arguments to it.
     else
         quote_eval "${name}" "${@:1}"
     fi
 
-# However, if called as ebash...
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# EBASH INTERPRETER or REPL
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 else
 
     # Use all arguments to ebash as a command to execute
