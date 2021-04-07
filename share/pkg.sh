@@ -158,12 +158,11 @@ Install a list of packages whose names are specified. This function abstracts ou
 on multiple OS and Distros with different package managers. Generally this approach works pretty well. But one of the
 big problems is taht the **names** of packages are not always consistent across different OS or distros.
 
-To give maximum flexibility, you can conditionally install packages only on particular OS/Distros by specifying the name
-of the distro and then an equal sign followed by the names of the distro specific package list.
-
-For example:
+To handle installing packages with different names in different OS/Distro combinations, the following pattern, as used
+in `install/recommends` is suggested:
 
 ```shell
+# Non-distro specific pacakges we need to install
 pkg_install --sync                \
     bzip2                         \
     cpio                          \
@@ -176,25 +175,20 @@ pkg_install --sync                \
     jq                            \
     squashfs-tools                \
     util-linux                    \
-    alpine="cdrkit gnupg iproute2 iputils ncurses ncurses-terminfo net-tools pstree xz"                 \
-    arch="cdrkit net-tools"                                                                             \
-    centos="genisoimage iproute iptables ncurses net-tools psmisc xz"                                   \
-    debian="genisoimage gnupg2 iproute2 iptables net-tools psmisc xz-utils"                             \
-    darwin="gnu-tar iproute2mac"                                                                        \
-    fedora="genisoimage iproute iptables iputils ncurses net-tools psmisc xz"                           \
-    gentoo="cdrtools dev-vcs/git lbzip2 net-tools pigz psmisc"                                          \
-    ubuntu="cgroup-lite gnupg-agent iproute2 iptables iptuils-ping mkisofs net-tools psmisc xz-utils"
 
-pkg_install_distro --sync         \
-    alpine="cdrkit gnupg iproute2 iputils ncurses ncurses-terminfo net-tools pstree xz"                 \
-    arch="cdrkit net-tools"                                                                             \
-    centos="genisoimage iproute iptables ncurses net-tools psmisc xz"                                   \
-    debian="genisoimage gnupg2 iproute2 iptables net-tools psmisc xz-utils"                             \
-    darwin="gnu-tar iproute2mac"                                                                        \
-    fedora="genisoimage iproute iptables iputils ncurses net-tools psmisc xz"                           \
-    gentoo="cdrtools dev-vcs/git lbzip2 net-tools pigz psmisc"                                          \
-    ubuntu="cgroup-lite gnupg-agent iproute2 iptables iptuils-ping mkisofs net-tools psmisc xz-utils"
-E
+# Distro specific packages
+if os darwin; then
+    pkg_install gnu-tar iproute2mac
+elif os_distro alpine; then
+    pkg_install cdrkit gnupg iproute2 iputils ncurses ncurses-terminfo net-tools pstree xz
+elif os_distro centos debian fedora; then
+    pkg_install genisoimage iproute iptables ncurses net-tools psmisc xz
+elif os_distro gentoo; then
+    pkg_install cdrtools lbzip2 net-tools pigz psmisc
+elif os_distro ubuntu; then
+    pkg_install cgroup-lite gnupg-agent iproute2 iptables iptuils-ping mkisofs net-tools psmisc xz-utils
+fi
+```
 END
 pkg_install()
 {
@@ -213,17 +207,6 @@ pkg_install()
     if [[ ${sync} -eq 1 ]]; then
         pkg_sync
     fi
-
-    # Pre-Process the list of packages and remove any which are for distros which do not match our distro and expand
-    # the one that does (if present).
-    local idx entry
-    for idx in $(array_indexes names); do
-        entry="${names[$idx]}"
-
-        if [[ "${entry}" =~ "=" ]]; then
-
-        fi
-    done
 
     case $(pkg_manager) in
 
