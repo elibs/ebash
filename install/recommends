@@ -17,7 +17,7 @@ END
 
 #----------------------------------------------------------------------------------------------------------------------
 #
-# Main
+# All
 #
 #----------------------------------------------------------------------------------------------------------------------
 
@@ -25,29 +25,177 @@ OS=$(os_pretty_name)
 ebanner --uppercase "Installing recommended packages" \
     OS
 
-# Non-distro specific pacakges we need to install
-pkg_install --sync                \
-    bzip2                         \
-    cpio                          \
-    curl                          \
-    debootstrap                   \
-    dialog                        \
-    gettext                       \
-    git                           \
-    gzip                          \
-    jq                            \
-    squashfs-tools                \
-    util-linux                    \
+# Generic list of packages that are universally named in all distros
+packages=(
+    bzip2
+    cpio
+    curl
+    dialog
+    gettext
+    gzip
+    jq
+    squashfs-tools
+    util-linux
+)
 
-# Distro specific packages
-if os darwin; then
-    pkg_install gnu-tar iproute2mac
-elif os_distro alpine; then
-    pkg_install cdrkit gnupg iproute2 iputils ncurses ncurses-terminfo net-tools pstree xz
-elif os_distro centos debian fedora; then
-    pkg_install genisoimage iproute iptables ncurses net-tools psmisc xz
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Alpine
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+if os_distro alpine; then
+
+    packages+=(
+        cdrkit
+        debootstrap
+        git
+        gnupg
+        iproute2
+        iputils
+        ncurses
+        ncurses-terminfo
+        net-tools
+        pstree
+        xz
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Arch
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro arch; then
+
+    packages+=(
+        cdrkit
+        debootstrap
+        git
+        net-tools
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# CentOS
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro centos; then
+
+    packages+=(
+        debootstrap
+        genisoimage
+        git
+        iproute
+        iptables
+        ncurses
+        net-tools
+        psmisc
+        xz
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Debian
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro debian; then
+
+    packages+=(
+        apt-transport-https
+        debootstrap
+        genisoimage
+        git
+        iproute2
+        iptables
+        net-tools
+        psmisc
+        software-properties-common
+        xz-utils
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Fedora
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro fedora; then
+
+    packages+=(
+        debootstrap
+        genisoimage
+        git
+        iproute2
+        iptables
+        ncurses
+        net-tools
+        psmisc
+        xz
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Gentoo
+#
+#----------------------------------------------------------------------------------------------------------------------
+
 elif os_distro gentoo; then
-    pkg_install cdrtools lbzip2 net-tools pigz psmisc
+
+    packages+=(
+        cdrtools
+        debootstrap
+        dev-vcs/git
+        lbzip2
+        net-tools
+        pigz psmisc
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Ubuntu
+#
+#----------------------------------------------------------------------------------------------------------------------
+
 elif os_distro ubuntu; then
-    pkg_install cgroup-lite gnupg-agent iproute2 iptables iptuils-ping mkisofs net-tools psmisc xz-utils
+
+    packages+=(
+        cgroup-lite
+        debootstrap
+        git
+        gnupg-agent
+        iproute2
+        iptables
+        iputils-ping
+        mkisofs
+        net-tools
+        psmisc
+        xz-utils
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# MacOS (Darwin)
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os darwin; then
+
+    packages+=(
+        git
+        gnu-tar
+        iproute2mac
+    )
+
 fi
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# INSTALL
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+array_sort --unique packages
+pkg_install --sync "${packages[@]}"
