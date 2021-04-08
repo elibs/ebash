@@ -111,13 +111,12 @@ elif os_distro centos; then
 
 elif os_distro debian; then
 
-    pkg_install curl software-properties-common
+    pkg_install apt-transport-https curl software-properties-common
     curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
     add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(grep -Po "VERSION_CODENAME=\K.*" /etc/os-release) stable"
     pkg_sync
 
     packages+=(
-        apt-transport-https
         debootstrap
         docker-ce
         genisoimage
@@ -126,7 +125,6 @@ elif os_distro debian; then
         iptables
         net-tools
         psmisc
-        software-properties-common
         xz-utils
     )
 
@@ -165,6 +163,11 @@ elif os_distro fedora; then
 #----------------------------------------------------------------------------------------------------------------------
 
 elif os_distro gentoo; then
+
+    portdir=$(portageq get_repo_path / gentoo)
+    if [[ ! -d "${portdir}" ]]; then
+        emerge-webrsync
+    fi
 
     packages+=(
         app-emulation/docker
