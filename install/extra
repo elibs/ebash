@@ -34,23 +34,22 @@ if [[ ${docker} -eq 1 ]] && ! command_exists docker; then
 
     einfo "Installing docker for $(lval OS)"
 
-    # Some distros are not insane and you can simply install docker via their package managers!
-    # Otherwise, perform custom installation steps for the distro in question.
-    if os_distro alpine centos gentoo; then
+    # Alpine / CentOS
+    if os_distro alpine centos; then
         pkg_install docker
-
-    # Darwin
-    elif os darwin; then
-        pkg_install docker docker-machine
 
     # Arch
     elif os_distro arch; then
         pacman -Syu --overwrite "/usr/bin/docker-init" --noconfirm  docker
 
+    # Darwin
+    elif os darwin; then
+        pkg_install docker docker-machine
+
     # Debian
     elif os_distro debian; then
         curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-        add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+        add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(grep -Po "VERSION_CODENAME=\K.*" /etc/os-release) stable"
 
         pkg_install --sync docker-ce
 
@@ -60,10 +59,14 @@ if [[ ${docker} -eq 1 ]] && ! command_exists docker; then
         dnf config-manager -y --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
         dnf install -y docker-ce docker-ce-cli containerd.io
 
-    # Ubuntu
+    # Gentoo
+    elif os_distro gentoo; then
+        pkg_install "app-emulation/docker"
+
+       # Ubuntu
     elif os_distro ubuntu; then
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-        add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+        add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(grep -Po VERSION_CODENAME=\K.*) stable"
 
         pkg_install --sync docker-ce docker-ce-cli containerd.io
     else
