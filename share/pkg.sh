@@ -193,7 +193,10 @@ END
 pkg_install()
 {
     $(opt_parse \
-        "@names    | Names of packages (with optional distro specifics) to install."        \
+        "+sync     | Perform package sync before installing packages. This is normally automatically done if the packages
+                     being installed are not known by the package manager. But this allows you to explicitly sync if
+                     required."                                                                                        \
+        "@names    | Names of packages (with optional distro specifics) to install."                                   \
     )
 
     # If no package names requested just return
@@ -201,10 +204,10 @@ pkg_install()
         return 0
     fi
 
-    einfo "Installing packages $(lval names)"
+    einfo "Installing packages $(lval names sync)"
 
     # Automatically do a sync if any of the packages we're trying to install are not known to us.
-    if ! pkg_known "${names[@]}" ; then
+    if [[ ${sync} -eq 1 ]] || ! pkg_known "${names[@]}" ; then
         pkg_sync
     fi
 

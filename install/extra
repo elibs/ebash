@@ -53,7 +53,7 @@ if [[ ${docker} -eq 1 ]] && ! command_exists docker; then
         curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
         add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(grep -Po "VERSION_CODENAME=\K.*" /etc/os-release) stable"
 
-        pkg_install docker-ce
+        pkg_install --sync docker-ce
 
     # Fedora
     elif os_distro fedora; then
@@ -72,7 +72,7 @@ if [[ ${docker} -eq 1 ]] && ! command_exists docker; then
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
         add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(grep -Po VERSION_CODENAME=\K.*) stable"
 
-        pkg_install docker-ce docker-ce-cli containerd.io
+        pkg_install --sync docker-ce docker-ce-cli containerd.io
     else
         die "Unsupported $(lval OS)"
     fi
