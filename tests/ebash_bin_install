@@ -11,4 +11,3 @@ set -eu
 ${EBASH_HOME}/bin/ebash --install-all
 ${EBASH_HOME}/bin/ebash --install-depends
 ${EBASH_HOME}/bin/ebash --install-recommends
-${EBASH_HOME}/bin/ebash --install-extra
