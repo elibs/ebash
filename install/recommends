@@ -128,8 +128,9 @@ elif os_distro fedora; then
         debootstrap
         genisoimage
         git
-        iproute2
+        iproute
         iptables
+        iputils
         ncurses
         net-tools
         psmisc
