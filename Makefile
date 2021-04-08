@@ -123,7 +123,7 @@ DISTROS =           \
 	ubuntu:20.04    \
 	ubuntu:18.04    \
 
-$(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst /stage3,,$(subst :,-,$t)),${t})))
+$(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t})))
 
 PHONY: dtest
 dtest:	    $(foreach d, $(subst :,-,${DISTROS}), dtest-${d})
