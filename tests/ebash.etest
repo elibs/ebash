@@ -164,8 +164,3 @@ ETEST_ebash_install_recommends()
 {
     ${EBASH_HOME}/bin/ebash --install-recommends
 }
-
-ETEST_ebash_install_extra()
-{
-    ${EBASH_HOME}/bin/ebash --install-extra
-}
