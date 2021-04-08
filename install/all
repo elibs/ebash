@@ -16,4 +16,4 @@ fi
 
 ${EBASH_HOME}/install/depends
 ${EBASH_HOME}/install/recommends
-${EBASH_HOME}/install/extra --docker --docker-config
+${EBASH_HOME}/install/docker-config
