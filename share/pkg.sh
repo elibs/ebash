@@ -193,7 +193,6 @@ END
 pkg_install()
 {
     $(opt_parse \
-        "+sync     | Perform pkg_sync before trying to lookup and install the packages."    \
         "@names    | Names of packages (with optional distro specifics) to install."        \
     )
 
@@ -202,9 +201,10 @@ pkg_install()
         return 0
     fi
 
-    einfo "Installing packages $(lval names sync)"
+    einfo "Installing packages $(lval names)"
 
-    if [[ ${sync} -eq 1 ]]; then
+    # Automatically do a sync if any of the packages we're trying to install are not known to us.
+    if ! pkg_known "${names[@]}" ; then
         pkg_sync
     fi
 
