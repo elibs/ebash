@@ -34,9 +34,13 @@ packages=(
     gettext
     gzip
     jq
-    squashfs-tools
     util-linux
 )
+
+# Linux-only packages
+if os linux; then
+    packages+=( squashfs-tools )
+fi
 
 #----------------------------------------------------------------------------------------------------------------------
 #
