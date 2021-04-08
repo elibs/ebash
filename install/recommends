@@ -111,7 +111,7 @@ elif os_distro centos; then
 
 elif os_distro debian; then
 
-    pkg_install apt-transport-https curl software-properties-common
+    pkg_install apt-transport-https curl gnupg software-properties-common
     curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
     add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(grep -Po "VERSION_CODENAME=\K.*" /etc/os-release) stable"
     pkg_sync
