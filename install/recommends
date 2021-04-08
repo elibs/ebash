@@ -53,6 +53,7 @@ if os_distro alpine; then
     packages+=(
         cdrkit
         debootstrap
+        docker
         git
         gnupg
         iproute2
@@ -72,6 +73,8 @@ if os_distro alpine; then
 
 elif os_distro arch; then
 
+    pacman -Syu --overwrite "/usr/bin/docker-init" --noconfirm  docker
+
     packages+=(
         cdrkit
         debootstrap
@@ -89,6 +92,7 @@ elif os_distro centos; then
 
     packages+=(
         debootstrap
+        docker
         genisoimage
         git
         iproute
@@ -107,9 +111,15 @@ elif os_distro centos; then
 
 elif os_distro debian; then
 
+    pkg_install software-properties-common
+    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(grep -Po "VERSION_CODENAME=\K.*" /etc/os-release) stable"
+    pkg_sync
+
     packages+=(
         apt-transport-https
         debootstrap
+        docker-ce
         genisoimage
         git
         iproute2
@@ -128,8 +138,15 @@ elif os_distro debian; then
 
 elif os_distro fedora; then
 
+    pkg_install dnf-plugins-core
+    dnf config-manager -y --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+    pkg_sync
+
     packages+=(
+        containerd.io
         debootstrap
+        docker-ce
+        docker-ce-cli
         genisoimage
         git
         iproute
@@ -150,12 +167,14 @@ elif os_distro fedora; then
 elif os_distro gentoo; then
 
     packages+=(
+        app-emulation/docker
         cdrtools
         debootstrap
         dev-vcs/git
         lbzip2
         net-tools
-        pigz psmisc
+        pigz
+        psmisc
     )
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -166,7 +185,15 @@ elif os_distro gentoo; then
 
 elif os_distro ubuntu; then
 
+    pkg_install software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(grep -Po "VERSION_CODENAME=\K.*" /etc/os-release) stable"
+    pkg_sync
+
     packages+=(
+        docker-ce
+        docker-ce-cli
+        containerd.io
         cgroup-lite
         debootstrap
         git
@@ -194,6 +221,9 @@ elif os darwin; then
         iproute2mac
     )
 
+    if ! command_exists docker; then
+        packages+=( docker docker-machine )
+    fi
 fi
 
 #----------------------------------------------------------------------------------------------------------------------
