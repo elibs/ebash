@@ -238,7 +238,7 @@ pkg_install()
             ;;
 
         portage)
-            emerge --ask=n "${names[@]}"
+            emerge --ask=n --quiet-build=y "${names[@]}"
             ;;
 
         yum)
