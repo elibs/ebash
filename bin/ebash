@@ -7,49 +7,15 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-#-----------------------------------------------------------------------------------------------------------------------
-#
-# PRE-POSIX BASH SETUP
-#
-#-----------------------------------------------------------------------------------------------------------------------
-
-# WARNING: This section of code must use POSIX compliant shell code only. This is because this section is designed to
-# bootstrap ebash itself and install any dependencies (including bash!). So do not use bash extensions in this block
-# of code.
 : ${EBASH_HOME:=$(dirname $0)/..}
 : ${EBASH:=${EBASH_HOME}/share}
-
-# Perform pre-ebash option parsing. This code must be done separately and before we invoke opt_parse.
-#
-# All functions and ebash based scripts which utilize `opt_parse` get automatic documentation and usage information.
-# This is automatically available via `--help` or `-?` options. For this to work, we have to store off the docstrings
-# above each function into variables for subsequent output when the usage is requested via `--help` or `-?`.
-#
-# But we don't want to bloat the interpreter with a bunch of documentation every time we source ebash. Our solution is
-# to only save them at times where we believe the variables are going to be needed. There's no reason to expect they
-# will be necessary unless `--help` or `-?` is on the command line somewhere. Or for those few cases where it's needed,
-# for any other reason, the caller can just set `__EBASH_SAVE_DOC=1` explicitly.
-for arg in "$@" ; do
-
-    case "${arg}" in
-
-        --help|-?)
-            __EBASH_SAVE_DOC=1
-            ;;
-
-        --install-*)
-            exec "${EBASH_HOME}/install/$(echo "${arg}" | sed -e 's/--install-//')"
-            ;;
-    esac
-done
+source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
 # USAGE / OPTIONS
 #
 #-----------------------------------------------------------------------------------------------------------------------
-
-source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
 opt_usage ebash <<'END'
 ebash is an open source project developed at NetApp/SolidFire as an open source project from 2011-2018 under the name
@@ -96,22 +62,6 @@ declare name=${0##*/}
 if [[ ${name} == "ebash" ]] ; then
 
     $(opt_parse \
-        "+install_all                           | Install all ebash dependencies normally installed via --install-depends,
-                                                  --install-recommends, and --install-extra. This installs everything
-                                                  that ebash could every possibly need including required, recommended,
-                                                  and extra dependencies."                                             \
-        "+install_depends                       | Install a minimal set of dependencies that ebash requires in order to
-                                                  work properly. This uses the install/depends script and works on all
-                                                  OS and distributions that ebash officially supports as documented at
-                                                  https://elibs.github.io/ebash/compatibility.html."                   \
-        "+install_recommends                    | Install recommended packages that ebash uses in some of its optional
-                                                  modules. These packages are not required by ebash but recommended to
-                                                  take full advantage of all the ebash modules (most notable archive).
-                                                  If ebash code fails due to a command not being found, then this is a
-                                                  good next step."                                                     \
-        "+install_extra                         | Install extra packages not required by core ebash or its modules. This
-                                                  is generally used by ebash's CI/CD infrastructure or for bootstrapping
-                                                  ebash installations and is not normally required or suggested."      \
         ":load l                                | ebash should source the specified file before attempting to run the
                                                   specified command." \
         "+source s                              | Print commands that would load ebash from its existing location on
