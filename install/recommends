@@ -222,6 +222,7 @@ elif os darwin; then
         git
         gnu-tar
         iproute2mac
+        pstree
     )
 
     if ! command_exists docker; then
