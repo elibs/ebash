@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
+# Copyright 2011-2018, SolidFire, Inc. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+# Helper function to assert that a list of commands are installed. For each entry, it can be just the name of a command
+# such as "bzip2" or it can contain additional options such as "bzip2|lbzip2|pbzip2".
+assert_commands_installed()
+{
+    $(opt_parse "@commands | Command entries to assert are installed.")
+
+    # Sorty the commands. Always prepend 'which' first so that we can ensure it is installed to check for other commands
+    array_sort --unique commands
+    commands=( which ${commands[@]} )
+
+    for entry in "${commands[@]}"; do
+        einfos "${entry}"
+        array_init choices "${entry}" "|"
+
+        local found=0
+        for cmd in "${choices[@]}"; do
+            if command_exists "${cmd}"; then
+
+                # Busybox versions are invalid as they are neutered of full functionality that we require
+                if [[ "$(basename $(readlink -m $(which ${cmd})))" == "busybox" && "${cmd}" != "which" ]]; then
+                    ewarn "Command '$(which ${cmd})' invalid (busybox)"
+                    continue
+                fi
+
+                found=1
+                break
+            fi
+        done
+
+        assert_eq "1" "${found}" "Command '${entry}' not found"
+    done
+}
+
+# Verify all required commands are installed
+ETEST_depends()
+{
+    local commands=(
+        "awk"
+        "base64"
+        "bash"
+        "diff"
+        "file"
+        "find"
+        "grep"
+        "perl"
+        "ps"
+        "readlink"
+        "tac"
+        "tput"
+    )
+
+    assert_commands_installed ${commands[@]}
+}
+
+ETEST_recommends()
+{
+    local commands=(
+        "bzip2|lbzip2|pbzip2"
+        "column"
+        "cpio"
+        "curl"
+        "docker"
+        "git"
+        "gzip|pigz"
+        "ip"
+        "jq"
+        "lzma|xz"
+        "mount"
+        "netstat"
+        "pgrep"
+        "ping"
+        "pstree"
+        "tar"
+    )
+
+    if os linux; then
+        commands+=(
+            "debootstrap"
+            "dialog"
+            "iptables"
+            "mkisofs|genisoimage|xorriso"
+            "mksquashfs"
+        )
+    fi
+
+    assert_commands_installed ${commands[@]}
+}
+

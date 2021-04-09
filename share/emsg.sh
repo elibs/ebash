@@ -696,12 +696,17 @@ opt_usage tput <<'END'
 `tput` is a wrapper around the real `tput` command that allows us more control over how to deal with `COLUMNS` not being
 set properly in non-interactive environments such as our CI/CD build system. We also allow explicitly setting `COLUMNS`
 to something and honoring that and bypassing calling `tput`. This is useful in our CI/CD build systems where we do not
-have a console so `tput cols` would return an error.
+have a console so `tput cols` would return an error. This also gracefully handles the scenario where tput isn't installed
+at all as in some super stripped down docker containers.
 END
 tput()
 {
     if [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]]; then
         echo "${COLUMNS}"
+        return 0
+    fi
+
+    if ! which tput &>/dev/null; then
         return 0
     fi
 

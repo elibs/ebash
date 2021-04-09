@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Install Dependencies
-        run: bin/ebash-install-deps
+        run: install/all
 
       - name: Publish Docs
         run: bin/edoc --publish

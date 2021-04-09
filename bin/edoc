@@ -150,7 +150,7 @@ for binary in ${EBASH_HOME}/bin/*; do
 
     name=$(basename ${binary})
 
-    if [[ -L "${binary}" || "${name}" == @(ebash-install-deps|selftest) ]]; then
+    if [[ -L "${binary}" || "${name}" == @(selftest) ]]; then
         continue
     fi
 

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+opt_usage main <<'END'
+This script is used to perform any necessary docker configuration tasks to get docker to work properly. This is probably
+never required on most installs. We use this in our CI/CD setup and it's really only necessary on CentOS.
+END
+$(opt_parse)
+
+OS="$(os_pretty_name)"
+ebanner --uppercase "Performing Docker Configuration for $(lval OS)"
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Docker Config
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+if os_distro centos; then
+
+    # Quiet warning from podman
+    touch /etc/containers/nodocker
+
+    # Default podman configuration prevents overlayfs from working properly.
+    sed -i 's|#mount_program = "/usr/bin/fuse-overlayfs"|mount_program = "/usr/bin/fuse-overlayfs"|' \
+        /etc/containers/storage.conf
+
+    if [ -e /usr/share/containers/containers.conf ]; then
+        # Default cgroup settings for running podman inside docker doesn't work properly.
+        # The recommendation in https://github.com/containers/podman/issues/6982 is to set cgroup_manager to "cgroupfs"
+        sed -i 's|# cgroup_manager = "systemd"|cgroup_manager = "cgroupfs"|' \
+            /usr/share/containers/containers.conf
+    fi
+fi

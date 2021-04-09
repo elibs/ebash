@@ -150,6 +150,7 @@ source "${EBASH}/try_catch.sh"
 # particular OSes or distros.
 source "${EBASH}/opt.sh"
 source "${EBASH}/os.sh"
+source "${EBASH}/emsg.sh"
 
 # Now we can source everything else.
 source "${EBASH}/archive.sh"
@@ -171,7 +172,6 @@ source "${EBASH}/elogfile.sh"
 source "${EBASH}/elogrotate.sh"
 source "${EBASH}/emetadata.sh"
 source "${EBASH}/emock.sh"
-source "${EBASH}/emsg.sh"
 source "${EBASH}/eprompt.sh"
 source "${EBASH}/eretry.sh"
 source "${EBASH}/etable.sh"

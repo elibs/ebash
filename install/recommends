@@ -1,0 +1,240 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+opt_usage main <<'END'
+This script is used to install additional recommended binaries onto a system. This is done using the portable ebash
+provided `pkg_install` which deals with the package names across different distros sensibly.
+END
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# All
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+OS=$(os_pretty_name)
+ebanner --uppercase "Installing recommended packages" \
+    OS
+
+# Generic list of packages that are universally named in all distros
+packages=(
+    bzip2
+    cpio
+    curl
+    dialog
+    gettext
+    gzip
+    jq
+    util-linux
+)
+
+# Linux-only packages
+if os linux; then
+    packages+=( squashfs-tools )
+fi
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Alpine
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+if os_distro alpine; then
+
+    packages+=(
+        cdrkit
+        debootstrap
+        docker
+        git
+        gnupg
+        iproute2
+        iputils
+        ncurses
+        ncurses-terminfo
+        net-tools
+        pstree
+        xz
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Arch
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro arch; then
+
+    pacman -Syu --overwrite "/usr/bin/docker-init" --noconfirm  docker
+
+    packages+=(
+        cdrkit
+        debootstrap
+        git
+        net-tools
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# CentOS
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro centos; then
+
+    packages+=(
+        debootstrap
+        docker
+        genisoimage
+        git
+        iproute
+        iptables
+        ncurses
+        net-tools
+        psmisc
+        xz
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Debian
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro debian; then
+
+    pkg_install apt-transport-https curl gnupg software-properties-common
+    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(grep -Po "VERSION_CODENAME=\K.*" /etc/os-release) stable"
+    pkg_sync
+
+    packages+=(
+        debootstrap
+        docker-ce
+        genisoimage
+        git
+        iproute2
+        iptables
+        net-tools
+        psmisc
+        xz-utils
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Fedora
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro fedora; then
+
+    pkg_install dnf-plugins-core
+    dnf config-manager -y --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+    pkg_sync
+
+    packages+=(
+        containerd.io
+        debootstrap
+        docker-ce
+        docker-ce-cli
+        genisoimage
+        git
+        iproute
+        iptables
+        iputils
+        ncurses
+        net-tools
+        psmisc
+        xz
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Gentoo
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro gentoo; then
+
+    portdir=$(portageq get_repo_path / gentoo)
+    if [[ ! -d "${portdir}" ]]; then
+        emerge-webrsync
+    fi
+
+    packages+=(
+        app-emulation/docker
+        cdrtools
+        debootstrap
+        dev-vcs/git
+        lbzip2
+        net-tools
+        pigz
+        psmisc
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Ubuntu
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os_distro ubuntu; then
+
+    pkg_install curl software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(grep -Po "VERSION_CODENAME=\K.*" /etc/os-release) stable"
+    pkg_sync
+
+    packages+=(
+        docker-ce
+        docker-ce-cli
+        containerd.io
+        cgroup-lite
+        debootstrap
+        git
+        gnupg-agent
+        iproute2
+        iptables
+        iputils-ping
+        mkisofs
+        net-tools
+        psmisc
+        xz-utils
+    )
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# MacOS (Darwin)
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+elif os darwin; then
+
+    packages+=(
+        git
+        gnu-tar
+        iproute2mac
+        pstree
+    )
+
+    if ! command_exists docker; then
+        packages+=( docker docker-machine )
+    fi
+fi
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# INSTALL
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+array_sort --unique packages
+pkg_install "${packages[@]}"
