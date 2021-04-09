@@ -61,27 +61,19 @@ ETEST_depends()
     assert_commands_installed ${commands[@]}
 }
 
-# Verify on Linux systems that all additional recommended commands are installed
 ETEST_recommends()
 {
-    $(skip_if "! os linux")
-
     local commands=(
         "bzip2|lbzip2|pbzip2"
         "column"
         "cpio"
         "curl"
-        "debootstrap"
-        "dialog"
         "docker"
         "git"
         "gzip|pigz"
         "ip"
-        "iptables"
         "jq"
         "lzma|xz"
-        "mkisofs|genisoimage|xorriso"
-        "mksquashfs"
         "mount"
         "netstat"
         "pgrep"
@@ -89,6 +81,16 @@ ETEST_recommends()
         "pstree"
         "tar"
     )
+
+    if os linux; then
+        commands+=(
+            "debootstrap"
+            "dialog"
+            "iptables"
+            "mkisofs|genisoimage|xorriso"
+            "mksquashfs"
+        )
+    fi
 
     assert_commands_installed ${commands[@]}
 }
