@@ -198,7 +198,7 @@ emock()
 
         # Create _real function wrapper to call the real, unmodified binary, function or builtin.
         local real_type
-        real_type=$(type -t ${name})
+        real_type=$(type -t ${name} || true)
         edebug "Creating real function wrapper ${name}_real with $(lval real_type)"
         case "${real_type}" in
             file)
@@ -216,7 +216,10 @@ emock()
                 ;;
 
             *)
-                die "Unsupported $(lval name real_type)"
+                # If it wasn't any of the above then still create a real, just route it to a dummy failing function.
+                # This will allow you to mock out things that do NOT exist at all.
+                eval "${name}_real () { false; }"
+                ;;
         esac
 
         eval "declare -f ${name}_real"
