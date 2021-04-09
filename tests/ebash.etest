@@ -149,18 +149,3 @@ ETEST_ebash_msg_prefix()
 
     EMSG_PREFIX=level ${EBASH_HOME}/bin/ebash --source --msg-prefix=time | grep 'EMSG_PREFIX="level time"'
 }
-
-ETEST_ebash_install_all()
-{
-    ${EBASH_HOME}/bin/ebash --install-all
-}
-
-ETEST_ebash_install_depends()
-{
-    ${EBASH_HOME}/bin/ebash --install-depends
-}
-
-ETEST_ebash_install_recommends()
-{
-    ${EBASH_HOME}/bin/ebash --install-recommends
-}
