@@ -28,7 +28,7 @@ pkg_known()
                 ;;
 
             apt)
-                apt info ${name} &>/dev/null
+                apt-cache show ${name} &>/dev/null
                 ;;
 
             brew)
@@ -40,13 +40,7 @@ pkg_known()
                 ;;
 
             portage)
-
-                if name=$(pkg_canonicalize "${name}"); then
-                    return 0
-                else
-                    return 1
-                fi
-
+                pkg_canonicalize "${name}" &>/dev/null
                 ;;
 
             yum)
@@ -121,36 +115,38 @@ pkg_installed()
     $(opt_parse \
         "@names | Name of the packages to check if they are installed.")
 
-    case $(pkg_manager) in
+    local name
+    for name in "${names[@]}"; do
+        case $(pkg_manager) in
+            apk)
+                apk -e info ${name} &>/dev/null
+                ;;
 
-        apk)
-            apk -e info ${names[@]} &>/dev/null
-            ;;
+            apt)
+                dpkg -s ${name} &>/dev/null
+                ;;
 
-        apt)
-            dpkg -s ${names[@]} &>/dev/null
-            ;;
+            brew)
+                brew list ${name} &>/dev/null
+                ;;
 
-        brew)
-            brew list ${names[@]} &>/dev/null
-            ;;
+            pacman)
+                pacman -Q ${name} &>/dev/null
+                ;;
 
-        pacman)
-            pacman -Q ${names[@]} &>/dev/null
-            ;;
+            portage)
+                qlist --installed --exact ${name} &>/dev/null
+                ;;
 
-        portage)
-            qlist --installed --exact ${names[@]} &>/dev/null
-            ;;
+            yum)
+                yum list installed ${name} &>/dev/null
+                ;;
 
-        yum)
-            yum list installed ${names[@]} &>/dev/null
-            ;;
-
-        *)
-            die "Unsupported package manager $(pkg_manager)"
-            ;;
-    esac
+            *)
+                die "Unsupported package manager $(pkg_manager)"
+                ;;
+        esac
+    done
 }
 
 opt_usage pkg_install <<'END'
