@@ -345,7 +345,7 @@ run_single_test()
     fi
 
     local index_string="${testidx}/${testidx_total}"
-    ebanner --uppercase "${testname}" OS break exclude failures filter REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
+    ebanner --uppercase "${testname}" OS break debug exclude failures filter REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
@@ -600,9 +600,9 @@ run_all_tests()
     fi
 
     if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "${etest_name}" OS break exclude failures filter repeat timeout total_timeout verbose
+        ebanner --uppercase "${etest_name}" OS break debug exclude failures filter repeat timeout total_timeout verbose
     else
-        ebanner --uppercase "${etest_name}" OS break exclude failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" OS break debug exclude failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
     fi
 
     for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do

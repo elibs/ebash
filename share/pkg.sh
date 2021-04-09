@@ -18,78 +18,93 @@ pkg_known()
 {
     $(opt_parse "@names | Names of package to check.")
 
-    case $(pkg_manager) in
-        apk)
-            [[ -n "$(apk list ${names[@]} 2>/dev/null)" ]]
-            ;;
+    edebug "Checking existence of $(lval names)"
 
-        apt)
-            apt-cache show ${names[@]} &>/dev/null
-            ;;
+    local name
+    for name in "${names[@]}"; do
+        case $(pkg_manager) in
+            apk)
+                [[ -n "$(apk list ${name} 2>/dev/null)" ]]
+                ;;
 
-        brew)
-            brew search ${names[@]} &>/dev/null
-            ;;
+            apt)
+                apt-cache show ${name} &>/dev/null
+                ;;
 
-        pacman)
-            pacman -Ss ${names[@]} &>/dev/null
-            ;;
+            brew)
+                brew search ${name} &>/dev/null
+                ;;
 
-        portage)
+            pacman)
+                pacman -Si ${name} &>/dev/null
+                ;;
 
-            local name portdir
-            for name in "${names[@]}"; do
-                name=$(pkg_gentoo_canonicalize ${name})
-                portdir=$(portageq get_repo_path / gentoo)
-                [[ -d "${portdir}/${name}" ]]
-            done
-            ;;
+            portage)
+                pkg_canonicalize "${name}" &>/dev/null
+                ;;
 
-        yum)
-            yum list ${names[@]} &>/dev/null
-            ;;
+            yum)
+                yum list ${name} &>/dev/null
+                ;;
 
-        *)
-            die "Unsupported package manager $(pkg_manager)"
-            ;;
-    esac
+            *)
+                die "Unsupported package manager $(pkg_manager)"
+                ;;
+        esac
+    done
 }
 
-opt_usage pkg_gentoo_canonicalize <<'END'
-Takes as input a package name that may or may not have a category identifier on it. If it does not have a category
-(e.g. app-misc or dev-util), then find the category that contains the specified package.
+opt_usage pkg_canonicalize <<'END'
+Takes as input a package name and converts it to a canonical name. This is largely only an issue on Portage where package
+names are fully qualified with a category name. If this is called on a distro that does not use portage, this will just
+return the original input.
+
+On a portage based system it will proceed as follows. The input may or may not have a category identifier on it. If it
+does not have a category (e.g. app-misc or dev-util), then find the category that contains the specified package.
 
 > **_NOTE:_** If the results would be ambiguous, fails and indicates that a category is required.
 END
-pkg_gentoo_canonicalize()
+pkg_canonicalize()
 {
     $(opt_parse "name | Package name whose category you'd like to find.")
+
+    edebug "Canonicalizing $(lval name)"
+
+    if [[ $(pkg_manager) != "portage" ]]; then
+        echo "${name}"
+        return 0
+    fi
 
     if [[ ${name} == */* ]] ; then
         echo "${name}"
 
     else
 
-        local portdir
-        portdir=$(portageq get_repo_path / gentoo)
-        pushd "${portdir}"
+        local matches size
+        matches=( $(qsearch --name-only --nocolor "${name}$" | grep "/${name}$" 2>/dev/null) )
+        size=$(array_size matches)
+        edebug "$(lval name matches size)"
 
-        local found=() size=0
-        found=( */${name} )
-        size=$(array_size found)
-        popd
-
-        if [[ ${size} -eq 0 ]] ; then
+        if [[ "${size}" -eq 0 ]]; then
             return 1
 
         elif [[ ${size} -eq 1 ]] ; then
-            echo "${found[0]}"
+            echo "${matches[0]}"
+            return 0
 
         else
-            eerror "${name} is ambiguous. You must specify a category."
+            eerror "${name} is ambiguous: $(lval matches)"
             return 2
         fi
     fi
+}
+
+opt_usage pkg_gentoo_canonicalize <<'END'
+This is a legacy wrapper around pkg_canonicalize using the old gentoo-specific name.
+END
+pkg_gentoo_canonicalize()
+{
+    pkg_canonicalize "${@}"
 }
 
 opt_usage pkg_installed <<'END'
@@ -100,53 +115,84 @@ pkg_installed()
     $(opt_parse \
         "@names | Name of the packages to check if they are installed.")
 
-    case $(pkg_manager) in
+    local name
+    for name in "${names[@]}"; do
+        case $(pkg_manager) in
+            apk)
+                apk -e info ${name} &>/dev/null
+                ;;
 
-        apk)
-            apk -e info ${names[@]} &>/dev/null
-            ;;
+            apt)
+                dpkg -s ${name} &>/dev/null
+                ;;
 
-        apt)
-            dpkg -s ${names[@]} &>/dev/null
-            ;;
+            brew)
+                brew list ${name} &>/dev/null
+                ;;
 
-        brew)
-            brew list ${names[@]} &>/dev/null
-            ;;
+            pacman)
+                pacman -Q ${name} &>/dev/null
+                ;;
 
-        pacman)
-            pacman -Q ${names[@]} &>/dev/null
-            ;;
+            portage)
+                qlist --installed --exact ${name} &>/dev/null
+                ;;
 
-        portage)
-            qlist --installed --exact ${names[@]} &>/dev/null
-            ;;
+            yum)
+                yum list installed ${name} &>/dev/null
+                ;;
 
-        yum)
-            yum list installed ${names[@]} &>/dev/null
-            ;;
-
-        *)
-            die "Unsupported package manager $(pkg_manager)"
-            ;;
-    esac
+            *)
+                die "Unsupported package manager $(pkg_manager)"
+                ;;
+        esac
+    done
 }
 
 opt_usage pkg_install <<'END'
-Install a list of packages whose names are specified. This function supports several different package managers correctly,
-but the actual package names are very frequently different on different OS or distros.
+Install a list of packages whose names are specified. This function abstracts out the complication of installing packages
+on multiple OS and Distros with different package managers. Generally this approach works pretty well. But one of the
+big problems is taht the **names** of packages are not always consistent across different OS or distros.
 
-To that end, there is a `--binaries` flag which will interpret the list of names as binaries to install rather than
-packages. When run in this mode, we use the appropriate package manager for the system in question to determine the
-names of the packages to install in order to get the desired binaries installed.
+To handle installing packages with different names in different OS/Distro combinations, the following pattern, as used
+in `install/recommends` is suggested:
+
+```shell
+# Non-distro specific pacakges we need to install
+pkg_install --sync                \
+    bzip2                         \
+    cpio                          \
+    curl                          \
+    debootstrap                   \
+    dialog                        \
+    gettext                       \
+    git                           \
+    gzip                          \
+    jq                            \
+    squashfs-tools                \
+    util-linux                    \
+
+# Distro specific packages
+if os darwin; then
+    pkg_install gnu-tar iproute2mac
+elif os_distro alpine; then
+    pkg_install cdrkit gnupg iproute2 iputils ncurses ncurses-terminfo net-tools pstree xz
+elif os_distro centos debian fedora; then
+    pkg_install genisoimage iproute iptables ncurses net-tools psmisc xz
+elif os_distro gentoo; then
+    pkg_install cdrtools lbzip2 net-tools pigz psmisc
+elif os_distro ubuntu; then
+    pkg_install cgroup-lite gnupg-agent iproute2 iptables iptuils-ping mkisofs net-tools psmisc xz-utils
+fi
+```
 END
 pkg_install()
 {
     $(opt_parse \
-        "+sync     | Perform pkg_sync before trying to lookup and install the packages." \
-        "+binaries | Interpret the names as binaries to install rather than actual package names. In this mode the
-                     package manager is queried via pkg_binary to map the binaries to package names." \
-        "@names    | Names of packages or binaries to install." \
+        "+sync     | Perform package sync before installing packages. This is normally automatically done if the packages
+                     being installed are not known by the package manager. But this allows you to explicitly sync if
+                     required."                                                                                        \
+        "@names    | Names of packages (with optional distro specifics) to install."                                   \
     )
 
     # If no package names requested just return
@@ -156,14 +202,9 @@ pkg_install()
 
     einfo "Installing packages $(lval names sync)"
 
-    if [[ ${sync} -eq 1 ]]; then
+    # Automatically do a sync if any of the packages we're trying to install are not known to us.
+    if [[ ${sync} -eq 1 ]] || ! pkg_known "${names[@]}" ; then
         pkg_sync
-    fi
-
-    if [[ ${binaries} -eq 1 ]]; then
-        edebug "Pre-converting binaries to packages $(lval names)"
-        names=( $(pkg_binary ${names[@]}) )
-        edebug "Post-converring binaries to packages $(lval names)"
     fi
 
     case $(pkg_manager) in
@@ -189,93 +230,15 @@ pkg_install()
             ;;
 
         pacman)
-            pacman -S --noconfirm "${names[@]}"
+            pacman -S --noconfirm --needed "${names[@]}"
             ;;
 
         portage)
-            emerge --ask=n "${names[@]}"
+            emerge --ask=n --quiet-build=y "${names[@]}"
             ;;
 
         yum)
             yum install -y "${names[@]}"
-            ;;
-
-        *)
-            die "Unsupported $(lval pkg_manager)"
-            ;;
-    esac
-}
-
-opt_usage pkg_binary <<'END'
-Take a list of binaries and figure out what package would need to be installed to get the specified binary. Since this
-sort of lookup is not possible with most package managers, we delegate this work out to the fantastic service provided
-by [command-not-found](https://command-not-found.com). This will return what command should be executed to install a
-command on various operating systems. This includes OS X, and almost all of our supported Linux distros. The one
-exception to that is Gentoo. In which case we delegate this task to the similar [portage-file-list](https://www.portagefilelist.de/site/query).
-In the gentoo case, we often get duplicate results back in which case we examine filter the results down to one which
-would be in our PATH.
-END
-pkg_binary()
-{
-    $(opt_parse "@names | Names of binaries to map to the corresponding OS Package that needs to be installed.")
-
-    local packages=()
-
-    # Check each package
-    local name
-    for name in "${names[@]}"; do
-        packages+=( $(__pkg_binary "${name}" ) )
-    done
-
-    array_sort --unique packages
-    edebug "Package $(lval names) -> $(lval packages)"
-    echo "${packages[@]}"
-}
-
-opt_usage __pkg_binary <<'END'
-__pkg_binary is an internal helper method called by pkg_binary to make the code more reusable inside a loop. This is
-what does the heavy lifting of calling out to command-not-found.com or using e-file to map a binary name to a package.
-END
-__pkg_binary()
-{
-    $(opt_parse \
-        "name        | The name of the package we are looking up."   \
-    )
-
-    edebug "Mapping binary $(lval name) to package"
-
-    case $(pkg_manager) in
-
-        apk)
-            curl -s "https://command-not-found.com/${name}" | grep -Po "apk add \K[^\<]*" | sort -u
-            ;;
-
-        apt)
-            curl -s "https://command-not-found.com/${name}" | grep -Po "apt-get install \K[^\<]*" | sort -u
-            ;;
-
-        brew)
-            curl -s "https://command-not-found.com/${name}" | grep -Po "brew install \K[^\<]*" | sort -u
-            ;;
-
-        pacman)
-            curl -s "https://command-not-found.com/${name}" | grep -Po "pacman -S \K[^\<]*" | sort -u
-            ;;
-
-        portage)
-            if edebug_enabled; then
-                e-file -c never "${name}" | edebug
-            fi
-
-            e-file -c never "${name}"                   \
-                | grep -B5 "/usr/[s]*bin/${name}"       \
-                | sed -e 's|\[I\] ||' -e 's|\s*\*\s*||' \
-                | grep "^\S\+"                          \
-                | grep -v -- "--"
-            ;;
-
-        yum)
-            curl -s "https://command-not-found.com/${name}" | grep -Po "yum install \K[^\<]*" | sort -u
             ;;
 
         *)
