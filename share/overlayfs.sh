@@ -134,7 +134,13 @@ overlayfs_mount()
             sources+=( "${src}" )
 
             ln -s "${src}" "${lower_src}"
-            archive_mount "${src}" "${lower}"
+
+            # but, what if an image isn't an image and is actually a directory
+            if [[ -n $(archive_type --no-die ${src}) ]] ; then
+                archive_mount "${src}" "${lower}"
+            else
+                ln -s "${src}" "${lower}"
+            fi
         done
 
         mount --types ${__EBASH_OVERLAYFS} ${__EBASH_OVERLAYFS} --options lowerdir="$(array_join lowerdirs :)",upperdir="${metadir}/upperdir",workdir="${metadir}/workdir" "${dest}"
