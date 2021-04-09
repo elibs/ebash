@@ -265,6 +265,9 @@ ETEST_emock_called_nonexistent()
 
     # Verify if you call the REAL of a nonexistent binary that it fails
     assert_false "nonexistent_real"
+
+    # Verify we can unmock a nonexistent binary
+    eunmock "nonexistent"
 }
 
 ETEST_emock_indexes()
