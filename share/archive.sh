@@ -90,13 +90,15 @@ archive_suffixes()
 
 opt_usage archive_type <<'END'
 Determine archive format based on the file suffix. You can override type detection by passing in explicit -t=type where
-type is one of the supported file extension types (e.g. squashfs, iso, tar, tgz, cpio, cgz, etc).
+type is one of the supported file extension types (e.g. squashfs, iso, tar, tgz, cpio, cgz, etc). --no-die will make
+archive_type output the type of archive or nothing, rather than dieing.
 END
 archive_type()
 {
     $(opt_parse \
-        ":type t | Override automatic type detection and use explicit archive type." \
-        "src     | Archive file name.")
+        ":type t  | Override automatic type detection and use explicit archive type." \
+        "+die d=1 | die on error." \
+        "src      | Archive file name.")
 
     # Allow overriding type detection based on suffix and instead use provided type providing it's a valid type we know
     # about. To unify the code as much as possible this accepts any of our known suffixes.
@@ -114,7 +116,9 @@ archive_type()
     done
 
     # If we got here then we never found a valid archive type.
-    die "Unsupported fstype $(lval src)"
+    if [[ ${die} -eq 1 ]] ; then
+        die "Unsupported fstype $(lval src)"
+    fi
 }
 
 opt_usage archive_compress_program <<'END'
