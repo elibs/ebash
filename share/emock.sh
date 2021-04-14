@@ -202,14 +202,17 @@ emock()
         edebug "Creating real function wrapper ${name}_real with $(lval real_type)"
         case "${real_type}" in
             file)
+                echo "true" > "${statedir}/real.exists"
                 eval "${name}_real () { command ${name} \"\${@}\"; }"
                 ;;
 
             builtin)
+                echo "true" > "${statedir}/real.exists"
                 eval "${name}_real () { builtin ${name} \"\${@}\"; }"
                 ;;
 
             function)
+                echo "true" > "${statedir}/real.exists"
                 local real
                 real="$(declare -f ${name})"
                 eval "${name}_real${real#${name}}"
@@ -218,6 +221,7 @@ emock()
             *)
                 # If it wasn't any of the above then still create a real, just route it to a dummy failing function.
                 # This will allow you to mock out things that do NOT exist at all.
+                echo "false" > "${statedir}/real.exists"
                 eval "${name}_real () { false; }"
                 ;;
         esac

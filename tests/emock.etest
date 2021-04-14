@@ -120,6 +120,7 @@ ETEST_emock_called()
     assert_directory_contents .emock-$$/func \
         called        \
         mode          \
+        real.exists   \
         0             \
         0/return_code \
         0/stdout      \
@@ -140,6 +141,7 @@ ETEST_emock_called()
     assert_directory_contents .emock-$$/func \
         called        \
         mode          \
+        real.exists   \
         0             \
         0/return_code \
         0/stdout      \
@@ -178,6 +180,7 @@ ETEST_emock_called_filesystem()
     assert_directory_contents .emock-$$/${test_binary} \
         called        \
         mode          \
+        real.exists   \
         0             \
         0/return_code \
         0/stdout      \
@@ -196,6 +199,7 @@ ETEST_emock_called_filesystem()
     assert_directory_contents .emock-$$/${test_binary} \
         called        \
         mode          \
+        real.exists   \
         0             \
         0/return_code \
         0/stdout      \
@@ -219,6 +223,10 @@ ETEST_emock_called_nonexistent()
     assert_eq 0 "$(emock_called nonexistent)"
     assert_emock_called "nonexistent" 0
 
+    # Verify real.exists file exists with "false" in it
+    assert_exists ".emock-$$/nonexistent/real.exists"
+    assert_eq "false" $(cat .emock-$$/nonexistent/real.exists)
+
     ## CALL 1 (index 0) ##
     etestmsg "Calling mock#1 index=0"
     nonexistent
@@ -230,6 +238,7 @@ ETEST_emock_called_nonexistent()
     assert_directory_contents .emock-$$/nonexistent \
         called        \
         mode          \
+        real.exists   \
         0             \
         0/return_code \
         0/stdout      \
@@ -250,6 +259,7 @@ ETEST_emock_called_nonexistent()
     assert_directory_contents .emock-$$/nonexistent \
         called        \
         mode          \
+        real.exists   \
         0             \
         0/return_code \
         0/stdout      \
