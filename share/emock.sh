@@ -236,6 +236,18 @@ emock()
         # If _real already exists do NOT replace it as this just means the caller is re-mocking
         if [[ ! -e "${name}_real" ]]; then
             edebug "Saving ${name} -> ${name}_real"
+
+            # If the original file doesn't exist then still create a _real just make it a symlink that points to
+            # /bin/false so that it can still be executed with expected failure.
+            if [[ ! -e "${name}" ]]; then
+                edebug "${name} does not exist -- creating symlink to /bin/false"
+                echo "false" > "${statedir}/real.exists"
+                ln -s "/bin/false" "${name}"
+                ls -l "${name}"
+            else
+                echo "true" > "${statedir}/real.exists"
+            fi
+
             mv "${name}" "${name}_real"
         fi
 
@@ -263,8 +275,18 @@ eunmock()
     local mode
     mode=$(cat "${statedir}/mode")
     if [[ "${mode}" == "filesystem" ]]; then
-        edebug "Removing filesystem mock"
-        mv "${name}_real" "${name}"
+
+        local exists
+        exists=$(cat "${statedir}/real.exists")
+
+        if [[ "${exists}" == "true" ]]; then
+            edebug "Removing filesystem mock"
+            mv "${name}_real" "${name}"
+        else
+            edebug "Removing dummy real"
+            rm -f "${name}" "${name}_real"
+        fi
+
     elif [[ "${mode}" == "function" ]]; then
         edebug "Removing ${name} mock function"
         unset -f "${name}_real"

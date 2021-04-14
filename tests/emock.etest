@@ -270,6 +270,72 @@ ETEST_emock_called_nonexistent()
     eunmock "nonexistent"
 }
 
+ETEST_emock_called_nonexistent_filesystem()
+{
+    etestmsg "Mocking nonexistent file"
+    emock --filesystem "nonexistent"
+    dump_state
+    assert_eq 0 "$(cat .emock-$$/nonexistent/called)"
+    assert_eq 0 "$(emock_called nonexistent)"
+    assert_emock_called "nonexistent" 0
+
+    # Verify real.exists file exists with "false" in it
+    assert_exists ".emock-$$/nonexistent/real.exists"
+    assert_eq "false" $(cat .emock-$$/nonexistent/real.exists)
+
+    ## CALL 1 (index 0) ##
+    etestmsg "Calling mock#1 index=0"
+    ./nonexistent
+    dump_state
+    assert_eq 1 "$(cat .emock-$$/nonexistent/called)"
+    assert_eq 1 "$(emock_called nonexistent)"
+    assert_emock_called "nonexistent" 1
+    assert_eq "0" "$(emock_indexes "nonexistent")"
+    assert_directory_contents .emock-$$/nonexistent \
+        called        \
+        mode          \
+        real.exists   \
+        0             \
+        0/return_code \
+        0/stdout      \
+        0/stderr      \
+        0/timestamp   \
+        0/args
+
+    ## CALL 2 (index 1) ##
+    echo
+    etestmsg "Calling mock#1 index=1"
+    ./nonexistent
+    dump_state
+    assert_eq 2 "$(cat .emock-$$/nonexistent/called)"
+    assert_eq 2 "$(emock_called nonexistent)"
+    assert_emock_called "nonexistent" 2
+    assert_eq "0 1" "$(emock_indexes "nonexistent")"
+    assert_eq "1" "$(emock_indexes --last "nonexistent")"
+    assert_directory_contents .emock-$$/nonexistent \
+        called        \
+        mode          \
+        real.exists   \
+        0             \
+        0/return_code \
+        0/stdout      \
+        0/stderr      \
+        0/timestamp   \
+        0/args        \
+        1             \
+        1/return_code \
+        1/stdout      \
+        1/stderr      \
+        1/timestamp   \
+        1/args
+
+    # Verify if you call the REAL of a nonexistent binary that it fails
+    assert_false "./nonexistent_real"
+
+    # Verify we can unmock a nonexistent binary
+    eunmock "nonexistent"
+}
+
 ETEST_emock_indexes()
 {
     func() { true; }
