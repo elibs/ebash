@@ -31,6 +31,7 @@ packages=(
     cpio
     curl
     dialog
+    gdb
     gettext
     gzip
     jq

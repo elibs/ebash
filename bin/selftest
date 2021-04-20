@@ -42,7 +42,7 @@ run_etest()
     ebanner "$(caller 0 | awk '{print $2}')"
 
     local rc=0
-    EDEBUG="" ${ETEST} "${@}" |& tee output.log && rc=0 || rc=1
+    EDEBUG="" ${ETEST} --no-subreaper "${@}" |& tee output.log && rc=0 || rc=1
     ETEST_RC=${rc}
     ETEST_OUTPUT=$(< output.log)
     ETEST_LOG=$(< etest.log)

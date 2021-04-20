@@ -101,7 +101,6 @@ etimeout()
         # command returned on its own.
         wait ${watcher} && watcher_rc=0 || watcher_rc=$?
 
-
         local stop seconds
         stop=${SECONDS}
         seconds=$(( ${stop} - ${start} ))
