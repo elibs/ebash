@@ -113,7 +113,8 @@ process_parent()
 
     : ${child:=${BASHPID}}
 
-    ps -p "${child}" -o ppid=
+    # NOTE: Echo the output here to avoid whitespace being captured by the caller
+    echo $(ps -p "${child}" -o ppid=)
 }
 
 opt_usage process_parent_tree <<'END'
