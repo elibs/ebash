@@ -97,6 +97,8 @@ docker_build()
 {
     $(opt_parse \
         "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
+        "&ibuild_arg                        | Build arguments that should be interpolated inplace instead of passing them
+                                              into the lower level docker build."                                      \
         ":cache_from                        | Images to consider as cache sources. Passthrough into docker build."     \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         "=name                              | Name of docker image to create. This will also be used as the cache
@@ -129,6 +131,7 @@ docker_build()
     image="${name}:${sha_short}"
     edebug $(lval      \
         build_arg      \
+        ibuild_arg     \
         cache_from     \
         dockerfile     \
         file           \
@@ -351,7 +354,7 @@ This function will create some output state files underneath ${workdir}/docker/$
 internally by docker_build but also useful externally.
 
 - **build.log**  : Output from the docker build process
-- **dockerfile** : Contains original dockerfile with overlay information added by ebash
+- **dockerfile** : Contains docker file with overlay information added by ebash and any ibuild variables interpolated.
 - **history**    : Contains output of 'docker history'
 - **image**      : The full image name including name:sha
 - **inspect**    : Contains output of 'docker inspect'
@@ -364,7 +367,7 @@ END
 docker_depends_sha()
 {
     $(opt_parse \
-        "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
+        "&ibuild_arg                        | Build arguments to pass into lower level docker build --build-arg."      \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         "=name                              | Name of docker image to create. This will also be used as the cache
                                               registry/repository for cached remote images."                           \
@@ -393,8 +396,32 @@ __docker_depends_sha()
     echo "${shafunc}" > "${shafile_func}"
     opt_dump | tee "${optfile}" | edebug
 
+    # Interpolated ibuild_args
+    # NOTE: This is in a subshell so that we can export the ibuild args and use envsubst without polluting the caller's
+    #       environment.
+    (
+        local entry="" ibuild_arg_keys=()
+        for entry in "${ibuild_arg[@]:-}"; do
+            [[ -z "${entry}" ]] && continue
+            local ibuild_arg_key="${entry%%=*}"
+            local ibuild_arg_val="${entry#*=}"
+            edebug "ibuild_arg: $(lval entry ibuild_arg_key ibuild_arg_val)"
+
+            eval "export ${ibuild_arg_key}=${ibuild_arg_val}"
+            ibuild_arg_keys+=( "\$${ibuild_arg_key}" )
+        done
+        envsubst "$(array_join ibuild_arg_keys ,)" < "${file}" > "${dockerfile}"
+
+        # Strip out ARGs that we've interpolated
+        for entry in "${ibuild_arg[@]:-}"; do
+            [[ -z "${entry}" ]] && continue
+            ibuild_arg_key="${entry%%=*}"
+            edebug "stripping buildarg: $(lval entry ibuild_arg_key)"
+            sed -i -e "/ARG ${ibuild_arg_key}/d" "${dockerfile}"
+        done
+    )
+
     # Append COPY directives for overlay modules
-    cp "${file}" "${dockerfile}"
     local overdir overlay_paths
     overdir="${workdir}/$(basename ${name})/overlay"
     mkdir -p "${overdir}"
