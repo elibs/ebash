@@ -141,6 +141,42 @@ ETEST_docker_build_args()
     assert_false grep 'RUN echo "James/Laid"' ".work/docker/ebash/dockerfile"
 }
 
+# Verify that provided ibuild args are interpolated
+ETEST_docker_ibuild_args()
+{
+    etestmsg "Creating Dockerfile"
+	cat <<-'END' >Dockerfile
+	FROM alpine:edge
+	ARG ARTIST
+	ARG SONG
+	RUN echo "${ARTIST}/${SONG}"
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image (pretend)"
+    $(tryrc docker_build           \
+        --pretend                  \
+        --name "elibs/ebash"       \
+        --ibuild-arg "ARTIST=James" \
+        --ibuild-arg "SONG=Laid"    \
+    )
+    assert_eq 1 "${rc}"
+
+    etestmsg "Validating docker_build artifacts"
+    assert_exists \
+        ".work/docker/ebash/dockerfile" \
+        ".work/docker/ebash/sha"        \
+        ".work/docker/ebash/sha.func"   \
+        ".work/docker/ebash/sha.short"  \
+        ".work/docker/ebash/sha.detail" \
+
+    etestmsg "Validating provided ibuild_args are interpolated"
+    assert_false diff "Dockerfile"            ".work/docker/ebash/dockerfile"
+    assert_false grep "ARG ARTIST"            ".work/docker/ebash/dockerfile"
+    assert_false grep "ARG SONG"              ".work/docker/ebash/dockerfile"
+    assert_true  grep 'RUN echo "James/Laid"' ".work/docker/ebash/dockerfile"
+}
+
 ETEST_docker_build_cache_from()
 {
     etestmsg "Creating Dockerfile"
@@ -544,6 +580,7 @@ ETEST_docker_build_overlay()
         'build_arg=()'
         'cache_from=""'
         'file="Dockerfile"'
+        'ibuild_arg=()'
         'name="elibs/ebash"'
         'overlay=("ebash" "systemd" "selinux" "rsyslog")'
         'overlay_tree="overlay"'
