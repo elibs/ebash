@@ -87,6 +87,10 @@ $(opt_parse \
                                  single unit test. This is the total timeout for ALL test suites and tests being
                                  executed. After this duration etest will be killed if it has not completed. This uses
                                  sleep(1) time syntax."                                                                 \
+    "+subreaper=1              | On Linux, set the CHILD_SUBREAPER flag so that any processes created by etest get
+                                 reparented to etest itself instead of to init or whatever process ancestor may have set
+                                 this flag. This allows us to properly detect process leak detections and ensure they
+                                 are cleaned up properly. At present, this only works on Linux with gdb installed."    \
     "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
                                  exit code or may be files whose names end in .etest, in which case they will be sourced
                                  and any test functions found will be executed. You may also specify directories in
@@ -100,6 +104,24 @@ $(opt_parse \
 #      -- docker already protects us inside a mount namespace)
 if [[ ${mount_ns} -eq 1 ]] && os linux && ! running_in_docker; then
     reexec --mount-ns
+fi
+
+# On Linux, if requested, set the CHILD_SUBREAPER flag so that any processes created by etest get reparented to etest.
+# This allows us to properly detect process leaks and ensure they are cleaned up properly.
+#
+# NOTE: There is no native bash way to make system calls. But we can do it through GDB. This may be worth abstracting
+# into a module to allow calling system calls in bash natively.
+#
+if [[ ${subreaper} -eq 1 ]]; then
+
+    if ! os linux; then
+        ewarn "Subreaper disabled (non-Linux)"
+    elif ! command_exists gdb; then
+        ewarn "Subreaper disabled (gdb missing)"
+    else
+        gdb -batch -ex 'call (int)prctl((int)36,(long)1,(long)0,(long)0,(long)0)' -ex detach -ex quit -p $$ |& edebug
+        trap "" SIGTERM
+    fi
 fi
 
 declare -A _EBASH_CONF
@@ -426,9 +448,6 @@ run_single_test()
             else
                 "${command}"
             fi
-
-            # Just in case any background processes exist wait on them. This is a safe no-op if there none to wait on.
-            wait
 
             # Run optional test teardown function if provided
             if is_function teardown ; then

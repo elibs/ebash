@@ -186,9 +186,6 @@ tryrc()
 
             # Run command
             quote_eval "${cmd[@]}"
-
-            # Just in case any background processes exist wait on them. This is a safe no-op if there none to wait on.
-            wait
         fi
     }
     catch
