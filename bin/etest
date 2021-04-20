@@ -112,8 +112,16 @@ fi
 # NOTE: There is no native bash way to make system calls. But we can do it through GDB. This may be worth abstracting
 # into a module to allow calling system calls in bash natively.
 #
-if os linux && command_exists gdb; then
-    gdb -batch -ex 'call (int)prctl((int)36,(long)1,(long)0,(long)0,(long)0)' -ex detach -ex quit -p $$ |& edebug
+if [[ ${subreaper} -eq 1 ]]; then
+
+    if ! os linux; then
+        ewarn "Subreaper disabled (non-Linux)"
+    elif ! command_exists gdb; then
+        ewarn "Subreaper disabled (gdb missing)"
+    else
+        gdb -batch -ex 'call (int)prctl((int)36,(long)1,(long)0,(long)0,(long)0)' -ex detach -ex quit -p $$ |& edebug
+        trap "" SIGTERM
+    fi
 fi
 
 declare -A _EBASH_CONF
@@ -549,11 +557,11 @@ run_etest_file()
         local testfunc=${functions[$idx]}
         local test_work_dir="${work_dir}/${testfilename}/${testfunc}"
 
-        run_single_test \
-            --testidx ${idx} \
+        run_single_test                                 \
+            --testidx ${idx}                            \
             --testidx-total $(( ${#functions[@]} - 1 )) \
-            --work-dir "${test_work_dir}" \
-            --source "${testfile}" \
+            --work-dir "${test_work_dir}"               \
+            --source "${testfile}"                      \
             "${testfunc}"
 
         if [[ ${break} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
