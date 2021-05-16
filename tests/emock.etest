@@ -123,6 +123,7 @@ ETEST_emock_called()
         real.exists   \
         0             \
         0/return_code \
+        0/stdin       \
         0/stdout      \
         0/stderr      \
         0/timestamp   \
@@ -144,12 +145,14 @@ ETEST_emock_called()
         real.exists   \
         0             \
         0/return_code \
+        0/stdin       \
         0/stdout      \
         0/stderr      \
         0/timestamp   \
         0/args        \
         1             \
         1/return_code \
+        1/stdin       \
         1/stdout      \
         1/stderr      \
         1/timestamp   \
@@ -183,6 +186,7 @@ ETEST_emock_called_filesystem()
         real.exists   \
         0             \
         0/return_code \
+        0/stdin       \
         0/stdout      \
         0/stderr      \
         0/timestamp   \
@@ -202,12 +206,14 @@ ETEST_emock_called_filesystem()
         real.exists   \
         0             \
         0/return_code \
+        0/stdin       \
         0/stdout      \
         0/stderr      \
         0/timestamp   \
         0/args        \
         1             \
         1/return_code \
+        1/stdin       \
         1/stdout      \
         1/stderr      \
         1/timestamp   \
@@ -241,6 +247,7 @@ ETEST_emock_called_nonexistent()
         real.exists   \
         0             \
         0/return_code \
+        0/stdin       \
         0/stdout      \
         0/stderr      \
         0/timestamp   \
@@ -262,12 +269,14 @@ ETEST_emock_called_nonexistent()
         real.exists   \
         0             \
         0/return_code \
+        0/stdin       \
         0/stdout      \
         0/stderr      \
         0/timestamp   \
         0/args        \
         1             \
         1/return_code \
+        1/stdin       \
         1/stdout      \
         1/stderr      \
         1/timestamp   \
@@ -307,6 +316,7 @@ ETEST_emock_called_nonexistent_filesystem()
         real.exists   \
         0             \
         0/return_code \
+        0/stdin       \
         0/stdout      \
         0/stderr      \
         0/timestamp   \
@@ -328,12 +338,14 @@ ETEST_emock_called_nonexistent_filesystem()
         real.exists   \
         0             \
         0/return_code \
+        0/stdin       \
         0/stdout      \
         0/stderr      \
         0/timestamp   \
         0/args        \
         1             \
         1/return_code \
+        1/stdin       \
         1/stdout      \
         1/stderr      \
         1/timestamp   \
@@ -408,6 +420,23 @@ ETEST_emock_return_code()
     etestmsg "Calling func_real"
     $(tryrc func_real)
     assert_eq 1 ${rc}
+}
+
+ETEST_emock_stdin()
+{
+    etestmsg "Mocking"
+    emock --stdin --stdout "mock stdout" --stderr "mock stderr" func
+    etestmsg "Calling mocked func"
+    echo "mock stdin" | func
+
+    assert_eq "mock stdin" "$(emock_stdin func)"
+    assert_emock_stdin "func" 0 "mock stdin"
+
+    assert_eq "mock stdout" "$(emock_stdout func)"
+    assert_emock_stdout "func" 0 "mock stdout"
+
+    assert_eq "mock stderr" "$(emock_stderr func)"
+    assert_emock_stderr "func" 0 "mock stderr"
 }
 
 ETEST_emock_stdout()

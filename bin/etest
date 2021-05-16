@@ -593,7 +593,7 @@ find_matching_tests()
         if [[ ${testfile} =~ \.etest$ ]]; then
 
             local function
-            for function in $(source "${testfile}" ; declare -F | awk '$3 ~ "^ETEST" {print $3}' || true); do
+            for function in $(grep "^ETEST_.*()$" "${testfile}" | sed 's|()||' || true); do
 
                 if [[ -n ${exclude} && ${function} =~ ${exclude} ]]; then
                     continue

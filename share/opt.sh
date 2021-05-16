@@ -905,6 +905,23 @@ opt_dump()
 }
 
 : <<'END'
+opt_print is used to print all the options in a KEY=VALUE format to STDOUT in a pretty-printed format. The options are
+sorted by option name (or key) and the value is pretty-pritned using print_value. This is similar to `opt_dump` only
+all the values are printed on a single line instead of separate lines.
+END
+opt_print()
+{
+    for option in $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort); do
+        if [[ ${__EBASH_OPT_TYPE[$option]:-} == "accumulator" ]]; then
+            array_init_nl value "${__EBASH_OPT[$option]}"
+            echo -n "${option}=$(print_value value) "
+        else
+            echo -n "${option}=\"${__EBASH_OPT[$option]}\" "
+        fi
+    done
+}
+
+: <<'END'
 When you have a bunch of options that were passed into a function that wants to simply forward them into an internal
 function, it can be a little tedious to make the call to that internal function because you have to repeat all of the
 options and then read the value that the option of the same name was stored into. For instance look at the foo_internal
