@@ -104,7 +104,12 @@ emock()
         ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
                                               hold metadata information such as the number of times the mock was called
                                               as well as the return code, stdout, and stderr for each invocation."     \
-        "+reset       r                     | Reset existing mock state inside statedir from prior mock invocations." \
+        "+reset       r                     | Reset existing mock state inside statedir from prior mock invocations."  \
+        "+textfile    t                     | Treat the body as a simple text file rather than a shell script. In this
+                                              mode there will be no generated stdin, stdout or stderr and the mock will
+                                              not be executable. The additional tracking emock does around how many times
+                                              a mock is called is also disabled when in this mode. This is suitable for
+                                              mocking out simple text files which your code will read or write to."    \
         "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode). This
                                               must match the calling convention at the call site."                     \
         "?body                              | This allows fine-grained control over the body of the mocked function that
@@ -186,16 +191,30 @@ emock()
             '${return_statement}' '${return_code}'
         )'
     else
-        body='
-        (
-            '${base_body}'
-            ( '${body}' )
 
-            # Return / Exit
-            return_code=$?
-            echo -n ${return_code} > "${statedir}/${called}/return_code"
-            '${return_statement}' ${return_code}
-        )'
+        # Figure out how far the second line is indented in the provided body. Then we strip that number of leading
+        # characters of whitespace from every line in the provided body. This way when the body is indented inside a
+        # function to align with its surrounding code it will be indented as intended in the final script.
+        local numlines indent secondline
+        numlines=$(echo "${body}" | grep -c "^")
+        if [[ "${numlines}" -gt 1 ]]; then
+            secondline="$(echo "${body}" | head -2 | tail -1)"
+            indent="${secondline%%[^ ]*}"
+            body="$(echo "${body}" | sed -e "s|^${indent}||")"
+        fi
+
+        if [[ "${textfile}" -eq 0 ]]; then
+            body='
+            (
+                '${base_body}'
+                ( '${body}' )
+
+                # Return / Exit
+                return_code=$?
+                echo -n ${return_code} > "${statedir}/${called}/return_code"
+                '${return_statement}' ${return_code}
+            )'
+        fi
     fi
 
     # Now, if we're in filesystem mode, creat the mock on-disk. Otherwise create in-memory mocks.
