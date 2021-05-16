@@ -56,8 +56,8 @@ that for each mock:
 ```shell
 ${PWD}/.emock-$$/dmidecode/called
 ${PWD}/.emock-$$/dmidecode/mode
-${PWD}/.emock-$$/dmidecode/0/{args,return_code,stdout,stderr,timestamp}
-${PWD}/.emock-$$/dmidecode/1/{args,return_code,stdout,stderr,timestamp}
+${PWD}/.emock-$$/dmidecode/0/{args,return_code,stdin,stdout,stderr,timestamp}
+${PWD}/.emock-$$/dmidecode/1/{args,return_code,stdin,stdout,stderr,timestamp}
 ```
 
 Finally, you can pass in the `--filesystem` option and emock will write out the mock to the filesystem itself rather than
@@ -97,6 +97,7 @@ emock()
 {
     $(opt_parse \
         ":return_code return rc r=0         | What return code should the mock script use. By default this is 0."      \
+        "+stdin       i                     | Mock should read from standard input and store it into a file."          \
         ":stdout      o                     | What standard output should be returned by the mock."                    \
         ":stderr      e                     | What standard error should be returned by the mock."                     \
         "+filesystem  f                     | Write out the mock to the filesystem."                                   \
@@ -158,6 +159,12 @@ emock()
         # Save off timestamp and argument array
         echo -en $(date "+%FT%TZ") > "${statedir}/${called}/timestamp"
         printf "%s\n" "${@}" > "${statedir}/${called}/args"
+
+        # Optionally read from standard input and store into a file
+        > "${statedir}/${called}/stdin"
+        if [[ "'${stdin}'" -eq 1 ]]; then
+            cat > "${statedir}/${called}/stdin"
+        fi
     '
 
     # Create the mock
@@ -373,6 +380,35 @@ emock_indexes()
     fi
 }
 
+opt_usage emock_stdin <<'END'
+`emock_stdin` is a utility function to make it easier to get the standard input that was provided to a particular
+invocation of a mocked function. This is stored on-disk and is easy to manually retrieve, but this function should
+always be used to provide a clean abstraction. If the call number is not provided, this will default to the most recent
+invocation's standard output.
+END
+emock_stdin()
+{
+    $(opt_parse \
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
+                                              hold metadata information such as the number of times the mock was called
+                                              as well as the exit code, stdout, and stderr for each invocation."       \
+        "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
+        "?num                               | The call number to get the standard output for."                         \
+    )
+
+    if [[ -z "${num}" ]]; then
+        num=$(opt_forward emock_indexes statedir -- --last ${name})
+    fi
+
+    statedir+="/$(basename "${name}")"
+    local actual=""
+    if [[ -e "${statedir}/${num}/stdin" ]]; then
+        actual="$(cat "${statedir}/${num}/stdin")"
+    fi
+
+    echo -n "${actual}"
+}
+
 opt_usage emock_stdout <<'END'
 `emock_stdout` is a utility function to make it easier to get the standard output from a particular invocation of a
 mocked function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to
@@ -536,6 +572,30 @@ assert_emock_called()
     )
 
     assert_eq "${times}" "$(opt_forward emock_called statedir -- ${name})"
+}
+
+opt_usage assert_emock_stdin <<'END'
+`assert_emock_stdin` is used to assert that a particular invocation of a mock was provided the expected standard input.
+
+For example:
+
+```shell
+assert_emock_stdin "func" 0 "This is the expected standard input for call #0"
+assert_emock_stdin "func" 1 "This is the expected standard input for call #1"
+```
+END
+assert_emock_stdin()
+{
+    $(opt_parse \
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
+                                              hold metadata information such as the number of times the mock was called
+                                              as well as the exit code, stdout, and stderr for each invocation."       \
+        "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
+        "num                                | The call number to look at the arguments for."                           \
+        "stdin                              | The expected stdandard input."                                           \
+    )
+
+    diff --unified <(echo "${stdin}") <(echo "$(opt_forward emock_stdin statedir -- ${name} ${num})")
 }
 
 opt_usage assert_emock_stdout <<'END'
