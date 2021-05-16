@@ -603,3 +603,22 @@ ETEST_emock_body()
     cat .emock-$$/func/1/return_code
     assert_emock_return_code "func" 1 1
 }
+
+# Verify leading indentation is stripped from mocked textfile body
+ETEST_emock_body_textfile()
+{
+    etestmsg "Mocking textfile with body with stripped indentation"
+    emock --filesystem --textfile foo 'Line #1
+    Line #2
+        Line #3 is indented
+    Line #4
+    '
+
+    etestmsg "Mock with whitespace stripped"
+    cat foo
+
+    assert_eq "Line #1" "$(cat foo | head -1)"
+    assert_eq "Line #2" "$(cat foo | head -2 | tail -1)"
+    assert_eq "    Line #3 is indented" "$(cat foo | head -3 | tail -1)"
+    assert_eq "Line #4" "$(cat foo | head -4 | tail -1)"
+}
