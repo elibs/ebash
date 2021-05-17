@@ -34,7 +34,6 @@ packages=(
     gdb
     gettext
     gzip
-    jq
     util-linux
 )
 
@@ -59,6 +58,7 @@ if os_distro alpine; then
         gnupg
         iproute2
         iputils
+        jq
         ncurses
         ncurses-terminfo
         net-tools
@@ -80,6 +80,7 @@ elif os_distro arch; then
         cdrkit
         debootstrap
         git
+        jq
         net-tools
     )
 
@@ -98,6 +99,7 @@ elif os_distro centos; then
         git
         iproute
         iptables
+        jq
         ncurses
         net-tools
         psmisc
@@ -124,6 +126,7 @@ elif os_distro debian; then
         git
         iproute2
         iptables
+        jq
         net-tools
         psmisc
         xz-utils
@@ -151,6 +154,7 @@ elif os_distro fedora; then
         iproute
         iptables
         iputils
+        jq
         ncurses
         net-tools
         psmisc
@@ -172,6 +176,7 @@ elif os_distro gentoo; then
 
     packages+=(
         app-emulation/docker
+        app-misc/jq
         cdrtools
         debootstrap
         dev-vcs/git
@@ -205,6 +210,7 @@ elif os_distro ubuntu; then
         iproute2
         iptables
         iputils-ping
+        jq
         mkisofs
         net-tools
         psmisc
@@ -223,6 +229,7 @@ elif os darwin; then
         git
         gnu-tar
         iproute2mac
+        jq
         pstree
     )
 
