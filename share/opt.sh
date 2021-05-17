@@ -733,7 +733,7 @@ opt_display_usage()
         local opt
         local required_opts=()
         local entry
-        for opt in ${opt_keys[@]}; do
+        for opt in ${opt_keys[@]:-}; do
 
             if [[ ${__EBASH_OPT_TYPE[$opt]} != "required_string" ]]; then
                 continue
