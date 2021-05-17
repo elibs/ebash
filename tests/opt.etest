@@ -660,6 +660,22 @@ ETEST_opt_parse_help_not_allowed()
     assert_false bar
 }
 
+ETEST_opt_parse_help_empty()
+{
+    set -- --help
+    foo()
+    {
+        $(opt_parse)
+    }
+
+    etestmsg "Run with usage and make sure the function didn't perform its normal operation"
+    ECOLOR=0 COLUMNS=80 foo --help &> output
+
+    grep "SYNOPSIS"    output
+    grep "Usage: foo"  output
+    grep "DESCRIPTION" output
+}
+
 ETEST_opt_parse_help()
 {
     local tmpfile=${FUNCNAME}.tmp
