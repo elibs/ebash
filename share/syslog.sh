@@ -93,7 +93,7 @@ syslog()
 
     $(opt_parse \
         ":backend b=${EBASH_SYSLOG_BACKEND} | Syslog backend (e.g. journald, syslog)"                                  \
-        ":priority=info                     | Priority to use (emerg panic alert crit err warning notice info debug)." \
+        ":priority p=info                   | Priority to use (emerg panic alert crit err warning notice info debug)." \
         "+syslog_details                    | Embed details into syslog message with syslog backend."                  \
         "message                            | Message to send to syslog backend."                                      \
         "@entries                           | Structured key/value details to include in syslog message."              \
