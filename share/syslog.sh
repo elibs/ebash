@@ -103,7 +103,7 @@ syslog()
     assert_match "${backend}" "(journald|syslog)"
 
     # Verify priority level is valid.
-    if ! [[ -v __EBASH_SYSLOG_PRIORITIES[$priority] ]]; then
+    if [[ -z ${__EBASH_SYSLOG_PRIORITIES[$priority]:-} ]]; then
         die "Invalid $(lval priority supported=__EBASH_SYSLOG_PRIORITIES)"
     fi
 
@@ -122,7 +122,7 @@ syslog()
         [TID]="${BASHPID}"
     )
 
-    expand_vars --uppercase --no-quotes details "${entries[@]}"
+    expand_vars --uppercase --no-quotes details "${entries[@]:-}"
     edebug "syslog: $(lval details)"
 
     # Forward the message and details into the desired backend. For journald it natively supports structured logging so
