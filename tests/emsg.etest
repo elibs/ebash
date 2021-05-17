@@ -221,7 +221,7 @@ ETEST_expand_vars()
     assert_eq "A[b]"            "${details[VAR2]}"
     assert_eq '("a" "b" "c d")' "${details[ARRAY]}"
     assert_eq '([alpha]="1 2 3" [beta]="4 5 6" )' "${details[AA]}"
-    assert_eq ""                "${details[EMPTY]}"
+    assert_eq ""                "${details[EMPTY]:-}"
 }
 
 ETEST_expand_vars_quotes()
@@ -250,7 +250,7 @@ ETEST_expand_vars_quotes()
     assert_eq '"A[b]"'            "${details[VAR2]}"
     assert_eq '("a" "b" "c d")'   "${details[ARRAY]}"
     assert_eq '([alpha]="1 2 3" [beta]="4 5 6" )' "${details[AA]}"
-    assert_eq '""'                "${details[EMPTY]}"
+    assert_eq '""'                "${details[EMPTY]:-}"
 }
 
 ETEST_expand_vars_uppercase()
