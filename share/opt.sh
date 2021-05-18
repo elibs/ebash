@@ -909,17 +909,33 @@ opt_log is used to log all options in a compact KEY=VALUE,KEY2=VALUE2,... format
 option name (or key). This is different than `opt_dump` in that entries are all printed on a single line and are comma
 separated. Also, single quotes are used instead of double quotes to make it easier to embed the resulting log message
 into syslog.
+
+You can optionally disable quotes around the values with `-n` though the output in that case may be ambiguous.
+
 END
 opt_log()
 {
-    local prefix=""
+    local quotes=1 local prefix=""
+    if [[ ${1:-} == "-n" ]] ; then
+        quotes=0
+        shift
+    fi
 
     for option in $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort); do
         if [[ ${__EBASH_OPT_TYPE[$option]:-} == "accumulator" ]]; then
             array_init_nl value "${__EBASH_OPT[$option]}"
-            echo -n "${prefix}${option}=$(print_value value | sed -e "s|\"|'|")"
+
+            if [[ ${quotes} -eq 1 ]]; then
+                echo -n "${prefix}${option}=$(print_value value | sed -e "s|\"|'|")"
+            else
+                echo -n "${prefix}${option}=$(print_value value | sed -e "s|\"||")"
+            fi
         else
-            echo -n "${prefix}${option}='${__EBASH_OPT[$option]}'"
+            if [[ ${quotes} -eq 1 ]]; then
+                echo -n "${prefix}${option}='${__EBASH_OPT[$option]}'"
+            else
+                echo -n "${prefix}${option}=${__EBASH_OPT[$option]}"
+            fi
         fi
 
         prefix=","
