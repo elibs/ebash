@@ -23,7 +23,13 @@ ETEST_opt_parse()
 
     etestmsg "opt_log"
     opt_log
-    assert_eq "color=blue,file=some_file,long=1,whitespace=arg with whitespace" "$(opt_log)"
+    echo
+    assert_eq "color='blue',file='some_file',long='1',whitespace='arg with whitespace'" "$(opt_log)"
+
+    etestmsg "opt_log -n"
+    opt_log -n
+    echo
+    assert_eq "color=blue,file=some_file,long=1,whitespace=arg with whitespace" "$(opt_log -n)"
 
     assert_eq "blue" "${color}"
     assert_eq "some_file" "${file}"
