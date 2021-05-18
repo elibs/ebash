@@ -1126,9 +1126,23 @@ print_value()
 
 opt_usage expand_vars <<'END'
 Iterate over arguments and interpolate them as-needed and store the resulting "key" and "value" into a provided
-associative array. For each entry, if a custom "key=value" syntax is used, then the value will be interpolated using
-`print_value` function. The keys may optionally be uppercased for consistency and quotes may optionally be stripped off
-of the resulting value we load into the associative array.
+associative array. For each entry, if a custom "key=value" syntax is used, then "value" is checked to see if it refers
+to another variable. If so, then it is expanded/interpolated using the `print_value` function. If it does not reference
+another variable name, then it will be used as-is. This implementation allows for maximum flexibility at the call-site
+where they want to have some variables reference other variables underlying values, as in:
+
+```shell
+expand_vars details DIR=PWD
+```
+
+But also sometimes want to be able to just directly provide the string literal to use, as in:
+
+```shell
+expand_vars details DIR="/home/marshall"
+```
+
+The keys may optionally be uppercased for consistency and quotes may optionally be stripped off of the resulting value
+we load into the associative array.
 END
 expand_vars()
 {
@@ -1144,10 +1158,19 @@ expand_vars()
     for __entry in "${entries[@]:-}"; do
         [[ -z ${__entry} ]] && continue
 
-        __key="${__entry%%=*}"
-        : ${__key:=${__entry}}
-        __val="${__entry#*=}"
-        __key=${__key#%}
+        # Check if this is of the form KEY=VALUE. If so, attempt to expand VALUE if it's a variable. If it's not, use
+        # it as-is.
+        if [[ "${__entry}" =~ "=" ]]; then
+            __key="${__entry%%=*}"
+            __val="${__entry#*=}"
+            if [[ -v "${__val}" ]]; then
+                __val="$(print_value ${__val})"
+            fi
+            __key=${__key%}
+        else
+            __key="${__entry}"
+            __val="$(print_value ${__key})"
+        fi
 
         # Optionally uppercase the key if requested.
         if [[ ${uppercase} -eq 1 ]]; then
@@ -1157,9 +1180,9 @@ expand_vars()
         fi
 
         if [[ "${quotes}" -eq 1 ]]; then
-            printf -v ${__details}[${__key}] "$(print_value ${__val})"
+            printf -v ${__details}[${__key}] "${__val}"
         else
-            printf -v ${__details}[${__key}] "$(print_value ${__val} | sed -e 's|^"||' -e 's|"$||')"
+            printf -v ${__details}[${__key}] "$(echo ${__val} | sed -e 's|^"||' -e 's|"$||')"
         fi
     done
 }

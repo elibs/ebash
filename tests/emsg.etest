@@ -211,7 +211,7 @@ ETEST_expand_vars()
 
     # Load all of the above into an associative array
     declare -A details
-    expand_vars --no-quotes details VAR1 VAR2 ARRAY AA EMPTY
+    expand_vars --no-quotes details VAR1 VAR2 ARRAY AA EMPTY FOO=1 DIR=PWD
 
     # Validate
     etestmsg "Validating details"
@@ -221,6 +221,7 @@ ETEST_expand_vars()
     assert_eq "A[b]"            "${details[VAR2]}"
     assert_eq '("a" "b" "c d")' "${details[ARRAY]}"
     assert_eq '([alpha]="1 2 3" [beta]="4 5 6" )' "${details[AA]}"
+    assert_eq "1"               "${details[FOO]}"
     assert_eq ""                "${details[EMPTY]:-}"
 }
 

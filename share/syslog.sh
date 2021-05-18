@@ -47,7 +47,20 @@ declare -A __EBASH_SYSLOG_PRIORITIES=(
 opt_usage syslog <<'END'
 syslog provides a simple interface for logging a message to the system logger with full support for structured logging.
 The structured details provided to this function are passed as an optional list of "KEY KEY=VALUE ..." entries identical
-to ebanner and underlying expand_vars function. The KEY and VALUE are automatically intpolated if they are variables.
+to `ebanner` and underlying `expand_vars` function. If provided only a KEY, then it will be automatically expanded to
+its value, if any. If it doesn not refer to any value than it will expand to an empty string. If provided "KEY=VALUE"
+and "VALUE" refers to another valid variable name, then it will be expanded to that other variable's value. Otherwise it
+will be used as-is. This allows maximum flexibility where you can log things to the system logger in three very useful
+idioms:
+
+```shell
+expand_vars details HOME DIR=PWD DIR2="/home/foo"
+```
+
+Note three clear idioms demonstrated here:
+- `HOME` is a variable, so it is expanded to the value of `${HOME}`.
+- Because `PWD` is a variable, `DIR=PWD` will use the key `DIR` and the value of `${PWD}`
+- Because `"/home/foo"` is not a variable, `DIR2="/home/foo"` will use a key `DIR2` and a literal value of `"/home/foo"`
 
 In addition to these optional list of details, the following list of default details are always included:
 
