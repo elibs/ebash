@@ -401,6 +401,13 @@ run_single_test()
             export EBASH EBASH_HOME TEST_DIR_OUTPUT=${work_dir}
             if [[ -n ${source} ]] ; then
                 source "${source}"
+
+                # If the test name we were provided doesn't exist after sourcing this script then there is some
+                # conditional in the test that is designed to prevent us from running it so we should simply return.
+                if ! is_function ${testname}; then
+                    edebug "Skipping $(lval source testname)"
+                    return 0
+                fi
             fi
 
             # Pretend that the test _not_ executing inside a try/catch so that the error stack will get printed if part
@@ -593,7 +600,7 @@ find_matching_tests()
         if [[ ${testfile} =~ \.etest$ ]]; then
 
             local function
-            for function in $(source "${testfile}" ; declare -F | awk '$3 ~ "^ETEST" {print $3}' || true); do
+            for function in $(grep "^ETEST_.*()" "${testfile}" | sed 's|().*||' || true); do
 
                 if [[ -n ${exclude} && ${function} =~ ${exclude} ]]; then
                     continue

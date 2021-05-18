@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+setup()
+{
+    if [[ ! -v USER ]]; then
+        USER=elibs
+    fi
+}
+
+ETEST_syslog_priorities()
+{
+    assert_eq 0 ${__EBASH_SYSLOG_PRIORITIES[emerg]}
+    assert_eq 1 ${__EBASH_SYSLOG_PRIORITIES[alert]}
+    assert_eq 2 ${__EBASH_SYSLOG_PRIORITIES[crit]}
+    assert_eq 3 ${__EBASH_SYSLOG_PRIORITIES[err]}
+    assert_eq 4 ${__EBASH_SYSLOG_PRIORITIES[warning]}
+    assert_eq 5 ${__EBASH_SYSLOG_PRIORITIES[notice]}
+    assert_eq 6 ${__EBASH_SYSLOG_PRIORITIES[info]}
+    assert_eq 7 ${__EBASH_SYSLOG_PRIORITIES[debug]}
+
+    # Deprecated Aliases
+    assert_eq 0 ${__EBASH_SYSLOG_PRIORITIES[panic]}
+    assert_eq 3 ${__EBASH_SYSLOG_PRIORITIES[error]}
+    assert_eq 4 ${__EBASH_SYSLOG_PRIORITIES[warn]}
+}
+
+ETEST_syslog_backend_journald()
+{
+    # Mock out systmectl to always return success so we think our backend is
+    # journald regardless of what it really is.
+    emock systemctl
+    emock logger
+
+    syslog "foo"
+
+    etestmsg "Verifying logger called with --journald"
+    assert_emock_called_with "logger" 0 \
+        --journald
+}
+
+ETEST_syslog_backend_syslog()
+{
+    # Mock out systmectl to always return failure so we think our backend is not
+    # journald regardless of what it really is.
+    emock --return 1 systemctl
+    emock logger
+
+    syslog "foo"
+
+    etestmsg "Verifying logger called without --journald"
+    assert_emock_called_with "logger" 0 \
+        --priority 6                    \
+        "foo"
+}
+
+ETEST_syslog_backend_invalid()
+{
+    assert_false syslog --backend file "Message"
+}
+
+ETEST_syslog_missing_message()
+{
+    assert_false syslog 2> output
+    grep "Missing argument 'message'" output
+}
+
+ETEST_syslog_default_details_journald()
+{
+    # Mock out systmectl to always return success so we think our backend is
+    # journald regardless of what it really is.
+    emock systemctl
+    emock --stdin logger
+
+    local line="${LINENO}"
+    syslog "This is the way"
+
+    etestmsg "Verifying logger called with correct message"
+    assert_emock_called_with "logger" 0 \
+        --journald
+
+    etestmsg "Verifying logger stdin"
+    emock_stdin "logger"
+
+    local expected=(
+        CODE_FILE=syslog.etest
+        CODE_FUNC=${FUNCNAME}
+        CODE_LINE=$(( line + 1 ))
+        MESSAGE="This is the way"
+        PRIORITY=6
+        SYSLOG_IDENTIFIER=etest
+        TID=$BASHPID
+    )
+
+    assert_emock_stdin "logger" 0 "$(array_join_nl expected)"
+}
+
+ETEST_syslog_default_details_syslog()
+{
+    # Mock out systmectl to always return false so we will use legacy syslog.
+    emock --return 1 systemctl
+    emock logger
+
+    local line="${LINENO}"
+    syslog --syslog-details "This is the way"
+
+    etestmsg "Verifying logger called with correct message"
+
+    declare -A details=(
+        [CODE_FILE]=syslog.etest
+        [CODE_FUNC]=${FUNCNAME}
+        [CODE_LINE]=$(( line + 1 ))
+        [SYSLOG_IDENTIFIER]=etest
+        [TID]=$BASHPID
+    )
+
+    assert_emock_called_with "logger" 0 \
+        --priority 6 \
+        "This is the way $(lval details | sed -e 's|details=||')"
+}
+
+ETEST_syslog_custom_details_journald()
+{
+    # Mock out systmectl to always return success so we think our backend is
+    # journald regardless of what it really is.
+    emock systemctl
+    emock --stdin logger
+
+    local line="${LINENO}"
+    syslog --priority emerg "Luke, I am your Father!" \
+        GROUP=ETEST_CGROUP \
+        HOME               \
+        LID=ETEST_PID      \
+        NAME=USER          \
+        OUT=ETEST_OUT      \
+        PWD                \
+        USER               \
+
+    etestmsg "Verifying logger called with correct message"
+    assert_emock_called_with "logger" 0 \
+        --journald
+
+    etestmsg "Verifying logger stdin"
+    emock_stdin "logger"
+
+    local expected=(
+        CODE_FILE=syslog.etest
+        CODE_FUNC=${FUNCNAME}
+        CODE_LINE=$(( line + 1 ))
+        GROUP=${ETEST_CGROUP}
+        HOME=${HOME}
+        LID=${ETEST_PID}
+        MESSAGE="Luke, I am your Father!"
+        NAME=${USER}
+        OUT=${ETEST_OUT}
+        PRIORITY=0
+        PWD=${PWD}
+        SYSLOG_IDENTIFIER=etest
+        TID=$BASHPID
+        USER=${USER}
+    )
+
+    assert_emock_stdin "logger" 0 "$(array_join_nl expected)"
+}
+
+ETEST_syslog_custom_details_syslog()
+{
+    # Mock out systmectl to always return false so we will use legacy syslog.
+    emock --return 1 systemctl
+    emock logger
+
+    local line="${LINENO}"
+    syslog --priority emerg --syslog-details "Luke, I am your Father!" \
+        GROUP=ETEST_CGROUP \
+        HOME               \
+        LID=ETEST_PID      \
+        NAME=USER          \
+        OUT=ETEST_OUT      \
+        PWD                \
+        USER               \
+
+    etestmsg "Verifying logger called with correct message"
+
+    declare -A details=(
+        [CODE_FILE]=syslog.etest
+        [CODE_FUNC]=${FUNCNAME}
+        [CODE_LINE]=$(( line + 1 ))
+        [GROUP]=${ETEST_CGROUP}
+        [HOME]=${HOME}
+        [LID]=${ETEST_PID}
+        [NAME]=${USER}
+        [OUT]=${ETEST_OUT}
+        [PWD]=${PWD}
+        [SYSLOG_IDENTIFIER]=etest
+        [TID]=$BASHPID
+        [USER]=${USER}
+    )
+
+    assert_emock_called_with "logger" 0 \
+        --priority 0 \
+        "Luke, I am your Father! $(lval details | sed -e 's|details=||')"
+}
