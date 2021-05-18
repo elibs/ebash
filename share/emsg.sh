@@ -1154,7 +1154,7 @@ expand_vars()
         "@entries   | Variadic list of variables to interpolate and load the resulting values into the details array." \
     )
 
-    local __entry __key __val
+    local __entry __key __val __valexp
     for __entry in "${entries[@]:-}"; do
         [[ -z ${__entry} ]] && continue
 
@@ -1163,8 +1163,9 @@ expand_vars()
         if [[ "${__entry}" =~ "=" ]]; then
             __key="${__entry%%=*}"
             __val="${__entry#*=}"
-            if [[ -v "${__val}" ]]; then
-                __val="$(print_value ${__val})"
+            __valexp="$(print_value ${__val})"
+            if [[ "${__valexp}" != '""' ]]; then
+                __val="${__valexp}"
             fi
             __key=${__key%}
         else
