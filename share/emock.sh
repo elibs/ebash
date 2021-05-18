@@ -195,19 +195,24 @@ emock()
         # Figure out how far the second line is indented in the provided body. Then we strip that number of leading
         # characters of whitespace from every line in the provided body. This way when the body is indented inside a
         # function to align with its surrounding code it will be indented as intended in the final script.
-        local numlines indent secondline
-        numlines=$(echo "${body}" | grep -c "^")
-        if [[ "${numlines}" -gt 1 ]]; then
-            secondline="$(echo "${body}" | head -2 | tail -1)"
-            indent="${secondline%%[^ ]*}"
-            body="$(echo "${body}" | sed -e "s|^${indent}||")"
+        #
+        # WARNING: Try to avoid as many external tools as possible here since they may have been mocked out!
+        #          So we convert the input into an array and then we can directly get the number of lines and 2nd line
+        #          without any reliance on external tools.
+        local lines
+        array_init_nl lines "${body}"
+        if [[ "${#lines[@]}" -gt 1 ]]; then
+            local secondline="${lines[1]}"
+            local indent="${secondline%%[^ ]*}"
+            lines=( "${lines[@]/${indent}/}" )
+            body="$(array_join_nl lines)"
         fi
 
         if [[ "${textfile}" -eq 0 ]]; then
             body='
             (
                 '${base_body}'
-                ( '${body}' )
+                ( '${body}' ; )
 
                 # Return / Exit
                 return_code=$?
