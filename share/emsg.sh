@@ -478,10 +478,12 @@ END
 ebanner()
 {
     $(opt_parse \
-        "+uppercase upper u | If enabled, keys will be all uppercased.")
+        "+uppercase upper u | If enabled, keys will be all uppercased." \
+        "+lowercase lower l | If enabled, keys will be all lowercased." \
+    )
 
     {
-        local cols lines entries
+        local cols lines
 
         echo ""
         cols=$(tput cols)
@@ -502,34 +504,17 @@ ebanner()
 
         # Iterate over all other arguments and stick them into an associative array optionally uppercasing the keys.
         # If a custom key was requested via "key=value" format then use the provided key and lookup value via print_value.
-        declare -A __details
-
-        local entries=("${@}")
-        for k in "${entries[@]:-}"; do
-            [[ -z ${k} ]] && continue
-
-            local _ktag="${k%%=*}"
-            : ${_ktag:=${k}}
-            local _kval="${k#*=}"
-            _ktag=${_ktag#%}
-
-            # Optionally uppercase the key if requested.
-            if [[ ${uppercase} -eq 1 ]]; then
-                _ktag="${_ktag^^}"
-            fi
-
-            __details[${_ktag}]=$(print_value ${_kval})
-
-        done
+        declare -A details
+        opt_forward expand_vars uppercase lowercase -- details "${@}"
 
         # Now output all the details (if any)
-        if [[ -n ${__details[@]:-} ]]; then
+        if [[ -n ${details[@]:-} ]]; then
             ecolor ${COLOR_BANNER}
             echo -e "|"
 
             # Sort the keys and store into an array
             local keys
-            keys=( $(for key in ${!__details[@]}; do echo "${key}"; done | sort) )
+            keys=( $(for key in ${!details[@]}; do echo "${key}"; done | sort) )
 
             # Figure out the longest key
             local longest=0
@@ -550,7 +535,7 @@ ebanner()
                 fi
 
                 ecolor ${COLOR_BANNER}
-                printf "| • %s%${pad}s :: %s\n" ${ktag} " " "${__details[$key]}"
+                printf "| • %s%${pad}s :: %s\n" ${ktag} " " "${details[$key]}"
             done
         fi
 
@@ -1137,6 +1122,46 @@ print_value()
     fi
 
     echo -n "${__val}"
+}
+
+opt_usage expand_vars <<'END'
+Iterate over arguments and interpolate them as-needed and store the resulting "key" and "value" into a provided
+associative array. For each entry, if a custom "key=value" syntax is used, then the value will be interpolated using
+`print_value` function. The keys may optionally be uppercased for consistency and quotes may optionally be stripped off
+of the resulting value we load into the associative array.
+END
+expand_vars()
+{
+    $(opt_parse \
+        "+uppercase | Uppercase the keys for consistency"                                                              \
+        "+lowercase | Lowercase the keys for consistency"                                                              \
+        "+quotes=1  | Include quotation marks around value."                                                           \
+        "__details  | Name of the associative array to load the key=value pairs into."                                 \
+        "@entries   | Variadic list of variables to interpolate and load the resulting values into the details array." \
+    )
+
+    local __entry __key __val
+    for __entry in "${entries[@]:-}"; do
+        [[ -z ${__entry} ]] && continue
+
+        __key="${__entry%%=*}"
+        : ${__key:=${__entry}}
+        __val="${__entry#*=}"
+        __key=${__key#%}
+
+        # Optionally uppercase the key if requested.
+        if [[ ${uppercase} -eq 1 ]]; then
+            __key="${__key^^}"
+        elif [[ ${lowercase} -eq 1 ]]; then
+            __key="${__key,,}"
+        fi
+
+        if [[ "${quotes}" -eq 1 ]]; then
+            printf -v ${__details}[${__key}] "$(print_value ${__val})"
+        else
+            printf -v ${__details}[${__key}] "$(print_value ${__val} | sed -e 's|^"||' -e 's|"$||')"
+        fi
+    done
 }
 
 opt_usage lval <<'END'

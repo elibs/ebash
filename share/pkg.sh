@@ -81,7 +81,7 @@ pkg_canonicalize()
     else
 
         local matches size
-        matches=( $(qsearch --name-only --nocolor "${name}$" | grep "/${name}$" 2>/dev/null) )
+        matches=( $(qsearch --name-only --nocolor "^${name}$" 2>/dev/null) )
         size=$(array_size matches)
         edebug "$(lval name matches size)"
 

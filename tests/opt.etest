@@ -16,6 +16,7 @@ ETEST_opt_parse()
         "+long l longer s h k t m n  |   option with lots of variants"      \
         ":whitespace w               |   option expecting to receive something containing whitespace")
     etestmsg "$(opt_dump)"
+    etestmsg "$(lval __EBASH_FULL_ARGS)"
 
     assert_eq "blue" "${color}"
     assert_eq "some_file" "${file}"
@@ -657,6 +658,22 @@ ETEST_opt_parse_help_not_allowed()
 
     assert_false foo
     assert_false bar
+}
+
+ETEST_opt_parse_help_empty()
+{
+    set -- --help
+    foo()
+    {
+        $(opt_parse)
+    }
+
+    etestmsg "Run with usage and make sure the function didn't perform its normal operation"
+    ECOLOR=0 COLUMNS=80 foo --help &> output
+
+    grep "SYNOPSIS"    output
+    grep "Usage: foo"  output
+    grep "DESCRIPTION" output
 }
 
 ETEST_opt_parse_help()

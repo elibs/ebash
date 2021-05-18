@@ -26,7 +26,7 @@ valid_ip()
     return $stat
 }
 
-opt_usage valid_ip <<'END'
+opt_usage hostname_to_ip <<'END'
 Convert a given hostname to its corresponding IP Address.
 END
 hostname_to_ip()

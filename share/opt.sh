@@ -733,7 +733,7 @@ opt_display_usage()
         local opt
         local required_opts=()
         local entry
-        for opt in ${opt_keys[@]}; do
+        for opt in ${opt_keys[@]:-}; do
 
             if [[ ${__EBASH_OPT_TYPE[$opt]} != "required_string" ]]; then
                 continue
@@ -900,6 +900,23 @@ opt_dump()
             echo "${option}=$(print_value value)"
         else
             echo "${option}=\"${__EBASH_OPT[$option]}\""
+        fi
+    done
+}
+
+: <<'END'
+opt_print is used to print all the options in a KEY=VALUE format to STDOUT in a pretty-printed format. The options are
+sorted by option name (or key) and the value is pretty-pritned using print_value. This is similar to `opt_dump` only
+all the values are printed on a single line instead of separate lines.
+END
+opt_print()
+{
+    for option in $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort); do
+        if [[ ${__EBASH_OPT_TYPE[$option]:-} == "accumulator" ]]; then
+            array_init_nl value "${__EBASH_OPT[$option]}"
+            echo -n "${option}=$(print_value value) "
+        else
+            echo -n "${option}=\"${__EBASH_OPT[$option]}\" "
         fi
     done
 }

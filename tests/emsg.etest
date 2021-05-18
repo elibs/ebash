@@ -195,6 +195,100 @@ ETEST_print_value()
     assert_eq '""' "$(print_value /usr/local/share)"
 }
 
+ETEST_expand_vars()
+{
+    # Simple strings
+    VAR1=a
+    VAR2="A[b]"
+
+    # Array
+    ARRAY=(a b "c d")
+
+    # Associative Array
+    declare -A AA
+    AA[alpha]="1 2 3"
+    AA[beta]="4 5 6"
+
+    # Load all of the above into an associative array
+    declare -A details
+    expand_vars --no-quotes details VAR1 VAR2 ARRAY AA EMPTY
+
+    # Validate
+    etestmsg "Validating details"
+    echo "$(lval details)"
+
+    assert_eq "a"               "${details[VAR1]}"
+    assert_eq "A[b]"            "${details[VAR2]}"
+    assert_eq '("a" "b" "c d")' "${details[ARRAY]}"
+    assert_eq '([alpha]="1 2 3" [beta]="4 5 6" )' "${details[AA]}"
+    assert_eq ""                "${details[EMPTY]:-}"
+}
+
+ETEST_expand_vars_quotes()
+{
+    # Simple strings
+    VAR1=a
+    VAR2="A[b]"
+
+    # Array
+    ARRAY=(a b "c d")
+
+    # Associative Array
+    declare -A AA
+    AA[alpha]="1 2 3"
+    AA[beta]="4 5 6"
+
+    # Load all of the above into an associative array
+    declare -A details
+    expand_vars details VAR1 VAR2 ARRAY AA EMPTY
+
+    # Validate
+    etestmsg "Validating details"
+    echo "$(lval details)"
+
+    assert_eq '"a"'               "${details[VAR1]}"
+    assert_eq '"A[b]"'            "${details[VAR2]}"
+    assert_eq '("a" "b" "c d")'   "${details[ARRAY]}"
+    assert_eq '([alpha]="1 2 3" [beta]="4 5 6" )' "${details[AA]}"
+    assert_eq '""'                "${details[EMPTY]:-}"
+}
+
+ETEST_expand_vars_uppercase()
+{
+    # Simple strings
+    var1=a
+    var2="A[b]"
+
+    # Load all of the above into an associative array
+    declare -A details
+    expand_vars --uppercase --no-quotes details var1 var2
+
+    # Validate
+    etestmsg "Validating details"
+    echo "$(lval details)"
+
+    assert_eq "a"               "${details[VAR1]}"
+    assert_eq "A[b]"            "${details[VAR2]}"
+}
+
+ETEST_expand_vars_lowercase()
+{
+    # Simple strings
+    VAR1=a
+    VAR2="A[b]"
+
+    # Load all of the above into an associative array
+    declare -A details
+    expand_vars --lowercase --no-quotes details VAR1 VAR2
+
+    # Validate
+    etestmsg "Validating details"
+    echo "$(lval details)"
+
+    assert_eq "a"               "${details[var1]}"
+    assert_eq "A[b]"            "${details[var2]}"
+}
+
 ETEST_etrace()
 {
     func_to_trace()

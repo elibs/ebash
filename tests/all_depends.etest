@@ -74,6 +74,7 @@ ETEST_recommends()
         "gzip|pigz"
         "ip"
         "jq"
+        "logger"
         "lzma|xz"
         "mount"
         "netstat"

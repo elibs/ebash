@@ -169,7 +169,7 @@ ETEST_assert_zero()
     assert_false assert_zero 1
 }
 
-ETEST_assert_zero()
+ETEST_assert_not_zero()
 {
     assert_not_zero 1
     assert_false assert_not_zero 0
