@@ -16,7 +16,14 @@ ETEST_opt_parse()
         "+long l longer s h k t m n  |   option with lots of variants"      \
         ":whitespace w               |   option expecting to receive something containing whitespace")
     etestmsg "$(opt_dump)"
-    etestmsg "$(lval __EBASH_FULL_ARGS)"
+
+    etestmsg "opt_raw"
+    opt_raw
+    diff --unified -- <(echo $(opt_raw)) <(echo "${__EBASH_FULL_ARGS[*]}")
+
+    etestmsg "opt_log"
+    opt_log
+    assert_eq "color=blue,file=some_file,long=1,whitespace=arg with whitespace" "$(opt_log)"
 
     assert_eq "blue" "${color}"
     assert_eq "some_file" "${file}"

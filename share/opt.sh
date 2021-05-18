@@ -905,20 +905,35 @@ opt_dump()
 }
 
 : <<'END'
-opt_print is used to print all the options in a KEY=VALUE format to STDOUT in a pretty-printed format. The options are
-sorted by option name (or key) and the value is pretty-pritned using print_value. This is similar to `opt_dump` only
-all the values are printed on a single line instead of separate lines.
+opt_log is used to log all options in a compact KEY=VALUE,KEY2=VALUE2,... format to STDOUT. The options are sorted by
+option name (or key). This is different than `opt_dump` in that entries are all printed on a single line and are comma
+separated. Also, single quotes are used instead of double quotes to make it easier to embed the resulting log message
+into syslog.
 END
-opt_print()
+opt_log()
 {
+    local prefix=""
+
     for option in $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort); do
         if [[ ${__EBASH_OPT_TYPE[$option]:-} == "accumulator" ]]; then
             array_init_nl value "${__EBASH_OPT[$option]}"
-            echo -n "${option}=$(print_value value) "
+            echo -n "${prefix}${option}=$(print_value value | sed -e "s|\"|'|")"
         else
-            echo -n "${option}=\"${__EBASH_OPT[$option]}\" "
+            echo -n "${prefix}${option}='${__EBASH_OPT[$option]}'"
         fi
+
+        prefix=","
     done
+}
+
+: <<'END'
+opt_raw is used to print all the raw options provided to `opt_parse` before any manipulations were performed. This is
+equivalent to using __EBASH_FULL_ARGS only it's less error-prone since it handles an empty array properly and isn't
+poking into an internal variable.
+END
+opt_raw()
+{
+    echo "${__EBASH_FULL_ARGS[@]:-}"
 }
 
 : <<'END'
@@ -927,14 +942,16 @@ function, it can be a little tedious to make the call to that internal function 
 options and then read the value that the option of the same name was stored into. For instance look at the foo_internal
 call here, assuming it takes an identical set of options as foo.
 
-    foo()
-    {
-        $(opt_parse "+a" "+b" "+c")
+```shell
+foo()
+{
+    $(opt_parse "+a" "+b" "+c")
 
-        # Do some stuff then call internal function to handle more details
-        foo_internal -a="${a}" -b="${b}" -c="${c}"
+    # Do some stuff then call internal function to handle more details
+    foo_internal -a="${a}" -b="${b}" -c="${c}"
 
-    }
+}
+```
 
 Of course, that only gets worse as you have more or as the names of your options get longer. And if you quote it
 incorrectly, it will continue to work until one of your options contains something weird like whitespace in which case
@@ -943,15 +960,21 @@ it will probably fail subtly.
 `Opt_forward` exists simply to make this easier. It knows how to forward options that were parsed by `opt_parse` to
 another function, quoting correctly. You can use it like this
 
-    opt_forward <command> <names of options to forward>+ [-- [other args]]
+```shell
+opt_forward <command> <names of options to forward>+ [-- [other args]]
+```
 
 To cover the example case, you'd call it like this:
 
-    opt_forward foo_internal a b c
+```shell
+opt_forward foo_internal a b c
+```
 
 Or, if you needed to pass additional things to `foo_internal`, like this:
 
-    opt_forward foo_internal a b c -- additional things
+```shell
+opt_forward foo_internal a b c -- additional things
+```
 
 You may find that the option has a different name in the function you'd like to forward to. You can specify this by
 adding a colon followed by the name of the option in the function you're asking `opt_forward` to call. For instance, if
@@ -1011,11 +1034,15 @@ a fatal error or not.
 
 If you want this to cause your code to exit with a fatal error as it always has, no change is required. e.g.:
 
-	$ argcheck FOO BAR
+```shell
+argcheck FOO BAR
+```
 
 If you want to handle this failure and perhaps do something if the variables are not set, then something like this:
 
-	$ if ! argcheck FOO BAR &>/dev/null; then ...; fi
+```shell
+if ! argcheck FOO BAR &>/dev/null; then ...; fi
+```
 END
 argcheck()
 {
