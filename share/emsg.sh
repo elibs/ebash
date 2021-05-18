@@ -1200,9 +1200,18 @@ things like:
 ```shell
 $(lval PWD=$(pwd) VARS=myuglylocalvariablename)
 ```
+
+You can optionally pass in -n or --no-quotes and it will omit the outer-most quotes used on simple variables such as
+strings and numbers. But array and associative array values are still quoted to avoid ambiguity.
 END
 lval()
 {
+    local quotes=1
+    if [[ "${1:-}" == "-n" || ${1:-} == "--no-quotes" ]] ; then
+        quotes=0
+        shift
+    fi
+
     local __lval_pre=""
     for __arg in "${@}"; do
 
@@ -1210,7 +1219,12 @@ lval()
         local __arg_tag=${__arg%%=*}; [[ -z ${__arg_tag} ]] && __arg_tag=${__arg}
         local __arg_val=${__arg#*=}
         __arg_tag=${__arg_tag#%}
-        __arg_val=$(print_value "${__arg_val}")
+
+        if [[ "${quotes}" -eq 1 ]]; then
+            __arg_val="$(print_value "${__arg_val}")"
+        else
+            __arg_val="$(print_value "${__arg_val}" | sed -e 's|^"||' -e 's|"$||')"
+        fi
 
         echo -n "${__lval_pre}${__arg_tag}=${__arg_val}"
         __lval_pre=" "
