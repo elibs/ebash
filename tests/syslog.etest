@@ -133,6 +133,8 @@ ETEST_syslog_custom_details_journald()
 
     local line="${LINENO}"
     syslog --priority emerg "Luke, I am your Father!" \
+        DIR=PWD            \
+        FOO=1              \
         GROUP=ETEST_CGROUP \
         HOME               \
         LID=ETEST_PID      \
@@ -152,6 +154,8 @@ ETEST_syslog_custom_details_journald()
         CODE_FILE=syslog.etest
         CODE_FUNC=${FUNCNAME}
         CODE_LINE=$(( line + 1 ))
+        DIR=${PWD}
+        FOO=1
         GROUP=${ETEST_CGROUP}
         HOME=${HOME}
         LID=${ETEST_PID}
@@ -176,6 +180,8 @@ ETEST_syslog_custom_details_syslog()
 
     local line="${LINENO}"
     syslog --priority emerg --syslog-details "Luke, I am your Father!" \
+        DIR=PWD            \
+        FOO=1              \
         GROUP=ETEST_CGROUP \
         HOME               \
         LID=ETEST_PID      \
@@ -190,6 +196,8 @@ ETEST_syslog_custom_details_syslog()
         [CODE_FILE]=syslog.etest
         [CODE_FUNC]=${FUNCNAME}
         [CODE_LINE]=$(( line + 1 ))
+        [DIR]=${PWD}
+        [FOO]=1
         [GROUP]=${ETEST_CGROUP}
         [HOME]=${HOME}
         [LID]=${ETEST_PID}
