@@ -910,13 +910,14 @@ option name (or key). This is different than `opt_dump` in that entries are all 
 separated. Also, single quotes are used instead of double quotes to make it easier to embed the resulting log message
 into syslog.
 
-You can optionally disable quotes around the values with `-n` though the output in that case may be ambiguous.
+You can optionally pass in -n or --no-quotes and it will omit the outer-most quotes used on simple variables such as
+strings and numbers. But array and associative array values are still quoted to avoid ambiguity.
 
 END
 opt_log()
 {
     local quotes=1 local prefix=""
-    if [[ ${1:-} == "-n" ]] ; then
+    if [[ "${1:-}" == "-n" || ${1:-} == "--no-quotes" ]] ; then
         quotes=0
         shift
     fi

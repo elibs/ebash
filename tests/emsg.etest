@@ -195,6 +195,46 @@ ETEST_print_value()
     assert_eq '""' "$(print_value /usr/local/share)"
 }
 
+ETEST_lval()
+{
+    VAR1=a
+    assert_eq 'VAR1="a"' "$(lval VAR1)"
+
+    VAR2="A[b]"
+    assert_eq 'VAR2="A[b]"' "$(lval VAR2)"
+
+    ARRAY=(a b "c d")
+    assert_eq 'ARRAY=("a" "b" "c d")' "$(lval ARRAY)"
+
+    declare -A AA
+    AA[alpha]="1 2 3"
+    AA[beta]="4 5 6"
+    assert_eq 'AA=([alpha]="1 2 3" [beta]="4 5 6" )' "$(lval AA)"
+
+    # Combine all above
+    assert_eq 'VAR1="a" VAR2="A[b]" ARRAY=("a" "b" "c d") AA=([alpha]="1 2 3" [beta]="4 5 6" )' "$(lval VAR1 VAR2 ARRAY AA)"
+}
+
+ETEST_lval_noquotes()
+{
+    VAR1=a
+    assert_eq 'VAR1=a' "$(lval -n VAR1)"
+
+    VAR2="A[b]"
+    assert_eq 'VAR2=A[b]' "$(lval --no-quotes VAR2)"
+
+    ARRAY=(a b "c d")
+    assert_eq 'ARRAY=("a" "b" "c d")' "$(lval -n ARRAY)"
+
+    declare -A AA
+    AA[alpha]="1 2 3"
+    AA[beta]="4 5 6"
+    assert_eq 'AA=([alpha]="1 2 3" [beta]="4 5 6" )' "$(lval -n AA)"
+
+    # Combine all above
+    assert_eq 'VAR1=a VAR2=A[b] ARRAY=("a" "b" "c d") AA=([alpha]="1 2 3" [beta]="4 5 6" )' "$(lval --no-quotes VAR1 VAR2 ARRAY AA)"
+}
+
 ETEST_expand_vars()
 {
     # Simple strings
