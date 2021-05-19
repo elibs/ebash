@@ -12,11 +12,6 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
-# Default backend to use. If this is not explicitly set then ebash will automatically detect what backend to use. It
-# will first see if systemd is installed and systemd-journald is running if if so will set set this "journald".
-# Otherwise it will set this to "syslog" which is supported on OSX and all legacy Linux distributions.
-: ${EBASH_SYSLOG_BACKEND:=""}
-
 # Ebash SYSLOG priority levels.
 #
 # These directly map to the values in https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html which
