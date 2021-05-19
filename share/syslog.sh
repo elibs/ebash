@@ -39,6 +39,10 @@ declare -A __EBASH_SYSLOG_PRIORITIES=(
     [warn]=4
 )
 
+# Default backend to use. If this is not explicitly set then ebash will automatically detect what backend to use on
+# first use via the `syslog_detect_backend` function.
+: ${EBASH_SYSLOG_BACKEND:=""}
+
 opt_usage syslog_detect_backend <<'END'
 syslog_detect_backend is used to automatically detect what backend to use by default according to the following rules:
 
@@ -59,14 +63,15 @@ syslog_detect_backend()
         return 0
     fi
 
-    if command_exists systemctl && systemctl is-active --quiet systemd-journald && logger --help | grep -q "journald"; then
-        echo "journald"
+    if command_exists systemctl && systemctl is-active --quiet systemd-journald &>/dev/null && logger --help | grep -q "journald"; then
+        EBASH_SYSLOG_BACKEND="journald"
     else
-        echo "syslog"
+        EBASH_SYSLOG_BACKEND="syslog"
     fi
-}
 
-: ${EBASH_SYSLOG_BACKEND:=$(syslog_detect_backend)}
+    edebug "Auto detected $(lval EBASH_SYSLOG_BACKEND)"
+    echo "${EBASH_SYSLOG_BACKEND}"
+}
 
 opt_usage syslog <<'END'
 syslog provides a simple interface for logging a message to the system logger with full support for structured logging.
@@ -118,14 +123,17 @@ END
 syslog()
 {
     $(opt_parse \
-        ":backend b=${EBASH_SYSLOG_BACKEND} | Syslog backend (e.g. journald, syslog)"                                  \
-        ":priority p=info                   | Priority to use (emerg panic alert crit err warning notice info debug)." \
-        "+syslog_details                    | Embed details into syslog message with syslog backend."                  \
-        "message                            | Message to send to syslog backend."                                      \
-        "@entries                           | Structured key/value details to include in syslog message."              \
+        ":backend b        | Syslog backend (e.g. journald, syslog)"                                                   \
+        ":priority p=info  | Priority to use (emerg panic alert crit err warning notice info debug)."                  \
+        "+syslog_details   | Embed details into syslog message with syslog backend."                                   \
+        "message           | Message to send to syslog backend."                                                       \
+        "@entries          | Structured key/value details to include in syslog message."                               \
     )
 
-    # Verify supported backend
+    # Auto detected backend if necessary and verify it is supported.
+    if [[ -z "${backend}" ]]; then
+        backend=$(syslog_detect_backend)
+    fi
     assert_match "${backend}" "(journald|syslog)"
 
     # Verify priority level is valid.
