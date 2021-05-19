@@ -33,8 +33,6 @@ ETEST_syslog_priorities()
 # Validate if systemd is not installed we use syslog
 ETEST_syslog_backend_autodetect_nosystemd()
 {
-    unset EBASH_SYSLOG_BACKEND
-
     emock --return 1 "command_exists"
     assert_eq "syslog" $(syslog_detect_backend)
 }
@@ -42,8 +40,6 @@ ETEST_syslog_backend_autodetect_nosystemd()
 # Validate if systemd is installed, but journald is not running, we use syslog
 ETEST_syslog_backend_autodetect_journald_not_running()
 {
-    unset EBASH_SYSLOG_BACKEND
-
     emock "command_exists"
     emock --return 1 "systemctl"
     assert_eq "syslog" $(syslog_detect_backend)
@@ -52,8 +48,6 @@ ETEST_syslog_backend_autodetect_journald_not_running()
 # Validate if logger doesn't support journald flag that we use syslog
 ETEST_syslog_backend_autodetect_logger_too_old()
 {
-    unset EBASH_SYSLOG_BACKEND
-
     emock "command_exists"
     emock "systemctl"
     emock "logger"
@@ -63,8 +57,6 @@ ETEST_syslog_backend_autodetect_logger_too_old()
 # Validate if we use journald if everything supports it
 ETEST_syslog_backend_autodetect_journald()
 {
-    unset EBASH_SYSLOG_BACKEND
-
     emock "command_exists"
     emock "systemctl"
     emock --stdout "--journald[=<file>]  write journald entry" "logger"
@@ -74,14 +66,12 @@ ETEST_syslog_backend_autodetect_journald()
 # Validate once we autodetect backend we don't try to autodetect it again
 ETEST_syslog_backend_autodetect_journald()
 {
-    unset EBASH_SYSLOG_BACKEND
-
     emock "command_exists"
     emock "systemctl"
     emock --stdout "--journald[=<file>]  write journald entry" "logger"
 
     etestmsg "Detecting system logger backend"
-    source "${TOPDIR}/share/syslog.sh"
+    syslog_detect_backend
 
     etestmsg "Detecting a second time"
     syslog_detect_backend
