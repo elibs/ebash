@@ -63,7 +63,7 @@ syslog_detect_backend()
         return 0
     fi
 
-    if command_exists systemctl && systemctl is-active --quiet systemd-journald &>/dev/null && logger --help | grep -q "journald"; then
+    if command_exists systemctl && systemctl is-active --quiet systemd-journald &>/dev/null; then
         EBASH_SYSLOG_BACKEND="journald"
     else
         EBASH_SYSLOG_BACKEND="syslog"
