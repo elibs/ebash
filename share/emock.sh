@@ -168,7 +168,7 @@ emock()
         # Optionally read from standard input and store into a file
         > "${statedir}/${called}/stdin"
         if [[ "'${stdin}'" -eq 1 ]]; then
-            cat > "${statedir}/${called}/stdin"
+            timeout 5s cat > "${statedir}/${called}/stdin" || true
         fi
     '
 
