@@ -44,6 +44,35 @@ declare -A __EBASH_SYSLOG_PRIORITIES=(
     [warn]=4
 )
 
+opt_usage syslog_detect_backend <<'END'
+syslog_detect_backend is used to automatically detect what backend to use by default according to the following rules:
+
+If all of the following are true, then we will use the more advanced
+journald backend which supports structured logging:
+1) systemctl exists
+2) systemd-journald is running
+3) logger accepts --journald flag
+
+Otherwise default to vanilla syslog. This can of course be globally set by the application or explicitly provided
+at the logging call site.
+END
+syslog_detect_backend()
+{
+    # If user already explicitly set prefered default, just use that.
+    if [[ -n "${EBASH_SYSLOG_BACKEND:-}" ]]; then
+        echo "${EBASH_SYSLOG_BACKEND}"
+        return 0
+    fi
+
+    if command_exists systemctl && systemctl is-active --quiet systemd-journald && logger --help | grep -q "journald"; then
+        echo "journald"
+    else
+        echo "syslog"
+    fi
+}
+
+: ${EBASH_SYSLOG_BACKEND:=$(syslog_detect_backend)}
+
 opt_usage syslog <<'END'
 syslog provides a simple interface for logging a message to the system logger with full support for structured logging.
 The structured details provided to this function are passed as an optional list of "KEY KEY=VALUE ..." entries identical
@@ -93,17 +122,6 @@ This is a log message ([KEY]="Value" [KEY2]="Something else")
 END
 syslog()
 {
-    # Automatically detect what backend to use. If systemctl exists and systemd-journald is running, then default to using
-    # journald as the backend. Otherwise default to vanilla syslog. This can of course be globally set by the application
-    # or explicitly provided at the logging call site.
-    if [[ -z "${EBASH_SYSLOG_BACKEND}" ]]; then
-        if command_exists systemctl && systemctl is-active --quiet systemd-journald; then
-            EBASH_SYSLOG_BACKEND="journald"
-        else
-            EBASH_SYSLOG_BACKEND="syslog"
-        fi
-    fi
-
     $(opt_parse \
         ":backend b=${EBASH_SYSLOG_BACKEND} | Syslog backend (e.g. journald, syslog)"                                  \
         ":priority p=info                   | Priority to use (emerg panic alert crit err warning notice info debug)." \
@@ -136,7 +154,7 @@ syslog()
     )
 
     expand_vars --uppercase --no-quotes details "${entries[@]:-}"
-    edebug "syslog: $(lval details)"
+    edebug "$(lval backend details)"
 
     # Forward the message and details into the desired backend. For journald it natively supports structured logging so
     # we can just stream them right into journald over STDIN.
