@@ -45,15 +45,6 @@ ETEST_syslog_backend_autodetect_journald_not_running()
     assert_eq "syslog" $(syslog_detect_backend)
 }
 
-# Validate if logger doesn't support journald flag that we use syslog
-ETEST_syslog_backend_autodetect_logger_too_old()
-{
-    emock "command_exists"
-    emock "systemctl"
-    emock "logger"
-    assert_eq "syslog" $(syslog_detect_backend)
-}
-
 # Validate if we use journald if everything supports it
 ETEST_syslog_backend_autodetect_journald()
 {
@@ -64,11 +55,10 @@ ETEST_syslog_backend_autodetect_journald()
 }
 
 # Validate once we autodetect backend we don't try to autodetect it again
-ETEST_syslog_backend_autodetect_journald()
+ETEST_syslog_backend_autodetect_journald_twice()
 {
     emock "command_exists"
     emock "systemctl"
-    emock --stdout "--journald[=<file>]  write journald entry" "logger"
 
     etestmsg "Detecting system logger backend"
     syslog_detect_backend
@@ -80,7 +70,6 @@ ETEST_syslog_backend_autodetect_journald()
     # Should have only actually looked things up ONCE
     assert_emock_called "command_exists" 1
     assert_emock_called "systemctl"      1
-    assert_emock_called "logger"         1
 }
 
 ETEST_syslog_backend_env_journald()

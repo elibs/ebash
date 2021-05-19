@@ -96,4 +96,3 @@ ETEST_recommends()
 
     assert_commands_installed ${commands[@]}
 }
-
