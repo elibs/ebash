@@ -640,3 +640,12 @@ ETEST_array_equal_ambiguous_whitespace()
 
     assert_false array_equal array1 array2
 }
+
+ETEST_array_equal_empty()
+{
+    local array1=()
+    local array2=()
+    etestmsg "Comparing $(lval array1 array2)"
+
+    array_equal array1 array2
+}
