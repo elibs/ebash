@@ -373,22 +373,39 @@ END
 array_equal()
 {
      $(opt_parse \
-        "__array1 | First array for comparison." \
-        "__array2 | Second array for comparison." \
+        "+verbose v | Enable verbose mode to show which elements differ." \
+        "__array1   | First array for comparison."                        \
+        "__array2   | Second array for comparison."                       \
     )
 
     if [[ $(array_size ${__array1}) -ne $(array_size ${__array2}) ]]; then
+
+        if [[ "${verbose}" -eq 1 ]]; then
+            eerror "Array size mismatch: $(array_size ${__array1}) vs $(array_size ${__array2})"
+        fi
+
         return 1
     fi
 
     # We don't want to simply try to join the arrays into a single string and check that for equality as that could
-    # result in incorrect behavior with certain input values, e.g. array1=( "a 1 a" "1") array2=( "a 1" "a 1" ). So the
-    # safest thing is to iterate over the indexes individually and check each element.
-    local idx
-    for idx in $(array_indexes ${__array1}); do
-        eval "local this=\${${__array1}[$idx]}"
-        eval "local that=\${${__array2}[$idx]}"
+    # result in incorrect behavior with certain input values, e.g. array1=( "a 1 a" "1") array2=( "a 1" "a 1" ). And we
+    # can't just iterate over the indexes directly as the arrays could be holey (e.g. after an unset or a remove
+    # operation). So the safest implementation is to iterate over the indexes of each array and grab the associated
+    # element from each array and see if they are equal.
+    local offset array1_indexes=() array2_indexes=()
+    array1_indexes=( $(array_indexes ${__array1}) )
+    array2_indexes=( $(array_indexes ${__array2}) )
+    for (( offset=0; offset < ${#array1_indexes[@]}; offset++ )); do
+        eval "local this=\${${__array1}[${array1_indexes[$offset]}]}"
+        eval "local that=\${${__array2}[${array2_indexes[$offset]}]}"
 
-        [[ "${this}" == "${that}" ]]
+        if [[ "${this}" != "${that}" ]]; then
+
+            if [[ "${verbose}" -eq 1 ]]; then
+                eerror "Mismatch at $(lval offset this that)"
+            fi
+
+            return 1
+        fi
     done
 }

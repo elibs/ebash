@@ -39,6 +39,32 @@ ETEST_opt_parse()
     assert_eq "arg3" "$3"
 }
 
+ETEST_opt_raw()
+{
+    set -- -e 2 -i 10 -p 8 -v 101 -d 7 -m 9 -a 127.0.0.1 -u ebash -w ebash
+    $(opt_parse \
+        ":dev_index i   | Device index"      \
+        ":dport d       | Destination port"  \
+        ":encl_id e     | Enclosure ID"      \
+        ":method m      | Method"            \
+        ":password w    | Password"          \
+        ":port_id p     | Port ID"           \
+        ":private_ip a  | Private IP"        \
+        ":user_name u   | User name"         \
+        ":vendor_id v   | Vendor id"         \
+    )
+
+    etestmsg "Options"
+    opt_dump
+
+    etestmsg "Raw Options"
+    opt_raw
+
+    output=$(opt_raw)
+    etestmsg "Raw options: $(lval output)"
+    [[ "-e 2 -i 10 -p 8 -v 101 -d 7 -m 9 -a 127.0.0.1 -u ebash -w ebash" == "${output}" ]]
+}
+
 ETEST_opt_parse_boolean()
 {
     set -- -a -b -c d e f
