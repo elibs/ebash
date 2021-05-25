@@ -598,7 +598,7 @@ opt_parse_options()
                 for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
                     char=${short_opts:$index:1}
                     canonical=$(opt_parse_find_canonical ${char})
-                    [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option --${long_opt}"
+                    [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option --${long_opt:-}"
 
                     if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
                         die "$(opt_parse_usage_name): option -${char} requires an argument."
@@ -950,7 +950,7 @@ poking into an internal variable.
 END
 opt_raw()
 {
-    echo "${__EBASH_FULL_ARGS[@]:-}"
+    printf -- "${__EBASH_FULL_ARGS[*]:-}"
 }
 
 : <<'END'
