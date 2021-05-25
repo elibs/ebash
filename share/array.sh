@@ -353,3 +353,42 @@ array_copy()
     # Set the array contents
     eval "${__target}=( \"\${${__source}[@]}\" )"
 }
+
+opt_usage array_equal <<'END'
+array_equal is used to check if two arrays are equal or not. This is easier to use than raw bash code as arrays are passed
+by reference instead of by value. This avoids the need for careful quoting of variables in an attempt to compare them.
+It also deals more sensibly with empty variables and doesn't get tripped up by `set -e` and `set -u` settings.
+Returns success (0) if the arrays are equal and failure (1) if they are not.
+
+Examples:
+
+```shell
+$ local a1=("a 1" "b 2" "c 3" "d 4")
+$ local a2=("a 1" "b 2" "c 3" "d 4")
+$ array_equal a1 a2
+$ echo $?
+0
+```
+END
+array_equal()
+{
+     $(opt_parse \
+        "__array1 | First array for comparison." \
+        "__array2 | Second array for comparison." \
+    )
+
+    if [[ $(array_size ${__array1}) -ne $(array_size ${__array2}) ]]; then
+        return 1
+    fi
+
+    # We don't want to simply try to join the arrays into a single string and check that for equality as that could
+    # result in incorrect behavior with certain input values, e.g. array1=( "a 1 a" "1") array2=( "a 1" "a 1" ). So the
+    # safest thing is to iterate over the indexes individually and check each element.
+    local idx
+    for idx in $(array_indexes ${__array1}); do
+        eval "local this=\${${__array1}[$idx]}"
+        eval "local that=\${${__array2}[$idx]}"
+
+        [[ "${this}" == "${that}" ]]
+    done
+}
