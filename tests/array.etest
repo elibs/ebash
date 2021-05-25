@@ -572,3 +572,80 @@ ETEST_array_copy_add_empty_values()
     assert_eq "a 1|b 2|c 3|d 4" "$(array_join source '|')"
     assert_eq "a 1|b 2|c 3|d 4" "$(array_join target '|')"
 }
+
+ETEST_array_equal()
+{
+    local array1=( {a..z} )
+    local array2=( {a..z} )
+    etestmsg "Comparing $(lval array1 array2)"
+
+    array_equal array1 array2
+}
+
+ETEST_array_equal_spaces()
+{
+    local array1=("a 1" "b 2" "c 3" "d 4")
+    local array2=("a 1" "b 2" "c 3" "d 4")
+    etestmsg "Comparing $(lval array1 array2)"
+
+    array_equal array1 array2
+}
+
+ETEST_array_equal_newlines()
+{
+    array_init_nl array1 "Foo
+Bar"
+
+    array_init_nl array2 "Foo
+Bar"
+    etestmsg "Comparing $(lval array1 array2)"
+
+    array_equal array1 array2
+}
+
+ETEST_array_equal_removals()
+{
+    local array1=("a 1" "b 2" "c 3" "d 4")
+    local array2=("a 1" "b 2" "c 3" "d 4" "e 5")
+    array_remove array2 "e 5"
+    etestmsg "Comparing $(lval array1 array2)"
+
+    array_equal array1 array2
+}
+
+ETEST_array_equal_fail()
+{
+    local array1=("a 1" "b 2" "c 3" "d 4")
+    local array2=("b 2" "c 3" "d 4" "a 1")
+    etestmsg "Comparing $(lval array1 array2)"
+
+    assert_false array_equal array1 array2
+}
+
+ETEST_array_equal_fail_removals()
+{
+    local array1=("a 1" "b 2" "c 3" "d 4")
+    local array2=("a 1" "b 2" "c 3" "d 4")
+    array_remove array2 "a 1"
+    etestmsg "Comparing $(lval array1 array2)"
+
+    assert_false array_equal array1 array2
+}
+
+ETEST_array_equal_ambiguous_whitespace()
+{
+    local array1=("a 1 a" "1")
+    local array2=("a 1" "a 1")
+    etestmsg "Comparing $(lval array1 array2)"
+
+    assert_false array_equal array1 array2
+}
+
+ETEST_array_equal_empty()
+{
+    local array1=()
+    local array2=()
+    etestmsg "Comparing $(lval array1 array2)"
+
+    array_equal array1 array2
+}
