@@ -291,9 +291,43 @@ emock()
     fi
 }
 
-opt_usage unmock <<'END'
+opt_usage eunmock <<'END'
 `eunmock` is used in tandem with `emock` to remove a mock that has previosly been created. This essentially removes the
-wrapper functions we create and also cleans up the on-disk statedir for the mock.
+wrapper functions we create and also cleans up the on-disk statedir for the mock. Typically this is done in one of two
+ways. For test suite usage, the mock is often created inside `setup` and the mock is removed in `teardown`. Recall that
+`setup` is run before each test and `teardown` is run after each test.
+
+Example:
+
+```shell
+setup()
+{
+    emock --filesystem "/usr/bin/logger"
+}
+
+teardown()
+{
+    eunmock "/usr/bin/logger"
+}
+```
+
+Another alternative to this for more isolated usage where you don't want the mock used in every test would be to create
+the mock and immediately register a trap to remove the mock. The reason we use a trap instead of just explicitly removing
+the mock at the end of the test is that a trap gets executed however you leave the function. This way if we leave the
+test early due to an assertion failure the mock is still removed. For example:
+
+```shell
+ETEST_foo()
+{
+    emock --filesystem "/usr/bin/logger"
+    trap_add "eunmock /usr/bin/logger"
+    ... rest of my test ...
+}
+```
+
+If you are using emock *without* `--filesystem` flag then there is no reason to explicitly call `eunmock` as the mock
+is a function on your local stack. Since each test executes it a clean bash environment, when the test completes that
+local function goes away with your local test execution environment.
 END
 eunmock()
 {
