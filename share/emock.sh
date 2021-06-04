@@ -265,26 +265,27 @@ emock()
         eval "declare -f ${name}"
 
     else
-        edebug "Writing mock to filesystem"
+        edebug "Writing filesystem mock=${name}"
         echo "filesystem" > "${statedir}/mode"
+        mkdir -p "$(dirname "${name}")"
 
         # If _real already exists do NOT replace it as this just means the caller is re-mocking
         if [[ ! -e "${name}_real" ]]; then
             edebug "Saving ${name} -> ${name}_real"
 
-            # If the original file doesn't exist then still create a _real just make it a symlink that points to
-            # /bin/false so that it can still be executed with expected failure.
+            # Record if the original exists or not and only try to copy it over to _real if it really existed.
             if [[ ! -e "${name}" ]]; then
-                edebug "${name} does not exist -- creating symlink to /bin/false"
+                edebug "${name} does not exist"
                 echo "false" > "${statedir}/real.exists"
-                ln -s "/bin/false" "${name}"
-                ls -l "${name}"
             else
+                edebug "${name} exists"
                 echo "true" > "${statedir}/real.exists"
-            fi
 
-            mv "${name}" "${name}_real"
-        fi
+                # NOTE: We use `cp` here instead of `mv` to support mocking out read-only bind-mount files when running
+                # inside docker such as /etc/resolv.conf.
+                cp "${name}" "${name}_real"
+            fi
+       fi
 
         echo "${body}" > "${name}"
         chmod +x "${name}"

@@ -81,6 +81,7 @@ dialog()
     trap_add "rm --recursive --force \"${tmp}\""
     local input_file="${tmp}/input"
     local output_file="${tmp}/output"
+    local rc_file="${tmp}/rc"
     mkfifo "${input_file}"
     exec {input_fd}<>${input_file}
     exec {output_fd}<>${output_file}
@@ -110,7 +111,7 @@ dialog()
     (
         __EBASH_INSIDE_TRY=1
         disable_die_parent
-        command dialog --colors "${dialog_args[@]}" "${@}"
+        command dialog --colors "${dialog_args[@]}" "${@}" && echo 0 > "${rc_file}" || echo $? > "${rc_file}"
     ) >${ncurses_out} &
 
     # While the above process is still running, read characters from stdin and essentially echo them into dialog
@@ -127,7 +128,11 @@ dialog()
 
     # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
     # If it exited for any non-dialog reason then we need to abort as something unexpected happened.
-    wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
+    #
+    # NOTE: We cannot reliably use the return from `wait` if we're running inside a container. So we instead manually
+    #       save off the return code from the actual dialog command into a file and then read that back in here.
+    wait ${dialog_pid} &>/dev/null || true
+    dialog_rc=$(cat "${rc_file}")
     if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
         dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
         return ${dialog_rc}
@@ -407,6 +412,7 @@ dialog_prompt()
     trap_add "rm --recursive --force \"${tmp}\""
     local input_file="${tmp}/input"
     local output_file="${tmp}/output"
+    local rc_file="${tmp}/rc"
     local dlgrc="${tmp}/dlgrc"
     mkfifo "${input_file}"
     exec {input_fd}<>${input_file}
@@ -493,7 +499,7 @@ dialog_prompt()
             DIALOGRC=${dlgrc} command dialog --colors   \
                 --default-button    "${default_button}" \
                 --default-item      "${default_item}"   \
-                "${dialog_args[@]}" "${fields_opt[@]}"
+                "${dialog_args[@]}" "${fields_opt[@]}" && echo 0 > "${rc_file}" || echo $? > "${rc_file}"
         ) >${ncurses_out} &
 
         # While the above process is still running, read characters from stdin and essentially echo them into dialog
@@ -585,7 +591,11 @@ dialog_prompt()
 
         # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
         # If it exited for any non-dialog reason then we need to abort as something unexpected happened.
-        wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
+        #
+        # NOTE: We cannot reliably use the return from `wait` if we're running inside a container. So we instead manually
+        #       save off the return code from the actual dialog command into a file and then read that back in here.
+        wait ${dialog_pid} &>/dev/null || true
+        dialog_rc=$(cat "${rc_file}")
         if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
             dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
             return ${dialog_rc}
@@ -833,6 +843,7 @@ __dialog_select_list()
     trap_add "rm --recursive --force \"${tmp}\""
     local input_file="${tmp}/input"
     local output_file="${tmp}/output"
+    local rc_file="${tmp}/rc"
     mkfifo "${input_file}"
     exec {input_fd}<>${input_file}
     exec {output_fd}<>${output_file}
@@ -867,7 +878,7 @@ __dialog_select_list()
         __EBASH_INSIDE_TRY=1
         disable_die_parent
         eval "columns=( \"\${$__array[@]}\" )"
-        command dialog --colors "${dialog_args[@]}" "${columns[@]}"
+        command dialog --colors "${dialog_args[@]}" "${columns[@]}" && echo 0 > "${rc_file}" || echo $? > "${rc_file}"
     ) >${ncurses_out} &
 
     # While the above process is still running, read characters from stdin and essentially echo them into dialog
@@ -884,7 +895,11 @@ __dialog_select_list()
 
     # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
     # If it exited for any non-dialog reason then we need to abort as something unexpected happened.
-    wait ${dialog_pid} &>/dev/null && dialog_rc=0 || dialog_rc=$?
+    #
+    # NOTE: We cannot reliably use the return from `wait` if we're running inside a container. So we instead manually
+    #       save off the return code from the actual dialog command into a file and then read that back in here.
+    wait ${dialog_pid} &>/dev/null || true
+    dialog_rc=$(cat "${rc_file}")
     if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
         dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
         return ${dialog_rc}

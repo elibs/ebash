@@ -78,6 +78,11 @@ ETEST_string_getline()
     assert_empty "$(string_getline "${message}" 5)"
 }
 
+ETEST_string_truncate_empty()
+{
+    assert_eq "" "$(string_truncate 10 "")"
+}
+
 ETEST_string_truncate()
 {
     string=1234567890

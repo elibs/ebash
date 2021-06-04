@@ -231,27 +231,11 @@ ETEST_dialog_prompt_default_values_override()
     assert_eq "John Rawls"       "${philo3}"
 }
 
-ETEST_dialog_prompt_default_values_override_tab()
-{
-    # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
-    $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
-    assert_eq "Thomas Jefferson" "${philo1}"
-    assert_eq "Kant"             "${philo2}"
-    assert_eq "John Rawls"       "${philo3}"
-}
-
 ETEST_dialog_prompt_default_values_override_term()
 {
     export TERM=linux
     dialog_load
-
-    # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
-    $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
-    assert_eq "Thomas Jefferson" "${philo1}"
-    assert_eq "Kant"             "${philo2}"
-    assert_eq "John Rawls"       "${philo3}"
+    ETEST_dialog_prompt_default_values_override
 }
 
 # Basic sanity test around menu navigation
@@ -473,7 +457,7 @@ EOFB
 }'
 
 # Test that valid input to password dialog works as expected.
-ETEST_dialog_prompt_username_password_001_valid()
+ETEST_dialog_prompt_username_password_valid()
 {
     local username=""
     fake_password_dialog_test_id=1
@@ -483,7 +467,7 @@ ETEST_dialog_prompt_username_password_001_valid()
 }
 
 # Test that we are not caching the password on failed login creation attempts.
-ETEST_dialog_prompt_username_password_002_cached()
+ETEST_dialog_prompt_username_password_cached()
 {
     local username=""
     fake_password_dialog_test_id=2
@@ -492,7 +476,7 @@ ETEST_dialog_prompt_username_password_002_cached()
     assert_eq "Ok" "${username}" "Password state test returned \"${username}\""
 }
 
-ETEST_dialog_prompt_username_password_003_special_characters()
+ETEST_dialog_prompt_username_password_special_characters()
 {
     fake_password_dialog_state=0
     fake_password_dialog_test_id=3

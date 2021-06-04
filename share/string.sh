@@ -92,11 +92,16 @@ string_truncate()
 
     local text=$*
 
+    # NOTE: WE never want string_truncate to return non-zero error code as it is used inside die and other places
+    # where we don't want cascading errors. Hence we append `|| true` to the commands. Also always explicitly return 0
+    # from this function.
     if [[ ${#text} -gt ${length} && ${ellipsis} -eq 1 ]] ; then
-        printf -- "%s" "${text:0:$((length-3))}..."
+        printf -- "%s" "${text:0:$((length-3))}..." || true
     else
-        printf -- "%s" "${text:0:${length}}"
+        printf -- "%s" "${text:0:${length}}" || true
     fi
+
+    return 0
 }
 
 opt_usage string_collapse <<'END'
