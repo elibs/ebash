@@ -373,9 +373,9 @@ run_single_test()
     # top-level test script.
     local einfo_message einfo_message_length
     if [[ -n "${source}" ]]; then
-        einfo_message=$(einfos -n "${testname}" 2>&1)
+        einfo_message=$(einfos -n "${testname#ETEST_}" 2>&1)
     else
-        einfo_message=$(EMSG_PREFIX="" einfo -n "$(basename "${testname}")" 2>&1)
+        einfo_message=$(EMSG_PREFIX="" einfo -n "${testname}" 2>&1)
     fi
     echo -n "${einfo_message}" &>${ETEST_OUT}
     einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
@@ -555,7 +555,7 @@ run_etest_file()
         return 0
     fi
 
-    EMSG_PREFIX="" einfo "${testfilename}" &>${ETEST_OUT}
+    EMSG_PREFIX="" einfo "${testfile}" &>${ETEST_OUT}
 
     # Run all tests for this suite
     local idx
