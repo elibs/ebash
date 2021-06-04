@@ -361,6 +361,23 @@ ETEST_disable_enable_die_on_error()
     die "Catch block should have returned"
 }
 
+ETEST_return_code_if_statement()
+{
+    func()
+    {
+        return 100
+    }
+
+    local rc=0
+    if func; then
+        rc=0
+    else
+        rc=$?
+    fi
+
+    assert_eq 100 "${rc}"
+}
+
 #-----------------------------------------------------------------------------------------------------------------------
 #
 # tryrc

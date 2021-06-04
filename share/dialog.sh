@@ -111,7 +111,13 @@ dialog()
     (
         __EBASH_INSIDE_TRY=1
         disable_die_parent
-        command dialog --colors "${dialog_args[@]}" "${@}" && echo 0 > "${rc_file}" || echo $? > "${rc_file}"
+
+        if command dialog --colors "${dialog_args[@]}" "${@}"; then
+            echo 0 > "${rc_file}"
+        else
+            echo $? > "${rc_file}"
+        fi
+
     ) >${ncurses_out} &
 
     # While the above process is still running, read characters from stdin and essentially echo them into dialog
@@ -496,10 +502,18 @@ dialog_prompt()
         (
             __EBASH_INSIDE_TRY=1
             disable_die_parent
-            DIALOGRC=${dlgrc} command dialog --colors   \
-                --default-button    "${default_button}" \
-                --default-item      "${default_item}"   \
-                "${dialog_args[@]}" "${fields_opt[@]}" && echo 0 > "${rc_file}" || echo $? > "${rc_file}"
+
+            export DIALOGRC="${dlgrc}"
+
+            if command dialog --colors                   \
+                --default-button    "${default_button}"  \
+                --default-item      "${default_item}"    \
+                "${dialog_args[@]}" "${fields_opt[@]}"; then
+                echo 0 > "${rc_file}"
+            else
+                echo $? > "${rc_file}"
+            fi
+
         ) >${ncurses_out} &
 
         # While the above process is still running, read characters from stdin and essentially echo them into dialog
@@ -870,7 +884,13 @@ __dialog_select_list()
         __EBASH_INSIDE_TRY=1
         disable_die_parent
         eval "columns=( \"\${$__array[@]}\" )"
-        command dialog --colors "${dialog_args[@]}" "${columns[@]}" && echo 0 > "${rc_file}" || echo $? > "${rc_file}"
+
+        if command dialog --colors "${dialog_args[@]}" "${columns[@]}"; then
+            echo 0 > "${rc_file}"
+        else
+            echo $? > "${rc_file}"
+        fi
+
     ) >${ncurses_out} &
 
     # While the above process is still running, read characters from stdin and essentially echo them into dialog
