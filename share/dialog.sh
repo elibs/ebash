@@ -472,7 +472,6 @@ dialog_prompt()
         # essentially set the colors for the items and buttons in the unfocused window so that they blend into the
         # background and then do not look like they have focus.
         {
-            echo "bindkey menu TAB ENTER"
             echo "tag_key_color = (BLUE,WHITE,ON)"
             echo "tag_key_selected_color = (YELLOW,BLUE,ON)"
             echo "tag_selected_color = (YELLOW,BLUE,ON)"
