@@ -231,11 +231,21 @@ ETEST_dialog_prompt_default_values_override()
     assert_eq "John Rawls"       "${philo3}"
 }
 
-ETEST_dialog_prompt_default_values_override_term()
+ETEST_dialog_prompt_default_values_override_tab()
+{
+    # Since we intend to overwrite the existing values we need to delete the keys already present
+    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
+    $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
+    assert_eq "Thomas Jefferson" "${philo1}"
+    assert_eq "Kant"             "${philo2}"
+    assert_eq "John Rawls"       "${philo3}"
+}
+
+ETEST_dialog_prompt_default_values_override_tab_term()
 {
     export TERM=linux
     dialog_load
-    ETEST_dialog_prompt_default_values_override
+    ETEST_dialog_prompt_default_values_override_tab
 }
 
 # Basic sanity test around menu navigation
