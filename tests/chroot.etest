@@ -7,7 +7,13 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+# Chroot only works on Linux based OSes
 [[ ${__EBASH_OS} == Linux ]] || return 0
+
+# All the chroot tests fail on older debian because debootstrap doesn't work anymore
+if os_distro debian && os_release 9.13; then
+    return 0
+fi
 
 source ${EBASH_HOME}/tests/daemon_expect.sh
 
