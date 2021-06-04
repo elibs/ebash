@@ -579,14 +579,6 @@ dialog_prompt()
 
             # Send this character to dialog
             echo -n "${char}" > "${input_file}"
-
-            # If the button we just pressed was an 'enter' key that may cause the program to exit. But if we loop
-            # around too quickly we won't know that and we'll wait for additional input. So this adds in some delay to give the
-            # process time to exit before we check if it's running.
-            if [[ "${char}" == "${EBASH_KEY_ENTER}" ]]; then
-                edebug "Sleeping to give process a chance to exit."
-                sleep 0.25
-            fi
         done
 
         # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
