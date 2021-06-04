@@ -1,16 +1,16 @@
 #!/bin/bash
 #
-ETEST_hang_001_short()
+ETEST_hang_short()
 {
     sleep 5s
 }
 
-ETEST_hang_002_long()
+ETEST_hang_long()
 {
     sleep 20s
 }
 
-ETEST_hang_003_infinity()
+ETEST_hang_infinity()
 {
     sleep infinity
 }

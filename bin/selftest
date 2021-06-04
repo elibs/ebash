@@ -251,8 +251,8 @@ SELFTEST_passing_and_failing_etests()
 {
     run_etest pass_many.etest fail_many.etest
     assert_test_count --pass 7 --fail 7 --flaky 0 --total 14
-    assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
-    assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+    assert_test_pass A{1..4} B{2..3} pass_noisy
+    assert_test_fail A{5..7} B{4..6} fail_noisy
 }
 
 # Filter to get just the passing etests
@@ -260,7 +260,7 @@ SELFTEST_filter_passing()
 {
     run_etest --filter "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
     assert_test_count --pass 7 --fail 0 --flaky 0 --total 7
-    assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
+    assert_test_pass A{1..4} B{2..3} pass_noisy
 }
 
 # Exclude and get just the failing etests
@@ -268,7 +268,7 @@ SELFTEST_exclude_passing()
 {
     run_etest --exclude "(A[1234]|B[23]|pass)" pass_many.etest fail_many.etest
     assert_test_count --pass 0 --fail 7 --flaky 0 --total 7
-    assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+    assert_test_fail A{5..7} B{4..6} fail_noisy
 }
 
 # Make sure filter can be passed as an environment variable (PE-2332)
@@ -277,7 +277,7 @@ SELFTEST_filter_env_variable()
     export FILTER='(A[1234]|B[23]|pass)'
     run_etest pass_many.etest fail_many.etest
     assert_test_count --pass 7 --fail 0 --flaky 0 --total 7
-    assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy
+    assert_test_pass A{1..4} B{2..3} pass_noisy
 }
 
 # Make sure exclude can be passed as an environment variable (PE-2332)
@@ -286,7 +286,7 @@ SELFTEST_exclude_env_variable()
     export EXCLUDE='(A[1234]|B[23]|pass)'
     run_etest pass_many.etest fail_many.etest
     assert_test_count --pass 0 --fail 7 --flaky 0 --total 7
-    assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy
+    assert_test_fail A{5..7} B{4..6} fail_noisy
 }
 
 # Test passes second time failures not allowed (default)
@@ -294,7 +294,7 @@ SELFTEST_flaky_failures_default()
 {
     run_etest --filter flaky_fails_once flaky.etest
     assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
-    assert_test_fail ETEST_flaky_fails_once
+    assert_test_fail flaky_fails_once
 }
 
 # Test passes second time with failures=0
@@ -302,7 +302,7 @@ SELFTEST_flaky_failures_0()
 {
     run_etest --filter flaky_fails_once --failures 0 flaky.etest
     assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
-    assert_test_fail ETEST_flaky_fails_once
+    assert_test_fail flaky_fails_once
 }
 
 # Test passes second time with failures=1
@@ -310,8 +310,8 @@ SELFTEST_flaky_failures_1()
 {
     run_etest --filter flaky_fails_once --failures 1 flaky.etest
     assert_test_count --pass 1 --fail 0 --flaky 1 --total 1
-    assert_test_pass ETEST_flaky_fails_once
-    assert_test_flaky ETEST_flaky_fails_once
+    assert_test_pass flaky_fails_once
+    assert_test_flaky flaky_fails_once
 }
 
 # Test passes third time failures=1
@@ -319,7 +319,7 @@ SELFTEST_flaky_failures_2()
 {
     run_etest --filter flaky_fails_twice --failures 1 flaky.etest
     assert_test_count --pass 0 --fail 1 --flaky 0 --total 1
-    assert_test_fail ETEST_flaky_fails_twice
+    assert_test_fail flaky_fails_twice
 }
 
 # Flkay test with a test that passes third time and failures=3
@@ -327,8 +327,8 @@ SELFTEST_flaky_failures_3()
 {
     run_etest --filter flaky_fails_twice --failures 3 flaky.etest
     assert_test_count --pass 1 --fail 0 --flaky 1 --total 1
-    assert_test_pass ETEST_flaky_fails_twice
-    assert_test_flaky ETEST_flaky_fails_twice
+    assert_test_pass flaky_fails_twice
+    assert_test_flaky flaky_fails_twice
 }
 
 # Flaky test. Passing, failing and flaky tests with failures=1
@@ -336,9 +336,9 @@ SELFTEST_flaky_failures_mixed()
 {
     run_etest --failures 1 pass_many.etest fail_many.etest flaky.etest
     assert_test_count --pass 8 --fail 8 --flaky 1 --total 16
-    assert_test_pass ETEST_A{1..4} ETEST_B{2..3} pass_noisy flaky_fails_once
-    assert_test_fail ETEST_A{5..7} ETEST_B{4..6} fail_noisy flaky_fails_twice
-    assert_test_flaky ETEST_flaky_fails_once
+    assert_test_pass A{1..4} B{2..3} pass_noisy flaky_fails_once
+    assert_test_fail A{5..7} B{4..6} fail_noisy flaky_fails_twice
+    assert_test_flaky flaky_fails_once
 }
 
 SELFTEST_hang_standalone()
@@ -352,8 +352,8 @@ SELFTEST_hang_total_timeout()
 {
     run_etest --timeout 30s hang.etest
     assert_test_count --pass 2 --fail 1 --flaky 0 --total 3
-    assert_test_pass hang_001_short hang_002_long
-    assert_test_fail hang_003_infinity
+    assert_test_pass hang_short hang_long
+    assert_test_fail hang_infinity
 }
 
 SELFTEST_hang_override()
