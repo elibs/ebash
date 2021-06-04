@@ -457,7 +457,7 @@ EOFB
 }'
 
 # Test that valid input to password dialog works as expected.
-ETEST_dialog_prompt_username_password_001_valid()
+ETEST_dialog_prompt_username_password_valid()
 {
     local username=""
     fake_password_dialog_test_id=1
@@ -467,7 +467,7 @@ ETEST_dialog_prompt_username_password_001_valid()
 }
 
 # Test that we are not caching the password on failed login creation attempts.
-ETEST_dialog_prompt_username_password_002_cached()
+ETEST_dialog_prompt_username_password_cached()
 {
     local username=""
     fake_password_dialog_test_id=2
@@ -476,7 +476,7 @@ ETEST_dialog_prompt_username_password_002_cached()
     assert_eq "Ok" "${username}" "Password state test returned \"${username}\""
 }
 
-ETEST_dialog_prompt_username_password_003_special_characters()
+ETEST_dialog_prompt_username_password_special_characters()
 {
     fake_password_dialog_state=0
     fake_password_dialog_test_id=3
