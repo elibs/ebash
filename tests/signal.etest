@@ -21,9 +21,10 @@ ETEST_signals()
     assert_eq "SIGPIPE" "$(signame -s pipe)"
     assert_eq "SIGPIPE" "$(signame -s SIGPIPE)"
 
-    assert_eq "EXIT" "$(signame -s exit)"
-    assert_eq "ERR" "$(signame -s err)"
-    assert_eq "DEBUG" "$(signame -s debug)"
+    assert_eq "EXIT"   "$(signame -s exit)"
+    assert_eq "ERR"    "$(signame -s err)"
+    assert_eq "DEBUG"  "$(signame -s debug)"
+    assert_eq "RETURN" "$(signame -s return)"
 
     assert_eq "137"  "$(sigexitcode 9)"
     assert_eq "137"  "$(sigexitcode kill)"
