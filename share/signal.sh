@@ -71,19 +71,23 @@ signame()
     if [[ "$1" =~ ^[[:digit:]]+$ ]] ; then
         echo "${prefix}$(kill -l "$1")"
 
-    elif [[ "${1^^}" == "EXIT" || "${1^^}" == "SIGEXIT" ]]; then
+    elif [[ "${1^^}" == @(RETURN|SIGRETURN) ]]; then
+        echo "RETURN"
+
+    elif [[ "${1^^}" == @(EXIT|SIGEXIT) ]]; then
         echo "EXIT"
 
-    elif [[ "${1^^}" == "ERR" || "${1^^}" == "SIGERR" ]]; then
+    elif [[ "${1^^}" == @(ERR|SIGERR) ]]; then
         echo "ERR"
 
-    elif [[ "${1^^}" == "DEBUG" || "${1^^}" == "SIGDEBUG" ]]; then
+    elif [[ "${1^^}" == @(DEBUG|SIGDEBUG) ]]; then
         echo "DEBUG"
 
     else
         # Find the associated number, and then get the name that bash believes is associated with that number
         echo "${prefix}$(kill -l "$(kill -l "$1")")"
     fi
+
     return 0
 }
 
