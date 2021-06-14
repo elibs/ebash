@@ -161,8 +161,9 @@ __etable_internal_ascii()
     local line
     local part
     local part_len
+    local column_indexes=()
 
-    # First iterate over all the column heads and all the rows and figure out the longest row in each column.
+    # First iterate over all the column headers and all the rows and figure out the longest value in each column.
     for line in "${columns}" "${entries[@]}"; do
         array_init parts "${line}" "|"
         local idx=0
@@ -204,9 +205,11 @@ __etable_internal_ascii()
     local divider="${symbols[top_left]}"
     local divider_len=0
     array_init parts "${columns}" "|"
+    column_indexes=$(array_indexes parts)
     local idx=0
+
     local len=0
-    for idx in $(array_indexes parts); do
+    for idx in ${column_indexes[@]}; do
         len=$((lengths[$idx]+2))
         (( divider_len += len ))
 
@@ -224,7 +227,17 @@ __etable_internal_ascii()
         else
             local title_nocolor
             title_nocolor=$(echo "${title}" | noansi)
-            len=$(( ${divider_len} - ${#title_nocolor} - 3 ))
+
+            # Offset needs to be adjusted depending on if the title is even or odd number of characters.
+            local offset
+            if [[ ${#title_nocolor}%2 -eq 0 ]]; then
+                offset=4
+            else
+                offset=3
+            fi
+
+            len=$(( ${divider_len} - ${#title_nocolor} - ${offset} ))
+
             printf "╒══__TITLE__%${len}s ══╕\n" | sed -e "s| |═|g" -e "s|__TITLE__| ${title} |"
 
             if [[ ${headers_delim} -eq 1 ]]; then
@@ -249,14 +262,14 @@ __etable_internal_ascii()
             continue
         fi
 
-        # Split this row on the column delimiber and then iterate over each part and print it padded out to the right
+        # Split this row on the column delimiter and then iterate over each part and print it padded out to the right
         # width.
         array_init parts "${line}" "|"
         printf "${symbols[vertical_line]}"
 
         local idx=0
-        for idx in $(array_indexes parts); do
-            part=${parts[$idx]}
+        for idx in ${column_indexes[@]}; do
+            part=${parts[$idx]:-}
             part_len=$(echo -n "${part}" | noansi | wc -c)
             pad=$(( lengths[$idx] - part_len + 1 ))
 

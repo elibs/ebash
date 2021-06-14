@@ -20,13 +20,13 @@ to_json()
         _arg_noqual=$(__discard_qualifiers ${_arg})
         echo -n "$(json_escape ${_arg_noqual}):"
         if is_pack ${_arg} ; then
-            pack_to_json ${_arg}
+            pack_to_json "${_arg}"
 
         elif is_array ${_arg} ; then
-            array_to_json ${_arg}
+            array_to_json "${_arg}"
 
         elif is_associative_array ${_arg} ; then
-            associative_array_to_json ${_arg}
+            associative_array_to_json "${_arg}"
 
         else
             # You don't strictly need the test here to determine if ${_arg} contains the name of a variable, but if we
@@ -63,7 +63,7 @@ array_to_json()
     local i notfirst=""
     for i in "${__array[@]}" ; do
         [[ -n ${notfirst} ]] && echo -n ","
-        echo -n $(json_escape "$i")
+        echo -n "$(json_escape "$i")"
         notfirst=true
     done
 
@@ -83,9 +83,9 @@ associative_array_to_json()
         edebug $(lval _key)
         [[ -n ${_notfirst} ]] && echo -n ","
 
-        echo -n $(json_escape ${_key})
+        echo -n "$(json_escape ${_key})"
         echo -n ':'
-        echo -n $(json_escape "$(eval echo -n \${$1[$_key]})")
+        echo -n "$(json_escape "$(eval echo -n \${$1[$_key]})")"
 
         _notfirst=true
     done
@@ -141,7 +141,7 @@ associative_array_to_json_split()
         eval "_entry=\${${input}[$_key]}"
         array_init _values "${_entry}" "${delim}"
 
-        echo -n $(json_escape ${_key})
+        echo -n "$(json_escape ${_key})"
         echo -n ':'
         array_to_json _values
 
@@ -191,7 +191,7 @@ json_escape()
 {
     # Newer jq has a -j flag to join newlines into a single flat string. To workaround the lack of this flag in older
     # versions, we wrap the call to jq in a subshell which is not quoted to strip off the final newline.
-    echo -n $(echo -n "$1" | jq --raw-input --slurp .)
+    echo -n "$(echo -n "${@}" | jq --monochrome-output --raw-input --slurp .)"
 }
 
 opt_usage json_import <<'END'

@@ -51,6 +51,14 @@ ETEST_to_lower_snake_case_units_mixed()
     assert_eq "kb_free_with_mb_used_gb"   $(to_lower_snake_case "KBFreeWithMBUsedGB")
 }
 
+ETEST_lower_snake_case_to_title_case()
+{
+    assert_eq ""                          "$(lower_snake_case_to_title_case "")"
+    assert_eq "Foo"                       "$(lower_snake_case_to_title_case "foo")"
+    assert_eq "Support Tunnel"            "$(lower_snake_case_to_title_case "support_tunnel")"
+    assert_eq "Support Tunnel Twenty Two" "$(lower_snake_case_to_title_case "support_tunnel_twenty_two")"
+}
+
 ETEST_string_getline_empty()
 {
     assert_empty "$(string_getline "" 1)"

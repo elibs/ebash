@@ -69,6 +69,10 @@ to_lower_snake_case()
         | perl -ne 'print lc(join("_", split(/(?=[A-Z])/)))'
 }
 
+opt_usage string_trim <<'END'
+string_trim trims all leading and trailing whitespace off of the provided input and returns a new string with all the
+leading and trailing whitespace removed.
+END
 string_trim()
 {
     local text=$*
@@ -128,4 +132,27 @@ string_getline()
 
     assert_num_gt "${num}" "0" "Line number must be > 0"
     echo "${input}" | sed "${num}q;d"
+}
+
+opt_usage lower_snake_case_to_title_case <<'END'
+Convert a given input string that is already in "lower snake case" and convert it into "title case". Basically, this
+splits on an underscore, and replaces the underscore with a space. Then it capitalizes each word. Note that the first
+word is also always capitalized even if there are no underscores in the input string.
+
+For example:
+
+    slice_drive_size => Slice Drive Size
+    foo => Foo
+END
+lower_snake_case_to_title_case()
+{
+    $(opt_parse \
+        "?input | Input string to convert from lower_snake_case to Title Case." \
+    )
+
+    if [[ -z "${input}" ]]; then
+        return 0
+    fi
+
+    echo "${input^}" | perl -pe 's/_([a-z])/ \U\1/g'
 }
