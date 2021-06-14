@@ -304,6 +304,52 @@ ETEST_etable_boxart_title()
     diff --unified expect actual
 }
 
+ETEST_etable_boxart_empty_last_column()
+{
+    etable --style=boxart \
+        --title "Welcome To LiqidOS v2.5.0.100"                 \
+        "Component|Version|Branch|Commit|Date"                  \
+        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
+        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
+        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|"           > actual
+
+    cat actual
+
+    cat >expect <<-END
+	╒══ Welcome To LiqidOS v2.5.0.100 ═════════════════════════════════╕
+	├────────────┬──────────┬─────────────┬────────────┬───────────────┤
+	│ Component  │ Version  │ Branch      │ Commit     │ Date          │
+	├────────────┼──────────┼─────────────┼────────────┼───────────────┤
+	│ API        │ 2.4.0.73 │ release-2.4 │ 2f4607c24b │ 2021-01-26T21 │
+	│ COREBOOT   │ 2.4.0.5  │ release-2.4 │ 452ca2892a │ 2021-01-26T09 │
+	│ NORTHBOUND │ 2.4.0.25 │ release-2.4 │ 386bcfb5d0 │               │
+	└────────────┴──────────┴─────────────┴────────────┴───────────────┘
+	END
+
+    diff --unified expect actual
+}
+
+ETEST_etable_boxart_off_by_one()
+{
+    etable --style=boxart \
+        --title "Liqid Health Check Passed:3 Failed:10 Total:13 Executed:13" \
+        "Module|Check|Result|Message"                                        \
+        "network|liqid_config_nodelist_ip1|Failed|'/liqid/usr/efctl' does not exist" > actual
+
+    cat actual
+
+    cat >expect <<-END
+	╒══ Liqid Health Check Passed:3 Failed:10 Total:13 Executed:13 ════════════════════╕
+	├─────────┬───────────────────────────┬────────┬───────────────────────────────────┤
+	│ Module  │ Check                     │ Result │ Message                           │
+	├─────────┼───────────────────────────┼────────┼───────────────────────────────────┤
+	│ network │ liqid_config_nodelist_ip1 │ Failed │ '/liqid/usr/efctl' does not exist │
+	└─────────┴───────────────────────────┴────────┴───────────────────────────────────┘
+	END
+
+    diff --unified expect actual
+}
+
 ETEST_etable_boxart_colortitle()
 {
     etable --style=boxart \

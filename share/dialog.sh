@@ -112,7 +112,10 @@ dialog()
         __EBASH_INSIDE_TRY=1
         disable_die_parent
 
-        if command dialog --colors "${dialog_args[@]}" "${@}"; then
+        dialog_args+=( "${@}" )
+
+        # Use quote_eval so that any nested quotes and whitespace inside dialog_args are preserved properly.
+        if quote_eval "command dialog --colors ${dialog_args[@]}"; then
             echo 0 > "${rc_file}"
         else
             echo $? > "${rc_file}"
@@ -1017,4 +1020,60 @@ END
 dialog_radiolist()
 {
     __dialog_select_list --style="radiolist" "${@}"
+}
+
+opt_usage dialog_list_extract <<'END'
+`dialog_list_extract` is a function to provide a simple interface to extract the elements of an array formatted for
+dialog_checklist and dialog_radiolist usage and copy out only the desired elements. The input array contains 3-tuples of
+the format ( tag text status ). You can then use this function to create a new array with just the text field of each
+tuple extracted. You can filter on fields with the desired status value of `on` or `off`.
+
+By default it filters on elements with a status value of `on` if no explicit value is provided.
+
+```shell
+local options=( "1" "Option #1" "on"
+                "2" "Option #2" "on"
+                "3" "Option #3" "off"
+               )
+local results=()
+dialog_list_extract options results
+# Results: ( "Option #1" "Option #2" )
+```
+END
+dialog_list_extract()
+{
+    $(opt_parse \
+        ":status=on | Matching status values to extract."      \
+        "__source   | Source array to extract text values from." \
+        "__target   | Target array to extract text values into." \
+    )
+
+    # Initialize target array
+    eval "${__target}=()"
+
+    # If source is empty return immediately without error.
+    if array_empty "${__source}"; then
+        return 0
+    fi
+
+    # Assert that source array contains 3-tuples
+    if [[ $(( $(array_size "${__source}") % 3 )) -ne 0 ]]; then
+        die "Input array must contain 3-tuples. $(lval __source)"
+    fi
+
+    edebug "Extracting $(lval status __source)"
+
+    # Iterate over each 3-tuple and extract matching elements into target array.
+    local index_id=0 index_nm=1 index_on=2 id=0 nm="" on=""
+    for (( ; index_id < $(array_size ${__source}); index_id+=3, index_nm+=3, index_on+=3 )); do
+
+        eval 'id=${'$__source'[$index_id]}'
+        eval 'nm=${'$__source'[$index_nm]}'
+        eval 'on=${'$__source'[$index_on]}'
+        edebug "$(lval index_id index_nm index_on id nm on)"
+
+        if [[ "${on}" == "${status}" ]]; then
+            eval "${__target}+=( \"${nm}\" )"
+        fi
+    done
 }
