@@ -197,6 +197,7 @@ source "${EBASH}/stacktrace.sh"
 source "${EBASH}/string.sh"
 source "${EBASH}/syslog.sh"
 source "${EBASH}/testutil.sh"
+source "${EBASH}/time.sh"
 source "${EBASH}/trap.sh"
 source "${EBASH}/type.sh"
 

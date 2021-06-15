@@ -47,35 +47,6 @@ ETEST_emsg_time_rfc3339()
     EMSG_PREFIX="time_rfc3339" emsg_aux
 }
 
-# Function to normalize seconds and milliseconds to avoid slight time delta false positive
-normalize_time_stamp()
-{
-    sed 's|[0-9].[0-9][0-9][0-9]|0.000|'
-}
-
-# Function to normalize rfc3339 time to avoid slight time delta false positive
-normalize_time_rfc3339()
-{
-    sed 's|[0-9]:[0-9][0-9]Z|0:00Z|'
-}
-
-ETEST_etimestamp_format()
-{
-    (
-        ETIMESTAMP_FORMAT="StampMilli"
-        expect="$(date '+%b %d %T.%3N' | normalize_time_stamp)"
-        actual="$(etimestamp | normalize_time_stamp)"
-        einfo "$(lval ETIMESTAMP_FORMAT expect actual)"
-        assert_eq "${expect}" "${actual}"
-
-        ETIMESTAMP_FORMAT="RFC3339"
-        expect="$(date '+%FT%TZ' | normalize_time_rfc3339)"
-        actual="$(etimestamp | normalize_time_rfc3339)"
-        einfo "$(lval ETIMESTAMP_FORMAT expect actual)"
-        assert_eq "${expect}" "${actual}"
-    )
-}
-
 ETEST_emsg_time_legacy()
 {
     EFUNCS_TIME=1 emsg_aux
