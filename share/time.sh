@@ -46,6 +46,7 @@ time_duration()
         "?stop=${SECONDS} | Stopping time represented in seconds. Defaults to the current time obtained via SECONDS."   \
     )
 
-    local diff=$(( stop - start ))
+    local diff
+    diff=$(( stop - start ))
     printf "%02d:%02d:%02d" $(( diff / 3600 )) $(( (diff % 3600) / 60 )) $(( diff % 60 ))
 }
