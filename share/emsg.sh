@@ -446,30 +446,6 @@ eclear()
     tput clear >&2
 }
 
-opt_usage etimestamp <<'END'
-`etimestamp` is used to emit a timestamp in a standard format that we use through ebash. The format that we used is
-controlled via `ETIMESTAMP_FORMAT` and defaults to `RFC3339`.
-END
-etimestamp()
-{
-    if [[ "${ETIMESTAMP_FORMAT:-}" == "StampMilli" ]]; then
-        echo -en "$(date '+%b %d %T.%3N')"
-    elif [[ "${ETIMESTAMP_FORMAT:-}" == "RFC3339" ]]; then
-        echo -en "$(date '+%FT%TZ')"
-    else
-        die "Unsupported $(lval ETIMESTAMP_FORMAT)"
-    fi
-}
-
-opt_usage etimestamp_rfc3339 <<'END'
-`etimestamp_rfc3339` is a more explicit version of `etimestamp` which emits the time format in `RFC3339` format regardless
-of the value of `ETIMESTAMP_FORMAT`.
-END
-etimestamp_rfc3339()
-{
-    echo -en $(date '+%FT%TZ')
-}
-
 opt_usage ebanner<<'END'
 Display a very prominent banner with a provided message which may be multi-line as well as the ability to provide any
 number of extra arguments which will be included in the banner in a pretty printed tag=value optionally uppercasing the
@@ -932,10 +908,8 @@ eprogress()
 
         # Infinite loop until we are signaled to stop at which point 'done' is set to 1 and we'll break out
         # gracefully at the right point in the loop.
-        local new="" diff="" lines=0 columns=0 offset=0
+        local new="" lines=0 columns=0 offset=0
         while true; do
-            now="${SECONDS}"
-            diff=$(( ${now} - ${start} ))
 
             # Display file contents if appropriate (minus final newline)
             if [[ -n ${file} && -r ${file} ]] ; then
@@ -955,7 +929,7 @@ eprogress()
                 fi
 
                 ecolor bold
-                printf " [%02d:%02d:%02d] " $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 ))
+                printf " [$(time_duration ${start})] "
                 ecolor none
             fi
 
