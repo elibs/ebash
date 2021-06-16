@@ -605,7 +605,7 @@ ETEST_emock_body()
 }
 
 # Verify leading indentation is stripped from mocked textfile body
-ETEST_emock_body_textfile()
+ETEST_emock_body_textfile_indent()
 {
     etestmsg "Mocking textfile with body with stripped indentation"
     emock --filesystem --textfile foo 'Line #1
@@ -621,4 +621,36 @@ ETEST_emock_body_textfile()
     assert_eq "Line #2" "$(cat foo | head -2 | tail -1)"
     assert_eq "    Line #3 is indented" "$(cat foo | head -3 | tail -1)"
     assert_eq "Line #4" "$(cat foo | head -4 | tail -1)"
+}
+
+# Verify leading indentation is stripped from mocked textfile body properly when no content is provided on the
+# first line and every other line is block-idented.
+ETEST_emock_body_textfile_indent_empty_first_line()
+{
+    etestmsg "Mocking textfile with body with stripped indentation and empty first line"
+    emock --filesystem --textfile actual '
+        Line #1
+            Line #2 is indented
+        Line #3
+    '
+
+    etestmsg "Mock with whitespace stripped"
+    cat -evt actual
+
+    # Create expected file.
+	cat >expected <<-EOF
+	Line #1
+	    Line #2 is indented
+	Line #3
+	EOF
+    etestmsg "Expected"
+    cat expected
+
+    diff --unified expected actual
+
+    # Manually check each line to be paranoid.
+    assert_eq 3 "$(cat actual | wc -l)"
+    assert_eq "Line #1"                 "$(cat actual | head -1)"
+    assert_eq "    Line #2 is indented" "$(cat actual | head -2 | tail -1)"
+    assert_eq "Line #3"                 "$(cat actual | head -3 | tail -1)"
 }

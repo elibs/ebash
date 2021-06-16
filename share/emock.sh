@@ -192,16 +192,38 @@ emock()
         )'
     else
 
-        # Figure out how far the second line is indented in the provided body. Then we strip that number of leading
-        # characters of whitespace from every line in the provided body. This way when the body is indented inside a
-        # function to align with its surrounding code it will be indented as intended in the final script.
+        # Automatically trim off leading indentation from the function body.
+        #
+        # There are two use cases we support:
+        # (1) For textfiles, if the first line is composed entirely of a newline followed by indentation. In this case
+        #     we want to remove the newline and then use the remainder as the prefix to strip off.
+        # (2) For non-textfiles, look at the difference between the first line and second line to determine the prefix.
         #
         # WARNING: Try to avoid as many external tools as possible here since they may have been mocked out!
         #          So we convert the input into an array and then we can directly get the number of lines and 2nd line
         #          without any reliance on external tools.
+        local indent_found=0
+        local indent=""
+        if [[ ${textfile} -eq 1 && "${body}" =~ ^$'\n' ]]; then
+
+            # Strip off leading newline and compute the indentation prefix
+            body="${body#$'\n'}"
+            indent="${body%%[^ ]*}"
+            indent_found=1
+
+            # Remove trailing newline and empty indentation.
+            body="${body%$'\n'[[:space:]]*}"
+        fi
+
         local lines
         array_init_nl lines "${body}"
-        if [[ "${#lines[@]}" -gt 1 ]]; then
+
+        # If we determined the leading prefix then just strip that off. Otherwise compute it looking at the secondline.
+        if [[ ${indent_found} -eq 1 ]]; then
+            lines=( "${lines[@]/${indent}/}" )
+            body="$(array_join_nl lines)"
+
+        elif [[ "${#lines[@]}" -gt 1 ]]; then
             local secondline="${lines[1]}"
             local indent="${secondline%%[^ ]*}"
             lines=( "${lines[@]/${indent}/}" )
