@@ -335,3 +335,13 @@ assert_docker_image_not_exists()
     $(opt_parse image)
     ! docker inspect --type image --format . "${image}" &> /dev/null || die "docker $(lval image) exists and should not"
 }
+
+opt_usage assert_valid_ip <<'END'
+This function asserts that the provided string is a valid IPv4 IP Address.
+END
+assert_valid_ip()
+{
+    $(opt_parse "input" "?msg")
+
+    valid_ip "${input}" || die "assert_valid_ip failed [${msg:-}] :: $(lval input)"
+}
