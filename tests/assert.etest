@@ -276,3 +276,11 @@ ETEST_assert_num_ge()
     # Non-numeric
     assert_false assert_num_gt zen apples
 }
+
+ETEST_assert_valid_ip()
+{
+    assert_valid_ip "127.0.0.1"
+    assert_false assert_valid_ip ""
+    assert_false assert_valid_ip "192.168.0.a"
+    assert_false assert_valid_ip "192.168..0.1"
+}
