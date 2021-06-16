@@ -827,6 +827,7 @@ __dialog_select_list()
         "+hide                   | Hide ncurses output from screen (useful for testing)."                              \
         "+trace                  | If enabled, enable extensive dialog debugging to stderr."                           \
         "+delete=1               | Delete all non-selected fields from the array."                                     \
+        "+tags=1                 | Display column of tags for each itme."                                              \
         "__array                 | Name of the array to use for input and output.")
 
     if array_empty ${__array}; then
@@ -864,6 +865,10 @@ __dialog_select_list()
         --output-fd ${output_fd}
         --backtitle "${backtitle}"
     )
+
+    if [[ ${tags} -eq 0 ]]; then
+        dialog_args+=( --no-tags )
+    fi
 
     # Optionally append trace and help arguments
     [[ ${trace} -eq 1 ]] && dialog_args+=( --trace "$(fd_path)/2" )
