@@ -50,8 +50,19 @@ ETEST_syslog_backend_autodetect_journald()
 {
     emock "command_exists"
     emock "systemctl"
+
+    # The first time that logger is called
     emock --stdout "--journald[=<file>]  write journald entry" "logger"
     assert_eq "journald" $(syslog_detect_backend)
+}
+
+# Validate if logger is too old and doesn't support --journald flag that we fallback to syslog.
+ETEST_syslog_backend_autodetect_journald_old_logger()
+{
+    emock "command_exists"
+    emock "systemctl"
+    emock "logger"
+    assert_eq "syslog" $(syslog_detect_backend)
 }
 
 # Validate once we autodetect backend we don't try to autodetect it again

@@ -46,8 +46,7 @@ declare -A __EBASH_SYSLOG_PRIORITIES=(
 opt_usage syslog_detect_backend <<'END'
 syslog_detect_backend is used to automatically detect what backend to use by default according to the following rules:
 
-If all of the following are true, then we will use the more advanced
-journald backend which supports structured logging:
+If all of the following are true, then we will use the more advanced journald backend which supports structured logging:
 1) systemctl exists
 2) systemd-journald is running
 3) logger accepts --journald flag
@@ -63,7 +62,7 @@ syslog_detect_backend()
         return 0
     fi
 
-    if command_exists systemctl && systemctl is-active --quiet systemd-journald &>/dev/null; then
+    if command_exists systemctl && systemctl is-active --quiet systemd-journald &>/dev/null && logger --help | grep -q -- "--journald"; then
         EBASH_SYSLOG_BACKEND="journald"
     else
         EBASH_SYSLOG_BACKEND="syslog"
