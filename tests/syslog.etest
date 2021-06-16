@@ -50,8 +50,6 @@ ETEST_syslog_backend_autodetect_journald()
 {
     emock "command_exists"
     emock "systemctl"
-
-    # The first time that logger is called
     emock --stdout "--journald[=<file>]  write journald entry" "logger"
     assert_eq "journald" $(syslog_detect_backend)
 }
@@ -70,6 +68,7 @@ ETEST_syslog_backend_autodetect_journald_twice()
 {
     emock "command_exists"
     emock "systemctl"
+    emock --stdout "--journald[=<file>]  write journald entry" "logger"
 
     etestmsg "Detecting system logger backend"
     syslog_detect_backend
