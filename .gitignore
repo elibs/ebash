@@ -6,3 +6,6 @@ doc/index.md
 doc/modules
 doc/toc.md
 tests/self/output
+tests/self/etest.log*
+tests/self/etest.json*
+tests/self/etest.xml*
