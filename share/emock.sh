@@ -255,17 +255,14 @@ emock()
         edebug "Creating real function wrapper ${name}_real with $(lval real_type)"
         case "${real_type}" in
             file)
-                echo "true" > "${statedir}/real.exists"
                 eval "${name}_real () { command ${name} \"\${@}\"; }"
                 ;;
 
             builtin)
-                echo "true" > "${statedir}/real.exists"
                 eval "${name}_real () { builtin ${name} \"\${@}\"; }"
                 ;;
 
             function)
-                echo "true" > "${statedir}/real.exists"
                 local real
                 real="$(declare -f ${name})"
                 eval "${name}_real${real#${name}}"
@@ -274,7 +271,6 @@ emock()
             *)
                 # If it wasn't any of the above then still create a real, just route it to a dummy failing function.
                 # This will allow you to mock out things that do NOT exist at all.
-                echo "false" > "${statedir}/real.exists"
                 eval "${name}_real () { false; }"
                 ;;
         esac
@@ -298,10 +294,8 @@ emock()
             # Record if the original exists or not and only try to copy it over to _real if it really existed.
             if [[ ! -e "${name}" ]]; then
                 edebug "${name} does not exist"
-                echo "false" > "${statedir}/real.exists"
             else
                 edebug "${name} exists"
-                echo "true" > "${statedir}/real.exists"
 
                 # NOTE: We use `cp` here instead of `mv` to support mocking out read-only bind-mount files when running
                 # inside docker such as /etc/resolv.conf.
@@ -368,21 +362,16 @@ eunmock()
     mode=$(cat "${statedir}/mode")
     if [[ "${mode}" == "filesystem" ]]; then
 
-        # Check if the real exists or not. Suppress errors here because the file may have already been unmocked and
-        # removed. In that case `exists` will hold an empty string and it will not equal "true" so we won't try to
-        # restore it.
-        local exists
-        exists=$(cat "${statedir}/real.exists" 2>/dev/null || true)
-
-        if [[ "${exists}" == "true" ]]; then
-            edebug "Removing filesystem mock"
+        # Check if the _real exists so we can move it back over.
+        if [[ -e "${name}_real" ]]; then
+            edebug "Removing filesystem mock at ${name}_real"
 
             # NOTE: We use `cp` here instead of `mv` to support mocking out read-only bind-mount files when running
             # inside docker such as /etc/resolv.conf.
             cp "${name}_real" "${name}"
         else
-            edebug "Removing dummy real"
-            rm -f "${name}" "${name}_real"
+            edebug "Removing dummy real at ${name}"
+            rm -f "${name}"
         fi
 
     elif [[ "${mode}" == "function" ]]; then
