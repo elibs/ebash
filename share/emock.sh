@@ -368,8 +368,11 @@ eunmock()
     mode=$(cat "${statedir}/mode")
     if [[ "${mode}" == "filesystem" ]]; then
 
+        # Check if the real exists or not. Suppress errors here because the file may have already been unmocked and
+        # removed. In that case `exists` will hold an empty string and it will not equal "true" so we won't try to
+        # restore it.
         local exists
-        exists=$(cat "${statedir}/real.exists")
+        exists=$(cat "${statedir}/real.exists" 2>/dev/null || true)
 
         if [[ "${exists}" == "true" ]]; then
             edebug "Removing filesystem mock"
