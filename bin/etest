@@ -623,6 +623,10 @@ find_matching_tests()
 run_all_tests()
 {
     OS="$(os_pretty_name)"
+    if running_in_docker; then
+        OS+=" (docker)"
+    fi
+
     local etest_name="ETEST"
     if [[ -n "${name}" ]]; then
         etest_name+=" - \"${name//_/ }\""
