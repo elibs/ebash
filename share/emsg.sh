@@ -13,7 +13,7 @@
 
 # Default color codes for emsg related functions. These can be overridden in /etc/ebash.conf or ~/.config/ebash.conf.
 : ${COLOR_INFO:="bold green"}
-: ${COLOR_DEBUG:="salmon"}
+: ${COLOR_DEBUG:="dim blue"}
 : ${COLOR_TRACE:="yellow"}
 : ${COLOR_WARN:="bold yellow"}
 : ${COLOR_ERROR:="bold red"}
