@@ -257,8 +257,13 @@ assert_no_process_leaks()
 
     edebug "Waiting..."
 
-    # Check if any processes leaked.
+    # Check if any processes leaked. Check quickly to avoid unecessary delays at clean-up time. If there are any
+    # leaked processes remaining, THEN do an eretry to give them time to shutdown. Finally, assert that there are none
+    # left.
     $(tryrc no_process_leaks_remain)
+    if [[ ${rc} -ne 0 ]]; then
+        $(tryrc eretry -T=5s no_process_leaks_remain)
+    fi
 
     # The above command could have timed out but that doesn't necessarily mean there are leaked processes. So KILL
     # anything that's left, but only DIE if there were actually processes leaked.

@@ -41,7 +41,8 @@ clean:
 clobber: clean
 	sudo bin/ebash rm -frv --one-file-system .work tests/self/output
 	sudo bin/ebash git clean -f
-	sudo bin/ebash git clean -fdX
+	sudo bin/ebash git clean -fd
+	sudo bin/ebash git clean -fX
 
 .PHONY: lint
 lint:
