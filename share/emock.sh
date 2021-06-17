@@ -373,7 +373,10 @@ eunmock()
 
         if [[ "${exists}" == "true" ]]; then
             edebug "Removing filesystem mock"
-            mv "${name}_real" "${name}"
+
+            # NOTE: We use `cp` here instead of `mv` to support mocking out read-only bind-mount files when running
+            # inside docker such as /etc/resolv.conf.
+            cp "${name}_real" "${name}"
         else
             edebug "Removing dummy real"
             rm -f "${name}" "${name}_real"
