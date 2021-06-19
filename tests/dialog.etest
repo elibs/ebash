@@ -31,54 +31,6 @@ override_function dialog_error '
     eerror "$@"
 }'
 
-# Verify internal behavior of dialog_read with regards to how it handles whitespace and multi-byte keys
-ETEST_dialog_read()
-{
-    # Mock out process_running so that when we call dialog_read it will think dialog is still running
-    emock process_running
-    local pid="" rcfile="" char=""
-
-    etestmsg "Sanity test of single character"
-    $(printf "A" | dialog_read pid rcfile char)
-    einfos "Read $(lval char)"
-    assert_eq "A" "${char}"
-
-    etestmsg "Ensure it can deal with whitespace properly"
-    $(printf " " | dialog_read pid rcfile char)
-    einfos "Read $(lval char)"
-    assert_eq " " "${char}"
-
-    etestmsg "Mult characters should read only first char"
-    $(printf "ABCD" | dialog_read pid rcfile char)
-    einfos "Read $(lval char)"
-    assert_eq "A" "${char}"
-
-    # Verify it handles all our mult-byte special keys properly
-    etestmsg "Verifying multi-byte special keys"
-    local key val
-    for key in UP DOWN RIGHT LEFT TAB ESC ENTER BACKSPACE DELETE; do
-        einfos "Verifying $(lval key)"
-
-        eval "val=\${EBASH_KEY_${key}}"
-        $(printf "${val}" | dialog_read pid rcfile char)
-        assert_eq --hexdump "${val}" "${char}"
-    done
-}
-
-ETEST_dialog_read_term()
-{
-    local term
-    for term in ansi linux rxvt xterm xterm-color xterm-xfree86 xterm-256color screen sun vt220 vt100 vt52 vt102; do
-    (
-        export TERM=${term}
-        export EDEBUG=0
-        ebanner "Testing with $(lval TERM)"
-        dialog_load
-        ETEST_dialog_read
-    )
-    done
-}
-
 # Ensure embedded whitespace is preserved inside dialog message boxes
 ETEST_dialog_embedded_whitespace()
 {
