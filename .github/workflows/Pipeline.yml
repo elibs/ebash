@@ -63,7 +63,7 @@ jobs:
         run: bin/eretry bin/selftest
 
       - name: Test
-        run: bin/etest --work-dir .work/output --failures 1
+        run: bin/etest --work-dir .work/output --filter dialog
 
       - name: Archive test results
         if: always()
@@ -98,7 +98,7 @@ jobs:
         run: bin/eretry bin/selftest
 
       - name: Test
-        run: bin/etest --work-dir .work/output --failures 1
+        run: bin/etest --work-dir .work/output --filter dialog
 
       - name: Archive test results
         if: always()
