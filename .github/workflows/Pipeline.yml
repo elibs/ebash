@@ -92,7 +92,7 @@ jobs:
         run: bin/bashlint
 
       - name: Test
-        run: bin/etest --work-dir .work/output --filter dialog
+        run: ETRACE=dialog bin/etest --work-dir .work/output --filter dialog
 
       - name: Archive test results
         if: always()
