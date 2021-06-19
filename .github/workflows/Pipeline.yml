@@ -59,9 +59,6 @@ jobs:
       - name: Lint
         run: bin/bashlint
 
-      - name: Self Test
-        run: bin/eretry bin/selftest
-
       - name: Test
         run: bin/etest --work-dir .work/output --filter dialog
 
@@ -93,9 +90,6 @@ jobs:
 
       - name: Lint
         run: bin/bashlint
-
-      - name: Self Test
-        run: bin/eretry bin/selftest
 
       - name: Test
         run: bin/etest --work-dir .work/output --filter dialog
