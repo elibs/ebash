@@ -18,9 +18,27 @@ fi
 
 setup()
 {
-    emock dialog_info  '{ einfo "$@"  }'
-    emock dialog_ewarn '{ ewarn "$@"  }'
-    emock dialog_error '{ eerror "$@" }'
+    emock dialog_info  '
+    {
+        einfo "$@"
+    }'
+
+    emock dialog_warn '
+    {
+        ewarn "$@"
+    }'
+
+    emock dialog_error '
+    {
+        eerror "$@"
+    }'
+}
+
+teardown()
+{
+    eunmock dialog_info
+    eunmock dialog_warn
+    eunmock dialog_error
 }
 
 # Verify internal behavior of dialog_read with regards to how it handles whitespace and multi-byte keys
