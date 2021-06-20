@@ -88,11 +88,8 @@ jobs:
       - name: Install Dependencies
         run: install/all
 
-      - name: Lint
-        run: bin/bashlint
-
       - name: Test
-        run: ETRACE=dialog bin/etest --work-dir .work/output --filter dialog
+        run: bin/etest --work-dir .work/output --filter dialog
 
       - name: Archive test results
         if: always()
