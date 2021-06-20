@@ -12,7 +12,7 @@
 # version of dialog and it is missing required flags --default-button and --default-item. This check will exclude these
 # two OSes completely so the code doesn't get included at all. This means we don't have to check for support in all the
 # dialog functions as they won't be emitted or callable at all.
-if os Darwin || (os_distro ubuntu && os_release 12.04); then
+if os_distro ubuntu && os_release 12.04; then
     return 0
 fi
 
