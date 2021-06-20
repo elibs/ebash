@@ -18,6 +18,8 @@ fi
 
 setup()
 {
+    ETEST_TIMEOUT=60
+
     emock dialog_info  '
     {
         einfo "$@"
@@ -44,20 +46,22 @@ teardown()
 # Verify internal behavior of dialog_read with regards to how it handles whitespace and multi-byte keys
 ETEST_dialog_read()
 {
-    local char=""
+    # Mock out process_running so that when we call dialog_read it will think dialog is still running
+    emock process_running
+    local pid="" rcfile="" char=""
 
     etestmsg "Sanity test of single character"
-    $(printf "A" | dialog_read char)
+    $(printf "A" | dialog_read pid rcfile char)
     einfos "Read $(lval char)"
     assert_eq "A" "${char}"
 
     etestmsg "Ensure it can deal with whitespace properly"
-    $(printf " " | dialog_read char)
+    $(printf " " | dialog_read pid rcfile char)
     einfos "Read $(lval char)"
     assert_eq " " "${char}"
 
     etestmsg "Mult characters should read only first char"
-    $(printf "ABCD" | dialog_read char)
+    $(printf "ABCD" | dialog_read pid rcfile char)
     einfos "Read $(lval char)"
     assert_eq "A" "${char}"
 
@@ -68,7 +72,7 @@ ETEST_dialog_read()
         einfos "Verifying $(lval key)"
 
         eval "val=\${EBASH_KEY_${key}}"
-        $(printf "${val}" | dialog_read char)
+        $(printf "${val}" | dialog_read pid rcfile char)
         assert_eq --hexdump "${val}" "${char}"
     done
 }
@@ -85,6 +89,13 @@ ETEST_dialog_read_term()
         ETEST_dialog_read
     )
     done
+}
+
+# Ensure embedded whitespace is preserved inside dialog message boxes
+ETEST_dialog_embedded_whitespace()
+{
+    printf "${EBASH_KEY_ENTER}" | dialog ${dialog_options} "This      has      nested    spaces" 2> output
+    grep "This      has      nested    spaces" output
 }
 
 # Setup flags we want to use for all these tests
@@ -243,7 +254,7 @@ ETEST_dialog_prompt_default_values_override()
 
 ETEST_dialog_prompt_default_values_override_tab()
 {
-    # Since we intend to overwrite the existing values we need to delete the keys already present.
+    # Since we intend to overwrite the existing values we need to delete the keys already present
     local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
     $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
@@ -251,17 +262,11 @@ ETEST_dialog_prompt_default_values_override_tab()
     assert_eq "John Rawls"       "${philo3}"
 }
 
-ETEST_dialog_prompt_default_values_override_term()
+ETEST_dialog_prompt_default_values_override_tab_term()
 {
     export TERM=linux
     dialog_load
-
-    # Since we intend to overwrite the existing values we need to delete the keys already present.
-    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
-    $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
-    assert_eq "Thomas Jefferson" "${philo1}"
-    assert_eq "Kant"             "${philo2}"
-    assert_eq "John Rawls"       "${philo3}"
+    ETEST_dialog_prompt_default_values_override_tab
 }
 
 # Basic sanity test around menu navigation
@@ -483,7 +488,7 @@ EOFB
 }'
 
 # Test that valid input to password dialog works as expected.
-ETEST_dialog_prompt_username_password_001_valid()
+ETEST_dialog_prompt_username_password_valid()
 {
     local username=""
     fake_password_dialog_test_id=1
@@ -493,7 +498,7 @@ ETEST_dialog_prompt_username_password_001_valid()
 }
 
 # Test that we are not caching the password on failed login creation attempts.
-ETEST_dialog_prompt_username_password_002_cached()
+ETEST_dialog_prompt_username_password_cached()
 {
     local username=""
     fake_password_dialog_test_id=2
@@ -502,7 +507,7 @@ ETEST_dialog_prompt_username_password_002_cached()
     assert_eq "Ok" "${username}" "Password state test returned \"${username}\""
 }
 
-ETEST_dialog_prompt_username_password_003_special_characters()
+ETEST_dialog_prompt_username_password_special_characters()
 {
     fake_password_dialog_state=0
     fake_password_dialog_test_id=3
@@ -644,6 +649,114 @@ ETEST_dialog_checklist_spaces()
     assert_eq "on"               "${kids[5]}"
 }
 
+ETEST_dialog_list_extract_empty()
+{
+    local kids=()
+    assert_eq 0 $(array_size kids)
+    dialog_list_extract kids results
+    assert_eq 0 $(array_size results)
+}
+
+ETEST_dialog_list_extract_none()
+{
+    local kids=(
+        0 "Calvin Watterson" off
+        1 "Hobbes Watterson" off
+        2 "Susie Derkins"    off
+    )
+
+    assert_eq 9 $(array_size kids)
+    dialog_list_extract kids results
+    assert_eq 0 $(array_size results)
+}
+
+ETEST_dialog_list_extract_front()
+{
+    local kids=(
+        0 "Calvin Watterson" on
+        1 "Hobbes Watterson" off
+        2 "Susie Derkins"    off
+    )
+
+    assert_eq 9 $(array_size kids)
+    dialog_list_extract kids results
+    assert_eq 1 $(array_size results)
+    assert_eq "Calvin Watterson" "${results[0]}"
+}
+
+ETEST_dialog_list_extract_middle()
+{
+    local kids=(
+        0 "Calvin Watterson" off
+        1 "Hobbes Watterson" on
+        2 "Susie Derkins"    off
+    )
+
+    assert_eq 9 $(array_size kids)
+    dialog_list_extract kids results
+    assert_eq 1 $(array_size results)
+    assert_eq "Hobbes Watterson" "${results[0]}"
+}
+
+ETEST_dialog_list_extract_end()
+{
+    local kids=(
+        0 "Calvin Watterson" off
+        1 "Hobbes Watterson" off
+        2 "Susie Derkins"    on
+    )
+
+    assert_eq 9 $(array_size kids)
+    dialog_list_extract kids results
+    assert_eq 1 $(array_size results)
+    assert_eq "Susie Derkins" "${results[0]}"
+}
+
+ETEST_dialog_list_extract_multiple_default()
+{
+    local kids=(
+        0 "Calvin Watterson" on
+        1 "Hobbes Watterson" off
+        2 "Susie Derkins"    on
+    )
+
+    assert_eq 9 $(array_size kids)
+    dialog_list_extract kids results
+    assert_eq 2 $(array_size results)
+    assert_eq "Calvin Watterson" "${results[0]}"
+    assert_eq "Susie Derkins"    "${results[1]}"
+}
+
+ETEST_dialog_list_extract_multiple_on()
+{
+    local kids=(
+        0 "Calvin Watterson" on
+        1 "Hobbes Watterson" off
+        2 "Susie Derkins"    on
+    )
+
+    assert_eq 9 $(array_size kids)
+    dialog_list_extract --status on kids results
+    assert_eq 2 $(array_size results)
+    assert_eq "Calvin Watterson" "${results[0]}"
+    assert_eq "Susie Derkins"    "${results[1]}"
+}
+
+ETEST_dialog_list_extract_multiple_off()
+{
+    local kids=(
+        0 "Calvin Watterson" off
+        1 "Hobbes Watterson" off
+        2 "Susie Derkins"    on
+    )
+
+    assert_eq 9 $(array_size kids)
+    dialog_list_extract --status off kids results
+    assert_eq 2 $(array_size results)
+    assert_eq "Calvin Watterson" "${results[0]}"
+    assert_eq "Hobbes Watterson" "${results[1]}"
+}
+
 ETEST_dialog_radiolist()
 {
     local kids=(
@@ -779,7 +892,6 @@ ETEST_dialog_radiolist_spaces()
     assert_eq "Hobbes Watterson" "${kids[4]}"
     assert_eq "on"               "${kids[5]}"
 }
-
 
 # Verify if we have a bunch of input queued up and multiple dialog prompts displayed one after another that each one
 # gets the correct input characters. This exercises a race condition in how ebash dialog wrapper detected dialog exit

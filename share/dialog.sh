@@ -12,7 +12,7 @@
 # version of dialog and it is missing required flags --default-button and --default-item. This check will exclude these
 # two OSes completely so the code doesn't get included at all. This means we don't have to check for support in all the
 # dialog functions as they won't be emitted or callable at all.
-if os_distro ubuntu && os_release 12.04; then
+if os Darwin || (os_distro ubuntu && os_release 12.04); then
     return 0
 fi
 
@@ -131,7 +131,7 @@ dialog()
     trap_add dialog_kill
 
     local char="" focus=0
-    while process_running ${dialog_pid} && $(dialog_read char); do
+    while $(dialog_read dialog_pid rc_file char); do
         echo -n "${char}" > "${input_file}"
     done
 
@@ -213,16 +213,72 @@ dialog_prgbox()
 }
 
 opt_usage dialog_read <<'END'
-Helper function for `dialog_prompt` to try to read a character from stdin. Unfortunately some arrow keys and other
-control characters are represented as multi-byte characters (see `EBASH_KEY_UP`, `EBASH_KEY_RIGHT`, `EBASH_KEY_DOWN`,
-`EBASH_KEY_RIGHT`, `EBASH_KEY_DELETE`, `EBASH_KEY_BACKSPACE`, `EBASH_KEY_SPACE`). So this function helps by reading a
-character and checking if it looks like the start of a multi-byte control character. If so, it will read the next
-character and so on until it has read the required 4 characters to know if it is indeed a multi-byte control character
-or not.
+Helper function to safely read characters in a while loop from the standard input stream for dialog. This function
+deals with many complications around reading characters for dialog properly and safely.
+
+Race Conditions on Exit
+=======================
+We definitely cannot try to read characters from the input stream if the dialog process has exited. So, the first thing
+this function does is check if dialog is runnig or not. If it is no longer running then we are done reading and this
+function will return an error (1) to indicate that dialog_read did not complete successfully and we should exit the
+read loop.
+
+While this check is necessary, it is not sufficient to know if we are done reading or not.
+
+There are several non-obvious reasons for this:
+
+- We may be streaming in tons of input characters (e.g. from a unit test) and have a series of dialog windows we're
+  going to open up sequentially to receive the input. If we keep reading after the first dialog window exits then
+  we'll consume characters that were intended for the second window, and so on.
+
+- When dialog receives input that triggers it to exit there is some delay before the process actually cleans up and
+  exits. During that window we could wrongly think we need to read more characters.
+
+- This is also a small delay between when keys are sent into ebash which in turn forwards them over to dialog process.
+  And of course it takes some time for dialog to process the key and decide if it should exit or not.
+
+So, we detect this situation by checking if the last character that was pressed was the ENTER key. This is the required
+key that the user must press to complete a form or close a window. If the last key pressed was indeed ENTER then we can
+check if dialog actually exited or not. We do this by checking if dialog has written its return code into `rc_file` or
+not. If it has, then we know it has exited and we should stop reading characters.
+
+Multi-Byte Characters
+=====================
+Unfortunately some arrow keys and other control characters are represented as multi-byte characters:
+- EBASH_KEY_UP
+- EBASH_KEY_RIGHT
+- EBASH_KEY_DOWN
+- EBASH_KEY_RIGHT
+- EBASH_KEY_DELETE
+- EBASH_KEY_BACKSPACE
+- EBASH_KEY_SPACE
+
+So this function helps by reading a character and checking if it looks like the start of a multi-byte control character.
+If so, it will read the next character and so on until it has read the required 4 characters to know if it is indeed a
+multi-byte control character or not.
 END
 dialog_read()
 {
-    $(opt_parse output)
+    $(opt_parse \
+        "__dialog_pid | Variable name which contains the PID of the dialog process."                                   \
+        "__rc_file    | Variable name which contains the name of the return code file that dialog will write its exit
+                        code to when it exits."                                                                        \
+        "__char       | Variable name which we should use for both INPUT and OUTPUT. Specifically, this will contain the
+                        character that was read in on the last input loop (if any). And this is the variable that
+                        we will write the updated value to after we read from the input stream."                       \
+    )
+
+    # If the dialog process has explicitly exited or is not running then we most definitely should not read any more
+    # characters.
+    #if ! process_running "${!__dialog_pid}"; then
+    #    return 1
+    #fi
+
+    # Otherwise, check the last character and see if it is the ENTER key. If so, then check the return code file to see
+    # if dialog has exited or not.
+    if [[ "${!__char}" == "${EBASH_KEY_ENTER}" && -s "${!__rc_file}" ]]; then
+        return 1
+    fi
 
     # Try to read the first character if this fails for any reason (usually due to EOF) then propagate the error.
     local c1="" c2="" c3="" c4=""
@@ -250,11 +306,9 @@ dialog_read()
     fi
 
     # Assemble all the individual characters into one string and then copy that out to the caller's context.
-    local char="${c1}${c2}${c3}${c4}"
     local value=""
-    value="$(printf "%q" "${char}")"
-    echo "eval declare ${output}=${value}; "
-    return 0
+    value="$(printf "%q" "${c1}${c2}${c3}${c4}")"
+    echo "eval declare ${__char}=${value}; "
 }
 
 opt_usage dialog_kill <<'END'
@@ -526,7 +580,7 @@ dialog_prompt()
         trap_add dialog_kill
 
         local char="" focus=0
-        while process_running ${dialog_pid} && $(dialog_read char); do
+        while $(dialog_read dialog_pid rc_file char); do
 
             # TAB WITH FOCUS. The user just pressed the tab key while in the middle of inputting text. For the best user
             # experience we've decided to have this automatically move focus down to the bottom window control
@@ -595,13 +649,6 @@ dialog_prompt()
 
             # Send this character to dialog
             echo -n "${char}" > "${input_file}"
-
-            # If the button we just pressed was an 'enter' key that may cause the program to exit. But if we loop
-            # around too quickly we won't know that and we'll wait for additional input. So check if dialog has written
-            # out its return code and if so break out of the loop.
-            if [[ "${char}" == "${EBASH_KEY_ENTER}" && -s "${rc_file}" ]]; then
-                break
-            fi
         done
 
         # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
@@ -915,7 +962,7 @@ __dialog_select_list()
     trap_add dialog_kill
 
     local char="" focus=0
-    while process_running ${dialog_pid} && $(dialog_read char); do
+    while $(dialog_read dialog_pid rc_file char); do
         echo -n "${char}" > "${input_file}"
     done
 
