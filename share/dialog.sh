@@ -270,9 +270,9 @@ dialog_read()
 
     # If the dialog process has explicitly exited or is not running then we most definitely should not read any more
     # characters.
-    #if ! process_running "${!__dialog_pid}"; then
-    #    return 1
-    #fi
+    if ! process_running "${!__dialog_pid}"; then
+        return 1
+    fi
 
     # Otherwise, check the last character and see if it is the ENTER key. If so, then check the return code file to see
     # if dialog has exited or not.
