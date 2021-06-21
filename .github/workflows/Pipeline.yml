@@ -10,8 +10,9 @@ on:
 env:
   TERM: "xterm-256color"
   COLUMNS: "120"
-  EFUNCS_COLOR: "1"
   EINTERACTIVE: "0"
+  EFUNCS_COLOR: "1"
+  COLOR_DEBUG: "dim blue"
 
 #----------------------------------------------------------------------------------------------------------------------
 #
