@@ -7,15 +7,6 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# DT-373: Dialog doesn't work properly on OSX and Ubuntu 12.04. The version of dialog on Darwin does not properly handle
-# EBASH_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
-# version of dialog and it is missing required flags --default-button and --default-item. This check will exclude these
-# two OSes completely so the code doesn't get included at all. This means we don't have to check for support in all the
-# dialog functions as they won't be emitted or callable at all.
-if os_distro ubuntu && os_release 12.04; then
-    return 0
-fi
-
 # Constants used by dialog to communicate results via exit codes.
 DIALOG_OK=0
 DIALOG_CANCEL=1
