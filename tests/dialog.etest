@@ -7,47 +7,74 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# DT-373: Dialog doesn't work properly on OSX and Ubuntu 12.04. The version of dialog on Darwin does not properly handle
-# EBASH_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
-# version of dialog and it is missing required flags --default-button and --default-item. This check will exclude these
-# two OSes completely so the code doesn't get included at all. This means we don't have to check for support in all the
-# dialog functions as they won't be emitted or callable at all.
-if os Darwin || (os_distro ubuntu && os_release 12.04); then
-    return 0
-fi
-
-override_function dialog_info '
+setup()
 {
-    einfo "$@"
-}'
+    ETEST_TIMEOUT=60
 
-override_function dialog_warn '
-{
-    ewarn "$@"
-}'
+    emock dialog_info  '
+    {
+        einfo "$@"
+    }'
 
-override_function dialog_error '
+    emock dialog_warn '
+    {
+        ewarn "$@"
+    }'
+
+    emock dialog_error '
+    {
+        eerror "$@"
+    }'
+}
+
+teardown()
 {
-    eerror "$@"
-}'
+    eunmock dialog_info
+    eunmock dialog_warn
+    eunmock dialog_error
+}
+
+ETEST_dialog_keys()
+{
+    local keys=(
+        EBASH_KEY_UP
+        EBASH_KEY_DOWN
+        EBASH_KEY_RIGHT
+        EBASH_KEY_LEFT
+        EBASH_KEY_TAB
+        EBASH_KEY_ESC
+        EBASH_KEY_ENTER
+        EBASH_KEY_BACKSPACE
+        EBASH_KEY_DELETE
+        EBASH_KEY_SPACE
+        EBASH_KEY_DONE
+    )
+
+    etestmsg "Displaying keys"
+    for key in ${keys[@]}; do
+        einfo "${key}="$(echo "${!key}" | cat -evt)""
+    done
+}
 
 # Verify internal behavior of dialog_read with regards to how it handles whitespace and multi-byte keys
 ETEST_dialog_read()
 {
-    local char=""
+    # Mock out process_running so that when we call dialog_read it will think dialog is still running
+    emock process_running
+    local pid="" rcfile="" char=""
 
     etestmsg "Sanity test of single character"
-    $(printf "A" | dialog_read char)
+    $(printf "A" | dialog_read pid rcfile char)
     einfos "Read $(lval char)"
     assert_eq "A" "${char}"
 
     etestmsg "Ensure it can deal with whitespace properly"
-    $(printf " " | dialog_read char)
+    $(printf " " | dialog_read pid rcfile char)
     einfos "Read $(lval char)"
     assert_eq " " "${char}"
 
     etestmsg "Mult characters should read only first char"
-    $(printf "ABCD" | dialog_read char)
+    $(printf "ABCD" | dialog_read pid rcfile char)
     einfos "Read $(lval char)"
     assert_eq "A" "${char}"
 
@@ -58,7 +85,7 @@ ETEST_dialog_read()
         einfos "Verifying $(lval key)"
 
         eval "val=\${EBASH_KEY_${key}}"
-        $(printf "${val}" | dialog_read char)
+        $(printf "${val}" | dialog_read pid rcfile char)
         assert_eq --hexdump "${val}" "${char}"
     done
 }
@@ -77,11 +104,13 @@ ETEST_dialog_read_term()
     done
 }
 
-# Ensure embedded whitespace is preserved inside dialog message boxes
-ETEST_dialog_embedded_whitespace()
+ETEST_dialog_no_collapse_whitespace()
 {
-    printf "${EBASH_KEY_ENTER}" | dialog ${dialog_options} "This      has      nested    spaces" 2> output
-    grep "This      has      nested    spaces" output
+    etestmsg "Generating output with --no-collapse"
+    printf "${EBASH_KEY_ENTER}" | dialog ${dialog_options} --no-collapse "This      has      collapse    spaces" 2> output
+
+    etestmsg "Validating output did not collapse output"
+    grep "This      has      collapse    spaces" output
 }
 
 # Setup flags we want to use for all these tests
@@ -100,6 +129,9 @@ ETEST_dialog_yesno_yes()
 
 ETEST_dialog_yesno_no()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local input=(
         "${EBASH_KEY_RIGHT}"
         "${EBASH_KEY_ENTER}"
@@ -172,8 +204,14 @@ ETEST_dialog_prompt_optional()
 
 ETEST_dialog_prompt_optional_multi_first()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="${EBASH_KEY_DOWN}Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    etestmsg "Input"
+    echo -e "${input}" | cat -evt
+
     $(printf "${input}" | dialog_prompt ${dialog_options} ?philo1 philo2 philo3)
     assert_empty       "${philo1}"
     assert_eq "Locke"  "${philo2}"
@@ -182,8 +220,14 @@ ETEST_dialog_prompt_optional_multi_first()
 
 ETEST_dialog_prompt_optional_multi_middle()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="Locke${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    etestmsg "Input"
+    echo -e "${input}" | cat -evt
+
     $(printf "${input}" | dialog_prompt ${dialog_options} philo1 ?philo2 philo3)
     assert_eq "Locke"  "${philo1}"
     assert_empty       "${philo2}"
@@ -194,6 +238,9 @@ ETEST_dialog_prompt_optional_multi_last()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_UP}${EBASH_KEY_DONE}"
+    etestmsg "Input"
+    echo -e "${input}" | cat -evt
+
     $(printf "${input}" | dialog_prompt ${dialog_options} philo1 philo2 ?philo3)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"
@@ -220,6 +267,9 @@ ETEST_dialog_prompt_default_values()
 
 ETEST_dialog_prompt_default_values_override()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     # Since we intend to overwrite the existing values we need to delete the keys already present.
      local input=(
         "${EBASH_KEY_DELETE}"
@@ -240,6 +290,9 @@ ETEST_dialog_prompt_default_values_override()
 
 ETEST_dialog_prompt_default_values_override_tab()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     # Since we intend to overwrite the existing values we need to delete the keys already present
     local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
     $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
@@ -250,6 +303,9 @@ ETEST_dialog_prompt_default_values_override_tab()
 
 ETEST_dialog_prompt_default_values_override_tab_term()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     export TERM=linux
     dialog_load
     ETEST_dialog_prompt_default_values_override_tab
@@ -505,6 +561,9 @@ ETEST_dialog_prompt_username_password_special_characters()
 
 ETEST_dialog_checklist()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin" off
         1 "Hobbes" off
@@ -585,6 +644,9 @@ ETEST_dialog_checklist_none_no_delete()
 
 ETEST_dialog_checklist_middle()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin" off
         1 "Hobbes" off
@@ -611,6 +673,9 @@ ETEST_dialog_checklist_middle()
 
 ETEST_dialog_checklist_spaces()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin Watterson" off
         1 "Hobbes Watterson" off
@@ -745,6 +810,9 @@ ETEST_dialog_list_extract_multiple_off()
 
 ETEST_dialog_radiolist()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin" off
         1 "Hobbes" off
@@ -829,6 +897,9 @@ ETEST_dialog_radiolist_none_no_delete()
 
 ETEST_dialog_radiolist_middle()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin" off
         1 "Hobbes" off
@@ -855,6 +926,9 @@ ETEST_dialog_radiolist_middle()
 
 ETEST_dialog_radiolist_spaces()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin Watterson" off
         1 "Hobbes Watterson" off
@@ -877,4 +951,92 @@ ETEST_dialog_radiolist_spaces()
     assert_eq 1                  "${kids[3]}"
     assert_eq "Hobbes Watterson" "${kids[4]}"
     assert_eq "on"               "${kids[5]}"
+}
+
+# Verify if we have a bunch of input queued up and multiple dialog prompts displayed one after another that each one
+# gets the correct input characters. This exercises a race condition in how ebash dialog wrapper detected dialog exit
+# and try to read extra characters effectively stealing the ones intended for the next dialog prompt.
+ETEST_dialog_multiple_prompts()
+{
+    worker()
+    {
+        etestmsg "worker function called"
+
+        etestmsg "Prompting for domain"
+        $(dialog_prompt ${dialog_options} \
+            --geometry="23 70 70"         \
+            domain="home.net"             \
+        )
+
+        etestmsg "$(lval domain)"
+        echo "${domain}" > domain
+
+        servers=(
+            "0" "NEW"         "off"
+            "1" "10.204.2.11" "on"
+        )
+
+        $(dialog_checklist ${dialog_options} \
+            --no-delete                      \
+            servers                          \
+        )
+
+        # Check if "NEW SERVER" was selected.
+        if [[ ${servers[2]} == "on" ]]; then
+            $(dialog_prompt ${dialog_options} \
+                "ip_address"                  \
+            )
+
+            edebug "Adding a new nameserver $(lval ip_address)"
+            servers+=( 2 "${ip_address}" "on" )
+
+            # Disable "NEW" for next iteration and then continue to give user a chance to add/remove more
+            servers[2]="off"
+        fi
+
+        etestmsg "$(lval servers)"
+        for (( idx=0; idx < ${#servers[@]}; idx++ )); do
+            if (( (idx + 1 ) % 3 == 0 )); then
+                echo "${servers[$idx]}" >> servers
+            else
+                echo -n "${servers[$idx]} " >> servers
+            fi
+        done
+    }
+
+    local input=(
+        # SEARCH DOMAIN MENU
+        "${EBASH_KEY_TAB}"      # Tab down to OK/Cancel
+        "${EBASH_KEY_ENTER}"    # Enter OK to go to next screen leaving default domain
+
+        # NAME SERVERS MENU
+        "${EBASH_KEY_SPACE}"     # Select new server
+        "${EBASH_KEY_ENTER}"    # Enter OK
+
+        # NEW SERER SUBMENU
+        "192.168.1.1"           # New IP address
+        "${EBASH_KEY_DOWN}"     # Move down into "OK/Cancel"
+        "${EBASH_KEY_ENTER}"    # Enter OK
+
+        # NAME SERVERS MENU
+        "${EBASH_KEY_ENTER}"    # Finish Main Menu
+    )
+
+    etestmsg "Calling worker function with input"
+    #worker < <(printf "%s" "${input[@]/#/}")
+    $(printf "%s" "${input[@]/#/}" | worker)
+
+    etestmsg "Checking servers file"
+    cat domain
+    assert_eq "home.net" "$(cat domain)"
+
+    cat >expect <<-'END'
+	0 NEW off
+	1 10.204.2.11 on
+	2 192.168.1.1 on
+	END
+
+    etestmsg "Checking servers file"
+    cat servers
+    diff --unified expect servers
 }
