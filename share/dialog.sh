@@ -648,6 +648,7 @@ dialog_prompt()
             fi
 
             # Send this character to dialog
+            edebug "[Sending] "$(echo "${char}" | cat -evt)""
             echo -en "${char}" > "${input_file}"
         done
 

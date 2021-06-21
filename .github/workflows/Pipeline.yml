@@ -89,7 +89,7 @@ jobs:
         run: install/all
 
       - name: Test
-        run: bin/etest --work-dir .work/output --filter dialog
+        run: bin/etest --work-dir .work/output --filter dialog --debug dialog
 
       - name: Archive test results
         if: always()
