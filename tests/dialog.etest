@@ -43,6 +43,28 @@ teardown()
     eunmock dialog_error
 }
 
+ETEST_dialog_keys()
+{
+    local keys=(
+        EBASH_KEY_UP
+        EBASH_KEY_DOWN
+        EBASH_KEY_RIGHT
+        EBASH_KEY_LEFT
+        EBASH_KEY_TAB
+        EBASH_KEY_ESC
+        EBASH_KEY_ENTER
+        EBASH_KEY_BACKSPACE
+        EBASH_KEY_DELETE
+        EBASH_KEY_SPACE
+        EBASH_KEY_DONE
+    )
+
+    etestmsg "Displaying keys"
+    for key in ${keys[@]}; do
+        einfo "${key}="$(echo "${!key}" | cat -evt)""
+    done
+}
+
 # Verify internal behavior of dialog_read with regards to how it handles whitespace and multi-byte keys
 ETEST_dialog_read()
 {
@@ -91,11 +113,13 @@ ETEST_dialog_read_term()
     done
 }
 
-# Ensure embedded whitespace is preserved inside dialog message boxes
-ETEST_dialog_embedded_whitespace()
+ETEST_dialog_no_collapse_whitespace()
 {
-    printf "${EBASH_KEY_ENTER}" | dialog ${dialog_options} "This      has      nested    spaces" 2> output
-    grep "This      has      nested    spaces" output
+    etestmsg "Generating output with --no-collapse"
+    printf "${EBASH_KEY_ENTER}" | dialog ${dialog_options} --no-collapse "This      has      collapse    spaces" 2> output
+
+    etestmsg "Validating output did not collapse output"
+    grep "This      has      collapse    spaces" output
 }
 
 # Setup flags we want to use for all these tests
@@ -188,6 +212,9 @@ ETEST_dialog_prompt_optional_multi_first()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="${EBASH_KEY_DOWN}Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    etestmsg "Input"
+    echo -e "${input}" | cat -evt
+
     $(printf "${input}" | dialog_prompt ${dialog_options} ?philo1 philo2 philo3)
     assert_empty       "${philo1}"
     assert_eq "Locke"  "${philo2}"
@@ -198,6 +225,9 @@ ETEST_dialog_prompt_optional_multi_middle()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="Locke${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
+    etestmsg "Input"
+    echo -e "${input}" | cat -evt
+
     $(printf "${input}" | dialog_prompt ${dialog_options} philo1 ?philo2 philo3)
     assert_eq "Locke"  "${philo1}"
     assert_empty       "${philo2}"
@@ -208,6 +238,9 @@ ETEST_dialog_prompt_optional_multi_last()
 {
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_UP}${EBASH_KEY_DONE}"
+    etestmsg "Input"
+    echo -e "${input}" | cat -evt
+
     $(printf "${input}" | dialog_prompt ${dialog_options} philo1 philo2 ?philo3)
     assert_eq "Locke"  "${philo1}"
     assert_eq "Hobbes" "${philo2}"

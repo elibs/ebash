@@ -132,7 +132,7 @@ dialog()
 
     local char="" focus=0
     while $(dialog_read dialog_pid rc_file char); do
-        echo -n "${char}" > "${input_file}"
+        echo -en "${char}" > "${input_file}"
     done
 
     # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
@@ -648,7 +648,7 @@ dialog_prompt()
             fi
 
             # Send this character to dialog
-            echo -n "${char}" > "${input_file}"
+            echo -en "${char}" > "${input_file}"
         done
 
         # Wait for process to exit so we know it's return code. Ensure it exited due to one of the valid exit codes.
