@@ -59,8 +59,11 @@ jobs:
       - name: Lint
         run: bin/bashlint
 
+      - name: Self Test
+        run: bin/eretry bin/selftest
+
       - name: Test
-        run: bin/etest --work-dir .work/output --filter dialog
+        run: bin/etest --work-dir .work/output --failures 1
 
       - name: Archive test results
         if: always()
@@ -88,8 +91,14 @@ jobs:
       - name: Install Dependencies
         run: install/all
 
+      - name: Lint
+        run: bin/bashlint
+
+      - name: Self Test
+        run: bin/eretry bin/selftest
+
       - name: Test
-        run: bin/etest --work-dir .work/output --filter dialog --debug dialog
+        run: bin/etest --work-dir .work/output --failures 1
 
       - name: Archive test results
         if: always()
