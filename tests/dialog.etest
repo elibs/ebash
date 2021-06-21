@@ -7,15 +7,6 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# DT-373: Dialog doesn't work properly on OSX and Ubuntu 12.04. The version of dialog on Darwin does not properly handle
-# EBASH_KEY_DELETE and also misses the final character on the last field being modified. Ubuntu 12.04 has a very old
-# version of dialog and it is missing required flags --default-button and --default-item. This check will exclude these
-# two OSes completely so the code doesn't get included at all. This means we don't have to check for support in all the
-# dialog functions as they won't be emitted or callable at all.
-if os_distro ubuntu && os_release 12.04; then
-    return 0
-fi
-
 setup()
 {
     ETEST_TIMEOUT=60
@@ -138,6 +129,9 @@ ETEST_dialog_yesno_yes()
 
 ETEST_dialog_yesno_no()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local input=(
         "${EBASH_KEY_RIGHT}"
         "${EBASH_KEY_ENTER}"
@@ -210,6 +204,9 @@ ETEST_dialog_prompt_optional()
 
 ETEST_dialog_prompt_optional_multi_first()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="${EBASH_KEY_DOWN}Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     etestmsg "Input"
@@ -223,6 +220,9 @@ ETEST_dialog_prompt_optional_multi_first()
 
 ETEST_dialog_prompt_optional_multi_middle()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
     local input="Locke${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
     etestmsg "Input"
@@ -267,6 +267,9 @@ ETEST_dialog_prompt_default_values()
 
 ETEST_dialog_prompt_default_values_override()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     # Since we intend to overwrite the existing values we need to delete the keys already present.
      local input=(
         "${EBASH_KEY_DELETE}"
@@ -287,6 +290,9 @@ ETEST_dialog_prompt_default_values_override()
 
 ETEST_dialog_prompt_default_values_override_tab()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     # Since we intend to overwrite the existing values we need to delete the keys already present
     local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
     $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
@@ -297,6 +303,9 @@ ETEST_dialog_prompt_default_values_override_tab()
 
 ETEST_dialog_prompt_default_values_override_tab_term()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     export TERM=linux
     dialog_load
     ETEST_dialog_prompt_default_values_override_tab
@@ -552,6 +561,9 @@ ETEST_dialog_prompt_username_password_special_characters()
 
 ETEST_dialog_checklist()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin" off
         1 "Hobbes" off
@@ -632,6 +644,9 @@ ETEST_dialog_checklist_none_no_delete()
 
 ETEST_dialog_checklist_middle()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin" off
         1 "Hobbes" off
@@ -658,6 +673,9 @@ ETEST_dialog_checklist_middle()
 
 ETEST_dialog_checklist_spaces()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin Watterson" off
         1 "Hobbes Watterson" off
@@ -792,6 +810,9 @@ ETEST_dialog_list_extract_multiple_off()
 
 ETEST_dialog_radiolist()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin" off
         1 "Hobbes" off
@@ -876,6 +897,9 @@ ETEST_dialog_radiolist_none_no_delete()
 
 ETEST_dialog_radiolist_middle()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin" off
         1 "Hobbes" off
@@ -902,6 +926,9 @@ ETEST_dialog_radiolist_middle()
 
 ETEST_dialog_radiolist_spaces()
 {
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
     local kids=(
         0 "Calvin Watterson" off
         1 "Hobbes Watterson" off
