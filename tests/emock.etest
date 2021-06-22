@@ -49,7 +49,7 @@ ETEST_emock()
     assert_match "$(hash -r; type ${test_binary})" "${test_binary} is ${test_binary_path}"
 }
 
-ETEST_emock_and_path()
+ETEST_emock_path()
 {
     etestmsg "Mocking ${test_binary} with full path"
     emock "${test_binary_path}"
@@ -58,7 +58,7 @@ ETEST_emock_and_path()
     assert_match "$(hash -r; type ${test_binary_path})" "${test_binary_path} is ${test_binary_path}"
 }
 
-ETEST_emock_and_filesystem()
+ETEST_emock_filesystem()
 {
     # Skip if we are not running in docker to avoid changing root filesystem
     $(skip_if "! running_in_docker")
@@ -73,7 +73,7 @@ ETEST_emock_and_filesystem()
     assert_exists "${test_binary_path}_real"
 }
 
-ETEST_emock_and_filesystem_multiple()
+ETEST_emock_filesystem_multiple()
 {
     # Skip if we are not running in docker to avoid changing root filesystem
     $(skip_if "! running_in_docker")
