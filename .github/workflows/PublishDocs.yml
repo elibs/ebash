@@ -8,8 +8,9 @@ on:
 env:
   TERM: "xterm-256color"
   COLUMNS: "100"
-  EFUNCS_COLOR: "1"
   EINTERACTIVE: "0"
+  EFUNCS_COLOR: "1"
+  COLOR_DEBUG: "dim blue"
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
