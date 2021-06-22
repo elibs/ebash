@@ -30,7 +30,7 @@ setup()
     etestmsg "$(lval pkg_known pkg_unknown pkg_installed pkg_to_install)"
 }
 
-ETEST_pkg_0001_manager()
+ETEST_pkg_manager()
 {
     assert_ne "unknown" "$(pkg_manager)"
 }
