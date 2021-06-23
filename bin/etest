@@ -433,7 +433,7 @@ run_single_test()
             # Also set ETEST_COMMAND in case caller wants to know what command is being run inside Setup or suite_setup, etc.
             local command="${testname}"
             if ! is_function "${testname}" ; then
-                command=$(readlink -f "${testname}")
+                command="${PWD}/${testname}"
             fi
             ETEST_COMMAND="${command}"
 
