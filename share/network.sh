@@ -80,7 +80,7 @@ getipaddress()
 {
     $(opt_parse iface)
     ip addr show "${iface}" 2>/dev/null \
-        | awk '/inet [0-9.\/]+ .* scope global .* '${iface}'$/ { split($2, arr, "/"); print arr[1] }' 2>/dev/null \
+        | awk '/inet [0-9.\/]+ .* scope global.* '${iface}'$/ { split($2, arr, "/"); print arr[1] }' 2>/dev/null \
         | tr '\n' ' ' || true
 }
 
@@ -93,7 +93,7 @@ getnetmask()
 {
     $(opt_parse iface)
     local cidr
-    cidr=$(ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global (dynamic )*'${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
+    cidr=$(ip addr show "${iface}" 2>/dev/null | awk '/inet [0-9.\/]+ .* scope global.* '${iface}'$/ { split($2, arr, "/"); print arr[2] }' || true)
     [[ -z "${cidr}" ]] && return 0
 
     cidr2netmask "${cidr}"
