@@ -80,8 +80,7 @@ getipaddress()
 {
     $(opt_parse iface)
     ip addr show "${iface}" 2>/dev/null \
-        | awk '/inet [0-9.\/]+ .* scope global.* '${iface}'$/ { split($2, arr, "/"); print arr[1] }' 2>/dev/null \
-        | tr '\n' ' ' || true
+        | awk '/inet [0-9.\/]+.* scope global.* '${iface}'$/ { split($2, arr, "/"); print arr[1] }' 2>/dev/null || true
 }
 
 opt_usage getnetmask <<'END'
