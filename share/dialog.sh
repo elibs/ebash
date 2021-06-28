@@ -259,15 +259,9 @@ dialog_read()
                         we will write the updated value to after we read from the input stream."                       \
     )
 
-    # If the dialog process has explicitly exited or is not running then we most definitely should not read any more
-    # characters.
-    if ! process_running "${!__dialog_pid}"; then
-        return 1
-    fi
-
-    # Otherwise, check the last character and see if it is the ENTER key. If so, then check the return code file to see
-    # if dialog has exited or not.
-    if [[ "${!__char}" == "${EBASH_KEY_ENTER}" && -s "${!__rc_file}" ]]; then
+    # If the dialog process is not running or has explicitly exited and written its return code out to the rc_file then
+    # we most definitely should not read any more characters.
+    if ! process_running "${!__dialog_pid}" || [[ -s "${!__rc_file}" ]]; then
         return 1
     fi
 
@@ -552,6 +546,9 @@ dialog_prompt()
 
             export DIALOGRC="${dlgrc}"
 
+            # Zero out rc_file so that we don't incorrectly thing a NEW spawned instance of dialog has finished
+            cat /dev/null > "${rc_file}"
+
             if command dialog --colors                   \
                 --default-button    "${default_button}"  \
                 --default-item      "${default_item}"    \
@@ -573,26 +570,37 @@ dialog_prompt()
         local char="" focus=0
         while $(dialog_read dialog_pid rc_file char); do
 
-            # TAB WITH FOCUS. The user just pressed the tab key while in the middle of inputting text. For the best user
-            # experience we've decided to have this automatically move focus down to the bottom window control
-            # characters and set default button back to "OK"
-            if [[ "${char}" == "${EBASH_KEY_TAB}" && "${focus}" -eq 1 ]]; then
-                default_button="ok"
-                edebug "[TAB With Focus] Updating $(lval default_button)"
+            # ---- TAB -----
+            if [[ "${char}" == "${EBASH_KEY_TAB}" ]]; then
 
-            # TAB WITHOUT FOCUS. This key is used to transfer focus between the input fields and the control characters
-            # at the bottom of the window. So here we essentially update the default_button.
-            elif [[ "${char}" == "${EBASH_KEY_TAB}" && ${focus} -eq 0 ]]; then
+                # Process exited
+                if ! process_running "${dialog_pid}" || [[ -s "${rc_file}" ]]; then
+                    edebug "[TAB With Exit]"
+                    break 2
 
-                if [[ ${default_button} == "extra" ]]; then
+                # TAB WITH FOCUS. The user just pressed the tab key while in the middle of inputting text. For the best user
+                # experience we've decided to translate "TAB" in this case to "ENTER" so that we complete the input field. Then
+                # We set the default button back to OK so that the cursor oves to the bottom window control keys.
+                elif [[ "${focus}" -eq 1 ]]; then
                     default_button="ok"
-                elif [[ ${default_button} == "ok" ]]; then
-                    default_button="extra"
-                fi
+                    edebug "[TAB With Focus] Updating $(lval default_button) and sending ENTER key"
+                    echo -en "${EBASH_KEY_ENTER}" > "${input_file}"
+                    continue
 
-                edebug "[TAB Without Focus] Updating $(lval default_button) and killing dialog."
-                dialog_kill
-                continue 2
+                # TAB WITHOUT FOCUS. This key is used to transfer focus between the input fields and the control characters
+                # at the bottom of the window. So here we essentially update the default_button.
+                elif [[ ${focus} -eq 0 ]]; then
+
+                    if [[ ${default_button} == "extra" ]]; then
+                        default_button="ok"
+                    elif [[ ${default_button} == "ok" ]]; then
+                        default_button="extra"
+                    fi
+
+                    edebug "[TAB Without Focus] Updating $(lval default_button focus) and killing dialog."
+                    dialog_kill
+                    continue 2
+                fi
 
             # ESCAPE KEY. No matter where we are in in dialog, if ESC is pressed we want to cancel out and return to
             # the prior menu.
@@ -608,7 +616,8 @@ dialog_prompt()
                 continue
             fi
 
-            # FOCUS. This is where all the magic happens to automatically transfer focus into the input fields when
+            # ---- FOCUS -----
+            # This is where all the magic happens to automatically transfer focus into the input fields when
             # any character is typed and automatically transfer focus out of the input field when UP, DOWN or TAB is pressed.
             if [[ ${default_button} == "extra" ]]; then
 
@@ -636,6 +645,18 @@ dialog_prompt()
                     focus=1
                     echo "" > "${input_file}"
                 fi
+
+            elif [[ "${default_button}" == "ok" && "${char}" == "${EBASH_KEY_UP}" ]]; then
+
+                default_button="extra"
+                edebug "[UP Without Focus] Updating $(lval default_button) and killing dialog."
+                dialog_kill
+                continue 2
+            fi
+
+            # Update focus if we are sending the ENTER key 
+            if [[ "${char}" == "${EBASH_KEY_ENTER}" ]]; then
+                focus=1
             fi
 
             # Send this character to dialog
