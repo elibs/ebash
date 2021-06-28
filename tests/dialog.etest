@@ -208,11 +208,16 @@ ETEST_dialog_prompt_optional_multi_first()
     $(skip_if "os darwin")
 
     # There are three input fields, but we skip the second one. Because it's marked optional this should pass.
-    local input="${EBASH_KEY_DOWN}Locke${EBASH_KEY_DOWN}Hobbes${EBASH_KEY_ENTER}${EBASH_KEY_DONE}"
-    etestmsg "Input"
-    echo -e "${input}" | cat -evt
+    local input=(
+        "${EBASH_KEY_DOWN}"
+        "Locke"
+        "${EBASH_KEY_DOWN}"
+        "Hobbes"
+        "${EBASH_KEY_ENTER}"
+        "${EBASH_KEY_DONE}"
+    )
 
-    $(printf "${input}" | dialog_prompt ${dialog_options} ?philo1 philo2 philo3)
+    $(printf %s "${input[@]/#/}" | dialog_prompt ${dialog_options} ?philo1 philo2 philo3)
     assert_empty       "${philo1}"
     assert_eq "Locke"  "${philo2}"
     assert_eq "Hobbes" "${philo3}"
@@ -294,8 +299,18 @@ ETEST_dialog_prompt_default_values_override_tab()
     $(skip_if "os darwin")
 
     # Since we intend to overwrite the existing values we need to delete the keys already present
-    local input="${EBASH_KEY_DELETE}Thomas Jefferson${EBASH_KEY_DOWN}${EBASH_KEY_DOWN}${EBASH_KEY_DELETE}John Rawls${EBASH_KEY_TAB}${EBASH_KEY_DONE}"
-    $(printf "${input}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
+    local input=(
+        "${EBASH_KEY_DELETE}"
+        "Thomas Jefferson"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_DOWN}"
+        "${EBASH_KEY_DELETE}"
+        "John Rawls"
+        "${EBASH_KEY_TAB}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf %s "${input[@]/#/}" | dialog_prompt ${dialog_options} "?philo1=A" "?philo2=Kant" "?philo3=_")
     assert_eq "Thomas Jefferson" "${philo1}"
     assert_eq "Kant"             "${philo2}"
     assert_eq "John Rawls"       "${philo3}"
@@ -327,6 +342,25 @@ ETEST_dialog_prompt_navigation()
         "${EBASH_KEY_ENTER}"
         "${EBASH_KEY_TAB}"
         "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf %s "${input[@]/#/}" | dialog_prompt ${dialog_options} "name1" "name2" "?name3")
+
+    assert_eq "Linus Torvalds" "${name1}"
+    assert_eq "Tove Torvalds" "${name2}"
+    assert_eq ""              "${name3}"
+}
+
+# Test we can push UP key to get back into FIELDS after we hit TAB to get to the bottom
+ETEST_dialog_prompt_tab_then_up()
+{
+    local input=(
+        "${EBASH_KEY_TAB}"
+        "${EBASH_KEY_UP}"
+        "Linus Torvalds"
+        "${EBASH_KEY_ENTER}"
+        "Tove Torvalds"
+        "${EBASH_KEY_DONE}"
     )
 
     $(printf %s "${input[@]/#/}" | dialog_prompt ${dialog_options} "name1" "name2" "?name3")
@@ -451,6 +485,26 @@ ETEST_dialog_prompt_invalid_input()
         $(printf "${input}${EBASH_KEY_ENTER}${EBASH_KEY_DONE}" | dialog_prompt ${dialog_options} badstuff)
         assert_eq "badstuff" "${badstuff}"
     done
+}
+
+ETEST_dialog_prompt_edit_hang()
+{
+    # Issue #77: Arrow keys do not work on Darwin in test-mode even though they work in the actual product perfectly fine.
+    $(skip_if "os darwin")
+
+    # Since we intend to overwrite the existing values we need to delete the keys already present
+    local input=(
+        "${EBASH_KEY_TAB}"
+        "${EBASH_KEY_RIGHT}"
+        "${EBASH_KEY_ENTER}"
+        "${EBASH_KEY_DELETE}"
+        "C.S. Lewis"
+        "${EBASH_KEY_TAB}"
+        "${EBASH_KEY_ENTER}"
+    )
+
+    $(printf %s "${input[@]/#/}" | dialog_prompt ${dialog_options} "?philo1=A")
+    assert_eq "C.S. Lewis" "${philo1}"
 }
 
 # Initialize the password dialog test.
