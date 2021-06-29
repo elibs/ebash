@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
@@ -75,7 +75,7 @@ ETEST_netns_list()
     done
 
     # Verify each namespace shows up in the list
-    for name in ${NS_NAMES[@]}; do
+    for name in "${NS_NAMES[@]}"; do
         echo $(netns_list) | assert grep -q ${name}
     done
 }

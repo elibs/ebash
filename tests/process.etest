@@ -72,13 +72,13 @@ ETEST_process_hierarchy()
     # Note: there will be ancestors in the list that I don't know about (for instance, the etest processes), but I know
     # that the processes I created and added to pids should be in there.
     local process
-    for process in ${my_processes[@]} ; do
+    for process in "${my_processes[@]}"; do
         assert array_contains ancestors ${process}
         assert array_contains ancestors_noarg ${process}
     done
 
     etestmsg "Verifying tree contains my processes $(lval tree my_processes)"
-    for process in ${my_processes[@]} ; do
+    for process in "${my_processes[@]}"; do
         assert array_contains tree ${process}
     done
 }
@@ -138,10 +138,10 @@ ETEST_ekill_multiple()
     local pids
     pids=( $(cat pids) )
     etestmsg "Killing all $(lval pids)"
-    ekill ${pids[@]}
+    ekill "${pids[@]}"
 
     etestmsg "Waiting for $(lval pid pids SECONDS)"
-    eretry -t=2s -T=20s process_not_running ${pids[@]}
+    eretry -t=2s -T=20s process_not_running "${pids[@]}"
 }
 
 ETEST_ekilltree()
@@ -175,7 +175,7 @@ ETEST_ekilltree()
 
     etestmsg "After killing $(lval main_pid) -- Expected death from $(lval pids) -- My $(lval BASHPID)"
     pstree -c $$
-    eretry --timeout 5s process_not_running ${pids[@]}
+    eretry --timeout 5s process_not_running "${pids[@]}"
 }
 
 ETEST_ekilltree_excludes_self()

@@ -105,7 +105,7 @@ END
 is_function()
 {
     if [[ $# != 1 ]] ; then
-        die "is_function takes only a single argument but was passed $@"
+        die "is_function takes only a single argument but was passed $*"
     fi
 
     declare -F "$1" &>/dev/null

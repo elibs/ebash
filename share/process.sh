@@ -62,7 +62,7 @@ process_tree()
     fi
 
     local parent children child
-    for parent in ${@} ; do
+    for parent in "${@}"; do
 
         children=$(process_children --ps-all "${ps_all}" ${parent})
         for child in ${children} ; do
@@ -140,7 +140,7 @@ process_parent_tree()
     done
 
     local indent="" link=""
-    for link in ${chain[@]} ; do
+    for link in "${chain[@]}"; do
         echo "$(printf "(%5d)" ${link})${indent}* $(ps ${format} ${link})"
         indent+=" "
     done
@@ -202,7 +202,7 @@ ekill()
     fi
 
     # Kill all requested PIDs using requested signal.
-    kill -${signal} ${processes[@]} &>/dev/null || true
+    kill -${signal} "${processes[@]}" &>/dev/null || true
 
     if [[ -n ${kill_after} && $(signame ${signal}) != "KILL" ]] ; then
         # Note: double fork here in order to keep ekilltree from paying any attention to these processes.
@@ -214,7 +214,7 @@ ekill()
 
                 sleep ${kill_after}
 
-                kill -SIGKILL ${processes[@]} &>/dev/null || true
+                kill -SIGKILL "${processes[@]}" &>/dev/null || true
             ) &
         ) &
     fi
@@ -243,7 +243,7 @@ ekilltree()
     local excluded="" processes=()
 
     excluded="$(process_ancestors ${BASHPID}) ${exclude}"
-    processes=( $(process_tree ${pids[@]:-}) )
+    processes=( $(process_tree "${pids[@]:-}") )
     array_remove -a processes ${excluded}
 
     edebug "Killing $(lval processes signal kill_after excluded)"
@@ -256,7 +256,7 @@ ekilltree()
     # processes get killed and we need to honor the tree ordering of the processes so that we kill the leaf nodes first
     # and walk up the tree.
     local pid
-    for pid in ${processes[@]}; do
+    for pid in "${processes[@]}"; do
         edebug "Killing $(lval pid) of $(lval processes)"
         ekill -s=${signal} -k=${kill_after} ${pid}
     done

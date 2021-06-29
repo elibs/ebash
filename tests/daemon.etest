@@ -127,7 +127,7 @@ netns_add_iptables_rules()
     $(pack_import ${netns_args_packname} ns_name connected_nic)
 
     local device
-    for device in ${ns_name}_br ${connected_nic} ${@} ; do
+    for device in "${ns_name}_br" "${connected_nic}" "${@}"; do
         $(tryrc netns_iptables_rule_exists ${netns_args_packname} ${device})
         [[ ${rc} -eq 0 ]] && continue
         iptables -t nat -A POSTROUTING -o ${device} -j MASQUERADE
@@ -147,7 +147,7 @@ netns_remove_iptables_rules()
     $(pack_import ${netns_args_packname} ns_name connected_nic)
 
     local device
-    for device in ${ns_name}_br ${connected_nic} ${@} ; do
+    for device in "${ns_name}_br" "${connected_nic}" "${@}"; do
         $(tryrc netns_iptables_rule_exists ${netns_args_packname} ${device})
         [[ ${rc} -ne 0 ]] && continue
         iptables -t nat -D POSTROUTING -o ${device} -j MASQUERADE

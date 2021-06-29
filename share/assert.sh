@@ -72,7 +72,7 @@ assert_false()
     {
         rc=$?
     }
-    [[ ${rc} -ne 0 ]] || die "assert failed (rc=${rc}) :: ${cmd[@]}"
+    [[ ${rc} -ne 0 ]] || die "assert failed (rc=${rc}) :: ${cmd[*]}"
 }
 
 assert_eq()
@@ -136,8 +136,8 @@ assert_match()
 
 assert_not_match()
 {
-    $(opt_parse "?lh" "?rh" "?msg")
-    [[ ! "${lh}" =~ "${rh}" ]] || die "assert_not_match failed [${msg:-}] :: $(lval lh rh)"
+    $(opt_parse "?text" "?regex" "?msg")
+    [[ ! "${text}" =~ ${regex} ]] || die "assert_not_match failed [${msg:-}] :: $(lval text regex)"
 }
 
 assert_zero()

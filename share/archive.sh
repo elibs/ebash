@@ -162,7 +162,7 @@ archive_compress_program()
     # Look for matching installed program using which and head -1 to select the first matching program. If progs is
     # empty, this will call 'which ""' which is an error. which returns the number of failed arguments so we have to
     # look at the output and not rely on the return code.
-    which ${progs[@]:-} 2>/dev/null | head -1 || true
+    which "${progs[@]:-}" 2>/dev/null | head -1 || true
 }
 
 opt_usage tar_ignored_modified_files <<'END'
@@ -298,7 +298,7 @@ archive_create()
 
     # In case including and excluding something excludes take precedence.
     if array_not_empty excludes; then
-        array_remove srcs ${excludes[@]}
+        array_remove srcs "${excludes[@]}"
     fi
 
     # Always exclude the destination file. Need to canonicalize it and then remove any illegal prefix characters (/, ./,
@@ -321,7 +321,7 @@ archive_create()
         fi
 
         if array_not_empty excludes; then
-            find ${excludes[@]} -maxdepth 0 2>/dev/null | sed "s|^|${exclude_prefix}|" || true
+            find "${excludes[@]}" -maxdepth 0 2>/dev/null | sed "s|^|${exclude_prefix}|" || true
         fi
 
     done | sort --unique >> "${exclude_file}"
@@ -448,7 +448,7 @@ archive_create()
     fi
 
     # Execute clean-up and clear the list so it won't get called again on trap teardown
-    eunmount --all --recursive --delete ${cleanup_files[@]}
+    eunmount --all --recursive --delete "${cleanup_files[@]}"
     unset cleanup_files
 
     # Propogate any errors
@@ -528,7 +528,7 @@ archive_extract()
                 fi
 
                 # Do the actual extracting
-                cp --archive --recursive --parents ${includes[@]} "${dest_real}"
+                cp --archive --recursive --parents "${includes[@]}" "${dest_real}"
             fi
         )
 
@@ -635,7 +635,7 @@ archive_extract()
 
             # rmdir is noisy about being unable to delete "." but it's not a failure. So use tryrc to capture the
             # return code but only show stderr if the find failed.
-            $(tryrc -r=find_rc -o=find_out -e=find_err find ${orphans[@]} -depth -type d -exec rmdir --parents {} \;)
+            $(tryrc -r=find_rc -o=find_out -e=find_err find "${orphans[@]}" -depth -type d -exec rmdir --parents {} \;)
             assert_zero "${find_rc}" "${find_err}"
         fi
 

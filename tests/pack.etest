@@ -198,7 +198,7 @@ ETEST_pack_update_updates_values()
 ETEST_pack_avoid_common_variable_conflicts()
 {
     POTENTIAL_VARS=(arg val key tag)
-    for VAR in ${POTENTIAL_VARS[@]} ; do
+    for VAR in "${POTENTIAL_VARS[@]}"; do
         einfo "Testing for conflicts in variable name ${VAR}"
 
         pack_set ${VAR} a=1 b=2 c=3

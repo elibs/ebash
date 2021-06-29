@@ -104,7 +104,7 @@ elogfile()
                 #
                 # This will keep them alive long enough to display our error output and such. SIGPIPE will take care of
                 # them, and the kill -9 below will make double sure.
-                trap "" ${TTY_SIGNALS[@]}
+                trap "" "${TTY_SIGNALS[@]}"
                 echo "${BASHPID}" >${pid_pipe}
 
                 # Past this point, we hand control to the tee processes which we expect to die in their own time. We no

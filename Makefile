@@ -44,9 +44,9 @@ clobber: clean
 	sudo bin/ebash git clean -fd
 	sudo bin/ebash git clean -fX
 
-.PHONY: lint
-lint:
-	bin/bashlint
+.PHONY: lint bashlint
+lint bashlint:
+	bin/bashlint --break=${BREAK}
 
 .PHONY: selftest
 selftest:

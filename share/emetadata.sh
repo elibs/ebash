@@ -176,7 +176,7 @@ emetadata_check()
     # Now validate all digests we found
     local pids=()
     local ctype
-    for ctype in ${digests[@]}; do
+    for ctype in "${digests[@]}"; do
 
         expect=$(pack_get metapack ${ctype})
 
@@ -225,7 +225,7 @@ emetadata_check()
     done
 
     # Wait for all pids and then assert the return code was zero.
-    wait ${pids[@]} && rc=0 || rc=$?
+    wait "${pids[@]}" && rc=0 || rc=$?
     if [[ ${quiet} -ne 1 ]]; then
         eprogress_kill -r=${rc}
     fi

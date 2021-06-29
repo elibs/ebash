@@ -24,5 +24,5 @@ $(skip_if "os_distro centos && os_release 8")
 END
 skip_if()
 {
-    echo "eval if ${@}; then ewarn \"Skipping ${FUNCNAME[1]} because '${@}'\"; return 0; fi"
+    echo "eval if \"${*}\"; then ewarn \"Skipping ${FUNCNAME[1]} because '${*}'\"; return 0; fi"
 }

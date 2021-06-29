@@ -15,12 +15,12 @@ docker_tags_pushed=()
 docker()
 {
     if [[ "${1}" == "push" ]]; then
-        etestmsg "Simulating docker push tags=${@}"
+        etestmsg "Simulating docker push tags=${*}"
         shift
         docker_tags_pushed+=( "${@}" )
         return 0
     elif [[ "${1}" == "login" ]]; then
-        etestmsg "Simulated docker login with args=${@}"
+        etestmsg "Simulated docker login with args=${*}"
         return 0
     fi
 
@@ -364,7 +364,7 @@ ETEST_docker_build_tags()
     assert_docker_image_exists "${image}"
 
     etestmsg "Validating all tags were built"
-    for tag in ${tags[@]}; do
+    for tag in "${tags[@]}"; do
         echo "${tag}"
         assert_docker_image_exists "${tag}"
     done
@@ -412,7 +412,7 @@ ETEST_docker_build_tags_push()
     assert_docker_image_exists "${image}"
 
     etestmsg "Validating all tags were built"
-    for tag in ${tags[@]}; do
+    for tag in "${tags[@]}"; do
         echo "${tag}"
         assert_docker_image_exists "${tag}"
     done
@@ -421,7 +421,7 @@ ETEST_docker_build_tags_push()
     array_sort tags
     array_sort docker_tags_pushed
     etestmsg "$(lval tags docker_tags_pushed)"
-    for tag in ${tags[@]}; do
+    for tag in "${tags[@]}"; do
         array_contains docker_tags_pushed "${tag}"
     done
 }
@@ -640,7 +640,7 @@ ETEST_docker_build_overlay()
         "/usr/local/bin/timedatectl"
     )
 
-    for entry in ${validate_paths[@]}; do
+    for entry in "${validate_paths[@]}"; do
         echo "${entry}"
         docker exec "${container_id}" bash -c "[[ -e ${entry} ]]"
     done
@@ -786,7 +786,7 @@ ETEST_docker_depends_sha()
     find ".work/docker/ebash/overlay"
 
     expect=()
-    for depend in ${depends[@]}; do
+    for depend in "${depends[@]}"; do
         expect+=( "${depend}@sha256:$(sha256sum "${depend}" | awk '{print $1}')" )
     done
 
@@ -864,7 +864,7 @@ ETEST_docker_depends_sha_exclude()
     find ".work/docker/ebash/overlay"
 
     expect=()
-    for depend in ${depends[@]}; do
+    for depend in "${depends[@]}"; do
         expect+=( "${depend}@sha256:$(sha256sum "${depend}" | awk '{print $1}')" )
     done
 

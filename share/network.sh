@@ -226,8 +226,8 @@ get_network_interfaces_with_port()
 
     for ifname in $(get_network_interfaces); do
         port=$(ethtool ${ifname} | grep "Supported ports:" || true)
-        for query in $@; do
-            if [[ ${port} =~ "${query}" ]]; then
+        for query in "$@"; do
+            if [[ ${port} =~ ${query} ]]; then
                 results+=( "${ifname}" )
                 break
             fi
@@ -452,7 +452,7 @@ netselect()
     array_init_nl sorted "$(printf '%s\n' "${results[@]}" | sort -t\| -k5 -n)"
     array_init_nl rows "Server|Latency|Jitter|Loss|Score"
 
-    for entry in ${sorted[@]} ; do
+    for entry in "${sorted[@]}"; do
         array_init parts "${entry}" "|"
         array_add_nl rows "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${parts[4]}"
     done
@@ -465,7 +465,7 @@ netselect()
 
         ## SHOW ALL RESULTS ##
         einfos "All results:"
-        etable ${rows[@]} >&2
+        etable "${rows[@]}" >&2
 
         einfos "Best host=[${best}]"
     fi

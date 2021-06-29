@@ -252,5 +252,5 @@ nodie_on_abort()
 
     local signals=( "${@}" )
     [[ ${#signals[@]} -gt 0 ]] || signals=( ${DIE_SIGNALS[@]} )
-    trap - ${signals[@]}
+    trap - "${signals[@]}"
 }
