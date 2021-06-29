@@ -387,7 +387,7 @@ array_sort SELFTESTS
 # outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a
 # test to have a persistent place to store things. This is necessary for our flaky tests where we need to keep track
 # of how many times the test has been executed so we need a persistent place to store that information.
-for selftest in ${SELFTESTS[@]}; do
+for selftest in "${SELFTESTS[@]}"; do
 (
     declare -xg SELFTEST_DIR_OUTPUT
     SELFTEST_DIR_OUTPUT="$(readlink -f output)"

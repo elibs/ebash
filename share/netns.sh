@@ -186,6 +186,6 @@ netns_chroot_exec()
 
     $(pack_import ${netns_args_packname} ns_name)
 
-    edebug "Executing command in namespace [${ns_name}] and chroot [${chroot_root}]: ${cmd[@]}"
+    edebug "Executing command in namespace [${ns_name}] and chroot [${chroot_root}]: ${cmd[*]}"
     netns_exec ${ns_name} chroot "${chroot_root}" "${cmd[@]}"
 }

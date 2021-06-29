@@ -35,7 +35,7 @@ array_init_nl works identically to array_init, but always specifies that the del
 END
 array_init_nl()
 {
-    [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters but passed=($@)"
+    [[ $# -eq 2 ]] || die "array_init_nl requires exactly two parameters but passed=($*)"
     array_init "$1" "$2" $'\n'
 }
 
@@ -135,7 +135,7 @@ Identical to array_add only hard codes the delimter to be a newline.
 END
 array_add_nl()
 {
-    [[ $# -ne 2 ]] && die "array_add_nl requires exactly two parameters but passed=($@)"
+    [[ $# -ne 2 ]] && die "array_add_nl requires exactly two parameters but passed=($*)"
     array_add "$1" "$2" $'\n'
 }
 
@@ -252,7 +252,7 @@ array_join()
     idx_last=$(echo "${indexes[@]}" | awk '{print $NF}')
 
     local idx
-    for idx in ${indexes[@]}; do
+    for idx in "${indexes[@]}"; do
         eval "echo -n \"\${${__array}[$idx]}\""
 
         # If this is not the last element then always echo the delimiter. If this is the last element only echo the
@@ -268,7 +268,7 @@ Identical to array_join only it hardcodes the dilimter to a newline.
 END
 array_join_nl()
 {
-    [[ $# -ne 1 ]] && die "array_join_nl requires exactly one parameter but passed=($@)"
+    [[ $# -ne 1 ]] && die "array_join_nl requires exactly one parameter but passed=($*)"
     array_join "$1" $'\n'
 }
 
@@ -317,7 +317,7 @@ array_sort()
             local idx
             for idx in $(array_indexes ${__array}); do
                 eval "echo \${${__array}[$idx]}"
-            done | sort ${flags[@]:-}
+            done | sort "${flags[@]:-}"
         )
     done
 }

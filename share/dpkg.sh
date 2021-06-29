@@ -82,7 +82,7 @@ dpkg_depends()
             dpkg_compare_versions "${apv}" "==" "${pv}" || die "Version mismatch: wanted=[${pn}-${pv}] actual=[${apn}-${apv}] op=[${op}]"
 
             echo ${fname}
-            for d in $(dpkg_depends ${dir}/${pn}.deb ${tag}); do
+            for d in $(dpkg_depends "${dir}/${pn}.deb" "${tag}"); do
                 echo $d
             done
         else
@@ -93,14 +93,18 @@ dpkg_depends()
 
 dpkg_depends_deb()
 {
-    for p in $(dpkg_depends $@); do
-        [[ ${p: -4} == ".deb" ]] && echo ${p} || true
+    for p in $(dpkg_depends "${@}"); do
+        if [[ ${p: -4} == ".deb" ]]; then
+            echo "${p}"
+        fi
     done
 }
 
 dpkg_depends_apt()
 {
-    for p in $(dpkg_depends $@); do
-        [[ ${p: -4} != ".deb" ]] && echo ${p} || true
+    for p in $(dpkg_depends "${@}"); do
+        if [[ ${p: -4} != ".deb" ]]; then
+            echo "${p}"
+        fi
     done
 }

@@ -674,7 +674,7 @@ ETEST_opt_forward_different_name()
 
     subfunc()
     {
-        einfo "ARGS=${@}"
+        einfo "ARGS=${*}"
         $(opt_parse ":altname")
 
         assert_eq "${altname}" "${OPTION}"

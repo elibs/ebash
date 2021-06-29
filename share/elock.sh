@@ -145,5 +145,5 @@ because `flock` doesn't provide a native way to check if we have a file locked o
 END
 elock_unlocked()
 {
-    ! elock_locked $@
+    ! elock_locked "${@}"
 }

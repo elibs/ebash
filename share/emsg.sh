@@ -401,6 +401,8 @@ ecolor()
 ecolor_internal()
 {
     local c=""
+    # We want to re-split the provided list of options on whitespace so disable shellcheck for this line
+    # shellcheck disable=SC2068
     for c in $@; do
         case ${c} in
             dim)                echo -en "\033[2m"                 ;;
@@ -484,24 +486,24 @@ ebanner()
         opt_forward expand_vars uppercase lowercase -- details "${@}"
 
         # Now output all the details (if any)
-        if [[ -n ${details[@]:-} ]]; then
-            ecolor ${COLOR_BANNER}
+        if [[ -n "${details[*]:-}" ]]; then
+            ecolor "${COLOR_BANNER}"
             echo -e "|"
 
             # Sort the keys and store into an array
             local keys
-            keys=( $(for key in ${!details[@]}; do echo "${key}"; done | sort) )
+            keys=( $(for key in "${!details[@]}"; do echo "${key}"; done | sort) )
 
             # Figure out the longest key
             local longest=0
-            for key in ${keys[@]}; do
+            for key in "${keys[@]}"; do
                 local len=${#key}
                 (( len > longest )) && longest=$len
             done
 
             # Iterate over the keys of the associative array and print out the values
             local pad="" ktag=""
-            for key in ${keys[@]}; do
+            for key in "${keys[@]}"; do
                 pad=$((longest-${#key}+1))
                 ktag="${key}"
 
@@ -510,7 +512,7 @@ ebanner()
                     ktag="${ktag^^}"
                 fi
 
-                ecolor ${COLOR_BANNER}
+                ecolor "${COLOR_BANNER}"
                 printf "| • %s%${pad}s :: %s\n" ${ktag} " " "${details[$key]}"
             done
         fi
@@ -671,7 +673,7 @@ tput()
         return 0
     fi
 
-    command tput $@ || true
+    command tput "$@" || true
 }
 
 opt_usage einfo <<'END'
@@ -895,7 +897,7 @@ eprogress()
 
         # Sentinal for breaking out of the loop on signal from eprogress_kill
         local done=0
-        trap "done=1" ${DIE_SIGNALS[@]}
+        trap "done=1" "${DIE_SIGNALS[@]}"
 
         # Display static message.
         "${style}" -n "$*"
@@ -1019,7 +1021,7 @@ eprogress_kill()
 
     # Kill requested eprogress pids
     local pid
-    for pid in ${pids[@]}; do
+    for pid in "${pids[@]}"; do
 
         # Don't kill the pid if it's not running or it's not an eprogress pid. This catches potentially disasterous
         # errors where someone would do "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"

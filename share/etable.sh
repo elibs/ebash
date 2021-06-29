@@ -209,7 +209,7 @@ __etable_internal_ascii()
     local idx=0
 
     local len=0
-    for idx in ${column_indexes[@]}; do
+    for idx in "${column_indexes[@]}"; do
         len=$((lengths[$idx]+2))
         (( divider_len += len ))
 
@@ -268,7 +268,7 @@ __etable_internal_ascii()
         printf "${symbols[vertical_line]}"
 
         local idx=0
-        for idx in ${column_indexes[@]}; do
+        for idx in "${column_indexes[@]}"; do
             part=${parts[$idx]:-}
             part_len=$(echo -n "${part}" | noansi | wc -c)
             pad=$(( lengths[$idx] - part_len + 1 ))

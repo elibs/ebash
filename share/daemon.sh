@@ -249,7 +249,7 @@ daemon_start()
                     if [[ -n ${bindmounts} ]]; then
                         local mounts=( ${bindmounts} )
                         local mnt
-                        for mnt in ${mounts[@]}; do
+                        for mnt in "${mounts[@]}"; do
                             local src="${mnt%%:*}"
                             local dest="${mnt#*:}"
                             [[ -z ${dest} ]] && dest="${src}"

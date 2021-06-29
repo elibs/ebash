@@ -12,14 +12,24 @@
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
 
 opt_usage main <<'END'
-Analyze all the requested bash scripts in the specified directories and pass them through bash -n mode which asks bash
-to make sure the syntax looks okay without actually running anything. Additionally, perform several additional
-strictness checks that we have found to be sources of really subtle problems. Also checks some stylistic issues for
-consistent coding.
+Analyze all the requested bash scripts in the specified directories and perform various Linting operations on them. There
+are various internal checks performed by bashlint including bash syntax errors, using removed ebash code, ambiguous
+return statements, and combined variable declaration and assignment errors.
+
+Additionally, bashlint can utilize the fantastic external tool shellcheck to look for far more difficult to detect
+linting errors. By default these are all disabled. You can opt-in for which checks you want to perform with the various
+shellcheck-* option flags.
 END
 $(opt_parse \
-    "+break b | Break on first failure."          \
-    "+quiet q | Make bashlint produce no output." \
+    "+break b                      | Break on first failure."                                                          \
+    "+quiet q                      | Make bashlint produce no output."                                                 \
+    "+internal i=1                 | Run all ebash internal checks. This includes checking for bash syntax errors,
+                                     non-versioned ebash, deprecated ebash code, ambiguous return statements, combined
+                                     local variable declaration and assignment with a subshell result, etc."           \
+    "+shellcheck_errors errors     | Run Shellcheck looking for severity=error."                                       \
+    "+shellcheck_warnings warnings | Run Shellcheck looking for severity=warning and above."                           \
+    "+shellcheck_info info         | Run Shellcheck looking for severity=warning and above."                           \
+    "+shellcheck_style style       | Run Shellcheck looking for severity=warning and above."                           \
 )
 
 if [[ ${quiet} -eq 1 ]]; then
@@ -27,20 +37,20 @@ if [[ ${quiet} -eq 1 ]]; then
 fi
 
 # Paths to recursively parse
-PATHS=( ${@:-.} )
+paths=( ${@:-.} )
 
 # Helper function to display a failure and increment our failure count
-RC=0
-FAILURES=()
+rc=0
+failures=()
 fail()
 {
     emsg "${COLOR_ERROR}" "   -" "ERROR" "$@"
     eend 1
-    RC=1
+    rc=1
 }
 
-ebanner "Validating bash scripts" PATHS
-for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
+ebanner "Validating bash scripts" paths opts=$(opt_log)
+for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
 
     # If this isn't a bash script skip it
     file ${fname} | grep -Pq "(bash script|Bourne-Again shell script)" || continue
@@ -55,63 +65,87 @@ for fname in $(grep -lr '^#!/.*bash' ${PATHS[@]} | grep -v '.hg'); do
     echo -n "${einfo_message}" >&2
     bash -n ${fname}
 
-    # Read file into variable so we can do a little preprocessing on it before passing it into the various grep commands
-    # below to strip out particular patterns which would otherwise cause false positives.
-    CONTENTS=$(cat ${fname}              \
-        | grep -vP '^\s*#'               \
-        | grep -vP '#\s*BASHLINT_IGNORE' \
-        | grep -vP '^\s*function \w+'    \
-        | grep -vP '^\s*\w+\s*\(\)\s*$')
+    #---- INTERNAL ----#
+    if [[ "${internal}" -eq 1 ]]; then
 
-    # Initial error state
-    RC=0
+        # Read file into variable so we can do a little preprocessing on it before passing it into the various grep commands
+        # below to strip out particular patterns which would otherwise cause false positives.
+        CONTENTS=$(cat ${fname}              \
+            | grep -vP '^\s*#'               \
+            | grep -vP '#\s*BASHLINT_IGNORE' \
+            | grep -vP '^\s*function \w+'    \
+            | grep -vP '^\s*\w+\s*\(\)\s*$')
 
-    # Ensure none of the scripts are using non-versioned /usr/local/share/ebash
-    echo "${CONTENTS}" | egrep "(:|)/usr/local/share/ebash(:|/|\"|$)" \
-        && fail "Non-versioned ebash"
+        # Initial error state
+        rc=0
 
-    # Ensure not using removed $(esource ...)
-    echo "${CONTENTS}" | egrep '\s*\$\(esource ' \
-        && fail "Using removed esource function"
+        # Ensure none of the scripts are using non-versioned /usr/local/share/ebash
+        echo "${CONTENTS}" | egrep "(:|)/usr/local/share/ebash(:|/|\"|$)" \
+            && fail "Non-versioned ebash"
 
-    # Ensure not using removed argument parsing functions
-    echo "${CONTENTS}" | egrep '(declare_globals|declare_exports|declare_args|declare_opts)' \
-        && fail "Using removed declare_globals|declare_exports functions"
+        # Ensure not using removed $(esource ...)
+        echo "${CONTENTS}" | egrep '\s*\$\(esource ' \
+            && fail "Using removed esource function"
 
-    # Don't allow using removed legacy IFS ebash functions
-    echo "${CONTENTS}" | egrep '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
-        && fail "Using non-existent deprecated ifs_* functions"
+        # Ensure not using removed argument parsing functions
+        echo "${CONTENTS}" | egrep '(declare_globals|declare_exports|declare_args|declare_opts)' \
+            && fail "Using removed declare_globals|declare_exports functions"
 
-    # Ensure we don't have any sloppy 'return' statements which don't specify what return code to use. Because this
-    # usually returns the prior return code which is generally not what is intended and causes 'set -e' problems.
-    echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
-        && fail "Ambiguous return statements"
+        # Don't allow using removed legacy IFS ebash functions
+        echo "${CONTENTS}" | egrep '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
+            && fail "Using non-existent deprecated ifs_* functions"
 
-    echo "${CONTENTS}" | grep -P 'ekill.*-(SIG|TERM|KILL|INT|[0-9])' \
-        && fail "Ekill or ekilltree cannot take a -SIGNAL argument -- you must specify -s=<signal>"
+        # Ensure we don't have any sloppy 'return' statements which don't specify what return code to use. Because this
+        # usually returns the prior return code which is generally not what is intended and causes 'set -e' problems.
+        echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
+            && fail "Ambiguous return statements"
 
-    echo "${CONTENTS}" | grep -P '(assert|assert_true|assert_false)\s+\[\[' \
-        && fail "Assert commands cannot be followed by a double bracket expression"
+        echo "${CONTENTS}" | grep -P 'ekill.*-(SIG|TERM|KILL|INT|[0-9])' \
+            && fail "Ekill or ekilltree cannot take a -SIGNAL argument -- you must specify -s=<signal>"
 
-    echo "${CONTENTS}" | egrep '(local|export|declare|readonly)\s+.*=.*\$\(' \
-        && fail "Combined local variable declaration and assignment masks fatal errors"
+        echo "${CONTENTS}" | grep -P '(assert|assert_true|assert_false)\s+\[\[' \
+            && fail "Assert commands cannot be followed by a double bracket expression"
 
-    if [[ ${RC} -eq 0 ]]; then
+        echo "${CONTENTS}" | egrep '(local|export|declare|readonly)\s+.*=.*\$\(' \
+            && fail "Combined local variable declaration and assignment masks fatal errors"
+    fi
+
+    #---- SHELLCHECK ----#
+    # These are mutually exclusive since it is the MINIMUM level to check for
+    if [[ "${shellcheck_style}" -eq 1 ]]; then
+        if ! shellcheck -S style "${fname}"; then
+            fail "Shellcheck (style and above) failed"
+        fi
+    elif [[ "${shellcheck_info}" -eq 1 ]]; then
+        if ! shellcheck -S info "${fname}"; then
+            fail "Shellcheck (info and above) failed"
+        fi
+     elif [[ "${shellcheck_warnings}" -eq 1 ]]; then
+        if ! shellcheck -S warning "${fname}"; then
+            fail "Shellcheck (warnings and above) failed"
+        fi
+     elif [[ "${shellcheck_errors}" -eq 1 ]]; then
+        if ! shellcheck -S error "${fname}"; then
+            fail "Shellcheck (errors) failed"
+        fi
+    fi
+
+    if [[ ${rc} -eq 0 ]]; then
         eend --inline --inline-offset=${einfo_message_length} 0
     else
-        FAILURES+=(${fname})
+        failures+=(${fname})
         eend --inline --inline-offset=${einfo_message_length} 1
     fi
 
-    if [[ "${break}" -eq 1 && ${RC} -ne 0 ]]; then
+    if [[ "${break}" -eq 1 && ${rc} -ne 0 ]]; then
         break
     fi
 done
 
 # Display any errors to STDERR regardless if we've redirected output
-if array_empty FAILURES; then
+if array_empty failures; then
     exit 0
 else
-    eerror "Bashlint detected failures in the following $(lval files=FAILURES)" &>/dev/stderr
-    exit ${#FAILURES[@]}
+    eerror "Bashlint detected failures in the following $(lval files=failures)" &>/dev/stderr
+    exit ${#failures[@]}
 fi

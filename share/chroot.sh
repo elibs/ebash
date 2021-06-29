@@ -19,7 +19,7 @@ chroot_mount()
     argcheck CHROOT
     einfo "Mounting $(lval CHROOT CHROOT_MOUNTS)"
 
-    for m in ${CHROOT_MOUNTS[@]}; do
+    for m in "${CHROOT_MOUNTS[@]}"; do
         mkdir -p ${CHROOT}${m}
         ebindmount ${m} ${CHROOT}${m}
     done
@@ -31,7 +31,7 @@ chroot_unmount()
     einfo "Unmounting $(lval CHROOT CHROOT_MOUNTS)"
 
     local mounts=()
-    array_init_nl mounts "$(echo ${CHROOT_MOUNTS[@]} | sed 's| |\n|g' | sort -r)"
+    array_init_nl mounts "$(echo "${CHROOT_MOUNTS[@]}" | sed 's| |\n|g' | sort -r)"
     for m in "${mounts[@]}" ; do
         eunmount "${CHROOT}${m}"
     done
@@ -94,7 +94,7 @@ chroot_cmd()
 {
     argcheck CHROOT
 
-    edebug "[${CHROOT}] $@"
+    edebug "[${CHROOT}] $*"
     chroot ${CHROOT} ${CHROOT_ENV} -c "$*"
 }
 
@@ -124,7 +124,7 @@ chroot_kill()
     fi
 
     local pid
-    for pid in ${pids[@]}; do
+    for pid in "${pids[@]}"; do
         einfos "Killing ${pid} [$(ps -p ${pid} -o comm=)]"
         ekilltree --signal=${signal} --kill-after=${kill_after} ${pid}
     done
@@ -217,7 +217,7 @@ chroot_install_with_apt_get()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    edebug "[${CHROOT}] Installing $@"
+    edebug "[${CHROOT}] Installing $*"
     chroot ${CHROOT} ${CHROOT_ENV} -c "apt-get -f -qq -y --force-yes install $*"
 }
 
@@ -237,7 +237,7 @@ chroot_install()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    einfos "Installing $@"
+    einfos "Installing $*"
 
     # Check if all packages are installable
     chroot_install_check $*
@@ -247,7 +247,7 @@ chroot_install()
 
     # Post-install validation because ubuntu is entirely stupid and apt-get and aptitude can return success even though
     # the package is not installed successfully
-    for p in $@; do
+    for p in "$@"; do
 
         local pn=${p}
         local pv=""
@@ -279,7 +279,7 @@ chroot_uninstall()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    einfos "Uninstalling $@"
+    einfos "Uninstalling $*"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge $*"
 }
 
@@ -288,7 +288,7 @@ chroot_dpkg()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    edebug "[${CHROOT}] dpkg $@"
+    edebug "[${CHROOT}] dpkg $*"
     chroot ${CHROOT} ${CHROOT_ENV} -c "dpkg $*"
 }
 
@@ -297,7 +297,7 @@ chroot_apt()
     argcheck CHROOT
     [[ $# -eq 0 ]] && return 0
 
-    edebug "[${CHROOT}] ${CHROOT_APT} $@"
+    edebug "[${CHROOT}] ${CHROOT_APT} $*"
     chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} $*"
 }
 

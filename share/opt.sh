@@ -727,13 +727,13 @@ opt_display_usage()
 
         # Sort option keys so we can display options in sorted order.
         local opt_keys=()
-        opt_keys=( $(echo ${!__EBASH_OPT[@]} | tr ' ' '\n' | sort) )
+        opt_keys=( $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort) )
 
         # Display any REQUIRED options
         local opt
         local required_opts=()
         local entry
-        for opt in ${opt_keys[@]:-}; do
+        for opt in "${opt_keys[@]:-}"; do
 
             if [[ ${__EBASH_OPT_TYPE[$opt]} != "required_string" ]]; then
                 continue
@@ -763,14 +763,14 @@ opt_display_usage()
         done
 
         if [[ "${#required_opts[@]}" -gt 0 ]]; then
-            echo -n "(${required_opts[@]}) "
+            echo -n "(${required_opts[*]}) "
         fi
 
         [[ ${#__EBASH_OPT[@]} -gt 0 ]] && echo -n "[option]... "
 
         # List arguments on the first line
         local i
-        for i in ${!__EBASH_ARG_NAMES[@]} ; do
+        for i in "${!__EBASH_ARG_NAMES[@]}"; do
 
             # Display name of the argument with brackets around it if it is optional
             [[ -n ${__EBASH_ARG_REQUIRED[$i]} ]] || echo -n "["
@@ -806,7 +806,7 @@ opt_display_usage()
             echo "$(ecolor ${COLOR_USAGE})(&) Denotes options which can be given multiple times$(ecolor none)"
             echo
             local opt
-            for opt in ${opt_keys[@]}; do
+            for opt in "${opt_keys[@]}"; do
 
                 # Print the names of all option "synonyms" next to each other
                 echo -n "$(ecolor ${COLOR_USAGE})"
@@ -1064,7 +1064,11 @@ END
 argcheck()
 {
     local _argcheck_arg
-    for _argcheck_arg in $@; do
+    for _argcheck_arg in "$@"; do
+        if [[ -z "${_argcheck_arg}" ]]; then
+            continue
+        fi
+
         if [[ -z "${!_argcheck_arg:-}" ]]; then
             eerror "Missing argument '${_argcheck_arg}'"
             return 1

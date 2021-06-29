@@ -18,7 +18,7 @@ eprompt()
     $(opt_parse \
         "+silent s | Be silent and do not echo input coming from the terminal.")
 
-    echo -en "$(ecolor bold) * $@: $(ecolor none)" >&2
+    echo -en "$(ecolor bold) * $*: $(ecolor none)" >&2
     local result=""
 
     if [[ "${silent}" -eq 1 ]]; then

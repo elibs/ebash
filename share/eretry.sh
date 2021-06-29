@@ -106,7 +106,7 @@ eretry_internal()
     warn_every=${warn_every%s}
 
     # If no command to execute just return success immediately
-    if [[ -z "${cmd[@]:-}" ]]; then
+    if [[ -z "${cmd[*]:-}" ]]; then
         return 0
     fi
 
