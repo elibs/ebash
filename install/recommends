@@ -34,7 +34,6 @@ packages=(
     gdb
     gettext
     gzip
-    shellcheck
     util-linux
 )
 
@@ -64,6 +63,7 @@ if os_distro alpine; then
         ncurses-terminfo
         net-tools
         pstree
+        shellcheck
         xz
     )
 
@@ -83,6 +83,7 @@ elif os_distro arch; then
         git
         jq
         net-tools
+        shellcheck
     )
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -104,6 +105,7 @@ elif os_distro centos; then
         ncurses
         net-tools
         psmisc
+        ShellCheck
         xz
     )
 
@@ -130,6 +132,7 @@ elif os_distro debian; then
         jq
         net-tools
         psmisc
+        shellcheck
         xz-utils
     )
 
@@ -159,6 +162,7 @@ elif os_distro fedora; then
         ncurses
         net-tools
         psmisc
+        ShellCheck
         xz
     )
 
@@ -185,6 +189,7 @@ elif os_distro gentoo; then
         net-tools
         pigz
         psmisc
+        shellcheck-bin
     )
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -215,6 +220,7 @@ elif os_distro ubuntu; then
         mkisofs
         net-tools
         psmisc
+        ShellCheck
         xz-utils
     )
 
@@ -232,6 +238,7 @@ elif os darwin; then
         iproute2mac
         jq
         pstree
+        shellcheck
     )
 
     if ! command_exists docker; then

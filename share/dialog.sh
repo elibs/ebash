@@ -106,7 +106,7 @@ dialog()
         dialog_args+=( "${@}" )
 
         # Use quote_eval so that any nested quotes and whitespace inside dialog_args are preserved properly.
-        if quote_eval "command dialog --colors ${dialog_args[*]}"; then
+        if quote_eval "command dialog --colors ${dialog_args[@]}"; then
             echo 0 > "${rc_file}"
         else
             echo $? > "${rc_file}"
@@ -180,7 +180,7 @@ usage to `eerror` and will display a dialog msgbox with the provided text.
 END
 dialog_error()
 {
-    $(dialog --no-cancel --colors --title "Error" --msgbox "\Zb\Z1$*" 10 50)
+    $(dialog --no-cancel --colors --title "Error" --msgbox "\Zb\Z1$@" 10 50)
     return 0
 }
 
@@ -956,7 +956,7 @@ __dialog_select_list()
     (
         __EBASH_INSIDE_TRY=1
         disable_die_parent
-        eval "columns=( \"\${${__array}[@]}\" )"
+        eval "columns=( \"\${$__array[@]}\" )"
 
         if command dialog --colors "${dialog_args[@]}" "${columns[@]}"; then
             echo 0 > "${rc_file}"
