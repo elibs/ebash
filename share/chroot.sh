@@ -31,8 +31,8 @@ chroot_unmount()
     einfo "Unmounting $(lval CHROOT CHROOT_MOUNTS)"
 
     local mounts=()
-    array_init_nl mounts "$(echo "${CHROOT_MOUNTS[@]}" | sed 's| |\n|g' | sort -r)"
-    for m in "${mounts[@]}" ; do
+    array_init_nl mounts "$(echo ${CHROOT_MOUNTS[@]} | sed 's| |\n|g' | sort -r)"
+    for m in ${mounts[@]} ; do
         eunmount "${CHROOT}${m}"
     done
 }

@@ -270,8 +270,8 @@ this is just a passthrough operation into mount you should see mount(8) manpage 
 END
 emount()
 {
-    if edebug_enabled || [[ "${*}" =~ (^| )(-v|--verbose)( |$) ]]; then
-        einfos "Mounting $*"
+    if edebug_enabled || [[ "${@}" =~ (^| )(-v|--verbose)( |$) ]]; then
+        einfos "Mounting $@"
     fi
 
     mount "${@}"
@@ -283,7 +283,7 @@ eunmount_internal()
         "+verbose v | Verbose output.")
 
     local mnt mnt_type
-    for mnt in "$@"; do
+    for mnt in $@; do
 
         # Skip if not mounted.
         emounted "${mnt}" || continue
@@ -318,7 +318,7 @@ eunmount()
     fi
 
     local mnt
-    for mnt in "$@"; do
+    for mnt in $@; do
 
         # If empty string just skip it
         [[ -z "${mnt}" ]] && continue
@@ -354,7 +354,7 @@ eunmount()
 
                 # Lazily unmount all mounts
                 local match
-                for match in "${matches[@]}"; do
+                for match in ${matches[@]}; do
                     opt_forward eunmount_internal verbose -- "${match}"
                 done
             fi

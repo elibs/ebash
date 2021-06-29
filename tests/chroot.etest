@@ -50,7 +50,7 @@ check_mounts()
     $(opt_parse count)
 
     # Verify chroot paths not mounted
-    for path in "${CHROOT_MOUNTS[@]}"; do
+    for path in ${CHROOT_MOUNTS[@]}; do
 
         if [[ ${count} -eq 0 ]]; then
             assert_false emounted ${CHROOT}${path}
@@ -332,7 +332,7 @@ ETEST_chroot_daemon_bindmount_file()
 
     # Verify mounts are mounted
     etestmsg "Verifying mounts were mounted"
-    for mnt in "${bindmounts[@]}" "${tmpdir1}/YYY"; do
+    for mnt in "${bindmounts[@]} ${tmpdir1}/YYY"; do
         assert_true emounted ${CHROOT}/${mnt}
     done
 
@@ -345,7 +345,7 @@ ETEST_chroot_daemon_bindmount_file()
 
     # Verify mounts are NOT mounted
     etestmsg "Verifying mounts were unmounted"
-    for mnt in "${bindmounts[@]}" "${tmpdir1}/YYY"; do
+    for mnt in "${bindmounts[@]} ${tmpdir1}/YYY"; do
         assert_false emounted ${CHROOT}/${mnt}
     done
 }
