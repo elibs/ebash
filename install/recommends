@@ -105,9 +105,13 @@ elif os_distro centos; then
         ncurses
         net-tools
         psmisc
-        ShellCheck
         xz
     )
+
+    # In CentOS:7 ShellCheck is too old. In CentOS:8 it is not even installable. So use pre-built binary.
+    efetch --style=einfo https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz /tmp
+    mkdir -p "/usr/local/bin"
+    tar --directory "/usr/local/bin" --extract --xz --file "/tmp/shellcheck-stable.linux.x86_64.tar.xz" "shellcheck-stable/shellcheck"
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -135,6 +139,11 @@ elif os_distro debian; then
         shellcheck
         xz-utils
     )
+
+    # In debian, ShellCheck is too old so use pre-built binary.
+    efetch --style=einfo https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz /tmp
+    mkdir -p "/usr/local/bin"
+    tar --directory "/usr/local/bin" --extract --xz --file "/tmp/shellcheck-stable.linux.x86_64.tar.xz" "shellcheck-stable/shellcheck"
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -220,7 +229,7 @@ elif os_distro ubuntu; then
         mkisofs
         net-tools
         psmisc
-        ShellCheck
+        shellcheck
         xz-utils
     )
 
