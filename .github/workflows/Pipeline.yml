@@ -61,7 +61,7 @@ jobs:
         run: bin/bashlint --errors
 
       - name: Self Test
-        run: bin/selftest
+        run: bin/eretry bin/selftest
 
       - name: Test
         run: bin/etest --work-dir .work/output --failures 1
@@ -96,7 +96,7 @@ jobs:
         run: bin/bashlint --errors
 
       - name: Self Test
-        run: bin/selftest
+        run: bin/eretry bin/selftest
 
       - name: Test
         run: bin/etest --work-dir .work/output --failures 1
