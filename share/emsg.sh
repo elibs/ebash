@@ -1081,7 +1081,7 @@ print_value()
     local __array_regex="declare -a"
     local __assoc_regex="declare -A"
     if [[ ${__decl} =~ ${__array_regex} ]] ; then
-        if [[ BASH_VERSINFO[0] -ge 5 || ( BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -gt 3 ) ]] ; then
+        if [[ ${BASH_VERSINFO[0]} -ge 5 || ( ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -gt 3 ) ]] ; then
             # BASH 4.4 and beyond -- no single quote
             __val=$(declare -p ${__input} | sed -e "s/[^=]*=(\(.*\))/(\1)/" -e "s/[[[:digit:]]\+]=//g")
         else
