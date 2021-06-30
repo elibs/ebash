@@ -24,5 +24,7 @@ $(skip_if "os_distro centos && os_release 8")
 END
 skip_if()
 {
-    echo "eval if \"${*}\"; then ewarn \"Skipping ${FUNCNAME[1]} because '${*}'\"; return 0; fi"
+    # shellcheck disable=SC2145
+    # We do not want to use $* as that doesn't preserve word splitting that we want to honor
+    echo "eval if ${@}; then ewarn \"Skipping ${FUNCNAME[1]} because '${@}'\"; return 0; fi"
 }
