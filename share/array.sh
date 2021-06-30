@@ -317,7 +317,7 @@ array_sort()
             local idx
             for idx in $(array_indexes ${__array}); do
                 eval "echo \${${__array}[$idx]}"
-            done | sort ${flags[@]:-}
+            done | sort ${flags[*]:-}
         )
     done
 }

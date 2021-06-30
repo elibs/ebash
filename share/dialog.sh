@@ -106,6 +106,8 @@ dialog()
         dialog_args+=( "${@}" )
 
         # Use quote_eval so that any nested quotes and whitespace inside dialog_args are preserved properly.
+        # shellcheck disable=SC2145
+        # We do not want to use $* here as it collapses whitespace that we want preserved.
         if quote_eval "command dialog --colors ${dialog_args[@]}"; then
             echo 0 > "${rc_file}"
         else
@@ -180,6 +182,8 @@ usage to `eerror` and will display a dialog msgbox with the provided text.
 END
 dialog_error()
 {
+    # shellcheck disable=SC2145
+    # We do not want to use $* here as it collapses whitespace that we want preserved.
     $(dialog --no-cancel --colors --title "Error" --msgbox "\Zb\Z1$@" 10 50)
     return 0
 }
@@ -956,7 +960,7 @@ __dialog_select_list()
     (
         __EBASH_INSIDE_TRY=1
         disable_die_parent
-        eval "columns=( \"\${$__array[@]}\" )"
+        eval "columns=( \"\${${__array}[@]}\" )"
 
         if command dialog --colors "${dialog_args[@]}" "${columns[@]}"; then
             echo 0 > "${rc_file}"
