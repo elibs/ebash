@@ -311,7 +311,7 @@ opt_parse()
     echo 'argcheck "${__EBASH_ARG_REQUIRED[@]:-}" ; '
 
     # Make sure $@ is filled with args that weren't already consumed
-    echo 'if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then'
+    echo 'if [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then'
     echo '    set -- "${__EBASH_ARGS[@]}" ; '
     echo 'else '
     echo '    set -- ; '
@@ -488,7 +488,7 @@ opt_parse_options()
 {
     # Odd idiom here to determine if there are no options because of bash 4.2/4.3/4.4 changing behavior. See array_size
     # in array.sh for more info.
-    if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 ]] ; then
+    if [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -eq 2 ]] ; then
 
         if [[ ${#__EBASH_FULL_ARGS[@]:-} -eq 0 ]] ; then
             return 0
@@ -678,7 +678,7 @@ opt_parse_options()
     #
     # Odd idiom here to determine if this array contains anything because of bash 4.2/4.3/4.4 changing behavior. See
     # array_size in array.sh for more info.
-    if [[ BASH_VERSINFO[0] -eq 4 && BASH_VERSINFO[1] -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then
+    if [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then
         __EBASH_ARGS=( "${__EBASH_ARGS[@]:$shift_count}" )
     fi
 }
