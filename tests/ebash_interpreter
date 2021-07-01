@@ -1,4 +1,5 @@
 #!/usr/bin/env ../../../bin/ebash
+# shellcheck shell=bash
 #
 # Copyright 2020, Marshall McMullen <marshall.mcmullen@gmail.com>
 #

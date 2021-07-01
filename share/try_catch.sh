@@ -178,7 +178,7 @@ tryrc()
     local actual_rc=0
     try
     {
-        if [[ -n "${cmd[@]:-}" ]]; then
+        if [[ -n "${cmd[*]:-}" ]]; then
 
             # Redirect subshell's STDOUT and STDERR to requested locations
             exec >${stdout_file}

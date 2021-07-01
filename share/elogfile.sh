@@ -104,7 +104,7 @@ elogfile()
                 #
                 # This will keep them alive long enough to display our error output and such. SIGPIPE will take care of
                 # them, and the kill -9 below will make double sure.
-                trap "" ${TTY_SIGNALS[@]}
+                trap "" "${TTY_SIGNALS[@]}"
                 echo "${BASHPID}" >${pid_pipe}
 
                 # Past this point, we hand control to the tee processes which we expect to die in their own time. We no
@@ -112,6 +112,8 @@ elogfile()
                 nodie_on_error
 
                 if [[ ${tail} -eq 1 ]]; then
+                    # shellcheck disable=SC2261
+                    # This tee is carefully constructed to send stdout to a named file descriptor so disable shellcheck
                     tee -a "${files[@]}" <${pipe} >&$(get_stream_fd ${name}) 2>/dev/null
                 else
                     tee -a "${files[@]}" <${pipe} >/dev/null 2>&1

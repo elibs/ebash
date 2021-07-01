@@ -90,7 +90,7 @@ pack_get()
 
 pack_contains()
 {
-    [[ -n $(pack_get $@) ]]
+    [[ -n $(pack_get "$@") ]]
 }
 
 opt_usage pack_copy <<'END'

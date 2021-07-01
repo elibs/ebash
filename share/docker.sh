@@ -158,7 +158,7 @@ docker_build()
         docker history "${image}" > "${histfile}"
         docker inspect "${image}" > "${inspfile}"
 
-        opt_forward docker_pull image registry username password cache_from -- ${tag[@]:-}
+        opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
 
         return 0
 
@@ -170,7 +170,7 @@ docker_build()
             docker history "${image}" > "${histfile}"
             docker inspect "${image}" > "${inspfile}"
 
-            opt_forward docker_pull image registry username password cache_from -- ${tag[@]:-}
+            opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
 
             return 0
         fi
@@ -216,7 +216,7 @@ docker_build()
     if [[ ${push} -eq 1 ]]; then
         local push_tags
         push_tags=( ${image} ${tag[@]:-} )
-        opt_forward docker_push registry username password -- ${push_tags[@]}
+        opt_forward docker_push registry username password -- ${push_tags[*]}
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
@@ -505,7 +505,7 @@ __docker_depends_sha()
     fi
 
     local sha_detail=""
-    sha_detail+="$(find ${depends[@]} ${exclude} -type f -print0 \
+    sha_detail+="$(find ${depends[*]} ${exclude} -type f -print0 \
         | sort -z \
         | xargs -0 "${shafunc}sum" \
         | awk '{print $2"'@${shafunc}:'"$1}'

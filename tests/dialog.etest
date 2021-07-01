@@ -51,7 +51,7 @@ ETEST_dialog_keys()
     )
 
     etestmsg "Displaying keys"
-    for key in ${keys[@]}; do
+    for key in "${keys[@]}"; do
         einfo "${key}="$(echo "${!key}" | cat -evt)""
     done
 }

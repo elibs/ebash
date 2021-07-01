@@ -372,7 +372,7 @@ pkg_upgrade()
     $(opt_parse \
         "@names | Names of the packages that should be upgraded to the newest possible versions.")
 
-    pkg_installed ${names[@]}
+    pkg_installed "${names[@]}"
 
     einfo "Upgrading packages $(lval names)"
 

@@ -67,10 +67,8 @@ assert_test_fail()
         assert_match "${output_state}" "${this_test}"
         assert_match "${output_state}" " !! "
 
-        # Make sure the test was listed as FAILED in the log and that it's not in the lists of failed or flaky tests
+        # Make sure the test was listed as FAILED in the log and that it's not in the lists of flaky tests
         assert_match "${ETEST_LOG}" "${this_test} FAILED"
-        assert_not_match "${ETEST_OUTPUT}" "FAILED TESTS:.*${this_test}"
-        assert_not_match "${ETEST_LOG}" "FAILED TESTS:.*${this_test}"
         assert_not_match "${ETEST_OUTPUT}" "FLAKY TESTS:.*${this_test}"
         assert_not_match "${ETEST_LOG}" "FLAKY TESTS:.*${this_test}"
 
@@ -104,10 +102,14 @@ assert_test_pass()
         assert_match "${ETEST_LOG}" "${this_test} PASSED"
 
         # And make sure it's not in either of the lists of failed tests
-        assert_not_match "${ETEST_OUTPUT}" "FAILED TESTS:.*${this_test}"
-        assert_not_match "${ETEST_LOG}" "FAILED TESTS:.*${this_test}"
-        assert_not_match "${ETEST_OUTPUT}" "FLAKY TESTS:.*${this_test}"
-        assert_not_match "${ETEST_LOG}" "FLAKY TESTS:.*${this_test}"
+        # WARNING: Do not check if it is a FLAKY test since this assert is only verifying that it was not ultimately
+        #          marked as a FAILURE. If a test is flaky it may fail the first 2 times and the third time it may pass
+        #          and we'd like to test that it ultimately passes irrespective of flakiness. There is a separate assert
+        #          to check if something is a flaky test or not.
+        ETEST_OUTPUT_NO_FLAKY=$(echo "${ETEST_OUTPUT}" | sed '/FLAKY TESTS:/,$d')
+        ETEST_LOG_NO_FLAKY=$(echo "${ETEST_LOG}"       | sed '/FLAKY TESTS:/,$d')
+        assert_not_match "${ETEST_OUTPUT_NO_FLAKY}" "FAILED TESTS:.*${this_test}"
+        assert_not_match "${ETEST_LOG_NO_FLAKY}" "FAILED TESTS:.*${this_test}"
 
         # Ensure the test is reported in the list of passing tests in the json output file
         jq --raw-output '.testsPassed | .[]' "${ETEST_JSON}" | grep --quiet "${this_test}"
@@ -139,8 +141,10 @@ assert_test_flaky()
         assert_match "${ETEST_LOG}" "${this_test} PASSED"
 
         # And make sure it's not in either of the lists of failed tests
-        assert_not_match "${ETEST_OUTPUT}" "FAILED TESTS:.*${this_test}"
-        assert_not_match "${ETEST_LOG}" "FAILED TESTS:.*${this_test}"
+        ETEST_OUTPUT_NO_FLAKY=$(echo "${ETEST_OUTPUT}" | sed '/FLAKY TESTS:/,$d')
+        ETEST_LOG_NO_FLAKY=$(echo "${ETEST_LOG}"       | sed '/FLAKY TESTS:/,$d')
+        assert_not_match "${ETEST_OUTPUT_NO_FLAKY}" "FAILED TESTS:.*${this_test}"
+        assert_not_match "${ETEST_LOG_NO_FLAKY}" "FAILED TESTS:.*${this_test}"
 
         # And make sure it was reported as a flaky test
         assert_match "${ETEST_OUTPUT}" "FLAKY TESTS:.*${this_test}"
@@ -322,7 +326,7 @@ SELFTEST_flaky_failures_2()
     assert_test_fail flaky_fails_twice
 }
 
-# Flkay test with a test that passes third time and failures=3
+# Flaky test with a test that passes third time and failures=3
 SELFTEST_flaky_failures_3()
 {
     run_etest --filter flaky_fails_twice --failures 3 flaky.etest
@@ -387,7 +391,7 @@ array_sort SELFTESTS
 # outside of etest's normal automatic directory deletion that happens after a test run is complete. This allows a
 # test to have a persistent place to store things. This is necessary for our flaky tests where we need to keep track
 # of how many times the test has been executed so we need a persistent place to store that information.
-for selftest in ${SELFTESTS[@]}; do
+for selftest in "${SELFTESTS[@]}"; do
 (
     declare -xg SELFTEST_DIR_OUTPUT
     SELFTEST_DIR_OUTPUT="$(readlink -f output)"

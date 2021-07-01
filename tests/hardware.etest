@@ -185,7 +185,7 @@ ETEST_get_memory_invalid_units()
         zap
     )
 
-    for arg in ${invalid[@]}; do
+    for arg in "${invalid[@]}"; do
         echo "${arg}"
         assert_false get_memory_size --unites=${arg}
     done
