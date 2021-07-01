@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+opt_usage main <<'END'
+This script is used to install ShellCheck onto a system. For distros which have a new enough version packaged up in
+the package manager we can simply invoke their installer. Otherwise we install from a prebuilt binary published upstream
+by shellcheck.
+END
+
+OS=$(os_pretty_name)
+ebanner --uppercase "Installing ShellCheck package" OS
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Main
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+# Determine what the name of the package is to install on this OS/Distro (if any).
+package=""
+if os darwin || os_distro alpine arch; then
+    package="shellcheck"
+elif os_distro fedora; then
+    package="ShellCheck"
+elif os_distro gentoo; then
+    package="shellcheck-bin"
+fi
+
+# If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
+if [[ -n "${package}" ]]; then
+    pkg_install "${package}"
+else
+    ewarn "ShellCheck not available in package manager. Downloading pre-built binary from upstream"
+    efetch --style=einfo https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz /tmp
+    trap_add "rm -rfv /tmp/shellcheck-stable.linux.x86_64.tar.xz /tmp/shellcheck-stable"
+    mkdir -p "/usr/local/bin"
+    tar --directory "/tmp" --extract --xz --file "/tmp/shellcheck-stable.linux.x86_64.tar.xz"
+    cp -v "/tmp/shellcheck-stable/shellcheck" "/usr/local/bin"
+fi
+
+# Verify installation succeeded
+command_exists "shellcheck"
