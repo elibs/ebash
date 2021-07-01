@@ -32,6 +32,8 @@ $(opt_parse \
     "+internal i=1                 | Run all ebash internal checks. This includes checking for bash syntax errors,
                                      non-versioned ebash, deprecated ebash code, ambiguous return statements, combined
                                      local variable declaration and assignment with a subshell result, etc."           \
+    ":exclude x=${EXCLUDE:-}       | Files that match this (bash-style) regular expression will not be run."           \
+    ":filter  f=${FILTER:-}        | Files that match this (bash-style) regular expression will be run."               \
     "+git_files                    | Run bashlint on all git files."                                                   \
     "+git_files_no_modules         | Run bashlint on all git files but skip any files contained inside git modules."   \
     "+shellcheck_errors errors     | Run Shellcheck looking for severity=error."                                       \
@@ -48,6 +50,14 @@ elif [[ ${git_files} -eq 1 ]]; then
 else
     paths=( ${@:-.} )
 fi
+
+# Layer the filter setting by first looking for any static filter settings in the config file, then any explicit filter
+# options passed in on the command-line. Join any whitespace with a '|' to convert it to a bash style regex.
+filter=$(echo "${filter}" | tr ' ' '|' | sed -e 's/^|//' -e 's/|$//')
+
+# Layer the exclude setting by first looking for any static exclusions in the config file, then any explicit exclusions
+# passed in on the command-line. Join any whitespace with a '|' to convert it to a bash style regex.
+exclude=$(echo "${exclude}" | tr ' ' '|' | sed -e 's/^|//' -e 's/|$//')
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
@@ -75,27 +85,52 @@ if [[ ${quiet} -eq 1 ]]; then
     exec &> >(edebug)
 fi
 
-ebanner --uppercase "BASHLINT" \
+ebanner --uppercase "BASHLINT"                                           \
+    exclude                                                              \
+    filter                                                               \
     files="$(string_truncate -e $(( $(tput cols) - 30 )) "${paths[@]}")" \
     $(opt_log | sed -e 's|,| |g')
 
+# -- Lint all files --
 for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
 
     # If this isn't a bash script skip it
-    file ${fname} | grep -Pq "(bash script|Bourne-Again shell script)" || continue
+    if ! file ${fname} | grep -Pq "(bash script|Bourne-Again shell script)"; then
+        edebug "Skipping ${fname} (non-bash file)"
+        continue
+    fi
 
     # Never do any further parsing on our own file since they would all be false positives
-    [[ "$(readlink -f ${fname})" == "$(readlink -f $0)" ]] && continue
+    if [[ "$(readlink -f ${fname})" == "$(readlink -f $0)" ]]; then
+        edebug "Skipping ${fname} (self)"
+        continue
+    fi
+
+    # If the test name matches a specified EXCLUDE, then skip it
+    if [[ -n ${exclude} && ${fname} =~ ${exclude} ]] ; then
+        edebug "Skipping ${fname} (excluded)"
+        continue
+    fi
+
+    # If the filename matches a non-empty filter or we found functions that match the filter then run it.
+    if [[ -n ${filter} && ! ${fname} =~ ${filter} ]]; then
+        edebug "Skipping ${fname} (filtered)"
+        continue
+    fi
+
+    edebug "Linting ${fname}"
 
     # Display what file we are processing
     EFUNCS_COLOR=$(efuncs_color_as_bool)
     einfo_message=$(einfo -n "${fname}" 2>&1)
     einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
     echo -n "${einfo_message}" >&2
-    bash -n ${fname}
 
     #---- INTERNAL ----#
     if [[ "${internal}" -eq 1 ]]; then
+
+        # First look for any internal syntax errors reported by bash itself
+        bash -n ${fname}
 
         # Read file into variable so we can do a little preprocessing on it before passing it into the various grep commands
         # below to strip out particular patterns which would otherwise cause false positives.

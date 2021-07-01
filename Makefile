@@ -46,7 +46,7 @@ clobber: clean
 
 .PHONY: lint bashlint
 lint bashlint:
-	bin/bashlint --break=${BREAK} --internal --errors
+	bin/bashlint --break=${BREAK} --internal --errors --filter=${FILTER} --exclude=${EXCLUDE}
 
 .PHONY: selftest
 selftest:
