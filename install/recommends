@@ -17,22 +17,6 @@ END
 
 #----------------------------------------------------------------------------------------------------------------------
 #
-# Helper Functions
-#
-#----------------------------------------------------------------------------------------------------------------------
-
-install_shellcheck()
-{
-    efetch --style=einfo https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz /tmp
-    trap_add "rm -rfv /tmp/shellcheck-stable.linux.x86_64.tar.xz /tmp/shellcheck-stable"
-    mkdir -p "/usr/local/bin"
-    tar --directory "/tmp" --extract --xz --file "/tmp/shellcheck-stable.linux.x86_64.tar.xz"
-    cp -v "/tmp/shellcheck-stable/shellcheck" "/usr/local/bin"
-    command_exists "shellcheck"
-}
-
-#----------------------------------------------------------------------------------------------------------------------
-#
 # All
 #
 #----------------------------------------------------------------------------------------------------------------------
@@ -79,7 +63,6 @@ if os_distro alpine; then
         ncurses-terminfo
         net-tools
         pstree
-        shellcheck
         xz
     )
 
@@ -99,7 +82,6 @@ elif os_distro arch; then
         git
         jq
         net-tools
-        shellcheck
     )
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -123,9 +105,6 @@ elif os_distro centos; then
         psmisc
         xz
     )
-
-    # In CentOS:7 ShellCheck is too old. In CentOS:8 it is not even installable. So use pre-built binary.
-    install_shellcheck
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -152,9 +131,6 @@ elif os_distro debian; then
         psmisc
         xz-utils
     )
-
-    # In debian, ShellCheck is too old so use pre-built binary.
-    install_shellcheck
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -209,7 +185,6 @@ elif os_distro gentoo; then
         net-tools
         pigz
         psmisc
-        shellcheck-bin
     )
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -243,9 +218,6 @@ elif os_distro ubuntu; then
         xz-utils
     )
 
-    # In ubuntu, ShellCheck is too old so use pre-built binary.
-    install_shellcheck
-
 #----------------------------------------------------------------------------------------------------------------------
 #
 # MacOS (Darwin)
@@ -260,7 +232,6 @@ elif os darwin; then
         iproute2mac
         jq
         pstree
-        shellcheck
     )
 
     if ! command_exists docker; then
@@ -276,3 +247,6 @@ fi
 
 array_sort --unique packages
 pkg_install "${packages[@]}"
+
+# Also install shellcheck via helper script
+${EBASH_HOME}/install/shellcheck
