@@ -75,7 +75,7 @@ if [[ ${quiet} -eq 1 ]]; then
     exec &> >(edebug)
 fi
 
-ebanner --uppercase "Bashlint"                                           \
+ebanner --uppercase "BASHLINT" \
     files="$(string_truncate -e $(( $(tput cols) - 30 )) "${paths[@]}")" \
     $(opt_log | sed -e 's|,| |g')
 

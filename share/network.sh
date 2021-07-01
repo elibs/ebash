@@ -8,7 +8,7 @@
 # version.
 
 # Set root of sysfs tree for easier mockability in unit tests
-: ${EBASH_SYSFS:=/sys}
+: ${__EBASH_SYSFS:=/sys}
 
 opt_usage valid_ip <<'END'
 Check if a given input is a syntactically valid IP Address.
@@ -209,9 +209,9 @@ get_network_interfaces()
         networksetup -listallhardwareports | awk '/Hardware Port: Wi-Fi/{getline; print $2}'
     fi
 
-    for iface in $(ls -1 ${EBASH_SYSFS}/class/net); do
+    for iface in $(ls -1 ${__EBASH_SYSFS}/class/net); do
         # Skip virtual devices, we only want physical
-        [[ ! -e ${EBASH_SYSFS}/class/net/${iface}/device ]] && continue
+        [[ ! -e ${__EBASH_SYSFS}/class/net/${iface}/device ]] && continue
         echo "${iface}"
     done | tr '\n' ' ' || true
 }
@@ -257,20 +257,20 @@ opt_usage get_permanent_mac_address <<'END'
 Get the permanent MAC address for given ifname.
 
 > **_NOTE:_** `ethtool -P` is not reliable on all cards since the firmware has to support it properly. So on Linux we
-instead look in EBASH_SYSFS since this is far more reliable as we're talking direct to the kernel. But on OSX we instead
-just use ethtool.
+instead look in __EBASH_SYSFS since this is far more reliable as we're talking direct to the kernel. But on OSX we
+instead just use ethtool.
 END
 get_permanent_mac_address()
 {
     $(opt_parse ifname)
 
     if os Linux; then
-        if [[ -e ${EBASH_SYSFS}/class/net/${ifname}/master ]]; then
-            sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f ${EBASH_SYSFS}/class/net/${ifname}/master)) \
+        if [[ -e ${__EBASH_SYSFS}/class/net/${ifname}/master ]]; then
+            sed -n "/Slave Interface: ${ifname}/,/^$/p" /proc/net/bonding/$(basename $(readlink -f ${__EBASH_SYSFS}/class/net/${ifname}/master)) \
                 | grep "Permanent HW addr" \
                 | sed -e "s/Permanent HW addr: //"
         else
-            cat ${EBASH_SYSFS}/class/net/${ifname}/address
+            cat ${__EBASH_SYSFS}/class/net/${ifname}/address
         fi
     elif command_exists ethtool; then
         ethtool -P "${ifname}" | sed -e 's|Permanent address: ||'
@@ -298,7 +298,7 @@ get_network_pci_device()
 
     # If that did not give a result (HyperV), fall back to looking at the device path in sysfs
     if [[ -z ${pci_addr} ]]; then
-        pci_addr=$(cd ${EBASH_SYSFS}/class/net/${ifname}/device; basename $(pwd -P))
+        pci_addr=$(cd ${__EBASH_SYSFS}/class/net/${ifname}/device; basename $(pwd -P))
     fi
 
     echo ${pci_addr}

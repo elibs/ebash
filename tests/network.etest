@@ -11,18 +11,18 @@
 # may not have actual sysfs tree.
 setup()
 {
-    EBASH_SYSFS="${TEST_DIR_OUTPUT}/sys"
+    __EBASH_SYSFS="${TEST_DIR_OUTPUT}/sys"
 
-    etestmsg "Creating mock network interfaces in ${EBASH_SYSFS}"
+    etestmsg "Creating mock network interfaces in ${__EBASH_SYSFS}"
 
     for ifname in eth0 eth1; do
         local ifdir
-        ifdir="${EBASH_SYSFS}/class/net/${ifname}"
+        ifdir="${__EBASH_SYSFS}/class/net/${ifname}"
         mkdir -p "${ifdir}/device"
         echo "a8:7e:ea:5d:e4:bd" > "${ifdir}/address"
     done
 
-    find "${EBASH_SYSFS}"
+    find "${__EBASH_SYSFS}"
 }
 
 ETEST_fully_qualify_hostname_ignores_case()
