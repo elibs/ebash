@@ -7,6 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Setup
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 : ${EBASH_HOME:=$(dirname $0)/..}
 : ${EBASH:=${EBASH_HOME}/share}
 source ${EBASH}/ebash.sh || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
@@ -26,18 +32,28 @@ $(opt_parse \
     "+internal i=1                 | Run all ebash internal checks. This includes checking for bash syntax errors,
                                      non-versioned ebash, deprecated ebash code, ambiguous return statements, combined
                                      local variable declaration and assignment with a subshell result, etc."           \
+    "+git_files                    | Run bashlint on all git files."                                                   \
+    "+git_files_no_modules         | Run bashlint on all git files but skip any files contained inside git modules."   \
     "+shellcheck_errors errors     | Run Shellcheck looking for severity=error."                                       \
     "+shellcheck_warnings warnings | Run Shellcheck looking for severity=warning and above."                           \
     "+shellcheck_info info         | Run Shellcheck looking for severity=warning and above."                           \
     "+shellcheck_style style       | Run Shellcheck looking for severity=warning and above."                           \
 )
 
-if [[ ${quiet} -eq 1 ]]; then
-    exec &> >(edebug)
+# Paths to recursively parse
+if [[ ${git_files_no_modules} -eq 1 ]]; then
+    paths=( $(git ls-files | grep -Fxvf  <(git config --file .gitmodules --name-only --get-regexp path | sed -e 's|submodule.||' -e 's|.path||') | awk -F"/" '{print $1}' | uniq | grep -v "\.") )
+elif [[ ${git_files} -eq 1 ]]; then
+    paths=( $(git ls-files) )
+else
+    paths=( ${@:-.} )
 fi
 
-# Paths to recursively parse
-paths=( ${@:-.} )
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Helper Functions
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 # Helper function to display a failure and increment our failure count
 rc=0
@@ -49,7 +65,20 @@ fail()
     rc=1
 }
 
-ebanner "Validating bash scripts" paths opts=$(opt_log)
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Main
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+if [[ ${quiet} -eq 1 ]]; then
+    exec &> >(edebug)
+fi
+
+ebanner --uppercase "Bashlint"                                           \
+    files="$(string_truncate -e $(( $(tput cols) - 30 )) "${paths[@]}")" \
+    $(opt_log | sed -e 's|,| |g')
+
 for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
 
     # If this isn't a bash script skip it
