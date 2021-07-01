@@ -22,26 +22,26 @@ ETEST_cgroup_tree()
 
     etestmsg "Testing full cgroup_tree"
     found_tree=($(cgroup_tree))
-    for item in ${A[@]} ${B[@]} ${C[@]} ; do
+    for item in "${A[@]}" "${B[@]}" "${C[@]}"; do
         assert array_contains found_tree $item
     done
 
 
     etestmsg "Testing that / is the root cgroup_tree"
     found_tree=($(cgroup_tree /))
-    for item in ${A[@]} ${B[@]} ${C[@]} ; do
+    for item in "${A[@]}" "${B[@]}" "${C[@]}"; do
         assert array_contains found_tree $item
     done
 
     etestmsg "Testing cgroup_tree a"
     found_tree=($(cgroup_tree ${CGROUP}/a))
-    for item in ${A[@]} ; do
+    for item in "${A[@]}"; do
         assert array_contains found_tree $item
     done
 
     etestmsg "Testing cgroup_tree with multiple parameters"
     found_tree=($(cgroup_tree ${CGROUP}/b ${CGROUP}/c))
-    for item in ${B[@]} ${C[@]} ; do
+    for item in "${B[@]}" "${C[@]}"; do
         assert array_contains found_tree $item
     done
 }
@@ -103,7 +103,7 @@ ETEST_cgroup_create_destroy()
 
     # Create cgroup and make sure the directories exist in each subsystem
     cgroup_create ${CGROUP}
-    for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
+    for subsys in "${CGROUP_SUBSYSTEMS[@]}"; do
         assert test -d /sys/fs/cgroup/${subsys}/${CGROUP}
     done
 
@@ -111,7 +111,7 @@ ETEST_cgroup_create_destroy()
 
     # And make sure they get cleaned up
     cgroup_destroy ${CGROUP}
-    for subsys in ${CGROUP_SUBSYSTEMS[@]} ; do
+    for subsys in "${CGROUP_SUBSYSTEMS[@]}"; do
         assert test ! -d /sys/fs/cgroup/${subsys}/${CGROUP}
     done
 }

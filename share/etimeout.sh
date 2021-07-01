@@ -37,7 +37,7 @@ etimeout()
     local start=${SECONDS}
 
     # If no command to execute just return success immediately
-    if [[ -z "${cmd[@]:-}" ]]; then
+    if [[ -z "${cmd[*]:-}" ]]; then
         return 0
     fi
 

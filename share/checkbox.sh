@@ -13,7 +13,7 @@ filled in with a successful check mark or with a failing X. This is useful to di
 END
 checkbox_open()
 {
-    echo -n "$(tput setaf 209)$(tput bold)[ ]$(tput sgr0) ${@}" >&2
+    echo -n "$(tput setaf 209)$(tput bold)[ ]$(tput sgr0) ${*}" >&2
 }
 
 opt_usage checkbox_open_timer <<'END'
@@ -34,7 +34,7 @@ checkbox_open_timer()
         while true; do
             now=${SECONDS}
             diff=$(( ${now} - ${start} ))
-            printf "$(tput setaf 209)$(tput bold)[ ]$(tput sgr0) %-20s" "$@"
+            printf "$(tput setaf 209)$(tput bold)[ ]$(tput sgr0) %-20s" "$*"
             printf " $(tput bold)[%02d:%02d:%02d]\r$(tput sgr0)" $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 ))
 
             # Optionally display a newline between each ticker. This is helpful from jenkins jobs where we want to see
@@ -92,7 +92,7 @@ checkbox is a simple function to display a checkbox at the start of the line fol
 END
 checkbox()
 {
-    echo "$(tput setaf 2)$(tput bold)[✓]$(tput sgr0) ${@}" >&2
+    echo "$(tput setaf 2)$(tput bold)[✓]$(tput sgr0) ${*}" >&2
 }
 
 opt_usage checkbox_passed <<'END'
@@ -101,7 +101,7 @@ optional message.
 END
 checkbox_passed()
 {
-    echo -e "$(tput setaf 2)$(tput bold)[✓] PASSED$(tput sgr0) ${@}" >&2
+    echo -e "$(tput setaf 2)$(tput bold)[✓] PASSED$(tput sgr0) ${*}" >&2
 }
 
 opt_usage checkbox_failed <<'END'
@@ -110,5 +110,5 @@ message.
 END
 checkbox_failed()
 {
-    echo -e "$(tput setaf 1)$(tput bold)[✘] FAILED$(tput sgr0) ${@}" >&2
+    echo -e "$(tput setaf 1)$(tput bold)[✘] FAILED$(tput sgr0) ${*}" >&2
 }

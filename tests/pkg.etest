@@ -16,7 +16,7 @@ setup()
 
     # Find package we can install from pkg_candidates
     local pkg="" found=0
-    for pkg in ${pkg_candidates[@]}; do
+    for pkg in "${pkg_candidates[@]}"; do
         etestmsg "Checking $(lval pkg pkg_candidates)"
         if pkg_known ${pkg} && ! pkg_installed ${pkg}; then
             found=1

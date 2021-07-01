@@ -79,7 +79,7 @@ test_all_archives()
     done
 
     eprogress "Waiting"
-    wait ${pids[@]}
+    wait "${pids[@]}"
     eprogress_kill
 
     local rc=0 idx_rc=0 ftype=""
@@ -768,7 +768,7 @@ ETEST_archive_create_pivot_root_multi()
 
         KEEP_PATHS=( /boot /var )
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
-        archive_create -d="${oldroot}" ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
+        archive_create -d="${oldroot}" ${oldroot}/var/log/sfbackup.${ftype} "${KEEP_PATHS[@]##/}"
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
             boot                                    \
@@ -807,7 +807,7 @@ ETEST_archive_create_pivot_root_multi_cd_manual()
         etestmsg "Creating ${oldroot}/var/log/sfbackup.${ftype}"
         (
             cd ${oldroot}
-            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} "${KEEP_PATHS[@]##/}"
         )
 
         assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} \
@@ -998,13 +998,13 @@ ETEST_archive_extract_pivot_root_multi_deep()
         (
             cd ${oldroot}
             find . -printf '%P\n'
-            archive_create ${oldroot}/var/log/sfbackup.${ftype} ${KEEP_PATHS[@]##/}
+            archive_create ${oldroot}/var/log/sfbackup.${ftype} "${KEEP_PATHS[@]##/}"
         )
-        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} ${expect[@]}
+        assert_archive_contents ${oldroot}/var/log/sfbackup.${ftype} "${expect[@]}"
 
         etestmsg "Extracting"
-        archive_extract ${oldroot}/var/log/sfbackup.${ftype} restore ${KEEP_PATHS[@]##/}
-        assert_directory_contents restore ${expect[@]}
+        archive_extract ${oldroot}/var/log/sfbackup.${ftype} restore "${KEEP_PATHS[@]##/}"
+        assert_directory_contents restore "${expect[@]}"
     }
 
     test_all_archives test_body
@@ -1470,7 +1470,7 @@ ETEST_archive_xconvert()
         archive_create src.${ftype} src
 
         local other src_contents cpy_contents src_contents_join cpy_contents_join
-        for other in ${archive_types[@]}; do
+        for other in "${archive_types[@]}"; do
 
             etestmsg "Converting src.${ftype} to cpy.${other}"
             archive_convert src.${ftype} cpy.${other}
@@ -1503,7 +1503,7 @@ ETEST_archive_xdiff()
         archive_create src.${ftype} src
 
         # Iterate over all types and create copy -- diff should match
-        for other in ${archive_types[@]}; do
+        for other in "${archive_types[@]}"; do
 
             etestmsg "Creating cpy.${other}"
             archive_create cpy.${other} src
@@ -1513,7 +1513,7 @@ ETEST_archive_xdiff()
         done
 
         # Iterate over all types and create a different copy with extra file diff should not match.
-        for other in ${archive_types[@]}; do
+        for other in "${archive_types[@]}"; do
 
             etestmsg "Creating diff.${other}"
             efreshdir diff

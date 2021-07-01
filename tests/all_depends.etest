@@ -58,7 +58,7 @@ ETEST_depends()
         "tput"
     )
 
-    assert_commands_installed ${commands[@]}
+    assert_commands_installed "${commands[@]}"
 }
 
 ETEST_recommends()
@@ -81,6 +81,7 @@ ETEST_recommends()
         "pgrep"
         "ping"
         "pstree"
+        "shellcheck"
         "tar"
     )
 
@@ -94,5 +95,5 @@ ETEST_recommends()
         )
     fi
 
-    assert_commands_installed ${commands[@]}
+    assert_commands_installed "${commands[@]}"
 }

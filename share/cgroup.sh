@@ -92,10 +92,10 @@ Prior to using a cgroup, you must create it. It is safe to attempt to "create" a
 END
 cgroup_create()
 {
-    edebug "creating cgroups ${@}"
+    edebug "creating cgroups ${*}"
     for cgroup in "${@}" ; do
 
-        for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
+        for subsystem in "${CGROUP_SUBSYSTEMS[@]}"; do
             local subsys_path=${CGROUP_SYSFS}/${subsystem}/${cgroup}
             mkdir -p ${subsys_path}
         done
@@ -120,7 +120,7 @@ cgroup_destroy()
 
     for cgroup in "${@}" ; do
 
-        for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
+        for subsystem in "${CGROUP_SUBSYSTEMS[@]}"; do
 
             local subsys_path=${CGROUP_SYSFS}/${subsystem}/${cgroup}
             [[ -d ${subsys_path} ]] || { edebug "Skipping ${subsys_path} that is already gone." ; continue ; }
@@ -189,7 +189,7 @@ cgroup_move()
     edebug "$(lval pids cgroup)"
     if array_not_empty pids ; then
         local tmp
-        for subsystem in ${CGROUP_SUBSYSTEMS[@]} ; do
+        for subsystem in "${CGROUP_SUBSYSTEMS[@]}"; do
             tmp="$(array_join_nl pids)"
             echo -e "${tmp}" > ${CGROUP_SYSFS}/${subsystem}/${cgroup}/tasks
         done
@@ -318,7 +318,7 @@ cgroup_ps()
     [[ ${recursive} -eq 1 ]] && options+=("-r")
 
     local pid cgroup_pids
-    cgroup_pids=($(cgroup_pids ${options[@]:-} -x="${BASHPID} ${exclude}" ${cgroup}))
+    cgroup_pids=($(cgroup_pids "${options[@]:-}" -x="${BASHPID} ${exclude}" "${cgroup}"))
 
     array_empty cgroup_pids && return 0
 
@@ -449,7 +449,7 @@ cgroup_kill()
 
     # NOTE: BASHPID must be added here in addition to above because it's different inside this command substituion
     # (subshell) than it is outside.
-    array_init pids "$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" ${cgroups[@]} || true)"
+    array_init pids "$(cgroup_pids -r -x="${ignorepids} ${BASHPID}" "${cgroups[@]}" || true)"
 
     if [[ $(array_size pids) -gt 0 ]] ; then
         edebug "Killing processes in cgroups $(lval signal cgroups pids ignorepids)"
@@ -459,7 +459,7 @@ cgroup_kill()
         #
         # NOTE: This also has the side effect of causing cgroup_kill to NOT fail when the calling user doesn't have
         # permission to kill everything in the cgroup.
-        ekill -s=${signal} ${pids[@]} || true
+        ekill -s=${signal} "${pids[@]}" || true
     else
         edebug "All processes in cgroup are already dead. $(lval cgroups pids ignorepids)"
     fi

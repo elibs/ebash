@@ -195,7 +195,7 @@ END
 __efetch_download()
 {
     local url=""
-    for url in ${!data[@]}; do
+    for url in "${!data[@]}"; do
         $(pack_import data[$url])
 
         # Call curl with explicit COLUMNS so that the progress bar will fit into the amount of room left on the
@@ -242,7 +242,7 @@ __efetch_download_wait()
 
     while [[ ${#finished[@]} -lt ${#data[@]} ]]; do
 
-        for url in ${urls[@]}; do
+        for url in "${urls[@]}"; do
             $(pack_import data[$url])
 
             # This is where all the pretty output formatting happens. We basically move the cursor to the start of the
@@ -297,7 +297,7 @@ __efetch_check_incomplete_or_failed()
 {
     # Move files to their final destinations or remove pending files for failed downloads
     local url
-    for url in ${!data[@]}; do
+    for url in "${!data[@]}"; do
         $(pack_import data[$url])
 
         rm --force "${progress}"
@@ -337,7 +337,7 @@ __efetch_digest_validation()
     fi
 
     local url
-    for url in ${!data[@]}; do
+    for url in "${!data[@]}"; do
         $(pack_import data[$url])
 
         if [[ "${dest##*.}" == @(md5|meta) ]]; then

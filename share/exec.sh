@@ -52,6 +52,10 @@ reexec()
     fi
     unset __EBASH_REEXEC_CMD
 }
+
+# Normally shellcheck is right here but we are defering this expansion until the alias is invoked and it does exactly
+# what we expect in this particular case.
+# shellcheck disable=SC2142
 alias reexec='declare -a __EBASH_REEXEC_CMD=("$0" "$@") ; reexec'
 
 opt_usage quote_eval <<'END'
