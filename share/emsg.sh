@@ -664,12 +664,21 @@ at all as in some super stripped down docker containers.
 END
 tput()
 {
-    if [[ "${1:-}" == "cols" && -n "${COLUMNS:-}" ]]; then
-        echo "${COLUMNS}"
-        return 0
+    if [[ "${1:-}" == "cols" ]]; then
+
+        if [[ -n "${COLUMNS:-}" ]]; then
+            echo "${COLUMNS}"
+            return 0
+        elif command_exists tput; then
+            command tput cols || true
+            return 0
+        else
+            echo "80"
+            return 0
+        fi
     fi
 
-    if ! which tput &>/dev/null; then
+    if ! command_exists tput; then
         return 0
     fi
 

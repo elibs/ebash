@@ -23,8 +23,8 @@ are various internal checks performed by bashlint including bash syntax errors, 
 return statements, and combined variable declaration and assignment errors.
 
 Additionally, bashlint can utilize the fantastic external tool shellcheck to look for far more difficult to detect
-linting errors. By default these are all disabled. You can opt-in for which checks you want to perform with the various
-shellcheck-* option flags.
+linting errors. By default shellcheck linting is disabled. Yout can opt-in by passing in --shellcheck-severity with a
+value of error, warning, info, style.
 END
 $(opt_parse \
     "+break b                      | Break on first failure."                                                          \
@@ -36,10 +36,7 @@ $(opt_parse \
     ":filter  f=${FILTER:-}        | Files that match this (bash-style) regular expression will be run."               \
     "+git_files                    | Run bashlint on all git files."                                                   \
     "+git_files_no_modules         | Run bashlint on all git files but skip any files contained inside git modules."   \
-    "+shellcheck_errors errors     | Run Shellcheck looking for severity=error."                                       \
-    "+shellcheck_warnings warnings | Run Shellcheck looking for severity=warning and above."                           \
-    "+shellcheck_info info         | Run Shellcheck looking for severity=warning and above."                           \
-    "+shellcheck_style style       | Run Shellcheck looking for severity=warning and above."                           \
+    ":shellcheck_severity severity | Minimum shellcheck severity of errors to consider (error, warning, info, style)." \
 )
 
 # Paths to recursively parse
@@ -58,6 +55,11 @@ filter=$(echo "${filter}" | tr ' ' '|' | sed -e 's/^|//' -e 's/|$//')
 # Layer the exclude setting by first looking for any static exclusions in the config file, then any explicit exclusions
 # passed in on the command-line. Join any whitespace with a '|' to convert it to a bash style regex.
 exclude=$(echo "${exclude}" | tr ' ' '|' | sed -e 's/^|//' -e 's/|$//')
+
+# Verify shellcheck_severity is a valid value
+if [[ -n "${shellcheck_severity}" && ! "${shellcheck_severity}" == @(error|warning|info|style) ]]; then
+    die "Invalid $(lval shellcheck_severity). Valid=(error, warning, info, style)"
+fi
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
@@ -175,22 +177,9 @@ for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
     fi
 
     #---- SHELLCHECK ----#
-    # These are mutually exclusive since it is the MINIMUM level to check for
-    if [[ "${shellcheck_style}" -eq 1 ]]; then
-        if ! shellcheck -S style "${fname}"; then
-            fail "Shellcheck (style and above) failed"
-        fi
-    elif [[ "${shellcheck_info}" -eq 1 ]]; then
-        if ! shellcheck -S info "${fname}"; then
-            fail "Shellcheck (info and above) failed"
-        fi
-     elif [[ "${shellcheck_warnings}" -eq 1 ]]; then
-        if ! shellcheck -S warning "${fname}"; then
-            fail "Shellcheck (warnings and above) failed"
-        fi
-     elif [[ "${shellcheck_errors}" -eq 1 ]]; then
-        if ! shellcheck -S error "${fname}"; then
-            fail "Shellcheck (errors) failed"
+    if [[ -n "${shellcheck_severity}" ]]; then
+        if ! shellcheck -S "${shellcheck_severity}" "${fname}"; then
+            fail "Shellcheck (${shellcheck_severity}) failed"
         fi
     fi
 
