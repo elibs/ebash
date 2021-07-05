@@ -58,7 +58,7 @@ jobs:
         run: install/all
 
       - name: Lint
-        run: bin/bashlint --errors
+        run: bin/bashlint --severity=error
 
       - name: Self Test
         run: bin/eretry bin/selftest
@@ -93,7 +93,7 @@ jobs:
         run: install/all
 
       - name: Lint
-        run: bin/bashlint --errors
+        run: bin/bashlint --severity=error
 
       - name: Self Test
         run: bin/eretry bin/selftest
