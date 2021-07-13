@@ -20,6 +20,7 @@ combinations:
 | Linux | Fedora | 33      |
 | Linux | Fedora | 32      |
 | Linux | Gentoo | rolling |
+| Linux | Rocky  | 8.4     |
 | Linux | Ubuntu | 20.04   |
 | Linux | Ubuntu | 18.04   |
 | MacOS | N/A    |  11.0   |

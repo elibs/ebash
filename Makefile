@@ -123,7 +123,8 @@ DISTROS =           \
 	fedora:33       \
 	fedora:32       \
 	gentoo/stage3   \
-	ubuntu:20.04    \
+        rockylinux/rockylinux:8 \
+        ubuntu:20.04    \
 	ubuntu:18.04    \
 
 $(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t})))

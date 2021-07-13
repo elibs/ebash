@@ -447,7 +447,7 @@ pkg_manager()
         EBASH_PKG_MANAGER="pacman"
     elif os_distro gentoo ember; then
         EBASH_PKG_MANAGER="portage"
-    elif os_distro centos fedora; then
+    elif os_distro centos fedora rocky; then
         EBASH_PKG_MANAGER="yum"
     else
         die "Unknown pkg manager for $(os_pretty_name)"

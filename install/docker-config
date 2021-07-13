@@ -25,7 +25,7 @@ ebanner --uppercase "Performing Docker Configuration for $(lval OS)"
 #
 #----------------------------------------------------------------------------------------------------------------------
 
-if os_distro centos; then
+if os_distro centos rocky; then
 
     # Quiet warning from podman
     touch /etc/containers/nodocker
