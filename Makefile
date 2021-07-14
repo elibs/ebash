@@ -90,6 +90,8 @@ ifeq ($1,gentoo)
 ${1}_CONTAINER = gentoo/stage3
 else ifneq (,$(findstring rocky,$1))
 ${1}_CONTAINER = rockylinux/$2
+else
+${1}_CONTAINER = $2
 endif
 
 .PHONY: dselftest-$1
