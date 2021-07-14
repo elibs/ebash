@@ -30,7 +30,7 @@ V       ?= $(or $v,0)
 #----------------------------------------------------------------------------------------------------------------------
 
 .PHONY: ctags
-ctags: tests/unit/*.sh tests/unit/*.etest share/*.sh bin/*
+ctags: tests/*.sh tests/*.etest share/*.sh bin/*
 	ctags -f .tags . $^
 
 .PHONY: clean
@@ -86,15 +86,21 @@ DRUN = docker run      \
 
 define DOCKER_TEST_TEMPLATE
 
+ifeq ($1,gentoo)
+${1}_CONTAINER = gentoo/stage3
+else ifneq (,$(findstring rocky,$1))
+${1}_CONTAINER = rockylinux/$2
+endif
+
 .PHONY: dselftest-$1
 dselftest-$1:
-	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "EDEBUG=${EDEBUG} install/all && bin/selftest"
+	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
+	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && bin/selftest"
 
 .PHONY: dtest-$1
 dtest-$1:
-	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "EDEBUG=${EDEBUG} install/all && \
+	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
+	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && \
         bin/etest \
             --break                    \
             --debug="${EDEBUG}"        \
@@ -107,8 +113,8 @@ dtest-$1:
 
 .PHONY: dshell-$1
 dshell-$1:
-	bin/ebanner "$2 Dependencies"
-	${DRUN} $2 sh -c "EDEBUG=${EDEBUG} install/all && /bin/bash"
+	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
+	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && /bin/bash"
 
 endef
 
@@ -122,9 +128,9 @@ DISTROS =           \
 	debian:9        \
 	fedora:33       \
 	fedora:32       \
-	gentoo/stage3   \
-        rockylinux/rockylinux:8 \
-        ubuntu:20.04    \
+	gentoo          \
+	rockylinux:8    \
+	ubuntu:20.04    \
 	ubuntu:18.04    \
 
 $(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t})))
@@ -132,3 +138,38 @@ $(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t}))
 PHONY: dtest
 dtest:	    $(foreach d, $(subst :,-,${DISTROS}), dtest-${d})
 dselftest:  $(foreach d, $(subst :,-,${DISTROS}), dselftest-${d})
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# INTROSPECTION
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# List targets the Makefile knows about
+.PHONY: help targets usage
+HELP_EXCLUDE_RE = Makefile|help|print-%|targets|usage
+help targets usage:
+	echo "Targets"
+	echo "======="
+	{ MAKEFLAGS= ${MAKE} -qp \
+		| awk -F':' '/^[a-zA-Z0-9][^$$#\/\t=]*:([^=]|$$)/ {split($$1,A,/ /); for(i in A) print A[i]}' \
+		| grep -Pv "${HELP_EXCLUDE_RE}" ; } \
+		| sort --unique
+
+# Make print-VARNAME for any variable will print its value
+print-% :
+	echo $($*)
+
+# Print all Make variables
+.PHONY: printvars
+PRINTVARS_EXCLUDES=%_TEMPLATE DEBUGMAKE LAZY_INIT
+printvars:
+	echo -n $(foreach v,$(sort $(filter-out ${PRINTVARS_EXCLUDES},${.VARIABLES})),\
+		$(if $(filter-out environment% default automatic,\
+			$(origin $v)),$(info $(v)=$($(v)))))
+
+.PHONY: printenv
+printenv:
+	{ go env ; printenv ; } | sort | grep -Pv '(LS_COLORS|LESS_TERMCAP)'
+
+#

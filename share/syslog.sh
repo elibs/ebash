@@ -57,6 +57,7 @@ END
 syslog_detect_backend()
 {
     # If user already explicitly set prefered default, just use that.
+    edebug "$(lval EBASH_SYSLOG_BACKEND)"
     if [[ -n "${EBASH_SYSLOG_BACKEND:-}" ]]; then
         echo "${EBASH_SYSLOG_BACKEND}"
         return 0

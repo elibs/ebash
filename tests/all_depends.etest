@@ -83,6 +83,7 @@ ETEST_recommends()
         "pstree"
         "shellcheck"
         "tar"
+        "tput"
     )
 
     if os linux; then
