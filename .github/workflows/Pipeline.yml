@@ -53,7 +53,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - run: echo "OSNAME=$(echo ${{ matrix.container }} | sed -e 's|:|-|' -e 's|/.*||')" >> ${GITHUB_ENV}
+      - run: echo "OSNAME=$(echo ${{ matrix.container }} | sed -e 's|:|-|' -e 's|/stage3||' -e 's|rockylinux/||')" >> ${GITHUB_ENV}
 
       - name: Install Dependencies
         run: install/all
