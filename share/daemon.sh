@@ -28,7 +28,7 @@ execute a given hook you're responsible for doing that yourself.
 The following are the keys used to control daemon functionality:
 
 - **autostart**: Automatically start the configured daemon after a successful daemon_init. This is off by default to
-  allow the caller more granular control. Valid values are "yes" and "no" (ignoring case).
+  allow the caller more granular control. Valid values are "true" or "yes" and "false" or "no" (ignoring case).
 
 - **bindmounts**: Optional whitespace separated list of additional paths which whould be bind mounted into the chroot by
   the daemon process during daemon_start. A trap will be setup so that the bind mounts are automatically unmounted when
@@ -53,6 +53,12 @@ The following are the keys used to control daemon functionality:
 
 - **delay**: The delay to wait, in sleep(1) syntax, before attempting to restart the daemon when it exits. This should
   never be <1s otherwise race conditions in startup and shutdown are possible. Defaults to 1s.
+
+- **enabled**: Control whether a daemon is "enabled" or not. Do not confuse enabling a daemon with starting a daemon.
+  These are orthogonal concepts. Enabling a daemon exists for compatibility with our systemd wrappers inside of docker
+  where we have a thin init daemon which auto starts all enabled daemons. If you want to prevent a daemon from being
+  auto started by the init daemon then you would disable it. Valid values are "true" or "yes" and "false" or "no"
+  (ignoring case).
 
 - **logfile**: Optional logfile to send all stdout and stderr to for the daemon. Since it generally doesn't make sense
   for the stdout/stderr of the daemon to spew into the caller's stdout/stderr, these will default to /dev/null if not
@@ -99,6 +105,25 @@ The following are the keys used to control daemon functionality:
 END
 #-----------------------------------------------------------------------------------------------------------------------
 
+opt_usage daemon_pack_save <<'END'
+`daemon_pack_save` is used to save the optional pack for a daemon to an on-disk configuration file which is stored in 
+the cfgfile field of the option pack. This allows the pack to be reused by many different ebash daemon functions more
+implicitly as each function can load the configuration from disk.
+END
+daemon_pack_save()
+{
+    $(opt_parse optpack)
+    edebug "$(lval %${optpack})"
+
+    local cfgfile
+    cfgfile="$(pack_get ${optpack} "cfgfile")"
+    if [[ -n "${cfgfile}" ]]; then
+        edebug "Creating $(lval cfgfile)"
+        mkdir -p "$(dirname "${cfgfile}")"
+        pack_save "${optpack}" "${cfgfile}"
+    fi
+}
+
 opt_usage daemon_init <<'END'
 `daemon_init` is used to initialize the options pack that all of the various daemon_* functions will use. This makes it
 easy to specify global settings for all of these daemon functions without having to worry about consistent argument
@@ -113,12 +138,13 @@ daemon_init()
     # Load defaults into the pack first then add in any additional provided settings Since the last key=val added to the
     # pack will always override prior values this allows caller to override the defaults.
     pack_set ${optpack}               \
-        autostart="no"                \
+        autostart="false"             \
         bindmounts=                   \
         cfgfile="${__EBASH_DAEMON_RUNDIR}/${optpack}" \
         cgroup=                       \
         chroot=                       \
         delay=1                       \
+        enabled="true"                \
         logfile=                      \
         logfile_count=0               \
         logfile_size=0                \
@@ -137,15 +163,11 @@ daemon_init()
 
     edebug "$(lval %${optpack})"
 
-    local cfgfile
-    cfgfile="$(pack_get ${optpack} "cfgfile")"
-    if [[ -n "${cfgfile}" ]]; then
-        edebug "Creating $(lval cfgfile)"
-        mkdir -p "$(dirname "${cfgfile}")"
-        pack_save "${optpack}" "${cfgfile}"
-    fi
+    daemon_pack_save "${optpack}"
 
-    if [[ $(pack_get ${optpack} "autostart" | tr '[:upper:]' '[:lower:])') == "yes" ]]; then
+    local autostart
+    autostart=$(pack_get ${optpack} "autostart")
+    if [[ "${autostart,,}" == @(yes|true) ]]; then
         daemon_start ${optpack}
     fi
 
@@ -484,4 +506,48 @@ daemon_not_running()
 {
     $(tryrc daemon_status -q "${@}")
     [[ ${rc} -ne 0 ]]
+}
+
+opt_usage daemon_enable <<'END'
+daemon_enable is used to enable a daemon. Do not confuse enabling a daemon with starting a daemon. These are orthogonal
+concepts. Enabling a daemon exists for compatibility with our systemd wrappers inside of docker where we have a thin
+init daemon which auto starts all enabled daemons. If you want to prevent a daemon from being auto started by the init
+daemon then you would disable it.
+END
+daemon_enable()
+{
+    $(opt_parse optpack)
+
+    pack_set ${optpack} enabled="true"
+    edebug "$(lval %${optpack})"
+    daemon_pack_save "${optpack}"
+}
+
+opt_usage daemon_disable <<'END'
+daemon_disable is used to disable a daemon. Do not confuse disabling a daemon with stopping a daemon. These are
+orthogonal concepts. Disabling a daemon exists for compatibility with our systemd wrappers inside of docker where we
+have a thin init daemon which auto starts all enabled daemons. If you want to prevent a daemon from being auto started
+by the init daemon then you would disable it.
+END
+daemon_disable()
+{
+    $(opt_parse optpack)
+
+    pack_set ${optpack} enabled="false"
+    edebug "$(lval %${optpack})"
+    daemon_pack_save "${optpack}"
+}
+
+opt_usage daemon_enabled <<'END'
+daemon_enabled is used to check if a daemon is enabled or not. Do not confuse enabling a daemon with starting a daemon.
+These are orthogonal concepts. Enabling a daemon exists for compatibility with our systemd wrappers inside of docker
+where we have a thin init daemon which auto starts all enabled daemons. If you want to prevent a daemon from being auto
+started by the init daemon then you would disable it.
+END
+daemon_enabled()
+{
+    $(opt_parse optpack)
+    $(pack_import ${optpack})
+
+    [[ "${enabled,,}" == @(yes|true) ]]
 }
