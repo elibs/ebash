@@ -3,12 +3,25 @@
 $(ebash --source)
 
 $(opt_parse \
-    "action  | The action to perform (start, stop, status, restart, is-active)." \
-    "service | The service to perform action on (e.g. sshd)."                    \
+    "+verbose v | Be more verbose and show detailed errors and stacktraces."                                           \
+    "action     | The action to perform (start, stop, status, restart, is-active)."                                    \
+    "service    | The service to perform action on (e.g. sshd)."                                                       \
 )
 
 # Disable stacktraces emitted by ebash die() as we do not want them to perculate out to the user from this wrapper.
-disable_die_stacktrace
+if [[ ${verbose} -eq 0 ]]; then
+    disable_die_stacktrace
+fi
+
+# If the action is 'enable' or 'disable' then there may be an optional '--now' option immediately after it.
+now="0"
+if [[ "${action}" == @(enable|disable) && "${service}" == "--now" ]]; then
+    now=1
+    service=$1
+    shift
+fi
+
+edebug "$(lval verbose action service now)"
 
 # Get the configuration file for the requested service.
 cfgfile="${__EBASH_DAEMON_RUNDIR}/${service}"
@@ -19,25 +32,52 @@ fi
 # Load ebash daemon configuration for this service.
 pack_load cfg "${cfgfile}"
 edebug "Loaded daemon $(lval %cfg)"
+if [[ ${verbose} -eq 1 ]]; then
+    einfo "Loaded daemon $(lval %cfg)"
+fi
 
 # Perform the requested action using ebash provided daemon functions.
 case ${action} in
     start)
         daemon_start cfg
-    ;;
+        ;;
+
     stop)
         daemon_stop cfg
-    ;;
+        ;;
+
     status)
         daemon_status cfg
-    ;;
+        ;;
+
     restart)
         daemon_restart cfg
-    ;;
+        ;;
+
     is-active)
         daemon_running cfg
-    ;;
+        ;;
+
+    is-enabled)
+        daemon_enabled cfg
+        ;;
+
+    enable)
+        daemon_enable cfg
+        if [[ "${now}" -eq 1 ]]; then
+            daemon_start cfg
+        fi
+        ;;
+
+    disable)
+        daemon_disable cfg
+        if [[ "${now}" -eq 1 ]]; then
+            daemon_stop cfg
+        fi
+
+        ;;
+
     *)
         die "Unsupported $(lval action)"
-    ;;
+        ;;
 esac
