@@ -211,6 +211,7 @@ ETEST_daemon_init()
     assert_eq "Init Test Daemon" "${name}"
     assert_eq "sleep infinity"   "${cmdline}"
     assert_eq "${FUNCNAME}.pid"  "${pidfile}"
+    assert_eq "true" "${enabled}"
 }
 
 ETEST_daemon_autostart()
@@ -339,6 +340,81 @@ ETEST_daemon_start_stop_start()
     assert daemon_status  sleep_daemon
 
     # Now stop it and verify proper shutdown
+    local pid
+    pid=$(cat "${pidfile}")
+    daemon_stop sleep_daemon &
+    daemon_expect pre_stop
+    daemon_expect post_stop
+    wait
+    assert_false daemon_running sleep_daemon
+    assert_false daemon_status -q sleep_daemon
+    assert_not_exists pidfile
+}
+
+ETEST_daemon_enabled()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
+    local sleep_daemon
+
+    etestmsg "Initializing infinity daemon"
+    daemon_init sleep_daemon            \
+        "${DAEMON_EXPECT[@]}"           \
+        name="Test Daemon"              \
+        cmdline="sleep infinity"        \
+        pidfile="${pidfile}"            \
+        cfgfile="${cfgfile}"
+
+    $(pack_import sleep_daemon)
+    etestmsg "Verifying daemon $(lval %sleep_daemon)"
+    daemon_enabled sleep_daemon
+
+    etestmsg "Disabling daemon"
+    daemon_disable sleep_daemon
+    assert_false daemon_enabled sleep_daemon
+
+    etestmsg "Enabling daemon"
+    daemon_enable sleep_daemon
+    daemon_enabled sleep_daemon
+}
+
+# Make sure you can still start/stop a disabled daemon as these are orthogonal concepts.
+ETEST_daemon_disable_start()
+{
+    local pidfile="${FUNCNAME}.pid"
+    local cfgfile="${FUNCNAME}.cfg"
+    local sleep_daemon
+
+    etestmsg "Initializing infinity daemon"
+    daemon_init sleep_daemon            \
+        "${DAEMON_EXPECT[@]}"           \
+        name="Test Daemon"              \
+        cmdline="sleep infinity"        \
+        pidfile="${pidfile}"            \
+        cfgfile="${cfgfile}"
+
+    $(pack_import sleep_daemon)
+    etestmsg "Verifying daemon $(lval %sleep_daemon)"
+    daemon_enabled sleep_daemon
+
+    etestmsg "Disabling daemon"
+    daemon_disable sleep_daemon
+    assert_false daemon_enabled sleep_daemon
+
+    etestmsg "Starting daemon"
+    daemon_start sleep_daemon
+
+    etestmsg "Waiting for daemon to be running"
+    daemon_expect pre_start
+    daemon_expect post_mount
+    assert_true daemon_running sleep_daemon
+    assert test -s ${pidfile}
+    assert test -s ${cfgfile}
+    assert process_running $(cat ${pidfile})
+    assert daemon_running sleep_daemon
+    assert daemon_status  sleep_daemon
+
+    etestmsg "Verying we can stop a disabled daemon"
     local pid
     pid=$(cat "${pidfile}")
     daemon_stop sleep_daemon &

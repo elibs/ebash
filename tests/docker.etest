@@ -729,6 +729,78 @@ ETEST_docker_build_overlay_systemctl_wrapper()
     eretry --max-timeout 30s docker exec "${container_id}" systemctl status sleeper2
 }
 
+ETEST_docker_build_overlay_systemctl_wrapper_enabled()
+{
+    # For no explicable reason, this test is very flaky on Centos:8 but perfectly stable on all other distros.
+    $(skip_if "os_distro centos && os_release 8")
+    $(skip_if "os_distro rocky  && os_release 8.4")
+
+    EDEBUG=daemon
+
+    etestmsg "Creating init"
+	cat <<-'END' >init
+	#!/bin/bash
+
+	$(ebash --source)
+
+	EDEBUG=daemon
+
+	# Block all signals that would otherwise cause us to exit similar to real 'init'
+	disable_signals
+
+	daemon_init sleeper1         \
+	    autostart="false"        \
+	    cmdline="sleep infinity" \
+	    enabled="false"
+
+	# Process reaping
+	while true; do
+		wait
+	done
+	END
+    cat init
+    chmod +x init
+
+    etestmsg "Creating Dockerfile"
+	cat <<-END >Dockerfile
+	FROM ubuntu:20.04
+	COPY "init" "/init"
+	ENTRYPOINT ["/init"]
+	END
+    cat Dockerfile
+
+    etestmsg "Building docker image"
+    docker_build \
+        --name "elibs/ebash"                   \
+        --file "${TEST_DIR_OUTPUT}/Dockerfile" \
+        --overlay "ebash"                      \
+        --overlay "systemd"
+    cat ".work/docker/ebash/dockerfile"
+    find ".work/docker/ebash/overlay" -ls
+
+    etestmsg "Running docker container"
+    image="$(cat .work/docker/ebash/image)"
+    container_id=$(docker run --detach --network host "${image}")
+    trap_add "docker kill ${container_id}"
+    eretry --max-timeout 30s docker exec "${container_id}" bash -c "[[ -e /usr/local/bin/systemctl ]]"
+
+    etestmsg "Verifying daemon is not enabled and not running"
+    assert_false docker exec "${container_id}" systemctl status sleeper1
+    assert_false docker exec "${container_id}" systemctl is-active sleeper1
+    assert_false docker exec "${container_id}" systemctl is-enabled sleeper1
+
+    etestmsg "Enable and Start Daemon"
+    docker exec "${container_id}" systemctl enable --now sleeper1
+    docker exec "${container_id}" systemctl is-active sleeper1
+    docker exec "${container_id}" systemctl is-enabled sleeper1
+
+    etestmsg "Disable and Stop Daemon"
+    docker exec "${container_id}" systemctl disable --now sleeper1
+    assert_false docker exec "${container_id}" systemctl status sleeper1
+    assert_false docker exec "${container_id}" systemctl is-active sleeper1
+    assert_false docker exec "${container_id}" systemctl is-enabled sleeper1
+}
+
 ETEST_docker_depends_sha()
 {
     etestmsg "Creating Dockerfile"
