@@ -153,6 +153,7 @@ source "${EBASH}/os.sh"
 source "${EBASH}/emsg.sh"
 
 # Now we can source everything else.
+source "${EBASH}/ansible.sh"
 source "${EBASH}/archive.sh"
 source "${EBASH}/array.sh"
 source "${EBASH}/assert.sh"
