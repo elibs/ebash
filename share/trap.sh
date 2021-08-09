@@ -63,11 +63,30 @@ trap_add()
             # __EBASH_TRAP_LEVEL is owned and updated by our trap() function. It'll update it soon.
         fi
 
-        local complete_trap
-        [[ ${sig} == "EXIT" ]] && complete_trap+="_ebash_on_exit_start; "
-        [[ -n "${cmd}"      ]] && complete_trap+="${cmd}; "
-        [[ -n "${existing}" ]] && complete_trap+="${existing}; "
-        [[ ${sig} == "EXIT" ]] && complete_trap+="_ebash_on_exit_end"
+        # Now we need to split the single existing command into an array of commands so that we can safely manipulate it
+        local trap_commands=()
+
+        if [[ ${sig} == "EXIT" ]]; then
+            trap_commands+=( "_ebash_on_exit_start" )
+        fi
+
+        if [[ -n "${cmd}" ]]; then
+            trap_commands+=( "${cmd}" )
+        fi
+
+        if [[ -n "${existing}" ]]; then
+            trap_commands+=( "${existing}" )
+        fi
+
+        if [[ ${sig} == "EXIT" ]]; then
+            trap_commands+=( "_ebash_on_exit_end" )
+        fi
+
+        # Join array of commands into a single command again separated by ';' and then register a trap with it.
+        local complete_trap=""
+        complete_trap="$(printf "%s;" "${trap_commands[@]}")"
+        complete_trap="${complete_trap%;}"
+
         trap -- "${complete_trap}" "${sig}"
 
     done
