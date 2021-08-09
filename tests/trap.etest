@@ -7,6 +7,66 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
+# Basic trap_add and trap_get sanity test with 1 signal.
+ETEST_trap_add()
+{
+    trap_add 'echo foo' SIGHUP
+    assert_eq 'echo foo;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
+}
+
+# Verify a bug is fixed where we were building up a combined trap with the same command multiple times if given an
+# explicit list of signals. This was caused by not initializing the trap on the first time through the for loop inside
+# trap_add.
+ETEST_trap_add_multiple_signals()
+{
+    trap_add 'echo foo' SIGHUP SIGUSR1
+    assert_eq 'echo foo;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
+    assert_eq 'echo foo;die -s=SIGUSR1 "[Caught SIGUSR1 pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGUSR1)"
+
+    # Untrapped signals still receive default handling without the 'echo foo' command
+    for sig in ${DIE_SIGNALS[*]}; do
+
+        if [[ "${sig}" == @(SIGHUP|SIGUSR1) ]]; then
+            continue
+        fi
+
+        # Some signals don't work correctly on Darwin
+        if os darwin && [[ ${sig} == @(SIGPIPE) ]]; then
+            continue
+        fi
+
+        assert_eq 'die -s='${sig}' "[Caught '${sig}' pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get ${sig})"
+    done
+
+}
+
+# Verify implicit ebash traps added for exit to propogate failures to caller properly.
+ETEST_trap_add_exit()
+{
+    trap_add 'echo foo' EXIT SIGHUP SIGUSR1
+    assert_eq '_ebash_on_exit_start;echo foo;_ebash_on_exit_end' "$(trap_get EXIT)"
+    assert_eq 'echo foo;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
+    assert_eq 'echo foo;die -s=SIGUSR1 "[Caught SIGUSR1 pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGUSR1)"
+}
+
+# Verify implicit traps when no signals added
+ETEST_trap_add_defaults()
+{
+    trap_add 'echo foo'
+    assert_eq '_ebash_on_exit_start;echo foo;_ebash_on_exit_end' "$(trap_get EXIT)"
+
+    # Untrapped signals still receive default handling without the 'echo foo' command
+    for sig in ${DIE_SIGNALS[*]}; do
+
+        # Some signals don't work correctly on Darwin
+        if os darwin && [[ ${sig} == @(SIGPIPE) ]]; then
+            continue
+        fi
+
+        assert_eq 'die -s='${sig}' "[Caught '${sig}' pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get ${sig})"
+    done
+}
+
 ETEST_err_and_debug_traps_are_inherited()
 {
     on_error()
