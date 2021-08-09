@@ -30,6 +30,11 @@ ETEST_trap_add_multiple_signals()
             continue
         fi
 
+        # Some signals don't work correctly on Darwin
+        if os darwin && [[ ${sig} == @(SIGPIPE) ]]; then
+            continue
+        fi
+
         assert_eq 'die -s='${sig}' "[Caught '${sig}' pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get ${sig})"
     done
 
@@ -52,6 +57,12 @@ ETEST_trap_add_defaults()
 
     # Untrapped signals still receive default handling without the 'echo foo' command
     for sig in ${DIE_SIGNALS[*]}; do
+
+        # Some signals don't work correctly on Darwin
+        if os darwin && [[ ${sig} == @(SIGPIPE) ]]; then
+            continue
+        fi
+
         assert_eq 'die -s='${sig}' "[Caught '${sig}' pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get ${sig})"
     done
 }
