@@ -41,7 +41,14 @@ $(opt_parse \
 
 # Paths to recursively parse
 if [[ ${git_files_no_modules} -eq 1 ]]; then
-    paths=( $(git ls-files | grep -Fxvf  <(git config --file .gitmodules --name-only --get-regexp path | sed -e 's|submodule.||' -e 's|.path||') | awk -F"/" '{print $1}' | uniq | grep -v "\.") )
+
+    modules=""
+    if [[ -e ".gitmodules" ]]; then
+        modules="$(grep -Po 'path\s*=\s*\K.*' .gitmodules)"
+    fi
+
+    readarray -t paths < <(git ls-files | grep -Fxv "${modules}" | awk -F"/" '{print $1}' | uniq | grep -v "\.")
+
 elif [[ ${git_files} -eq 1 ]]; then
     paths=( $(git ls-files) )
 else
