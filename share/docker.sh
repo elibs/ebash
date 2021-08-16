@@ -160,6 +160,12 @@ docker_build()
 
         opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
 
+        if [[ ${push} -eq 1 ]]; then
+            local push_tags
+            push_tags=( ${image} ${tag[@]:-} )
+            opt_forward docker_push registry username password -- ${push_tags[*]}
+        fi
+
         return 0
 
     # If pull is requested
@@ -171,6 +177,12 @@ docker_build()
             docker inspect "${image}" > "${inspfile}"
 
             opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
+
+            if [[ ${push} -eq 1 ]]; then
+                local push_tags
+                push_tags=( ${image} ${tag[@]:-} )
+                opt_forward docker_push registry username password -- ${push_tags[*]}
+            fi
 
             return 0
         fi
