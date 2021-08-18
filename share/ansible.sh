@@ -14,9 +14,14 @@ END
 ansible_status()
 {
     $(opt_parse \
-        "=failed    f   | Did this module fail - true | false."             \
-        "=changed   c   | Did this module change anything - true | false."  \
-        "=msg       m   | Message associated with this status.")
+        "+failed      f | Did this module fail."                \
+        "+changed     c | Did this module change anything."     \
+        "=message msg m | Message associated with this status." \
+    )
+
+    # Convert boolean values in failed and changed to string values
+    failed=$(bool_to_string "${failed}")
+    changed=$(bool_to_string "${changed}")
 
     # Note - Ansible is particular about it's status output. We need to escape
     #        any characters with special meaning in JSON.
