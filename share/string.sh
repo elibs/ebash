@@ -156,3 +156,22 @@ lower_snake_case_to_title_case()
 
     echo "${input^}" | perl -pe 's/_([a-z])/ \U\1/g'
 }
+
+opt_usage bool_to_string <<'END'
+bool_to_string converts a boolean value of '0' to the string 'false' and the boolean value of '1' to the string value
+'true'. Any other value passed to this function is an error.
+END
+bool_to_string()
+{
+    $(opt_parse \
+        "input | Input boolean numeric value to convert to a boolean string." \
+    )
+
+    if [[ "${input}" -eq 0 ]]; then
+        echo "false"
+    elif [[ "${input}" -eq 1 ]]; then
+        echo "true"
+    else
+        die "Unsupported $(lval input)"
+    fi
+}

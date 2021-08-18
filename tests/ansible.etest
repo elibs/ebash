@@ -9,11 +9,9 @@
 # Verify ansible_status happy path.
 ETEST_ansible_status()
 {
-    failed="false"
-    changed="true"
     msg="Ansible status test"
 
-    output=$(ansible_status --failed "${failed}" --changed "${changed}" --msg "${msg}")
+    output=$(ansible_status --no-failed --changed --msg "${msg}")
 
     assert_eq "{\"failed\": false, \"changed\": true, \"msg\": \"Ansible status test\"}" "${output}"
 }
@@ -21,60 +19,28 @@ ETEST_ansible_status()
 # Verify ansible_status with short parameters.
 ETEST_ansible_status_short()
 {
-    failed="false"
-    changed="true"
     msg="Ansible status test"
 
-    output=$(ansible_status --f "${failed}" --c "${changed}" --m "${msg}")
+    output=$(ansible_status -f=0 -c=1 -m="${msg}")
 
     assert_eq "{\"failed\": false, \"changed\": true, \"msg\": \"Ansible status test\"}" "${output}"
 }
 
-# Verify failure when missing the required failed argument.
-ETEST_ansible_status_missing_failed_arg()
+# Verify defaults when failed and changed are not provided
+ETEST_ansible_status_defaults()
 {
-    changed="true"
     msg="Ansible status test"
 
-    try
-    {
-        $(ansible_status --changed "${changed}" --message "${msg}")
-
-        die -r=243 "Should have failed parsing options."
-    }
-    catch
-    {
-        assert_ne 243 $?
-    }
-}
-
-# Verify failure when missing the required changed argument.
-ETEST_ansible_status_missing_changed_arg()
-{
-    failed="false"
-    msg="Ansible status test"
-
-    try
-    {
-        $(ansible_status --failed "${failed}" --message "${msg}")
-
-        die -r=243 "Should have failed parsing options."
-    }
-    catch
-    {
-        assert_ne 243 $?
-    }
+    output=$(ansible_status --message "${msg}")
+    assert_eq "{\"failed\": false, \"changed\": false, \"msg\": \"Ansible status test\"}" "${output}"
 }
 
 # Verify failure when missing the required msg argument.
 ETEST_ansible_status_missing_msg_arg()
 {
-    failed="false"
-    changed="true"
-
     try
     {
-        $(ansible_status --failed "${failed}" --changed "${changed}")
+        $(ansible_status)
 
         die -r=243 "Should have failed parsing options."
     }
