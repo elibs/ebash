@@ -111,3 +111,16 @@ ETEST_string_truncate()
     assert_eq "${string:0:15}"    "$(string_truncate     15 "${string}")"
     assert_eq "${string:0:12}..." "$(string_truncate -e  15 "${string}")"
 }
+
+ETEST_bool_to_string()
+{
+    assert_eq "true"  "$(bool_to_string 1)"
+    assert_eq "false" "$(bool_to_string 0)"
+}
+
+ETEST_bool_to_string_errors()
+{
+    # Cannot pass in anything other than '0' and '1'
+    assert_false "$(bool_to_string true)"
+    assert_false "$(bool_to_string false)"
+}
