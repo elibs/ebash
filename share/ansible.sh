@@ -25,6 +25,6 @@ ansible_status()
 
     # Note - Ansible is particular about it's status output. We need to escape
     #        any characters with special meaning in JSON.
-    msg=$(json_escape "${msg}")
-    printf '{"failed": %s, "changed": %s, "msg": %s}' "${failed}" "${changed}" "${msg}"
+    message=$(json_escape "${message}")
+    printf '{"failed": %s, "changed": %s, "msg": %s}' "${failed}" "${changed}" "${message}"
 }
