@@ -23,8 +23,9 @@ ansible_status()
     failed=$(bool_to_string "${failed}")
     changed=$(bool_to_string "${changed}")
 
-    # Note - Ansible is particular about it's status output. We need to escape
-    #        any characters with special meaning in JSON.
-    message=$(json_escape "${message}")
-    printf '{"failed": %s, "changed": %s, "msg": %s}' "${failed}" "${changed}" "${message}"
+    # Parse message into an array splitting on newlines
+    local lines
+    array_init_nl lines "${message}"
+
+    printf '{"failed": %s, "changed": %s, "msg": %s}' "${failed}" "${changed}" "$(array_to_json lines)"
 }
