@@ -23,19 +23,27 @@ higher level languages. Essentially the 'try' alias creates a subshell and then 
 through "die_on_error" (which essentially just enables 'set -e'). Since this runs in a subshell with fatal error
 handling enabled, the subshell will immediately exit on failure. The catch block which immediately follows the try
 block captures the exit status of the subshell and if it's not '0' it will invoke the catch block to handle the error.
-END
-alias try="
-    __EBASH_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
-    : \${__EBASH_DIE_ON_ERROR_TRAP:=-}
-    nodie_on_error
-    (
-        __EBASH_INSIDE_TRY=1
-        declare __EBASH_DISABLE_DIE_PARENT_PID=\${BASHPID}
-        enable_trace
-        die_on_abort
-        trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
-    "
 
+NOTE: We have nested subshells here to solve a very particular use case where where try/catch could not be used inside
+      main but only worked inside a function or subshell. To solve that corner case we simply always put the entire
+      try/catch in an extra subshell so that it is safe to use directly inside main. This of course adds a negligible
+      overhead but is worth it for this corner case being fixed.
+END
+__EBASH_DIE_ON_ERROR_TRAP_STACK=()
+alias try="
+    (
+        __EBASH_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
+        : \${__EBASH_DIE_ON_ERROR_TRAP:=-}
+        __EBASH_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EBASH_DIE_ON_ERROR_TRAP}\" )
+        nodie_on_error
+
+        (
+            __EBASH_INSIDE_TRY=1
+            declare __EBASH_DISABLE_DIE_PARENT_PID=\${BASHPID}
+            enable_trace
+            die_on_abort
+            trap 'die -r=\$? ${DIE_MSG_CAUGHT}' ERR
+    "
 
 opt_usage catch <<'END'
 Catch block attached to a preceeding try block. This is a rather complex alias and it's probably not readily obvious
@@ -60,8 +68,10 @@ this alias:
 END
 alias catch=" );
     __EBASH_TRY_CATCH_RC=\$?
+    __EBASH_DIE_ON_ERROR_TRAP=\"\${__EBASH_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
+    unset __EBASH_DIE_ON_ERROR_TRAP_STACK[\${#__EBASH_DIE_ON_ERROR_TRAP_STACK[@]}-1]
     trap \"\${__EBASH_DIE_ON_ERROR_TRAP}\" ERR
-    ( exit \${__EBASH_TRY_CATCH_RC} ) || "
+    exit \${__EBASH_TRY_CATCH_RC} ) || "
 
 opt_usage throw <<'END'
 Throw is just a simple wrapper around exit but it looks a little nicer inside a 'try' block to see 'throw' instead of
@@ -170,7 +180,7 @@ tryrc()
     local actual_rc=0
     try
     {
-        if [[ -n "${cmd[*]:-}" ]]; then
+        if [[ -n "${cmd[@]:-}" ]]; then
 
             # Redirect subshell's STDOUT and STDERR to requested locations
             exec >${stdout_file}
