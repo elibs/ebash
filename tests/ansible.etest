@@ -13,7 +13,7 @@ ETEST_ansible_status()
 
     output=$(ansible_status --no-failed --changed --msg "${msg}")
 
-    assert_eq "{\"failed\": false, \"changed\": true, \"msg\": \"Ansible status test\"}" "${output}"
+    assert_eq '{"failed": false, "changed": true, "msg": ["Ansible status test"]}' "${output}"
 }
 
 # Verify ansible_status with short parameters.
@@ -23,7 +23,7 @@ ETEST_ansible_status_short()
 
     output=$(ansible_status -f=0 -c=1 -m="${msg}")
 
-    assert_eq "{\"failed\": false, \"changed\": true, \"msg\": \"Ansible status test\"}" "${output}"
+    assert_eq '{"failed": false, "changed": true, "msg": ["Ansible status test"]}' "${output}"
 }
 
 # Verify defaults when failed and changed are not provided
@@ -32,7 +32,7 @@ ETEST_ansible_status_defaults()
     msg="Ansible status test"
 
     output=$(ansible_status --message "${msg}")
-    assert_eq "{\"failed\": false, \"changed\": false, \"msg\": \"Ansible status test\"}" "${output}"
+    assert_eq '{"failed": false, "changed": false, "msg": ["Ansible status test"]}' "${output}"
 }
 
 # Verify failure when missing the required msg argument.
@@ -49,3 +49,14 @@ ETEST_ansible_status_missing_msg_arg()
         assert_ne 243 $?
     }
 }
+
+# Verify multiple line output is captured properly into array of messages
+ETEST_ansible_status_multiline_status()
+{
+    local output=$'Line #1\nLine #2\nLine #3'
+
+    output=$(ansible_status --message "${output}")
+    assert_eq '{"failed": false, "changed": false, "msg": ["Line #1","Line #2","Line #3"]}' "${output}"
+}
+
+
