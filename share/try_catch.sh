@@ -23,16 +23,10 @@ higher level languages. Essentially the 'try' alias creates a subshell and then 
 through "die_on_error" (which essentially just enables 'set -e'). Since this runs in a subshell with fatal error
 handling enabled, the subshell will immediately exit on failure. The catch block which immediately follows the try
 block captures the exit status of the subshell and if it's not '0' it will invoke the catch block to handle the error.
-
-One clever trick employed here is to keep track of what level of the try/catch stack we are in so that the parent's
-ERR trap won't get triggered and cause the process to exit. Because we WANT the try subshell to exit and allow the
-failure to be handled inside the catch block.
 END
-__EBASH_DIE_ON_ERROR_TRAP_STACK=()
 alias try="
     __EBASH_DIE_ON_ERROR_TRAP=\"\$(trap -p ERR | sed -e 's|trap -- ||' -e 's| ERR||' -e \"s|^'||\" -e \"s|'$||\" || true)\"
     : \${__EBASH_DIE_ON_ERROR_TRAP:=-}
-    __EBASH_DIE_ON_ERROR_TRAP_STACK+=( \"\${__EBASH_DIE_ON_ERROR_TRAP}\" )
     nodie_on_error
     (
         __EBASH_INSIDE_TRY=1
@@ -66,8 +60,6 @@ this alias:
 END
 alias catch=" );
     __EBASH_TRY_CATCH_RC=\$?
-    __EBASH_DIE_ON_ERROR_TRAP=\"\${__EBASH_DIE_ON_ERROR_TRAP_STACK[@]:(-1)}\"
-    unset __EBASH_DIE_ON_ERROR_TRAP_STACK[\${#__EBASH_DIE_ON_ERROR_TRAP_STACK[@]}-1]
     trap \"\${__EBASH_DIE_ON_ERROR_TRAP}\" ERR
     ( exit \${__EBASH_TRY_CATCH_RC} ) || "
 
