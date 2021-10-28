@@ -598,7 +598,7 @@ opt_parse_options()
                 for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
                     char=${short_opts:$index:1}
                     canonical=$(opt_parse_find_canonical ${char})
-                    [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option --${long_opt:-}"
+                    [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option -${short_opts:-}"
 
                     if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
                         die "$(opt_parse_usage_name): option -${char} requires an argument."
@@ -617,14 +617,14 @@ opt_parse_options()
 
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option --${long_opt} requires an argument."
+                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option -${char} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
 
                     # If this is a required_string assert it's non-empty
                     if [[ ${__EBASH_OPT_TYPE[$canonical]} == "required_string" && -z "${opt_arg}" ]]; then
-                        die "$(opt_parse_usage_name): option --${long_opt} requires a non-empty argument."
+                        die "$(opt_parse_usage_name): option -${char} requires a non-empty argument."
                     fi
 
                     __EBASH_OPT[$canonical]=${opt_arg}
