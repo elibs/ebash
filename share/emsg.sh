@@ -669,7 +669,7 @@ tput()
         if [[ -n "${COLUMNS:-}" ]]; then
             echo "${COLUMNS}"
             return 0
-        elif command_exists tput; then
+        elif which tput &>/dev/null; then
             command tput cols || true
             return 0
         else
@@ -678,7 +678,7 @@ tput()
         fi
     fi
 
-    if ! command_exists tput; then
+    if ! which tput &> /dev/null; then
         return 0
     fi
 
