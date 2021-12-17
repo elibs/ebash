@@ -170,9 +170,6 @@ elif [ "${DISTRO}" = "darwin" ]; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
 
-    # Reset brew to a clean state
-    brew update-reset
-
     # Brew is lame. If you try to install something that's already installed it returns an error. So we have to first
     # check if it is installed and skip it if so.
     brew_install()
