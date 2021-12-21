@@ -5,6 +5,21 @@
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
 # published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
 
+# Mock git function to intercept "git push" commands for better testability.
+git_tags_pushed=()
+git()
+{
+    if [[ "${1}" == "push" ]]; then
+        etestmsg "Simulating git push tags=${*}"
+        shift
+        shift
+        git_tags_pushed+=( "${@}" )
+        return 0
+    fi
+
+    command git "${@}"
+}
+
 # Test helper for doing a git commit with a known user configuration
 git_commit()
 {
@@ -16,7 +31,7 @@ setup()
     # Mock out a git repository here in our current working directory. This way we can have a very controlled
     # environment and make tighter assertions.
     etestmsg "Mocking out git repository"
-    git config --global init.defaultBranch "main"
+    git config --global init.defaultBranch "develop"
     git init
     git remote add origin git@github.com:elibs/etest.git
     git remote set-url origin git@github.com:elibs/etest.git
@@ -26,17 +41,17 @@ setup()
     git tag -am "Tagged by etest" "v1.0.0.0"
 }
 
-ETEST_cicd_pack()
+ETEST_cicd_info()
 {
     # Create CICD Pack
     etestmsg "Test CI/CD Info"
-    cicd_pack info
+    cicd_info info
     $(pack_import info)
-    pack_to_json info | jq .
+    cicd_print --json info
 
     etestmsg "Validating CI/CD Info"
     assert_eq "v1.0.0.0"                            "${base_tag}"
-    assert_eq "main"                                "${branch}"
+    assert_eq "develop"                             "${branch}"
     assert_eq "0"                                   "${build}"
     assert_eq "$(git rev-parse HEAD)"               "${commit}"
     assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
@@ -52,7 +67,7 @@ ETEST_cicd_pack()
     assert_eq "v1.0.0.1"                            "${version_tag_next}"
 }
 
-ETEST_cicd_pack_offset()
+ETEST_cicd_info_offset()
 {
     etestmsg "Adding another commit"
     echo "foo" > "file1.txt"
@@ -62,13 +77,13 @@ ETEST_cicd_pack_offset()
 
     # Create CICD Pack
     etestmsg "Test CI/CD Info"
-    cicd_pack info
+    cicd_info info
     $(pack_import info)
-    pack_to_json info | jq .
+    cicd_print --json info
 
     etestmsg "Validating CI/CD Info"
     assert_eq "v1.0.0.0"                            "${base_tag}"
-    assert_eq "main"                                "${branch}"
+    assert_eq "develop"                             "${branch}"
     assert_eq "0"                                   "${build}"
     assert_eq "$(git rev-parse HEAD)"               "${commit}"
     assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
@@ -84,3 +99,180 @@ ETEST_cicd_pack_offset()
     assert_eq "v1.0.0.1"                            "${version_tag_next}"
 }
 
+ETEST_cicd_info_print()
+{
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_info info
+    $(pack_import info)
+    cicd_print info > output
+
+	cat > expect <<-EOF
+	base_tag="v1.0.0.0"
+	branch="develop"
+	build="0"
+	commit="${commit}"
+	commit_short="${commit_short}"
+	major="1"
+	minor="0"
+	offset="0"
+	origin_url="git@github.com:elibs/etest.git"
+	patch="0"
+	repo_slug="etest"
+	series="1.0"
+	version="1.0.0.0"
+	version_tag="v1.0.0.0"
+	version_tag_next="v1.0.0.1"
+	EOF
+
+    einfo "Expect"
+    cat expect
+
+    einfo "Actual"
+    cat output
+
+    diff -u expect output
+}
+
+ETEST_cicd_info_print_json()
+{
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info > output.json
+
+	cat > expect.json <<-EOF
+	{
+	  "base_tag": "v1.0.0.0",
+	  "branch": "develop",
+	  "build": "0",
+	  "commit": "${commit}",
+	  "commit_short": "${commit_short}",
+	  "major": "1",
+	  "minor": "0",
+	  "offset": "0",
+	  "origin_url": "git@github.com:elibs/etest.git",
+	  "patch": "0",
+	  "repo_slug": "etest",
+	  "series": "1.0",
+	  "version": "1.0.0.0",
+	  "version_tag": "v1.0.0.0",
+	  "version_tag_next": "v1.0.0.1"
+	}
+	EOF
+
+    einfo "Expect"
+    #jq . expect.json
+
+    einfo "Actual"
+    jq . output.json
+
+    diff -u expect.json output.json
+}
+
+ETEST_cicd_create_next_version_tag()
+{
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Creating next version tag"
+    cicd_create_next_version_tag
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Validating CI/CD Info"
+    assert_eq "v1.0.0.1"                            "${base_tag}"
+    assert_eq "develop"                             "${branch}"
+    assert_eq "1"                                   "${build}"
+    assert_eq "$(git rev-parse HEAD)"               "${commit}"
+    assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
+    assert_eq "1"                                   "${major}"
+    assert_eq "0"                                   "${minor}"
+    assert_eq "0"                                   "${offset}"
+    assert_eq "git@github.com:elibs/etest.git"      "${origin_url}"
+    assert_eq "0"                                   "${patch}"
+    assert_eq "etest"                               "${repo_slug}"
+    assert_eq "1.0"                                 "${series}"
+    assert_eq "1.0.0.1"                             "${version}"
+    assert_eq "v1.0.0.1"                            "${version_tag}"
+    assert_eq "v1.0.0.2"                            "${version_tag_next}"
+}
+
+ETEST_cicd_create_next_version_tag_push()
+{
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Creating next version tag"
+    cicd_create_next_version_tag --push
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "$(lval git_tags_pushed)"
+    assert_eq 2                     "$(array_size git_tags_pushed)"
+    assert_eq "develop"             "${git_tags_pushed[0]}"
+    assert_eq "${version_tag}"      "${git_tags_pushed[1]}"
+}
+
+ETEST_cicd_create_next_version_branch_error()
+{
+    etestmsg "Switching to a feature branch"
+    git checkout -b "feature/foo"
+
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+    assert_eq "feature/foo" "${branch}"
+
+    etestmsg "Verifying cicd_create_next_version_tag fails due to feature branch"
+    assert_false cicd_create_next_version_tag --push
+}
+
+ETEST_cicd_release()
+{
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Creating next version tag"
+    cicd_create_next_version_tag
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Testing git_release with mock push"
+    cicd_release
+    etestmsg "$(lval git_tags_pushed)"
+    assert_eq 1           "$(array_size git_tags_pushed)"
+    assert_eq "HEAD:main" "${git_tags_pushed[0]}"
+}
+
+ETEST_cicd_release_branch_error()
+{
+    etestmsg "Switching to a feature branch"
+    git checkout -b "feature/foo"
+
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+    assert_eq "feature/foo" "${branch}"
+
+    etestmsg "Verifying cicd_release fails due to feature branch"
+    assert_false cicd_release
+    assert_eq 0           "$(array_size git_tags_pushed)"
+}
