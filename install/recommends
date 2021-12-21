@@ -175,6 +175,8 @@ elif os_distro gentoo; then
         emerge-webrsync
     fi
 
+    emerge --search app-emulation/docker
+
     packages+=(
         app-emulation/docker
         app-misc/jq
