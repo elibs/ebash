@@ -245,6 +245,19 @@ _pack_print_item()
     echo -n "[$1]=\"$2\" "
 }
 
+pack_print_key_value()
+{
+    local _pack_pack_print=$1
+    argcheck _pack_pack_print
+
+    pack_iterate _pack_print_key_value_item ${_pack_pack_print}
+}
+
+_pack_print_key_value_item()
+{
+    echo "$1=\"$2\""
+}
+
 _unpack()
 {
     # NOTE: BSD base64 is really chatty and this is the reason we discard its error output
