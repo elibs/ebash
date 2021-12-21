@@ -40,7 +40,7 @@ if [[ -n "${package}" ]]; then
     pkg_install "${package}"
 else
     ewarn "ShellCheck not available in package manager. Downloading pre-built binary from upstream"
-    efetch --style=einfo https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz /tmp
+    eretry efetch --style=einfo https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz /tmp
     trap_add "rm -rfv /tmp/shellcheck-stable.linux.x86_64.tar.xz /tmp/shellcheck-stable"
     mkdir -p "/usr/local/bin"
     tar --directory "/tmp" --extract --xz --file "/tmp/shellcheck-stable.linux.x86_64.tar.xz"
