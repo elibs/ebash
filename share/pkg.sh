@@ -287,9 +287,8 @@ pkg_install_distro()
     fi
 
     # First collect a list of all the packages to install
-    local distro=$(edistro)
-    local packages=()
-    local entry
+    local entry distro packages=()
+    distro=$(edistro)
     for entry in "${entries[@]}"; do
 
         local key="${entry%%=*}"
@@ -300,8 +299,9 @@ pkg_install_distro()
         fi
     done
 
+    array_sort --unique packages
     edebug "Found matching package list $(lval distro packages)"
-    opt_forward pkg_install sync -- ${packages[@]}
+    opt_forward pkg_install sync -- "${packages[@]}"
 }
 
 opt_usage pkg_uninstall <<'END'
