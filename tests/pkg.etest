@@ -10,8 +10,12 @@
 setup()
 {
     pkg_known=coreutils
-    pkg_unknown=does-not-exist
     pkg_installed=coreutils
+    if os_distro centos && os_release 8; then
+        pkg_known=coreutils-single
+        pkg_installed=coreutils-single
+    fi
+    pkg_unknown=does-not-exist
     pkg_candidates=(hello banner lolcat fortune)
 
     # Find package we can install from pkg_candidates
@@ -92,6 +96,34 @@ ETEST_pkg_install_and_upgrade()
 
     etestmsg "Attempt upgrade on $(lval pkg_to_install)"
     eretry --delay 5s --retries 5 pkg_upgrade ${pkg_to_install}
+    pkg_known ${pkg_to_install}
+    pkg_installed ${pkg_to_install}
+
+    etestmsg "Uninstall $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_uninstall ${pkg_to_install}
+
+    etestmsg "and verify that we don't believe $(lval pkg_to_install) is installed."
+    pkg_known ${pkg_to_install}
+    assert_false pkg_installed ${pkg_to_install}
+}
+
+ETEST_pkg_install_distro()
+{
+    etestmsg "First make sure $(lval pkg_to_install) is not installed."
+    pkg_known ${pkg_to_install}
+    assert_false pkg_installed ${pkg_to_install}
+
+    # NOTE: Some packaging systems (e.g. dpkg) don't deal well with different processes trying to install things at the
+    # same time. The retries here are intended to harden against issues like that.
+    etestmsg "Install $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_install_distro \
+        all="${pkg_installed}" \
+        $(edistro)="${pkg_to_install}"
+
+    # Make sure things get cleaned up, even if something goes wrong after this point
+    trap_add "etestmsg CLEANUP ; pkg_uninstall ${pkg_to_install} || true"
+
+    etestmsg "Verify $(lval pkg_to_install) exists and can be verified as installed."
     pkg_known ${pkg_to_install}
     pkg_installed ${pkg_to_install}
 

@@ -185,6 +185,9 @@ elif os_distro ubuntu; then
     pkg_install cgroup-lite gnupg-agent iproute2 iptables iptuils-ping mkisofs net-tools psmisc xz-utils
 fi
 ```
+
+See Also `pkg_install_distro` which enables you to sensibly do all the above in a more compact single-liner.
+
 END
 pkg_install()
 {
@@ -245,6 +248,60 @@ pkg_install()
             die "Unsupported $(lval pkg_manager)"
             ;;
     esac
+}
+
+opt_usage pkg_install_distro <<'END'
+Install a list of packages per-distro in an intelligent manner. This is meant to be a more compact way to perform the
+installation of packages across distros in a single command. Basically you list a series of `key=value` pairs where each
+key is the name of a distro and the value is a whitespace separated list of packages to install. There is a special key
+`all` which will be used to list common packages to install on all distros, followed by a broken out list of packages to
+install per-distro.
+
+Here is an example:
+
+```shell
+pkg_install_distro \
+    all="bzip cpio curl debootstrap"                                                                  \
+    darwin="gnu-tar iproute2mac"                                                                      \
+    alpine="cdrkit gnupg iproute2 iputils ncurses ncurses-terminfo net-tools pstree xz"               \
+    centos="genisoimage iproute iptables ncurses net-tools psmisc xz"                                 \
+    debian="genisoimage iproute iptables ncurses net-tools psmisc xz"                                 \
+    fedora="genisoimage iproute iptables ncurses net-tools psmisc xz"                                 \
+    gentoo="cdrtools lbzip2 net-tools pigz psmisc"                                                    \
+    ubuntu="cgroup-lite gnupg-agent iproute2 iptables iptuils-ping mkisofs net-tools psmisc xz-utils" \
+```
+END
+pkg_install_distro()
+{
+    $(opt_parse \
+        "+sync     | Perform package sync before installing packages. This is normally automatically done if the packages
+                     being installed are not known by the package manager. But this allows you to explicitly sync if
+                     required."                                                                                        \
+        "@entries  | Names of distro specific packages to install of the form distro=\"pkg1 pkg2\". You can also use the
+                     special distro name \"all\" for things that have common names across all distros."                \
+    )
+
+    # If no package names requested just return
+    if array_empty entries; then
+        return 0
+    fi
+
+    # First collect a list of all the packages to install
+    local entry distro packages=()
+    distro=$(edistro)
+    for entry in "${entries[@]}"; do
+
+        local key="${entry%%=*}"
+        local val="${entry#*=}"
+
+        if [[ "${key,,}" == "all" || "${key,,}" == "${distro}" ]]; then
+            packages+=( ${val} )
+        fi
+    done
+
+    array_sort --unique packages
+    edebug "Found matching package list $(lval distro packages)"
+    opt_forward pkg_install sync -- "${packages[@]}"
 }
 
 opt_usage pkg_uninstall <<'END'
