@@ -295,6 +295,10 @@ pkg_install_distro()
         local val="${entry#*=}"
 
         if [[ "${key,,}" == "all" || "${key,,}" == "${distro}" ]]; then
+
+            # Strip off any quotes which may have been put on the list of packages embedded in this value.
+            val="${val%\"}"
+            val="${val#\"}"
             packages+=( ${val} )
         fi
     done
