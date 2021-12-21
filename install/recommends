@@ -176,7 +176,7 @@ elif os_distro gentoo; then
     fi
 
     packages+=(
-        app-emulation/docker
+        app-containers/docker
         app-misc/jq
         cdrtools
         debootstrap
