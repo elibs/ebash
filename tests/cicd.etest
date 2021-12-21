@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
+# published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
+
+# Test helper for doing a git commit with a known user configuration
+git_commit()
+{
+    git -c user.name='Neo' -c user.email='neo@matrix.com' commit "${@}"
+}
+
+setup()
+{
+    # Mock out a git repository here in our current working directory. This way we can have a very controlled
+    # environment and make tighter assertions.
+    etestmsg "Mocking out git repository"
+    git config --global init.defaultBranch "main"
+    git init
+    git remote add origin git@github.com:elibs/etest.git
+    git remote set-url origin git@github.com:elibs/etest.git
+    touch "file1.txt"
+    git add "file1.txt"
+    git_commit -am "Add file1.txt"
+    git tag -am "Tagged by etest" "v1.0.0.0"
+}
+
+ETEST_cicd_pack()
+{
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_pack info
+    $(pack_import info)
+    pack_to_json info | jq .
+
+    etestmsg "Validating CI/CD Info"
+    assert_eq "v1.0.0.0"                            "${base_tag}"
+    assert_eq "main"                                "${branch}"
+    assert_eq "0"                                   "${build}"
+    assert_eq "$(git rev-parse HEAD)"               "${commit}"
+    assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
+    assert_eq "1"                                   "${major}"
+    assert_eq "0"                                   "${minor}"
+    assert_eq "0"                                   "${offset}"
+    assert_eq "git@github.com:elibs/etest.git"      "${origin_url}"
+    assert_eq "0"                                   "${patch}"
+    assert_eq "etest"                               "${repo_slug}"
+    assert_eq "1.0"                                 "${series}"
+    assert_eq "1.0.0.0"                             "${version}"
+    assert_eq "v1.0.0.0"                            "${version_tag}"
+    assert_eq "v1.0.0.1"                            "${version_tag_next}"
+}
+
+ETEST_cicd_pack_offset()
+{
+    etestmsg "Adding another commit"
+    echo "foo" > "file1.txt"
+    git add "file1.txt"
+    git status
+    git_commit -am "Bump file1.txt"
+
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_pack info
+    $(pack_import info)
+    pack_to_json info | jq .
+
+    etestmsg "Validating CI/CD Info"
+    assert_eq "v1.0.0.0"                            "${base_tag}"
+    assert_eq "main"                                "${branch}"
+    assert_eq "0"                                   "${build}"
+    assert_eq "$(git rev-parse HEAD)"               "${commit}"
+    assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
+    assert_eq "1"                                   "${major}"
+    assert_eq "0"                                   "${minor}"
+    assert_eq "1"                                   "${offset}"
+    assert_eq "git@github.com:elibs/etest.git"      "${origin_url}"
+    assert_eq "0"                                   "${patch}"
+    assert_eq "etest"                               "${repo_slug}"
+    assert_eq "1.0"                                 "${series}"
+    assert_eq "1.0.0.0-1-g${commit_short}"          "${version}"
+    assert_eq "v1.0.0.0-1-g${commit_short}"         "${version_tag}"
+    assert_eq "v1.0.0.1"                            "${version_tag_next}"
+}
+
