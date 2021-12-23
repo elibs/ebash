@@ -20,6 +20,7 @@
 : ${COLOR_BRACKET:="bold blue"}
 : ${COLOR_BANNER:="bold magenta"}
 : ${COLOR_USAGE:="bold green"}
+: ${COLOR_CHECKBOX:="lightslategrey"}
 
 # By default enable eprogress style tickers
 : ${EPROGRESS:=1}
@@ -906,7 +907,7 @@ eprogress()
         nodie_on_error
 
         # Hide cursor to avoid seeing it move back and forth
-        tput civis
+        tput civis >&2
 
         # Sentinal for breaking out of the loop on signal from eprogress_kill
         local done=0
@@ -1059,7 +1060,7 @@ eprogress_kill()
     done
 
     # Display cursor again
-    tput cnorm
+    tput cnorm >&2
 
     return 0
 }
