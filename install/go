@@ -15,9 +15,6 @@ This script is used to install Go onto a system. For distros which have a new en
 manager we can simply invoke their installer. Otherwise we install Go from the official upstream tarball.
 END
 
-OS=$(os_pretty_name)
-ebanner --uppercase "Installing Go package" OS
-
 #----------------------------------------------------------------------------------------------------------------------
 #
 # Main
