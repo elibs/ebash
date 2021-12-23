@@ -36,27 +36,30 @@ fi
 if [[ -n "${package}" ]]; then
     pkg_install "${package}"
 elif os linux; then
-    ewarn "Go not available via package manager on $(os_pretty_name)."
-    ewarn "Downloading pre-built package from official Go URL"
 
-    # Temporary file to download to
-    tmpfile=$(mktemp --tmpdir ebash-install-go-XXXXXX)
-    trap_add "rm -f ${tmpfile}"
+    # If we already have Go installed there's nothing to do.
+    if ! which go &>/dev/null; then
+        einfo "Go not available via package manager on $(os_pretty_name). Downloading from official Go URL."
 
-    # Download
-    eretry efetch --style=einfo \
-        "https://dl.google.com/go/$(curl https://golang.org/VERSION?m=text).linux-amd64.tar.gz" "${tmpfile}"
+        # Download
+        version="$(curl --silent --location https://golang.org/VERSION?m=text)"
+        url="https://dl.google.com/go/${version}.linux-amd64.tar.gz"
+        tarball="${TMPDIR:-/tmp}/$(basename "${url}")"
+        eretry efetch --style=einfo "${url}" "${tarball}"
+        trap_add "rm -f ${tarball}"
 
-    mkdir -p "/usr/local/bin"
-    tar --directory "/usr/local" --extract --xz --file "${tmpfile}"
+        # Extract
+        mkdir -p "/usr/local/bin"
+        tar --directory "/usr/local" --extract --gzip --file "${tarball}"
+
+        # Add symlinks to /usr/local/bin
+        einfo "Creating symbolic links for go binaries"
+        ln -sv "/usr/local/go/bin/"* "/usr/local/bin"
+    fi
+
 else
     die "Cannot install Go on $(os_pretty_name)"
 fi
 
-ewarn "Please make sure to update your PATH appropriately so that your shell can find Go"
-ewarn "For example, you probably want to add this to your ~/.bashrc or ~/.zshrc file:"
-ewarn 'export PATH=$PATH:/usr/local/go/bin'
-
 # Verify installation succeeded
-PATH+=:/usr/local/go/bin
 command_exists "go"
