@@ -21,7 +21,6 @@ Display an open checkbox with an optional message as well as a timer. This is si
 this also displays a timer. This is useful when you want to have a long-running task with a timer and then fill in the
 checkbox with a successful check mark or a failing X.
 END
-__CHECKBOX_TIMER_PID=
 checkbox_open_timer()
 {
     (
@@ -51,9 +50,7 @@ checkbox_open_timer()
         done
     ) >&2 &
 
-    # Store the PID and also add it to EBASH_EPROGRESS_PIDS so that it will get killed explicitly in die(). Also set a
-    # trap to ensure we kill it.
-    __CHECKBOX_TIMER_PID=$!
+    # Store the PID and set a trap to ensure we kill it.
     __EBASH_EPROGRESS_PIDS+=( $! )
     trap_add "checkbox_close 1 $!"
 }
@@ -65,26 +62,34 @@ and an `X` on failure.
 END
 checkbox_close()
 {
-    local rc=${1:-0}
+    $(opt_parse \
+        "+all a               | If set, kill ALL known checkbox_timer processes, not just the current one" \
+        ":return_code rc r=0  | Should this checkbox show a mark for success or failure?"                  \
+    )
 
-    {
-        if [[ -n "${__CHECKBOX_TIMER_PID}" ]]; then
-            kill "${__CHECKBOX_TIMER_PID}" 2>/dev/null || true
-            wait "${__CHECKBOX_TIMER_PID}" 2>/dev/null || true
+    opt_forward eprogress_kill all return_code -- --callback "checkbox_eend"
+}
 
-            tput cnorm
-        fi
+opt_usage checkbox_eend <<'END'
+`checkbox_eend` is used to print the final closing checkbox message via checkbox_close which in turn passes this function
+into eprogress_kill. It will essentially ack the same as `eend` only it prints the checkbox with either a successful
+check mark or a failing X.
+END
+checkbox_eend()
+{
+    $(opt_usage \
+        "return_code=0 | Return code of the command that last ran. Success (0) will print '[✓]' message and any non-zero
+                         value will emit '[✘]'." \
+    )
 
-        printf "\r"
 
-        if [[ "${rc}" -eq 0 ]]; then
-            echo "$(tput setaf 2)$(tput bold)[✓]$(tput sgr0)"
-        else
-            echo "$(tput setaf 1)$(tput bold)[✘]$(tput sgr0)"
-        fi
-    } >&2
+    printf "\r"
 
-    return 0
+    if [[ "${return_code}" -eq 0 ]]; then
+        echo "$(tput setaf 2)$(tput bold)[✓]$(tput sgr0)"
+    else
+        echo "$(tput setaf 1)$(tput bold)[✘]$(tput sgr0)"
+    fi
 }
 
 opt_usage checkbox <<'END'

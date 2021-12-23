@@ -1005,12 +1005,14 @@ END
 eprogress_kill()
 {
     $(opt_parse \
-        ":rc return_code r=0  | Should this eprogress show a mark for success or failure?" \
-        "+all a               | If set, kill ALL known eprogress processes, not just the current one")
+        "+all a               | If set, kill ALL known eprogress processes, not just the current one"  \
+        ":callback=eend       | Callback to call as each progress ticker is killed."                   \
+        ":return_code rc r=0  | Should this eprogress show a mark for success or failure?"             \
+    )
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS} -eq 0 ]] ; then
-        eend ${rc}
+        ${callback} ${return_code}
         return 0
     fi
 
@@ -1033,7 +1035,8 @@ eprogress_kill()
     for pid in "${pids[@]}"; do
 
         # Don't kill the pid if it's not running or it's not an eprogress pid. This catches potentially disasterous
-        # errors where someone would do "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
+        # errors where someone would do "eprogress_kill ${return_code}" when they really meant "eprogress_kill
+        # -r=${return_code}"
         if process_not_running ${pid} || ! array_contains __EBASH_EPROGRESS_PIDS ${pid}; then
             continue
         fi
@@ -1044,8 +1047,11 @@ eprogress_kill()
         array_remove __EBASH_EPROGRESS_PIDS ${pid}
 
         # Output
-        einteractive && echo "" >&2
-        eend ${rc}
+        if einteractive && [[ "${callback}" == "eend" ]]; then
+            echo "" >&2
+        fi
+
+        ${callback} ${return_code}
     done
 
     return 0
