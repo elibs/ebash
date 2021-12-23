@@ -876,7 +876,8 @@ eprogress()
         "+time=1                          | As long as not turned off with --no-time, the amount of time since eprogress
                                             start will be displayed next to the ticker."                               \
         ":style=einfo                     | Style used when displaying the message. You might want to use, for instance,
-                                            einfos or ewarn or eerror instead."                                        \
+                                            einfos or ewarn or eerror instead. Or 'echo' if you don't want any special
+                                            emsg formatting at the start of the message."                              \
         "@message                         | A message to be displayed once prior to showing a time ticker. This will
                                             occur before the file contents if you also use --file.")
 
@@ -903,6 +904,9 @@ eprogress()
 
         # Don't produce any errors when tools here catch a signal. That's what we expect to happen
         nodie_on_error
+
+        # Hide cursor to avoid seeing it move back and forth
+        tput civis
 
         # Sentinal for breaking out of the loop on signal from eprogress_kill
         local done=0
@@ -1053,6 +1057,9 @@ eprogress_kill()
 
         ${callback} ${return_code}
     done
+
+    # Display cursor again
+    tput cnorm
 
     return 0
 }
