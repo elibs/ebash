@@ -26,7 +26,7 @@ checkbox_open_timer()
     # Write the initial message out to a temporary file which we will cleanup.
     local checkfile
     checkfile=$(mktemp --tmpdir checkbox-open-timer-XXXXXX)
-    printf "$(tput setaf 100)$(tput bold)[ ]$(tput sgr0) %-20s" "$*" > "${checkfile}"
+    printf "$(tput setaf ${COLOR_CHECKBOX})$(tput bold)[ ]$(tput sgr0) %-20s" "$*" > "${checkfile}"
     trap_add "rm --force ${checkfile}"
 
     # Now delegate the ticker to eprogress

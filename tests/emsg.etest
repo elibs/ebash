@@ -688,5 +688,5 @@ ETEST_no_stdout_contamination()
     local capture
     capture=$(EFUNCS_COLOR=1 EINTERACTIVE=1 ETRACE=foo EDEBUG=foo foo)
 
-    assert_eq "EXPECTED" "${capture}"
+    assert_eq --hexdump "EXPECTED" "${capture}"
 }
