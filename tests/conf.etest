@@ -15,20 +15,20 @@ ETEST_conf_basic()
     e_d="value containing apostophe (say it ain't so)"
     e_e='value containing "double quotes"'
 
-cat >file <<END
-[section_a]
-a=${e_a}
-#a=3
- b = ${e_b}
-;b=2
-c = ${e_c}
-d = ${e_d}
-e = ${e_e}
+	cat >file <<-END
+	[section_a]
+	a=${e_a}
+	#a=3
+	 b = ${e_b}
+	;b=2
+	c = ${e_c}
+	d = ${e_d}
+	e = ${e_e}
 
 
-[section_b]
-c=1
-END
+	[section_b]
+	c=1
+	END
 
     etestmsg "Configuration contents"
     cat file
@@ -61,11 +61,11 @@ ETEST_conf_value_quotes()
 {
     expected=" a b c "
 
-cat > file <<END
-[s]
-a="${expected}"
-b='${expected}'
-END
+	cat > file <<-END
+	[s]
+	a="${expected}"
+	b='${expected}'
+	END
 
     declare -A CONF_QUOTES
     conf_read CONF_QUOTES file
@@ -96,10 +96,10 @@ ETEST_conf_checks_quotes()
 
 ETEST_conf_section_name_whitespace()
 {
-cat >file <<END
-[section whitespace]
-a=2
-END
+	cat >file <<-END
+	[section whitespace]
+	a=2
+	END
 
     declare -A CONF
     conf_read CONF file
@@ -108,18 +108,18 @@ END
 
 ETEST_conf_set()
 {
-cat >file <<END
-# COMMENT1
-[section_x]
-# COMMENT2
-a = 1
-# COMMENT3
-b = 2
+	cat >file <<-END
+	# COMMENT1
+	[section_x]
+	# COMMENT2
+	a = 1
+	# COMMENT3
+	b = 2
 
-[section_y]
-a = 10
-b = 20
-END
+	[section_y]
+	a = 10
+	b = 20
+	END
 
     etestmsg "Initial file"
     cat file
@@ -235,17 +235,17 @@ ETEST_conf_set_default()
 
 ETEST_conf_dump_circle()
 {
-cat >file <<END
-[section_a]
-a = 1
-b = 2
+	cat >file <<-END
+	[section_a]
+	a = 1
+	b = 2
 
-[section_b]
-a = 300
-b = 400
-c = 10
+	[section_b]
+	a = 300
+	b = 400
+	c = 10
 
-END
+	END
 
     declare -A MYCONF
     conf_read MYCONF file
@@ -256,19 +256,45 @@ END
     assert_eq --hexdump "$(cat file)" "$(cat other_file)"
 }
 
+ETEST_conf_props()
+{
+    cat >file <<-END
+	global = 1
+
+	[section_a]
+	a = 1
+	b = 2
+
+	[section_b]
+	a = 300
+	b = 400
+	c = 10
+	END
+
+    etestmsg "Input"
+    cat file
+
+    declare -A CONF
+    conf_read CONF file
+
+	assert_eq "global" "$(conf_props CONF default   | tr '\n' ' ' | sed 's| $||')"
+    assert_eq "a b"    "$(conf_props CONF section_a | tr '\n' ' ' | sed 's| $||')"
+    assert_eq "a b c"  "$(conf_props CONF section_b | tr '\n' ' ' | sed 's| $||')"
+}
+
 ETEST_conf_contains()
 {
-cat >file <<END
-[section_a]
-a = 1
-b = 2
+	cat >file <<-END
+	[section_a]
+	a = 1
+	b = 2
 
-[section_b]
-a = 300
-b = 400
-c = 10
+	[section_b]
+	a = 300
+	b = 400
+	c = 10
+	END
 
-END
     etestmsg "Before removal"
     cat file
 
