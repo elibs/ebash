@@ -23,36 +23,14 @@ checkbox with a successful check mark or a failing X.
 END
 checkbox_open_timer()
 {
-    (
-        trap - ERR
+    # Write the initial message out to a temporary file which we will cleanup.
+    local checkfile
+    checkfile=$(mktemp --tmpdir checkbox-open-timer-XXXXXX)
+    printf "$(tput setaf 209)$(tput bold)[ ]$(tput sgr0) %-20s" "$*" > "${checkfile}"
+    trap_add "rm --force ${checkfile}"
 
-        # Hide cursor to avoid seeing it move back and forth
-        tput civis
-
-        local start=${SECONDS} new="" diff=""
-        while true; do
-            now=${SECONDS}
-            diff=$(( ${now} - ${start} ))
-            printf "$(tput setaf 209)$(tput bold)[ ]$(tput sgr0) %-20s" "$*"
-            printf " $(tput bold)[%02d:%02d:%02d]\r$(tput sgr0)" $(( ${diff} / 3600 )) $(( (${diff} % 3600) / 60 )) $(( ${diff} % 60 ))
-
-            # Optionally display a newline between each ticker. This is helpful from jenkins jobs where we want to see
-            # progress in the build rather than waiting until the entire checkbox timer job completes.
-            if [[ "${CHECKBOX_TIMER_NEWLINE:-0}" -eq 1 ]]; then
-                echo
-            fi
-
-            # Optionally delay some amount of time to avoid showing the ticker every second
-            if [[ -n "${CHECKBOX_TIMER_DELAY:-}" ]]; then
-                sleep "${CHECKBOX_TIMER_DELAY:-}"
-            fi
-
-        done
-    ) >&2 &
-
-    # Store the PID and set a trap to ensure we kill it.
-    __EBASH_EPROGRESS_PIDS+=( $! )
-    trap_add "checkbox_close 1 $!"
+    # Now delegate the ticker to eprogress
+    eprogress --style "echo" --file "${checkfile}"
 }
 
 opt_usage checkbox_close <<'END'
