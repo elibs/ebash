@@ -27,7 +27,7 @@ linting errors. By default shellcheck linting is disabled. Yout can opt-in by pa
 value of error, warning, info, style.
 END
 $(opt_parse \
-    "+break b                      | Break on first failure."                                                          \
+    "+failfast break b             | Break on first failure."                                                          \
     "+quiet q                      | Make bashlint produce no output."                                                 \
     "+internal i=1                 | Run all ebash internal checks. This includes checking for bash syntax errors,
                                      non-versioned ebash, deprecated ebash code, ambiguous return statements, combined
@@ -197,7 +197,7 @@ for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
         eend --inline --inline-offset=${einfo_message_length} 1
     fi
 
-    if [[ "${break}" -eq 1 && ${rc} -ne 0 ]]; then
+    if [[ "${failfast}" -eq 1 && ${rc} -ne 0 ]]; then
         break
     fi
 done
