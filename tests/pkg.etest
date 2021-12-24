@@ -11,7 +11,7 @@ setup()
 {
     pkg_known=coreutils
     pkg_installed=coreutils
-    if os_distro centos && os_release 8; then
+    if os_distro centos rocky && os_release 8 8.5; then
         pkg_known=coreutils-single
         pkg_installed=coreutils-single
     fi

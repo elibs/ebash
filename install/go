@@ -25,7 +25,7 @@ END
 package=""
 if os darwin || os_distro alpine arch gentoo; then
     package="go"
-elif os_distro debian fedora; then
+elif os_distro fedora; then
     package="golang-bin"
 fi
 
