@@ -10,8 +10,12 @@
 setup()
 {
     pkg_known=coreutils
-    pkg_unknown=does-not-exist
     pkg_installed=coreutils
+    if os_distro centos && os_release 8; then
+        pkg_known=coreutils-single
+        pkg_installed=coreutils-single
+    fi
+    pkg_unknown=does-not-exist
     pkg_candidates=(hello banner lolcat fortune)
 
     # Find package we can install from pkg_candidates

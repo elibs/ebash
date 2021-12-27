@@ -53,49 +53,51 @@ etest produces a JUnit/XUnit compatible etest.xml file at the end of the test ru
 executed along with runtimes and specific lists of passing, failing and flaky tests. This file can be directly hooked
 into Jenkins, GitHub Actions, and BitBucket Pipelines for clear test visibility and reporting.
 END
+: ${FAILFAST:=${BREAK:-0}}
 $(opt_parse \
-    "+break   b=${BREAK:-0}    | Stop immediately on first failure."                                                    \
-    "+clean   c=0              | Clean only and then exit."                                                             \
-    ":debug   D=${EDEBUG:-}    | EDEBUG output."                                                                        \
-    "+delete  d=1              | Delete all output files when tests complete."                                          \
-    ":name                     | Name of this test run to use for artifacts and display purposes. Defaults to etest."   \
-    "+print_only print p       | Print list of tests that would be executed based on provided filter and exclude to
-                                 stdout and then exit without actually running any tests."                              \
-    ":exclude x                | Tests whose name or file match this (bash-style) regular expression will not be run."  \
-    ":failures=${FAILURES:-0}  | Number of failures per-test to permit. Normally etest will return non-zero if any
-                                 test fails at all. However, in certain circumstances where flaky tests exist it may
-                                 be desireable to allow each test to retried a specified number of times and only
-                                 classify it as a failure if that test fails more than the requested threshold."        \
-    ":filter  f                | Tests whose name or file match this (bash-style) regular expression will be run."      \
-    "+html    h=0              | Produce an HTML logfile and strip color codes out of etest.log."                       \
-    ":log_dir                  | Directory to place logs in. Defaults to the current directory."                        \
-    "+mount_ns=1               | Run tests inside a mount namespace."                                                   \
-    ":repeat  r=${REPEAT:-1}   | Number of times to repeat each test."                                                  \
-    "+summary s=0              | Display final summary to terminal in addition to logging it to etest.json."            \
-    "&test_list l              | File that contains a list of tests to run. This file may contain comments on lines
-                                 that begin with the # character. All other nonblank lines will be interpreted as
-                                 things that could be passed as @tests -- directories, executable scripts, or .etest
-                                 files. Relative paths will be interpreted against the current directory. This option
-                                 may be specified multiple times."                                                      \
-    "+verbose v=${VERBOSE:-0}  | Verbose output."                                                                       \
-    ":work_dir                 | Temporary location where etest can place temporary files. This location will be both
-                                 created and deleted by etest."                                                         \
-    ":timeout=infinity         | Per-Test timeout. After this duration the test will be killed if it has not completed.
-                                 You can also define this programmatically in setup() using the ETEST_TIMEOUT variable.
-                                 This uses sleep(1) time syntax."                                                       \
-    ":total_timeout=infinity   | Total test timeout for entire etest run. This is different than timeout which is for a
-                                 single unit test. This is the total timeout for ALL test suites and tests being
-                                 executed. After this duration etest will be killed if it has not completed. This uses
-                                 sleep(1) time syntax."                                                                 \
-    "+subreaper=1              | On Linux, set the CHILD_SUBREAPER flag so that any processes created by etest get
-                                 reparented to etest itself instead of to init or whatever process ancestor may have set
-                                 this flag. This allows us to properly detect process leak detections and ensure they
-                                 are cleaned up properly. At present, this only works on Linux with gdb installed."    \
-    "@tests                    | Any number of individual tests, which may be executables to be executed and checked for
-                                 exit code or may be files whose names end in .etest, in which case they will be sourced
-                                 and any test functions found will be executed. You may also specify directories in
-                                 which case etest will recursively find executables and .etest files and treat them in
-                                 similar fashion.")
+    "+failfast break b=${FAILFAST} | Stop immediately on first failure."                                               \
+    "+clean   c=0                  | Clean only and then exit."                                                        \
+    ":debug   D=${EDEBUG:-}        | EDEBUG output."                                                                   \
+    "+delete  d=1                  | Delete all output files when tests complete."                                     \
+    ":name                         | Name of this test run to use for artifacts and display purposes (default=etest)." \
+    "+print_only print p           | Print list of tests that would be executed based on provided filter and exclude
+                                     to stdout and then exit without actually running any tests."                      \
+    ":exclude x                    | Tests whose name or file match this regular expression will not be run."          \
+    ":failures=${FAILURES:-0}      | Number of failures per-test to permit. Normally etest will return non-zero if any
+                                     test fails at all. However, in certain circumstances where flaky tests exist it may
+                                     be desireable to allow each test to retried a specified number of times and only
+                                     classify it as a failure if that test fails more than the requested threshold."   \
+    ":filter  f                    | Tests whose name or file match this (bash-style) regular expression will be run." \
+    "+html    h=0                  | Produce an HTML logfile and strip color codes out of etest.log."                  \
+    ":log_dir                      | Directory to place logs in. Defaults to the current directory."                   \
+    "+mount_ns=1                   | Run tests inside a mount namespace."                                              \
+    ":repeat  r=${REPEAT:-1}       | Number of times to repeat each test."                                             \
+    "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
+    "&test_list l                  | File that contains a list of tests to run. This file may contain comments on lines
+                                     that begin with the # character. All other nonblank lines will be interpreted as
+                                     things that could be passed as @tests -- directories, executable scripts, or .etest
+                                     files. Relative paths will be interpreted against the current directory. This
+                                     option may be specified multiple times."                                          \
+    "+verbose v=${VERBOSE:-0}     | Verbose output."                                                                   \
+    ":work_dir                    | Temporary location where etest can place temporary files. This location will be both
+                                    created and deleted by etest."                                                     \
+    ":timeout=infinity            | Per-Test timeout. After this duration the test will be killed if not completed. You
+                                    can also define this programmatically in setup() using the ETEST_TIMEOUT variable.
+                                    This uses sleep(1) time syntax."                                                   \
+    ":total_timeout=infinity      | Total test timeout for entire etest run. This is different than timeout which is for
+                                    a single unit test. This is the total timeout for ALL test suites and tests being
+                                    executed. After this duration etest will be killed if it has not completed. This
+                                    uses sleep(1) time syntax."                                                        \
+    "+subreaper=1                 | On Linux, set the CHILD_SUBREAPER flag so that any processes created by etest get
+                                    reparented to etest itself instead of to init or whatever process ancestor may have
+                                    set this flag. This allows us to properly detect process leak detections and ensure
+                                    they are cleaned up properly. This only works on Linux with gdb installed."       \
+    "@tests                       | Any number of individual tests, which may be executables to be executed and checked
+                                    for exit code or may be files whose names end in .etest, in which case they will be
+                                    sourced and any test functions found will be executed. You may also specify
+                                    directories in which case etest will recursively find executables and .etest files
+                                    and treat them in similar fashion."                                                \
+)
 
 # Use mount namespaces as long as:
 #   1) they weren't forcibly turned off
@@ -371,7 +373,7 @@ run_single_test()
     fi
 
     local index_string="${testidx}/${testidx_total}"
-    ebanner --uppercase "${testname}" OS break debug exclude failures filter REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
+    ebanner --uppercase "${testname}" OS failfast debug exclude failures filter REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
@@ -534,8 +536,8 @@ run_single_test()
     fi
 
     # NOTE: Don't return rc here. We've already set things up so etest knows if there was a failure.
-    if [[ ${break} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-        die "${display_testname} failed and break=1" &>${ETEST_OUT}
+    if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
+        die "${display_testname} failed and failfast=1" &>${ETEST_OUT}
     fi
 
     # Finally record the total runtime of this test
@@ -575,8 +577,8 @@ run_etest_file()
             --source "${testfile}"                      \
             "${testfunc}"
 
-        if [[ ${break} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-            die "${testfunc} failed and break=1" &>${ETEST_OUT}
+        if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
+            die "${testfunc} failed and failfast=1" &>${ETEST_OUT}
         fi
 
     done
@@ -639,9 +641,9 @@ run_all_tests()
     fi
 
     if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "${etest_name}" OS break debug exclude failures filter repeat timeout total_timeout verbose
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose
     else
-        ebanner --uppercase "${etest_name}" OS break debug exclude failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
     fi
 
     for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
@@ -736,11 +738,11 @@ create_summary()
 				"runtime": "${RUNTIME} seconds",
 				"datetime": "$(etimestamp_rfc3339)",
 				"options": {
-					"break": "${break}",
 					"clean": "${clean}",
 					"debug": "${debug}",
 					"delete": "${delete}",
 					"exclude": "${exclude}",
+					"failfast": "${failfast}",
 					"failures": "${failures}",
 					"filter": "${filter}",
 					"html": "${html}",
@@ -851,7 +853,7 @@ find_matching_tests
 # If we are in print_only mode only report what we found and exit
 if [[ ${print_only} -eq 1 ]]; then
 
-    ebanner --uppercase "ETEST TESTS" OS break exclude filter repeat
+    ebanner --uppercase "ETEST TESTS" OS exclude failfast filter repeat
 
     for testname in "${TEST_FILES_TO_RUN[@]}"; do
         einfo "${testname}"
