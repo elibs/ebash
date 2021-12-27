@@ -1,10 +1,45 @@
-#1/bin/bash
+#!/bin/bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
 
 # Global configuration which can be overriden by the caller
 : ${EBASH_CICD_TAG_MATCH:="v*.*.*.*"}
 : ${EBASH_CICD_DEVELOP_BRANCH="develop"}
 : ${EBASH_CICD_RELEASE_BRANCH="main"}
 
+opt_usage cicd_info <<'END'
+cicd_info is used to collect all CI/CD information about the current Git repository. This includes such things as:
+* branch
+* build number
+* commit SHA
+* Semantic versioning as major, minor, patch, and build components.
+* Origin URL
+* Version, version tag and next version tag
+
+This information is populated into a provided pack and then the caller can use the information inside the pack. For
+exmaple:
+
+```bash
+local info=""
+cicd_info info
+branch=$(pack_get info branch)
+```
+
+Or you can easily import everything in the CI/CD info pack into variables you can use locally within your function:
+
+```
+local info=""
+cicd_info info
+$(pack_import info)
+
+echo "Branch=${branch}"
+echo "Tag=${major}.${minor}.${patch}.${build}"
+```
+END
 cicd_info()
 {
     $(opt_parse \
@@ -47,10 +82,15 @@ cicd_info()
         version_tag_next="${version_tag_next}"
 }
 
+opt_usage cicd_print <<'END'
+cicd_print is used to import all CI/CD info for the current Git repository and then print that information to the screen.
+By default this prints as a simple key/value list but options can be used to modify the output as desired.
+END
 cicd_print()
 {
     $(opt_parse \
-        "+json | Instead of printing in simple key/value, this will instead print in JSON." \
+        "+json      j | Instead of printing in simple key/value, this will instead print in JSON." \
+        "+uppercase u | Print keys in uppercase."                                                  \
     )
 
     local info=""
@@ -59,11 +99,19 @@ cicd_print()
 
     if [[ "${json}" -eq 1 ]]; then
         pack_to_json info | jq .
+    elif [[ "${uppercase}" -eq 1 ]]; then
+        pack_print_key_value info | sed -E 's|([^=]+)=(.*)|\U\1\E=\2|g'
     else
         pack_print_key_value info
     fi
 }
 
+opt_usage cicd_create_next_version_tag <<'END'
+cicd_create_next_version_tag is used to create the next version tag for a given Git repository. This operates using
+semantic versioning with the following named version components: ${major}.${minor}.${patch}.${build}. When this function
+is called, it will utilize the `cicd_info` function which figures out what the next version tag would be by simply
+taking `${build} + 1`. This is then created and optionally pushed.
+END
 cicd_create_next_version_tag()
 {
     local _message="[Build Automation] Auto tagged by automation pipeline"
@@ -104,7 +152,14 @@ cicd_create_next_version_tag()
     fi
 }
 
-# Push current branch to a release branch. e.g. push develop -> main. Also optionally publish artifacts.
+opt_usage cicd_release <<'END'
+cicd_release is used to push the develop branch into the release branch. Typically the develop branch is named `develop`
+and the release branch is named `master` or `main`. These can be configured via these two variables:
+* `EBASH_CICD_DEVELOP_BRANCH`
+* `EBASH_CICD_RELEASE_BRANCH`
+
+It is an error to try to release code when not on the `DEVELOP` branch.
+END
 cicd_release()
 {
     local info=""
