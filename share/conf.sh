@@ -28,9 +28,9 @@ Where a sequence of "properties" are stored in sections. There may be properties
 with different values. In this implementation, values that are not in a named section will be placed in a section named
 "default"
 
-You may specify multiple configuration files, in which case files that are *later* in the list will override the settings
-from configuration files specified earlier in the list. In other words, if you call `conf_read` like this, settings from
-`~/.config/A` will override those in `/etc/A` and all results will be stored in `CONF`
+You may specify multiple configuration files, in which case files that are *later* in the list will override the
+settings from configuration files specified earlier in the list. In other words, if you call `conf_read` like this,
+settings from `~/.config/A` will override those in `/etc/A` and all results will be stored in `CONF`
 
 ```bash
 declare -A CONF
@@ -295,4 +295,21 @@ conf_dump()
 _conf_dump_helper()
 {
     printf "%s = %s\n" "$1" "$2"
+}
+
+opt_usage conf_props <<'END'
+List the properties defined within a named section within a configuration.
+END
+conf_props()
+{
+    $(opt_parse \
+        "__conf_store | Associative array variable that conf_read filled with configuration data."              \
+        "?section     | Section name to enumerate props from. If no section is specified 'default' is assumed." \
+    )
+
+    if [[ -z "${section}" ]]; then
+        section="default"
+    fi
+
+    pack_keys "${__conf_store}[$section]"
 }

@@ -514,6 +514,9 @@ ETEST_eprogress_ticker_align_invalid()
     assert_eq 1 "${rc}"
 }
 
+eprogress_civis="^[[?25l"
+eprogress_cnorm="^[[34h^[[?25h^[[34h^[[?25h"
+
 ETEST_eprogress_ticker_align_right()
 {
     etestmsg "Starting background process that writes to ${OUTPUT}"
@@ -547,7 +550,7 @@ ETEST_eprogress_ticker_align_right()
     # fixed.
     sed -i "s|\[[0-9]\+;[0-9]\+H||" ${OUTPUT}
 
-    assert_eq --hexdump ">> Waiting"$'^[ [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H| $\x0a^[M^[[ ok ]$' "$(cat -evt ${OUTPUT})"
+    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H| $\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_ticker_align_left()
@@ -579,7 +582,7 @@ ETEST_eprogress_ticker_align_left()
     # Different terms have different codes. Ignore the number in the ANSI code.
     sed -i "s|\[[0-9]\+C||" ${OUTPUT}
 
-    assert_eq --hexdump ">> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|"$'\x20\x24\x0a'"^[M^[[ ok ]\$" "$(cat -evt ${OUTPUT})"
+    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|"$'\x20\x24\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_inside_eretry()
@@ -685,5 +688,5 @@ ETEST_no_stdout_contamination()
     local capture
     capture=$(EFUNCS_COLOR=1 EINTERACTIVE=1 ETRACE=foo EDEBUG=foo foo)
 
-    assert_eq "EXPECTED" "${capture}"
+    assert_eq --hexdump "EXPECTED" "${capture}"
 }

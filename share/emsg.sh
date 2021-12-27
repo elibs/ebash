@@ -20,6 +20,7 @@
 : ${COLOR_BRACKET:="bold blue"}
 : ${COLOR_BANNER:="bold magenta"}
 : ${COLOR_USAGE:="bold green"}
+: ${COLOR_CHECKBOX:="lightslategrey"}
 
 # By default enable eprogress style tickers
 : ${EPROGRESS:=1}
@@ -876,7 +877,8 @@ eprogress()
         "+time=1                          | As long as not turned off with --no-time, the amount of time since eprogress
                                             start will be displayed next to the ticker."                               \
         ":style=einfo                     | Style used when displaying the message. You might want to use, for instance,
-                                            einfos or ewarn or eerror instead."                                        \
+                                            einfos or ewarn or eerror instead. Or 'echo' if you don't want any special
+                                            emsg formatting at the start of the message."                              \
         "@message                         | A message to be displayed once prior to showing a time ticker. This will
                                             occur before the file contents if you also use --file.")
 
@@ -903,6 +905,9 @@ eprogress()
 
         # Don't produce any errors when tools here catch a signal. That's what we expect to happen
         nodie_on_error
+
+        # Hide cursor to avoid seeing it move back and forth
+        tput civis >&2
 
         # Sentinal for breaking out of the loop on signal from eprogress_kill
         local done=0
@@ -1005,12 +1010,14 @@ END
 eprogress_kill()
 {
     $(opt_parse \
-        ":rc return_code r=0  | Should this eprogress show a mark for success or failure?" \
-        "+all a               | If set, kill ALL known eprogress processes, not just the current one")
+        "+all a               | If set, kill ALL known eprogress processes, not just the current one"  \
+        ":callback=eend       | Callback to call as each progress ticker is killed."                   \
+        ":return_code rc r=0  | Should this eprogress show a mark for success or failure?"             \
+    )
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
     if [[ ${EPROGRESS} -eq 0 ]] ; then
-        eend ${rc}
+        ${callback} ${return_code}
         return 0
     fi
 
@@ -1033,7 +1040,8 @@ eprogress_kill()
     for pid in "${pids[@]}"; do
 
         # Don't kill the pid if it's not running or it's not an eprogress pid. This catches potentially disasterous
-        # errors where someone would do "eprogress_kill ${rc}" when they really meant "eprogress_kill -r=${rc}"
+        # errors where someone would do "eprogress_kill ${return_code}" when they really meant "eprogress_kill
+        # -r=${return_code}"
         if process_not_running ${pid} || ! array_contains __EBASH_EPROGRESS_PIDS ${pid}; then
             continue
         fi
@@ -1044,9 +1052,15 @@ eprogress_kill()
         array_remove __EBASH_EPROGRESS_PIDS ${pid}
 
         # Output
-        einteractive && echo "" >&2
-        eend ${rc}
+        if einteractive && [[ "${callback}" == "eend" ]]; then
+            echo "" >&2
+        fi
+
+        ${callback} ${return_code}
     done
+
+    # Display cursor again
+    tput cnorm >&2
 
     return 0
 }

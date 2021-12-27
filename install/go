@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# Copyright 2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+opt_usage main <<'END'
+This script is used to install Go onto a system. For distros which have a new enough version packaged up in the package
+manager we can simply invoke their installer. Otherwise we install Go from the official upstream tarball.
+END
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Main
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+# Determine what the name of the package is to install on this OS/Distro (if any).
+package=""
+if os darwin || os_distro alpine arch gentoo; then
+    package="go"
+elif os_distro debian fedora; then
+    package="golang-bin"
+fi
+
+# If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
+if [[ -n "${package}" ]]; then
+    pkg_install "${package}"
+elif os linux; then
+
+    # If we already have Go installed there's nothing to do.
+    if ! which go &>/dev/null; then
+        einfo "Go not available via package manager on $(os_pretty_name). Downloading from official Go URL."
+
+        # Download
+        version="$(curl --silent --location https://golang.org/VERSION?m=text)"
+        url="https://dl.google.com/go/${version}.linux-amd64.tar.gz"
+        tarball="${TMPDIR:-/tmp}/$(basename "${url}")"
+        eretry efetch --style=einfo "${url}" "${tarball}"
+        trap_add "rm -f ${tarball}"
+
+        # Extract
+        mkdir -p "/usr/local/bin"
+        tar --directory "/usr/local" --extract --gzip --file "${tarball}"
+
+        # Add symlinks to /usr/local/bin
+        einfo "Creating symbolic links for go binaries"
+        ln -sv "/usr/local/go/bin/"* "/usr/local/bin"
+    fi
+
+else
+    die "Cannot install Go on $(os_pretty_name)"
+fi
+
+# Verify installation succeeded
+command_exists "go"

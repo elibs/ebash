@@ -14,12 +14,12 @@
 
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
-BREAK   ?= $(or ${break},0)
-EDEBUG  ?= $(or $(or ${edebug},${debug},))
-EXCLUDE ?= $(or ${exclude},)
-FILTER  ?= $(or ${filter},)
-REPEAT  ?= $(or ${repeat},0)
-V       ?= $(or $v,0)
+EDEBUG   ?= $(or $(or ${edebug},${debug},))
+EXCLUDE  ?= $(or ${exclude},)
+FAILFAST ?= $(or ${failfast},0)
+FILTER   ?= $(or ${filter},)
+REPEAT   ?= $(or ${repeat},0)
+V        ?= $(or $v,0)
 
 .SILENT:
 
@@ -46,7 +46,7 @@ clobber: clean
 
 .PHONY: lint bashlint
 lint bashlint:
-	bin/bashlint --break=${BREAK} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
+	bin/bashlint --failfast=${FAILFAST} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
 
 .PHONY: selftest
 selftest:
@@ -55,9 +55,9 @@ selftest:
 .PHONY: test
 test:
 	bin/etest \
-		--break=${BREAK}        \
 		--debug="${EDEBUG}"     \
 		--exclude="${EXCLUDE}"  \
+		--failfast=${FAILFAST}  \
 		--filter="${FILTER}"    \
 		--repeat=${REPEAT}      \
 		--verbose=${V}
