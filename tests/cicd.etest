@@ -5,6 +5,9 @@
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
 # published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
 
+# Helper string of git config settings to use for `git commit` and `git tag` operations to use known configurations.
+git_config_options="-c user.name='Neo' -c user.email='neo@matrix.com'"
+
 # Mock git function to intercept "git push" commands for better testability.
 git_tags_pushed=()
 git()
@@ -19,13 +22,7 @@ git()
         return 0
     fi
 
-    command git "${@}"
-}
-
-# Test helper for doing a git commit with a known user configuration
-git_commit()
-{
-    git -c user.name='Neo' -c user.email='neo@matrix.com' commit "${@}"
+    command git ${git_config_options} "${@}"
 }
 
 setup()
@@ -39,7 +36,7 @@ setup()
     git remote set-url origin git@github.com:elibs/etest.git
     touch "file1.txt"
     git add "file1.txt"
-    git_commit -am "Add file1.txt"
+    git commit -am "Add file1.txt"
     git tag -am "Tagged by etest" "v1.0.0.0"
 }
 
@@ -104,7 +101,7 @@ ETEST_cicd_info_offset()
     echo "foo" > "file1.txt"
     git add "file1.txt"
     git status
-    git_commit -am "Bump file1.txt"
+    git commit -am "Bump file1.txt"
 
     # Create CICD Pack
     etestmsg "Test CI/CD Info"
