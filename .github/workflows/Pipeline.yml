@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         container:
           - "alpine:3.15"
@@ -65,7 +65,7 @@ jobs:
         run: bin/eretry bin/selftest
 
       - name: Test
-        run: bin/etest --work-dir .work/output --failures 2
+        run: bin/etest --work-dir .work/output --failfast --failures 3
 
       - name: Archive test results
         if: always()
@@ -100,7 +100,7 @@ jobs:
         run: bin/eretry bin/selftest
 
       - name: Test
-        run: bin/etest --work-dir .work/output --failures 2
+        run: bin/etest --work-dir .work/output --failfast --failures 3
 
       - name: Archive test results
         if: always()
