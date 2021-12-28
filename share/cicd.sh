@@ -177,5 +177,6 @@ cicd_release()
     fi
 
     einfo "Pushing ${EBASH_CICD_DEVELOP_BRANCH} -> ${EBASH_CICD_RELEASE_BRANCH}"
+    git fetch
     git push origin HEAD:${EBASH_CICD_RELEASE_BRANCH}
 }
