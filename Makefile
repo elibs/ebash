@@ -89,7 +89,7 @@ define DOCKER_TEST_TEMPLATE
 ifeq ($1,gentoo)
 ${1}_CONTAINER = gentoo/stage3
 else ifneq (,$(findstring rocky,$1))
-${1}_CONTAINER = rockylinux/$2
+${1}_CONTAINER = rockylinux/$(subst rocky,rockylinux,$2)
 else
 ${1}_CONTAINER = $2
 endif
@@ -131,7 +131,7 @@ DISTROS =           \
 	fedora:33       \
 	fedora:32       \
 	gentoo          \
-	rockylinux:8    \
+	rocky:8         \
 	ubuntu:20.04    \
 	ubuntu:18.04    \
 
