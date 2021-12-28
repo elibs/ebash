@@ -10,8 +10,8 @@ combinations:
 
 | OS    | Disto  | Version |
 | ----- | -------| ------- |
-| Linux | Alpine | 3.13    |
-| Linux | Alpine | 3.12    |
+| Linux | Alpine | 3.15    |
+| Linux | Alpine | 3.14    |
 | Linux | Arch   | rolling |
 | Linux | CentOS | 8       |
 | Linux | CentOS | 7       |
