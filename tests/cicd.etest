@@ -191,7 +191,7 @@ ETEST_cicd_info_print_json()
 	EOF
 
     einfo "Expect"
-    #jq . expect.json
+    jq . expect.json
 
     einfo "Actual"
     jq . output.json
