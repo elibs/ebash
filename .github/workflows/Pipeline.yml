@@ -1,10 +1,10 @@
 name: "CI/CD"
 
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
+# Controls when the action will run. Triggers the workflow on push or pull request events but only for the master branch
 on:
   push:
-    branches: '**'
+    branches-ignore:
+      - 'main'
 
 # GLobal environment variables
 env:
@@ -139,3 +139,25 @@ jobs:
           check_name: Test Results
           github_token: ${{ secrets.GITHUB_TOKEN }}
           files: artifacts/**/etest.xml
+
+  #--------------------------------------------------------------------------------------------------------------------
+  #
+  # Release
+  #
+  #--------------------------------------------------------------------------------------------------------------------
+  release:
+    name: "Release"
+    needs: [Linux, MacOS]
+    runs-on: ubuntu-latest
+    if: success() && github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Release
+        run: bin/ebash cicd_release
+
+
+
+
