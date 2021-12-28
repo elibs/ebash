@@ -71,7 +71,7 @@ cicd_info()
 
     pack_set "${pack}" \
         base_tag="${base_tag}"                                                      \
-        branch="$(git branch --show-current)"                                       \
+        branch="$(git rev-parse --abbrev-ref HEAD)"                                 \
         build="${parts[3]:-0}"                                                      \
         commit="$(git rev-parse HEAD)"                                              \
         commit_short="$(string_truncate 10 $(git rev-parse HEAD))"                  \
