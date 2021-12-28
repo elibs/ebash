@@ -122,7 +122,6 @@ cicd_create_next_version_tag()
     local _message="[Build Automation] Auto tagged by automation pipeline"
     $(opt_parse \
         "+push                | Push the resulting new tag."                             \
-        ":set_url             | If provided, set the origin to this URL before pushing." \
         ":message=${_message} | Message to use for commit of new version tag."           \
     )
 
@@ -144,11 +143,8 @@ cicd_create_next_version_tag()
         die "Cannot create empty next version tag"
     fi
 
-    if [[ -n "${set_url}" ]]; then
-        git remote set-url origin "${set_url}"
-    fi
-
     # Create a new version tag
+    git fetch
     git tag -am "${message}" "${version_tag_next}"
 
     if [[ "${push}" -eq 1 ]]; then
