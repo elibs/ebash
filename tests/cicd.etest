@@ -67,6 +67,35 @@ ETEST_cicd_info()
     assert_eq "v1.0.0.1"                            "${version_tag_next}"
 }
 
+ETEST_cicd_info_notags()
+{
+    etestmsg "Deleting tag created in setup"
+    git tag -d "v1.0.0.0"
+
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Validating CI/CD Info"
+    assert_eq "v0.0.0.0"                            "${base_tag}"
+    assert_eq "develop"                             "${branch}"
+    assert_eq "0"                                   "${build}"
+    assert_eq "$(git rev-parse HEAD)"               "${commit}"
+    assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
+    assert_eq "0"                                   "${major}"
+    assert_eq "0"                                   "${minor}"
+    assert_eq "0"                                   "${offset}"
+    assert_eq "git@github.com:elibs/etest.git"      "${origin_url}"
+    assert_eq "0"                                   "${patch}"
+    assert_eq "etest"                               "${repo_slug}"
+    assert_eq "0.0"                                 "${series}"
+    assert_eq "0.0.0.0"                             "${version}"
+    assert_eq "v0.0.0.0"                            "${version_tag}"
+    assert_eq "v0.0.0.1"                            "${version_tag_next}"
+}
+
 ETEST_cicd_info_offset()
 {
     etestmsg "Adding another commit"
