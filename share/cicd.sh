@@ -144,7 +144,6 @@ cicd_create_next_version_tag()
     fi
 
     # Create a new version tag
-    git fetch
     git tag -am "${message}" "${version_tag_next}"
 
     if [[ "${push}" -eq 1 ]]; then
@@ -173,6 +172,5 @@ cicd_release()
     fi
 
     einfo "Pushing ${EBASH_CICD_DEVELOP_BRANCH} -> ${EBASH_CICD_RELEASE_BRANCH}"
-    git fetch
     git push origin HEAD:${EBASH_CICD_RELEASE_BRANCH}
 }
