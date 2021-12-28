@@ -30,8 +30,8 @@ setup()
     # Mock out a git repository here in our current working directory. This way we can have a very controlled
     # environment and make tighter assertions.
     etestmsg "Mocking out git repository"
-    git config --global init.defaultBranch "develop"
     git init
+    git checkout -b 'develop'
     git remote add origin git@github.com:elibs/etest.git
     git remote set-url origin git@github.com:elibs/etest.git
     touch "file1.txt"
