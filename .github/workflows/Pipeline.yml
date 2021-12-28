@@ -155,9 +155,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Version
+        run: bin/ebash cicd_create_next_version_tag --push
+
       - name: Release
         run: bin/ebash cicd_release
-
-
-
-
