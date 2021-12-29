@@ -15,10 +15,10 @@ combinations:
 | Linux | Arch   | rolling |
 | Linux | CentOS | 8       |
 | Linux | CentOS | 7       |
+| Linux | Debian | 11      |
 | Linux | Debian | 10      |
-| Linux | Debian | 9       |
-| Linux | Fedora | 33      |
-| Linux | Fedora | 32      |
+| Linux | Fedora | 35      |
+| Linux | Fedora | 34      |
 | Linux | Gentoo | rolling |
 | Linux | Rocky  | 8.4     |
 | Linux | Ubuntu | 20.04   |
