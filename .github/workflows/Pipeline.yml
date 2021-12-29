@@ -52,7 +52,11 @@ jobs:
       options: --init --interactive --privileged --tty
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
       - run: echo "OSNAME=$(echo ${{ matrix.container }} | sed -e 's|:|-|' -e 's|/stage3||' -e 's|rockylinux/||')" >> ${GITHUB_ENV}
 
       - name: Install Dependencies
@@ -65,7 +69,7 @@ jobs:
         run: bin/eretry bin/selftest
 
       - name: Test
-        run: bin/etest --work-dir .work/output --failfast --failures 3
+        run: bin/etest --work-dir .work/output --failfast --failures 5
 
       - name: Archive test results
         if: always()
@@ -100,7 +104,7 @@ jobs:
         run: bin/eretry bin/selftest
 
       - name: Test
-        run: bin/etest --work-dir .work/output --failfast --failures 3
+        run: bin/etest --work-dir .work/output --failfast --failures 5
 
       - name: Archive test results
         if: always()
@@ -153,6 +157,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Version
         run: |
