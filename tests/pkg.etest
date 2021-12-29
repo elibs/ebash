@@ -30,10 +30,10 @@ suite_setup()
         etestmsg "Checking $(lval pkg pkg_candidates)"
         if pkg_known ${pkg} && ! pkg_installed ${pkg}; then
             pkg_installable+="${pkg} "
-        fi
 
-        if [[ -z "${pkg_to_install:-}" ]]; then
-            pkg_to_install="${pkg}"
+            if [[ -z "${pkg_to_install:-}" ]]; then
+                pkg_to_install="${pkg}"
+            fi
         fi
     done
 
