@@ -126,10 +126,10 @@ DISTROS =           \
 	archlinux       \
 	centos:8        \
 	centos:7        \
+	debian:11       \
 	debian:10       \
-	debian:9        \
-	fedora:33       \
-	fedora:32       \
+	fedora:35       \
+	fedora:34       \
 	gentoo          \
 	rocky:8         \
 	ubuntu:20.04    \
