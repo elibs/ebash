@@ -64,11 +64,11 @@ jobs:
       - name: Lint
         run: bin/bashlint --severity=error
 
-     #- name: Self Test
-     #   run: bin/eretry bin/selftest
+      - name: Self Test
+        run: bin/eretry bin/selftest
 
-     # - name: Test
-     #    run: bin/etest --work-dir .work/output --failfast --failures 5
+      - name: Test
+        run: bin/etest --work-dir .work/output --failfast --failures 5
 
       - name: Archive test results
         if: always()
@@ -99,11 +99,11 @@ jobs:
       - name: Lint
         run: bin/bashlint --severity=error
 
-    #- name: Self Test
-    #    run: bin/eretry bin/selftest
+      - name: Self Test
+        run: bin/eretry bin/selftest
 
-    #  - name: Test
-    #    run: bin/etest --work-dir .work/output --failfast --failures 5
+      - name: Test
+        run: bin/etest --work-dir .work/output --failfast --failures 5
 
       - name: Archive test results
         if: always()
