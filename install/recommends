@@ -126,6 +126,7 @@ elif os_distro debian; then
         git
         iproute2
         iptables
+        iputils-ping
         jq
         net-tools
         psmisc
