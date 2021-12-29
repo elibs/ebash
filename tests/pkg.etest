@@ -7,8 +7,13 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-setup()
+# To avoid paying the cost of looking up package info in setup before every test we instead look it up once inside
+# suite_setup and save it to disk. Then we can load that into memory in setup before each test starts.
+PKGINFO="${TOPDIR}/.work/pkginfo-$$"
+suite_setup()
 {
+    local pkg_known pkg_installed pkg_unknown pkg_candidates pkg_installable pkg_to_install
+
     pkg_known=coreutils
     pkg_installed=coreutils
     if os_distro centos rocky && os_release 8 8.5; then
@@ -16,22 +21,47 @@ setup()
         pkg_installed=coreutils-single
     fi
     pkg_unknown=does-not-exist
-    pkg_candidates=(hello banner lolcat fortune)
+    pkg_candidates="hello banner lolcat fortune skaffold sqlite telnet terraform thanos tmux"
+    pkg_installable=""
 
-    # Find package we can install from pkg_candidates
+    # Find packages that we can install from pkg_candidates
     local pkg="" found=0
-    for pkg in "${pkg_candidates[@]}"; do
+    for pkg in ${pkg_candidates[*]}; do
         etestmsg "Checking $(lval pkg pkg_candidates)"
         if pkg_known ${pkg} && ! pkg_installed ${pkg}; then
-            found=1
-            break
+            pkg_installable+="${pkg} "
+        fi
+
+        if [[ -z "${pkg_to_install:-}" ]]; then
+            pkg_to_install="${pkg}"
         fi
     done
 
-    assert_eq 1 "${found}" "Failed to find installable package from $(lval pkg_candidates)"
+    # Verify we found at least one package
+    argcheck pkg_to_install pkg_installable
 
-    pkg_to_install="${pkg}"
-    etestmsg "$(lval pkg_known pkg_unknown pkg_installed pkg_to_install)"
+    etestmsg "$(lval pkg_known pkg_unknown pkg_installed pkg_installable pkg_to_install)"
+
+    # Save values off into a pack
+    declare -A pkginfo
+    pack_export pkginfo pkg_known pkg_installed pkg_unknown pkg_candidates pkg_installable pkg_to_install
+
+    etestmsg "Package Info (Suite Setup)"
+    pack_print_key_value pkginfo
+
+    # Save pack into a file
+    pack_save pkginfo "${PKGINFO}"
+}
+
+# Load the pack we created in suite_setup into memory for this test instance.
+setup()
+{
+    # Load test configuration into variables
+    pack_load pkginfo "${PKGINFO}"
+
+    etestmsg "Package Info (Setup)"
+    pack_print_key_value pkginfo
+    $(pack_import --no-local --global --export pkginfo)
 }
 
 ETEST_pkg_manager()
@@ -117,7 +147,7 @@ ETEST_pkg_install_distro()
     # same time. The retries here are intended to harden against issues like that.
     etestmsg "Install $(lval pkg_to_install)"
     eretry --delay 5s --retries 5 pkg_install_distro \
-        all="${pkg_installed}" \
+        all="${pkg_installed}"                       \
         $(edistro)="${pkg_to_install}"
 
     # Make sure things get cleaned up, even if something goes wrong after this point
@@ -133,6 +163,38 @@ ETEST_pkg_install_distro()
     etestmsg "and verify that we don't believe $(lval pkg_to_install) is installed."
     pkg_known ${pkg_to_install}
     assert_false pkg_installed ${pkg_to_install}
+}
+
+ETEST_pkg_install_distro_duplicate_keys()
+{
+    etestmsg "Verify we found two installable packages"
+    assert_ge "$(echo "${pkg_installable}" | wc -w)" 2
+    pkg1="$(echo "${pkg_installable}" | awk '{print $1}')"
+    pkg2="$(echo "${pkg_installable}" | awk '{print $2}')"
+    etestmsg "$(lval pkg1 pkg2)"
+    argcheck pkg1 pkg2
+    assert_ne "${pkg1}" "${pkg2}"
+
+    etestmsg "Verify packages are not installed $(lval pkg1 pkg2)"
+    pkg_known "${pkg1}" "${pkg2}"
+    assert_false pkg_installed "${pkg1}" "${pkg2}"
+
+    # NOTE: Some packaging systems (e.g. dpkg) don't deal well with different processes trying to install things at the
+    # same time. The retries here are intended to harden against issues like that.
+    etestmsg "Install $(lval pkg_to_install)"
+    eretry --delay 5s --retries 5 pkg_install_distro \
+        $(edistro)="${pkg1}"                         \
+        $(edistro)="${pkg2}"
+
+    # Make sure things get cleaned up, even if something goes wrong after this point
+    trap_add "etestmsg CLEANUP ; pkg_uninstall \"${pkg1} ${pkg2}\" || true"
+
+    etestmsg "Verify packages installed"
+    pkg_known "${pkg1}" "${pkg2}"
+    pkg_installed "${pkg1}" "${pkg2}"
+
+    etestmsg "Uninstall $(lval pkg1 pkg2)"
+    eretry --delay 5s --retries 5 pkg_uninstall "${pkg1}" "${pkg2}"
 }
 
 if os_distro gentoo ember ; then
