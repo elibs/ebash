@@ -117,9 +117,9 @@ fi
 if [[ ${subreaper} -eq 1 ]]; then
 
     if ! os linux; then
-        ewarn "Subreaper disabled (non-Linux)"
+        edebug "Subreaper disabled (non-Linux)"
     elif ! command_exists gdb; then
-        ewarn "Subreaper disabled (gdb missing)"
+        edebug "Subreaper disabled (gdb missing)"
     else
         gdb -batch -ex 'call (int)prctl((int)36,(long)1,(long)0,(long)0,(long)0)' -ex detach -ex quit -p $$ |& edebug
         trap "" SIGTERM
@@ -473,6 +473,10 @@ run_single_test()
                 etestmsg "Running suite_teardown $(lval testidx testidx_total)"
                 suite_teardown
             fi
+
+            # Check for process and mount leaks
+            assert_no_process_leaks
+            assert_no_mount_leaks ${work_dir}
         }
         catch
         {
@@ -485,14 +489,6 @@ run_single_test()
         fi
     done
 
-    local process_leak_rc=0
-    if cgroup_supported ; then
-        $(tryrc -r=process_leak_rc assert_no_process_leaks)
-    fi
-
-    local mount_leak_rc=0
-    $(tryrc -r=mount_leak_rc assert_no_mount_leaks "${work_dir}")
-
     if ! array_contains TEST_SUITES "${suite}"; then
         TEST_SUITES+=( "${suite}" )
     fi
@@ -504,23 +500,10 @@ run_single_test()
         (( NUM_TESTS_FLAKY += 1 ))
     fi
 
-    if [[ ${rc} -eq 0 && ${process_leak_rc} -eq 0 && ${mount_leak_rc} -eq 0 ]]; then
+    if [[ ${rc} -eq 0 ]]; then
         einfo "$(ecolor green)${display_testname} PASSED."
         TESTS_PASSED[$suite]+="${testname} "
         (( NUM_TESTS_PASSED += 1 ))
-
-    elif [[ ${rc} -eq 0 && ${process_leak_rc} -ne 0 ]] ; then
-        eerror "${display_testname} FAILED due to process leak."
-        TESTS_FAILED[$suite]+="${testname} "
-        (( NUM_TESTS_FAILED += 1 ))
-        rc=1
-
-    elif [[ ${rc} -eq 0 && ${mount_leak_rc} -ne 0 ]] ; then
-        eerror "${display_testname} FAILED due to mount leak."
-        TESTS_FAILED[$suite]+="${testname} "
-        (( NUM_TESTS_FAILED += 1 ))
-        rc=1
-
     else
         eerror "${display_testname} FAILED."
         TESTS_FAILED[$suite]+="${testname} "
