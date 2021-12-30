@@ -492,7 +492,7 @@ run_single_test()
         catch
         {
             rc+=$?
-            edebug "Failure due to process leak or mount leak"
+            eerror "${display_testname} FAILED due to process or mount leak."
         }
 
         if [[ ${rc} -eq 0 ]]; then
