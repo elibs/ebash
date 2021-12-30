@@ -190,7 +190,7 @@ elogfile_pid_remove()
     )
 
     local idx entry
-    for idx in ${!__EBASH_ELOGFILE_PID_SETS[@]}; do
+    for idx in "${!__EBASH_ELOGFILE_PID_SETS[@]}"; do
 
         entry=${__EBASH_ELOGFILE_PID_SETS[$idx]}
 

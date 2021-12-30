@@ -37,7 +37,7 @@ ETEST_elogfile_kill()
     etestmsg "$(lval updated_pids)"
 
     local new_pids=()
-    for pid in ${updated_pids[@]}; do
+    for pid in "${updated_pids[@]}"; do
         if ! array_contains initial_pids "${pid}"; then
             new_pids+=( ${pid} )
             etestmsg "$(lval pid)"
@@ -53,7 +53,7 @@ ETEST_elogfile_kill()
     # Verify all pids killed
     local current_pids=()
     etestmsg "Verifying new elogfile processes killed"
-    for pid in ${new_pids[@]}; do
+    for pid in "${new_pids[@]}"; do
         etestmsg "$(lval pid)"
         process_not_running "${pid}"
 
@@ -76,7 +76,7 @@ ETEST_elogfile_kill_pids()
     etestmsg "$(lval updated_pids)"
 
     local new_pids=()
-    for pid in ${updated_pids[@]}; do
+    for pid in "${updated_pids[@]}"; do
         if ! array_contains initial_pids "${pid}"; then
             new_pids+=( ${pid} )
             etestmsg "$(lval pid)"
@@ -87,12 +87,12 @@ ETEST_elogfile_kill_pids()
     array_not_empty new_pids
 
     etestmsg "Killing new pids"
-    elogfile_kill ${new_pids[@]}
+    elogfile_kill "${new_pids[@]}"
 
     # Verify all pids killed
     local current_pids=()
     etestmsg "Verifying new elogfile processes killed"
-    for pid in ${new_pids[@]}; do
+    for pid in "${new_pids[@]}"; do
         etestmsg "$(lval pid)"
         process_not_running "${pid}"
 
@@ -115,7 +115,7 @@ ETEST_elogfile_kill_pids_separately()
     etestmsg "$(lval updated_pids)"
 
     local new_pids=()
-    for pid in ${updated_pids[@]}; do
+    for pid in "${updated_pids[@]}"; do
         if ! array_contains initial_pids "${pid}"; then
             new_pids+=( ${pid} )
             etestmsg "$(lval pid)"
@@ -132,7 +132,7 @@ ETEST_elogfile_kill_pids_separately()
     # Verify all pids killed
     local current_pids=()
     etestmsg "Verifying new elogfile processes killed"
-    for pid in ${new_pids[@]}; do
+    for pid in "${new_pids[@]}"; do
         etestmsg "$(lval pid)"
         process_not_running "${pid}"
 
@@ -155,7 +155,7 @@ ETEST_elogfile_kill_pids_separately_many()
     readarray -t updated_pids1 < <(elogfile_pids)
     etestmsg "$(lval updated_pids1)"
 
-    for pid in ${updated_pids1[@]}; do
+    for pid in "${updated_pids1[@]}"; do
         if ! array_contains initial_pids "${pid}"; then
             new_pids+=( ${pid} )
             etestmsg "Update1 $(lval pid)"
@@ -168,7 +168,7 @@ ETEST_elogfile_kill_pids_separately_many()
     readarray -t updated_pids2 < <(elogfile_pids)
     etestmsg "$(lval updated_pids2)"
 
-    for pid in ${updated_pids2[@]}; do
+    for pid in "${updated_pids2[@]}"; do
         if ! array_contains initial_pids "${pid}" && ! array_contains updated_pids1 "${pid}"; then
             new_pids+=( ${pid} )
             etestmsg "Updated2 $(lval pid)"
@@ -187,7 +187,7 @@ ETEST_elogfile_kill_pids_separately_many()
     # Verify all pids killed
     local current_pids=()
     etestmsg "Verifying new elogfile processes killed"
-    for pid in ${new_pids[@]}; do
+    for pid in "${new_pids[@]}"; do
         etestmsg "$(lval pid)"
         process_not_running "${pid}"
 
@@ -212,7 +212,7 @@ ETEST_elogfile_kill_pidset()
     etestmsg "$(lval updated_pids)"
 
     local new_pids=()
-    for pid in ${updated_pids[@]}; do
+    for pid in "${updated_pids[@]}"; do
         if ! array_contains initial_pids "${pid}"; then
             new_pids+=( ${pid} )
             etestmsg "$(lval pid)"
@@ -228,7 +228,7 @@ ETEST_elogfile_kill_pidset()
     # Verify all pids killed
     local current_pids=()
     etestmsg "Verifying new elogfile processes killed"
-    for pid in ${new_pids[@]}; do
+    for pid in "${new_pids[@]}"; do
         etestmsg "$(lval pid)"
         process_not_running "${pid}"
 
