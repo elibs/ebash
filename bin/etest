@@ -476,6 +476,10 @@ run_single_test()
                 etestmsg "Running suite_teardown $(lval testidx testidx_total)"
                 suite_teardown
             fi
+
+            # Check for process and mount leaks
+            assert_no_process_leaks
+            assert_no_mount_leaks ${work_dir}
         }
         catch
         {
