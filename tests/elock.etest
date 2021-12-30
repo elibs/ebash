@@ -7,7 +7,12 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${__EBASH_OS} == Linux ]] || return 0
+# Elock relies on flock, which doesn't exist on darwin as it is Linux only. So if this is not a Linux OS, just return.
+# Also, these tests are extremely flaky on fedora:34 due to bugs in their older version of flock. So we just skip this
+# test suite on that distro.
+if os darwin || (os_distro fedora && os_release 34); then
+    return 0
+fi
 
 ETEST_elock()
 {
