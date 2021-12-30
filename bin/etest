@@ -473,16 +473,24 @@ run_single_test()
                 etestmsg "Running suite_teardown $(lval testidx testidx_total)"
                 suite_teardown
             fi
-
-            # Check for process and mount leaks
-            assert_no_process_leaks
-            assert_no_mount_leaks ${work_dir}
         }
         catch
         {
             rc=$?
         }
         edebug "Finished $(lval testname display_testname rc tries FAILURES)"
+
+        # Verify there are no process or memory leaks. If so kill them and try again if that is permitted.
+        try
+        {
+            assert_no_process_leaks
+            assert_no_mount_leaks "${work_dir}"
+        }
+        catch
+        {
+            rc+=$?
+            edebug "Failure due to process leak or mount leak"
+        }
 
         if [[ ${rc} -eq 0 ]]; then
             break
