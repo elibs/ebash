@@ -1437,7 +1437,9 @@ ETEST_archive_append_nonexisting()
     test_all_archives test_body
 }
 
-ETEST_archive_xnice()
+# This test is disabled because it takes an eternity to run and provides almost no value because no more changes are
+# being made to the archive code at this time.
+DISABLED_ETEST_archive_xnice()
 {
     test_body()
     {
@@ -1458,7 +1460,9 @@ ETEST_archive_xnice()
     test_all_archives test_body
 }
 
-ETEST_archive_xconvert()
+# This test is disabled because it takes an eternity to run and provides almost no value because no more changes are
+# being made to the archive code at this time.
+DISABLED_ETEST_archive_xconvert()
 {
     test_body()
     {
@@ -1491,7 +1495,9 @@ ETEST_archive_xconvert()
     test_all_archives test_body
 }
 
-ETEST_archive_xdiff()
+# This test is disabled because it takes an eternity to run and provides almost no value because no more changes are
+# being made to the archive code at this time.
+DISABLED_ETEST_archive_xdiff()
 {
     test_body()
     {
