@@ -129,7 +129,7 @@ DISTROS =           \
 	debian:11       \
 	debian:10       \
 	fedora:35       \
-	fedora:34       \
+	fedora:33       \
 	gentoo          \
 	rocky:8         \
 	ubuntu:20.04    \
@@ -173,5 +173,3 @@ printvars:
 .PHONY: printenv
 printenv:
 	{ go env ; printenv ; } | sort | grep -Pv '(LS_COLORS|LESS_TERMCAP)'
-
-#

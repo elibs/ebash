@@ -23,6 +23,220 @@ ETEST_elogfile()
     grep -q "stderr" ${FUNCNAME}.log
 }
 
+ETEST_elogfile_kill()
+{
+    etestmsg "Checking existing elogfile pids from main etest process"
+    array_not_empty __EBASH_ELOGFILE_PID_SETS
+    local initial_pids=() updated_pids=()
+    readarray -t initial_pids < <(elogfile_pids)
+    etestmsg "$(lval initial_pids)"
+
+    etestmsg "Spawning new elogfile process"
+    elogfile ${FUNCNAME}.log
+    readarray -t updated_pids < <(elogfile_pids)
+    etestmsg "$(lval updated_pids)"
+
+    local new_pids=()
+    for pid in "${updated_pids[@]}"; do
+        if ! array_contains initial_pids "${pid}"; then
+            new_pids+=( ${pid} )
+            etestmsg "$(lval pid)"
+        fi
+    done
+
+    etestmsg "Found $(lval new_pids)"
+    array_not_empty new_pids
+
+    etestmsg "Killing new pids"
+    elogfile_kill
+
+    # Verify all pids killed
+    local current_pids=()
+    etestmsg "Verifying new elogfile processes killed"
+    for pid in "${new_pids[@]}"; do
+        etestmsg "$(lval pid)"
+        process_not_running "${pid}"
+
+        readarray -t current_pids < <(elogfile_pids)
+        assert_false array_contains current_pids "${pid}"
+    done
+}
+
+ETEST_elogfile_kill_pids()
+{
+    etestmsg "Checking existing elogfile pids from main etest process"
+    array_not_empty __EBASH_ELOGFILE_PID_SETS
+    local initial_pids=() updated_pids=()
+    readarray -t initial_pids < <(elogfile_pids)
+    etestmsg "$(lval initial_pids)"
+
+    etestmsg "Spawning new elogfile process"
+    elogfile ${FUNCNAME}.log
+    readarray -t updated_pids < <(elogfile_pids)
+    etestmsg "$(lval updated_pids)"
+
+    local new_pids=()
+    for pid in "${updated_pids[@]}"; do
+        if ! array_contains initial_pids "${pid}"; then
+            new_pids+=( ${pid} )
+            etestmsg "$(lval pid)"
+        fi
+    done
+
+    etestmsg "Found $(lval new_pids)"
+    array_not_empty new_pids
+
+    etestmsg "Killing new pids"
+    elogfile_kill "${new_pids[@]}"
+
+    # Verify all pids killed
+    local current_pids=()
+    etestmsg "Verifying new elogfile processes killed"
+    for pid in "${new_pids[@]}"; do
+        etestmsg "$(lval pid)"
+        process_not_running "${pid}"
+
+        readarray -t current_pids < <(elogfile_pids)
+        assert_false array_contains current_pids "${pid}"
+    done
+}
+
+ETEST_elogfile_kill_pids_separately()
+{
+    etestmsg "Checking existing elogfile pids from main etest process"
+    array_not_empty __EBASH_ELOGFILE_PID_SETS
+    local initial_pids=() updated_pids=()
+    readarray -t initial_pids < <(elogfile_pids)
+    etestmsg "$(lval initial_pids)"
+
+    etestmsg "Spawning new elogfile process"
+    elogfile ${FUNCNAME}.log
+    readarray -t updated_pids < <(elogfile_pids)
+    etestmsg "$(lval updated_pids)"
+
+    local new_pids=()
+    for pid in "${updated_pids[@]}"; do
+        if ! array_contains initial_pids "${pid}"; then
+            new_pids+=( ${pid} )
+            etestmsg "$(lval pid)"
+        fi
+    done
+
+    etestmsg "Found $(lval new_pids)"
+    array_not_empty new_pids
+
+    etestmsg "Killing new pids separately"
+    elogfile_kill ${new_pids[1]}
+    elogfile_kill ${new_pids[0]}
+
+    # Verify all pids killed
+    local current_pids=()
+    etestmsg "Verifying new elogfile processes killed"
+    for pid in "${new_pids[@]}"; do
+        etestmsg "$(lval pid)"
+        process_not_running "${pid}"
+
+        readarray -t current_pids < <(elogfile_pids)
+        assert_false array_contains current_pids "${pid}"
+    done
+}
+
+ETEST_elogfile_kill_pids_separately_many()
+{
+    etestmsg "Checking existing elogfile pids from main etest process"
+    array_not_empty __EBASH_ELOGFILE_PID_SETS
+    local initial_pids=() updated_pids1=() updated_pids2=() new_pids=()
+    readarray -t initial_pids < <(elogfile_pids)
+    etestmsg "$(lval initial_pids)"
+
+    # --- Spawn #1
+    etestmsg "Spawning new elogfile process"
+    elogfile ${FUNCNAME}.log
+    readarray -t updated_pids1 < <(elogfile_pids)
+    etestmsg "$(lval updated_pids1)"
+
+    for pid in "${updated_pids1[@]}"; do
+        if ! array_contains initial_pids "${pid}"; then
+            new_pids+=( ${pid} )
+            etestmsg "Update1 $(lval pid)"
+        fi
+    done
+
+    # --- Spawn #2
+    etestmsg "Spawning another elogfile process"
+    elogfile ${FUNCNAME}.log
+    readarray -t updated_pids2 < <(elogfile_pids)
+    etestmsg "$(lval updated_pids2)"
+
+    for pid in "${updated_pids2[@]}"; do
+        if ! array_contains initial_pids "${pid}" && ! array_contains updated_pids1 "${pid}"; then
+            new_pids+=( ${pid} )
+            etestmsg "Updated2 $(lval pid)"
+        fi
+    done
+
+    etestmsg "Found $(lval new_pids)"
+    array_not_empty new_pids
+
+    etestmsg "Killing new pids separately"
+    elogfile_kill ${new_pids[1]}
+    elogfile_kill ${new_pids[2]}
+    elogfile_kill ${new_pids[3]}
+    elogfile_kill ${new_pids[0]}
+
+    # Verify all pids killed
+    local current_pids=()
+    etestmsg "Verifying new elogfile processes killed"
+    for pid in "${new_pids[@]}"; do
+        etestmsg "$(lval pid)"
+        process_not_running "${pid}"
+
+        readarray -t current_pids < <(elogfile_pids)
+        assert_false array_contains current_pids "${pid}"
+    done
+}
+
+
+
+ETEST_elogfile_kill_pidset()
+{
+    etestmsg "Checking existing elogfile pids from main etest process"
+    array_not_empty __EBASH_ELOGFILE_PID_SETS
+    local initial_pids=() updated_pids=()
+    readarray -t initial_pids < <(elogfile_pids)
+    etestmsg "$(lval initial_pids)"
+
+    etestmsg "Spawning new elogfile process"
+    elogfile ${FUNCNAME}.log
+    readarray -t updated_pids < <(elogfile_pids)
+    etestmsg "$(lval updated_pids)"
+
+    local new_pids=()
+    for pid in "${updated_pids[@]}"; do
+        if ! array_contains initial_pids "${pid}"; then
+            new_pids+=( ${pid} )
+            etestmsg "$(lval pid)"
+        fi
+    done
+
+    etestmsg "Found $(lval new_pids)"
+    array_not_empty new_pids
+
+    etestmsg "Killing new pids explicitly"
+    elogfile_kill $(array_join new_pids ",")
+
+    # Verify all pids killed
+    local current_pids=()
+    etestmsg "Verifying new elogfile processes killed"
+    for pid in "${new_pids[@]}"; do
+        etestmsg "$(lval pid)"
+        process_not_running "${pid}"
+
+        readarray -t current_pids < <(elogfile_pids)
+        assert_false array_contains current_pids "${pid}"
+    done
+}
+
 ETEST_elogfile_term()
 {
     # Parent 'main' process
@@ -196,7 +410,7 @@ ETEST_elogfile_truncate()
 
     etestmsg "Verifying specific contents"
     for match in "/dev/stdout" "/dev/stderr" "/dev/fd/1" "/dev/fd/2" "edebug" "&1" "&2"; do
-        einfo "Verifying $(lval match)"
+        etestmsg "Verifying $(lval match)"
         eretry --max-timeout 30s grep --quiet "${match}" ${FUNCNAME}.log
     done
 }
