@@ -244,10 +244,13 @@ no_process_leaks_remain()
         return 0
     fi
 
-    # As long as it existed just now, we can assume cgroup_pids will exist,
-    # because nothing else will destroy the cgroup except for us.
+    # Get a list of pids in our CGROUP, excluding the elogfile pids as we know they are always going to be running at
+    # this point.
+    #
+    # NOTE: Since we just checked that the cgroup exists, we also know the cgroup_pids will exist, because nothing else
+    #       will destroy the cgroup except for us.
     local remaining_pids=""
-    remaining_pids=$(cgroup_pids ${ETEST_CGROUP})
+    remaining_pids=$(cgroup_pids --exclude "$(elogfile_pids)" ${ETEST_CGROUP})
     etestmsg "$(lval remaining_pids exists_rc ETEST_CGROUP)"
     [[ -z ${remaining_pids} ]]
 }

@@ -18,6 +18,19 @@ elogfile provides the ability to duplicate the calling processes STDOUT and STDE
 while simultaneously displaying them to the console. Using this function is much preferred over manually doing this with
 tee and named pipe redirection as we take special care to ensure STDOUT and STDERR pipes are kept separate to avoid
 problems with logfiles getting truncated.
+
+elogfile creates some background processes to take care of logging for us asynchronously. The list of PIDs from these
+background processes are stored in an internal array __EBASH_ELOGFILE_PID_SETS. This array stores a series of "pidsets"
+which is just a set of pids created on a specific call to elogfile. The reason we use this approach is because depending
+on the flags passed into elogfile we may launch one or two different pids. And we'd like the ability to gracefully kill
+the set of pids launched by a specific elogfile instance gracefully via elogfile_kill. To that end, we store the pid or
+pids as a comma separated list of pids launched.
+
+For example, if you call `elogfile foo` then __EBASH_ELOGFILE_PID_SETS will contain two pids comma-delimited as they
+were launched as part of a single call to elogfile, e.g. ("1234,1245"). If you again call `elogfile bar` two more
+processes will get launched, and we'll end up with ("1234,1235", "2222,2223"). We can then control which set of pids
+we gracefully kill via elogfile_kill.
+
 END
 elogfile()
 {
@@ -63,6 +76,9 @@ elogfile()
     trap_add "rm --recursive --force ${tmpdir}"
     local pid_pipe="${tmpdir}/pids"
     mkfifo "${pid_pipe}"
+
+    # List of pids we launch in this call
+    local pids=()
 
     # Internal function to avoid code duplication in setting up the pipes and redirection for stdout and stderr.
     elogfile_redirect()
@@ -121,14 +137,11 @@ elogfile()
             ) &
         ) &
 
-        # Grab the pid of the backgrounded pipe process and setup a trap to ensure we kill it when we exit for any
-        # reason.
-        local pid
-        pid=$(cat ${pid_pipe})
-        trap_add "kill -9 ${pid} 2>/dev/null || true"
+        # Save pid into our list of local pids that we'll add to __EBASH_ELOGFILE_PID_SETS at the end of this function.
+        pids+=( $(cat ${pid_pipe}) )
 
-        # Finally re-exec so that our output stream(s) are redirected to the pipe. NOTE: If we're merging stdout+stderr
-        # we redirect both streams into the pipe
+        # Re-exec so  our output stream(s) are redirected to the pipe.
+        # NOTE: If we're merging stdout+stderr we redirect both streams into the pipe
         if [[ ${merge} -eq 1 ]]; then
             eval "exec &>${pipe}"
         else
@@ -143,4 +156,119 @@ elogfile()
         elogfile_redirect stdout "${@}"
         elogfile_redirect stderr "${@}"
     fi
+
+    # Add all pids we launched in this call to our global pids array. This array stores pidsets not pids. So we join
+    # the array with a comma to keep them as a single non-whitespace delimited entry.
+    edebug "Spawned $(lval elogfile_pids=pids)"
+    __EBASH_ELOGFILE_PID_SETS+=( $(array_join pids ",") )
+    trap_add "elogfile_kill ${pids[*]}"
+}
+
+opt_usage elogfile_pids <<'END'
+elogfile_pids is used to convert the pidset stored in __EBASH_ELOGFILE_PID_SETS into a newline delimited list of PIDs.
+Being newline delimited helps the output of this easily slurp into `readarray`.
+END
+elogfile_pids()
+{
+    # Convert provided pid sets into a single flat array of pids. Split on either a comma or a space so that we can
+    # flatten the list of pid sets into a single pid list.
+    local pids=()
+    array_init pids "${__EBASH_ELOGFILE_PID_SETS[*]}" ", "
+
+    echo "${pids[*]}" | tr ' ' '\n'
+}
+
+opt_usage __elogfile_pid_remove <<'END'
+__elogfile_pid_remove is an internal helper function used to safely remove a pid from the __EBASH_ELOGFILE_PID_SETS. We
+can't just use array_remove since it is an array of pidsets rather than just a flat array of pids. This helper function
+handles that problem for us gracefully. It will return success if the pid is successfully removed and failure otherwise.
+END
+elogfile_pid_remove()
+{
+    $(opt_parse \
+        "pid | The pid to remove from the elogfile pidsets." \
+    )
+
+    local idx entry
+    for idx in ${!__EBASH_ELOGFILE_PID_SETS[@]}; do
+
+        entry=${__EBASH_ELOGFILE_PID_SETS[$idx]}
+
+        if [[ "${entry}" == "${pid}" ]]; then
+            entry=""
+        elif [[ "${entry}" =~ ^${pid}, ]]; then
+            entry="${entry/${pid},/}"
+        elif [[ "${entry}" =~ ,${pid}, ]]; then
+            entry="${entry/,${pid},/}"
+        elif [[ "${entry}" =~ ,${pid}$ ]]; then
+            entry="${entry/,${pid}/}"
+        fi
+
+        # If we made a change update this index in the array and return success.
+        if [[ "${entry}" != "${__EBASH_ELOGFILE_PID_SETS[$idx]}" ]]; then
+            if [[ -z "${entry}" ]]; then
+                unset __EBASH_ELOGFILE_PID_SETS[$idx]
+            else
+                __EBASH_ELOGFILE_PID_SETS[$idx]="${entry}"
+            fi
+
+            return 0
+        fi
+    done
+
+    # If we didn't find a match in the above loop then we couldn't delete it so we need to return an error.
+    return 1
+}
+
+opt_usage elogfile_kill <<'END'
+Kill previously launched elogfile processes. By default if no parameters are provided kill any elogfiles that were
+launched by our process. Or alternatively if `--all` is provided then kill all elogfile processes. Can also optionally
+pass in a specific list of elogfile pids to kill.
+END
+elogfile_kill()
+{
+    $(opt_parse \
+        "+all a | If set, kill ALL known eprogress processes, not just the current one"  \
+    )
+
+    # If given a list of pids, kill each one. Otherwise kill most recent. If there's nothing to kill just return.
+    local pid_sets=()
+    if [[ $# -gt 0 ]]; then
+        pid_sets=( ${@} )
+    elif array_not_empty __EBASH_ELOGFILE_PID_SETS; then
+        if [[ ${all} -eq 1 ]] ; then
+            pid_sets=( "${__EBASH_ELOGFILE_PID_SETS[@]}" )
+        else
+            pid_sets=( "${__EBASH_ELOGFILE_PID_SETS[-1]}" )
+        fi
+    else
+        return 0
+    fi
+
+    # Convert provided pid sets into a single flat array of pids. Split on either a comma or a space so that we can
+    # flatten the list of pid sets into a single pid list.
+    local pids=()
+    array_init pids "${pid_sets[*]}" ", "
+    edebug "Killing elogfile $(lval pids)"
+
+    # Get a flat list of elogfile pids so we can check each pid against the list to ensure it's a valid elogfile pid to
+    # be killing.
+    local valid_pids
+    readarray -t valid_pids < <(elogfile_pids)
+
+    # Kill requested pids
+    local pid
+    for pid in "${pids[@]}"; do
+
+        # Don't kill the pid if it's not running or it's not an elogfile pid. This catches potentially disasterous
+        # errors where someone would do "elogfile_kill $?" instead of "elogfile_kill $!".
+        if process_not_running ${pid} || ! array_contains valid_pids ${pid}; then
+            continue
+        fi
+
+        # Kill process and wait for it to complete
+        ekill ${pid} &>/dev/null
+        wait ${pid} &>/dev/null || true
+        elogfile_pid_remove ${pid}
+    done
 }
