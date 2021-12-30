@@ -173,5 +173,3 @@ printvars:
 .PHONY: printenv
 printenv:
 	{ go env ; printenv ; } | sort | grep -Pv '(LS_COLORS|LESS_TERMCAP)'
-
-#
