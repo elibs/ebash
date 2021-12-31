@@ -150,7 +150,6 @@ ETEST_cgroup_exists()
     assert test ${rc} -eq 2
 }
 
-
 ETEST_cgroup_pids_recursive()
 {
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
@@ -172,6 +171,34 @@ ETEST_cgroup_pids_recursive()
             assert_true array_contains allPids ${PARENT_PID}
         )
     )
+}
+
+ETEST_cgroup_empty()
+{
+    CGROUP=${ETEST_CGROUP}/${FUNCNAME}
+    CGROUP2=${ETEST_CGROUP}/${FUNCNAME}2
+    trap_add "cgroup_kill_and_wait ${CGROUP} ${CGROUP2}; cgroup_destroy -r ${CGROUP} ${CGROUP2}"
+
+    # Verify newly created group is empty
+    cgroup_create ${CGROUP}
+    cgroup_empty ${CGROUP}
+
+    # Verify multiple groups are supported
+    cgroup_create ${CGROUP2}
+    cgroup_empty ${CGROUP2}
+    cgroup_empty ${CGROUP} ${CGROUP2}
+
+    (
+        cgroup_move ${CGROUP} ${BASHPID}
+        PARENT_PID=${BASHPID}
+
+        cgroup_empty ${CGROUP2}
+        assert_false cgroup_empty ${CGROUP}
+    )
+
+    # Verify after killing a cgroup everything is empty again
+    cgroup_kill_and_wait ${CGROUP} ${CGROUP2}
+    cgroup_empty ${CGROUP} ${CGROUP2}
 }
 
 ETEST_cgroup_move_multiple_pids_at_once()

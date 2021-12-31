@@ -230,77 +230,54 @@ die_handler()
     exit ${rc}
 }
 
-# Returns success if there are no stale processes remaining in the cgroup for this test and failure if there are any.
-no_process_leaks_remain()
+assert_no_process_leaks()
 {
     if ! cgroup_supported; then
         return 0
     fi
 
-    # If the cgroup no longer exists, we're in good shape because you can't destroy a cgroup until all its processes are
-    # dead.
-    $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
-    if [[ ${exists_rc} -ne 0 ]] ; then
+    edebug "Checking for process leaks in ${ETEST_CGROUP}"
+
+    if ! cgroup_exists "${ETEST_CGROUP}"; then
+        edebug "$(lval ETEST_CGROUP) does not exist -- returning"
         return 0
     fi
-
-    # Get a list of pids in our CGROUP, excluding the elogfile pids as we know they are always going to be running at
-    # this point.
-    #
-    # NOTE: Since we just checked that the cgroup exists, we also know the cgroup_pids will exist, because nothing else
-    #       will destroy the cgroup except for us.
-    local remaining_pids=""
-    remaining_pids=$(cgroup_pids --exclude "$(elogfile_pids)" ${ETEST_CGROUP})
-    etestmsg "$(lval remaining_pids exists_rc ETEST_CGROUP)"
-    [[ -z ${remaining_pids} ]]
-}
-
-assert_no_process_leaks()
-{
-    # Error stacks generated here should produce output, even though etest has them wrapped in a try.
-    __EBASH_INSIDE_TRY=0
-
-    edebug "Waiting..."
 
     # Check if any processes leaked. Check quickly to avoid unecessary delays at clean-up time. If there are any
     # leaked processes remaining, THEN do an eretry to give them time to shutdown. Finally, assert that there are none
     # left.
-    $(tryrc no_process_leaks_remain)
-    if [[ ${rc} -ne 0 ]]; then
-        $(tryrc eretry -T=5s no_process_leaks_remain)
-    fi
-
-    # The above command could have timed out but that doesn't necessarily mean there are leaked processes. So KILL
-    # anything that's left, but only DIE if there were actually processes leaked.
-    if [[ ${rc} -ne 0 ]] && cgroup_supported ; then
+    try
+    {
+        eretry -T=5s cgroup_empty "${ETEST_CGROUP}"
+    }
+    catch
+    {
         local leaked_processes=""
-        leaked_processes=$(cgroup_ps ${ETEST_CGROUP})
+        leaked_processes=$(cgroup_ps "${ETEST_CGROUP}")
+
         if [[ -n ${leaked_processes} ]]; then
-            cgroup_kill_and_wait -s=SIGKILL ${ETEST_CGROUP}
-
-            die "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
+            cgroup_kill_and_wait -s=SIGKILL "${ETEST_CGROUP}"
+            eerror "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
+            return 1
         fi
-    fi
+    }
 
-    edebug "Finished"
+    edebug "Finished checking for process leaks in ${ETEST_CGROUP}"
 }
 
 assert_no_mount_leaks()
 {
-    $(opt_parse path)
-    edebug "Checking for stale mounts under $(lval path)"
-
     local mounts=()
-    mounts=( $(efindmnt "${path}" ) )
+    mounts=( $(efindmnt "${work_dir}" ) )
 
     if ! array_empty mounts; then
-        eunmount --all --recursive --delete=${delete} "${path}"
-        eerror "Leaked under $(lval mounts path)"$'\n'"$(array_join_nl mounts)"
-        die "Leaked mounts"
+        eunmount --all --recursive --delete=${delete} "${work_dir}"
+        eerror "Leaked under $(lval mounts work_dir)"$'\n'"$(array_join_nl mounts)"
+        return 1
     fi
 
     if [[ ${delete} -eq 1 ]]; then
-        rm --recursive --force "${path}"
+        rm --recursive --force "${work_dir}"
     fi
 
     edebug "Finished"
@@ -315,33 +292,33 @@ global_setup()
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
     efreshdir "${work_dir}"
 
+    # If cgroups are supported, create a new parent cgroup which will contain all our processes including the elogfile
+    # processes we already launched.
     if cgroup_supported ; then
-        # And a cgroup that will contain all output
         cgroup_create ${ETEST_CGROUP}
-        cgroup_move ${ETEST_CGROUP_BASE} $$
+        cgroup_move ${ETEST_CGROUP_BASE} $$ $(elogfile_pids)
     fi
 
     edebug "Finished global_setup"
-    return 0
 }
 
 global_teardown()
 {
     ecolor show_cursor &>${ETEST_OUT}
 
-    if [[ ${delete} -eq 0 ]]; then
-        edebug "Skipping global_teardown"
-        return 0
-    fi
-
     edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
-    assert_no_process_leaks
-    assert_no_mount_leaks ${work_dir}
-
-    if cgroup_supported ; then
-        cgroup_destroy -r ${ETEST_CGROUP}
-    fi
+    # Try to clean up any lingering process leaks or mount leaks but do not fail here as we need to perform additional
+    # cleanup after this.
+    try
+    {
+        assert_no_process_leaks
+        assert_no_mount_leaks
+    }
+    catch
+    {
+        eerror "Unexpected leaked processes or mount leaks in global_teardown"
+    }
 
     # Convert logfile to HTML if requested
     if [[ ${html} -eq 1 ]] && which ansi2html &>/dev/null; then
@@ -351,7 +328,14 @@ global_teardown()
     fi
 
     edebug "Finished global_teardown"
-    return 0
+
+    # Gracefully stop elogfile
+    elogfile_kill --all
+
+    # Destroy parent cgroup
+    if cgroup_supported ; then
+        cgroup_destroy --recursive ${ETEST_CGROUP}
+    fi
 }
 
 run_single_test()
@@ -487,7 +471,7 @@ run_single_test()
         try
         {
             assert_no_process_leaks
-            assert_no_mount_leaks "${work_dir}"
+            assert_no_mount_leaks
         }
         catch
         {
