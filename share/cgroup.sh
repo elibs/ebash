@@ -535,3 +535,23 @@ cgroup_find_setting_file()
     $(opt_parse cgroup setting)
     ls ${CGROUP_SYSFS}/*/${cgroup}/${setting}
 }
+
+opt_usage cgroup_empty <<'END'
+cgroup_empty is a simple wrapper around cgroup_pids. It simply checks if all the provided cgroups are empty or not.
+Which means that there are no pids running in the provided cgroups.
+END
+cgroup_empty()
+{
+    $(opt_parse \
+        ":exclude x   | Space separated list of pids not to return. By default returns all." \
+        "+recursive r | Additionally return pids for processes of this cgroup's children." \
+        "@cgroups     | Cgroups whose processes should be listed.")
+
+    local pids=()
+    pids=( $(opt_forward cgroup_pids exclude recursive -- "${cgroups[@]}") )
+
+    edebug "Checking cgroups are empty: $(lval cgroups exclude recursive pids)"
+
+    # Now just return the result of array_empty on the pids we just found
+    array_empty pids
+}

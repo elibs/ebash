@@ -243,17 +243,12 @@ assert_no_process_leaks()
         return 0
     fi
 
-    __check_process_leaks()
-    {
-        [[ -z "$(cgroup_pids "${ETEST_CGROUP}")" ]]
-    }
-
     # Check if any processes leaked. Check quickly to avoid unecessary delays at clean-up time. If there are any
     # leaked processes remaining, THEN do an eretry to give them time to shutdown. Finally, assert that there are none
     # left.
     try
     {
-        eretry -T=5s __check_process_leaks
+        eretry -T=5s cgroup_empty "${ETEST_CGROUP}"
     }
     catch
     {
@@ -262,12 +257,12 @@ assert_no_process_leaks()
 
         if [[ -n ${leaked_processes} ]]; then
             cgroup_kill_and_wait -s=SIGKILL "${ETEST_CGROUP}"
-            eerror "Leaked processes in ${cgroup}:\n${leaked_processes}"
+            eerror "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
             return 1
         fi
     }
 
-    edebug "Finished checking for process leaks in ${cgroup}"
+    edebug "Finished checking for process leaks in ${ETEST_CGROUP}"
 }
 
 assert_no_mount_leaks()
@@ -332,12 +327,15 @@ global_teardown()
         noansi ${ETEST_LOG}
     fi
 
+    edebug "Finished global_teardown"
+
+    # Gracefully stop elogfile
+    elogfile_kill --all
+
     # Destroy parent cgroup
     if cgroup_supported ; then
-        cgroup_destroy -r ${ETEST_CGROUP_BASE}
+        cgroup_destroy --recursive ${ETEST_CGROUP}
     fi
-
-    edebug "Finished global_teardown"
 }
 
 run_single_test()
