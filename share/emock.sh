@@ -275,17 +275,9 @@ emock()
                 ;;
         esac
 
-        if edebug_enabled; then
-            declare -f ${name}_real
-        fi
-
         # Create a function wrapper to call our mock function instead of the real function.
-        edebug "Creating mock function with $(lval name body)"
+        edebug "Creating mock function with $(lval name)"
         eval "${name} () ${body}"
-
-        if edebug_enabled; then
-            declare -f ${name}
-        fi
 
     else
         edebug "Writing filesystem mock=${name}"
