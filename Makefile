@@ -129,7 +129,7 @@ DISTROS =           \
 	debian:11       \
 	debian:10       \
 	fedora:35       \
-	fedora:33       \
+	fedora:34       \
 	gentoo          \
 	rocky:8         \
 	ubuntu:20.04    \
