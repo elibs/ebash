@@ -80,7 +80,7 @@ cgroup_supported()
     return ${missing_count}
 }
 
-[[ ${EBASH_OS} == Linux ]] || return 0
+[[ ${EBASH_OS} == Linux && -e /proc/groups ]] || return 0
 
 # We may already be in a cgroup and if so we need to constrain ourselves to only operate within that root cgroup. If we
 # are not in a cgroup at all, this will be just '/'. We filter out user.slice as that's not an actual cgroup we want
