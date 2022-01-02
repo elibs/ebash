@@ -15,9 +15,9 @@ elif [[ ${EBASH_OS} == Darwin ]] ; then
     EBASH_WORD_END='[[:>:]]'
 fi
 
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 # LINUX
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 
 if [[ ${EBASH_OS} == "Linux" ]]; then
 
@@ -38,22 +38,25 @@ if [[ ${EBASH_OS} == "Linux" ]]; then
         LC_COLLATE="C" command sort "${@}"
     }
 
-    # We presently assume that linux boxes will have a proper gnu toolchain in
-    # the default path. For them, nothing need be done so just return.
+    # We presently assume that linux boxes will have a proper gnu toolchain in the default path. For them, nothing need
+    # be done so just return.
     return 0
 fi
 
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 # OTHER
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 
 # But for others OSes, it's typical to install the gnu toolchain as binaries whose name is prefixed with a letter "g".
 # For instance, GNU grep gets installed as ggrep.
 #
-# This would probably be a nice area to allow for configuration, but for now we assume that the GNU toolchain is
-# installed in that fashion on anything that is not Linux. (GNU/Linux? ;-)
-#
-#
+# By default ebash will redirect the GNU tools using the above pattern. But this really only works on Darwin. So we will
+# allow the caller to disable this via EBASH_REDIRECT_GNU_TOOLS=0.
+: ${EBASH_REDIRECT_GNU_TOOLS:=1}
+if [[ "${EBASH_REDIRECT_GNU_TOOLS}" -ne 1 ]]; then
+    return 0
+fi
+
 __EBASH_GNU_TOOLS=(
     # GNU Coreutils
     \[
