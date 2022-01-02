@@ -8,7 +8,7 @@
 # version.
 
 # Chroot only works on Linux based OSes
-[[ ${__EBASH_OS} == Linux ]] || return 0
+[[ ${EBASH_OS} == Linux ]] || return 0
 
 # All the chroot tests fail on older debian because debootstrap doesn't work anymore
 if os_distro debian && os_release 9.13; then

@@ -13,7 +13,7 @@ source ${EBASH}/ebash.sh || { echo "Unable to source ebash." ; exit 1 ; }
 export EBASH
 export PATH="${PATH}:${EBASH_HOME}/bin"
 
-if [[ ${__EBASH_OS} == "Linux" ]] ; then
+if [[ ${EBASH_OS} == "Linux" ]] ; then
     reexec --sudo
 fi
 

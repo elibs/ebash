@@ -7,10 +7,10 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if [[ ${__EBASH_OS} == Linux ]] ; then
+if [[ ${EBASH_OS} == Linux ]] ; then
     EBASH_WORD_BEGIN='\<'
     EBASH_WORD_END='\>'
-elif [[ ${__EBASH_OS} == Darwin ]] ; then
+elif [[ ${EBASH_OS} == Darwin ]] ; then
     EBASH_WORD_BEGIN='[[:<:]]'
     EBASH_WORD_END='[[:>:]]'
 fi
@@ -19,7 +19,7 @@ fi
 # LINUX
 #---------------------------------------------------------------------------------------------------
 
-if [[ ${__EBASH_OS} == "Linux" ]]; then
+if [[ ${EBASH_OS} == "Linux" ]]; then
 
     # Detect what version of the kernel is running for code which requires it.
     __EBASH_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')

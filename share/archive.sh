@@ -191,7 +191,7 @@ tar_ignore_modified_files()
 }
 
 # NOTE: More advanced functions rely on bindmounting which only works on Linux
-if [[ ${__EBASH_OS} != "Linux" ]] ; then
+if [[ ${EBASH_OS} != "Linux" ]] ; then
     return 0
 fi
 

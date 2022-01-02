@@ -7,7 +7,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${__EBASH_OS} != Linux ]] && return 0
+[[ ${EBASH_OS} != Linux ]] && return 0
 
 EBASH_NETNS_DIR="/run/netns"
 

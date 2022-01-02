@@ -13,16 +13,31 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
+# EBASH_DISTRO is used to cache results from `edistro` to avoid repeated lookups when it will never change from one call
+# to the next. It also allows customization inside the user's environment to use an explicit distro that might otherwise
+# be misdetected or to facilitate dependency injection testing approaches.
+#
+: ${EBASH_DISTRO:=}
+
 opt_usage edistro <<'END'
 edistro is a generic way to figure out what "distro" we are running on. This is largely only a Linux concept so on MacOS
 this produces "darwin" as per `uname` output. Otherwise, Linux generically supports getting the Distro by looking in
 `/etc/os-release`. This is lighter weight than having to ensure that lsb_release is installed on all clients. If we have
 to, we'll fall back to lsb_release and finally just use raw `uname` output if nothing is available.
+
+NOTE: Instead of calling `uname` here we just use `EBASH_OS` which is set inside `ebash.sh` to avoid having to call that
+      repeatedly.
 END
 edistro()
 {
+    # Cache results in EBASH_DISTRO
+    if [[ -n "${EBASH_DISTRO}" ]]; then
+        echo "${EBASH_DISTRO}"
+        return 0
+    fi
+
     local name="" result=""
-    name="$(uname -s)"
+    name="${EBASH_OS}"
 
     if [[ "${name}" == "Darwin" ]]; then
         result="darwin"
@@ -47,7 +62,7 @@ os_distro()
                  successful. If none is specified, the current distro will simply be printed")
 
     local actual_distro=""
-    if [[ ${__EBASH_OS,,} == "linux" ]] ; then
+    if [[ ${EBASH_OS,,} == "linux" ]] ; then
         actual_distro=$(edistro)
     fi
 
@@ -92,7 +107,7 @@ os_release()
         actual_release=$(sw_vers -productVersion)
 
     else
-        die "os_release supports only linux and darwin, not ${__EBASH_OS}"
+        die "os_release supports only linux and darwin, not ${EBASH_OS}"
     fi
 
 
@@ -130,14 +145,14 @@ os()
 
         local os
         for os in "${@}" ; do
-            if [[ ${os,,} == ${__EBASH_OS,,} ]] ; then
+            if [[ ${os,,} == ${EBASH_OS,,} ]] ; then
                 return 0
             fi
         done
         return 1
 
     else
-        echo "${__EBASH_OS}"
+        echo "${EBASH_OS}"
     fi
 }
 

@@ -390,14 +390,14 @@ Platform agnostic mechanism for listing mounts.
 END
 list_mounts()
 {
-    if [[ ${__EBASH_OS} == Linux ]] ; then
+    if [[ ${EBASH_OS} == Linux ]] ; then
         cat /proc/self/mounts
 
-    elif [[ ${__EBASH_OS} == Darwin ]] ; then
+    elif [[ ${EBASH_OS} == Darwin ]] ; then
         mount
 
     else
-        die "Cannot list mounts for unsupported OS $(lval __EBASH_OS)"
+        die "Cannot list mounts for unsupported OS $(lval EBASH_OS)"
     fi
 }
 
