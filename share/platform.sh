@@ -16,7 +16,9 @@ elif [[ ${EBASH_OS} == Darwin ]] ; then
 fi
 
 #-----------------------------------------------------------------------------------------------------------------------
+#
 # LINUX
+#
 #-----------------------------------------------------------------------------------------------------------------------
 
 if [[ ${EBASH_OS} == "Linux" ]]; then
@@ -37,22 +39,31 @@ if [[ ${EBASH_OS} == "Linux" ]]; then
     {
         LC_COLLATE="C" command sort "${@}"
     }
-
-    # We presently assume that linux boxes will have a proper gnu toolchain in the default path. For them, nothing need
-    # be done so just return.
-    return 0
 fi
 
 #-----------------------------------------------------------------------------------------------------------------------
-# OTHER
+#
+# GNU TOOLS Redirection
+#
 #-----------------------------------------------------------------------------------------------------------------------
 
-# But for others OSes, it's typical to install the gnu toolchain as binaries whose name is prefixed with a letter "g".
-# For instance, GNU grep gets installed as ggrep.
+# On Darwin it's typical to install the GNU toolchain as binaries whose name is prefixed with a letter "g" via brew to
+# avoid conflicting with the non-GNU tools already installed by the OS. For instance, GNU grep gets installed as ggrep.
 #
-# By default ebash will redirect the GNU tools using the above pattern. But this really only works on Darwin. So we will
-# allow the caller to disable this via EBASH_REDIRECT_GNU_TOOLS=0.
-: ${EBASH_REDIRECT_GNU_TOOLS:=1}
+# By default, on Darwin, ebash will redirect the GNU tools to be aliased within ebash so that we can consistently use
+# the GNU versions. On Linux this is typically not necessary. However, sometimes it's desired for certain test
+# scenarios. So we allow the caller direct control over this using EBASH_REDIRECT_GNU_TOOLS. If this is not set then
+# we'll do the redirection on non-Linux and not do the redirection on Linux.
+: ${EBASH_REDIRECT_GNU_TOOLS:=}
+if [[ -z "${EBASH_REDIRECT_GNU_TOOLS}" ]]; then
+    if [[ ${EBASH_OS} == "Darwin" ]]; then
+        EBASH_REDIRECT_GNU_TOOLS=1
+    else
+        EBASH_REDIRECT_GNU_TOOLS=0
+    fi
+fi
+
+# If no GNU Tool Redirection is required then just return.
 if [[ "${EBASH_REDIRECT_GNU_TOOLS}" -ne 1 ]]; then
     return 0
 fi
