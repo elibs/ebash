@@ -7,7 +7,7 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${__EBASH_OS} == Linux ]] || return 0
+[[ ${EBASH_OS} == Linux ]] || return 0
 
 __EBASH_DAEMON_RUNDIR="/var/run/ebash-daemon"
 
@@ -106,7 +106,7 @@ END
 #-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage daemon_pack_save <<'END'
-`daemon_pack_save` is used to save the optional pack for a daemon to an on-disk configuration file which is stored in 
+`daemon_pack_save` is used to save the optional pack for a daemon to an on-disk configuration file which is stored in
 the cfgfile field of the option pack. This allows the pack to be reused by many different ebash daemon functions more
 implicitly as each function can load the configuration from disk.
 END

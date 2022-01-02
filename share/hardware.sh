@@ -47,12 +47,12 @@ get_memory_size()
     assert_match "${units}" "(${supported_units})"
 
     local bytes=""
-    if [[ ${__EBASH_OS} == Linux ]] ; then
+    if [[ ${EBASH_OS} == Linux ]] ; then
         bytes=$(free --bytes | grep "Mem:" | awk '{print $2}')
-    elif [[ ${__EBASH_OS} == Darwin ]] ; then
+    elif [[ ${EBASH_OS} == Darwin ]] ; then
         bytes=$(sysctl -n hw.memsize)
     else
-        die "Unsupported OS=${__EBASH_OS}"
+        die "Unsupported OS=${EBASH_OS}"
     fi
 
     if [[ "${units}" == "B" ]]; then

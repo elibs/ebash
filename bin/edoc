@@ -33,7 +33,7 @@ os_distro()   { [[ ${1,,} == linux ]] && return 0 || return 1; }
 # Generate an edoc.sh file that we can source below with necessary functions exported.
 edoc=$(mktemp --tmpdir edoc-XXXXXX)
 {
-    echo 'export __EBASH_OS=Linux'
+    echo 'export EBASH_OS=Linux'
     echo 'export TERM=xterm-256color'
     declare -f opt_usage
     declare -f os

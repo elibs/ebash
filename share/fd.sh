@@ -78,13 +78,13 @@ Get the full path in procfs for a given file descriptor.
 END
 fd_path()
 {
-    if [[ ${__EBASH_OS} == Linux ]] ; then
+    if [[ ${EBASH_OS} == Linux ]] ; then
         echo /proc/self/fd
 
-    elif [[ ${__EBASH_OS} == Darwin ]] ; then
+    elif [[ ${EBASH_OS} == Darwin ]] ; then
         echo /dev/fd
 
     else
-        die "Unsupported OS $(lval __EBASH_OS)"
+        die "Unsupported OS $(lval EBASH_OS)"
     fi
 }

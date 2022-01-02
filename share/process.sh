@@ -11,7 +11,7 @@
 # This is a simple override of the linux pstree command. The trouble with that command is that it likes to segfault.
 # It's buggy. So here, we simply ignore the error codes that would come from it.
 #
-if [[ ${__EBASH_OS} == Linux ]] ; then
+if [[ ${EBASH_OS} == Linux ]] ; then
     pstree()
     {
         (

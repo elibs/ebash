@@ -7,19 +7,21 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if [[ ${__EBASH_OS} == Linux ]] ; then
+if [[ ${EBASH_OS} == Linux ]] ; then
     EBASH_WORD_BEGIN='\<'
     EBASH_WORD_END='\>'
-elif [[ ${__EBASH_OS} == Darwin ]] ; then
+elif [[ ${EBASH_OS} == Darwin ]] ; then
     EBASH_WORD_BEGIN='[[:<:]]'
     EBASH_WORD_END='[[:>:]]'
 fi
 
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
+#
 # LINUX
-#---------------------------------------------------------------------------------------------------
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
-if [[ ${__EBASH_OS} == "Linux" ]]; then
+if [[ ${EBASH_OS} == "Linux" ]]; then
 
     # Detect what version of the kernel is running for code which requires it.
     __EBASH_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
@@ -37,23 +39,35 @@ if [[ ${__EBASH_OS} == "Linux" ]]; then
     {
         LC_COLLATE="C" command sort "${@}"
     }
+fi
 
-    # We presently assume that linux boxes will have a proper gnu toolchain in
-    # the default path. For them, nothing need be done so just return.
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# GNU TOOLS Redirection
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# On Darwin it's typical to install the GNU toolchain as binaries whose name is prefixed with a letter "g" via brew to
+# avoid conflicting with the non-GNU tools already installed by the OS. For instance, GNU grep gets installed as ggrep.
+#
+# By default, on Darwin, ebash will redirect the GNU tools to be aliased within ebash so that we can consistently use
+# the GNU versions. On Linux this is typically not necessary. However, sometimes it's desired for certain test
+# scenarios. So we allow the caller direct control over this using EBASH_REDIRECT_GNU_TOOLS. If this is not set then
+# we'll do the redirection on non-Linux and not do the redirection on Linux.
+: ${EBASH_REDIRECT_GNU_TOOLS:=}
+if [[ -z "${EBASH_REDIRECT_GNU_TOOLS}" ]]; then
+    if [[ ${EBASH_OS} == "Darwin" ]]; then
+        EBASH_REDIRECT_GNU_TOOLS=1
+    else
+        EBASH_REDIRECT_GNU_TOOLS=0
+    fi
+fi
+
+# If no GNU Tool Redirection is required then just return.
+if [[ "${EBASH_REDIRECT_GNU_TOOLS}" -ne 1 ]]; then
     return 0
 fi
 
-#---------------------------------------------------------------------------------------------------
-# OTHER
-#---------------------------------------------------------------------------------------------------
-
-# But for others OSes, it's typical to install the gnu toolchain as binaries whose name is prefixed with a letter "g".
-# For instance, GNU grep gets installed as ggrep.
-#
-# This would probably be a nice area to allow for configuration, but for now we assume that the GNU toolchain is
-# installed in that fashion on anything that is not Linux. (GNU/Linux? ;-)
-#
-#
 __EBASH_GNU_TOOLS=(
     # GNU Coreutils
     \[

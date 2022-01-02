@@ -56,7 +56,10 @@ shopt -s           \
 
 alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DEBUG || trap - DEBUG'
 
-__EBASH_OS=$(uname)
+# EBASH_OS is used to cache results from uname to avoid repeated lookups when it will never change from one call to the
+# next. It also allows customization inside the user's environment to use an explicit OS that might otherwise be
+# misdetected or to facilitate dependency injection testing approaches.
+: ${EBASH_OS:=$(uname -s)}
 
 # Load configuration files
 if [[ -e /etc/ebash.conf ]]; then

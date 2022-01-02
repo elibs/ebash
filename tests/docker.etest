@@ -8,7 +8,7 @@
 # version.
 
 # Cannot get the docker tests to run properly on MacOS inside CI/CD so disable it for now.
-[[ ${__EBASH_OS} == Linux ]] || return 0
+[[ ${EBASH_OS} == Linux ]] || return 0
 
 # Mock docker function to intercept "docker push" commands for better testability.
 docker_tags_pushed=()
