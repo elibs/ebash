@@ -14,6 +14,7 @@
 
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
+COLUMNS  ?= $(or ${columns},120)
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
@@ -24,6 +25,7 @@ PUSH     ?= $(or ${push},0)
 REPEAT   ?= $(or ${repeat},0)
 V        ?= $(or $v,0)
 
+export COLUMNS
 export PULL
 export PUSH
 
@@ -95,7 +97,7 @@ DISTROS =           \
 
 # Template for running tests inside a Linux distro container
 DRUN = docker run                                 \
-	--env COLUMNS=${COLUMNS:-120}                 \
+	--env COLUMNS=${COLUMNS}                      \
 	--init                                        \
 	--tty                                         \
 	--mount type=bind,source=${PWD},target=/ebash \
