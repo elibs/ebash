@@ -76,7 +76,7 @@ jobs:
         run: make docker-${{ matrix.container }} pull=1 push=1
 
       - name: Lint
-        run: echo make dlint-${{ matrix.container }}
+        run: make dlint-${{ matrix.container }}
 
       - name: Self Test
         run: make dselftest-${{ matrix.container }}
