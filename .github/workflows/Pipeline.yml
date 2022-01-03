@@ -65,10 +65,10 @@ jobs:
       fail-fast: true
       matrix:
         container:
-          - "ghcr.io/elibs/ebash-build-rocky-8:latest"
+          - "rocky-8"
 
     container:
-      image: ${{ matrix.container }}
+      image: "${{ env.REGISTRY }}/elibs/ebash-build-${{ matrix.container }}:latest"
       options: --init --interactive --privileged --tty
 
     steps:
