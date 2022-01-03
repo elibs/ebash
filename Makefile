@@ -18,8 +18,13 @@ EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
 FILTER   ?= $(or ${filter},)
+PULL     ?= $(or ${pull},0)
+PUSH     ?= $(or ${push},0)
 REPEAT   ?= $(or ${repeat},0)
 V        ?= $(or $v,0)
+
+export PULL
+export PUSH
 
 .SILENT:
 
@@ -133,19 +138,18 @@ dshell-$1: docker-$1
 
 .PHONY: docker-$1
 docker-$1:
+	bin/ebanner "Building $${$1_IMAGE}" PULL PUSH
 	bin/ebash docker_build                   \
 		--name $${$1_IMAGE}                  \
 		--tag $${$1_IMAGE}:latest            \
 		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
 		--file docker/Dockerfile.build       \
 		--registry ghcr.io                   \
-		--pull                               \
-
-#docker build -t $${$1_IMAGE} --build-arg IMAGE=$${$1_IMAGE_BASE} -f docker/Dockerfile.build .
+		--pull=${PULL}                       \
+		--push=${PUSH}                       \
 
 .PHONY: docker-push-$1
-docker-push-$1:
-	bin/ebanner "Publishing $2 Docker Image"
+docker-push-$1: docker-$1
 	docker push $${$1_IMAGE}
 
 endef
