@@ -133,13 +133,13 @@ dshell-$1: docker-$1
 
 .PHONY: docker-$1
 docker-$1:
-	bin/ebash docker_build                  \
-		--name $${$1_IMAGE}                 \
-		--tag $${$1_IMAGE}:latest           \
-		--build-arg IMAGE=$${$1_IMAGE_BASE} \
-		--file docker/Dockerfile.build      \
-		--registry ghcr.io                  \
-		--pull                              \
+	bin/ebash docker_build                   \
+		--name $${$1_IMAGE}                  \
+		--tag $${$1_IMAGE}:latest            \
+		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
+		--file docker/Dockerfile.build       \
+		--registry ghcr.io                   \
+		--pull                               \
 
 #docker build -t $${$1_IMAGE} --build-arg IMAGE=$${$1_IMAGE_BASE} -f docker/Dockerfile.build .
 

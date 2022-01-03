@@ -214,6 +214,7 @@ docker_build()
         --file "${dockerfile}"                           \
         --cache-from "${cache_from}"                     \
         --tag "${image}"                                 \
+        --progress plain                                 \
         $(array_join --before tag " --tag ")             \
         $(array_join --before build_arg " --build-arg ") \
         . |& tee "${buildlog}" | edebug
