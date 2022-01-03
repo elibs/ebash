@@ -9,13 +9,13 @@ on:
 # GLobal environment variables
 env:
   COLOR_DEBUG: "dim blue"
-  COLUMNS: "120"
-  EFUNCS_COLOR: "1"
-  EINTERACTIVE: "0"
+  COLUMNS: 120
+  EFUNCS_COLOR: 1
+  EINTERACTIVE: 0
   EPROGRESS_DELAY: 15
   EPROGRESS_INLINE: 0
   EPROGRESS_SPINNER: 0
-  REGISTRY: ghcr.io
+  REGISTRY: "ghcr.io"
   TERM: "xterm-256color"
 
 #-----------------------------------------------------------------------------------------------------------------------
