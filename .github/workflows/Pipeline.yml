@@ -91,7 +91,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ env.OSNAME }}
+          name: ${{ matrix.container }}
           path: .work/**
 
   #--------------------------------------------------------------------------------------------------------------------
