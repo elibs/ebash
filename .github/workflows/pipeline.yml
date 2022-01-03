@@ -8,12 +8,15 @@ on:
 
 # GLobal environment variables
 env:
-  TERM: "xterm-256color"
-  COLUMNS: "120"
-  EINTERACTIVE: "0"
-  EFUNCS_COLOR: "1"
   COLOR_DEBUG: "dim blue"
+  COLUMNS: "120"
+  EFUNCS_COLOR: "1"
+  EINTERACTIVE: "0"
+  EPROGRESS_DELAY: 15
+  EPROGRESS_INLINE: 0
+  EPROGRESS_SPINNER: 0
   REGISTRY: ghcr.io
+  TERM: "xterm-256color"
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
