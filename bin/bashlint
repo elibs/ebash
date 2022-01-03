@@ -102,6 +102,7 @@ else
 fi
 
 ebanner --uppercase "BASHLINT"                                           \
+    COLUMNS \
     exclude                                                              \
     filter                                                               \
     files="$(string_truncate -e $(( $(tput cols) - 30 )) "${paths[@]}")" \

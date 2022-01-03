@@ -94,15 +94,16 @@ DISTROS =           \
 	ubuntu-18.04    \
 
 # Template for running tests inside a Linux distro container
-DRUN = docker run    \
-    --init           \
-    --tty            \
-    --mount type=bind,source=${PWD},target=/ebash \
-    --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-    --network host   \
-    --privileged     \
-    --rm             \
-    --workdir /ebash \
+DRUN = docker run                                 \
+	--env COLUMNS=${COLUMNS:-120}                 \
+	--init                                        \
+	--tty                                         \
+	--mount type=bind,source=${PWD},target=/ebash \
+	--mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+	--network host                                \
+	--privileged                                  \
+	--rm                                          \
+	--workdir /ebash                              \
 
 define DOCKER_TEMPLATE
 
@@ -127,15 +128,15 @@ dselftest-$1: docker-$1
 .PHONY: dtest-$1
 dtest-$1: docker-$1
 	${DRUN} $${$1_IMAGE} bin/etest \
-		--break                      \
-		--debug="${EDEBUG}"          \
-		--exclude="${EXCLUDE}"       \
-		--failfast="${FAILFAST}"     \
-		--failures="${FAILURES}"     \
-		--filter="${FILTER}"         \
-		--log-dir=.work              \
-		--repeat=${REPEAT}           \
-		--verbose=${V}               \
+		--break                    \
+		--debug="${EDEBUG}"        \
+		--exclude="${EXCLUDE}"     \
+		--failfast="${FAILFAST}"   \
+		--failures="${FAILURES}"   \
+		--filter="${FILTER}"       \
+		--log-dir=.work            \
+		--repeat=${REPEAT}         \
+		--verbose=${V}             \
 		--work-dir=.work/output
 
 .PHONY: dshell-$1
