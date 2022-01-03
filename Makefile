@@ -87,20 +87,22 @@ DRUN = docker run      \
 define DOCKER_TEST_TEMPLATE
 
 ifeq ($1,gentoo)
-${1}_CONTAINER = gentoo/stage3
+${1}_IMAGE_UPSTREAM = gentoo/stage3
 else ifneq (,$(findstring rocky,$1))
-${1}_CONTAINER = rockylinux/$(subst rocky,rockylinux,$2)
+${1}_IMAGE_UPSTREAM = rockylinux/$(subst rocky,rockylinux,$2)
 else
-${1}_CONTAINER = $2
+${1}_IMAGE_UPSTREAM = $2
 endif
+
+${1}_IMAGE = ghcr.io/elibs/ebash-build-$1:latest
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
-	${DRUN} ebash-build-$1 bin/selftest
+	${DRUN} $${$1_IMAGE} bin/selftest
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
-	${DRUN} ebash-build-$1 bin/etest \
+	${DRUN} $${$1_IMAGE} bin/etest \
 		--break                      \
 		--debug="${EDEBUG}"          \
 		--exclude="${EXCLUDE}"       \
@@ -112,12 +114,18 @@ dtest-$1: docker-$1
 
 .PHONY: dshell-$1
 dshell-$1: docker-$1
-	${DRUN} ebash-build-$1 /bin/bash
+	${DRUN} $${$1_IMAGE} /bin/bash
 
 .PHONY: docker-$1
 docker-$1:
-	bin/ebanner "Building $2 Docker Container"
-	docker build -t ebash-build-$1 --build-arg IMAGE=$${$1_CONTAINER} -f docker/Dockerfile.build .
+	bin/ebanner "Building $2 Docker Image ($${$1_IMAGE})"
+	docker build -t $${$1_IMAGE} --build-arg IMAGE=$${$1_IMAGE_UPSTREAM} -f docker/Dockerfile.build .
+
+.PHONY: docker-$1-push
+docker-$1-push:
+	bin/ebanner "Publishing $2 Docker Image"
+	docker push $${$1_IMAGE}
+
 endef
 
 DISTROS =           \
