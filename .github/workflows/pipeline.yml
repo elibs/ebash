@@ -36,6 +36,24 @@ jobs:
       packages: write
       contents: read
 
+    strategy:
+      fail-fast: true
+      matrix:
+        container:
+          - "alpine-3.15"
+          - "alpine-3.14"
+          - "archlinux"
+          - "centos-8"
+          - "centos-7"
+          - "debian-11"
+          - "debian-10"
+          - "fedora-35"
+          - "fedora-33"
+          - "gentoo/stage3"
+          - "rockylinux/rockylinux-8"
+          - "ubuntu-20.04"
+          - "ubuntu-18.04"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -50,7 +68,7 @@ jobs:
           password: ${{ secrets.CICD_TOKEN }}
 
       - name: Build and Push
-        run: make docker pull=1 push=1
+        run: make docker-${{ matrix.container }} pull=1 push=1
 
   #--------------------------------------------------------------------------------------------------------------------
   #
