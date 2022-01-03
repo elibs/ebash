@@ -178,11 +178,12 @@ docker_build()
 
             opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
 
-            if [[ ${push} -eq 1 ]]; then
-                local push_tags
-                push_tags=( ${image} ${tag[@]:-} )
-                opt_forward docker_push registry username password -- ${push_tags[*]}
-            fi
+            # NOTE: I'm not sure why I was doing this but it seems redundant to push right after we just pull.
+            #if [[ ${push} -eq 1 ]]; then
+            #    local push_tags
+            #    push_tags=( ${image} ${tag[@]:-} )
+            #    opt_forward docker_push registry username password -- ${push_tags[*]}
+            #fi
 
             return 0
         fi
