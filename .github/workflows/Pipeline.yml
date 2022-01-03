@@ -36,7 +36,10 @@ jobs:
           fetch-depth: 0
 
       - name: Build
-        run: make docker
+        run: make docker-rocky-8
+
+      - name: Push
+        run: make docker-push-rocky-8
 
   #--------------------------------------------------------------------------------------------------------------------
   #

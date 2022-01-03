@@ -121,8 +121,8 @@ docker-$1:
 	bin/ebanner "Building $2 Docker Image ($${$1_IMAGE})"
 	docker build -t $${$1_IMAGE} --build-arg IMAGE=$${$1_IMAGE_UPSTREAM} -f docker/Dockerfile.build .
 
-.PHONY: docker-$1-push
-docker-$1-push:
+.PHONY: docker-push-$1
+docker-push-$1:
 	bin/ebanner "Publishing $2 Docker Image"
 	docker push $${$1_IMAGE}
 
@@ -151,6 +151,9 @@ dselftest:  $(foreach d, $(subst :,-,${DISTROS}), dselftest-${d})
 
 .PHONY: docker
 docker: $(foreach d, $(subst :,-,${DISTROS}), docker-${d})
+
+.PHONY: docker-push
+docker-push: $(foreach d, $(subst :,-,${DISTROS}), docker-push-${d})
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
