@@ -6,6 +6,10 @@ on:
     branches-ignore:
       - 'main'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # GLobal environment variables
 env:
   COLOR_DEBUG: "dim blue"
@@ -32,10 +36,6 @@ jobs:
   #--------------------------------------------------------------------------------------------------------------------
   Linux:
     runs-on: ubuntu-latest
-
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
 
     strategy:
       fail-fast: true
@@ -76,7 +76,7 @@ jobs:
         run: make docker-${{ matrix.container }} pull=1 push=1
 
       - name: Lint
-        run: make dlint-${{ matrix.container }}
+        run: echo make dlint-${{ matrix.container }}
 
       - name: Self Test
         run: make dselftest-${{ matrix.container }}
