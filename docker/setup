@@ -36,7 +36,8 @@ fi
 
 DISTRO=$(echo "${DISTRO}" | tr "[A-Z]" "[a-z]")
 
-echo ">> Installing dependencies for ${DISTRO}"
+echo ">> Installing docker build dependencies for ${DISTRO}"
+sleep 10
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -50,18 +51,7 @@ if [ "${DISTRO}" = "alpine" ]; then
     echo "http://dl-3.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 
     apk add                  \
-        bash                 \
-        coreutils            \
         curl                 \
-        diffutils            \
-        file                 \
-        findutils            \
-        gawk                 \
-        grep                 \
-        perl                 \
-        procps               \
-        sed                  \
-        util-linux           \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -71,10 +61,7 @@ if [ "${DISTRO}" = "alpine" ]; then
 elif [ "${DISTRO}" = "arch" ]; then
 
     pacman -Syu --noconfirm --needed \
-        diffutils            \
-        perl                 \
         unzip                \
-        which                \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -86,11 +73,7 @@ elif [ "${DISTRO}" = "centos" ]; then
     yum install epel-release -y
 
     yum install -y          \
-        diffutils           \
-        file                \
-        perl                \
         unzip               \
-        which               \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -102,10 +85,8 @@ elif [ "${DISTRO}" = "debian" ]; then
     apt update
 
     apt install -y          \
-        bsdmainutils        \
-        file                \
-        lsb-release         \
-        procps              \
+        curl                \
+        unzip               \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -115,12 +96,7 @@ elif [ "${DISTRO}" = "debian" ]; then
 elif [ "${DISTRO}" = "fedora" ]; then
 
     dnf install -y          \
-        diffutils           \
-        file                \
-        findutils           \
-        perl-core           \
-        procps              \
-        which               \
+        unzip               \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -129,8 +105,7 @@ elif [ "${DISTRO}" = "fedora" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "gentoo" ]; then
 
-    # Nothing to install on gentoo as everythying is included by default!
-    true
+    echo 'FEATURES="-ipc-sandbox -mount-sandbox -network-sandbox -pid-sandbox -sandbox -usersandbox"' >> /etc/portage/make.conf
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -139,14 +114,8 @@ elif [ "${DISTRO}" = "gentoo" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "rocky" ]; then
 
-    yum install epel-release -y
-
-    yum install -y          \
-        diffutils           \
-        file                \
-        perl                \
-        procps              \
-        which               \
+    # Nothing to install
+    true
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -155,11 +124,8 @@ elif [ "${DISTRO}" = "rocky" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "ubuntu" ]; then
 
-    apt update
-
-    apt install -y          \
-        bsdmainutils        \
-        file                \
+    # Nothing to install
+    true
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -168,31 +134,8 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "darwin" ]; then
 
-    # We need to install homebrew if it isn't already installed to be able to install packages on MacOS
-    if ! which brew &>/dev/null; then
-        echo ">> Installing Homebrew"
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    fi
-
-    # Brew is lame. If you try to install something that's already installed it returns an error. So we have to first
-    # check if it is installed and skip it if so.
-    brew_install()
-    {
-        for pkg in "${@}"; do
-            if ! brew ls --versions "${pkg}"; then
-                brew install "${pkg}"
-            fi
-        done
-    }
-
-    brew_install             \
-        bash                 \
-        coreutils            \
-        findutils            \
-        gawk                 \
-        gnu-sed              \
-        gnu-which            \
-        grep                 \
+    # Nothing to install
+    true
 
 #----------------------------------------------------------------------------------------------------------------------
 #

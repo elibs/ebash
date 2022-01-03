@@ -95,29 +95,29 @@ ${1}_CONTAINER = $2
 endif
 
 .PHONY: dselftest-$1
-dselftest-$1:
-	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
-	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && bin/selftest"
+dselftest-$1: docker-$1
+	${DRUN} ebash-build-$1 bin/selftest
 
 .PHONY: dtest-$1
-dtest-$1:
-	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
-	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && \
-        bin/etest \
-            --break                    \
-            --debug="${EDEBUG}"        \
-            --exclude="${EXCLUDE}"     \
-            --filter="${FILTER}"       \
-            --log-dir=.work            \
-            --repeat=${REPEAT}         \
-            --verbose=${V}             \
-            --work-dir=.work/output"
+dtest-$1: docker-$1
+	${DRUN} ebash-build-$1 bin/etest \
+		--break                      \
+		--debug="${EDEBUG}"          \
+		--exclude="${EXCLUDE}"       \
+		--filter="${FILTER}"         \
+		--log-dir=.work              \
+		--repeat=${REPEAT}           \
+		--verbose=${V}               \
+		--work-dir=.work/output
 
 .PHONY: dshell-$1
-dshell-$1:
-	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
-	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && /bin/bash"
+dshell-$1: docker-$1
+	${DRUN} ebash-build-$1 /bin/bash
 
+.PHONY: docker-$1
+docker-$1:
+	bin/ebanner "Building $2 Docker Container"
+	docker build -t ebash-build-$1 --build-arg IMAGE=$${$1_CONTAINER} -f docker/Dockerfile.build .
 endef
 
 DISTROS =           \
@@ -140,6 +140,9 @@ $(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t}))
 PHONY: dtest
 dtest:	    $(foreach d, $(subst :,-,${DISTROS}), dtest-${d})
 dselftest:  $(foreach d, $(subst :,-,${DISTROS}), dselftest-${d})
+
+.PHONY: docker
+docker: $(foreach d, $(subst :,-,${DISTROS}), docker-${d})
 
 #-----------------------------------------------------------------------------------------------------------------------
 #

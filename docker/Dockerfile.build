@@ -1,0 +1,19 @@
+ARG IMAGE
+FROM ${IMAGE}
+
+# Copy install directory. This is what will trigger new builds when dependencies change.
+COPY docker/setup /ebash-build/docker/setup
+COPY install /ebash-build/install
+RUN sed -i -e 's|${EBASH_HOME}|/ebash-build|g' /ebash-build/install/all
+RUN sed -i -e 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/ebash-main"|' /ebash-build/install/*
+
+# Install build dependencies
+RUN /ebash-build/docker/setup
+
+# Fetch ebash from master as an opaque thing to avoid using our local code. That way we
+# don't invalidate our image.
+RUN curl --location --remote-name https://github.com/elibs/ebash/archive/main.zip
+RUN unzip main.zip
+
+# Install all dependencies
+RUN /ebash-build/install/all
