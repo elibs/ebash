@@ -217,7 +217,7 @@ docker_build()
         --progress plain                                 \
         $(array_join --before tag " --tag ")             \
         $(array_join --before build_arg " --build-arg ") \
-        . |& tee "${buildlog}" | edebug
+        . | tee "${buildlog}" | edebug
     eprogress_kill
 
     einfo "Size"
