@@ -96,8 +96,6 @@ DISTROS =           \
 # Template for running tests inside a Linux distro container
 DRUN = docker run    \
     --init           \
-    --interactive    \
-    --tty            \
     --mount type=bind,source=${PWD},target=/ebash \
     --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
     --network host   \
