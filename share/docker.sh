@@ -97,7 +97,7 @@ docker_build()
 {
     $(opt_parse \
         "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
-        "&ibuild_arg                        | Build arguments that should be interpolated inplace instead of passing them
+        "&ibuild_arg                        | Build arguments that should be interpolated inplace instead of passing
                                               into the lower level docker build."                                      \
         ":cache_from                        | Images to consider as cache sources. Passthrough into docker build."     \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
@@ -216,7 +216,7 @@ docker_build()
         --tag "${image}"                                 \
         $(array_join --before tag " --tag ")             \
         $(array_join --before build_arg " --build-arg ") \
-        . | tee "${buildlog}" | edebug
+        . |& tee "${buildlog}" | edebug
     eprogress_kill
 
     einfo "Size"

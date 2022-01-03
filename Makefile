@@ -68,9 +68,24 @@ doc:
 
 #----------------------------------------------------------------------------------------------------------------------
 #
-# Docker Tests
+# Docker
 #
 #----------------------------------------------------------------------------------------------------------------------
+
+DISTROS =           \
+	alpine-3.15     \
+	alpine-3.14     \
+	archlinux       \
+	centos-8        \
+	centos-7        \
+	debian-11       \
+	debian-10       \
+	fedora-35       \
+	fedora-33       \
+	gentoo          \
+	rocky-8         \
+	ubuntu-20.04    \
+	ubuntu-18.04    \
 
 # Template for running tests inside a Linux distro container
 DRUN = docker run      \
@@ -84,17 +99,17 @@ DRUN = docker run      \
        --workdir /ebash \
        --rm
 
-define DOCKER_TEST_TEMPLATE
+define DOCKER_TEMPLATE
 
 ifeq ($1,gentoo)
 ${1}_IMAGE_BASE = gentoo/stage3
 else ifneq (,$(findstring rocky,$1))
-${1}_IMAGE_BASE = rockylinux/$(subst rocky,rockylinux,$2)
+${1}_IMAGE_BASE = rockylinux/$(subst rocky,rockylinux,$(subst -,:,$1))
 else
-${1}_IMAGE_BASE = $2
+${1}_IMAGE_BASE = $(subst -,:,$1)
 endif
 
-${1}_IMAGE = ghcr.io/elibs/ebash-build-$1:latest
+${1}_IMAGE = ghcr.io/elibs/ebash-build-$1
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
@@ -118,8 +133,15 @@ dshell-$1: docker-$1
 
 .PHONY: docker-$1
 docker-$1:
-	bin/ebanner "Building $2 Docker Image ($${$1_IMAGE})"
-	docker build -t $${$1_IMAGE} --build-arg IMAGE=$${$1_IMAGE_BASE} -f docker/Dockerfile.build .
+	bin/ebash docker_build                  \
+		--name $${$1_IMAGE}                 \
+		--tag $${$1_IMAGE}:latest           \
+		--build-arg IMAGE=$${$1_IMAGE_BASE} \
+		--file docker/Dockerfile.build      \
+		--registry ghcr.io                  \
+		--pull                              \
+
+#docker build -t $${$1_IMAGE} --build-arg IMAGE=$${$1_IMAGE_BASE} -f docker/Dockerfile.build .
 
 .PHONY: docker-push-$1
 docker-push-$1:
@@ -128,32 +150,17 @@ docker-push-$1:
 
 endef
 
-DISTROS =           \
-	alpine:3.15     \
-	alpine:3.14     \
-	archlinux       \
-	centos:8        \
-	centos:7        \
-	debian:11       \
-	debian:10       \
-	fedora:35       \
-	fedora:33       \
-	gentoo          \
-	rocky:8         \
-	ubuntu:20.04    \
-	ubuntu:18.04    \
-
-$(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t})))
+$(foreach t, ${DISTROS},$(eval $(call DOCKER_TEMPLATE,${t})))
 
 PHONY: dtest
-dtest:	    $(foreach d, $(subst :,-,${DISTROS}), dtest-${d})
-dselftest:  $(foreach d, $(subst :,-,${DISTROS}), dselftest-${d})
+dtest:	    $(foreach d, ${DISTROS}, dtest-${d})
+dselftest:  $(foreach d, ${DISTROS}, dselftest-${d})
 
 .PHONY: docker
-docker: $(foreach d, $(subst :,-,${DISTROS}), docker-${d})
+docker: $(foreach d, ${DISTROS}, docker-${d})
 
 .PHONY: docker-push
-docker-push: $(foreach d, $(subst :,-,${DISTROS}), docker-push-${d})
+docker-push: $(foreach d, ${DISTROS}, docker-push-${d})
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
