@@ -210,14 +210,20 @@ docker_build()
     fi
 
     eprogress "Building docker $(lval image tags=tag)"
-    docker build                                         \
+    if ! docker build                                    \
         --file "${dockerfile}"                           \
         --cache-from "${cache_from}"                     \
         --tag "${image}"                                 \
         --progress plain                                 \
         $(array_join --before tag " --tag ")             \
         $(array_join --before build_arg " --build-arg ") \
-        . | tee "${buildlog}" | edebug
+        . |& tee "${buildlog}" | edebug; then
+
+        eerror "Fatal error building docker image"
+        cat "${buildlog}"
+        die
+    fi
+
     eprogress_kill
 
     einfo "Size"
