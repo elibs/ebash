@@ -49,8 +49,8 @@ jobs:
           - "debian-10"
           - "fedora-35"
           - "fedora-33"
-          - "gentoo/stage3"
-          - "rockylinux/rockylinux-8"
+          - "gentoo"
+          - "rocky-8"
           - "ubuntu-20.04"
           - "ubuntu-18.04"
 
