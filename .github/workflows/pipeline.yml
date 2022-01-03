@@ -79,7 +79,7 @@ jobs:
         run: make dlint-${{ matrix.container }}
 
       - name: Self Test
-        run: make dselftest-${{ matrix.container }}
+        run: bin/eretry make dselftest-${{ matrix.container }}
 
       - name: Test
         run: make dtest-${{ matrix.container }} failfast=1 failures=5
