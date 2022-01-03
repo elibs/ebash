@@ -18,6 +18,10 @@ env:
   REGISTRY: "ghcr.io"
   TERM: "xterm-256color"
 
+concurrency:
+  group: ${{ github.head_ref }}
+  cancel-in-progress: true
+
 #-----------------------------------------------------------------------------------------------------------------------
 #
 # Pipeline Jobs
