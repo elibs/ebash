@@ -190,7 +190,7 @@ docker_build()
     # If pull is NOT requested, and credentials are provided, simply check if the remote image exists.
     elif [[ "${pull}" -eq 0 && -n "${username}" && -n "${password}" ]]; then
 
-        echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
+        opt_forward docker_login registry username password
 
         if docker_image_exists "${name}:${sha_short}"; then
             einfo "Remote exists ${image}"
@@ -236,6 +236,35 @@ docker_build()
     einfo "Creating stamp $(lval file=inspfile)"
     docker inspect "${image}" > "${inspfile}"
     cp "${shafile_detail}" "${shafile_detail_prev}"
+}
+
+opt_usage docker_login <<'END'
+`docker_login` is an intelligent wrapper around vanilla `docker login` which integrates nicely with ebash. The most
+important functionality it provides is to seamlessly reuse existing docker login sessions in ~/.docker/config.json.
+END
+docker_login()
+{
+    $(opt_parse \
+        "+reuse=1                           | Reuse an existing authentication session if one already exists."         \
+        "=registry=${DOCKER_REGISTRY:-}     | Remote docker registry for login. Defaults to DOCKER_REGISTRY env variable
+                                              which itself defaults to ${EBASH_DOCKER_REGISTRY} if not set."           \
+        ":username=${DOCKER_USERNAME:-}     | Username for registry login. Defaults to DOCKER_USERNAME env variable."  \
+        ":password=${DOCKER_PASSWORD:-}     | Password for registry login. Defaults to DOCKER_PASSWORD env variable."  \
+    )
+
+    # Optionally reuse an existing session if it already exists.
+    if [[ "${reuse}" -eq 1 ]]; then
+        if jq -e '.auths."'${registry}'"' "${HOME}/.docker/config.json" &>/dev/null; then
+            edebug "docker_login successfully reused existing session"
+            return 0
+        fi
+    fi
+
+    # If we have to manually login then all variables must be non-empty.
+    argcheck registry username password
+
+    # Now delegate the actual login to real docker process
+    echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
 }
 
 opt_usage docker_pull <<'END'
@@ -285,8 +314,7 @@ docker_pull()
         fi
 
         if [[ ${login} -eq 1 ]]; then
-            argcheck registry username password
-            echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
+            opt_forward docker_login registry username password
             login=0
         fi
 
@@ -330,12 +358,7 @@ docker_push()
         return 0
     fi
 
-    if ! argcheck registry username password; then
-        edebug "Push disabled because one or more required arguments are missing"
-        return 1
-    fi
-
-    echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
+    opt_forward docker_login registry username password
 
     # Push all tags
     local tag
