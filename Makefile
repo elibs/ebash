@@ -87,11 +87,11 @@ DRUN = docker run      \
 define DOCKER_TEST_TEMPLATE
 
 ifeq ($1,gentoo)
-${1}_IMAGE_UPSTREAM = gentoo/stage3
+${1}_IMAGE_BASE = gentoo/stage3
 else ifneq (,$(findstring rocky,$1))
-${1}_IMAGE_UPSTREAM = rockylinux/$(subst rocky,rockylinux,$2)
+${1}_IMAGE_BASE = rockylinux/$(subst rocky,rockylinux,$2)
 else
-${1}_IMAGE_UPSTREAM = $2
+${1}_IMAGE_BASE = $2
 endif
 
 ${1}_IMAGE = ghcr.io/elibs/ebash-build-$1:latest
@@ -119,7 +119,7 @@ dshell-$1: docker-$1
 .PHONY: docker-$1
 docker-$1:
 	bin/ebanner "Building $2 Docker Image ($${$1_IMAGE})"
-	docker build -t $${$1_IMAGE} --build-arg IMAGE=$${$1_IMAGE_UPSTREAM} -f docker/Dockerfile.build .
+	docker build -t $${$1_IMAGE} --build-arg IMAGE=$${$1_IMAGE_BASE} -f docker/Dockerfile.build .
 
 .PHONY: docker-push-$1
 docker-push-$1:
