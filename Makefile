@@ -118,7 +118,7 @@ ${1}_IMAGE = ghcr.io/elibs/ebash-build-$1
 
 .PHONY: dlint-$1
 dlint-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/bashlint
+	${DRUN} $${$1_IMAGE} bin/bashlint --failfast=${FAILFAST} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1

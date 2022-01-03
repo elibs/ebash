@@ -94,10 +94,18 @@ if [[ ${quiet} -eq 1 ]]; then
     exec &> >(edebug)
 fi
 
+OS="$(os_pretty_name)"
+if running_in_docker; then
+    OS+=" (docker)"
+else
+    OS+=" (native)"
+fi
+
 ebanner --uppercase "BASHLINT"                                           \
     exclude                                                              \
     filter                                                               \
     files="$(string_truncate -e $(( $(tput cols) - 30 )) "${paths[@]}")" \
+    OS                                                                   \
     $(opt_log | sed -e 's|,| |g')
 
 # -- Lint all files --
