@@ -17,6 +17,7 @@
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
+FAILURES ?= $(or ${failures},1)
 FILTER   ?= $(or ${filter},)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
@@ -116,9 +117,13 @@ endif
 
 ${1}_IMAGE = ghcr.io/elibs/ebash-build-$1
 
+.PHONY: dlint-$1
+dlint-$1: docker-$1
+	${DRUN} $${$1_IMAGE} bin/bashlint
+
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/selftest
+	${DRUN} $${$1_IMAGE} bin/selftest --severity=error
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
@@ -126,6 +131,8 @@ dtest-$1: docker-$1
 		--break                      \
 		--debug="${EDEBUG}"          \
 		--exclude="${EXCLUDE}"       \
+		--failfast="${FAILFAST}"     \
+		--failures="${FAILURES}"     \
 		--filter="${FILTER}"         \
 		--log-dir=.work              \
 		--repeat=${REPEAT}           \
@@ -156,8 +163,13 @@ endef
 
 $(foreach t, ${DISTROS},$(eval $(call DOCKER_TEMPLATE,${t})))
 
+PHONY: dlint
+dlint: $(foreach d, ${DISTROS}, dlint-${d})
+
 PHONY: dtest
-dtest:	    $(foreach d, ${DISTROS}, dtest-${d})
+dtest: $(foreach d, ${DISTROS}, dtest-${d})
+
+.PHONY: dselftest
 dselftest:  $(foreach d, ${DISTROS}, dselftest-${d})
 
 .PHONY: docker
