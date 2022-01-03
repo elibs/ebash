@@ -6,6 +6,10 @@ on:
     branches-ignore:
       - 'main'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # GLobal environment variables
 env:
   COLOR_DEBUG: "dim blue"
@@ -17,10 +21,6 @@ env:
   EPROGRESS_SPINNER: 0
   REGISTRY: "ghcr.io"
   TERM: "xterm-256color"
-
-concurrency:
-  group: ${{ github.head_ref }}
-  cancel-in-progress: true
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
