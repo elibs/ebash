@@ -52,7 +52,6 @@ if [ "${DISTRO}" = "alpine" ]; then
     apk add                  \
         bash                 \
         coreutils            \
-        curl                 \
         diffutils            \
         file                 \
         findutils            \
@@ -73,7 +72,6 @@ elif [ "${DISTRO}" = "arch" ]; then
     pacman -Syu --noconfirm --needed \
         diffutils            \
         perl                 \
-        unzip                \
         which                \
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -89,7 +87,6 @@ elif [ "${DISTRO}" = "centos" ]; then
         diffutils           \
         file                \
         perl                \
-        unzip               \
         which               \
 
 #----------------------------------------------------------------------------------------------------------------------
