@@ -14,7 +14,7 @@
 
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
-COLUMNS  ?= $(or ${columns},120)
+COLUMNS  ?= $(or ${columns},$(shell tput cols))
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
@@ -147,7 +147,7 @@ dshell-$1: docker-$1
 
 .PHONY: docker-$1
 docker-$1:
-	bin/ebanner "Building $${$1_IMAGE}" PULL PUSH
+	bin/ebanner "Building $${$1_IMAGE}" COLUMNS PULL PUSH
 	bin/ebash docker_build                   \
 		--name $${$1_IMAGE}                  \
 		--tag $${$1_IMAGE}:latest            \
