@@ -98,8 +98,10 @@ jobs:
   #--------------------------------------------------------------------------------------------------------------------
   MacOS:
     strategy:
+      fail-fast: true
       matrix:
         os: ["11.0", "10.15"]
+
     runs-on: macos-${{ matrix.os }}
     steps:
       - name: Checkout

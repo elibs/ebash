@@ -524,11 +524,15 @@ ETEST_eprogress_ticker_align_right()
         exec &> ${OUTPUT}
 
         COLUMNS=28
-        EFUNCS_COLOR=0
         EDEBUG=0
-        ETRACE=0
+        EFUNCS_COLOR=0
         EINTERACTIVE=1
         EMSG_PREFIX=""
+        EPROGRESS_DELAY=""
+        EPROGRESS_INLINE=1
+        EPROGRESS_SPINNER=1
+        ETRACE=0
+
         # Output stored in this test expects what it would look like if term were screen-256color
         TERM=screen-256color
         eprogress --align right "Waiting"
@@ -560,11 +564,15 @@ ETEST_eprogress_ticker_align_left()
         exec &> ${OUTPUT}
 
         COLUMNS=28
-        EFUNCS_COLOR=0
         EDEBUG=0
-        ETRACE=0
+        EFUNCS_COLOR=0
         EINTERACTIVE=1
         EMSG_PREFIX=""
+        EPROGRESS_DELAY=""
+        EPROGRESS_INLINE=1
+        EPROGRESS_SPINNER=1
+        ETRACE=0
+
         # Output stored in this test expects what it would look like if term were screen-256color
         TERM=screen-256color
         eprogress --align left "Waiting"
