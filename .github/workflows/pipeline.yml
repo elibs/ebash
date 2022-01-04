@@ -55,10 +55,6 @@ jobs:
           - "ubuntu-20.04"
           - "ubuntu-18.04"
 
-    #container:
-    #  image: ghcr.io/elibs/ebash-build-${{ matrix.container }}:latest
-    #  options: --init --interactive --privileged --tty
-
     steps:
       - name: Log in to the Container registry
         uses: docker/login-action@v1.12.0
