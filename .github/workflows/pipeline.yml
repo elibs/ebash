@@ -6,19 +6,27 @@ on:
     branches-ignore:
       - 'main'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # GLobal environment variables
 env:
-  TERM: "xterm-256color"
-  COLUMNS: "120"
-  EINTERACTIVE: "0"
-  EFUNCS_COLOR: "1"
   COLOR_DEBUG: "dim blue"
+  COLUMNS: 120
+  EFUNCS_COLOR: 1
+  EINTERACTIVE: 1
+  EPROGRESS_DELAY: 15
+  EPROGRESS_INLINE: 0
+  EPROGRESS_SPINNER: 0
+  REGISTRY: "ghcr.io"
+  TERM: "xterm-256color"
 
-#----------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 #
 # Pipeline Jobs
 #
-#----------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 jobs:
 
   #--------------------------------------------------------------------------------------------------------------------
@@ -33,48 +41,50 @@ jobs:
       fail-fast: true
       matrix:
         container:
-          - "alpine:3.15"
-          - "alpine:3.14"
+          - "alpine-3.15"
+          - "alpine-3.14"
           - "archlinux"
-          - "centos:8"
-          - "centos:7"
-          - "debian:11"
-          - "debian:10"
-          - "fedora:35"
-          - "fedora:33"
-          - "gentoo/stage3"
-          - "rockylinux/rockylinux:8"
-          - "ubuntu:20.04"
-          - "ubuntu:18.04"
-
-    container:
-      image: ${{ matrix.container }}
-      options: --init --interactive --privileged --tty
+          - "centos-8"
+          - "centos-7"
+          - "debian-11"
+          - "debian-10"
+          - "fedora-35"
+          - "fedora-33"
+          - "gentoo"
+          - "rocky-8"
+          - "ubuntu-20.04"
+          - "ubuntu-18.04"
 
     steps:
+      - name: Log in to the Container registry
+        uses: docker/login-action@v1.12.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.CICD_TOKEN }}
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - run: echo "OSNAME=$(echo ${{ matrix.container }} | sed -e 's|:|-|' -e 's|/stage3||' -e 's|rockylinux/||')" >> ${GITHUB_ENV}
 
-      - name: Install Dependencies
-        run: install/all
+      - name: Docker
+        run: make docker-${{ matrix.container }} pull=1 push=1
 
       - name: Lint
-        run: bin/bashlint --severity=error
+        run: make dlint-${{ matrix.container }}
 
       - name: Self Test
-        run: bin/eretry bin/selftest
+        run: bin/eretry make dselftest-${{ matrix.container }}
 
       - name: Test
-        run: bin/etest --work-dir .work/output --failfast --failures 5
+        run: make dtest-${{ matrix.container }} failfast=1 failures=5
 
       - name: Archive test results
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ env.OSNAME }}
+          name: ${{ matrix.container }}
           path: .work/**
 
   #--------------------------------------------------------------------------------------------------------------------
@@ -84,8 +94,10 @@ jobs:
   #--------------------------------------------------------------------------------------------------------------------
   MacOS:
     strategy:
+      fail-fast: true
       matrix:
         os: ["11.0", "10.15"]
+
     runs-on: macos-${{ matrix.os }}
     steps:
       - name: Checkout

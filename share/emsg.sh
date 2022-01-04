@@ -907,7 +907,9 @@ eprogress()
         nodie_on_error
 
         # Hide cursor to avoid seeing it move back and forth
-        tput civis >&2
+        if [[ "${inline}" -eq 1 ]]; then
+            tput civis >&2
+        fi
 
         # Sentinal for breaking out of the loop on signal from eprogress_kill
         local done=0
@@ -987,7 +989,9 @@ eprogress()
         done >&2
 
         # If we're terminating delete whatever character was lost displayed and print a blank space over it
-        { ecolor move_left ; echo -n " " ; } >&2
+        if [[ ${inline} -eq 1 ]]; then
+            { ecolor move_left ; echo -n " " ; } >&2
+        fi
 
         # Delete file if requested
         if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
@@ -1010,9 +1014,13 @@ END
 eprogress_kill()
 {
     $(opt_parse \
-        "+all a               | If set, kill ALL known eprogress processes, not just the current one"  \
-        ":callback=eend       | Callback to call as each progress ticker is killed."                   \
-        ":return_code rc r=0  | Should this eprogress show a mark for success or failure?"             \
+        "+all a                         | If set, kill ALL known eprogress processes, not just the current one"        \
+        ":callback=eend                 | Callback to call as each progress ticker is killed."                         \
+        ":return_code rc r=0            | Should this eprogress show a mark for success or failure?"                   \
+        "+inline=${EPROGRESS_INLINE:-1} | Display message, timer and spinner all inline. If you disable this the full
+                                          message and timer is printed on a separate line on each iteration instead.
+                                          This is useful for automated CI/CD builds where we are not writing to an
+                                          actual terminal."                                                            \
     )
 
     # Allow caller to opt-out of eprogress entirely via EPROGRESS=0
@@ -1060,7 +1068,9 @@ eprogress_kill()
     done
 
     # Display cursor again
-    tput cnorm >&2
+    if [[ "${inline}" -eq 1 ]]; then
+        tput cnorm >&2
+    fi
 
     return 0
 }

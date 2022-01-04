@@ -14,12 +14,20 @@
 
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
+COLUMNS  ?= $(or ${columns},$(shell tput cols))
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
+FAILURES ?= $(or ${failures},1)
 FILTER   ?= $(or ${filter},)
+PULL     ?= $(or ${pull},0)
+PUSH     ?= $(or ${push},0)
 REPEAT   ?= $(or ${repeat},0)
 V        ?= $(or $v,0)
+
+export COLUMNS
+export PULL
+export PUSH
 
 .SILENT:
 
@@ -68,78 +76,108 @@ doc:
 
 #----------------------------------------------------------------------------------------------------------------------
 #
-# Docker Tests
+# Docker
 #
 #----------------------------------------------------------------------------------------------------------------------
 
-# Template for running tests inside a Linux distro container
-DRUN = docker run      \
-       --init          \
-       --tty           \
-       --interactive   \
-       --network host  \
-       --privileged    \
-       --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-       --mount type=bind,source=${PWD},target=/ebash \
-       --workdir /ebash \
-       --rm
+DISTROS =           \
+	alpine-3.15     \
+	alpine-3.14     \
+	archlinux       \
+	centos-8        \
+	centos-7        \
+	debian-11       \
+	debian-10       \
+	fedora-35       \
+	fedora-33       \
+	gentoo          \
+	rocky-8         \
+	ubuntu-20.04    \
+	ubuntu-18.04    \
 
-define DOCKER_TEST_TEMPLATE
+# Template for running tests inside a Linux distro container
+DRUN = docker run                                 \
+	--env COLUMNS=${COLUMNS}                      \
+	--init                                        \
+	--tty                                         \
+	--mount type=bind,source=${PWD},target=/ebash \
+	--mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+	--network host                                \
+	--privileged                                  \
+	--rm                                          \
+	--workdir /ebash                              \
+
+define DOCKER_TEMPLATE
 
 ifeq ($1,gentoo)
-${1}_CONTAINER = gentoo/stage3
+${1}_IMAGE_BASE = gentoo/stage3
 else ifneq (,$(findstring rocky,$1))
-${1}_CONTAINER = rockylinux/$(subst rocky,rockylinux,$2)
+${1}_IMAGE_BASE = rockylinux/$(subst rocky,rockylinux,$(subst -,:,$1))
 else
-${1}_CONTAINER = $2
+${1}_IMAGE_BASE = $(subst -,:,$1)
 endif
 
+${1}_IMAGE = ghcr.io/elibs/ebash-build-$1
+
+.PHONY: dlint-$1
+dlint-$1: docker-$1
+	${DRUN} $${$1_IMAGE} bin/bashlint --failfast=${FAILFAST} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
+
 .PHONY: dselftest-$1
-dselftest-$1:
-	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
-	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && bin/selftest"
+dselftest-$1: docker-$1
+	${DRUN} $${$1_IMAGE} bin/selftest --severity=error
 
 .PHONY: dtest-$1
-dtest-$1:
-	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
-	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && \
-        bin/etest \
-            --break                    \
-            --debug="${EDEBUG}"        \
-            --exclude="${EXCLUDE}"     \
-            --filter="${FILTER}"       \
-            --log-dir=.work            \
-            --repeat=${REPEAT}         \
-            --verbose=${V}             \
-            --work-dir=.work/output"
+dtest-$1: docker-$1
+	${DRUN} $${$1_IMAGE} bin/etest \
+		--break                    \
+		--debug="${EDEBUG}"        \
+		--exclude="${EXCLUDE}"     \
+		--failfast="${FAILFAST}"   \
+		--failures="${FAILURES}"   \
+		--filter="${FILTER}"       \
+		--log-dir=.work            \
+		--repeat=${REPEAT}         \
+		--verbose=${V}             \
+		--work-dir=.work/output
 
 .PHONY: dshell-$1
-dshell-$1:
-	bin/ebanner "$2 Dependencies (container=$${$1_CONTAINER})"
-	${DRUN} $${$1_CONTAINER} sh -c "EDEBUG=${EDEBUG} install/all && /bin/bash"
+dshell-$1: docker-$1
+	${DRUN} $${$1_IMAGE} /bin/bash
+
+.PHONY: docker-$1
+docker-$1:
+	bin/ebanner "Building $${$1_IMAGE}" PULL PUSH
+	bin/ebash docker_build                   \
+		--name $${$1_IMAGE}                  \
+		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
+		--file docker/Dockerfile.build       \
+		--registry ghcr.io                   \
+		--pull=${PULL}                       \
+		--push=${PUSH}                       \
+
+.PHONY: docker-push-$1
+docker-push-$1: docker-$1
+	docker push $${$1_IMAGE}
 
 endef
 
-DISTROS =           \
-	alpine:3.15     \
-	alpine:3.14     \
-	archlinux       \
-	centos:8        \
-	centos:7        \
-	debian:11       \
-	debian:10       \
-	fedora:35       \
-	fedora:33       \
-	gentoo          \
-	rocky:8         \
-	ubuntu:20.04    \
-	ubuntu:18.04    \
+$(foreach t, ${DISTROS},$(eval $(call DOCKER_TEMPLATE,${t})))
 
-$(foreach t,${DISTROS},$(eval $(call DOCKER_TEST_TEMPLATE,$(subst :,-,$t),${t})))
+PHONY: dlint
+dlint: $(foreach d, ${DISTROS}, dlint-${d})
 
 PHONY: dtest
-dtest:	    $(foreach d, $(subst :,-,${DISTROS}), dtest-${d})
-dselftest:  $(foreach d, $(subst :,-,${DISTROS}), dselftest-${d})
+dtest: $(foreach d, ${DISTROS}, dtest-${d})
+
+.PHONY: dselftest
+dselftest:  $(foreach d, ${DISTROS}, dselftest-${d})
+
+.PHONY: docker
+docker: $(foreach d, ${DISTROS}, docker-${d})
+
+.PHONY: docker-push
+docker-push: $(foreach d, ${DISTROS}, docker-push-${d})
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
