@@ -69,8 +69,15 @@ $(opt_parse \
                                      classify it as a failure if that test fails more than the requested threshold."   \
     ":filter  f                    | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0                  | Produce an HTML logfile and strip color codes out of etest.log."                  \
+    ":jobs    j=1                  | Number of parallel jobs to run. If this is enabled then the output will show a
+                                     progress bar to monitor the parallel jobs. There will be a separate state directory
+                                     for each job available in the jobs subdirectory under the work director."         \
+    ":jobs_delay=5s                | Amount of time to sleep in job monitor while waiting for jobs to complete. This
+                                     uses sleep(1) time syntax."                                                       \
+    ":jobs_format=summary          | Jobs monitor format to use (summary, verbose)."                                   \
     ":log_dir                      | Directory to place logs in. Defaults to the current directory."                   \
     "+mount_ns=1                   | Run tests inside a mount namespace."                                              \
+    "+pretend                      | Pretend to run jobs."                                                             \
     ":repeat  r=${REPEAT:-1}       | Number of times to repeat each test."                                             \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
     "&test_list l                  | File that contains a list of tests to run. This file may contain comments on lines
@@ -360,7 +367,7 @@ run_single_test()
     fi
 
     local index_string="${testidx}/${testidx_total}"
-    ebanner --uppercase "${testname}" OS failfast debug exclude failures filter REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
+    ebanner --uppercase "${testname}" OS debug exclude failfast failures filter jobs REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
@@ -619,29 +626,109 @@ run_all_tests()
     fi
 
     if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat timeout total_timeout verbose
     else
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat timeout total_timeout verbose &>${ETEST_OUT}
     fi
 
     for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
         REPEAT_STRING="${ITERATION}/${repeat}"
 
-        for testfile in "${TEST_FILES_TO_RUN[@]}"; do
+        local etest_jobs_running=()
+        local etest_jobs_finished=()
+        local etest_jobs_pending=( ${TEST_FILES_TO_RUN[@]} )
+        local etest_job_total=${#TEST_FILES_TO_RUN[@]}
+        local etest_job_count=0
+        declare -A pidmap=()
+        efreshdir "${work_dir}/jobs"
 
-            # Record start time of entire test suite
-            local suite_start_time="${SECONDS}"
+        # See if any processes have finished
+        while true; do
 
-            # Run the test which could be a single test file or an entire suite (etest) file.
-            if [[ "${testfile}" =~ \.etest$ ]]; then
-                run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
+            einfo "Checking....$(lval etest_jobs_running etest_jobs_finished etest_job_total etest_job_count)"
+
+            for pid in "${etest_jobs_running[@]}"; do
+
+                if ! process_running "${pid}"; then
+
+                    path=${pidmap[$pid]}
+
+                    # Capture PID
+                    wait "${pid}" && rc=0 || rc=$?
+                    echo "${rc}" > "${path}/rc"
+
+                    etest_jobs_finished+=( ${pid} )
+                    array_remove etest_jobs_running ${pid}
+
+                    if [[ "${jobs_format}" == "verbose" ]]; then
+                        eerror "JOB FINISHED: $(lval pid path etest_jobs_finished etest_job_total etest_job_count)"
+                        print_job_info "${path}"
+                    fi
+                fi
+            done
+
+            if [[ ${#etest_jobs_running[@]} -eq 0 && ${#etest_jobs_finished[@]} -ge ${etest_job_total} ]]; then
+                einfo "DONE!!"
+                break
+
+            elif [[ ${#etest_jobs_running[@]} -lt ${jobs} && ${etest_job_count} -lt ${etest_job_total} ]]; then
+
+                local testfile=${etest_jobs_pending[${etest_job_count}]}
+                ewarn "STARTING NEXT JOB: ${testfile}"
+
+                local jobpath="${work_dir}/jobs/${etest_job_count}"
+                mkdir -p "${jobpath}"
+                echo "${testfile}" > "${jobpath}/testfile"
+
+                # Run the test which could be a single test file or an entire suite (etest) file.
+                (
+                    local start_time=${SECONDS}
+                    local runtime=0
+
+                    if [[ "${pretend}" -eq 1 ]]; then
+                        true
+                    elif [[ "${testfile}" =~ \.etest$ ]]; then
+                        run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
+                    else
+                        run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
+                    fi
+
+                    runtime=$(( ${SECONDS} - ${start_time} ))
+                    echo "${runtime}" > "${jobpath}/runtime"
+
+                ) &> "${jobpath}/output.log" &
+
+                pid=$!
+                echo "${pid}" > "${jobpath}/pid"
+                pidmap[$pid]="${jobpath}"
+                trap_add "ekill $pid 2>/dev/null"
+
+                etest_jobs_running+=( ${pid} )
+                increment etest_job_count
+
             else
-                run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
+                ewarn "THROTTLING... Running: ${#etest_jobs_running[@]} Finished: ${#etest_jobs_finished[@]} Total: ${etest_job_total} Count: ${etest_job_count}"
+                sleep "${jobs_delay}"
             fi
 
-            SUITE_RUNTIME[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
         done
     done
+}
+
+print_job_info()
+{
+    $(opt_parse path)
+
+    local info=""
+    pack_set info                          \
+        path="${path}"                     \
+        job=$(basename "${path}")          \
+        pid=$(cat "${path}/pid")           \
+        rc=$(cat "${path}/rc")             \
+        runtime=$(cat "${path}/runtime")   \
+        testfile=$(cat "${path}/testfile") \
+
+    pack_to_json info | jq --color-output --sort-keys .
 }
 
 create_vcs_info()

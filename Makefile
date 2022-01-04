@@ -14,16 +14,19 @@
 
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
-COLUMNS  ?= $(or ${columns},$(shell tput cols))
-EDEBUG   ?= $(or $(or ${edebug},${debug},))
-EXCLUDE  ?= $(or ${exclude},)
-FAILFAST ?= $(or ${failfast},0)
-FAILURES ?= $(or ${failures},1)
-FILTER   ?= $(or ${filter},)
-PULL     ?= $(or ${pull},0)
-PUSH     ?= $(or ${push},0)
-REPEAT   ?= $(or ${repeat},0)
-V        ?= $(or $v,0)
+COLUMNS     ?= $(or ${columns},$(shell tput cols))
+EDEBUG      ?= $(or $(or ${edebug},${debug},))
+EXCLUDE     ?= $(or ${exclude},)
+FAILFAST    ?= $(or ${failfast},0)
+FAILURES    ?= $(or ${failures},1)
+FILTER      ?= $(or ${filter},)
+JOBS        ?= $(or ${jobs},1)
+JOBS_FORMAT ?= $(or ${jobsformat},summary)
+PRETEND     ?= $(or ${pretend},0)
+PULL        ?= $(or ${pull},0)
+PUSH        ?= $(or ${push},0)
+REPEAT      ?= $(or ${repeat},0)
+V           ?= $(or $v,0)
 
 export COLUMNS
 export PULL
@@ -63,11 +66,14 @@ selftest:
 .PHONY: test
 test:
 	bin/etest \
-		--debug="${EDEBUG}"     \
-		--exclude="${EXCLUDE}"  \
-		--failfast=${FAILFAST}  \
-		--filter="${FILTER}"    \
-		--repeat=${REPEAT}      \
+		--debug="${EDEBUG}"            \
+		--exclude="${EXCLUDE}"         \
+		--failfast=${FAILFAST}         \
+		--filter="${FILTER}"           \
+		--jobs=${JOBS}                 \
+		--jobs-format="${JOBS_FORMAT}" \
+		--pretend=${PRETEND}           \
+		--repeat=${REPEAT}             \
 		--verbose=${V}
 
 .PHONY: doc
@@ -129,16 +135,19 @@ dselftest-$1: docker-$1
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/etest \
-		--break                    \
-		--debug="${EDEBUG}"        \
-		--exclude="${EXCLUDE}"     \
-		--failfast="${FAILFAST}"   \
-		--failures="${FAILURES}"   \
-		--filter="${FILTER}"       \
-		--log-dir=.work            \
-		--repeat=${REPEAT}         \
-		--verbose=${V}             \
+	${DRUN} $${$1_IMAGE} bin/etest     \
+		--break                        \
+		--debug="${EDEBUG}"            \
+		--exclude="${EXCLUDE}"         \
+		--failfast="${FAILFAST}"       \
+		--failures="${FAILURES}"       \
+		--filter="${FILTER}"           \
+		--jobs="${JOBS}"               \
+		--jobs-format="${JOBS_FORMAT}" \
+		--pretend="${PRETEND}"         \
+		--log-dir=.work                \
+		--repeat=${REPEAT}             \
+		--verbose=${V}                 \
 		--work-dir=.work/output
 
 .PHONY: dshell-$1
