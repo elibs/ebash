@@ -1,0 +1,309 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Test helpers
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+OUTPUT=ticks-$$
+
+# Fake EPROGRESS function body to use in some of the tests which
+# don't want the real eprogress
+FAKE_EPROGRESS='
+{
+    (
+        trap "exit 0" ${DIE_SIGNALS[@]}
+
+        local tick=0
+        rm --force ${OUTPUT}
+
+        while true; do
+            echo "${tick}" >> ${OUTPUT}
+            (( tick++ )) || true
+            sleep 0.10   || true
+        done
+    ) &
+
+    __EBASH_EPROGRESS_PIDS+=( $! )
+    trap_add "eprogress_kill -r=1 $!"
+}
+'
+
+wait_for_eprogress()
+{
+    while true; do
+        [[ -s ${OUTPUT} ]] && return 0
+        sleep .1
+    done
+}
+
+wait_for_ticks()
+{
+    $(opt_parse expected)
+
+    local actual
+    while true; do
+        actual=$(tail -1 ${OUTPUT} || true)
+        [[ ${actual} -ge ${expected} ]] && return 0
+
+        echo "Ticks: ${actual}/${expected}"
+        sleep .1
+    done
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Unit Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_eprogress_ticks()
+{
+    override_function eprogress "${FAKE_EPROGRESS}"
+
+    eprogress "Waiting 1 second"
+    wait_for_ticks 9
+    eprogress_kill
+}
+
+ETEST_eprogress_ticks_reuse()
+{
+    override_function eprogress "${FAKE_EPROGRESS}"
+
+    eprogress "Waiting for Ubuntu to stop sucking"
+    wait_for_ticks 5
+    eprogress_kill
+
+    eprogress "Waiting for Gentoo to replace Ubuntu"
+    wait_for_ticks 5
+    eprogress_kill
+}
+
+# Verify EPROGRESS=0 can be used to forcibly disable ticker
+ETEST_eprogress_ticker_off()
+{
+    (
+        exec &> ${OUTPUT}
+        COLUMNS=0
+        EFUNCS_COLOR=0
+        EDEBUG=0
+        ETRACE=0
+        EINTERACTIVE=0
+        EPROGRESS=0
+        EMSG_PREFIX=""
+        eprogress "Waiting"
+        eprogress_kill
+    )
+
+    assert_eq --hexdump ">> Waiting [ ok ]" "$(cat ${OUTPUT})"
+}
+
+ETEST_eprogress_ticker_align_invalid()
+{
+    $(tryrc eprogress --align)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align top)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align middle)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align LEFT)
+    assert_eq 1 "${rc}"
+
+    $(tryrc eprogress --align RIGHT)
+    assert_eq 1 "${rc}"
+}
+
+eprogress_civis="^[[?25l"
+eprogress_cnorm="^[[34h^[[?25h^[[34h^[[?25h"
+
+ETEST_eprogress_ticker_align_right()
+{
+    etestmsg "Starting background process that writes to ${OUTPUT}"
+    (
+        exec &> ${OUTPUT}
+
+        COLUMNS=28
+        EDEBUG=0
+        EFUNCS_COLOR=0
+        EINTERACTIVE=1
+        EMSG_PREFIX=""
+        EPROGRESS_DELAY=""
+        EPROGRESS_INLINE=1
+        EPROGRESS_SPINNER=1
+        ETRACE=0
+
+        # Output stored in this test expects what it would look like if term were screen-256color
+        TERM=screen-256color
+        eprogress --align right "Waiting"
+        eprogress_kill
+    )
+
+    etestmsg "${OUTPUT} contents"
+    cat -evt ${OUTPUT}
+    etestmsg "End ${OUTPUT} contents"
+
+    # The ticker may actually run for slightly longer than we requested due to how sleep works. Change instances of
+    # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
+    sed -i "s|:01\]|:00\]|g" ${OUTPUT}
+
+    # Different terms have different codes. Ignore the number in the ANSI code.
+    sed -i "s|\[[0-9]\+C||" ${OUTPUT}
+
+    # Different size screens will show different output based on the size of the display so replace it with something
+    # fixed.
+    sed -i "s|\[[0-9]\+;[0-9]\+H||" ${OUTPUT}
+
+    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H| $\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+}
+
+ETEST_eprogress_ticker_align_left()
+{
+    etestmsg "Starting background process that writes to ${OUTPUT}"
+    (
+        exec &> ${OUTPUT}
+
+        COLUMNS=28
+        EDEBUG=0
+        EFUNCS_COLOR=0
+        EINTERACTIVE=1
+        EMSG_PREFIX=""
+        EPROGRESS_DELAY=""
+        EPROGRESS_INLINE=1
+        EPROGRESS_SPINNER=1
+        ETRACE=0
+
+        # Output stored in this test expects what it would look like if term were screen-256color
+        TERM=screen-256color
+        eprogress --align left "Waiting"
+        eprogress_kill
+    )
+
+    etestmsg "${OUTPUT} contents"
+    cat -evt ${OUTPUT}
+    etestmsg "End ${OUTPUT} contents"
+
+    # The ticker may actuall run for slightly longer than we requested due to how sleep works. Change instances of
+    # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
+    sed -i "s|:01\]|:00\]|g" ${OUTPUT}
+
+    # Different terms have different codes. Ignore the number in the ANSI code.
+    sed -i "s|\[[0-9]\+C||" ${OUTPUT}
+
+    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|"$'\x20\x24\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+}
+
+ETEST_eprogress_inside_eretry()
+{
+    override_function eprogress "${FAKE_EPROGRESS}"
+
+    etestmsg "Starting eprogress"
+    eprogress "Waiting for eretry"
+    $(tryrc eretry false)
+    eprogress_kill
+    assert test "$(tail -1 ${OUTPUT} || true)" -ge 5
+}
+
+ETEST_eprogress_kill_before_eprogress()
+{
+    eprogress_kill
+}
+
+ETEST_eprogress_killall()
+{
+    eprogress "Processing" &> /dev/null
+    eprogress "More Stuff" &> /dev/null
+
+    local pids=( "${__EBASH_EPROGRESS_PIDS[@]}" )
+    assert_eq 2 $(array_size pids)
+
+    local pid=
+    for pid in "${pids[@]}"; do
+        assert process_running ${pid}
+    done
+
+    # Kill all eprogress pids and verify they exit
+    eprogress_kill -a
+    for pid in "${pids[@]}"; do
+        eretry -t=2s -T=10s process_not_running ${pid}
+    done
+}
+
+ETEST_eprogress_file()
+{
+    local file=${FUNCNAME}.txt
+    echo "HELLO" > ${file}
+
+    {
+        eprogress --no-time --file ${file}
+        eprogress_kill
+    } &> output
+
+    etestmsg "output"
+    cat output
+    etestmsg "end output"
+
+    assert_match "$(cat output)" "HELLO"
+    assert_match "$(cat output)" "ok"
+
+    # File should get deleted.
+    assert_not_exists "${file}"
+}
+
+ETEST_eprogress_file_no_delete()
+{
+    local file=${FUNCNAME}.txt
+    echo "HELLO" > ${file}
+
+    {
+        eprogress --no-time --file ${file} --no-delete
+        eprogress_kill
+    } &> output
+
+    etestmsg "output"
+    cat output
+    etestmsg "end output"
+
+    assert_exists "${file}"
+}
+
+ETEST_eprogress_killall_empty()
+{
+    eprogress_kill -a
+}
+
+ETEST_no_stdout_contamination()
+{
+    foo()
+    {
+        echo "EXPECTED"
+        eprogress progress
+        edebug edebug
+        einfo einfo
+        einfos einfos
+        ewarn ewarn
+        ewarns ewarns
+        eerror eerror
+        ebanner ebanner
+        etestmsg etestmsg
+        eerror_stacktrace "PHONY ERROR"
+        eend 0
+        eend 1
+        sleep .5
+        eprogress_kill --rc 0
+    }
+
+    local capture
+    capture=$(EFUNCS_COLOR=1 EINTERACTIVE=1 ETRACE=foo EDEBUG=foo foo)
+
+    assert_eq --hexdump "EXPECTED" "${capture}"
+}
