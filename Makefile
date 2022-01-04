@@ -147,7 +147,7 @@ dshell-$1: docker-$1
 
 .PHONY: docker-$1
 docker-$1:
-	bin/ebanner "Building $${$1_IMAGE}" COLUMNS PULL PUSH
+	bin/ebanner "Building $${$1_IMAGE}" PULL PUSH
 	bin/ebash docker_build                   \
 		--name $${$1_IMAGE}                  \
 		--tag $${$1_IMAGE}:latest            \
