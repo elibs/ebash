@@ -180,7 +180,7 @@ docker_build()
 
             # NOTE: Do not push the image we just pulled. We only have to push any additional tags we were provided.
             if [[ ${push} -eq 1 ]]; then
-                opt_forward docker_push registry username password -- ${tag[*]}
+                opt_forward docker_push registry username password -- ${tag[*]:-}
             fi
 
             return 0
