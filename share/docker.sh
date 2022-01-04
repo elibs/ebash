@@ -178,12 +178,10 @@ docker_build()
 
             opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
 
-            # NOTE: I'm not sure why I was doing this but it seems redundant to push right after we just pull.
-            #if [[ ${push} -eq 1 ]]; then
-            #    local push_tags
-            #    push_tags=( ${image} ${tag[@]:-} )
-            #    opt_forward docker_push registry username password -- ${push_tags[*]}
-            #fi
+            # NOTE: Do not push the image we just pulled. We only have to push any additional tags we were provided.
+            if [[ ${push} -eq 1 ]]; then
+                opt_forward docker_push registry username password -- ${tag[*]}
+            fi
 
             return 0
         fi
@@ -219,9 +217,9 @@ docker_build()
         $(array_join --before build_arg " --build-arg ") \
         . |& tee "${buildlog}" | edebug; then
 
-        eerror "Fatal error building docker image"
-        cat "${buildlog}"
-        die
+        eerror "Fatal error building docker image. Showing tail from ${buildlog}:"
+        tail -n 20 "${buildlog}"
+        die "Fatal error building docker image. See ${buildlog}"
     fi
 
     eprogress_kill
