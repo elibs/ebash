@@ -417,7 +417,7 @@ opt_parse_setup()
                 : ${default:=0}
 
                 if [[ ${default} != 0 && ${default} != 1 ]] ; then
-                    die "${FUNCNAME[2]}: boolean option has invalid default of ${default}"
+                    die "${FUNCNAME[2]}: boolean option has invalid default of ${default} in '${complete_arg}'"
                 fi
 
             fi

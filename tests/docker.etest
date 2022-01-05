@@ -7,9 +7,6 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# Cannot get the docker tests to run properly on MacOS inside CI/CD so disable it for now.
-[[ ${EBASH_OS} == Linux ]] || return 0
-
 # Mock docker function to intercept "docker push" commands for better testability.
 docker_tags_pushed=()
 docker()
@@ -1001,4 +998,161 @@ ETEST_docker_export_squashfs()
 
     etestmsg "Converting docker image to squashfs"
     docker_export "${image}" image.squashfs
+}
+
+ETEST_docker_run_envlist()
+{
+    emock "docker"
+
+    # Set some environment variables we want to pass through into docker
+    etestmsg "Creating dummy variables"
+    FOO=1
+    BAR=2
+    ZAP="This one has spaces in it"
+    DAB="${PATH}"
+
+    etestmsg "Calling docker_run with env list"
+    docker_run --interactive=no --envlist 'FOO BAR ZAP DAB BLAH=PATH ARG=1 ARG2="Another with spaces"'
+
+    etestmsg "Verifying mock called expected number of times"
+    assert_emock_called "docker" 1
+
+    etestmsg "Validating arguments"
+    assert_emock_called_with "docker" 0 run     \
+        --env ARG=1                             \
+        --env ARG2="Another with spaces"        \
+        --env BAR=2                             \
+        --env BLAH="${PATH}"                    \
+        --env DAB="${PATH}"                     \
+        --env FOO=1                             \
+        --env ZAP="This one has spaces in it"
+}
+
+ETEST_docker_run_nested()
+{
+    emock "docker"
+
+    etestmsg "Calling docker_run with --nested"
+    docker_run --interactive=no --nested
+
+    etestmsg "Verifying mock called expected number of times"
+    assert_emock_called "docker" 1
+
+    etestmsg "Validating arguments"
+    assert_emock_called_with "docker" 0 run     \
+        --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock"
+}
+
+ETEST_docker_run_copy_to_volume()
+{
+    emock "docker"
+
+    etestmsg "Calling docker_run with multiple copy_to_volume"
+
+    # Run this inside a subshell so that we can ensure the traps are getting called to remove the ephemeral volumes
+    (
+        docker_run --interactive=no \
+            --copy-to-volume "foo:/foo"                  \
+            --copy-to-volume "/home/marshall/data:/data" \
+            --copy-to-volume "/home/ebash:/baggins"      \
+    )
+
+    etestmsg "Verifying mock called 13 times"
+    assert_emock_called "docker" 13
+
+    etestmsg "Validating arguments (0) -- container create"
+    assert_emock_called_with "docker" 0 \
+        container create        \
+        --name foo              \
+        -v foo:/foo             \
+        busybox
+
+    etestmsg "Validating args (1) -- docker cp"
+    assert_emock_called_with "docker" 1 \
+        cp "foo/."              \
+        "foo:/foo"
+
+    etestmsg "Validating arguments (2) -- container create"
+    assert_emock_called_with "docker" 2 \
+        container create        \
+        --name data             \
+        -v data:/data           \
+        busybox
+
+    etestmsg "Validating args (3) -- docker cp"
+    assert_emock_called_with "docker" 3 \
+        cp "/home/marshall/data/."      \
+        "data:/data"
+
+    etestmsg "Validating arguments (4) -- container create"
+    assert_emock_called_with "docker" 4 \
+        container create        \
+        --name ebash            \
+        -v ebash:/baggins       \
+        busybox
+
+    etestmsg "Validating args (5) -- docker cp"
+    assert_emock_called_with "docker" 5 \
+        cp "/home/ebash/."      \
+        "ebash:/baggins"
+
+    etestmsg "Validating args (6) -- docker run"
+    assert_emock_called_with "docker" 6 \
+        run                     \
+        --volume=foo:/foo       \
+        --volume=data:/data     \
+        --volume=ebash:/baggins \
+
+    etestmsg "Validating args (7) -- docker rm"
+    assert_emock_called_with "docker" 7 \
+        rm ebash
+
+    etestmsg "Validating args (8) -- docker volume rm"
+    assert_emock_called_with "docker" 8 \
+        volume rm ebash
+
+    etestmsg "Validating args (9) -- docker rm"
+    assert_emock_called_with "docker" 9 \
+        rm data
+
+    etestmsg "Validating args (10) -- docker volume rm"
+    assert_emock_called_with "docker" 10 \
+        volume rm data
+
+    etestmsg "Validating args (11) -- docker rm"
+    assert_emock_called_with "docker" 11 \
+        rm foo
+
+    etestmsg "Validating args (12) -- docker volume rm"
+    assert_emock_called_with "docker" 12 \
+        volume rm foo
+
+}
+
+ETEST_docker_run_passthrough_args()
+{
+    emock "docker"
+
+    etestmsg "Calling docker_run with passthrough args"
+
+    docker_run --interactive=no -- \
+        --init          \
+        --tty           \
+        --network host  \
+        --privileged    \
+        --rm            \
+        --workdir /ebash
+
+    etestmsg "Verifying mock called 1 times"
+    assert_emock_called "docker" 1
+
+    etestmsg "Verifying args"
+    assert_emock_called_with "docker" 0 \
+        run             \
+        --init          \
+        --tty           \
+        --network host  \
+        --privileged    \
+        --rm            \
+        --workdir /ebash
 }

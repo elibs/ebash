@@ -27,9 +27,8 @@ REPEAT   ?= $(or ${repeat},0)
 V        ?= $(or $v,0)
 
 # Variables that need to be exported to be seen by external processes we exec.
-export COLUMNS
-export PULL
-export PUSH
+ENVLIST  ?= COLUMNS EDEBUG EXCLUDE FAILFAST FAILURES FILTER PULL PUSH REPEAT V
+export ${ENVLIST}
 
 .SILENT:
 
@@ -98,32 +97,17 @@ DISTROS =           \
 	ubuntu-18.04    \
 
 # Template for running tests inside a Linux distro container
-DRUN = docker run                                 \
-	--env COLUMNS="${COLUMNS}"                    \
-	--env EDEBUG="${EDEBUG}"                      \
-	--env EXCLUDE="${EXCLUDE}"                    \
-	--env FAILFAST="${FAILFAST}"                  \
-	--env FAILUIRES="${FAILURES}"                 \
-	--env FILTER="${FILTER}"                      \
-	--env PULL="${PULL}"                          \
-	--env PUSH="${PUSH}"                          \
-	--env REPEAT="${REPEAT}"                      \
-	--env V="${V}"                                \
-	--init                                        \
-	--tty                                         \
-	--mount type=bind,source=${PWD},target=/ebash \
-	--mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-	--network host                                \
-	--privileged                                  \
-	--rm                                          \
-	--workdir /ebash                              \
-
-# Dynamically set --interactive flag if being run from an interactive shell so that control-C and other interactive I/O
-# things work as expected.
-ifeq (1,$(shell [ -t 0 ] && echo 1))
-DRUN += --interactive
-INTERACTIVE := 1
-endif
+DRUN = bin/ebash docker_run          \
+	--envlist "${ENVLIST}"           \
+	--nested                         \
+	--copy-to-volume "${PWD}:/ebash" \
+	--                               \
+	--init                           \
+	--tty                            \
+	--network host                   \
+	--privileged                     \
+	--rm                             \
+	--workdir /ebash                 \
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Docker template
@@ -139,22 +123,23 @@ ${1}_IMAGE_BASE = $(subst -,:,$1)
 endif
 
 ${1}_IMAGE = ghcr.io/elibs/ebash-build-$1
+${1}_IMAGE_FULL = $(shell cat .work/docker/ebash-build-$1/image)
 
 .PHONY: dlint-$1
 dlint-$1: docker-$1
-	${DRUN} $${$1_IMAGE} make lint
+	${DRUN} $${$1_IMAGE_FULL} make lint
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
-	${DRUN} $${$1_IMAGE} make selftest
+	${DRUN} $${$1_IMAGE_FULL} make selftest
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
-	${DRUN} $${$1_IMAGE} make test
+	${DRUN} $${$1_IMAGE_FULL} make test
 
 .PHONY: dshell-$1
 dshell-$1: docker-$1
-	${DRUN} $${$1_IMAGE} /bin/bash
+	${DRUN} $${$1_IMAGE_FULL} /bin/bash
 
 .PHONY: docker-$1
 docker-$1:
@@ -170,7 +155,8 @@ docker-$1:
 
 .PHONY: docker-push-$1
 docker-push-$1: docker-$1
-	docker push $${$1_IMAGE}
+	bin/einfo "Pushing $${$1_IMAGE_FULL})"
+	docker push $${$1_IMAGE_FULL}
 
 endef
 

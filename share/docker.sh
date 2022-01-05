@@ -684,3 +684,93 @@ docker_export()
 
     eprogress_kill
 }
+
+opt_usage docker_run <<'END'
+`docker_run` is an intelligent wrapper around vanilla `docker run` which integrates nicely with ebash. In addition to
+the normal additional error checking and hardening the ebash variety brings, this version provides the following super
+useful features:
+
+- Accept a list of environment variables which should be exported into the underlying docker run command. Each of these
+  variables will be expanded in-place by ebash using `expand_vars`. As such the variables can be a simple list of env
+  variables to export as in `FOO BAR ZAP` or they can point to other variables as in `FOO=PWD BAR ZAP` or they can
+  point to string literals as in `FOO=/home/marshall BAR=1 ZAP=blah`. Each of these will be expanded into a formatted
+  option to docker of the form `--env FOO=VALUE`.
+- Enable seamless nested docker-in-docker support by bind-mounting the docker socket into the the container.
+- Create ephemeral docker volumes and copy a specified local path into the docker volume and attach that volume to the
+  running docker container. This is useful for running with a DOCKER_HOST which points to an external docker server.
+- Automatically determine what value to use for --interactive.
+END
+docker_run()
+{
+    $(opt_parse \
+        ":envlist                           | List of environment variables to pass into lowever level docker run. These
+                                              will be sorted before passing them into docker for better testability and
+                                              consistency."                                                            \
+        "+nested                            | Enable nested docker-in-docker."                                         \
+        "&copy_to_volume                    | Copy the specified path into a volume which is attached to the docker run
+                                              instance. This is useful when running with a remote DOCKER_HOST where a
+                                              simple bind mount does not work. This is also safe to use when running
+                                              against a local docker host so should be preferred. The syntax for a path
+                                              volume is local_path:/docker_path"                                       \
+        ":interactive=auto                  | This can be 'yes' or 'no' or 'auto' to automatically determine if we are
+                                              interactive by looking at we're run from an interactive shell or not."   \
+    )
+
+    # Final list of docker args we will use
+    local docker_args=()
+
+    # Expand env variables as required
+    if [[ -n "${envlist}" ]]; then
+        declare -A envs
+
+        # use `eval` here so that any embedded qutoes inside `envlist` are preserved properly as-is without us trying
+        # to interpret them. Otherwise it messes up how they are parsed inside `expand_vars`.
+        eval expand_vars --no-quotes envs "${envlist}"
+
+        local key
+        for key in $(array_indexes_sort envs); do
+            docker_args+=( --env ${key}="${envs[$key]}" )
+        done
+    fi
+
+    if [[ ${nested} -eq 1 ]]; then
+        docker_args+=( --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" )
+    fi
+
+    # Deal with all copy_to_volumes
+    local entry name
+    for entry in "${copy_to_volume[@]}"; do
+
+        local lpath="${entry%%:/*}"
+        local rpath="${entry#*:/}"
+        name="$(basename "${lpath}")"
+
+        edebug "Creating docker container for volume ${name}:/${rpath}"
+        docker container create --name "${name}" -v "${name}:/${rpath}" busybox | edebug
+        trap_add "docker volume rm ${name} |& edebug"
+        trap_add "docker rm ${name} |& edebug"
+        docker cp "${lpath}/." "${name}:/${rpath}"
+
+        docker_args+=( --volume="${name}:/${rpath}" )
+    done
+
+    # Set --interactive as requested
+    if [[ "${interactive,,}" == "yes" ]]; then
+        docker_args+=( --interactive )
+    elif [[ "${interactive,,}" == "no" ]]; then
+        :
+    elif [[ "${interactive,,}" == "auto" ]]; then
+
+        if [[ -t 0 ]]; then
+            docker_args+=( --interactive )
+        fi
+    else
+        die "Unsupported value for $(lval interactive)."
+    fi
+
+    # Pass any other provided arguments into docker run directly.
+    docker_args+=( ${@:-} )
+
+    edebug "Calling docker run with $(lval docker_args)"
+    docker run "${docker_args[@]}"
+}
