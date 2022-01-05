@@ -940,6 +940,7 @@ ETEST_docker_depends_sha_exclude()
     for depend in "${depends[@]}"; do
         expect+=( "${depend}@sha256:$(sha256sum "${depend}" | awk '{print $1}')" )
     done
+    array_sort expect
 
     etestmsg "Expected SHA Details"
     expected=$(array_join_nl expect)
