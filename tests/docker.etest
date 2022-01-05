@@ -575,6 +575,7 @@ ETEST_docker_build_overlay()
     cat ".work/docker/ebash/options"
     options_lines=(
         'build_arg=()'
+        'cache="1"'
         'cache_from=""'
         'file="Dockerfile"'
         'ibuild_arg=()'

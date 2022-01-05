@@ -123,7 +123,7 @@ ${1}_IMAGE_BASE = $(subst -,:,$1)
 endif
 
 ${1}_IMAGE = ghcr.io/elibs/ebash-build-$1
-${1}_IMAGE_FULL = $(shell cat .work/docker/ebash-build-$1/image)
+${1}_IMAGE_FULL = $(shell cat .work/docker/ebash-build-$1/image 2>/dev/null)
 
 .PHONY: dlint-$1
 dlint-$1: docker-$1
