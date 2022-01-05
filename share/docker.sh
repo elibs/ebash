@@ -240,7 +240,7 @@ docker_build()
     docker history "${image}" | tee "${histfile}"
 
     if [[ ${push} -eq 1 ]]; then
-        opt_forward docker_push registry username password -- ${image} ${tag[@]:-}
+        opt_forward docker_push registry username password -- ${image} ${tag[*]:-}
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
