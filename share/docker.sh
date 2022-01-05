@@ -139,6 +139,7 @@ docker_build()
         overlay        \
         overlay_tree   \
         pretend        \
+        pull           \
         push           \
         repo           \
         sha            \
@@ -158,12 +159,10 @@ docker_build()
         docker history "${image}" > "${histfile}"
         docker inspect "${image}" > "${inspfile}"
 
-        opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
+        opt_forward docker_tag image -- ${tag[*]:-}
 
         if [[ ${push} -eq 1 ]]; then
-            local push_tags
-            push_tags=( ${image} ${tag[@]:-} )
-            opt_forward docker_push registry username password -- ${push_tags[*]}
+            opt_forward docker_push registry username password -- ${image} ${tag[*]:-}
         fi
 
         return 0
@@ -176,7 +175,7 @@ docker_build()
             docker history "${image}" > "${histfile}"
             docker inspect "${image}" > "${inspfile}"
 
-            opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
+            opt_forward docker_tag image -- ${tag[*]:-}
 
             # NOTE: Do not push the image we just pulled. We only have to push any additional tags we were provided.
             if [[ ${push} -eq 1 ]]; then
@@ -217,8 +216,9 @@ docker_build()
         $(array_join --before build_arg " --build-arg ") \
         . |& tee "${buildlog}" | edebug; then
 
+        echo "" >&2
         eerror "Fatal error building docker image. Showing tail from ${buildlog}:"
-        tail -n 20 "${buildlog}"
+        tail -n 100 "${buildlog}" >&2
         die "Fatal error building docker image. See ${buildlog}"
     fi
 
@@ -231,9 +231,7 @@ docker_build()
     docker history "${image}" | tee "${histfile}"
 
     if [[ ${push} -eq 1 ]]; then
-        local push_tags
-        push_tags=( ${image} ${tag[@]:-} )
-        opt_forward docker_push registry username password -- ${push_tags[*]}
+        opt_forward docker_push registry username password -- ${image} ${tag[@]:-}
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
@@ -269,6 +267,33 @@ docker_login()
 
     # Now delegate the actual login to real docker process
     echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
+}
+
+opt_usage docker_tag <<'END'
+`docker_tag` is an intelligent wrapper around vanilla `docker tag` which integrates more nicely with ebash. In
+addition to the normal additional error checking and hardening the ebash variety brings, this version is variadic and
+will apply a list of tags to a given base image.
+END
+docker_tag()
+{
+    $(opt_parse \
+        "=image                             | Base image to look for in the event we are unable to locate the requested
+                                              tags locally. This saves us from having to rebuild all the images if we
+                                              can simply tag them instead."                                            \
+        "@tags                              | List of tags to apply to the base image."                                \
+    )
+
+    if array_empty tags; then
+        return 0
+    fi
+
+    einfo "Tagging local $(lval image tags)"
+
+    local tag
+    for tag in "${tags[@]}"; do
+        einfos "${image} -> ${tag}"
+        docker tag "${image}" "${tag}"
+    done
 }
 
 opt_usage docker_pull <<'END'

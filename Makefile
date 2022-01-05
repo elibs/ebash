@@ -25,6 +25,7 @@ PUSH     ?= $(or ${push},0)
 REPEAT   ?= $(or ${repeat},0)
 V        ?= $(or $v,0)
 
+# Variables that need to be exported to be seen by external processes we exec.
 export COLUMNS
 export PULL
 export PUSH
@@ -97,7 +98,16 @@ DISTROS =           \
 
 # Template for running tests inside a Linux distro container
 DRUN = docker run                                 \
-	--env COLUMNS=${COLUMNS}                      \
+	--env COLUMNS="${COLUMNS}"                    \
+	--env EDEBUG="${EDEBUG}"                      \
+	--env EXCLUDE="${EXCLUDE}"                    \
+	--env FAILFAST="${FAILFAST}"                  \
+	--env FAILUIRES="${FAILURES}"                 \
+	--env FILTER="${FILTER}"                      \
+	--env PULL="${PULL}"                          \
+	--env PUSH="${PUSH}"                          \
+	--env REPEAT="${REPEAT}"                      \
+	--env V="${V}"                                \
 	--init                                        \
 	--tty                                         \
 	--mount type=bind,source=${PWD},target=/ebash \
@@ -107,6 +117,16 @@ DRUN = docker run                                 \
 	--rm                                          \
 	--workdir /ebash                              \
 
+# Dynamically set --interactive flag if being run from an interactive shell so that control-C and other interactive I/O
+# things work as expected.
+ifeq (1,$(shell [ -t 0 ] && echo 1))
+DRUN += --interactive
+INTERACTIVE := 1
+endif
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Docker template
+#-----------------------------------------------------------------------------------------------------------------------
 define DOCKER_TEMPLATE
 
 ifeq ($1,gentoo)
@@ -121,25 +141,15 @@ ${1}_IMAGE = ghcr.io/elibs/ebash-build-$1
 
 .PHONY: dlint-$1
 dlint-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/bashlint --failfast=${FAILFAST} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
+	${DRUN} $${$1_IMAGE} make lint
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/selftest --severity=error
+	${DRUN} $${$1_IMAGE} make selftest
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/etest \
-		--break                    \
-		--debug="${EDEBUG}"        \
-		--exclude="${EXCLUDE}"     \
-		--failfast="${FAILFAST}"   \
-		--failures="${FAILURES}"   \
-		--filter="${FILTER}"       \
-		--log-dir=.work            \
-		--repeat=${REPEAT}         \
-		--verbose=${V}             \
-		--work-dir=.work/output
+	${DRUN} $${$1_IMAGE} make test
 
 .PHONY: dshell-$1
 dshell-$1: docker-$1
@@ -147,14 +157,14 @@ dshell-$1: docker-$1
 
 .PHONY: docker-$1
 docker-$1:
-	bin/ebanner "Building $${$1_IMAGE}" PULL PUSH
+	bin/ebanner "Building Docker Image '$${$1_IMAGE}'" PULL PUSH
 	bin/ebash docker_build                   \
-		--name $${$1_IMAGE}                  \
-		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
 		--file docker/Dockerfile.build       \
-		--registry ghcr.io                   \
+		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
+		--name $${$1_IMAGE}                  \
 		--pull=${PULL}                       \
 		--push=${PUSH}                       \
+		--registry ghcr.io                   \
 
 .PHONY: docker-push-$1
 docker-push-$1: docker-$1
