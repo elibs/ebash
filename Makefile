@@ -14,19 +14,18 @@
 
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
-COLUMNS     ?= $(or ${columns},$(shell tput cols))
-EDEBUG      ?= $(or $(or ${edebug},${debug},))
-EXCLUDE     ?= $(or ${exclude},)
-FAILFAST    ?= $(or ${failfast},0)
-FAILURES    ?= $(or ${failures},1)
-FILTER      ?= $(or ${filter},)
-JOBS        ?= $(or ${jobs},1)
-JOBS_FORMAT ?= $(or ${jobsformat},summary)
-PRETEND     ?= $(or ${pretend},0)
-PULL        ?= $(or ${pull},0)
-PUSH        ?= $(or ${push},0)
-REPEAT      ?= $(or ${repeat},0)
-V           ?= $(or $v,0)
+COLUMNS  ?= $(or ${columns},$(shell tput cols))
+EDEBUG   ?= $(or $(or ${edebug},${debug},))
+EXCLUDE  ?= $(or ${exclude},)
+FAILFAST ?= $(or ${failfast},0)
+FAILURES ?= $(or ${failures},1)
+FILTER   ?= $(or ${filter},)
+JOBS     ?= $(or ${jobs},1)
+PRETEND  ?= $(or ${pretend},0)
+PULL     ?= $(or ${pull},0)
+PUSH     ?= $(or ${push},0)
+REPEAT   ?= $(or ${repeat},0)
+V        ?= $(or $v,0)
 
 export COLUMNS
 export PULL
@@ -71,7 +70,6 @@ test:
 		--failfast=${FAILFAST}         \
 		--filter="${FILTER}"           \
 		--jobs=${JOBS}                 \
-		--jobs-format="${JOBS_FORMAT}" \
 		--pretend=${PRETEND}           \
 		--repeat=${REPEAT}             \
 		--verbose=${V}
@@ -143,7 +141,6 @@ dtest-$1: docker-$1
 		--failures="${FAILURES}"       \
 		--filter="${FILTER}"           \
 		--jobs="${JOBS}"               \
-		--jobs-format="${JOBS_FORMAT}" \
 		--pretend="${PRETEND}"         \
 		--log-dir=.work                \
 		--repeat=${REPEAT}             \
