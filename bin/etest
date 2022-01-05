@@ -26,7 +26,9 @@ EBASH=$(readlink -f "${EBASH}")
 TOPDIR=${PWD}
 
 #-----------------------------------------------------------------------------------------------------------------------
+#
 # GLOBAL SETUP
+#
 #-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage main <<'END'
@@ -74,6 +76,7 @@ $(opt_parse \
                                      directory for each job available in the jobs subdirectory under work directory."  \
     ":jobs_delay=5s                | Amount of time to sleep in job monitor while waiting for jobs to complete. This
                                      uses sleep(1) time syntax."                                                       \
+    "+jobs_progress=1              | Show jobs eprogress summary ticker while running."                                \
     ":log_dir                      | Directory to place logs in. Defaults to the current directory."                   \
     "+mount_ns=1                   | Run tests inside a mount namespace."                                              \
     "+pretend                      | Pretend to run jobs."                                                             \
@@ -191,11 +194,6 @@ else
 fi
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
-# Adjustments ito ouptut if we're running multiple jobs
-if [[ "${jobs}" -gt 1 ]]; then
-    verbose=1
-fi
-
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
 artifact_name="$(echo "${log_dir}/${name:-etest}" | tr ' ' '_')"
@@ -236,7 +234,7 @@ die_handler()
         # eerror_stacktrace and die itself. Also skip over the initial error message since we already displayed it.
         eerror_stacktrace -f=4 -s
 
-    fi &>${ETEST_OUT}
+    fi &>>${ETEST_OUT}
 
     exit ${rc}
 }
@@ -296,7 +294,7 @@ assert_no_mount_leaks()
 
 global_setup()
 {
-    ecolor hide_cursor &>${ETEST_OUT}
+    ecolor hide_cursor &>>${ETEST_OUT}
     edebug "Running global_setup"
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
@@ -315,7 +313,7 @@ global_setup()
 
 global_teardown()
 {
-    ecolor show_cursor &>${ETEST_OUT}
+    ecolor show_cursor &>>${ETEST_OUT}
 
     edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 
@@ -381,7 +379,8 @@ run_single_test()
     else
         einfo_message=$(EMSG_PREFIX="" einfo -n "${testname}" 2>&1)
     fi
-    echo -n "${einfo_message}" &>${ETEST_OUT}
+
+    echo -n "${einfo_message}" &>>${ETEST_OUT}
     einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
 
     increment NUM_TESTS_EXECUTED
@@ -516,7 +515,7 @@ run_single_test()
         (( NUM_TESTS_FAILED += 1 ))
     fi
 
-    eend --inline --inline-offset=${einfo_message_length} ${rc} &>${ETEST_OUT}
+    eend --inline --inline-offset=${einfo_message_length} ${rc} &>>${ETEST_OUT}
 
     # Unit test provided teardown
     if declare -f teardown &>/dev/null ; then
@@ -526,7 +525,7 @@ run_single_test()
 
     # NOTE: Don't return rc here. We've already set things up so etest knows if there was a failure.
     if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-        die "${display_testname} failed and failfast=1" &>${ETEST_OUT}
+        die "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
     fi
 
     # Finally record the total runtime of this test
@@ -550,7 +549,7 @@ run_etest_file()
         return 0
     fi
 
-    EMSG_PREFIX="" einfo "${testfile}" &>${ETEST_OUT}
+    EMSG_PREFIX="" einfo "${testfile}" &>>${ETEST_OUT}
 
     # Run all tests for this suite
     local idx
@@ -567,7 +566,7 @@ run_etest_file()
             "${testfunc}"
 
         if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-            die "${testfunc} failed and failfast=1" &>${ETEST_OUT}
+            die "${testfunc} failed and failfast=1" &>>${ETEST_OUT}
         fi
 
     done
@@ -633,7 +632,7 @@ run_all_tests()
     if [[ "${verbose}" -eq 1 ]]; then
         ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose
     else
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose &>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose &>>${ETEST_OUT}
     fi
 
     for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
@@ -679,7 +678,7 @@ run_all_tests_parallel()
     if [[ "${verbose}" -eq 1 ]]; then
         ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat timeout total_timeout verbose
     else
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat timeout total_timeout verbose &>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat timeout total_timeout verbose &>>${ETEST_OUT}
     fi
 
     for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
@@ -689,6 +688,7 @@ run_all_tests_parallel()
         local etest_jobs_finished=()
         local etest_jobs_passed=()
         local etest_jobs_failed=()
+        local etest_jobs_flaky=()
         local etest_jobs_pending=( ${TEST_FILES_TO_RUN[@]} )
         local etest_job_total=${#TEST_FILES_TO_RUN[@]}
         local etest_job_count=0
@@ -697,37 +697,19 @@ run_all_tests_parallel()
 
         # Create eprogress status file
         local etest_progress_file="${work_dir}/jobs/progress.txt"
-        einfo "Running etest ($(lval jobs))"
-        eprogress                           \
-            --style einfos                  \
-            --file "${etest_progress_file}" \
-            "Total: $(ecolor bold)${etest_job_total}$(ecolor reset)"
+        update_jobs_progress_file
+        if [[ ${jobs_progress} -eq 1 ]]; then
+            einfo "Running etest ($(lval jobs))" &>> ${ETEST_OUT}
+            eprogress                           \
+                --style einfos                  \
+                --file "${etest_progress_file}" \
+                "Total: $(ecolor bold)${etest_job_total}$(ecolor reset)" &>> ${ETEST_OUT}
+        fi
 
         # See if any processes have finished
         while true; do
 
-            local tmpfile="${etest_progress_file}.tmp"
-
-            # Update eprogress status file
-            {
-                echo -n "   Pending: $(ecolor dim)$(( ${#etest_jobs_pending[@]} - ${etest_job_count} ))"
-                ecolor reset
-
-                echo -n "   Running: $(ecolor bold)${#etest_jobs_running[@]}"
-                ecolor reset
-
-                echo -n "   Passed: $(ecolor bold green)${#etest_jobs_passed[@]}"
-                ecolor reset
-
-                if [[ ${#etest_jobs_failed[@]} -gt 0 ]]; then
-                    echo -n "   Failed: $(ecolor bold red)${#etest_jobs_failed[@]}"
-                    ecolor reset
-                fi
-
-                echo -n " "
-            } > "${tmpfile}"
-
-            mv "${tmpfile}" "${etest_progress_file}"
+            update_jobs_progress_file
 
             for pid in "${etest_jobs_running[@]}"; do
 
@@ -752,26 +734,26 @@ run_all_tests_parallel()
                     array_remove etest_jobs_running ${pid}
 
                     # Update global stats
-                    #NUM_TESTS_FLAKY+=$(pack_get info num_tests_flaky)
-                    #TESTS_FLAKY+=( $(pack_get info tests_flaky) )
-
                     TESTS_RUNTIME[$(pack_get info suite)]=$(pack_get info runtime)
                     increment NUM_TESTS_EXECUTED $(pack_get info num_tests_executed)
                     increment NUM_TESTS_PASSED $(pack_get info num_tests_passed)
                     increment NUM_TESTS_FAILED $(pack_get info num_tests_failed)
+                    increment NUM_TESTS_FLAKY  $(pack_get info num_tests_flaky)
 
-                    if [[ -n $(pack_get info tests_passed) ]]; then
-                        TESTS_PASSED+=( $(pack_get info tests_passed) )
-                    fi
-
-                    if [[ -n $(pack_get info tests_failed) ]]; then
-                        TESTS_FAILED+=( $(pack_get info tests_failed) )
-                    fi
+                    # Update list of tests
+                    array_add TESTS_PASSED "$(pack_get info tests_passed)"
+                    array_add TESTS_FAILED "$(pack_get info tests_failed)"
+                    array_add TESTS_FLAKY  "$(pack_get info tests_flaky)"
 
                     if edebug_enabled; then
                         einfo "Job finished: $(lval pid path etest_jobs_finished etest_job_total etest_job_count)"
                         pack_to_json info | jq --color-output --sort-keys .
                     fi
+
+                    if [[ ${jobs_progress} -eq 0 ]]; then
+                        cat "${path}/output.log" >> "${ETEST_OUT}"
+                    fi
+
                 fi
             done
 
@@ -789,6 +771,8 @@ run_all_tests_parallel()
 
                 # Run the test which could be a single test file or an entire suite (etest) file.
                 (
+                    ETEST_OUT="${jobpath}/output.log"
+
                     local suite=""
                     local runtime="" start_time=${SECONDS}
 
@@ -819,10 +803,9 @@ run_all_tests_parallel()
                         tests_failed="${TESTS_FAILED[$suite]:-}"   \
                         tests_flaky="${TESTS_FLAKY[$suite]:-}"     \
 
-                    ewarn "Writing output to ${jobpath}/info.pack"
                     pack_save info "${jobpath}/info.pack"
 
-                ) &> "${jobpath}/output.log" &
+                ) &
 
                 pid=$!
                 echo "${pid}" > "${jobpath}/pid"
@@ -842,6 +825,37 @@ run_all_tests_parallel()
         eprogress_kill --rc=${#etest_jobs_failed[@]}
 
     done
+}
+
+update_jobs_progress_file()
+{
+    local tmpfile="${etest_progress_file}.tmp"
+
+    {
+        echo -n "   Pending: $(ecolor dim)$(( ${#etest_jobs_pending[@]} - ${etest_job_count} ))"
+        ecolor reset
+
+        echo -n "   Running: $(ecolor bold)${#etest_jobs_running[@]}"
+        ecolor reset
+
+        echo -n "   Passed: $(ecolor bold green)${#etest_jobs_passed[@]}"
+        ecolor reset
+
+        if [[ ${#etest_jobs_failed[@]} -gt 0 ]]; then
+            echo -n "   Failed: $(ecolor bold red)${#etest_jobs_failed[@]}"
+            ecolor reset
+        fi
+
+        if [[ ${#etest_jobs_flaky[@]} -gt 0 ]]; then
+            echo -n "   Flaky: $(ecolor bold yellow)${#etest_jobs_flaky[@]}"
+            ecolor reset
+        fi
+
+        echo -n " "
+
+    } > "${tmpfile}"
+
+    mv "${tmpfile}" "${etest_progress_file}"
 }
 
 create_vcs_info()
