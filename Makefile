@@ -14,6 +14,7 @@
 
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
+CACHE    ?= $(or ${cache},1)
 COLUMNS  ?= $(or ${columns},$(shell tput cols))
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
@@ -165,6 +166,7 @@ docker-$1:
 		--pull=${PULL}                       \
 		--push=${PUSH}                       \
 		--registry ghcr.io                   \
+		--cache=${CACHE}                     \
 
 .PHONY: docker-push-$1
 docker-push-$1: docker-$1

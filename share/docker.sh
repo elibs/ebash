@@ -99,6 +99,7 @@ docker_build()
         "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
         "&ibuild_arg                        | Build arguments that should be interpolated inplace instead of passing
                                               into the lower level docker build."                                      \
+        "+cache=1                           | Use local docker cache when building docker image."                      \
         ":cache_from                        | Images to consider as cache sources. Passthrough into docker build."     \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         "=name                              | Name of docker image to create. This will also be used as the cache
@@ -132,6 +133,7 @@ docker_build()
     edebug $(lval      \
         build_arg      \
         ibuild_arg     \
+        cache          \
         cache_from     \
         dockerfile     \
         file           \
@@ -208,14 +210,21 @@ docker_build()
     fi
 
     eprogress "Building docker $(lval image tags=tag)"
-    if ! docker build                                    \
-        --file "${dockerfile}"                           \
-        --cache-from "${cache_from}"                     \
-        --tag "${image}"                                 \
-        $(array_join --before tag " --tag ")             \
-        $(array_join --before build_arg " --build-arg ") \
-        . |& tee "${buildlog}" | edebug; then
+    local docker_build_args=(
+        --file "${dockerfile}"
+        --cache-from "${cache_from}"
+        --tag "${image}"
+        $(array_join --before tag " --tag ")
+        $(array_join --before build_arg " --build-arg ")
+    )
 
+    if [[ ${cache} -eq 0 ]]; then
+        docker_build_args+=( --no-cache )
+    fi
+
+    edebug "Calling docker build with $(lval docker_build_args)"
+
+    if ! docker build "${docker_build_args[@]}" . |& tee "${buildlog}" | edebug; then
         echo "" >&2
         eerror "Fatal error building docker image. Showing tail from ${buildlog}:"
         tail -n 100 "${buildlog}" >&2
