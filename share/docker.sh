@@ -739,7 +739,7 @@ docker_run()
 
     # Deal with all copy_to_volumes
     local entry name
-    for entry in "${copy_to_volume[@]}"; do
+    for entry in ${copy_to_volume[@]:-}; do
 
         local lpath="${entry%%:/*}"
         local rpath="${entry#*:/}"
