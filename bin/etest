@@ -956,7 +956,7 @@ __display_results_table()
 
     done
 
-    etable --title="$(ecolor bold green)Etest Results$(ecolor none)" --style=boxart "${table[@]}"
+    etable --title="$(ecolor bold green)Etest Results$(ecolor none)" "${table[@]}"
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
