@@ -1087,12 +1087,12 @@ create_xml()
             local testcases_passed testcases_failed
             array_init testcases_passed "${TESTS_PASSED[$suite]:-}"
             array_init testcases_failed "${TESTS_FAILED[$suite]:-}"
-            edebug "$(lval suite testcases_passed testcases_failed)"
+            etestmsg "$(lval suite testcases_passed testcases_failed SUITE_RUNTIME)"
 
             printf '<testsuite name="%s" tests="%d" failures="%d" time="%s">\n' \
-                "${suite}" \
-                $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} )) \
-                ${#testcases_failed[@]} \
+                "${suite}"                                                      \
+                $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} ))        \
+                ${#testcases_failed[@]}                                         \
                 ${SUITE_RUNTIME[$suite]}
 
             local xml_lines=()

@@ -790,5 +790,5 @@ docker_run()
     docker_args+=( ${@:-} )
 
     edebug "Calling docker run with $(lval docker_args)"
-    docker run "${docker_args[@]}"
+    docker run "${docker_args[@]:-}"
 }
