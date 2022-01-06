@@ -715,6 +715,8 @@ docker_run()
         "&copy_from_volume                  | Copy the specified path out of a volume attached to the docker container
                                               before it is removed. This is useful to copy artifacts out from a test
                                               container. The syntax for this is name:docker_path:local_path"           \
+        "&copy_from_volume_delete           | After copying all volumes back to the local site, delete any paths in this
+                                              list. This is because docker cp doesn't support an exclusion mechanism." \
         ":interactive=auto                  | This can be 'yes' or 'no' or 'auto' to automatically determine if we are
                                               interactive by looking at we're run from an interactive shell or not."   \
     )
@@ -769,7 +771,13 @@ docker_run()
         local lpath=${parts[2]}
 
         edebug "Setting trap to copy from $(lval name rpath lpath)"
-        trap_add "docker cp ${name}:${rpath}/. ${lpath}"
+        trap_add "mkdir -p ${lpath}; docker cp ${name}:${rpath}/. ${lpath}"
+    done
+
+    # Setup traps for copy_from_volume_delete
+    for entry in ${copy_from_volume_delete[*]:-}; do
+        edebug "Setting trap to delete $(lval entry) post-copy"
+        trap_add "rm --recursive --force \"${entry}\""
     done
 
     # Set --interactive as requested

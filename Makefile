@@ -107,8 +107,9 @@ DISTROS =           \
 DRUN = bin/ebash docker_run                                 \
 	--envlist "${ENVLIST}"                                  \
 	--nested                                                \
-    --copy-to-volume   "ebash:${PWD}:/ebash"                \
-    --copy-from-volume "ebash:/ebash/.work:.work/docker/$1" \
+	--copy-to-volume   "ebash:${PWD}:/ebash"                \
+	--copy-from-volume "ebash:/ebash/.work:.work/docker/$1" \
+	--copy-from-volume-delete ".work/docker/$1/docker"      \
 	--                                                      \
 	--init                                                  \
 	--tty                                                   \

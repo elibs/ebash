@@ -1131,6 +1131,10 @@ ETEST_docker_run_copy_to_volume()
 ETEST_docker_run_copy_from_volume()
 {
     emock "docker"
+    trap_add "eunmock docker"
+
+    emock "rm"
+    trap_add "eunmock rm"
 
     etestmsg "Calling docker_run with multiple copy_from_volume"
 
@@ -1138,8 +1142,10 @@ ETEST_docker_run_copy_from_volume()
     (
         docker_run --interactive=no \
             --copy-from-volume "foo:/foo:foo"                    \
+            --copy-from-volume-delete "foo/bad"                  \
             --copy-from-volume "data:/home/marshall/data:data"   \
             --copy-from-volume "ebash:/home/ebash:/home/baggins" \
+            --copy-from-volume-delete "/home/baggins/trash"      \
     )
 
     etestmsg "Verifying mock called 4 times"
@@ -1160,6 +1166,13 @@ ETEST_docker_run_copy_from_volume()
     etestmsg "Validating args (3) -- docker cp"
     assert_emock_called_with "docker" 3 \
         cp "foo:/foo/." "foo"
+
+    etestmsg "Verifying post-copy deletes called"
+    assert_emock_called "rm" 2
+    assert_emock_called_with "rm" 0 \
+        --recursive --force "/home/baggins/trash"
+    assert_emock_called_with "rm" 1 \
+        --recursive --force "foo/bad"
 }
 
 ETEST_docker_run_passthrough_args()
