@@ -812,9 +812,10 @@ __process_completed_jobs()
         assert_exists "${path}/info.pack"
         local info=""
         pack_load info "${path}/info.pack"
+        $(pack_import info)
 
         # Record it as a passing or failing job
-        if [[ $(pack_get info "rc") -eq 0 ]]; then
+        if [[ ${rc} -eq 0 ]]; then
             etest_jobs_passed+=( ${pid} )
         else
             etest_jobs_failed+=( ${pid} )
@@ -824,16 +825,16 @@ __process_completed_jobs()
         array_remove etest_jobs_running ${pid}
 
         # Update global stats
-        TESTS_RUNTIME[$(pack_get info suite)]=$(pack_get info runtime)
-        increment NUM_TESTS_EXECUTED $(pack_get info num_tests_executed)
-        increment NUM_TESTS_PASSED   $(pack_get info num_tests_passed)
-        increment NUM_TESTS_FAILED   $(pack_get info num_tests_failed)
-        increment NUM_TESTS_FLAKY    $(pack_get info num_tests_flaky)
+        TESTS_RUNTIME[${suite}]=${runtime}
+        increment NUM_TESTS_EXECUTED ${num_tests_executed}
+        increment NUM_TESTS_PASSED   ${num_tests_passed}
+        increment NUM_TESTS_FAILED   ${num_tests_failed}
+        increment NUM_TESTS_FLAKY    ${num_tests_flaky}
 
         # Update list of tests
-        array_add TESTS_PASSED "$(pack_get info tests_passed)"
-        array_add TESTS_FAILED "$(pack_get info tests_failed)"
-        array_add TESTS_FLAKY  "$(pack_get info tests_flaky)"
+        array_add TESTS_PASSED "${tests_passed}"
+        array_add TESTS_FAILED "${tests_failed}"
+        array_add TESTS_FLAKY  "${tests_flaky}"
 
         if ! array_contains TEST_SUITES "${suite}"; then
             TEST_SUITES+=( "${suite}" )
