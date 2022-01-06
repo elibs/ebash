@@ -114,8 +114,10 @@ jobs:
       - name: Self Test
         run: bin/eretry bin/selftest
 
+      # Run all unit tests. We exclude docker tests for Darwin for our CI/CD pipeline as they don't run successfully
+      # inside GitHub actions though they run perfectly fine locally.
       - name: Test
-        run: bin/etest --work-dir .work/output --failfast --failures 5
+        run: bin/etest --exclude=docker --work-dir .work/output --failfast --failures 5
 
       - name: Archive test results
         if: always()

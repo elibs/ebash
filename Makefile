@@ -14,23 +14,25 @@
 
 # Runtime option flags
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
+CACHE    ?= $(or ${cache},1)
 COLUMNS  ?= $(or ${columns},$(shell tput cols))
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
-FAILURES ?= $(or ${failures},1)
+FAILURES ?= $(or ${failures},0)
 FILTER   ?= $(or ${filter},)
 JOBS     ?= $(or ${jobs},1)
 PRETEND  ?= $(or ${pretend},0)
 PROGRESS ?= $(or ${progress},1)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
+REGISTRY ?= $(or ${registry},ghcr.io)
 REPEAT   ?= $(or ${repeat},0)
 V        ?= $(or $v,0)
 
-export COLUMNS
-export PULL
-export PUSH
+# Variables that need to be exported to be seen by external processes we exec.
+ENVLIST  ?= CACHE COLUMNS EDEBUG EXCLUDE FAILFAST FAILURES FILTER JOBS PRETEND PROGRESS PULL PUSH REGISTRY REPEAT V
+export ${ENVLIST}
 
 .SILENT:
 
@@ -102,17 +104,21 @@ DISTROS =           \
 	ubuntu-18.04    \
 
 # Template for running tests inside a Linux distro container
-DRUN = docker run                                 \
-	--env COLUMNS=${COLUMNS}                      \
-	--init                                        \
-	--tty                                         \
-	--mount type=bind,source=${PWD},target=/ebash \
-	--mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-	--network host                                \
-	--privileged                                  \
-	--rm                                          \
-	--workdir /ebash                              \
+DRUN = bin/ebash docker_run          \
+	--envlist "${ENVLIST}"           \
+	--nested                         \
+	--copy-to-volume "${PWD}:/ebash" \
+	--                               \
+	--init                           \
+	--tty                            \
+	--network host                   \
+	--privileged                     \
+	--rm                             \
+	--workdir /ebash                 \
 
+#-----------------------------------------------------------------------------------------------------------------------
+# Docker template
+#-----------------------------------------------------------------------------------------------------------------------
 define DOCKER_TEMPLATE
 
 ifeq ($1,gentoo)
@@ -124,49 +130,40 @@ ${1}_IMAGE_BASE = $(subst -,:,$1)
 endif
 
 ${1}_IMAGE = ghcr.io/elibs/ebash-build-$1
+${1}_IMAGE_FULL = $(shell cat .work/docker/ebash-build-$1/image 2>/dev/null)
 
 .PHONY: dlint-$1
 dlint-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/bashlint --failfast=${FAILFAST} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
+	${DRUN} $${$1_IMAGE_FULL} make lint
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/selftest --severity=error
+	${DRUN} $${$1_IMAGE_FULL} make selftest
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
-	${DRUN} $${$1_IMAGE} bin/etest     \
-		--break                        \
-		--debug="${EDEBUG}"            \
-		--exclude="${EXCLUDE}"         \
-		--failfast="${FAILFAST}"       \
-		--failures="${FAILURES}"       \
-		--filter="${FILTER}"           \
-		--jobs="${JOBS}"               \
-		--pretend="${PRETEND}"         \
-		--log-dir=.work                \
-		--repeat=${REPEAT}             \
-		--verbose=${V}                 \
-		--work-dir=.work/output
+	${DRUN} $${$1_IMAGE_FULL} make test
 
 .PHONY: dshell-$1
 dshell-$1: docker-$1
-	${DRUN} $${$1_IMAGE} /bin/bash
+	${DRUN} $${$1_IMAGE_FULL} /bin/bash
 
 .PHONY: docker-$1
 docker-$1:
-	bin/ebanner "Building $${$1_IMAGE}" PULL PUSH
+	bin/ebanner "Building Docker Image '$${$1_IMAGE}'" REGISTRY PULL PUSH
 	bin/ebash docker_build                   \
-		--name $${$1_IMAGE}                  \
-		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
 		--file docker/Dockerfile.build       \
-		--registry ghcr.io                   \
+		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
+		--name $${$1_IMAGE}                  \
 		--pull=${PULL}                       \
 		--push=${PUSH}                       \
+		--registry=${REGISTRY}               \
+		--cache=${CACHE}                     \
 
 .PHONY: docker-push-$1
 docker-push-$1: docker-$1
-	docker push $${$1_IMAGE}
+	bin/einfo "Pushing $${$1_IMAGE_FULL})"
+	docker push $${$1_IMAGE_FULL}
 
 endef
 

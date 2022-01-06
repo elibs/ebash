@@ -37,7 +37,6 @@ fi
 DISTRO=$(echo "${DISTRO}" | tr "[A-Z]" "[a-z]")
 
 echo ">> Installing docker build dependencies for ${DISTRO}"
-sleep 10
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -52,6 +51,7 @@ if [ "${DISTRO}" = "alpine" ]; then
 
     apk add                  \
         curl                 \
+        make                 \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -61,6 +61,7 @@ if [ "${DISTRO}" = "alpine" ]; then
 elif [ "${DISTRO}" = "arch" ]; then
 
     pacman -Syu --noconfirm --needed \
+        make                 \
         unzip                \
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -73,6 +74,7 @@ elif [ "${DISTRO}" = "centos" ]; then
     yum install epel-release -y
 
     yum install -y          \
+        make                \
         unzip               \
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -86,6 +88,7 @@ elif [ "${DISTRO}" = "debian" ]; then
 
     apt install -y          \
         curl                \
+        make                \
         unzip               \
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -130,6 +133,7 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 
     apt install -y          \
         curl                \
+        make                \
         unzip               \
 
 #----------------------------------------------------------------------------------------------------------------------
