@@ -438,7 +438,7 @@ run_single_test()
             TMPDIR="$(readlink -m ${testdir}/tmp)"
             export TMPDIR
 
-            if [[ ${jobs} -eq 0 ]] && cgroup_supported; then
+            if cgroup_supported; then
                 cgroup_create ${ETEST_CGROUP}
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
@@ -1175,8 +1175,7 @@ if [[ -n "${total_timeout}" && "${total_timeout}" != "infinity" ]]; then
 
         ekill ${ETEST_PID}
 
-        $(tryrc -r=exists_rc cgroup_exists ${ETEST_CGROUP})
-        if [[ ${exists_rc} -eq 0 ]] ; then
+        if cgroup_exists ${ETEST_CGROUP}; then
             cgroup_kill --signal=SIGKILL ${ETEST_CGROUP}
             cgroup_destroy --recursive ${ETEST_CGROUP}
         fi
