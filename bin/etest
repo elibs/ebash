@@ -411,7 +411,7 @@ run_single_test()
     fi
 
     local cgroup="${ETEST_CGROUP}/${suite}/${testidx}"
-    edebug "Using test-specific $(lval cgroup)"
+    etestmsg "Using test-specific $(lval cgroup)"
 
     local tries=0
     for (( tries=0; tries <= ${failures}; tries++ )); do
@@ -876,7 +876,8 @@ __spawn_new_job()
         # Move the elogfile pids for this process into our parent ETEST_CGROUP so that they don't get incorrectly
         # counted as process leaks in our test teardown.
         if cgroup_supported ; then
-            cgroup_move ${ETEST_CGROUP} $(elogfile_pids)
+            etestmsg "Moving $(elogfile_pids) to $(lval ETEST_CGROUP_BASE)"
+            cgroup_move ${ETEST_CGROUP_BASE} $$ $(elogfile_pids)
         fi
 
         # Capture suite name and start time.
