@@ -405,8 +405,6 @@ run_single_test()
         suite="$(basename "${testname}")"
     fi
 
-    etestmsg "Using test-specific $(lval cgroup)"
-
     local tries=0
     for (( tries=0; tries <= ${failures}; tries++ )); do
 
@@ -836,6 +834,10 @@ __process_completed_jobs()
         array_add TESTS_PASSED "$(pack_get info tests_passed)"
         array_add TESTS_FAILED "$(pack_get info tests_failed)"
         array_add TESTS_FLAKY  "$(pack_get info tests_flaky)"
+
+        if ! array_contains TEST_SUITES "${suite}"; then
+            TEST_SUITES+=( "${suite}" )
+        fi
 
         if edebug_enabled; then
             einfo "Job finished: $(lval pid path etest_jobs_finished etest_job_total etest_job_count)"
