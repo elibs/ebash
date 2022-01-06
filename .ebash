@@ -1,5 +1,5 @@
 [etest]
 logdir = .work
-workdir = .work/output
+workdir = .work/testdir
 tests = tests
 exclude = tests/self

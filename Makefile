@@ -104,17 +104,18 @@ DISTROS =           \
 	ubuntu-18.04    \
 
 # Template for running tests inside a Linux distro container
-DRUN = bin/ebash docker_run          \
-	--envlist "${ENVLIST}"           \
-	--nested                         \
-	--copy-to-volume "${PWD}:/ebash" \
-	--                               \
-	--init                           \
-	--tty                            \
-	--network host                   \
-	--privileged                     \
-	--rm                             \
-	--workdir /ebash                 \
+DRUN = bin/ebash docker_run                                 \
+	--envlist "${ENVLIST}"                                  \
+	--nested                                                \
+    --copy-to-volume   "ebash:${PWD}:/ebash"                \
+    --copy-from-volume "ebash:/ebash/.work:.work/docker/$1" \
+	--                                                      \
+	--init                                                  \
+	--tty                                                   \
+	--network host                                          \
+	--privileged                                            \
+	--rm                                                    \
+	--workdir /ebash                                        \
 	$$$$(cat .work/docker/ebash-build-$1/image)
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -135,18 +136,22 @@ ${1}_IMAGE_FULL = $(shell cat .work/docker/ebash-build-$1/image 2>/dev/null)
 
 .PHONY: dlint-$1
 dlint-$1: docker-$1
+	rm -rf .work/docker/$1
 	${DRUN} make lint
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
+	rm -rf .work/docker/$1
 	${DRUN} make selftest
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
+	rm -rf .work/docker/$1
 	${DRUN} make test
 
 .PHONY: dshell-$1
 dshell-$1: docker-$1
+	rm -rf .work/docker/$1
 	${DRUN} /bin/bash
 
 .PHONY: docker-$1
