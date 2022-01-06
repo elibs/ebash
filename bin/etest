@@ -242,16 +242,14 @@ die_handler()
 
 assert_no_process_leaks()
 {
-    $(opt_parse cgroup)
-
     if ! cgroup_supported; then
         return 0
     fi
 
-    edebug "Checking for process leaks in ${cgroup}"
+    edebug "Checking for process leaks in ${ETEST_CGROUP}"
 
-    if ! cgroup_exists "${cgroup}"; then
-        edebug "$(lval cgroup) does not exist -- returning"
+    if ! cgroup_exists "${ETEST_CGROUP}"; then
+        edebug "$(lval ETEST_CGROUP) does not exist -- returning"
         return 0
     fi
 
@@ -260,16 +258,16 @@ assert_no_process_leaks()
     # left.
     try
     {
-        eretry -T=5s cgroup_empty "${cgroup}"
+        eretry -T=5s cgroup_empty "${ETEST_CGROUP}"
     }
     catch
     {
         local leaked_processes=""
-        leaked_processes=$(cgroup_ps "${cgroup}")
+        leaked_processes=$(cgroup_ps "${ETEST_CGROUP}")
 
         if [[ -n ${leaked_processes} ]]; then
-            cgroup_kill_and_wait -s=SIGKILL "${cgroup}"
-            eerror "Leaked processes in ${cgroup}:\n${leaked_processes}"
+            cgroup_kill_and_wait -s=SIGKILL "${ETEST_CGROUP}"
+            eerror "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
             return 1
         fi
     }
@@ -279,20 +277,17 @@ assert_no_process_leaks()
 
 assert_no_mount_leaks()
 {
-    $(opt_parse path)
-    edebug "Checking for stale mounts under $(lval path)"
-
     local mounts=()
-    mounts=( $(efindmnt "${path}" ) )
+    mounts=( $(efindmnt "${workdir}" ) )
 
     if ! array_empty mounts; then
-        eunmount --all --recursive --delete=${delete} "${path}"
-        eerror "Leaked under $(lval mounts path)"$'\n'"$(array_join_nl mounts)"
+        eunmount --all --recursive --delete=${delete} "${workdir}"
+        eerror "Leaked under $(lval mounts workdir)"$'\n'"$(array_join_nl mounts)"
         return 1
     fi
 
     if [[ ${delete} -eq 1 ]]; then
-        rm --recursive --force "${path}"
+        rm --recursive --force "${workdir}"
     fi
 
     edebug "Finished"
@@ -333,8 +328,8 @@ global_teardown()
     # cleanup after this.
     try
     {
-        assert_no_process_leaks "${ETEST_CGROUP}"
-        assert_no_mount_leaks "${workdir}"
+        assert_no_process_leaks
+        assert_no_mount_leaks
     }
     catch
     {
@@ -410,7 +405,6 @@ run_single_test()
         suite="$(basename "${testname}")"
     fi
 
-    local cgroup="${ETEST_CGROUP}/${suite}/${testidx}"
     etestmsg "Using test-specific $(lval cgroup)"
 
     local tries=0
@@ -444,9 +438,9 @@ run_single_test()
             TMPDIR="$(readlink -m ${testdir}/tmp)"
             export TMPDIR
 
-            if cgroup_supported ; then
-                cgroup_create ${cgroup}
-                cgroup_move ${cgroup} ${BASHPID}
+            if [[ ${jobs} -eq 0 ]] && cgroup_supported; then
+                cgroup_create ${ETEST_CGROUP}
+                cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
 
             # Determine the command that etest needs to run.
@@ -500,16 +494,18 @@ run_single_test()
         edebug "Finished $(lval testname display_testname rc tries FAILURES)"
 
         # Verify there are no process or memory leaks. If so kill them and try again if that is permitted.
-        try
-        {
-            assert_no_process_leaks "${cgroup}"
-            assert_no_mount_leaks   "${testdir}"
-        }
-        catch
-        {
-            rc+=$?
-            eerror "${display_testname} FAILED due to process or mount leak."
-        }
+        if [[ ${jobs} -eq 0 ]]; then
+            try
+            {
+                assert_no_process_leaks
+                assert_no_mount_leaks
+            }
+            catch
+            {
+                rc+=$?
+                eerror "${display_testname} FAILED due to process or mount leak."
+            }
+        fi
 
         if [[ ${rc} -eq 0 ]]; then
             break
@@ -872,13 +868,6 @@ __spawn_new_job()
         trap_add "elogfile_kill --all"
         ETEST_OUT="${jobpath}/etest.out"
         TEST_OUT="/dev/null"
-
-        # Move the elogfile pids for this process into our parent ETEST_CGROUP so that they don't get incorrectly
-        # counted as process leaks in our test teardown.
-        if cgroup_supported ; then
-            etestmsg "Moving $(elogfile_pids) to $(lval ETEST_CGROUP_BASE)"
-            cgroup_move ${ETEST_CGROUP_BASE} $$ $(elogfile_pids)
-        fi
 
         # Capture suite name and start time.
         local suite=""
