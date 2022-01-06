@@ -826,6 +826,7 @@ __process_completed_jobs()
 
         # Update global stats
         TESTS_RUNTIME[${suite}]=${runtime}
+        SUITE_RUNTIME[${suite}]=$(( ${SUITE_RUNTIME[${suite}]:-0} + ${runtime} ))
         increment NUM_TESTS_EXECUTED ${num_tests_executed}
         increment NUM_TESTS_PASSED   ${num_tests_passed}
         increment NUM_TESTS_FAILED   ${num_tests_failed}
