@@ -216,7 +216,7 @@ fi
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
-# TEST UTILITY FUNCTIONS
+# TEST ASSERTIONS
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -292,6 +292,12 @@ assert_no_mount_leaks()
     edebug "Finished"
 }
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# GLOBAL SETUP / TEARDOWN
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 global_setup()
 {
     ecolor hide_cursor &>>${ETEST_OUT}
@@ -347,6 +353,12 @@ global_teardown()
     fi
 }
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# TEST RUNNERS
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 run_single_test()
 {
     $(opt_parse \
@@ -369,7 +381,7 @@ run_single_test()
     fi
 
     local index_string="${testidx}/${testidx_total}"
-    ebanner --uppercase "${testname}" OS debug exclude failfast failures filter jobs REPEAT=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
+    ebanner --uppercase "${testname}" OS debug exclude failfast failures filter jobs repeat=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
@@ -614,7 +626,10 @@ find_matching_tests()
     done
 }
 
-# run_all_tests runs all test files discovered in `find_matching_tests`.
+# run_all_tests runs all test files discovered in `find_matching_tests`. This function has some intelligence to detect
+# if we should run the tests serially or in parallel based on the value of --jobs. If that value is greater than 1, then
+# all tests will be run in parallel via __run_all_tests_parallel. Otherwise the tests will be run serially via
+# __run_all_tests_serially.
 run_all_tests()
 {
     OS="$(os_pretty_name)"
@@ -630,209 +645,97 @@ run_all_tests()
     fi
 
     if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat=REPEAT_STRING timeout total_timeout verbose
     else
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter repeat timeout total_timeout verbose &>>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat=REPEAT_STRING timeout total_timeout verbose &>>${ETEST_OUT}
     fi
 
-    for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
-        REPEAT_STRING="${ITERATION}/${repeat}"
-
-        for testfile in "${TEST_FILES_TO_RUN[@]}"; do
-
-            # Record start time of entire test suite
-            local suite_start_time="${SECONDS}"
-
-            # Run the test which could be a single test file or an entire suite (etest) file.
-            if [[ "${testfile}" =~ \.etest$ ]]; then
-                run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
-            else
-                run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
-            fi
-
-            SUITE_RUNTIME[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
-        done
-    done
+    if [[ ${jobs} -gt 1 ]]; then
+        __run_all_tests_parallel
+    else
+        __run_all_tests_serially
+    fi
 }
 
-# run_all_tests_parallel is a much more intelligent version of `run_all_tests` which runs all tests in parallel.
-# It uses the --jobs option to control how many test suites can be run in parallel at the same time. All test suites are
-# essentially queued up into a runnable list. In has a `while true` loop where on each iteration it will launch a new
-# backgrounded job up until it reaches our limit specified via --jobs. During that loop it will also wait on any
-# previously backgrounded jobs and collect results about that job as they finish. It will also delay up to jobs_delay on
-# each iteration to avoid hammering the system too much busy waiting for long running results.
-run_all_tests_parallel()
+# __run_all_tests_serially is a special internal helper function which is called by its parent function run_all_tests to
+# run all tests one at a time in serial fashion.
+__run_all_tests_serially()
 {
-    OS="$(os_pretty_name)"
-    if running_in_docker; then
-        OS+=" (docker)"
-    else
-        OS+=" (native)"
-    fi
+    for testfile in "${TEST_FILES_TO_RUN[@]}"; do
 
-    local etest_name="ETEST"
-    if [[ -n "${name}" ]]; then
-        etest_name+=" - \"${name//_/ }\""
-    fi
+        # Record start time of entire test suite
+        local suite_start_time="${SECONDS}"
 
-    if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat timeout total_timeout verbose
-    else
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat timeout total_timeout verbose &>>${ETEST_OUT}
-    fi
-
-    for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
-        REPEAT_STRING="${ITERATION}/${repeat}"
-
-        local etest_jobs_running=()
-        local etest_jobs_finished=()
-        local etest_jobs_passed=()
-        local etest_jobs_failed=()
-        local etest_jobs_flaky=()
-        local etest_jobs_pending=( ${TEST_FILES_TO_RUN[@]} )
-        local etest_job_total=${#TEST_FILES_TO_RUN[@]}
-        local etest_job_count=0
-        declare -A pidmap=()
-        efreshdir "${work_dir}/jobs"
-
-        # Create eprogress status file
-        local etest_progress_file="${work_dir}/jobs/progress.txt"
-        update_jobs_progress_file
-        if [[ ${jobs_progress} -eq 1 ]]; then
-            einfo "Running etest ($(lval jobs))" &>> ${ETEST_OUT}
-            eprogress                           \
-                --style einfos                  \
-                --file "${etest_progress_file}" \
-                "Total: $(ecolor bold)${etest_job_total}$(ecolor reset)" &>> ${ETEST_OUT}
+        # Run the test which could be a single test file or an entire suite (etest) file.
+        if [[ "${testfile}" =~ \.etest$ ]]; then
+            run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
+        else
+            run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
         fi
 
-        # See if any processes have finished
-        while true; do
-
-            update_jobs_progress_file
-
-            for pid in "${etest_jobs_running[@]}"; do
-
-                if ! process_running "${pid}"; then
-
-                    path=${pidmap[$pid]}
-
-                    # Capture PID and wait for the process to exit. Then capture all info from on-disk pack
-                    wait "${pid}" || true
-                    assert_exists "${path}/info.pack"
-                    local info=""
-                    pack_load info "${path}/info.pack"
-
-                    # Record it as a passing or failing job
-                    if [[ $(pack_get info "rc") -eq 0 ]]; then
-                        etest_jobs_passed+=( ${pid} )
-                    else
-                        etest_jobs_failed+=( ${pid} )
-                    fi
-
-                    etest_jobs_finished+=( ${pid} )
-                    array_remove etest_jobs_running ${pid}
-
-                    # Update global stats
-                    TESTS_RUNTIME[$(pack_get info suite)]=$(pack_get info runtime)
-                    increment NUM_TESTS_EXECUTED $(pack_get info num_tests_executed)
-                    increment NUM_TESTS_PASSED $(pack_get info num_tests_passed)
-                    increment NUM_TESTS_FAILED $(pack_get info num_tests_failed)
-                    increment NUM_TESTS_FLAKY  $(pack_get info num_tests_flaky)
-
-                    # Update list of tests
-                    array_add TESTS_PASSED "$(pack_get info tests_passed)"
-                    array_add TESTS_FAILED "$(pack_get info tests_failed)"
-                    array_add TESTS_FLAKY  "$(pack_get info tests_flaky)"
-
-                    if edebug_enabled; then
-                        einfo "Job finished: $(lval pid path etest_jobs_finished etest_job_total etest_job_count)"
-                        pack_to_json info | jq --color-output --sort-keys .
-                    fi
-
-                    if [[ ${jobs_progress} -eq 0 ]]; then
-                        cat "${path}/output.log" >> "${ETEST_OUT}"
-                    fi
-
-                fi
-            done
-
-            if [[ ${#etest_jobs_running[@]} -eq 0 && ${#etest_jobs_finished[@]} -ge ${etest_job_total} ]]; then
-                edebug "All etest jobs finished"
-                break
-
-            elif [[ ${#etest_jobs_running[@]} -lt ${jobs} && ${etest_job_count} -lt ${etest_job_total} ]]; then
-
-                local testfile=${etest_jobs_pending[${etest_job_count}]}
-                edebug "Starting next job: ${testfile}"
-
-                local jobpath="${work_dir}/jobs/${etest_job_count}"
-                mkdir -p "${jobpath}"
-
-                # Run the test which could be a single test file or an entire suite (etest) file.
-                (
-                    ETEST_OUT="${jobpath}/output.log"
-
-                    local suite=""
-                    local runtime="" start_time=${SECONDS}
-
-                    if [[ "${pretend}" -eq 1 ]]; then
-                        true
-                    elif [[ "${testfile}" =~ \.etest$ ]]; then
-                        run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
-                        suite=$(basename "${testfile}" ".etest")
-                    else
-                        run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
-                        suite="$(basename "${testfile}")"
-                    fi
-
-                    # Capture all state from this test run and save it into a pack.
-                    local info=""
-                    pack_set info                                  \
-                        jobpath="${jobpath}"                       \
-                        job=$(basename "${jobpath}")               \
-                        rc="${NUM_TESTS_FAILED}"                   \
-                        runtime=$(( ${SECONDS} - ${start_time} ))  \
-                        suite="${suite}"                           \
-                        testfile="${testfile}"                     \
-                        num_tests_passed="${NUM_TESTS_PASSED}"     \
-                        num_tests_failed="${NUM_TESTS_FAILED}"     \
-                        num_tests_flaky="${NUM_TESTS_FLAKY}"       \
-                        num_tests_executed="${NUM_TESTS_EXECUTED}" \
-                        tests_passed="${TESTS_PASSED[$suite]:-}"   \
-                        tests_failed="${TESTS_FAILED[$suite]:-}"   \
-                        tests_flaky="${TESTS_FLAKY[$suite]:-}"     \
-
-                    pack_save info "${jobpath}/info.pack"
-
-                ) &
-
-                pid=$!
-                echo "${pid}" > "${jobpath}/pid"
-                pidmap[$pid]="${jobpath}"
-                trap_add "ekill $pid 2>/dev/null"
-
-                etest_jobs_running+=( ${pid} )
-                increment etest_job_count
-
-            else
-                edebug "Throttling by $(lval jobs_delay)"
-                sleep "${jobs_delay}"
-            fi
-
-        done
-
-        eprogress_kill --rc=${#etest_jobs_failed[@]}
-
+        SUITE_RUNTIME[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
     done
 }
 
-update_jobs_progress_file()
+# __run_all_tests_parallel is a special internal helper function which is called by its parent function run_all_tests to
+# run all tests in parallel. It uses the --jobs option to control how many test suites can be run in parallel at the
+# same time. All test suites are essentially queued up into a runnable list. In has a `while true` loop where on each
+# iteration it will launch a new backgrounded job up until it reaches our limit specified via --jobs. During that loop
+# it will also wait on any previously backgrounded jobs and collect results about that job as they finish. It will also
+# delay up to jobs_delay on each iteration to avoid hammering the system too much busy waiting for long running results.
+__run_all_tests_parallel()
+{
+    local etest_jobs_running=()
+    local etest_jobs_finished=()
+    local etest_jobs_passed=()
+    local etest_jobs_failed=()
+    local etest_jobs_flaky=()
+    local etest_jobs_queued=( ${TEST_FILES_TO_RUN[@]} )
+    local etest_job_total=${#TEST_FILES_TO_RUN[@]}
+    local etest_job_count=0
+    declare -A pidmap=()
+    efreshdir "${work_dir}/jobs"
+
+    # Create eprogress status file
+    local etest_progress_file="${work_dir}/jobs/progress.txt"
+    __update_jobs_progress_file
+    if [[ ${jobs_progress} -eq 1 ]]; then
+        einfo "Running etest ($(lval jobs))" &>> ${ETEST_OUT}
+        eprogress                           \
+            --style einfos                  \
+            --file "${etest_progress_file}" \
+            "Total: $(ecolor bold)${etest_job_total}$(ecolor reset)" &>> ${ETEST_OUT}
+    fi
+
+    while true; do
+
+        __update_jobs_progress_file
+
+        __process_completed_jobs
+
+        if [[ ${#etest_jobs_running[@]} -eq 0 && ${#etest_jobs_finished[@]} -ge ${etest_job_total} ]]; then
+            edebug "All etest jobs finished"
+            break
+        elif [[ ${#etest_jobs_running[@]} -lt ${jobs} && ${etest_job_count} -lt ${etest_job_total} ]]; then
+            __spawn_new_job
+        else
+            edebug "Throttling by $(lval jobs_delay)"
+            sleep "${jobs_delay}"
+        fi
+
+    done
+
+    eprogress_kill --rc=${#etest_jobs_failed[@]}
+}
+
+# __update_jobs_progress_file is a special internal helper function called by __run_all_tests_parallel to update the
+# eprogress ticker file which we use to show the status of the parellel builds that are running asynchronously.
+__update_jobs_progress_file()
 {
     local tmpfile="${etest_progress_file}.tmp"
 
     {
-        echo -n "   Pending: $(ecolor dim)$(( ${#etest_jobs_pending[@]} - ${etest_job_count} ))"
+        echo -n "   Queued: $(ecolor dim)$(( ${#etest_jobs_queued[@]} - ${etest_job_count} ))"
         ecolor reset
 
         echo -n "   Running: $(ecolor bold)${#etest_jobs_running[@]}"
@@ -857,6 +760,125 @@ update_jobs_progress_file()
 
     mv "${tmpfile}" "${etest_progress_file}"
 }
+
+# __process_completed_jobs is a special internal helper function called by __run_all_tests_parallel to process any jobs
+# which may have run to completion. Essentially this captures the return code of the process and collects some stats
+# about the job that are stored in global variables and then updates our internal job related lists accordingly.
+#
+# NOTE: The concurrent reading and writing of the global variables is safe as each job runs in an isolated subshell. The
+# stats are specific to a single suite which is the granularity if our parallelism.
+__process_completed_jobs()
+{
+    for pid in "${etest_jobs_running[@]}"; do
+
+        if process_running "${pid}"; then
+            continue
+        fi
+
+        path=${pidmap[$pid]}
+
+        # Capture PID and wait for the process to exit. Then capture all info from on-disk pack
+        wait "${pid}" || true
+        assert_exists "${path}/info.pack"
+        local info=""
+        pack_load info "${path}/info.pack"
+
+        # Record it as a passing or failing job
+        if [[ $(pack_get info "rc") -eq 0 ]]; then
+            etest_jobs_passed+=( ${pid} )
+        else
+            etest_jobs_failed+=( ${pid} )
+        fi
+
+        etest_jobs_finished+=( ${pid} )
+        array_remove etest_jobs_running ${pid}
+
+        # Update global stats
+        TESTS_RUNTIME[$(pack_get info suite)]=$(pack_get info runtime)
+        increment NUM_TESTS_EXECUTED $(pack_get info num_tests_executed)
+        increment NUM_TESTS_PASSED $(pack_get info num_tests_passed)
+        increment NUM_TESTS_FAILED $(pack_get info num_tests_failed)
+        increment NUM_TESTS_FLAKY  $(pack_get info num_tests_flaky)
+
+        # Update list of tests
+        array_add TESTS_PASSED "$(pack_get info tests_passed)"
+        array_add TESTS_FAILED "$(pack_get info tests_failed)"
+        array_add TESTS_FLAKY  "$(pack_get info tests_flaky)"
+
+        if edebug_enabled; then
+            einfo "Job finished: $(lval pid path etest_jobs_finished etest_job_total etest_job_count)"
+            pack_to_json info | jq --color-output --sort-keys .
+        fi
+
+        if [[ ${jobs_progress} -eq 0 ]]; then
+            cat "${path}/output.log" >> "${ETEST_OUT}"
+        fi
+    done
+}
+
+# __spawn_new_job is a special internal helper function to take a job from the queued list and run that job
+# asynchronously in the background. We store off the pid and add it to an internal associative array `pidmap` which is
+# used to be able to lookup the status of our backgrounded jobs later in `__process_completed_jobs`.
+__spawn_new_job()
+{
+    local testfile=${etest_jobs_queued[${etest_job_count}]}
+    edebug "Starting next job: ${testfile}"
+
+    local jobpath="${work_dir}/jobs/${etest_job_count}"
+    mkdir -p "${jobpath}"
+
+    # Run the test which could be a single test file or an entire suite (etest) file.
+    (
+        ETEST_OUT="${jobpath}/output.log"
+
+        local suite=""
+        local runtime="" start_time=${SECONDS}
+
+        if [[ "${pretend}" -eq 1 ]]; then
+            true
+        elif [[ "${testfile}" =~ \.etest$ ]]; then
+            run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
+            suite=$(basename "${testfile}" ".etest")
+        else
+            run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
+            suite="$(basename "${testfile}")"
+        fi
+
+        # Capture all state from this test run and save it into a pack.
+        local info=""
+        pack_set info                                  \
+            jobpath="${jobpath}"                       \
+            job=$(basename "${jobpath}")               \
+            rc="${NUM_TESTS_FAILED}"                   \
+            runtime=$(( ${SECONDS} - ${start_time} ))  \
+            suite="${suite}"                           \
+            testfile="${testfile}"                     \
+            num_tests_passed="${NUM_TESTS_PASSED}"     \
+            num_tests_failed="${NUM_TESTS_FAILED}"     \
+            num_tests_flaky="${NUM_TESTS_FLAKY}"       \
+            num_tests_executed="${NUM_TESTS_EXECUTED}" \
+            tests_passed="${TESTS_PASSED[$suite]:-}"   \
+            tests_failed="${TESTS_FAILED[$suite]:-}"   \
+            tests_flaky="${TESTS_FLAKY[$suite]:-}"     \
+
+        pack_save info "${jobpath}/info.pack"
+
+    ) &
+
+    pid=$!
+    echo "${pid}" > "${jobpath}/pid"
+    pidmap[$pid]="${jobpath}"
+    trap_add "ekill $pid 2>/dev/null"
+
+    etest_jobs_running+=( ${pid} )
+    increment etest_job_count
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# STATS
+#
+#-----------------------------------------------------------------------------------------------------------------------
 
 create_vcs_info()
 {
@@ -1080,11 +1102,11 @@ if [[ -n "${total_timeout}" && "${total_timeout}" != "infinity" ]]; then
     trap_add "ekill ${watcher_pid} &>/dev/null" EXIT
 fi
 
-if [[ ${jobs} -gt 1 ]]; then
-    run_all_tests_parallel
-else
+# Run all tests the requested number of times
+for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
+    REPEAT_STRING="${ITERATION}/${repeat}"
     run_all_tests
-fi
+done
 
 # Collect and report results
 RUNTIME=$(( SECONDS - START_TIME ))
