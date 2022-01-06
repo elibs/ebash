@@ -771,7 +771,7 @@ docker_run()
         local lpath=${parts[2]}
 
         edebug "Setting trap to copy from $(lval name rpath lpath)"
-        trap_add "mkdir -p ${lpath}; docker cp ${name}:${rpath}/. ${lpath}"
+        trap_add "docker cp ${name}:${rpath}/. ${lpath}"
     done
 
     # Setup traps for copy_from_volume_delete
