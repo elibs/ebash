@@ -317,7 +317,7 @@ global_setup()
     # processes we already launched.
     if cgroup_supported ; then
         cgroup_create ${ETEST_CGROUP}
-        cgroup_move ${ETEST_CGROUP_BASE} $$ $(elogfile_pids)
+        cgroup_move ${ETEST_CGROUP} $$ $(elogfile_pids)
     fi
 
     edebug "Finished global_setup"
@@ -873,7 +873,7 @@ __spawn_new_job()
         # Move the elogfile pids for this process into our parent ETEST_CGROUP so that they don't get incorrectly
         # counted as process leaks in our test teardown.
         if cgroup_supported ; then
-            cgroup_move ${ETEST_CGROUP_BASE} $(elogfile_pids)
+            cgroup_move ${ETEST_CGROUP} $(elogfile_pids)
         fi
 
         # Change ETEST_CGROUP to contain our job number so that two concurrently running jobs don't stomp on each other
