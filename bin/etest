@@ -79,7 +79,6 @@ $(opt_parse \
     "+jobs_progress=1              | Show jobs eprogress summary ticker while running."                                \
     ":log_dir                      | Directory to place logs in. Defaults to the current directory."                   \
     "+mount_ns=1                   | Run tests inside a mount namespace."                                              \
-    "+pretend                      | Pretend to run jobs."                                                             \
     ":repeat  r=${REPEAT:-1}       | Number of times to repeat each test."                                             \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
     "&test_list l                  | File that contains a list of tests to run. This file may contain comments on lines
@@ -536,13 +535,14 @@ run_single_test()
         $(tryrc -r=teardown_rc teardown)
     fi
 
-    # NOTE: Don't return rc here. We've already set things up so etest knows if there was a failure.
-    if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-        die "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
-    fi
-
     # Finally record the total runtime of this test
     TESTS_RUNTIME[${testname}]=$(( ${SECONDS} - ${start_time} ))
+
+    # NOTE: If failfast is enabled don't DIE here just log the error for informational purposes and return.
+    # etest already knows how to detect and report errors.
+    if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
+        eerror "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
+    fi
 }
 
 run_etest_file()
@@ -578,8 +578,10 @@ run_etest_file()
             --source "${testfile}"                      \
             "${testfunc}"
 
+        # NOTE: If failfast is enabled don't DIE here just return. etest already knows how to detect and report errors.
+        # No need to log the error here as it was logged inside run_single_test.
         if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-            die "${testfunc} failed and failfast=1" &>>${ETEST_OUT}
+            return 0
         fi
 
     done
@@ -670,12 +672,14 @@ __run_all_tests_serially()
         local suite_start_time="${SECONDS}"
 
         # Run the test which could be a single test file or an entire suite (etest) file.
-        if [[ "${pretend}" -eq 1 ]]; then
-            true
-        elif [[ "${testfile}" =~ \.etest$ ]]; then
+        if [[ "${testfile}" =~ \.etest$ ]]; then
             run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
         else
             run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
+        fi
+
+        if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
+             die "Failure encountered and failfast=1" &>${ETEST_OUT}
         fi
 
         SUITE_RUNTIME[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
@@ -725,6 +729,11 @@ __run_all_tests_parallel()
 
         __process_completed_jobs
 
+        if [[ ${failfast} -eq 1 && ${#etest_jobs_failed[@]} -gt 0 ]] ; then
+            eerror "Failure encountered and failfast=1" &>> ${ETEST_OUT}
+            break
+        fi
+
         if [[ ${#etest_jobs_running[@]} -eq 0 && ${#etest_jobs_finished[@]} -ge ${etest_job_total} ]]; then
             edebug "All etest jobs finished"
             break
@@ -739,6 +748,10 @@ __run_all_tests_parallel()
 
     array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
     eprogress_kill --rc=${#etest_jobs_failed[@]} &>> ${ETEST_OUT}
+
+    if [[ ${jobs_progress} -eq 1 ]]; then
+        __display_results_table &>> ${ETEST_OUT}
+    fi
 }
 
 # __update_jobs_progress_file is a special internal helper function called by __run_all_tests_parallel to update the
@@ -809,9 +822,9 @@ __process_completed_jobs()
         # Update global stats
         TESTS_RUNTIME[$(pack_get info suite)]=$(pack_get info runtime)
         increment NUM_TESTS_EXECUTED $(pack_get info num_tests_executed)
-        increment NUM_TESTS_PASSED $(pack_get info num_tests_passed)
-        increment NUM_TESTS_FAILED $(pack_get info num_tests_failed)
-        increment NUM_TESTS_FLAKY  $(pack_get info num_tests_flaky)
+        increment NUM_TESTS_PASSED   $(pack_get info num_tests_passed)
+        increment NUM_TESTS_FAILED   $(pack_get info num_tests_failed)
+        increment NUM_TESTS_FLAKY    $(pack_get info num_tests_flaky)
 
         # Update list of tests
         array_add TESTS_PASSED "$(pack_get info tests_passed)"
@@ -850,14 +863,16 @@ __spawn_new_job()
         ETEST_OUT="${jobpath}/etest.out"
         TEST_OUT="/dev/null"
 
+        # Change ETEST_CGROUP to contain our job number so that two concurrently running jobs don't stomp on each other
+        # and look like process leaks.
+        ETEST_CGROUP="${ETEST_CGROUP}-$(basename "${jobpath}")"
+
         # Capture suite name and start time.
         local suite=""
         local runtime="" start_time=${SECONDS}
 
         # Run the correct test runner depending on the type of file.
-        if [[ "${pretend}" -eq 1 ]]; then
-            true
-        elif [[ "${testfile}" =~ \.etest$ ]]; then
+        if [[ "${testfile}" =~ \.etest$ ]]; then
             run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
             suite=$(basename "${testfile}" ".etest")
         else
@@ -893,6 +908,55 @@ __spawn_new_job()
 
     etest_jobs_running+=( ${pid} )
     increment etest_job_count
+}
+
+# Display a summary table of failing tests since there is no output on the screen to help them.
+__display_results_table()
+{
+    echo
+    echo
+
+    declare -a table
+    array_init_nl table "Job|Suite|Result|# Passed|# Failed|# Flaky|Output"
+
+    local entry
+    for entry in ${log_dir}/jobs/*; do
+
+        if [[ ! -e "${entry}/info.pack" ]]; then
+            job="$(basename "${entry}")"
+            status="$(ecolor dim red)ABORTED$(ecolor none)"
+            array_add_nl table "${job}|-|${status}|-|-|-|${entry}/output.log"
+            continue
+        fi
+
+        local info=""
+        pack_load info "${entry}/info.pack"
+        $(pack_import info)
+
+        # Derive status to display with color annotations
+        local status
+        if [[ ${num_tests_failed} -ne 0 ]]; then
+            status="$(ecolor bold red)FAILED$(ecolor none)"
+        elif [[ ${num_tests_flaky} -ne 0 ]]; then
+            status="$(ecolor bold yellow)FLAKY$(ecolor none)"
+        else
+            status="$(ecolor bold green)PASSED$(ecolor none)"
+        fi
+
+        # Annotate numver of failed and flaky tests with color
+        if [[ ${num_tests_failed} -gt 0 ]]; then
+            num_tests_failed="$(ecolor bold red)${num_tests_failed}$(ecolor none)"
+        fi
+
+        if [[ ${num_tests_flaky} -gt 0 ]]; then
+            num_tests_flaky="$(ecolor bold yellow)${num_tests_flaky}$(ecolor none)"
+        fi
+
+        array_add_nl table "${job}|${suite}|${status}|${num_tests_passed}|${num_tests_failed}|${num_tests_flaky}|${entry}/output.log"
+
+    done
+
+    etable --title="$(ecolor bold green)Etest Results$(ecolor none)" --style=boxart "${table[@]}"
 }
 
 #-----------------------------------------------------------------------------------------------------------------------

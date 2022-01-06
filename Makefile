@@ -23,7 +23,6 @@ FAILFAST ?= $(or ${failfast},0)
 FAILURES ?= $(or ${failures},0)
 FILTER   ?= $(or ${filter},)
 JOBS     ?= $(or ${jobs},1)
-PRETEND  ?= $(or ${pretend},0)
 PROGRESS ?= $(or ${progress},1)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
@@ -76,7 +75,6 @@ test:
 		--filter="${FILTER}"        \
 		--jobs=${JOBS}              \
 		--jobs-progress=${PROGRESS} \
-		--pretend=${PRETEND}        \
 		--repeat=${REPEAT}          \
 		--verbose=${V}
 
