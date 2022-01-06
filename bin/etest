@@ -463,7 +463,8 @@ run_single_test()
             fi
 
             : ${ETEST_TIMEOUT:=${timeout}}
-            etestmsg "Running $(lval command tries failures testidx testidx_total timeout=ETEST_TIMEOUT)"
+            : ${ETEST_JOBS:=${jobs}}
+            etestmsg "Running $(lval command tries failures testidx testidx_total timeout=ETEST_TIMEOUT jobs=ETEST_JOBS)"
 
             if [[ -n "${ETEST_TIMEOUT}" && "${ETEST_TIMEOUT}" != "infinity" ]]; then
                 etimeout --timeout="${ETEST_TIMEOUT}" "${command}"
@@ -651,7 +652,9 @@ run_all_tests()
     fi
 
     if [[ ${jobs} -gt 1 ]]; then
+        elogfile_kill --all
         __run_all_tests_parallel
+        cat "${log_dir}"/jobs/*/output.log > "${ETEST_LOG}"
     else
         __run_all_tests_serially
     fi
@@ -667,7 +670,9 @@ __run_all_tests_serially()
         local suite_start_time="${SECONDS}"
 
         # Run the test which could be a single test file or an entire suite (etest) file.
-        if [[ "${testfile}" =~ \.etest$ ]]; then
+        if [[ "${pretend}" -eq 1 ]]; then
+            true
+        elif [[ "${testfile}" =~ \.etest$ ]]; then
             run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
         else
             run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
@@ -694,10 +699,11 @@ __run_all_tests_parallel()
     local etest_job_total=${#TEST_FILES_TO_RUN[@]}
     local etest_job_count=0
     declare -A pidmap=()
-    efreshdir "${work_dir}/jobs"
+    efreshdir "${log_dir}/jobs"
+    local etest_eprogress_pids=()
 
     # Create eprogress status file
-    local etest_progress_file="${work_dir}/jobs/progress.txt"
+    local etest_progress_file="${log_dir}/jobs/progress.txt"
     __update_jobs_progress_file
     if [[ ${jobs_progress} -eq 1 ]]; then
         einfo "Running etest ($(lval jobs))" &>> ${ETEST_OUT}
@@ -705,6 +711,12 @@ __run_all_tests_parallel()
             --style einfos                  \
             --file "${etest_progress_file}" \
             "Total: $(ecolor bold)${etest_job_total}$(ecolor reset)" &>> ${ETEST_OUT}
+
+        # NOTE: We must explicitly empty out __EBASH_EPROGRESS_PIDS otherwise subsequent tests we run may kill this
+        # eprogress and we want it to continue running. So we'll manually handle that here.
+        array_copy __EBASH_EPROGRESS_PIDS etest_eprogress_pids
+        trap_add "__EBASH_EPROGRESS_PIDS=( ${etest_eprogress_pids[*]} ); eprogress_kill -r=1 ${etest_eprogress_pids[*]} &>> ${ETEST_OUT}"
+        __EBASH_EPROGRESS_PIDS=()
     fi
 
     while true; do
@@ -725,7 +737,8 @@ __run_all_tests_parallel()
 
     done
 
-    eprogress_kill --rc=${#etest_jobs_failed[@]}
+    array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
+    eprogress_kill --rc=${#etest_jobs_failed[@]} &>> ${ETEST_OUT}
 }
 
 # __update_jobs_progress_file is a special internal helper function called by __run_all_tests_parallel to update the
@@ -811,7 +824,7 @@ __process_completed_jobs()
         fi
 
         if [[ ${jobs_progress} -eq 0 ]]; then
-            cat "${path}/output.log" >> "${ETEST_OUT}"
+            cat "${path}/etest.out"  >> "${ETEST_OUT}"
         fi
     done
 }
@@ -824,16 +837,24 @@ __spawn_new_job()
     local testfile=${etest_jobs_queued[${etest_job_count}]}
     edebug "Starting next job: ${testfile}"
 
-    local jobpath="${work_dir}/jobs/${etest_job_count}"
+    local jobpath="${log_dir}/jobs/${etest_job_count}"
     mkdir -p "${jobpath}"
 
     # Run the test which could be a single test file or an entire suite (etest) file.
     (
-        ETEST_OUT="${jobpath}/output.log"
+        # Setup logfile for this background job and also set ETEST_OUT to a per-job file to collect etest output so we
+        # can display it when the test completes (if ticker is turned off). The test output itself always goes to
+        # /dev/null because elogfile is collecting the output for us and we'll aggregate it when etest is finished.
+        elogfile "${jobpath}/output.log"
+        trap_add "elogfile_kill --all"
+        ETEST_OUT="${jobpath}/etest.out"
+        TEST_OUT="/dev/null"
 
+        # Capture suite name and start time.
         local suite=""
         local runtime="" start_time=${SECONDS}
 
+        # Run the correct test runner depending on the type of file.
         if [[ "${pretend}" -eq 1 ]]; then
             true
         elif [[ "${testfile}" =~ \.etest$ ]]; then

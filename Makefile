@@ -16,6 +16,7 @@
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
 CACHE    ?= $(or ${cache},1)
 COLUMNS  ?= $(or ${columns},$(shell tput cols))
+DELETE   ?= $(or ${delete},1)
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
@@ -69,6 +70,7 @@ selftest:
 test:
 	bin/etest \
 		--debug="${EDEBUG}"         \
+		--delete=${DELETE}          \
 		--exclude="${EXCLUDE}"      \
 		--failfast=${FAILFAST}      \
 		--filter="${FILTER}"        \
