@@ -115,6 +115,7 @@ DRUN = bin/ebash docker_run          \
 	--privileged                     \
 	--rm                             \
 	--workdir /ebash                 \
+	$$$$(cat .work/docker/ebash-build-$1/image)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Docker template
@@ -134,19 +135,19 @@ ${1}_IMAGE_FULL = $(shell cat .work/docker/ebash-build-$1/image 2>/dev/null)
 
 .PHONY: dlint-$1
 dlint-$1: docker-$1
-	${DRUN} $${$1_IMAGE_FULL} make lint
+	${DRUN} make lint
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
-	${DRUN} $${$1_IMAGE_FULL} make selftest
+	${DRUN} make selftest
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
-	${DRUN} $${$1_IMAGE_FULL} make test
+	${DRUN} make test
 
 .PHONY: dshell-$1
 dshell-$1: docker-$1
-	${DRUN} $${$1_IMAGE_FULL} /bin/bash
+	${DRUN} /bin/bash
 
 .PHONY: docker-$1
 docker-$1:
