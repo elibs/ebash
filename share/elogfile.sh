@@ -173,9 +173,9 @@ elogfile_pids()
     # Convert provided pid sets into a single flat array of pids. Split on either a comma or a space so that we can
     # flatten the list of pid sets into a single pid list.
     local pids=()
-    array_init pids "${__EBASH_ELOGFILE_PID_SETS[*]}" ", "
+    array_init pids "${__EBASH_ELOGFILE_PID_SETS[*]:-}" ", "
 
-    echo "${pids[*]}" | tr ' ' '\n'
+    echo "${pids[*]:-}" | tr ' ' '\n'
 }
 
 opt_usage __elogfile_pid_remove <<'END'

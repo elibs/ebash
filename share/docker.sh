@@ -99,6 +99,7 @@ docker_build()
         "&build_arg                         | Build arguments to pass into lower level docker build --build-arg."      \
         "&ibuild_arg                        | Build arguments that should be interpolated inplace instead of passing
                                               into the lower level docker build."                                      \
+        "+cache=1                           | Use local docker cache when building docker image."                      \
         ":cache_from                        | Images to consider as cache sources. Passthrough into docker build."     \
         ":file=Dockerfile                   | The docker file to use. Defaults to Dockerfile."                         \
         "=name                              | Name of docker image to create. This will also be used as the cache
@@ -132,6 +133,7 @@ docker_build()
     edebug $(lval      \
         build_arg      \
         ibuild_arg     \
+        cache          \
         cache_from     \
         dockerfile     \
         file           \
@@ -139,6 +141,7 @@ docker_build()
         overlay        \
         overlay_tree   \
         pretend        \
+        pull           \
         push           \
         repo           \
         sha            \
@@ -158,12 +161,10 @@ docker_build()
         docker history "${image}" > "${histfile}"
         docker inspect "${image}" > "${inspfile}"
 
-        opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
+        opt_forward docker_tag image -- ${tag[*]:-}
 
         if [[ ${push} -eq 1 ]]; then
-            local push_tags
-            push_tags=( ${image} ${tag[@]:-} )
-            opt_forward docker_push registry username password -- ${push_tags[*]}
+            opt_forward docker_push registry username password -- ${image} ${tag[*]:-}
         fi
 
         return 0
@@ -176,7 +177,7 @@ docker_build()
             docker history "${image}" > "${histfile}"
             docker inspect "${image}" > "${inspfile}"
 
-            opt_forward docker_pull image registry username password cache_from -- ${tag[*]:-}
+            opt_forward docker_tag image -- ${tag[*]:-}
 
             # NOTE: Do not push the image we just pulled. We only have to push any additional tags we were provided.
             if [[ ${push} -eq 1 ]]; then
@@ -209,16 +210,24 @@ docker_build()
     fi
 
     eprogress "Building docker $(lval image tags=tag)"
-    if ! docker build                                    \
-        --file "${dockerfile}"                           \
-        --cache-from "${cache_from}"                     \
-        --tag "${image}"                                 \
-        $(array_join --before tag " --tag ")             \
-        $(array_join --before build_arg " --build-arg ") \
-        . |& tee "${buildlog}" | edebug; then
+    local docker_build_args=(
+        --file "${dockerfile}"
+        --cache-from "${cache_from}"
+        --tag "${image}"
+        $(array_join --before tag " --tag ")
+        $(array_join --before build_arg " --build-arg ")
+    )
 
+    if [[ ${cache} -eq 0 ]]; then
+        docker_build_args+=( --no-cache )
+    fi
+
+    edebug "Calling docker build with $(lval docker_build_args)"
+
+    if ! docker build "${docker_build_args[@]}" . |& tee "${buildlog}" | edebug; then
+        echo "" >&2
         eerror "Fatal error building docker image. Showing tail from ${buildlog}:"
-        tail -n 20 "${buildlog}"
+        tail -n 100 "${buildlog}" >&2
         die "Fatal error building docker image. See ${buildlog}"
     fi
 
@@ -231,9 +240,7 @@ docker_build()
     docker history "${image}" | tee "${histfile}"
 
     if [[ ${push} -eq 1 ]]; then
-        local push_tags
-        push_tags=( ${image} ${tag[@]:-} )
-        opt_forward docker_push registry username password -- ${push_tags[*]}
+        opt_forward docker_push registry username password -- ${image} ${tag[*]:-}
     fi
 
     # Only create inspect (stamp) file at the very end after everything has been done.
@@ -269,6 +276,33 @@ docker_login()
 
     # Now delegate the actual login to real docker process
     echo "${password}" | docker login --username "${username}" --password-stdin "${registry}" |& edebug
+}
+
+opt_usage docker_tag <<'END'
+`docker_tag` is an intelligent wrapper around vanilla `docker tag` which integrates more nicely with ebash. In
+addition to the normal additional error checking and hardening the ebash variety brings, this version is variadic and
+will apply a list of tags to a given base image.
+END
+docker_tag()
+{
+    $(opt_parse \
+        "=image                             | Base image to look for in the event we are unable to locate the requested
+                                              tags locally. This saves us from having to rebuild all the images if we
+                                              can simply tag them instead."                                            \
+        "@tags                              | List of tags to apply to the base image."                                \
+    )
+
+    if array_empty tags; then
+        return 0
+    fi
+
+    einfo "Tagging local $(lval image tags)"
+
+    local tag
+    for tag in "${tags[@]}"; do
+        einfos "${image} -> ${tag}"
+        docker tag "${image}" "${tag}"
+    done
 }
 
 opt_usage docker_pull <<'END'
@@ -649,4 +683,94 @@ docker_export()
     mv "${convert_out}" "${output}"
 
     eprogress_kill
+}
+
+opt_usage docker_run <<'END'
+`docker_run` is an intelligent wrapper around vanilla `docker run` which integrates nicely with ebash. In addition to
+the normal additional error checking and hardening the ebash variety brings, this version provides the following super
+useful features:
+
+- Accept a list of environment variables which should be exported into the underlying docker run command. Each of these
+  variables will be expanded in-place by ebash using `expand_vars`. As such the variables can be a simple list of env
+  variables to export as in `FOO BAR ZAP` or they can point to other variables as in `FOO=PWD BAR ZAP` or they can
+  point to string literals as in `FOO=/home/marshall BAR=1 ZAP=blah`. Each of these will be expanded into a formatted
+  option to docker of the form `--env FOO=VALUE`.
+- Enable seamless nested docker-in-docker support by bind-mounting the docker socket into the the container.
+- Create ephemeral docker volumes and copy a specified local path into the docker volume and attach that volume to the
+  running docker container. This is useful for running with a DOCKER_HOST which points to an external docker server.
+- Automatically determine what value to use for --interactive.
+END
+docker_run()
+{
+    $(opt_parse \
+        ":envlist                           | List of environment variables to pass into lowever level docker run. These
+                                              will be sorted before passing them into docker for better testability and
+                                              consistency."                                                            \
+        "+nested                            | Enable nested docker-in-docker."                                         \
+        "&copy_to_volume                    | Copy the specified path into a volume which is attached to the docker run
+                                              instance. This is useful when running with a remote DOCKER_HOST where a
+                                              simple bind mount does not work. This is also safe to use when running
+                                              against a local docker host so should be preferred. The syntax for a path
+                                              volume is local_path:/docker_path"                                       \
+        ":interactive=auto                  | This can be 'yes' or 'no' or 'auto' to automatically determine if we are
+                                              interactive by looking at we're run from an interactive shell or not."   \
+    )
+
+    # Final list of docker args we will use
+    local docker_args=()
+
+    # Expand env variables as required
+    if [[ -n "${envlist}" ]]; then
+        declare -A envs
+
+        # use `eval` here so that any embedded qutoes inside `envlist` are preserved properly as-is without us trying
+        # to interpret them. Otherwise it messes up how they are parsed inside `expand_vars`.
+        eval expand_vars --no-quotes envs "${envlist}"
+
+        local key
+        for key in $(array_indexes_sort envs); do
+            docker_args+=( --env ${key}="${envs[$key]}" )
+        done
+    fi
+
+    if [[ ${nested} -eq 1 ]]; then
+        docker_args+=( --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" )
+    fi
+
+    # Deal with all copy_to_volumes
+    local entry name
+    for entry in ${copy_to_volume[*]:-}; do
+
+        local lpath="${entry%%:/*}"
+        local rpath="${entry#*:/}"
+        name="$(basename "${lpath}")"
+
+        edebug "Creating docker container for volume ${name}:/${rpath}"
+        docker container create --name "${name}" -v "${name}:/${rpath}" busybox | edebug
+        trap_add "docker volume rm ${name} |& edebug"
+        trap_add "docker rm ${name} |& edebug"
+        docker cp "${lpath}/." "${name}:/${rpath}"
+
+        docker_args+=( --volume="${name}:/${rpath}" )
+    done
+
+    # Set --interactive as requested
+    if [[ "${interactive,,}" == "yes" ]]; then
+        docker_args+=( --interactive )
+    elif [[ "${interactive,,}" == "no" ]]; then
+        :
+    elif [[ "${interactive,,}" == "auto" ]]; then
+
+        if [[ -t 0 ]]; then
+            docker_args+=( --interactive )
+        fi
+    else
+        die "Unsupported value for $(lval interactive)."
+    fi
+
+    # Pass any other provided arguments into docker run directly.
+    docker_args+=( ${@:-} )
+
+    edebug "Calling docker run with $(lval docker_args)"
+    docker run "${docker_args[@]}"
 }
