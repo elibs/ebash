@@ -795,7 +795,7 @@ __update_jobs_progress_file()
 # stats are specific to a single suite which is the granularity if our parallelism.
 __process_completed_jobs()
 {
-    for pid in "${etest_jobs_running[@]}"; do
+    for pid in ${etest_jobs_running[*]:-}; do
 
         if process_running "${pid}"; then
             continue
