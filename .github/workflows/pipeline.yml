@@ -78,7 +78,7 @@ jobs:
      #  run: bin/eretry make dselftest-${{ matrix.container }}
 
       - name: Test
-        run: make dtest-${{ matrix.container }} failfast=1 failures=5 jobs=$(nproc) jobsformat=verbose
+        run: make dtest-${{ matrix.container }} failfast=1 failures=5 jobs=$(nproc) jobs_progress=0
 
       - name: Archive test results
         if: always()
@@ -109,15 +109,15 @@ jobs:
         run: install/all
 
       - name: Lint
-        run: bin/bashlint --severity=error
+        run: make lint
 
       - name: Self Test
-        run: bin/eretry bin/selftest
+        run: make selftest
 
       # Run all unit tests. We exclude docker tests for Darwin for our CI/CD pipeline as they don't run successfully
       # inside GitHub actions though they run perfectly fine locally.
       - name: Test
-        run: bin/etest --exclude=docker --work-dir .work/output --failfast --failures 5
+        run: make test failfast=1 failures=5 jobs=$(nproc) jobs_progress=0
 
       - name: Archive test results
         if: always()
