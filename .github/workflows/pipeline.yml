@@ -74,8 +74,8 @@ jobs:
       - name: Lint
         run: make dlint-${{ matrix.container }}
 
-      - name: Self Test
-        run: bin/eretry make dselftest-${{ matrix.container }}
+      #- name: Self Test
+      #  run: bin/eretry make dselftest-${{ matrix.container }}
 
       - name: Test
         run: make dtest-${{ matrix.container }} failfast=1 failures=5 jobs=$(nproc) progress=0 v=1
@@ -111,8 +111,8 @@ jobs:
       - name: Lint
         run: make lint
 
-      - name: Self Test
-        run: make selftest
+      #- name: Self Test
+      #   run: make selftest
 
       # Run all unit tests. We exclude docker tests for Darwin for our CI/CD pipeline as they don't run successfully
       # inside GitHub actions though they run perfectly fine locally.
