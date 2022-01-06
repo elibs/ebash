@@ -77,7 +77,7 @@ $(opt_parse \
     ":jobs_delay=5s                | Amount of time to sleep in job monitor while waiting for jobs to complete. This
                                      uses sleep(1) time syntax."                                                       \
     "+jobs_progress=1              | Show jobs eprogress summary ticker while running."                                \
-    ":log_dir                      | Directory to place logs in. Defaults to the current directory."                   \
+    ":logdir log_dir               | Directory to place logs in. Defaults to the current directory."                   \
     "+mount_ns=1                   | Run tests inside a mount namespace."                                              \
     ":repeat  r=${REPEAT:-1}       | Number of times to repeat each test."                                             \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
@@ -87,7 +87,7 @@ $(opt_parse \
                                      files. Relative paths will be interpreted against the current directory. This
                                      option may be specified multiple times."                                          \
     "+verbose v=${VERBOSE:-0}     | Verbose output."                                                                   \
-    ":work_dir                    | Temporary location where etest can place temporary files. This location will be both
+    ":workdir work_dir            | Temporary location where etest can place temporary files. This location will be both
                                     created and deleted by etest."                                                     \
     ":timeout=infinity            | Per-Test timeout. After this duration the test will be killed if not completed. You
                                     can also define this programmatically in setup() using the ETEST_TIMEOUT variable.
@@ -142,9 +142,10 @@ fi
 START_TIME=${SECONDS}
 
 # Default log directory from conf file if unspecified on the command line
-: ${log_dir:=$(conf_get _EBASH_CONF etest.log_dir)}
-: ${log_dir:=.}
-log_dir=$(readlink -f ${log_dir})
+: ${logdir:=$(conf_get _EBASH_CONF etest.log_dir)}
+: ${logdir:=$(conf_get _EBASH_CONF etest.logdir)}
+: ${logdir:=.}
+logdir=$(readlink -f ${logdir})
 
 # Layer the filter setting by first looking for any static filter settings in the config file, then any explicit filter
 # options passed in on the command-line. Join any whitespace with a '|' to convert it to a bash style regex.
@@ -174,10 +175,11 @@ if array_not_empty test_list ; then
 fi
 
 # Default working directory from conf file if unspecified, or ./output if not in either place
-: ${work_dir:=$(conf_get _EBASH_CONF etest.work_dir)}
-: ${work_dir:=./output}
-mkdir -p "${work_dir}"
-work_dir=$(readlink -f ${work_dir})
+: ${workdir:=$(conf_get _EBASH_CONF etest.work_dir)}
+: ${workdir:=$(conf_get _EBASH_CONF etest.workdir)}
+: ${workdir:=./output}
+mkdir -p "${workdir}"
+workdir=$(readlink -f ${workdir})
 
 EDEBUG=${debug}
 
@@ -195,7 +197,7 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
-artifact_name="$(echo "${log_dir}/${name:-etest}" | tr ' ' '_')"
+artifact_name="$(echo "${logdir}/${name:-etest}" | tr ' ' '_')"
 ETEST_LOG="${artifact_name}.log"
 ETEST_JSON="${artifact_name}.json"
 ETEST_XML="${artifact_name}.xml"
@@ -240,14 +242,16 @@ die_handler()
 
 assert_no_process_leaks()
 {
+    $(opt_parse cgroup)
+
     if ! cgroup_supported; then
         return 0
     fi
 
-    edebug "Checking for process leaks in ${ETEST_CGROUP}"
+    edebug "Checking for process leaks in ${cgroup}"
 
-    if ! cgroup_exists "${ETEST_CGROUP}"; then
-        edebug "$(lval ETEST_CGROUP) does not exist -- returning"
+    if ! cgroup_exists "${cgroup}"; then
+        edebug "$(lval cgroup) does not exist -- returning"
         return 0
     fi
 
@@ -256,36 +260,39 @@ assert_no_process_leaks()
     # left.
     try
     {
-        eretry -T=5s cgroup_empty "${ETEST_CGROUP}"
+        eretry -T=5s cgroup_empty "${cgroup}"
     }
     catch
     {
         local leaked_processes=""
-        leaked_processes=$(cgroup_ps "${ETEST_CGROUP}")
+        leaked_processes=$(cgroup_ps "${cgroup}")
 
         if [[ -n ${leaked_processes} ]]; then
-            cgroup_kill_and_wait -s=SIGKILL "${ETEST_CGROUP}"
-            eerror "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
+            cgroup_kill_and_wait -s=SIGKILL "${cgroup}"
+            eerror "Leaked processes in ${cgroup}:\n${leaked_processes}"
             return 1
         fi
     }
 
-    edebug "Finished checking for process leaks in ${ETEST_CGROUP}"
+    edebug "Finished checking for process leaks in ${cgroup}"
 }
 
 assert_no_mount_leaks()
 {
+    $(opt_parse path)
+    edebug "Checking for stale mounts under $(lval path)"
+
     local mounts=()
-    mounts=( $(efindmnt "${work_dir}" ) )
+    mounts=( $(efindmnt "${path}" ) )
 
     if ! array_empty mounts; then
-        eunmount --all --recursive --delete=${delete} "${work_dir}"
-        eerror "Leaked under $(lval mounts work_dir)"$'\n'"$(array_join_nl mounts)"
+        eunmount --all --recursive --delete=${delete} "${path}"
+        eerror "Leaked under $(lval mounts path)"$'\n'"$(array_join_nl mounts)"
         return 1
     fi
 
     if [[ ${delete} -eq 1 ]]; then
-        rm --recursive --force "${work_dir}"
+        rm --recursive --force "${path}"
     fi
 
     edebug "Finished"
@@ -304,7 +311,7 @@ global_setup()
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
-    efreshdir "${work_dir}"
+    efreshdir "${workdir}"
 
     # If cgroups are supported, create a new parent cgroup which will contain all our processes including the elogfile
     # processes we already launched.
@@ -326,8 +333,8 @@ global_teardown()
     # cleanup after this.
     try
     {
-        assert_no_process_leaks
-        assert_no_mount_leaks
+        assert_no_process_leaks "${ETEST_CGROUP}"
+        assert_no_mount_leaks "${workdir}"
     }
     catch
     {
@@ -363,7 +370,7 @@ run_single_test()
     $(opt_parse \
         ":testidx       | Test index of current test. Mose useful if the test is a function inside a test suite." \
         ":testidx_total | Total number of tests. Most useful if the test is a function inside a test suite." \
-        ":work_dir      | Temporary directory that the test should use as its current working directory." \
+        ":testdir       | Temporary directory that the test should use as its current working directory." \
         ":source        | Name of the file to be sourced in the shell that will run the test. Most useful if the test is
                           a function inside that file." \
         "testname       | Command to execute to run the test")
@@ -412,7 +419,7 @@ run_single_test()
         # the teardown to run inside the test-specific cgroup. This subshell solves both issues.
         try
         {
-            export EBASH EBASH_HOME TEST_DIR_OUTPUT=${work_dir}
+            export EBASH EBASH_HOME TEST_DIR_OUTPUT=${testdir}
             if [[ -n ${source} ]] ; then
                 source "${source}"
 
@@ -429,9 +436,9 @@ run_single_test()
             __EBASH_INSIDE_TRY=0
 
             # Create our temporary workspace in the directory specified by the caller
-            efreshdir "${work_dir}"
-            mkdir "${work_dir}/tmp"
-            TMPDIR="$(readlink -m ${work_dir}/tmp)"
+            efreshdir "${testdir}"
+            mkdir "${testdir}/tmp"
+            TMPDIR="$(readlink -m ${testdir}/tmp)"
             export TMPDIR
 
             if cgroup_supported ; then
@@ -447,7 +454,7 @@ run_single_test()
             fi
             ETEST_COMMAND="${command}"
 
-            cd "${work_dir}"
+            cd "${testdir}"
 
             # Run suite setup function if provided and we're on the first test.
             if is_function suite_setup && [[ ${testidx} -eq 0 ]]; then
@@ -492,8 +499,8 @@ run_single_test()
         # Verify there are no process or memory leaks. If so kill them and try again if that is permitted.
         try
         {
-            assert_no_process_leaks
-            assert_no_mount_leaks
+            assert_no_process_leaks "${ETEST_CGROUP}"
+            assert_no_mount_leaks   "${testdir}"
         }
         catch
         {
@@ -569,12 +576,12 @@ run_etest_file()
     for idx in $(array_indexes functions); do
 
         local testfunc=${functions[$idx]}
-        local test_work_dir="${work_dir}/${testfilename}/${testfunc}"
+        local testdir="${workdir}/${testfilename}/${testfunc}"
 
         run_single_test                                 \
             --testidx ${idx}                            \
             --testidx-total $(( ${#functions[@]} - 1 )) \
-            --work-dir "${test_work_dir}"               \
+            --testdir "${testdir}"                      \
             --source "${testfile}"                      \
             "${testfunc}"
 
@@ -656,7 +663,7 @@ run_all_tests()
     if [[ ${jobs} -gt 1 ]]; then
         elogfile_kill --all
         __run_all_tests_parallel
-        cat "${log_dir}"/jobs/*/output.log > "${ETEST_LOG}"
+        cat "${logdir}"/jobs/*/output.log > "${ETEST_LOG}"
     else
         __run_all_tests_serially
     fi
@@ -675,7 +682,7 @@ __run_all_tests_serially()
         if [[ "${testfile}" =~ \.etest$ ]]; then
             run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
         else
-            run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
+            run_single_test --testdir "${workdir}/$(basename ${testfile})" "${testfile}"
         fi
 
         if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
@@ -703,11 +710,11 @@ __run_all_tests_parallel()
     local etest_job_total=${#TEST_FILES_TO_RUN[@]}
     local etest_job_count=0
     declare -A pidmap=()
-    efreshdir "${log_dir}/jobs"
+    efreshdir "${logdir}/jobs"
     local etest_eprogress_pids=()
 
     # Create eprogress status file
-    local etest_progress_file="${log_dir}/jobs/progress.txt"
+    local etest_progress_file="${logdir}/jobs/progress.txt"
     __update_jobs_progress_file
     if [[ ${jobs_progress} -eq 1 ]]; then
         einfo "Running etest ($(lval jobs))" &>> ${ETEST_OUT}
@@ -850,7 +857,7 @@ __spawn_new_job()
     local testfile=${etest_jobs_queued[${etest_job_count}]}
     edebug "Starting next job: ${testfile}"
 
-    local jobpath="${log_dir}/jobs/${etest_job_count}"
+    local jobpath="${logdir}/jobs/${etest_job_count}"
     mkdir -p "${jobpath}"
 
     # Run the test which could be a single test file or an entire suite (etest) file.
@@ -876,7 +883,7 @@ __spawn_new_job()
             run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
             suite=$(basename "${testfile}" ".etest")
         else
-            run_single_test --work-dir "${work_dir}/$(basename ${testfile})" "${testfile}"
+            run_single_test --testdir "${workdir}/$(basename ${testfile})" "${testfile}"
             suite="$(basename "${testfile}")"
         fi
 
@@ -920,7 +927,7 @@ __display_results_table()
     array_init_nl table "Job|Suite|Result|# Passed|# Failed|# Flaky|Output"
 
     local entry
-    for entry in ${log_dir}/jobs/*; do
+    for entry in ${logdir}/jobs/*; do
 
         if [[ ! -e "${entry}/info.pack" ]]; then
             job="$(basename "${entry}")"
@@ -1045,12 +1052,13 @@ create_summary()
 					"failures": "${failures}",
 					"filter": "${filter}",
 					"html": "${html}",
-					"log_dir": "${log_dir}",
+					"logdir": "${logdir}",
 					"mount_ns": "${mount_ns}",
 					"repeat": "${repeat}",
 					"test_list": $(array_to_json test_list),
 					"tests": $(array_to_json tests),
-					"verbose": "${verbose}"
+					"verbose": "${verbose}",
+                    "workdir": "${workdir}"
 				},
 				"vcs": $(pack_to_json VCS_INFO)
 			}
