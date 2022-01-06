@@ -317,7 +317,7 @@ global_setup()
     # processes we already launched.
     if cgroup_supported ; then
         cgroup_create ${ETEST_CGROUP}
-        cgroup_move ${ETEST_CGROUP} $$ $(elogfile_pids)
+        cgroup_move ${ETEST_CGROUP_BASE} $$ $(elogfile_pids)
     fi
 
     edebug "Finished global_setup"
