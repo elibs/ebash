@@ -887,6 +887,13 @@ __spawn_new_job()
         ETEST_OUT="${jobpath}/etest.out"
         TEST_OUT="/dev/null"
 
+        # Initialize counters to 0. Otherwise they inherit the external incrementing value. We want to only get the
+        # delta from this test run on its own.
+        NUM_TESTS_EXECUTED=0
+        NUM_TESTS_PASSED=0
+        NUM_TESTS_FAILED=0
+        NUM_TESTS_FLAKY=0
+
         # Capture suite name and start time.
         local suite=""
         local runtime="" start_time=${SECONDS}
