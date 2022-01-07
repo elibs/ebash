@@ -318,6 +318,13 @@ assert_num_ge()
     assert_ge "${lh}" "${rh}" "${msg}"
 }
 
+assert_int_ge()
+{
+    $(opt_parse "lh" "rh" "?msg")
+    assert_int "${lh}""${rh}" || die "assert_int failed [${msg:-}] :: $(lval lh rh)"
+    assert_ge "${lh}" "${rh}" "${msg}"
+}
+
 opt_usage assert_docker_image_exists <<'END'
 This function asserts that a docker image exists locally.
 END

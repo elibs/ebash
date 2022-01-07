@@ -20,21 +20,6 @@ test_binary="reset"
 test_binary_path="$(which ${test_binary})"
 test_binary_flag="-V"
 
-dump_state()
-{
-    local fname="" contents=""
-    for fname in $(find .emock-$$ -type f); do
-        contents=""
-        if [[ $(basename "${fname}") == "args" ]]; then
-            array_init_nl contents "$(cat ${fname})"
-        else
-            contents="$(cat "${fname}")"
-        fi
-
-        etestmsg "$(lval fname contents)"
-    done
-}
-
 #-----------------------------------------------------------------------------------------------------------------------
 #
 # Tests
@@ -104,7 +89,7 @@ ETEST_emock_called()
 
     etestmsg "Mocking func"
     emock "func"
-    dump_state
+    emock_dump_state "func"
     assert_eq 0 "$(cat .emock-$$/func/called)"
     assert_eq 0 "$(emock_called func)"
     assert_emock_called "func" 0
@@ -112,7 +97,7 @@ ETEST_emock_called()
     ## CALL 1 (index 0) ##
     etestmsg "Calling mock#1 index=0"
     func
-    dump_state
+    emock_dump_state "func"
     assert_eq 1 "$(cat .emock-$$/func/called)"
     assert_eq 1 "$(emock_called func)"
     assert_emock_called "func" 1
@@ -132,7 +117,7 @@ ETEST_emock_called()
     echo
     etestmsg "Calling mock#1 index=1"
     func
-    dump_state
+    emock_dump_state "func"
     assert_eq 2 "$(cat .emock-$$/func/called)"
     assert_eq 2 "$(emock_called func)"
     assert_emock_called "func" 2
@@ -173,7 +158,7 @@ ETEST_emock_called_filesystem()
     ## CALL 1 (index 0) ##
     etestmsg "Calling mock#1 index=0"
     ${test_binary_path}
-    dump_state
+    emock_dump_state "${test_binary_path}"
     assert_eq 1 "$(cat .emock-$$/${test_binary}/called)"
     assert_eq 1 "$(emock_called ${test_binary_path})"
     assert_emock_called "${test_binary_path}" 1
@@ -193,7 +178,7 @@ ETEST_emock_called_filesystem()
     echo
     etestmsg "Calling mock#2 index=1"
     ${test_binary_path}
-    dump_state
+    emock_dump_state "${test_binary_path}"
     assert_eq 2 "$(cat .emock-$$/${test_binary}/called)"
     assert_eq 2 "$(emock_called ${test_binary_path})"
     assert_emock_called "${test_binary_path}" 2
@@ -220,7 +205,7 @@ ETEST_emock_called_nonexistent()
 {
     etestmsg "Mocking nonexistent function"
     emock "nonexistent"
-    dump_state
+    emock_dump_state "nonexistent"
     assert_eq 0 "$(cat .emock-$$/nonexistent/called)"
     assert_eq 0 "$(emock_called nonexistent)"
     assert_emock_called "nonexistent" 0
@@ -228,7 +213,7 @@ ETEST_emock_called_nonexistent()
     ## CALL 1 (index 0) ##
     etestmsg "Calling mock#1 index=0"
     nonexistent
-    dump_state
+    emock_dump_state "nonexistent"
     assert_eq 1 "$(cat .emock-$$/nonexistent/called)"
     assert_eq 1 "$(emock_called nonexistent)"
     assert_emock_called "nonexistent" 1
@@ -248,7 +233,7 @@ ETEST_emock_called_nonexistent()
     echo
     etestmsg "Calling mock#1 index=1"
     nonexistent
-    dump_state
+    emock_dump_state "nonexistent"
     assert_eq 2 "$(cat .emock-$$/nonexistent/called)"
     assert_eq 2 "$(emock_called nonexistent)"
     assert_emock_called "nonexistent" 2
@@ -283,7 +268,7 @@ ETEST_emock_called_nonexistent_filesystem()
 {
     etestmsg "Mocking nonexistent file"
     emock --filesystem "nonexistent"
-    dump_state
+    emock_dump_state "nonexistent"
     assert_eq 0 "$(cat .emock-$$/nonexistent/called)"
     assert_eq 0 "$(emock_called nonexistent)"
     assert_emock_called "nonexistent" 0
@@ -291,7 +276,7 @@ ETEST_emock_called_nonexistent_filesystem()
     ## CALL 1 (index 0) ##
     etestmsg "Calling mock#1 index=0"
     ./nonexistent
-    dump_state
+    emock_dump_state "nonexistent"
     assert_eq 1 "$(cat .emock-$$/nonexistent/called)"
     assert_eq 1 "$(emock_called nonexistent)"
     assert_emock_called "nonexistent" 1
@@ -311,7 +296,7 @@ ETEST_emock_called_nonexistent_filesystem()
     echo
     etestmsg "Calling mock#1 index=1"
     ./nonexistent
-    dump_state
+    emock_dump_state "nonexistent"
     assert_eq 2 "$(cat .emock-$$/nonexistent/called)"
     assert_eq 2 "$(emock_called nonexistent)"
     assert_emock_called "nonexistent" 2
@@ -348,14 +333,14 @@ ETEST_emock_indexes()
 
     etestmsg "Mocking func"
     emock "func"
-    dump_state
+    emock_dump_state "func"
     assert_emock_called "func" 0
     assert_empty "$(emock_indexes "func")"
 
     ## CALL 1 (index 0) ##
     etestmsg "Calling mock#1 index=0"
     func
-    dump_state
+    emock_dump_state "func"
     assert_emock_called "func" 1
     assert_eq "0" "$(emock_indexes "func")"
 
@@ -363,7 +348,7 @@ ETEST_emock_indexes()
     echo
     etestmsg "Calling mock#2 index=1"
     func
-    dump_state
+    emock_dump_state "func"
     assert_emock_called "func" 2
     assert_eq "0 1" "$(emock_indexes "func")"
     assert_eq "1"   "$(emock_indexes --last "func")"
@@ -528,7 +513,7 @@ ETEST_emock_args()
     ## CALL 1 (index 0) ##
     etestmsg "Calling func with arguments"
     func "1" "2" "3" "dogs and cats" "Anarchy"
-    dump_state
+    emock_dump_state "func"
     local args
     array_init_nl args "$(emock_args func)"
 
@@ -564,7 +549,7 @@ ETEST_emock_body()
 
     etestmsg "Calling with args=bar (should succeed)"
     $(tryrc func "bar")
-    dump_state
+    emock_dump_state "func"
     assert_eq 0 ${rc}
     etestmsg "Mocked function was called with:"
     cat .emock-$$/func/0/args
@@ -576,7 +561,7 @@ ETEST_emock_body()
 
     etestmsg "Calling with args=foo (should fail)"
     $(tryrc func "foo")
-    dump_state
+    emock_dump_state "func"
     assert_eq 1 ${rc}
     etestmsg "Mocked function was called with:"
     cat .emock-$$/func/1/args

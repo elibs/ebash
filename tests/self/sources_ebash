@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-
-$(${EBASH_HOME}/bin/ebash --source)
-
-assert_eq "A" "A"

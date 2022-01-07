@@ -31,7 +31,7 @@ fi
 
 # If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
 if [[ -n "${package}" ]]; then
-    pkg_install "${package}"
+    pkg_install --sync "${package}"
 elif os linux; then
 
     # If we already have Go installed there's nothing to do.

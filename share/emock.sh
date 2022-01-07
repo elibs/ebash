@@ -776,3 +776,64 @@ assert_emock_called_with()
 
     diff <(printf "%s\n" "${expect[@]}") <(printf "%s\n" "${actual[@]}")
 }
+
+opt_usage emock_dump_state <<'END'
+`emock_dump_state` is used to dump the state values of an existing mock.
+END
+emock_dump_state()
+{
+    $(opt_parse \
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
+                                              hold metadata information such as the number of times the mock was called
+                                              as well as the exit code, stdout, and stderr for each invocation."       \
+        "name                               | Name of the binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."     \
+    )
+
+    einfo "Dumping Mock State for $(lval name)"
+
+    statedir+="/$(basename "${name}")"
+
+    local fpath="" fname="" contents=""
+    for fname in $(find "${statedir}" -type f -printf '%P\n'); do
+
+        fpath="${statedir}/${fname}"
+        contents=""
+
+        if [[ $(basename "${fpath}") == "args" ]]; then
+            array_init_nl contents "$(cat ${fpath})"
+        else
+            contents="$(cat "${fpath}")"
+        fi
+
+        einfos "${fname}: $(print_value contents)"
+    done
+}
+
+opt_usage emock_dump_all_state <<'END'
+`emock_dump_all_state` is used to dump the state values of all existing mock.
+END
+emock_dump_all_state()
+{
+    $(opt_parse \
+        ":statedir=${PWD}/.emock-$$         | This directory is used to track state about mocked binaries. This will
+                                              hold metadata information such as the number of times the mock was called
+                                              as well as the exit code, stdout, and stderr for each invocation."       \
+    )
+
+    einfo "Dumping Mock State for all mocks"
+
+    local fpath="" fname="" contents=""
+    for fname in $(find "${statedir}" -type f -printf '%P\n'); do
+
+        fpath="${statedir}/${fname}"
+        contents=""
+
+        if [[ $(basename "${fpath}") == "args" ]]; then
+            array_init_nl contents "$(cat ${fpath})"
+        else
+            contents="$(cat "${fpath}")"
+        fi
+
+        einfos "${fname}: $(print_value contents)"
+    done
+}

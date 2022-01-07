@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests: Usage
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_options_usage()
+{
+    etestmsg "Calling 'etest -?'"
+    set -- -?
+    source "${EBASH}/etest/options.sh" &> output
+
+    etestmsg "Validating expected options are present"
+
+    grep "clean, -c"                    output
+    grep "debug, -D <value>"            output
+    grep "delete, -d"                   output
+    grep "exclude, -x <value>"          output
+    grep "failfast, --break, -b"        output
+    grep "failures <value>"             output
+    grep "filter, -f <value>"           output
+    grep "html, -h"                     output
+    grep "jobs, -j <value>"             output
+    grep "jobs-delay <value>"           output
+    grep "jobs-progress"                output
+    grep "logdir, --log-dir <value>"    output
+    grep "mount-ns"                     output
+    grep "name <value>"                 output
+    grep "print-only, --print, -p"      output
+    grep "repeat, -r <value>"           output
+    grep "subreaper"                    output
+    grep "summary, -s"                  output
+    grep "test-list, -l (&)"            output
+    grep "timeout <value>"              output
+    grep "total-timeout <value>"        output
+    grep "verbose, -v"                  output
+    grep "workdir, --work-dir <value>"  output
+}

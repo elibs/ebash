@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Setup
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+MOCKS=(
+    "assert_no_mount_leaks"
+    "assert_no_process_leaks"
+    "cgroup_create"
+    "cgroup_destroy"
+    "cgroup_move"
+    "cgroup_supported"
+    "efreshdir"
+    "elogfile_kill"
+)
+
+# Create a bunch of mocks for cgroup related functions.
+setup()
+{
+    etestmsg "Creating $(lval MOCKS)"
+    for mock in "${MOCKS[@]}"; do
+        emock "${mock}"
+    done
+
+    trap_add "teardown"
+}
+
+teardown()
+{
+    etestmsg "Unmocking $(lval MOCKS)"
+    for mock in "${MOCKS[@]}"; do
+        eunmock "${mock}"
+    done
+}
+
+# Verify global_setup works properly when cgroups are not supported.
+ETEST_global_setup_without_cgroups()
+{
+    etestmsg "Creating local mocks"
+    emock --return 1 "cgroup_supported"
+
+    etestmsg "Calling global_setup"
+    global_setup
+
+    etestmsg "Validating setup code paths"
+    assert_emock_called "efreshdir"        1
+    assert_emock_called "cgroup_supported" 1
+    assert_emock_called "cgroup_create"    0
+    assert_emock_called "cgroup_move"      0
+}
+
+# Verify global_setup works properly when cgroups are supported.
+ETEST_global_setup_with_cgroups()
+{
+    etestmsg "Calling global_setup"
+    global_setup
+
+    etestmsg "Validating setup code paths"
+    assert_emock_called "efreshdir"        1
+    assert_emock_called "cgroup_supported" 1
+    assert_emock_called "cgroup_create"    1
+    assert_emock_called "cgroup_move"      1
+
+    etestmsg "Verify correct pids moved into cgroup"
+    assert_emock_called_with "cgroup_create" 0 \
+        "${ETEST_CGROUP}"
+    assert_emock_called_with "cgroup_move"   0 \
+        "${ETEST_CGROUP_BASE}" $$ $(elogfile_pids)
+}
+
+# Verify teardown works correctly without cgroups
+ETEST_global_teardown_without_cgroups()
+{
+    etestmsg "Creating local mocks"
+    emock --return 1 "cgroup_supported"
+
+    etestmsg "Calling global_teardown"
+    global_teardown
+
+    etestmsg "Validating teardown code paths"
+    assert_emock_called "assert_no_process_leaks" 1
+    assert_emock_called "assert_no_mount_leaks"   1
+    assert_emock_called "elogfile_kill"           1
+    assert_emock_called "cgroup_supported"        1
+    assert_emock_called "cgroup_destroy"          0
+}
+
+# Verify teardown works correctly with cgroups
+ETEST_global_teardown_with_cgroups()
+{
+    etestmsg "Calling global_teardown"
+    global_teardown
+
+    etestmsg "Validating we cleand up process and mount leaks"
+    assert_emock_called "assert_no_process_leaks" 1
+    assert_emock_called "assert_no_mount_leaks"   1
+    assert_emock_called "elogfile_kill"           1
+    assert_emock_called "cgroup_supported"        1
+    assert_emock_called "cgroup_destroy"          1
+
+    etestmsg "Verifying cgroup recursively destroyed"
+    assert_emock_called_with "cgroup_destroy" 0 \
+        --recursive "${ETEST_CGROUP}"
+}
+
+# Verify teardown works correctly with cgroups and process and mount leaks. Even with the leaks it should never return
+# an error as this is our global teardown code that is best effort to clean everything up.
+ETEST_global_teardown_with_cgroups_and_leaks()
+{
+    etestmsg "Creating local mocks"
+    emock --return 1 "assert_no_process_leaks"
+    emock --return 1 "assert_no_mount_leaks"
+
+    etestmsg "Calling global_teardown"
+    global_teardown
+
+    etestmsg "Validating we cleand up process and mount leaks"
+    assert_emock_called "assert_no_process_leaks" 1
+    assert_emock_called "assert_no_mount_leaks"   1
+    assert_emock_called "elogfile_kill"           1
+    assert_emock_called "cgroup_supported"        1
+    assert_emock_called "cgroup_destroy"          1
+
+    etestmsg "Verifying cgroup recursively destroyed"
+    assert_emock_called_with "cgroup_destroy" 0 \
+        --recursive "${ETEST_CGROUP}"
+}
+

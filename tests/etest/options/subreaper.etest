@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Setup
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+MOCKS=(
+    "command_exists"
+    "gdb"
+    "os"
+)
+
+# Create a bunch of mocks for cgroup related functions.
+setup()
+{
+    etestmsg "Creating $(lval MOCKS)"
+    for mock in "${MOCKS[@]}"; do
+        emock "${mock}"
+    done
+
+    trap_add "teardown"
+
+    emock_dump_all_state
+}
+
+teardown()
+{
+    etestmsg "Unmocking $(lval MOCKS)"
+    for mock in "${MOCKS[@]}"; do
+        eunmock "${mock}"
+    done
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests: subreaper
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Verify we will use subpreaper by default
+ETEST_options_subreaper_default()
+{
+    etestmsg "Calling 'etest --no-mount-ns'"
+    set -- --no-mount-ns
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verifying mocks"
+    assert_emock_called "os"                  1
+    assert_emock_called "command_exists"      1
+    assert_emock_called "gdb"                 1
+    assert_emock_called_with "command_exists" 0 \
+        gdb
+    assert_emock_called_with "gdb"            0 \
+        -batch -ex 'call (int)prctl((int)36,(long)1,(long)0,(long)0,(long)0)' -ex detach -ex quit -p $$
+}
+
+# Verify we can disable subpreaper
+ETEST_options_subreaper_opt_out()
+{
+    etestmsg "Calling 'etest --no-mount-ns --no-subpreaper'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verifying mocks"
+    assert_emock_called "os"                  0
+    assert_emock_called "command_exists"      0
+    assert_emock_called "gdb"                 0
+}
+
+# Verify no subreaper on non-Linux
+ETEST_options_subreaper_not_linux()
+{
+    etestmsg "Calling 'etest --no-mount-ns --no-subpreaper'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verifying mocks"
+    assert_emock_called "os"                  0
+    assert_emock_called "command_exists"      0
+    assert_emock_called "gdb"                 0
+}
+
