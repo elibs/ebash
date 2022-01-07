@@ -57,7 +57,7 @@ assert_no_process_leaks()
 
         if [[ -n ${leaked_processes} ]]; then
             cgroup_kill_and_wait -s=SIGKILL "${ETEST_CGROUP}"
-            eerror "Leaked processes in ${ETEST_CGROUP}:\n${leaked_processes}"
+            eerror "Process leaks detected: ${ETEST_CGROUP}:\n${leaked_processes}"
             return 1
         fi
     }
@@ -72,7 +72,7 @@ assert_no_mount_leaks()
 
     if ! array_empty mounts; then
         eunmount --all --recursive --delete=${delete} "${workdir}"
-        eerror "Leaked under $(lval mounts workdir)"$'\n'"$(array_join_nl mounts)"
+        eerror "Mount leaks detected: $(lval mounts workdir)"$'\n'"$(array_join_nl mounts)"
         return 1
     fi
 

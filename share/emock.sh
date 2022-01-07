@@ -791,10 +791,12 @@ emock_dump_state()
 
     einfo "Dumping Mock State for $(lval name)"
 
-    local fpath="" fname="" contents=""
-    for fname in $(find "${statedir}/${name}" -type f -printf '%P\n'); do
+    statedir+="/$(basename "${name}")"
 
-        fpath="${statedir}/${name}/${fname}"
+    local fpath="" fname="" contents=""
+    for fname in $(find "${statedir}" -type f -printf '%P\n'); do
+
+        fpath="${statedir}/${fname}"
         contents=""
 
         if [[ $(basename "${fpath}") == "args" ]]; then
