@@ -16,16 +16,16 @@ create_vcs_info()
     declare -g VCS_INFO=""
 
     if [[ -d ".hg" ]] && command_exists hg; then
-        pack_set VCS_INFO \
+        pack_set VCS_INFO                                   \
             type="hg"                                       \
             info="$(hg id --id)"                            \
             url="$(hg paths default)"                       \
             branch="$(hg branch)"                           \
-            bookmark="$(hg book | awk '/ * / {print $2}')"  \
+            bookmark="$(hg book | sed 's|no bookmarks set||' | awk '/ * / {print $2}')"  \
             commit="$(hg id --id)"
 
-    elif [[ -d ".git" ]] && command_exists git && git rev-parse --is-inside-work-tree &>/dev/null; then
-        pack_set VCS_INFO \
+    elif command_exists git && git rev-parse --is-inside-work-tree &>/dev/null; then
+        pack_set VCS_INFO                                             \
             type="git"                                                \
             info="$(git describe --abbrev=7 --always --tags --dirty)" \
             url="$(git config --get remote.origin.url)"               \
@@ -38,6 +38,10 @@ create_vcs_info()
 create_summary()
 {
     create_vcs_info
+
+    edebug "$(lval NUM_TESTS_PASSED TESTS_PASSED)"
+    edebug "$(lval NUM_TESTS_FAILED TESTS_FAILED)"
+    edebug "$(lval NUM_TESTS_FLAKY  TESTS_FLAKY)"
 
     {
         echo
@@ -55,17 +59,17 @@ create_summary()
         if array_not_empty TESTS_FAILED; then
             eerror "FAILED TESTS:"
             for failed_test in $(echo "${TESTS_FAILED[@]}" | tr ' ' '\n') ; do
-                echo "$(ecolor "red")      ${failed_test}" >&2
+                echo "$(ecolor "red")      ${failed_test}"
             done
-            ecolor off >&2
+            ecolor off
         fi
 
         if array_not_empty TESTS_FLAKY; then
             ewarn "FLAKY TESTS:"
             for flaky_test in $(echo "${TESTS_FLAKY[@]}" | tr ' ' '\n') ; do
-                echo "$(ecolor "yellow")      ${flaky_test}" >&2
+                echo "$(ecolor "yellow")      ${flaky_test}"
             done
-            ecolor off >&2
+            ecolor off
         fi
 
         # Create a summary file with relevant statistics
