@@ -16,18 +16,22 @@
 # NOTE: The $(or ...) idiom allows these options to be case-insensitive to make them easier to pass at the command-line.
 CACHE    ?= $(or ${cache},1)
 COLUMNS  ?= $(or ${columns},$(shell tput cols))
+DELETE   ?= $(or ${delete},1)
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
 FAILURES ?= $(or ${failures},0)
 FILTER   ?= $(or ${filter},)
+JOBS     ?= $(or ${jobs},0)
+PROGRESS ?= $(or ${progress},1)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
+REGISTRY ?= $(or ${registry},ghcr.io)
 REPEAT   ?= $(or ${repeat},0)
 V        ?= $(or $v,0)
 
 # Variables that need to be exported to be seen by external processes we exec.
-ENVLIST  ?= COLUMNS EDEBUG EXCLUDE FAILFAST FAILURES FILTER PULL PUSH REPEAT V
+ENVLIST  ?= CACHE COLUMNS EDEBUG EXCLUDE FAILFAST FAILURES FILTER JOBS PRETEND PROGRESS PULL PUSH REGISTRY REPEAT V
 export ${ENVLIST}
 
 .SILENT:
@@ -64,11 +68,14 @@ selftest:
 .PHONY: test
 test:
 	bin/etest \
-		--debug="${EDEBUG}"     \
-		--exclude="${EXCLUDE}"  \
-		--failfast=${FAILFAST}  \
-		--filter="${FILTER}"    \
-		--repeat=${REPEAT}      \
+		--debug="${EDEBUG}"         \
+		--delete=${DELETE}          \
+		--exclude="${EXCLUDE}"      \
+		--failfast=${FAILFAST}      \
+		--filter="${FILTER}"        \
+		--jobs=${JOBS}              \
+		--jobs-progress=${PROGRESS} \
+		--repeat=${REPEAT}          \
 		--verbose=${V}
 
 .PHONY: doc
@@ -97,17 +104,20 @@ DISTROS =           \
 	ubuntu-18.04    \
 
 # Template for running tests inside a Linux distro container
-DRUN = bin/ebash docker_run          \
-	--envlist "${ENVLIST}"           \
-	--nested                         \
-	--copy-to-volume "${PWD}:/ebash" \
-	--                               \
-	--init                           \
-	--tty                            \
-	--network host                   \
-	--privileged                     \
-	--rm                             \
-	--workdir /ebash                 \
+DRUN = bin/ebash docker_run                                 \
+	--envlist "${ENVLIST}"                                  \
+	--nested                                                \
+	--copy-to-volume   "ebash:${PWD}:/ebash"                \
+	--copy-from-volume "ebash:/ebash/.work:.work/docker/$1" \
+	--copy-from-volume-delete ".work/docker/$1/docker"      \
+	--                                                      \
+	--init                                                  \
+	--tty                                                   \
+	--network host                                          \
+	--privileged                                            \
+	--rm                                                    \
+	--workdir /ebash                                        \
+	$$$$(cat .work/docker/ebash-build-$1/image)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Docker template
@@ -127,30 +137,34 @@ ${1}_IMAGE_FULL = $(shell cat .work/docker/ebash-build-$1/image 2>/dev/null)
 
 .PHONY: dlint-$1
 dlint-$1: docker-$1
-	${DRUN} $${$1_IMAGE_FULL} make lint
+	rm -rf .work/docker/$1
+	${DRUN} make lint
 
 .PHONY: dselftest-$1
 dselftest-$1: docker-$1
-	${DRUN} $${$1_IMAGE_FULL} make selftest
+	rm -rf .work/docker/$1
+	${DRUN} make selftest
 
 .PHONY: dtest-$1
 dtest-$1: docker-$1
-	${DRUN} $${$1_IMAGE_FULL} make test
+	rm -rf .work/docker/$1
+	${DRUN} make test
 
 .PHONY: dshell-$1
 dshell-$1: docker-$1
-	${DRUN} $${$1_IMAGE_FULL} /bin/bash
+	rm -rf .work/docker/$1
+	${DRUN} /bin/bash
 
 .PHONY: docker-$1
 docker-$1:
-	bin/ebanner "Building Docker Image '$${$1_IMAGE}'" PULL PUSH
+	bin/ebanner "Building Docker Image '$${$1_IMAGE}'" REGISTRY PULL PUSH
 	bin/ebash docker_build                   \
 		--file docker/Dockerfile.build       \
 		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
 		--name $${$1_IMAGE}                  \
 		--pull=${PULL}                       \
 		--push=${PUSH}                       \
-		--registry ghcr.io                   \
+		--registry=${REGISTRY}               \
 		--cache=${CACHE}                     \
 
 .PHONY: docker-push-$1

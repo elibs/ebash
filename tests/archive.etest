@@ -78,7 +78,7 @@ test_all_archives()
         pids[$idx]=$!
     done
 
-    eprogress "Waiting"
+    EPROGRESS_DELAY=15 EPROGRESS_INLINE=0 EPROGRESS_SPINNER=0 eprogress "Waiting for all archive formats"
     wait "${pids[@]}"
     eprogress_kill
 

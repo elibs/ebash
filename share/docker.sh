@@ -710,8 +710,13 @@ docker_run()
         "&copy_to_volume                    | Copy the specified path into a volume which is attached to the docker run
                                               instance. This is useful when running with a remote DOCKER_HOST where a
                                               simple bind mount does not work. This is also safe to use when running
-                                              against a local docker host so should be preferred. The syntax for a path
-                                              volume is local_path:/docker_path"                                       \
+                                              against a local docker host so should be preferred. The syntax for this is
+                                              name:local_path:docker_path"                                             \
+        "&copy_from_volume                  | Copy the specified path out of a volume attached to the docker container
+                                              before it is removed. This is useful to copy artifacts out from a test
+                                              container. The syntax for this is name:docker_path:local_path"           \
+        "&copy_from_volume_delete           | After copying all volumes back to the local site, delete any paths in this
+                                              list. This is because docker cp doesn't support an exclusion mechanism." \
         ":interactive=auto                  | This can be 'yes' or 'no' or 'auto' to automatically determine if we are
                                               interactive by looking at we're run from an interactive shell or not."   \
     )
@@ -738,20 +743,41 @@ docker_run()
     fi
 
     # Deal with all copy_to_volumes
-    local entry name
+    local entry name parts
     for entry in ${copy_to_volume[*]:-}; do
 
-        local lpath="${entry%%:/*}"
-        local rpath="${entry#*:/}"
-        name="$(basename "${lpath}")"
+        array_init parts "${entry}" ":"
+        assert_eq 3 "$(array_size parts)"
+        local name=${parts[0]}
+        local lpath=${parts[1]}
+        local rpath=${parts[2]}
 
-        edebug "Creating docker container for volume ${name}:/${rpath}"
-        docker container create --name "${name}" -v "${name}:/${rpath}" busybox | edebug
+        edebug "Creating docker container for volume $(lval name lpath rpath)"
+        docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
         trap_add "docker volume rm ${name} |& edebug"
         trap_add "docker rm ${name} |& edebug"
-        docker cp "${lpath}/." "${name}:/${rpath}"
+        docker cp "${lpath}/." "${name}:${rpath}"
 
-        docker_args+=( --volume="${name}:/${rpath}" )
+        docker_args+=( --volume="${name}:${rpath}" )
+    done
+
+    # Setup traps for copy_from_volume
+    for entry in ${copy_from_volume[*]:-}; do
+
+        array_init parts "${entry}" ":"
+        assert_eq 3 "$(array_size parts)"
+        local name=${parts[0]}
+        local rpath=${parts[1]}
+        local lpath=${parts[2]}
+
+        edebug "Setting trap to copy from $(lval name rpath lpath)"
+        trap_add "docker cp ${name}:${rpath}/. ${lpath}"
+    done
+
+    # Setup traps for copy_from_volume_delete
+    for entry in ${copy_from_volume_delete[*]:-}; do
+        edebug "Setting trap to delete $(lval entry) post-copy"
+        trap_add "rm --recursive --force \"${entry}\""
     done
 
     # Set --interactive as requested
@@ -772,5 +798,5 @@ docker_run()
     docker_args+=( ${@:-} )
 
     edebug "Calling docker run with $(lval docker_args)"
-    docker run "${docker_args[@]}"
+    docker run "${docker_args[@]:-}"
 }

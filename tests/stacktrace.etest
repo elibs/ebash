@@ -13,12 +13,24 @@ ETEST_stacktrace()
     array_init_nl stack "$(stacktrace)"
     einfo "$(lval stack)"
 
-    assert_eq 5 $(array_size stack)
-    assert_eq "ETEST_stacktrace"       "$(echo "${stack[0]}" | awk '{print $2}')"
-    assert_eq "run_single_test"        "$(echo "${stack[1]}" | awk '{print $2}')"
-    assert_eq "run_etest_file"         "$(echo "${stack[2]}" | awk '{print $2}')"
-    assert_eq "run_all_tests"          "$(echo "${stack[3]}" | awk '{print $2}')"
-    assert_eq "main"                   "$(echo "${stack[4]}" | awk '{print $2}')"
+    if [[ ${ETEST_JOBS} -gt 0 ]]; then
+        assert_eq 7 $(array_size stack)
+        assert_eq "ETEST_stacktrace"         "$(echo "${stack[0]}" | awk '{print $2}')"
+        assert_eq "run_single_test"          "$(echo "${stack[1]}" | awk '{print $2}')"
+        assert_eq "run_etest_file"           "$(echo "${stack[2]}" | awk '{print $2}')"
+        assert_eq "__spawn_new_job"          "$(echo "${stack[3]}" | awk '{print $2}')"
+        assert_eq "__run_all_tests_parallel" "$(echo "${stack[4]}" | awk '{print $2}')"
+        assert_eq "run_all_tests"            "$(echo "${stack[5]}" | awk '{print $2}')"
+        assert_eq "main"                     "$(echo "${stack[6]}" | awk '{print $2}')"
+    else
+        assert_eq 6 $(array_size stack)
+        assert_eq "ETEST_stacktrace"         "$(echo "${stack[0]}" | awk '{print $2}')"
+        assert_eq "run_single_test"          "$(echo "${stack[1]}" | awk '{print $2}')"
+        assert_eq "run_etest_file"           "$(echo "${stack[2]}" | awk '{print $2}')"
+        assert_eq "__run_all_tests_serially" "$(echo "${stack[3]}" | awk '{print $2}')"
+        assert_eq "run_all_tests"            "$(echo "${stack[4]}" | awk '{print $2}')"
+        assert_eq "main"                     "$(echo "${stack[5]}" | awk '{print $2}')"
+   fi
 }
 
 # Same as above but start at a specified frame number
@@ -28,7 +40,12 @@ ETEST_stacktrace_frame()
     array_init_nl stack "$(stacktrace -f=1)"
     einfo "$(lval stack)"
 
-    assert_eq 4      "$(array_size stack)"
+    if [[ ${ETEST_JOBS} -gt 0 ]]; then
+        assert_eq 6 "$(array_size stack)"
+    else
+        assert_eq 5 "$(array_size stack)"
+    fi
+
     assert_eq "run_single_test" "$(echo "${stack[0]}" | awk '{print $2}')"
 }
 
@@ -39,12 +56,24 @@ ETEST_stacktrace_array()
     stacktrace_array stack
     einfo "$(lval stack)"
 
-    assert_eq 5 $(array_size stack)
-    assert_eq "ETEST_stacktrace_array" "$(echo "${stack[0]}" | awk '{print $2}')"
-    assert_eq "run_single_test"        "$(echo "${stack[1]}" | awk '{print $2}')"
-    assert_eq "run_etest_file"         "$(echo "${stack[2]}" | awk '{print $2}')"
-    assert_eq "run_all_tests"          "$(echo "${stack[3]}" | awk '{print $2}')"
-    assert_eq "main"                   "$(echo "${stack[4]}" | awk '{print $2}')"
+    if [[ ${ETEST_JOBS} -gt 0 ]]; then
+        assert_eq 7 $(array_size stack)
+        assert_eq "ETEST_stacktrace_array"   "$(echo "${stack[0]}" | awk '{print $2}')"
+        assert_eq "run_single_test"          "$(echo "${stack[1]}" | awk '{print $2}')"
+        assert_eq "run_etest_file"           "$(echo "${stack[2]}" | awk '{print $2}')"
+        assert_eq "__spawn_new_job"          "$(echo "${stack[3]}" | awk '{print $2}')"
+        assert_eq "__run_all_tests_parallel" "$(echo "${stack[4]}" | awk '{print $2}')"
+        assert_eq "run_all_tests"            "$(echo "${stack[5]}" | awk '{print $2}')"
+        assert_eq "main"                     "$(echo "${stack[6]}" | awk '{print $2}')"
+    else
+        assert_eq 6 $(array_size stack)
+        assert_eq "ETEST_stacktrace_array"   "$(echo "${stack[0]}" | awk '{print $2}')"
+        assert_eq "run_single_test"          "$(echo "${stack[1]}" | awk '{print $2}')"
+        assert_eq "run_etest_file"           "$(echo "${stack[2]}" | awk '{print $2}')"
+        assert_eq "__run_all_tests_serially" "$(echo "${stack[3]}" | awk '{print $2}')"
+        assert_eq "run_all_tests"            "$(echo "${stack[4]}" | awk '{print $2}')"
+        assert_eq "main"                     "$(echo "${stack[5]}" | awk '{print $2}')"
+   fi
 }
 
 # Test eerror_stacktrace
@@ -54,11 +83,24 @@ ETEST_stacktrace_error()
     array_init_nl stack "$(EMSG_PREFIX="" EFUNCS_COLOR=0 eerror_stacktrace 'Boo' 2>&1)"
     einfo "$(lval stack)"
 
-    assert_eq 6 $(array_size stack)
-    assert_eq ">> Boo"                 "$(echo "${stack[0]}")"
-    assert_eq "ETEST_stacktrace_error" "$(echo "${stack[1]}" | awk '{print $4}')"
-    assert_eq "run_single_test"        "$(echo "${stack[2]}" | awk '{print $4}')"
-    assert_eq "run_etest_file"         "$(echo "${stack[3]}" | awk '{print $4}')"
-    assert_eq "run_all_tests"          "$(echo "${stack[4]}" | awk '{print $4}')"
-    assert_eq "main"                   "$(echo "${stack[5]}" | awk '{print $4}')"
+    if [[ ${ETEST_JOBS} -gt 0 ]]; then
+        assert_eq 8 $(array_size stack)
+        assert_eq ">> Boo"                   "$(echo "${stack[0]}")"
+        assert_eq "ETEST_stacktrace_error"   "$(echo "${stack[1]}" | awk '{print $4}')"
+        assert_eq "run_single_test"          "$(echo "${stack[2]}" | awk '{print $4}')"
+        assert_eq "run_etest_file"           "$(echo "${stack[3]}" | awk '{print $4}')"
+        assert_eq "__spawn_new_job"          "$(echo "${stack[4]}" | awk '{print $4}')"
+        assert_eq "__run_all_tests_parallel" "$(echo "${stack[5]}" | awk '{print $4}')"
+        assert_eq "run_all_tests"            "$(echo "${stack[6]}" | awk '{print $4}')"
+        assert_eq "main"                     "$(echo "${stack[7]}" | awk '{print $4}')"
+    else
+        assert_eq 7 $(array_size stack)
+        assert_eq ">> Boo"                   "$(echo "${stack[0]}")"
+        assert_eq "ETEST_stacktrace_error"   "$(echo "${stack[1]}" | awk '{print $4}')"
+        assert_eq "run_single_test"          "$(echo "${stack[2]}" | awk '{print $4}')"
+        assert_eq "run_etest_file"           "$(echo "${stack[3]}" | awk '{print $4}')"
+        assert_eq "__run_all_tests_serially" "$(echo "${stack[4]}" | awk '{print $4}')"
+        assert_eq "run_all_tests"            "$(echo "${stack[5]}" | awk '{print $4}')"
+        assert_eq "main"                     "$(echo "${stack[6]}" | awk '{print $4}')"
+   fi
 }
