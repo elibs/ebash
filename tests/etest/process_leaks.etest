@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Setup
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+MOCKS=(
+    "cgroup_supported"
+    "cgroup_exists"
+    "cgroup_empty"
+    "cgroup_ps"
+    "cgroup_kill_and_wait"
+    "eretry"
+)
+
+# Create a bunch of mocks for cgroup related functions.
+setup()
+{
+    etestmsg "Creating $(lval MOCKS)"
+    for mock in "${MOCKS[@]}"; do
+        emock "${mock}"
+    done
+
+    emock "eretry" '
+    {
+        cgroup_empty
+    }'
+
+    trap_add "teardown"
+}
+
+teardown()
+{
+    etestmsg "Unmocking $(lval MOCKS)"
+    for mock in "${MOCKS[@]}"; do
+        eunmock "${mock}"
+    done
+}
+
+# Verify if there are no process leaks that assert_no_process_leaks returns success. It should NOT try to call
+# cgroup_kill_and_wait.
+ETEST_process_leaks()
+{
+    assert_no_process_leaks
+
+    assert_emock_called "cgroup_supported" 1
+    assert_emock_called "cgroup_exists"    1
+    assert_emock_called "cgroup_empty"     1
+
+    # We should not have tried to kill any processes
+    assert_emock_called "cgroup_kill_and_wait" 0
+}
+
+# Simulate a cgroup existing. Verify that cgroup_kill_and_wait gets called. We use mocks instead of really creating
+# the cgroups so that this is a true unit test. And also so that this works on systems that do not support cgroups.
+ETEST_process_leaks_with_leaks()
+{
+    etestmsg "Creating test-specific mocks"
+    emock --return 1 "cgroup_empty"
+    emock --stdout="1234 5678" "cgroup_ps"
+
+    etestmsg "Calling assert_no_process_leaks with process_leaks -- should fail"
+    assert_false assert_no_process_leaks
+
+    for mock in "${MOCKS[@]}"; do
+        emock_dump_state "${mock}"
+    done
+
+    # Verify cgroup killed
+    etestmsg "Verifying cgroup killed"
+    assert_emock_called "cgroup_supported"     1
+    assert_emock_called "cgroup_exists"        1
+    assert_emock_called "eretry"               1
+    assert_emock_called "cgroup_empty"         1
+    assert_emock_called "cgroup_ps"            1
+    assert_emock_called "cgroup_kill_and_wait" 1
+
+    etestmsg "Verifying cgroup killed with correct pid(s)"
+    assert_emock_called_with "cgroup_kill_and_wait" 0 \
+        -s=SIGKILL "${ETEST_CGROUP}"
+}
+
+# Verify if cgroups are not supported we don't try to do anything.
+ETEST_process_leaks_cgroup_unuspported()
+{
+    etestmsg "Creating test-specific mocks"
+    emock --return 1 "cgroup_supported"
+    assert_no_process_leaks
+
+    assert_emock_called "cgroup_supported"     1
+    assert_emock_called "cgroup_exists"        0
+    assert_emock_called "eretry"               0
+    assert_emock_called "cgroup_empty"         0
+    assert_emock_called "cgroup_ps"            0
+    assert_emock_called "cgroup_kill_and_wait" 0
+}
+
+

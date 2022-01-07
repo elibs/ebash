@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Config File Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Verify if no .ebash file exists that we do not try to read it
+ETEST_options_config_file_missing()
+{
+    etestmsg "Creating mock"
+    emock conf_read
+    trap_add "eunmock conf_read"
+
+    etestmsg "Calling 'etest'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verify mock not called"
+    assert_emock_called "conf_read" 0
+}
+
+# Verify we honor legacy log_dir config file setting
+ETEST_options_config_file_legacy_log_dir()
+{
+    etestmsg "Creating config file"
+	cat >.ebash <<- 'END'
+	[etest]
+	log_dir = .foo
+	END
+
+    etestmsg "Calling 'etest'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verify config"
+    assert_eq "${PWD}/.foo" "${logdir}"
+}
+
+# Verify we honor newer logdir config file setting
+ETEST_options_config_file_newer_logdir()
+{
+    etestmsg "Creating config file"
+	cat >.ebash <<- 'END'
+	[etest]
+	logdir = .foo
+	END
+
+    etestmsg "Calling 'etest'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verify config"
+    assert_eq "${PWD}/.foo" "${logdir}"
+}
+
+# Verify if both are present we use the newer one
+ETEST_options_config_file_prefer_newer_logdir()
+{
+    etestmsg "Creating config file"
+	cat >.ebash <<- 'END'
+	[etest]
+	log_dir = .foo
+	logdir = .bar
+	END
+
+    etestmsg "Calling 'etest'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verify config"
+    assert_eq "${PWD}/.bar" "${logdir}"
+}
+
+# Verify we honor legacy work_dir config file setting
+ETEST_options_config_file_legacy_work_dir()
+{
+    etestmsg "Creating config file"
+	cat >.ebash <<- 'END'
+	[etest]
+	work_dir = .foo
+	END
+
+    etestmsg "Calling 'etest'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verify config"
+    assert_eq "${PWD}/.foo" "${workdir}"
+}
+
+# Verify we honor newer workdir config file setting
+ETEST_options_config_file_newer_workdir()
+{
+    etestmsg "Creating config file"
+	cat >.ebash <<- 'END'
+	[etest]
+	workdir = .foo
+	END
+
+    etestmsg "Calling 'etest'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verify config"
+    assert_eq "${PWD}/.foo" "${workdir}"
+}
+
+# Verify if both are present we use the newer one
+ETEST_options_config_file_prefer_newer_workdir()
+{
+    etestmsg "Creating config file"
+	cat >.ebash <<- 'END'
+	[etest]
+	work_dir = .foo
+	workdir = .bar
+	END
+
+    etestmsg "Calling 'etest'"
+    set -- --no-mount-ns --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verify config"
+    assert_eq "${PWD}/.bar" "${workdir}"
+}
+
+# Runtime options override both config file settings
+ETEST_options_config_file_prefer_runtime_options()
+{
+    etestmsg "Creating config file"
+	cat >.ebash <<- 'END'
+	[etest]
+	work_dir = .foo
+	workdir = .bar
+	log_dir = .foo-log
+	logdir  = .foolog
+	END
+
+    etestmsg "Calling 'etest'"
+    set -- --no-mount-ns --no-subreaper --logdir=.work/log --workdir=.work/testdir
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verify config"
+    assert_eq "${PWD}/.work/testdir" "${workdir}"
+    assert_eq "${PWD}/.work/log"     "${logdir}"
+}

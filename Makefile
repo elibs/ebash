@@ -61,10 +61,6 @@ clobber: clean
 lint bashlint:
 	bin/bashlint --failfast=${FAILFAST} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
 
-.PHONY: selftest
-selftest:
-	bin/selftest
-
 .PHONY: test
 test:
 	bin/etest \
@@ -140,11 +136,6 @@ dlint-$1: docker-$1
 	rm -rf .work/docker/$1
 	${DRUN} make lint
 
-.PHONY: dselftest-$1
-dselftest-$1: docker-$1
-	rm -rf .work/docker/$1
-	${DRUN} make selftest
-
 .PHONY: dtest-$1
 dtest-$1: docker-$1
 	rm -rf .work/docker/$1
@@ -181,9 +172,6 @@ dlint: $(foreach d, ${DISTROS}, dlint-${d})
 
 PHONY: dtest
 dtest: $(foreach d, ${DISTROS}, dtest-${d})
-
-.PHONY: dselftest
-dselftest:  $(foreach d, ${DISTROS}, dselftest-${d})
 
 .PHONY: docker
 docker: $(foreach d, ${DISTROS}, docker-${d})

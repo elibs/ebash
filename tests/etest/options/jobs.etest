@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests: --jobs
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Verify --jobs must be an integer.
+ETEST_options_jobs_non_number()
+{
+    (
+        etestmsg "Creating fake die()"
+        die()
+        {
+            $(opt_parse ":rc return_code r=1 | Return code that die will exit with")
+            eerror "${@}" &> output
+            echo "${rc}"  >  exit_code
+            return 0
+        }
+
+        etestmsg "Calling 'etest --jobs=A'"
+        set -- --jobs=A
+        source "${EBASH}/etest/options.sh"
+    )
+
+    etestmsg "Verifying exit code"
+    cat exit_code
+    assert_eq 1 "$(cat exit_code)"
+
+    etestmsg "Verifying error message"
+    grep "jobs must be an integer value greater than or equal to 0" output
+}
+
+# Verify --jobs must be an integer
+ETEST_options_jobs_non_integer()
+{
+    (
+        etestmsg "Creating fake die()"
+        die()
+        {
+            $(opt_parse ":rc return_code r=1 | Return code that die will exit with")
+            eerror "${@}" &> output
+            echo "${rc}"  >  exit_code
+            return 0
+        }
+
+        etestmsg "Calling 'etest --jobs=0.1'"
+        set -- --jobs=A
+        source "${EBASH}/etest/options.sh"
+    )
+
+    etestmsg "Verifying exit code"
+    cat exit_code
+    assert_eq 1 "$(cat exit_code)"
+
+    etestmsg "Verifying error message"
+    grep "jobs must be an integer value greater than or equal to 0" output
+}

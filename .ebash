@@ -2,4 +2,3 @@
 logdir = .work
 workdir = .work/testdir
 tests = tests
-exclude = tests/self
