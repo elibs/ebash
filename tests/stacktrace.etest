@@ -13,7 +13,7 @@ ETEST_stacktrace()
     array_init_nl stack "$(stacktrace)"
     einfo "$(lval stack)"
 
-    if [[ ${ETEST_JOBS} -gt 1 ]]; then
+    if [[ ${ETEST_JOBS} -gt 0 ]]; then
         assert_eq 7 $(array_size stack)
         assert_eq "ETEST_stacktrace"         "$(echo "${stack[0]}" | awk '{print $2}')"
         assert_eq "run_single_test"          "$(echo "${stack[1]}" | awk '{print $2}')"
@@ -40,7 +40,7 @@ ETEST_stacktrace_frame()
     array_init_nl stack "$(stacktrace -f=1)"
     einfo "$(lval stack)"
 
-    if [[ ${ETEST_JOBS} -gt 1 ]]; then
+    if [[ ${ETEST_JOBS} -gt 0 ]]; then
         assert_eq 6 "$(array_size stack)"
     else
         assert_eq 5 "$(array_size stack)"
@@ -56,7 +56,7 @@ ETEST_stacktrace_array()
     stacktrace_array stack
     einfo "$(lval stack)"
 
-    if [[ ${ETEST_JOBS} -gt 1 ]]; then
+    if [[ ${ETEST_JOBS} -gt 0 ]]; then
         assert_eq 7 $(array_size stack)
         assert_eq "ETEST_stacktrace_array"   "$(echo "${stack[0]}" | awk '{print $2}')"
         assert_eq "run_single_test"          "$(echo "${stack[1]}" | awk '{print $2}')"
@@ -83,7 +83,7 @@ ETEST_stacktrace_error()
     array_init_nl stack "$(EMSG_PREFIX="" EFUNCS_COLOR=0 eerror_stacktrace 'Boo' 2>&1)"
     einfo "$(lval stack)"
 
-    if [[ ${ETEST_JOBS} -gt 1 ]]; then
+    if [[ ${ETEST_JOBS} -gt 0 ]]; then
         assert_eq 8 $(array_size stack)
         assert_eq ">> Boo"                   "$(echo "${stack[0]}")"
         assert_eq "ETEST_stacktrace_error"   "$(echo "${stack[1]}" | awk '{print $4}')"

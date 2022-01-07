@@ -71,9 +71,13 @@ $(opt_parse \
                                      classify it as a failure if that test fails more than the requested threshold."   \
     ":filter  f                    | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0                  | Produce an HTML logfile and strip color codes out of etest.log."                  \
-    ":jobs    j=1                  | Number of parallel jobs to run. If this is greater than 1, then the output will
+    ":jobs    j=0                  | Number of parallel jobs to run. If this is greater than 0, then the output will
                                      show a progress bar to monitor the parallel jobs. There will be a separate state
-                                     directory for each job available in the jobs subdirectory under work directory."  \
+                                     directory for each job available in the jobs subdirectory under work directory.
+                                     Note that a value of 0 disables parallel job execution. A value of 1 only runs a
+                                     single job at a time but allows execution of the parallel job code paths. This
+                                     is useful as it allows consistency for the caller to just pass the value of nproc
+                                     into etest and the results and output will be identical."                         \
     ":jobs_delay=5s                | Amount of time to sleep in job monitor while waiting for jobs to complete. This
                                      uses sleep(1) time syntax."                                                       \
     "+jobs_progress=1              | Show jobs eprogress summary ticker while running."                                \
@@ -106,6 +110,11 @@ $(opt_parse \
                                     directories in which case etest will recursively find executables and .etest files
                                     and treat them in similar fashion."                                                \
 )
+
+# Verify --jobs is a valid integer.
+if ! is_int "${jobs}" || ! assert_num_ge "${jobs}" 0; then
+    die "jobs must be an integer value greater than or equal to 0"
+fi
 
 # Use mount namespaces as long as:
 #   1) they weren't forcibly turned off
@@ -272,7 +281,7 @@ assert_no_process_leaks()
         fi
     }
 
-    edebug "Finished checking for process leaks in ${cgroup}"
+    edebug "Finished checking for process leaks in ${ETEST_CGROUP}"
 }
 
 assert_no_mount_leaks()
@@ -492,6 +501,11 @@ run_single_test()
         edebug "Finished $(lval testname display_testname rc tries FAILURES)"
 
         # Verify there are no process or memory leaks. If so kill them and try again if that is permitted.
+        #
+        # NOTE: We skip checking for process and mount leaks if we're running multiple jobs at the same time as they
+        # all share the same cgroup and working directory so we would have false positives. It doesn't really matter
+        # because we will do a final check for process and mount leaks in `global_teardown`. And this isn't really an
+        # issue anymore like it was 10 years ago as we're running inside docker now.
         if [[ ${jobs} -eq 0 ]]; then
             try
             {
@@ -657,7 +671,7 @@ run_all_tests()
         ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat=REPEAT_STRING timeout total_timeout verbose &>>${ETEST_OUT}
     fi
 
-    if [[ ${jobs} -gt 1 ]]; then
+    if [[ ${jobs} -gt 0 ]]; then
         elogfile_kill --all
         __run_all_tests_parallel
         cat "${logdir}"/jobs/*/output.log > "${ETEST_LOG}"
