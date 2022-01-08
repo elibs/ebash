@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Test create_vcs_info for mecurial
+ETEST_results_vcs_info_mecurial()
+{
+    etestmsg "Simulating mecurial repo"
+    mkdir .hg
+    emock "hg" '
+    {
+        if [[ $1 == "id" && $2 == "--id" ]]; then
+            echo "3724e93f7af5"
+        elif [[ $1 == "paths" && $2 == "default" ]]; then
+            echo "https://github.com/elibs/ebash"
+        elif [[ $1 == "branch" ]]; then
+            echo "default"
+        elif [[ $1 == "book" ]]; then
+            echo "no bookmarks set"
+        else
+            echo "Unsupported action: $@"
+            exit 1
+        fi
+    }'
+
+    etestmsg "Calling create_vcs_info"
+    create_vcs_info
+    pack_to_json VCS_INFO | jq --color-output .
+
+    etestmsg "Validating mocks"
+    assert_emock_called "hg" 5
+    assert_emock_called_with "hg" 0 id --id
+    assert_emock_called_with "hg" 1 paths default
+    assert_emock_called_with "hg" 2 branch
+    assert_emock_called_with "hg" 3 book
+    assert_emock_called_with "hg" 4 id --id
+
+    etestmsg "Validating populated pack"
+    $(pack_import VCS_INFO)
+
+    assert_eq "hg"                             "${type}"
+    assert_eq "3724e93f7af5"                   "${info}"
+    assert_eq "https://github.com/elibs/ebash" "${url}"
+    assert_eq "default"                        "${branch}"
+    assert_eq ""                               "${bookmark}"
+    assert_eq "3724e93f7af5"                   "${commit}"
+}
+
+# Test create_vcs_info for git
+ETEST_results_vcs_info_git()
+{
+    etestmsg "Calling create_vcs_info"
+    create_vcs_info
+    pack_to_json VCS_INFO | jq --color-output .
+
+    etestmsg "Validating populated pack"
+    $(pack_import VCS_INFO)
+
+    assert_eq "git"                                                "${type}"
+    assert_eq "$(git describe --abbrev=7 --always --tags --dirty)" "${info}"
+    assert_eq "$(git config --get remote.origin.url)"              "${url}"
+    assert_eq "$(git rev-parse --abbrev-ref HEAD)"                 "${branch}"
+    assert_eq ""                                                   "${bookmark}"
+    assert_eq "$(git rev-parse --short=12 HEAD)"                   "${commit}"
+}

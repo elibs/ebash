@@ -820,20 +820,9 @@ emock_dump_all_state()
                                               as well as the exit code, stdout, and stderr for each invocation."       \
     )
 
-    einfo "Dumping Mock State for all mocks"
-
-    local fpath="" fname="" contents=""
-    for fname in $(find "${statedir}" -type f -printf '%P\n'); do
-
-        fpath="${statedir}/${fname}"
-        contents=""
-
-        if [[ $(basename "${fpath}") == "args" ]]; then
-            array_init_nl contents "$(cat ${fpath})"
-        else
-            contents="$(cat "${fpath}")"
-        fi
-
-        einfos "${fname}: $(print_value contents)"
+    local entry
+    for entry in $(find "${statedir}" -mindepth 1 -maxdepth 1 -type d -printf "%f\n"); do
+        ewarn "Found: $(lval statedir entry)"
+        opt_forward emock_dump_state statedir -- "${entry}"
     done
 }

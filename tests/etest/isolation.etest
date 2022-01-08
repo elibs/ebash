@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 #
-# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com> 
+# Copyright 2011-2018, Marshall McMullen <marshall.mcmullen@gmail.com>
 # Copyright 2011-2018, SolidFire, Inc. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-ETEST_etest_no_cross_contamination_A()
+ETEST_isolation_variable_A()
 {
-    CROSS_CONTAMINATION_A=1
-    assert_var_empty CROSS_CONTAMINATION_B
+    ISOLATION_VARIABLE_A=1
+    assert_var_empty ISOLATION_VARIABLE_B
 }
 
-ETEST_etest_no_cross_contamination_B()
+ETEST_isolation_variable_B()
 {
-    CROSS_CONTAMINATION_B=20
-    assert_var_empty CROSS_CONTAMINATION_A
+    ISOLATION_VARIABLE_B=20
+    assert_var_empty ISOLATION_VARIABLE_A
 }

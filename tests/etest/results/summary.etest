@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Setup
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+setup()
+{
+    EDEBUG+=" summary"
+    ETEST_LOG="summary-etest.log"
+    ETEST_JSON="summary-etest.json"
+    ETEST_STDERR_FD="/dev/null"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_results_summary_passed()
+{
+    NUM_TESTS_EXECUTED=5
+    NUM_TESTS_PASSED=5 TESTS_PASSED=( [suite]="test1 test2 test3 test4 test5" )
+    NUM_TESTS_FAILED=0 TESTS_FAILED=()
+    NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
+    RUNTIME="${SECONDS}"
+
+    etestmsg "Calling create_summary"
+    create_summary
+
+    etestmsg "Verifying files created and non-empty"
+    assert_exists "${ETEST_LOG}"
+    assert_exists "${ETEST_JSON}"
+    [[ -s "${ETEST_LOG}"  ]]
+    [[ -s "${ETEST_JSON}" ]]
+
+    etestmsg "Checking log file"
+    grep -q "Finished testing $(pack_get VCS_INFO info). 5/5 tests passed in ${RUNTIME} seconds." "${ETEST_LOG}"
+    assert_false grep "FAILED TESTS:" "${ETEST_LOG}"
+    assert_false grep "FLAKY TESTS:"  "${ETEST_LOG}"
+
+    etestmsg "Checking json file"
+    jq . "${ETEST_JSON}"
+    $(json_import --file "${ETEST_JSON}")
+    assert_eq 5 "${numTestsExecuted}"
+    assert_eq 5 "${numTestsPassed}"
+    assert_eq 0 "${numTestsFailed}"
+    assert_eq 0 "${numTestsFlaky}"
+    assert_eq "${RUNTIME} seconds" "${runtime}"
+
+    etestmsg "Checking test suite results in json file"
+    assert_eq '{"suite":["test1","test2","test3","test4","test5"]}' "${testsPassed[*]}"
+    assert_eq '{}' "${testsFailed[*]}"
+    assert_eq '{}' "${testsFlaky[*]}"
+}
+
+ETEST_results_summary_failed()
+{
+    NUM_TESTS_EXECUTED=5
+    NUM_TESTS_PASSED=0 TESTS_PASSED=()
+    NUM_TESTS_FAILED=5 TESTS_FAILED=( [suite]="test1 test2 test3 test4 test5" )
+    NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
+    RUNTIME="${SECONDS}"
+
+    etestmsg "Calling create_summary"
+    create_summary
+
+    etestmsg "Verifying files created and non-empty"
+    assert_exists "${ETEST_LOG}"
+    assert_exists "${ETEST_JSON}"
+    [[ -s "${ETEST_LOG}"  ]]
+    [[ -s "${ETEST_JSON}" ]]
+
+    etestmsg "Checking log file"
+    noansi "${ETEST_LOG}"
+    cat "${ETEST_LOG}" | edebug
+
+    grep -q "Finished testing $(pack_get VCS_INFO info). 0/5 tests passed in ${RUNTIME} seconds." "${ETEST_LOG}"
+
+    grep -Poz 'FAILED TESTS:\n\s*test1\n\s*test2\n\s*test3\n\s*test4\n\s*test5' "${ETEST_LOG}"
+    echo
+
+    assert_false grep "FLAKY TESTS:"  "${ETEST_LOG}"
+
+    etestmsg "Checking json file"
+    jq . "${ETEST_JSON}"
+    $(json_import --file "${ETEST_JSON}")
+    assert_eq 5 "${numTestsExecuted}"
+    assert_eq 0 "${numTestsPassed}"
+    assert_eq 5 "${numTestsFailed}"
+    assert_eq 0 "${numTestsFlaky}"
+    assert_eq "${RUNTIME} seconds" "${runtime}"
+
+    etestmsg "Checking test suite results in json file"
+    assert_eq '{}' "${testsPassed[*]}"
+    assert_eq '{"suite":["test1","test2","test3","test4","test5"]}' "${testsFailed[*]}"
+    assert_eq '{}' "${testsFlaky[*]}"
+}
+
+ETEST_results_summary_mixed()
+{
+    NUM_TESTS_EXECUTED=5
+    NUM_TESTS_PASSED=3 TESTS_PASSED=( [suite]="test1 test3 test5" )
+    NUM_TESTS_FAILED=1 TESTS_FAILED=( [suite]="test2" )
+    NUM_TESTS_FLAKY=1  TESTS_FLAKY=( [suite]="test4" )
+    RUNTIME="${SECONDS}"
+
+    etestmsg "Calling create_summary"
+    create_summary
+
+    etestmsg "Verifying files created and non-empty"
+    assert_exists "${ETEST_LOG}"
+    assert_exists "${ETEST_JSON}"
+    [[ -s "${ETEST_LOG}"  ]]
+    [[ -s "${ETEST_JSON}" ]]
+
+    etestmsg "Checking log file"
+    noansi "${ETEST_LOG}"
+    cat "${ETEST_LOG}" | edebug
+
+    grep -q "Finished testing $(pack_get VCS_INFO info). 3/5 tests passed in ${RUNTIME} seconds." "${ETEST_LOG}"
+
+    grep -Poz 'FAILED TESTS:\n\s*test2' "${ETEST_LOG}"
+    echo
+
+    grep -Poz 'FLAKY TESTS:\n\s*test4' "${ETEST_LOG}"
+    echo
+
+    etestmsg "Checking json file"
+    jq . "${ETEST_JSON}"
+    $(json_import --file "${ETEST_JSON}")
+    assert_eq 5 "${numTestsExecuted}"
+    assert_eq 3 "${numTestsPassed}"
+    assert_eq 1 "${numTestsFailed}"
+    assert_eq 1 "${numTestsFlaky}"
+    assert_eq "${RUNTIME} seconds" "${runtime}"
+
+    etestmsg "Checking test suite results in json file"
+    assert_eq '{"suite":["test1","test3","test5"]}' "${testsPassed[*]}"
+    assert_eq '{"suite":["test2"]}' "${testsFailed[*]}"
+    assert_eq '{"suite":["test4"]}' "${testsFlaky[*]}"
+}

@@ -82,7 +82,13 @@ conf_read()
         die "Must specify at least one config file to read."
     fi
 
+    local filename
     for filename in "${files[@]}" ; do
+
+        # Skip any non-existent files or directories.
+        if [[ ! -f "${filename}" ]]; then
+            continue
+        fi
 
         local line_count=0
         local section="default"
@@ -295,6 +301,16 @@ conf_dump()
 _conf_dump_helper()
 {
     printf "%s = %s\n" "$1" "$2"
+}
+
+opt_usage conf_secitons <<'END'
+List the sections defined within a configuration.
+END
+conf_sections()
+{
+    $(opt_parse "__conf_store | Variable containing the configuration data.")
+
+    echo $(array_indexes_sort ${__conf_store})
 }
 
 opt_usage conf_props <<'END'

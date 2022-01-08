@@ -12,7 +12,7 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
-# Verify if no .ebash file exists that we do not try to read it
+# Verify that we gracefully handle missing config files.
 ETEST_options_config_file_missing()
 {
     etestmsg "Creating mock"
@@ -23,8 +23,8 @@ ETEST_options_config_file_missing()
     set -- --no-mount-ns --no-subreaper
     source "${EBASH}/etest/options.sh"
 
-    etestmsg "Verify mock not called"
-    assert_emock_called "conf_read" 0
+    etestmsg "Verify mock called"
+    assert_emock_called "conf_read" 1
 }
 
 # Verify we honor legacy log_dir config file setting
