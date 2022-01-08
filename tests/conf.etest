@@ -319,3 +319,31 @@ ETEST_conf_contains()
     assert_false conf_contains CONF_REMOVED section_a.a
     assert_false conf_contains CONF_REMOVED section_b.a
 }
+
+ETEST_conf_sections()
+{
+	cat >file <<-END
+	[section_x]
+	a = 1
+	b = 2
+
+	[section_z]
+	a = 100
+
+	[section_y]
+	a = 10
+	b = 20
+	END
+
+    etestmsg "Initial file"
+    cat file
+
+    etestmsg "Dump"
+    declare -A CONF
+    conf_read CONF file
+    conf_dump CONF
+
+    etestmsg "Sections (should be sorted)"
+    conf_sections CONF
+    assert_eq "section_x section_y section_z" "$(conf_sections CONF)"
+}

@@ -127,10 +127,9 @@ if [[ ${subreaper} -eq 1 ]]; then
     fi
 fi
 
+# Read in possible configuration files. We support the older name `.ebash` and the newer name `.ebash.conf`
 declare -A _EBASH_CONF
-if [[ -f .ebash ]] ; then
-    conf_read _EBASH_CONF .ebash
-fi
+conf_read _EBASH_CONF .ebash .ebash.conf
 
 START_TIME=${SECONDS}
 
