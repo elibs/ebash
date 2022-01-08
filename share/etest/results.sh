@@ -39,10 +39,6 @@ create_summary()
 {
     create_vcs_info
 
-    edebug "$(lval NUM_TESTS_PASSED TESTS_PASSED)"
-    edebug "$(lval NUM_TESTS_FAILED TESTS_FAILED)"
-    edebug "$(lval NUM_TESTS_FLAKY  TESTS_FLAKY)"
-
     {
         echo
         message="Finished testing $(pack_get VCS_INFO info)."
