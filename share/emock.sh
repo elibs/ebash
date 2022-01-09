@@ -822,7 +822,6 @@ emock_dump_all_state()
 
     local entry
     for entry in $(find "${statedir}" -mindepth 1 -maxdepth 1 -type d -printf "%f\n"); do
-        ewarn "Found: $(lval statedir entry)"
         opt_forward emock_dump_state statedir -- "${entry}"
     done
 }

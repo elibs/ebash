@@ -68,6 +68,7 @@ test:
 		--delete=${DELETE}          \
 		--exclude="${EXCLUDE}"      \
 		--failfast=${FAILFAST}      \
+		--failures=${FAILURES}      \
 		--filter="${FILTER}"        \
 		--jobs=${JOBS}              \
 		--jobs-progress=${PROGRESS} \
