@@ -171,6 +171,9 @@ elif [ "${DISTRO}" = "darwin" ]; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
 
+    # Brew returns an error if you try to install a package that is already installed. The brew solution to this
+    # is to use `brew bundle` which correctly handles this situation. The syntax is a line-delimited file where
+    # each line is `brew "<package name>"`.
     brew bundle --file=- <<-EOF
 		brew "bash"
 		brew "coreutils"
