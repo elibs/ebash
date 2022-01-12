@@ -171,17 +171,6 @@ elif [ "${DISTRO}" = "darwin" ]; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
 
-    # Brew is lame. If you try to install something that's already installed it returns an error. So we have to first
-    # check if it is installed and skip it if so.
-    brew_install()
-    {
-        for pkg in "${@}"; do
-            if ! brew ls --versions "${pkg}"; then
-                brew install "${pkg}"
-            fi
-        done
-    }
-
     brew bundle --file=- <<-EOF
 		brew "bash"
 		brew "coreutils"
