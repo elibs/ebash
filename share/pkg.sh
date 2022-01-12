@@ -222,14 +222,11 @@ pkg_install()
 
         brew)
 
-            # Brew is lame. If you try to install something that's already installed and needs an upgrade, it returns
-            # an error. So we have to first check each package to see if they are installed and skip them if so.
-            local name
-            for name in "${names[@]}"; do
-                if ! brew ls --versions "${name}"; then
-                    brew install "${name}"
-                fi
-            done
+            # Brew returns an error if you try to install a package that is already installed. The brew solution to this
+            # is to use `brew bundle` which correctly handles this situation. The syntax is a line-delimited file where
+            # each line is `brew "<package name>"`. We use `printf %q` to get things double quoted properly and put
+            # the `brew ` prefix before each argument in the array then we send that to the STDIN for brew bundle.
+            printf 'brew "%q"\n' "${names[@]}" | brew bundle --file=/dev/stdin
             ;;
 
         pacman)

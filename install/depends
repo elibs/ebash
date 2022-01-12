@@ -182,14 +182,15 @@ elif [ "${DISTRO}" = "darwin" ]; then
         done
     }
 
-    brew_install             \
-        bash                 \
-        coreutils            \
-        findutils            \
-        gawk                 \
-        gnu-sed              \
-        gnu-which            \
-        grep                 \
+    brew bundle --file=- <<-EOF
+		brew "bash"
+		brew "coreutils"
+		brew "findutils"
+		brew "gawk"
+		brew "gnu-sed"
+		brew "gnu-which"
+		brew "grep"
+		EOF
 
 #----------------------------------------------------------------------------------------------------------------------
 #
