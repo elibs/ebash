@@ -7,7 +7,8 @@
 # version.
 
 # Global configuration which can be overriden by the caller
-: ${EBASH_CICD_TAG_MATCH:="v*.*.*.*"}
+# This enforces Semantic Versioning 2.0 from https://semver.org/ with MAJOR, MINOR and PATCH.
+: ${EBASH_CICD_TAG_MATCH:="v*.*.*"}
 : ${EBASH_CICD_DEVELOP_BRANCH="develop"}
 : ${EBASH_CICD_RELEASE_BRANCH="main"}
 
@@ -62,24 +63,23 @@ cicd_info()
 
     # If the build is not numeric we can't increment it later
     local version_tag_next
-    if ! is_int "${parts[3]}"; then
+    if ! is_int "${parts[2]}"; then
         version_tag_next=""
-        edebug "Cannot increment non-integer build -- setting version_tag_next to an empty string"
+        edebug "Cannot increment non-integer patch component -- setting version_tag_next to an empty string"
     else
-        version_tag_next="v${parts[0]}.${parts[1]}.${parts[2]}.$(( ${parts[3]:-0} + 1 ))"
+        version_tag_next="v${parts[0]}.${parts[1]}.$(( ${parts[2]:-0} + 1 ))"
     fi
 
     pack_set "${pack}" \
         base_tag="${base_tag}"                                                      \
         branch="$(git rev-parse --abbrev-ref HEAD)"                                 \
-        build="${parts[3]:-0}"                                                      \
         commit="$(git rev-parse HEAD)"                                              \
         commit_short="$(string_truncate 10 $(git rev-parse HEAD))"                  \
         major="${parts[0]}"                                                         \
         minor="${parts[1]}"                                                         \
+        patch="${parts[2]}"                                                         \
         offset="$(git rev-list ${base_tag}..HEAD --count 2>/dev/null || echo 0)"    \
         origin_url="$(git config --get remote.origin.url)"                          \
-        patch="${parts[2]}"                                                         \
         repo_slug="$(basename "$(git config --get remote.origin.url)" ".git")"      \
         series="${parts[0]}.${parts[1]}"                                            \
         version="${version}"                                                        \
