@@ -329,3 +329,63 @@ conf_props()
 
     pack_keys "${__conf_store}[$section]"
 }
+
+opt_usage conf_to_json  <<'END'
+conf_to_json converts the named configuration to an anonymous JSON object. Each named section in the configratuion will
+be a top-level named JSON object. Each property inside that section will then be a series of '"key": "value"' pairs in
+the JSON. By defualt, all the properties are displayed as quoted strings. But this can be controlled via --props-int to
+not quote the values as they are known to be integers. Alternatively the properties can be automatically split on
+whitespace and printed as a JSON array.
+
+For some detailed examples see `tests/conf.etest`:
+
+ETEST_conf_to_json
+ETEST_conf_to_json_int
+ETEST_conf_to_json_array
+...
+END
+conf_to_json()
+{
+    $(opt_parse \
+        "+props_int   | Display all props as ints instead of strings." \
+        "+props_array | Split all props into arrays."                  \
+        "__conf_store | Variable containing the configuration data."   \
+    )
+
+    {
+        echo "{"
+
+        local idx=0 idx_last=0
+        idx_last=$(( $(array_size ${__conf_store}) - 1 ))
+
+        for key in $(array_indexes_sort ${__conf_store}) ; do
+            echo '"'${key}'": {'
+            pack_iterate _conf_json_helper "${__conf_store}[$key]" | sed 's|,$||'
+
+            if [[ "${idx}" -lt "${idx_last}" ]]; then
+                echo "},"
+            else
+                echo "}"
+            fi
+
+            (( idx += 1 ))
+
+        done
+
+        echo "}"
+
+    } | jq .
+}
+
+_conf_json_helper()
+{
+    if [[ "${props_array}" -eq 1 ]]; then
+        local parts=()
+        array_init parts "$2"
+        printf '"%s": %s,' "$1" "$(array_to_json parts)"
+    elif [[ "${props_int}" -eq 1 ]]; then
+        printf '"%s": %s,' "$1" "$2"
+    else
+        printf '"%s": "%s",' "$1" "$2"
+    fi
+}

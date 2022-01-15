@@ -347,3 +347,209 @@ ETEST_conf_sections()
     conf_sections CONF
     assert_eq "section_x section_y section_z" "$(conf_sections CONF)"
 }
+
+ETEST_conf_to_json()
+{
+	cat >file <<-END
+	[global]
+	branches = 50
+	functions = 50
+	lines = 50
+	statements = 50
+
+	[src/components/check]
+	lines = 50
+	statements = 50
+
+	[src/components/credentials]
+	branches = 50
+	functions = 50
+	END
+
+    cat >expect <<-END
+	{
+	  "global": {
+	    "branches": "50",
+	    "functions": "50",
+	    "lines": "50",
+	    "statements": "50"
+	  },
+	  "src/components/check": {
+	    "lines": "50",
+	    "statements": "50"
+	  },
+	  "src/components/credentials": {
+	    "branches": "50",
+	    "functions": "50"
+	  }
+	}
+	END
+
+    etestmsg "Data"
+    declare -A CONF
+    conf_read CONF file
+    conf_dump CONF
+
+    etestmsg "ToJson"
+    conf_to_json CONF > actual
+    jq . actual
+
+    etestmsg "Validating"
+    diff -u expect actual
+}
+
+ETEST_conf_to_json_default_section()
+{
+	cat >file <<-END
+	branches = 50
+	functions = 50
+	lines = 50
+	statements = 50
+
+	[src/components/check]
+	lines = 50
+	statements = 50
+
+	[src/components/credentials]
+	branches = 50
+	functions = 50
+	END
+
+    cat >expect <<-END
+	{
+	  "default": {
+	    "branches": "50",
+	    "functions": "50",
+	    "lines": "50",
+	    "statements": "50"
+	  },
+	  "src/components/check": {
+	    "lines": "50",
+	    "statements": "50"
+	  },
+	  "src/components/credentials": {
+	    "branches": "50",
+	    "functions": "50"
+	  }
+	}
+	END
+
+    etestmsg "Data"
+    declare -A CONF
+    conf_read CONF file
+    conf_dump CONF
+
+    etestmsg "ToJson"
+    conf_to_json CONF > actual
+    jq . actual
+
+    etestmsg "Validating"
+    diff -u expect actual
+}
+
+
+ETEST_conf_to_json_int()
+{
+	cat >file <<-END
+	[global]
+	branches = 50
+	functions = 50
+	lines = 50
+	statements = 50
+
+	[src/components/check]
+	lines = 50
+	statements = 50
+
+	[src/components/credentials]
+	branches = 50
+	functions = 50
+	END
+
+    cat >expect <<-END
+	{
+	  "global": {
+	    "branches": 50,
+	    "functions": 50,
+	    "lines": 50,
+	    "statements": 50
+	  },
+	  "src/components/check": {
+	    "lines": 50,
+	    "statements": 50
+	  },
+	  "src/components/credentials": {
+	    "branches": 50,
+	    "functions": 50
+	  }
+	}
+	END
+
+
+    etestmsg "Data"
+    declare -A CONF
+    conf_read CONF file
+    conf_dump CONF
+
+    etestmsg "ToJson (int)"
+    conf_to_json --props-int CONF > actual
+    jq . actual
+
+    etestmsg "Validating"
+    diff -u expect actual
+}
+
+ETEST_conf_to_json_array()
+{
+	cat >file <<-END
+	[settings]
+	modules = os go
+
+	[os]
+	all = foo bar zap
+
+	[go]
+	foo = some_url
+    bar = another_url with spaces
+	END
+
+    cat >expect <<-END
+	{
+	  "go": {
+	    "foo": [
+	      "some_url"
+	    ],
+	    "bar": [
+	      "another_url",
+	      "with",
+	      "spaces"
+	    ]
+	  },
+	  "os": {
+	    "all": [
+	      "foo",
+	      "bar",
+	      "zap"
+	    ]
+	  },
+	  "settings": {
+	    "modules": [
+	      "os",
+	      "go"
+	    ]
+	  }
+	}
+	END
+
+    etestmsg "Data"
+    declare -A CONF
+    conf_read CONF file
+    conf_dump CONF
+
+    etestmsg "ToJson (array)"
+    conf_to_json --props-array CONF > actual
+    jq . actual
+
+    etestmsg "Validating"
+    diff -u expect actual
+}
