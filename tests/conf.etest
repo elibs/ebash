@@ -398,6 +398,56 @@ ETEST_conf_to_json()
     diff -u expect actual
 }
 
+ETEST_conf_to_json_default_section()
+{
+	cat >file <<-END
+	branches = 50
+	functions = 50
+	lines = 50
+	statements = 50
+
+	[src/components/check]
+	lines = 50
+	statements = 50
+
+	[src/components/credentials]
+	branches = 50
+	functions = 50
+	END
+
+    cat >expect <<-END
+	{
+	  "default": {
+	    "branches": "50",
+	    "functions": "50",
+	    "lines": "50",
+	    "statements": "50"
+	  },
+	  "src/components/check": {
+	    "lines": "50",
+	    "statements": "50"
+	  },
+	  "src/components/credentials": {
+	    "branches": "50",
+	    "functions": "50"
+	  }
+	}
+	END
+
+    etestmsg "Data"
+    declare -A CONF
+    conf_read CONF file
+    conf_dump CONF
+
+    etestmsg "ToJson"
+    conf_to_json CONF > actual
+    cat actual | jq --color-output
+
+    etestmsg "Validating"
+    diff -u expect actual
+}
+
+
 ETEST_conf_to_json_int()
 {
 	cat >file <<-END
