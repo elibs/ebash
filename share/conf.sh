@@ -355,8 +355,8 @@ conf_to_json()
     {
         echo "{"
 
-        local idx=0
-        local idx_last=$(( $(array_size ${__conf_store}) - 1 ))
+        local idx=0 idx_last=0
+        idx_last=$(( $(array_size ${__conf_store}) - 1 ))
 
         for key in $(array_indexes_sort ${__conf_store}) ; do
             echo '"'${key}'": {'
