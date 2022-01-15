@@ -392,7 +392,7 @@ ETEST_conf_to_json()
 
     etestmsg "ToJson"
     conf_to_json CONF > actual
-    cat actual | jq --color-output
+    jq . actual
 
     etestmsg "Validating"
     diff -u expect actual
@@ -441,7 +441,7 @@ ETEST_conf_to_json_default_section()
 
     etestmsg "ToJson"
     conf_to_json CONF > actual
-    cat actual | jq --color-output
+    jq . actual
 
     etestmsg "Validating"
     diff -u expect actual
@@ -493,7 +493,7 @@ ETEST_conf_to_json_int()
 
     etestmsg "ToJson (int)"
     conf_to_json --props-int CONF > actual
-    cat actual | jq --color-output
+    jq . actual
 
     etestmsg "Validating"
     diff -u expect actual
@@ -548,7 +548,7 @@ ETEST_conf_to_json_array()
 
     etestmsg "ToJson (array)"
     conf_to_json --props-array CONF > actual
-    cat actual | jq --color-output
+    jq . actual
 
     etestmsg "Validating"
     diff -u expect actual
