@@ -24,14 +24,20 @@ END
 # This script will only attempt to install the latest LTS release of nodejs to satisfy the tool needs. If node, npm, or
 # nvm are already available this script will be a no-op report stating that the tooling is already installed.
 
+# TODO: Use latest gallium codename to determine the latest version of LTS
+lts_codename="gallium"
+lts_url="https://nodejs.org/download/release/latest-${gallium}/"
+
+# TODO: Use the above to give a more dynamic way of setting these the values below
+lts_version="16.13.2"
+mac_lts_version="16"
+
 # Grab the paths if they exist
 nodejs_path=$(which node 2>/dev/null || echo "")
 npm_path=$(which npm 2>/dev/null || echo "")
 nvm_path=$(which nvm 2>/dev/null || echo "")
 
-edebug "$(lval nodejs_path)"
-edebug "$(lval npm_path)"
-edebug "$(lval nvm_path)"
+edebug "$(lval nodejs_path npm_path nvm_path)"
 
 if [[ "${nvm_path}" == "" ]]; then
     ewarn "NVM has been detected:"
@@ -51,12 +57,13 @@ fi
 package=""
 if os darwin || os_distro alpine arch gentoo; then
     # This installes the latest lts version of node using brew
-    package="node@16"
+    package="node@${MAC_LTS_VERSION}"
 elif os_distro fedora; then
     package="nodejs"
 fi
 
 # TODO: For linux, we'll need to grab the proper binary and install in the correct location for each linux distro
+URL="https://nodejs.org/dist/v${lts_version}/node-v${lts_version}-linux-x64.tar.xz"
 
 ## If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
 #if [[ -n "${package}" ]]; then
@@ -88,5 +95,5 @@ fi
 #fi
 #
 ## Verify installation succeeded
-#command_exists "npm"
-#command_exists "node"
+command_exists "npm"
+command_exists "node"
