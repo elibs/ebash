@@ -20,34 +20,53 @@ END
 #
 #----------------------------------------------------------------------------------------------------------------------
 
-# Check to see which tools are installed. If any of these are installed, we assume things are peachy.
-# This script will only attempt to install the latest LTS release of nodejs to satisfy the tool needs. If node, npm, or
-# nvm are already available this script will be a no-op report stating that the tooling is already installed.
-
-install_prefix="/usr/local"
+default_prefix="/usr/local"
 nodejs_codename="gallium"
 lts_url="https://nodejs.org/download/release/latest-${nodejs_codename}/"
 
-# Grab the paths if they exist
-nodejs_path=$(which node 2>/dev/null || echo)
-npm_path=$(which npm 2>/dev/null || echo)
-nvm_path=$(which nvm 2>/dev/null || echo)
+opt_usage check_for_node_installation <<'END'
+Checks to see if there is already a nodejs installation. If this script was run previously, it will install symlinks
+for the binaries. If this script detects those symlinks, it will remove and re-install based on the latest version
+for the provided lts codename.
+END
+check_for_node_installation()
+{
+    # Grab the paths if they exist
+    nodejs_path=$(which node 2>/dev/null || echo "failed")
+    npm_path=$(which npm 2>/dev/null || echo "failed")
+    nvm_path=$(which nvm 2>/dev/null || echo "failed")
 
-edebug "$(lval nodejs_path npm_path nvm_path)"
+    edebug "$(lval nodejs_path npm_path nvm_path)"
 
-if [[ ! -z "${nvm_path}" ]]; then
-    ewarn "NVM has been detected"
-    ewarn "The user will need to assume responsibility for proper nodejs installation."
-    exit 0
-fi
+    # If the path check didn't fail then abort (even if a symlink)
+    if [[ "${nvm_path}" != "failed" ]]; then
+        eerror "NVM has been detected as a non-symlink (${nvm_path}), stopping installation."
+        ewarn "The user will need to assume responsibility for proper nodejs installation."
+        exit 0
+    fi
 
-# If the paths aren't symlinks, then it's something we can't re-install with, and must exit
-if [[ ! -L "${npm_path}" || ! -L "${nodejs_path}" ]]; then
-    ewarn "npm and/or nodejs has been detected as non-symlinks: "
-    ewarn "The user will need to assume responsibility for proper nodejs installation."
-    exit 0
-fi
+    # If the path check didn't fail, and the path isn't a symlink then we abort
+    if [[ "${npm_path}" != "failed" && ! -L "${npm_path}" ]]; then
+        eerror "npm has been detected as a non-symlink (${npm_path}), stopping installation."
+        ewarn "The user will need to assume responsibility for proper nodejs installation."
+        exit 0
+    else
+        edebug "npm detected as a symlink, continuing installation"
+    fi
 
+    # If the path check didn't fail, and the path isn't a symlink then we abort
+    if [[ "${nodejs_path}" != "failed" && ! -L "${nodejs_path}" ]]; then
+        eerror "node (nodejs) has been detected as a non-symlink (${nodejs_path}), stopping installation."
+        ewarn "The user will need to assume responsibility for proper nodejs installation."
+        exit 0
+    else
+        edebug "nodejs detected as a symlink, continuing installation"
+    fi
+}
+
+opt_usage cleanup_node_symlinks <<'END'
+Cleans up symlinks created from a prior installation NOTE: This is meant to be run before installation!
+END
 cleanup_node_symlinks()
 {
     $(opt_parse                                                            \
@@ -56,18 +75,20 @@ cleanup_node_symlinks()
     )
 
     local symlink_paths=()
+    eprogress "Cleaning up existing symlinks"
 
-    # Check for existing node install and failing if detected
     # Assumption is that if /usr/local/node is a non symlink, it should be left alone
-    if [[ -L "${install_prefix}/node" ]]; then
-        # Determine files/binaries provided by previous install
-        symlink_paths=(/usr/local/node/bin/*)
-
-        # Remove existing dir symlink as it will be replaced by current lts
-        rm -f "${install_prefix}/node"
-    elif [[ -f "${install_prefix}/node" ]]; then
+    if [[ ! -L "${install_prefix}/node" ]]; then
         die "${install_prefix}/node is already defined and not a symlink, failing"
     fi
+
+    # Grab previous install's binaries so their symlinks can be properly cleaned up before linking new binaries
+    symlink_paths=(/usr/local/node/bin/*)
+    orig_install=$(ls -al ${install_prefix}/node | awk '{print $11}')
+
+    # Remove existing dir symlink as it will be replaced by current lts
+    edebug "Removing previous node symlink: ${install_prefix}/node -> ${orig_install}"
+    rm -f "${install_prefix}/node"
 
     # For all the binaries in the nodejs_dir, delete corresponding symlinks
     for spath in "${symlink_paths[@]}"; do
@@ -77,11 +98,16 @@ cleanup_node_symlinks()
             ewarn "Previous node configuration found! ${check_file}"
             die "${check_file} does not appear to be a symlink, failing!"
         fi
-        einfo "Previous symlink to ${check_file} has been found, removing."
+        edebug "Removing previous symlink to ${check_file}"
         rm -f "${check_file}"
     done
+
+    eprogress_kill
 }
 
+opt_usage get_latest_node_version <<'END'
+Retrieves the latest semantic version for a given nodejs codename
+END
 get_latest_node_version()
 {
     $(opt_parse                                                                 \
@@ -91,6 +117,7 @@ get_latest_node_version()
     local sha_url="https://nodejs.org/download/release/latest-${lts_codename}/SHASUMS256.txt"
     local sha_file="/tmp/nodejs_SHASUMS256.txt"
 
+    einfo "Retrieving SHASUM256.txt for codename ${lts_codename}"
     # Download SHA256 to determine version
     eretry efetch --style=einfo "${sha_url}" "${sha_file}" | edebug
     trap_add "rm -f ${sha_file}"
@@ -99,50 +126,89 @@ get_latest_node_version()
     grep "node-v" "${sha_file}" | head -n 1 | awk -F- '{ print $2 }' | sed 's/v//g'
 }
 
-lts_version=$(get_latest_node_version --lts_codename "${nodejs_codename}")
-einfo "Installing latest version of nodejs codename '${nodejs_codename}': ${lts_version}"
+opt_usage install_node <<'END'
+Installs the nodejs lts version based on the codename passed in
+END
+install_node()
+{
+    $(opt_parse                                                           \
+        ":install_prefix p | The install prefix"                          \
+        ":lts_codename   c | The codename for the lts version to install"
+    )
 
-# Mac Specifics -- use brew
-if os darwin; then
-    package=""
+    lts_version=$(get_latest_node_version --lts_codename "${nodejs_codename}")
+    einfo "Installing latest version of nodejs codename '${lts_codename}': ${lts_version}"
 
-    mac_lts_version=$(cut -d. -f1 <<< "${lts_version}")
-    package="node@${mac_lts_version}"
-    einfo "Mac LTS package to install: ${package}"
+    if os darwin; then
+        package=""
 
-    # Install the latest codenamed version of node using brew
-    # pkg_install --sync "node@${mac_lts_version}"
+        mac_lts_version=$(cut -d. -f1 <<< "${lts_version}")
+        package="node@${mac_lts_version}"
+        edebug "Mac LTS package to install: ${package}"
 
-# If the distro is linux, always download the lts codename's latest versioned binary
-elif os linux; then
+        # Install the latest codenamed version of node using brew
+        pkg_install --sync "node@${mac_lts_version}"
 
-    # Download tarball
-    lts_url="https://nodejs.org/download/release/latest-${nodejs_codename}/node-v${lts_version}-linux-x64.tar.gz"
-    tarball="${TMPDIR:-/tmp}/$(basename "${lts_url}")"
+    # If the distro is linux, always download the lts codename's latest versioned binary
+    elif os linux; then
 
-    edebug "$(lval lts_version tarball lts-url)"
+        # Download tarball
+        lts_url="https://nodejs.org/download/release/latest-${lts_codename}/node-v${lts_version}-linux-x64.tar.gz"
+        tarball="${TMPDIR:-/tmp}/$(basename "${lts_url}")"
 
-    eretry efetch --style=einfo "${lts_url}" "${tarball}"
-    trap_add "rm -f ${tarball}"
+        edebug "$(lval lts_version tarball lts-url)"
 
-    # Extract
-    mkdir -p "/usr/local/bin"
-    tar --directory "/usr/local" --extract --gzip --file "${tarball}"
+        eretry efetch --style=einfo "${lts_url}" "${tarball}"
+        trap_add "rm -f ${tarball}"
+
+        # Extract tarball
+        mkdir -p "${install_prefix}/bin"
+        tar --directory "${install_prefix}" --extract --gzip --file "${tarball}"
+        nodejs_dir="${install_prefix}/node-v${lts_version}-linux-x64"
+
+        # Clean up symlinks
+        cleanup_node_symlinks --nodejs_dir "${nodejs_dir}" --install_prefix "${install_prefix}"
+
+        # Create the high level symlink
+        lts_location="${install_prefix}/node-v${lts_version}-linux-x64"
+        einfo "Creating symlink to ${lts_location}"
+        ln -sv "${lts_location}" "${install_prefix}/node"
+
+        # Add symlinks to /usr/local/bin for all node binaries
+        einfo "Creating symbolic links for node binaries"
+        ln -sv "${install_prefix}/node/bin/"* "${install_prefix}/bin"
+    fi
+
+    # Verify installation
+    verify_symlinks --lts_version "${lts_version}"
+}
+
+opt_usage verify_symlinks <<'END'
+Verify the symlinks were properly created based on the entries in /usr/local/node/bin
+END
+verify_symlinks()
+{
+    $(opt_parse                                                         \
+        ":lts_version v | The lts version to install"                   \
+    )
+
+    ## Verify binaries provided by the lts package are in the path
     nodejs_dir="/usr/local/node-v${lts_version}-linux-x64"
+    symlink_paths=("${nodejs_dir}"/*)
+    for spath in "${symlink_paths[@]}"; do
+        command=$(basename "${spath}")
+        edebug "Verifying ${command} is in path"
+        command_exists "${command}"
+    done
+}
 
-    # Clean up symlinks
-    cleanup_node_symlinks --nodejs_dir "${nodejs_dir}" --install_prefix "${install_prefix}"
-
-    # Create the high level symlink
-    ln -sv "/usr/local/node-v${lts_version}-linux-x64" "/usr/local/node"
-
-    # Add symlinks to /usr/local/bin for all node binaries
-    einfo "Creating symbolic links for node binaries"
-    ln -sv "/usr/local/node/bin/"* "/usr/local/bin"
+# If we are being sourced just return immediately as the caller just wants to import our functions
+# (e.g. for testability). Otherwise execute main().
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # Check existing node installation and install appropriate version based on codename
+    check_for_node_installation
+    install_node --lts_codename "${nodejs_codename}" --install_prefix "${default_prefix}"
+    exit 0
+else
+    return 0
 fi
-
-## Verify installation succeeded
-command_exists "corepack"
-command_exists "node"
-command_exists "npm"
-command_exists "npx"
