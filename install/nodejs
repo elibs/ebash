@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+opt_usage main <<'END'
+This script is used to install Nodejs and npm onto a system. For distros which have a new enough version packaged up in
+the package manager we can simply invoke their installer. Otherwise we install Nodejs from the official upstream
+tarball.
+END
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Main
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+nodejs_installed=false
+npm_installed=false
+nvm_installed=false
+
+# Check to see which tools are installed
+if which node &> /dev/null; then
+    nodejs_installed=true
+fi
+
+if which npm &> /dev/null; then
+    npm_installed=true
+fi
+
+if which nvm &> /dev/null; then
+    nvm_installed=true
+fi
+
+einfo "Nodejs installed: $(lval nodejs_installed)"
+einfo "NPM installed: $(lval npm_installed)"
+einfo "NVM installed: $(lval nvm_installed)"
+
+# Determine what the name of the package is to install on this OS/Distro (if any).
+package=""
+if os darwin || os_distro alpine arch gentoo; then
+    # This installes the latest lts version of node using brew
+    package="node@16"
+elif os_distro fedora; then
+    package="nodejs"
+fi
+
+## If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
+#if [[ -n "${package}" ]]; then
+#    pkg_install --sync "${package}"
+#elif os linux; then
+#
+#    # If we already have nodejs, nvm, or npm don't do anything the user has things setup to their liking
+#    if ! which go &>/dev/null; then
+#        einfo "Go not available via package manager on $(os_pretty_name). Downloading from official Go URL."
+#
+#        # Download
+#        version="$(curl --silent --location https://golang.org/VERSION?m=text)"
+#        url="https://dl.google.com/go/${version}.linux-amd64.tar.gz"
+#        tarball="${TMPDIR:-/tmp}/$(basename "${url}")"
+#        eretry efetch --style=einfo "${url}" "${tarball}"
+#        trap_add "rm -f ${tarball}"
+#
+#        # Extract
+#        mkdir -p "/usr/local/bin"
+#        tar --directory "/usr/local" --extract --gzip --file "${tarball}"
+#
+#        # Add symlinks to /usr/local/bin
+#        einfo "Creating symbolic links for go binaries"
+#        ln -sv "/usr/local/go/bin/"* "/usr/local/bin"
+#    fi
+#
+#else
+#    die "Cannot install Nodejs on $(os_pretty_name)"
+#fi
+#
+## Verify installation succeeded
+#command_exists "npm"
+#command_exists "node"
