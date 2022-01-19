@@ -20,26 +20,32 @@ END
 #
 #----------------------------------------------------------------------------------------------------------------------
 
-nodejs_installed=false
-npm_installed=false
-nvm_installed=false
+# Check to see which tools are installed. If any of these are installed, we assume things are peachy.
+# This script will only attempt to install the latest LTS release of nodejs to satisfy the tool needs. If node, npm, or
+# nvm are already available this script will be a no-op report stating that the tooling is already installed.
 
-# Check to see which tools are installed
-if which node &> /dev/null; then
-    nodejs_installed=true
+# Grab the paths if they exist
+nodejs_path=$(which node 2>/dev/null || echo "")
+npm_path=$(which npm 2>/dev/null || echo "")
+nvm_path=$(which nvm 2>/dev/null || echo "")
+
+edebug "$(lval nodejs_path)"
+edebug "$(lval npm_path)"
+edebug "$(lval nvm_path)"
+
+if [[ "${nvm_path}" == "" ]]; then
+    ewarn "NVM has been detected:"
+    ewarn "  $(lval nodejs_path)"
+    einfo "The user will need to assume responsibility for proper nodejs installation."
+    exit 0
 fi
 
-if which npm &> /dev/null; then
-    npm_installed=true
+if [[ "${npm_path}" == "" || "${node_js_path}" == "" ]]; then
+    ewarn "npm and/or nodejs has been detected: "
+    ewarn "  $(lval npm_path node_js_path)"
+    einfo "The user will need to assume responsibility for proper nodejs installation."
+    exit 0
 fi
-
-if which nvm &> /dev/null; then
-    nvm_installed=true
-fi
-
-einfo "Nodejs installed: $(lval nodejs_installed)"
-einfo "NPM installed: $(lval npm_installed)"
-einfo "NVM installed: $(lval nvm_installed)"
 
 # Determine what the name of the package is to install on this OS/Distro (if any).
 package=""
@@ -49,6 +55,8 @@ if os darwin || os_distro alpine arch gentoo; then
 elif os_distro fedora; then
     package="nodejs"
 fi
+
+# TODO: For linux, we'll need to grab the proper binary and install in the correct location for each linux distro
 
 ## If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
 #if [[ -n "${package}" ]]; then
