@@ -24,78 +24,125 @@ END
 # This script will only attempt to install the latest LTS release of nodejs to satisfy the tool needs. If node, npm, or
 # nvm are already available this script will be a no-op report stating that the tooling is already installed.
 
-# TODO: Use latest gallium codename to determine the latest version of LTS
-lts_codename="gallium"
-lts_url="https://nodejs.org/download/release/latest-${gallium}/"
-
-# TODO: Use the above to give a more dynamic way of setting these the values below
-lts_version="16.13.2"
-mac_lts_version="16"
+install_prefix="/usr/local"
+nodejs_codename="gallium"
+lts_url="https://nodejs.org/download/release/latest-${nodejs_codename}/"
 
 # Grab the paths if they exist
-nodejs_path=$(which node 2>/dev/null || echo "")
-npm_path=$(which npm 2>/dev/null || echo "")
-nvm_path=$(which nvm 2>/dev/null || echo "")
+nodejs_path=$(which node 2>/dev/null || echo)
+npm_path=$(which npm 2>/dev/null || echo)
+nvm_path=$(which nvm 2>/dev/null || echo)
 
 edebug "$(lval nodejs_path npm_path nvm_path)"
 
-if [[ "${nvm_path}" == "" ]]; then
-    ewarn "NVM has been detected:"
-    ewarn "  $(lval nodejs_path)"
-    einfo "The user will need to assume responsibility for proper nodejs installation."
+if [[ ! -z "${nvm_path}" ]]; then
+    ewarn "NVM has been detected"
+    ewarn "The user will need to assume responsibility for proper nodejs installation."
     exit 0
 fi
 
-if [[ "${npm_path}" == "" || "${node_js_path}" == "" ]]; then
-    ewarn "npm and/or nodejs has been detected: "
-    ewarn "  $(lval npm_path node_js_path)"
-    einfo "The user will need to assume responsibility for proper nodejs installation."
+# If the paths aren't symlinks, then it's something we can't re-install with, and must exit
+if [[ ! -L "${npm_path}" || ! -L "${nodejs_path}" ]]; then
+    ewarn "npm and/or nodejs has been detected as non-symlinks: "
+    ewarn "The user will need to assume responsibility for proper nodejs installation."
     exit 0
 fi
 
-# Determine what the name of the package is to install on this OS/Distro (if any).
-package=""
-if os darwin || os_distro alpine arch gentoo; then
-    # This installes the latest lts version of node using brew
-    package="node@${MAC_LTS_VERSION}"
-elif os_distro fedora; then
-    package="nodejs"
+cleanup_node_symlinks()
+{
+    $(opt_parse                                                            \
+        ":nodejs_dir     d | The location of the extracted nodejs tarball" \
+        ":install_prefix p | The install prefix"
+    )
+
+    local symlink_paths=()
+
+    # Check for existing node install and failing if detected
+    # Assumption is that if /usr/local/node is a non symlink, it should be left alone
+    if [[ -L "${install_prefix}/node" ]]; then
+        # Determine files/binaries provided by previous install
+        symlink_paths=(/usr/local/node/bin/*)
+
+        # Remove existing dir symlink as it will be replaced by current lts
+        rm -f "${install_prefix}/node"
+    elif [[ -f "${install_prefix}/node" ]]; then
+        die "${install_prefix}/node is already defined and not a symlink, failing"
+    fi
+
+    # For all the binaries in the nodejs_dir, delete corresponding symlinks
+    for spath in "${symlink_paths[@]}"; do
+        local check_file="${install_prefix}/bin/$(basename "${spath}")"
+
+        if [[ -e "${check_file}" && ! -L "${check_file}" ]]; then
+            ewarn "Previous node configuration found! ${check_file}"
+            die "${check_file} does not appear to be a symlink, failing!"
+        fi
+        einfo "Previous symlink to ${check_file} has been found, removing."
+        rm -f "${check_file}"
+    done
+}
+
+get_latest_node_version()
+{
+    $(opt_parse                                                                 \
+        ":lts_codename c | The lts codename to retrieve the latest version for" \
+    )
+
+    local sha_url="https://nodejs.org/download/release/latest-${lts_codename}/SHASUMS256.txt"
+    local sha_file="/tmp/nodejs_SHASUMS256.txt"
+
+    # Download SHA256 to determine version
+    eretry efetch --style=einfo "${sha_url}" "${sha_file}" | edebug
+    trap_add "rm -f ${sha_file}"
+
+    # Find entry with version, and sanitize
+    grep "node-v" "${sha_file}" | head -n 1 | awk -F- '{ print $2 }' | sed 's/v//g'
+}
+
+lts_version=$(get_latest_node_version --lts_codename "${nodejs_codename}")
+einfo "Installing latest version of nodejs codename '${nodejs_codename}': ${lts_version}"
+
+# Mac Specifics -- use brew
+if os darwin; then
+    package=""
+
+    mac_lts_version=$(cut -d. -f1 <<< "${lts_version}")
+    package="node@${mac_lts_version}"
+    einfo "Mac LTS package to install: ${package}"
+
+    # Install the latest codenamed version of node using brew
+    # pkg_install --sync "node@${mac_lts_version}"
+
+# If the distro is linux, always download the lts codename's latest versioned binary
+elif os linux; then
+
+    # Download tarball
+    lts_url="https://nodejs.org/download/release/latest-${nodejs_codename}/node-v${lts_version}-linux-x64.tar.gz"
+    tarball="${TMPDIR:-/tmp}/$(basename "${lts_url}")"
+
+    edebug "$(lval lts_version tarball lts-url)"
+
+    eretry efetch --style=einfo "${lts_url}" "${tarball}"
+    trap_add "rm -f ${tarball}"
+
+    # Extract
+    mkdir -p "/usr/local/bin"
+    tar --directory "/usr/local" --extract --gzip --file "${tarball}"
+    nodejs_dir="/usr/local/node-v${lts_version}-linux-x64"
+
+    # Clean up symlinks
+    cleanup_node_symlinks --nodejs_dir "${nodejs_dir}" --install_prefix "${install_prefix}"
+
+    # Create the high level symlink
+    ln -sv "/usr/local/node-v${lts_version}-linux-x64" "/usr/local/node"
+
+    # Add symlinks to /usr/local/bin for all node binaries
+    einfo "Creating symbolic links for node binaries"
+    ln -sv "/usr/local/node/bin/"* "/usr/local/bin"
 fi
 
-# TODO: For linux, we'll need to grab the proper binary and install in the correct location for each linux distro
-URL="https://nodejs.org/dist/v${lts_version}/node-v${lts_version}-linux-x64.tar.xz"
-
-# [[ ! -e out.tmp ]] && curl https://nodejs.org/download/release/latest-gallium/SHASUMS256.txt > out.tmp; grep "node-v" out.tmp | head -n 1 | awk '{ print $2 }'
-
-## If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
-#if [[ -n "${package}" ]]; then
-#    pkg_install --sync "${package}"
-#elif os linux; then
-#
-#    # If we already have nodejs, nvm, or npm don't do anything the user has things setup to their liking
-#    if ! which go &>/dev/null; then
-#        einfo "Go not available via package manager on $(os_pretty_name). Downloading from official Go URL."
-#
-#        # Download
-#        version="$(curl --silent --location https://golang.org/VERSION?m=text)"
-#        url="https://dl.google.com/go/${version}.linux-amd64.tar.gz"
-#        tarball="${TMPDIR:-/tmp}/$(basename "${url}")"
-#        eretry efetch --style=einfo "${url}" "${tarball}"
-#        trap_add "rm -f ${tarball}"
-#
-#        # Extract
-#        mkdir -p "/usr/local/bin"
-#        tar --directory "/usr/local" --extract --gzip --file "${tarball}"
-#
-#        # Add symlinks to /usr/local/bin
-#        einfo "Creating symbolic links for go binaries"
-#        ln -sv "/usr/local/go/bin/"* "/usr/local/bin"
-#    fi
-#
-#else
-#    die "Cannot install Nodejs on $(os_pretty_name)"
-#fi
-#
 ## Verify installation succeeded
-command_exists "npm"
+command_exists "corepack"
 command_exists "node"
+command_exists "npm"
+command_exists "npx"
