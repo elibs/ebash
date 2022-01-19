@@ -65,6 +65,8 @@ fi
 # TODO: For linux, we'll need to grab the proper binary and install in the correct location for each linux distro
 URL="https://nodejs.org/dist/v${lts_version}/node-v${lts_version}-linux-x64.tar.xz"
 
+# [[ ! -e out.tmp ]] && curl https://nodejs.org/download/release/latest-gallium/SHASUMS256.txt > out.tmp; grep "node-v" out.tmp | head -n 1 | awk '{ print $2 }'
+
 ## If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
 #if [[ -n "${package}" ]]; then
 #    pkg_install --sync "${package}"
