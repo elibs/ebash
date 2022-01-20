@@ -21,6 +21,7 @@ END
 #----------------------------------------------------------------------------------------------------------------------
 
 default_prefix="/usr/local"
+default_sha_path="/tmp/SHASUMS256.txt"
 nodejs_codename="gallium"
 lts_url="https://nodejs.org/download/release/latest-${nodejs_codename}/"
 
@@ -86,10 +87,6 @@ cleanup_node_symlinks()
     symlink_paths=(/usr/local/node/bin/*)
     orig_install=$(ls -al ${install_prefix}/node | awk '{print $11}')
 
-    # Remove existing dir symlink as it will be replaced by current lts
-    edebug "Removing previous node symlink: ${install_prefix}/node -> ${orig_install}"
-    rm -f "${install_prefix}/node"
-
     # For all the binaries in the nodejs_dir, delete corresponding symlinks
     for spath in "${symlink_paths[@]}"; do
         local check_file="${install_prefix}/bin/$(basename "${spath}")"
@@ -102,7 +99,30 @@ cleanup_node_symlinks()
         rm -f "${check_file}"
     done
 
+    # Remove existing dir symlink as it will be replaced by current lts
+    edebug "Removing previous node symlink: ${install_prefix}/node -> ${orig_install}"
+    rm -f "${install_prefix}/node"
+
     eprogress_kill
+}
+
+
+opt_usage retrieve_sha <<'END'
+Retrieves nodejs release sha for the lts codename
+END
+retrieve_sha()
+{
+    $(opt_parse                                                    \
+        ":lts_codename     c | The codename of the lts to install" \
+        ":sha_output_path  o | The place to store the sha"         \
+    )
+
+    einfo "Retrieving SHASUM256.txt for codename ${lts_codename}"
+    local sha_url="https://nodejs.org/download/release/latest-${lts_codename}/SHASUMS256.txt"
+    edebug "Using url: ${sha_url}"
+
+    # Download SHA256 to determine version
+    eretry efetch --style=einfo "${sha_url}" "${sha_file}" | edebug
 }
 
 opt_usage get_latest_node_version <<'END'
@@ -110,20 +130,25 @@ Retrieves the latest semantic version for a given nodejs codename
 END
 get_latest_node_version()
 {
-    $(opt_parse                                                                 \
-        ":lts_codename c | The lts codename to retrieve the latest version for" \
+    $(opt_parse                                                                    \
+        ":lts_codename    c | The lts codename to retrieve the latest version for" \
+        ":sha_output_path o | The path where the sha should be saved"
     )
 
-    local sha_url="https://nodejs.org/download/release/latest-${lts_codename}/SHASUMS256.txt"
-    local sha_file="/tmp/nodejs_SHASUMS256.txt"
+    # Retrieve the sha file and apply cleanup
+    retrieve_sha --lts_codename "${lts_codename}" --sha_output_path "${sha_output_path}"
+    trap_add "rm -f ${sha_output_path}"
 
-    einfo "Retrieving SHASUM256.txt for codename ${lts_codename}"
-    # Download SHA256 to determine version
-    eretry efetch --style=einfo "${sha_url}" "${sha_file}" | edebug
-    trap_add "rm -f ${sha_file}"
-
-    # Find entry with version, and sanitize
-    grep "node-v" "${sha_file}" | head -n 1 | awk -F- '{ print $2 }' | sed 's/v//g'
+    try
+    {
+        # Find entry with version, and sanitize
+        grep "node-v" "${sha_output_path}" | head -n 1 | awk -F- '{ print $2 }' | sed 's/v//g'
+    }
+    catch
+    {
+        edebug "$(cat "${sha_output_path}")"
+        die "Failed to retrieve version from ${sha_output_path}"
+    }
 }
 
 opt_usage install_node <<'END'
@@ -136,7 +161,7 @@ install_node()
         ":lts_codename   c | The codename for the lts version to install"
     )
 
-    lts_version=$(get_latest_node_version --lts_codename "${nodejs_codename}")
+    lts_version=$(get_latest_node_version --lts_codename "${nodejs_codename}" --sha_output_path "${default_sha_path}")
     einfo "Installing latest version of nodejs codename '${lts_codename}': ${lts_version}"
 
     if os darwin; then
@@ -162,7 +187,7 @@ install_node()
         trap_add "rm -f ${tarball}"
 
         # Extract tarball
-        mkdir -p "${install_prefix}/bin"
+        mkdir -p "${install_prefix}/bin" || die "Failed creating ${install_prefix}/bin, check for correct permissions"
         tar --directory "${install_prefix}" --extract --gzip --file "${tarball}"
         nodejs_dir="${install_prefix}/node-v${lts_version}-linux-x64"
 
@@ -180,7 +205,7 @@ install_node()
     fi
 
     # Verify installation
-    verify_symlinks --lts_version "${lts_version}"
+    verify_symlinks --install_prefix "${install_prefix}" --lts_version "${lts_version}"
 }
 
 opt_usage verify_symlinks <<'END'
@@ -189,12 +214,14 @@ END
 verify_symlinks()
 {
     $(opt_parse                                                         \
-        ":lts_version v | The lts version to install"                   \
+        ":install_prefix p | The install prefix"                        \
+        ":lts_version    v | The lts version to install"                \
     )
 
     ## Verify binaries provided by the lts package are in the path
-    nodejs_dir="/usr/local/node-v${lts_version}-linux-x64"
+    nodejs_dir="${install_prefix}/node-v${lts_version}-linux-x64/bin"
     symlink_paths=("${nodejs_dir}"/*)
+
     for spath in "${symlink_paths[@]}"; do
         command=$(basename "${spath}")
         edebug "Verifying ${command} is in path"

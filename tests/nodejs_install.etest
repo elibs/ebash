@@ -20,32 +20,91 @@ ETEST_clean_installation_check()
     check_for_node_installation
 }
 
-ETEST_nvm_installation_check()
+ETEST_cleanup_with_existing_symlinks()
 {
-    emock "which" '
-    {
-        if [[ arg[0] == "nvm" ]]; then
-            echo "/usr/local/bin/nvm"
-            return 0
-        else
-            return 1
-        fi
-    }'
-    check_for_node_installation || assert_eq 1 "${?}"
+    # Establish a test directory to install into
+    test_prefix="$(mktemp -u usr_local.XXXXXX)"
+    test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+    extracted_dir="${test_prefix_dir}/node-1.2.3.4"
+
+    # Simulate existing install
+    mkdir -p "${extracted_dir}/bin"
+    mkdir -p "${test_prefix_dir}/bin"
+    ln -sv "${extracted_dir}" "${test_prefix_dir}/node"
+
+    # Create binary symlinks
+    binaries=(
+        "node"
+        "npm"
+        "npx"
+        "nvm"
+    )
+
+    for binary in "${binaries[@]}"; do
+        echo "I think therefor I am" > "${extracted_dir}/bin/${binary}"
+        ln -sv "${test_prefix_dir}/node/bin/${binary}" "${test_prefix_dir}/bin/${binary}"
+    done
+
+    cleanup_node_symlinks --install_prefix "${test_prefix_dir}"
+
+    # All files should be cleaned up
+    for binary in "${binaries[@]}"; do
+        assert_not_exists "${test_prefix_dir}/bin/${binary}"
+    done
+
+    # Make sure top level node symlink is also removed
+    assert_not_exists "${test_prefix_dir}/node"
 }
 
-ETEST_npm_installation_check()
+ETEST_cleanup_with_node_dir()
 {
-    emock "which" '
+    # Establish a test directory to install into
+    test_prefix="$(mktemp -u prefix_dir.XXXXXX)"
+    test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+    mkdir -p "${test_prefix_dir}/node"
+
+    try
     {
-        if [[ arg[0] == "npm" ]]; then
-            echo "/usr/local/bin/npm"
-            return 0
-        else
-            return 1
-        fi
-    }'
-    check_for_node_installation || assert_eq 2 "${?}"
+        cleanup_node_symlinks --install_prefix "${test_prefix_dir}"
+        die "Script didn't fail when <install_prefix>/node was a directory and not a symlink"
+    }
+    catch
+    {
+        einfo "Properly failed when <install_prefix>/node wasn't a symlink"
+    }
+}
+
+ETEST_install_node()
+{
+    # TODO: -_-
+    return 0
+}
+
+ETEST_install_prefix_real_files()
+{
+    # Establish a test directory to install into
+    test_prefix="$(mktemp -u usr_local.XXXXXX)"
+    test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+    extracted_dir="${test_prefix_dir}/node-1.2.3.4"
+
+    # Simulate existing install
+    mkdir -p "${extracted_dir}/bin"
+    ln -sv "${extracted_dir}" "${test_prefix_dir}/node"
+
+    # Create a real file for testing, not a symlink
+    echo "I think therefor I am" > "${extracted_dir}/bin/node"
+
+    try
+    {
+        cleanup_node_symlinks --install_prefix "${test_prefix_dir}"
+        die "Real files existed, but cleanup didn't fail."
+    }
+    catch
+    {
+        einfo "Properly failed when binary files existed"
+    }
+
+    assert_exists "${extracted_dir}/bin/node"
 }
 
 ETEST_node_installation_check()
@@ -62,23 +121,110 @@ ETEST_node_installation_check()
     check_for_node_installation || assert_eq 3 "${?}"
 }
 
-
-ETEST_cleanup_node_symlinks()
+ETEST_npm_installation_check()
 {
-    return 0
+    emock "which" '
+    {
+        if [[ arg[0] == "npm" ]]; then
+            echo "/usr/local/bin/npm"
+            return 0
+        else
+            return 1
+        fi
+    }'
+    check_for_node_installation || assert_eq 2 "${?}"
+}
+
+ETEST_nvm_installation_check()
+{
+    emock "which" '
+    {
+        if [[ arg[0] == "nvm" ]]; then
+            echo "/usr/local/bin/nvm"
+            return 0
+        else
+            return 1
+        fi
+    }'
+    check_for_node_installation || assert_eq 1 "${?}"
 }
 
 ETEST_get_latest_node_version()
 {
-    return 0
-}
+    local codename="gallium"
+    local expected_version="16.13.2"
+    local sha_file="${TEST_DIR_OUTPUT}/nodejs_SHASUMS256.txt"
 
-ETEST_install_node()
-{
-    return 0
+    # Establish mock
+    emock "retrieve_sha" '
+    {
+        return 0
+    }'
+
+    # Test Legit version
+    cat > "${sha_file}" <<-END
+451367428b40095656133  node-v16.13.2-aix-ppc64.tar.gz
+END
+    actual_version=$(get_latest_node_version --lts_codename "${codename}" --sha_output_path "${sha_file}")
+    assert_eq "${expected_version}" "${actual_version}"
+
+    # Test Bogus version
+    cat > "${sha_file}" <<-END
+451367428b40095656133  node-.13.2-aix-ppc64.tar.gz
+END
+
+    try
+    {
+        actual_version=$(get_latest_node_version --lts_codename "${codename}" --sha_output_path "${sha_file}")
+        assert_eq "${expected_version}" "${actual_version}"
+    }
+    catch
+    {
+        einfo "Properly failed when bogus entries were provided"
+        # Validate sha file was cleaned up
+        assert_not_exists "${sha_file}"
+    }
+
 }
 
 ETEST_verify_symlinks()
 {
-    return 0
+    # Establish a test directory to install into
+    test_lts_version="1.2.3.4"
+    test_prefix="$(mktemp -u usr_local.XXXXXX)"
+    test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+    extracted_dir="${test_prefix_dir}/node-v${test_lts_version}-linux-x64"
+
+    # Simulate existing install
+    mkdir -p "${extracted_dir}/bin"
+    mkdir -p "${test_prefix_dir}/bin"
+    ln -sv "${extracted_dir}" "${test_prefix_dir}/node"
+
+    # Create test symlinks
+    binaries=(
+        "node"
+        "npm"
+        "npx"
+    )
+
+    for binary in "${binaries[@]}"; do
+        echo "I think therefor I am" > "${extracted_dir}/bin/${binary}"
+        ln -sv "${test_prefix_dir}/node/bin/${binary}" "${test_prefix_dir}/bin/${binary}"
+    done
+
+    verify_symlinks --install_prefix "${test_prefix}" --lts_version "${test_lts_version}"
+
+    # Remove a symlink and reverify
+    rm -f "${test_prefix_dir}/bin/node"
+    assert_not_exists "${test_prefix_dir}/bin/node"
+
+    try
+    {
+        verify_symlinks --install_prefix "${test_prefix}" --lts_version "${test_lts_version}"
+    }
+    catch
+    {
+        einfo "Properly failed when binary exists without a symlink"
+    }
+
 }
