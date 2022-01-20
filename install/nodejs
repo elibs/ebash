@@ -78,13 +78,13 @@ cleanup_node_symlinks()
     local symlink_paths=()
     eprogress "Cleaning up existing symlinks"
 
-    # Assumption is that if /usr/local/node is a non symlink, it should be left alone
+    # Assumption is that if <install_prefix>/node is a non symlink, it should be left alone
     if [[ ! -L "${install_prefix}/node" ]]; then
         die "${install_prefix}/node is already defined and not a symlink, failing"
     fi
 
     # Grab previous install's binaries so their symlinks can be properly cleaned up before linking new binaries
-    symlink_paths=(/usr/local/node/bin/*)
+    symlink_paths=("${install_prefix}"/node/bin/*)
     orig_install=$(ls -al ${install_prefix}/node | awk '{print $11}')
 
     # For all the binaries in the nodejs_dir, delete corresponding symlinks
@@ -199,7 +199,7 @@ install_nodejs()
         einfo "Creating symlink to ${lts_location}"
         ln -sv "${lts_location}" "${install_prefix}/node"
 
-        # Add symlinks to /usr/local/bin for all node binaries
+        # Add symlinks to <install_prefix>/bin for all node binaries
         einfo "Creating symbolic links for node binaries"
         ln -sv "${install_prefix}/node/bin/"* "${install_prefix}/bin"
     fi
@@ -209,7 +209,7 @@ install_nodejs()
 }
 
 opt_usage verify_symlinks <<'END'
-Verify the symlinks were properly created based on the entries in /usr/local/node/bin
+Verify the symlinks were properly created based on the entries in <prefix>/node/bin
 END
 verify_symlinks()
 {
