@@ -33,20 +33,20 @@ END
 check_for_node_installation()
 {
     # Grab the paths if they exist
-    nodejs_path=$(which node 2>/dev/null || echo "failed")
-    npm_path=$(which npm 2>/dev/null || echo "failed")
-    nvm_path=$(which nvm 2>/dev/null || echo "failed")
+    nodejs_path=$(which node 2>/dev/null || true)
+    npm_path=$(which npm 2>/dev/null || true)
+    nvm_path=$(which nvm 2>/dev/null || true)
 
     edebug "$(lval nodejs_path npm_path nvm_path)"
 
     # If the path check didn't fail then abort (even if a symlink)
-    if [[ "${nvm_path}" != "failed" ]]; then
+    if [[ "${nvm_path}" != "" ]]; then
         eerror "NVM has been detected as a non-symlink (${nvm_path}), stopping installation."
         return 1
     fi
 
     # If the path check didn't fail, and the path isn't a symlink then we abort
-    if [[ "${npm_path}" != "failed" && ! -L "${npm_path}" ]]; then
+    if [[ ! -z "${npm_path}" && ! -L "${npm_path}" ]]; then
         eerror "npm has been detected as a non-symlink (${npm_path}), stopping installation."
         ewarn "The user will need to assume responsibility for proper nodejs installation."
         return 2
@@ -55,7 +55,7 @@ check_for_node_installation()
     fi
 
     # If the path check didn't fail, and the path isn't a symlink then we abort
-    if [[ "${nodejs_path}" != "failed" && ! -L "${nodejs_path}" ]]; then
+    if [[ ! -z "${nodejs_path}" && ! -L "${nodejs_path}" ]]; then
         eerror "node (nodejs) has been detected as a non-symlink (${nodejs_path}), stopping installation."
         ewarn "The user will need to assume responsibility for proper nodejs installation."
         return 3
