@@ -122,7 +122,7 @@ retrieve_sha()
     edebug "Using url: ${sha_url}"
 
     # Download SHA256 to determine version
-    eretry efetch --style=einfo "${sha_url}" "${sha_file}" | edebug
+    eretry efetch --style=einfo "${sha_url}" "${sha_output_path}" | edebug
 }
 
 opt_usage get_latest_node_version <<'END'
@@ -233,7 +233,7 @@ verify_symlinks()
 # (e.g. for testability). Otherwise execute main().
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Check existing node installation and install appropriate version based on codename
-    if !check_for_node_installation; then
+    if ! check_for_node_installation; then
         ewarn "Nodejs binaries were found, the user will need to assume responsibility for proper nodejs installation."
     else
         install_node --lts_codename "${nodejs_codename}" --install_prefix "${default_prefix}"
