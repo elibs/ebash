@@ -180,6 +180,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
 		brew "findutils"
 		brew "gawk"
 		brew "gnu-sed"
+		brew "gnu-tar"
 		brew "gnu-which"
 		brew "grep"
 		EOF

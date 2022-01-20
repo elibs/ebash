@@ -75,7 +75,7 @@ Cleans up symlinks created from a prior installation NOTE: This is meant to be r
 END
 cleanup_node_symlinks()
 {
-    $(opt_parse                                                            \
+    $(opt_parse                                  \
         ":install_prefix p | The install prefix"
     )
 
@@ -166,7 +166,7 @@ install_nodejs()
         ":lts_codename   c | The codename for the lts version to install"
     )
 
-    lts_version=$(get_latest_node_version --lts_codename "${nodejs_codename}" --sha_output_path "${default_sha_path}")
+    lts_version=$(get_latest_node_version --lts_codename "${lts_codename}" --sha_output_path "${default_sha_path}")
     einfo "Installing latest version of nodejs codename '${lts_codename}': ${lts_version}"
 
     if os darwin; then
@@ -210,6 +210,8 @@ install_nodejs()
 
         # Verify installation
         verify_symlinks --install_prefix "${install_prefix}" --lts_version "${lts_version}"
+    else
+        die "Cannot install nodejs on $(os_pretty_name)"
     fi
 }
 
@@ -224,12 +226,20 @@ verify_symlinks()
     )
 
     ## Verify binaries provided by the lts package are in the path
-    nodejs_dir="${install_prefix}/node-v${lts_version}-linux-x64/bin"
-    symlink_paths=("${nodejs_dir}"/*)
+    nodejs_bin="${install_prefix}/node-v${lts_version}-linux-x64/bin"
+    prefix_bin="${install_prefix}/bin"
+    symlink_paths=("${nodejs_bin}"/*)
 
+    # There are two functions:
+    # 1) Verify the command was symlinked appropriately
+    # 2) Verify the command is in the path
     for spath in "${symlink_paths[@]}"; do
         command=$(basename "${spath}")
-        edebug "Verifying ${command} is in path"
+        edebug "Verifying '${command}' was symlinked into ${prefix_bin}"
+        assert_exists "${prefix_bin}/${command}"
+        edebug "Verifying the '${command}' is a symlink"
+        [[ -L "${prefix_bin}/${command}" ]]
+        edebug "Verifying '${command}' is in path"
         command_exists "${command}"
     done
 }

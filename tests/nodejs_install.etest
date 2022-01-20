@@ -55,6 +55,11 @@ ETEST_cleanup_with_existing_symlinks()
 
     # Make sure top level node symlink is also removed
     assert_not_exists "${test_prefix_dir}/node"
+
+    # All files in the 'extracted' nodejs directory should still exist
+    for binary in "${binaries[@]}"; do
+        assert_exists "${extracted_dir}/bin/${binary}"
+    done
 }
 
 ETEST_cleanup_with_node_dir()
@@ -65,23 +70,148 @@ ETEST_cleanup_with_node_dir()
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
     mkdir -p "${test_prefix_dir}/node"
 
-    try
-    {
-        cleanup_node_symlinks --install_prefix "${test_prefix_dir}"
-        die "Script didn't fail when <install_prefix>/node was a directory and not a symlink"
-    }
-    catch
-    {
-        # Make sure the folder wasn't removed
-        assert_exists "${test_prefix_dir}/node"
-        einfo "Properly failed when <install_prefix>/node wasn't a symlink"
-    }
+    assert_false cleanup_node_symlinks --install_prefix "${test_prefix_dir}"
+    assert_exists "${test_prefix_dir}/node"
 }
 
-ETEST_install_node()
+ETEST_install_node_non_supported()
 {
-    # TODO: -_-
-    return 0
+    # Setup test vars
+    local lts_version="1.2.3.4"
+    local lts_codename="TestName"
+    local test_prefix
+    test_prefix="$(mktemp -u prefix_dir.XXXXXX)"
+    local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+
+    emock --stdout "${lts_version}" --return 0 "get_latest_node_version"
+    emock --return 1 "os"
+
+    assert_false install_nodejs --install_prefix "${test_prefix_dir}" --lts_codename "${lts_codename}"
+}
+
+ETEST_install_node_linux()
+{
+    # Setup test vars
+    local lts_version="1.2.3.4"
+    local lts_codename="TestName"
+    local test_prefix
+    test_prefix="$(mktemp -u prefix_dir.XXXXXX)"
+    local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+
+    local tarball_folder="node-v${lts_version}-linux-x64"
+    local tarball="${TEST_DIR_OUTPUT}/tmp/${tarball_folder}.tar.gz"
+    local tarball_loc="${TEST_DIR_OUTPUT}/tmp/${tarball_folder}"
+    local test_url="https://nodejs.org/download/release/latest-${lts_codename}/node-v${lts_version}-linux-x64.tar.gz"
+
+    # Create simulated extracted folder
+    mkdir -p "${tarball_loc}/bin"
+
+    # Create dummy binaries files
+    binaries=(
+        "node"
+        "npm"
+        "npx"
+    )
+    for binary in "${binaries[@]}"; do
+        echo "I think therefor I am" > "${tarball_loc}/bin/${binary}"
+    done
+
+    # Create the dummy tar.gz that efetch should download
+    pushd "${TEST_DIR_OUTPUT}/tmp"
+    tar cvf - "${tarball_folder}" | gzip > "${tarball}"
+    popd
+
+    # Setup Mocks
+    emock --return 0 "cleanup_node_symlinks"
+    emock --return 0 "efetch"
+    emock --return 0 "eretry"
+    emock --return 0 "verify_symlinks"
+    emock --stdout "${lts_version}" --return 0 "get_latest_node_version"
+
+    emock "os" '
+    {
+        if [[ "$@" == "darwin" ]]; then
+            return 1
+        elif [[ "$@" == "linux" ]]; then
+            return 0
+        else
+            return 1
+        fi
+    }'
+
+    # Make the call
+    install_nodejs --install_prefix "${test_prefix_dir}" --lts_codename "${lts_codename}"
+
+    # Verify correct Mocks
+    assert_emock_called_with "get_latest_node_version" 0 \
+        --lts_codename "${lts_codename}"                 \
+        --sha_output_path "${default_sha_path}"
+
+    assert_emock_called_with "eretry" 0 \
+        efetch --style=einfo "${test_url}" "${tarball}"
+
+    assert_emock_called_with "cleanup_node_symlinks" 0 \
+        --install_prefix "${test_prefix_dir}"
+
+    assert_emock_called_with "verify_symlinks" 0 \
+        --install_prefix "${test_prefix_dir}"    \
+        --lts_version "${lts_version}"
+
+    # Verify correct structure in place after the install
+    for binary in "${binaries[@]}"; do
+        assert_exists "${test_prefix_dir}/bin/${binary}"
+        assert_exists "${test_prefix_dir}/${tarball_folder}/bin/${binary}"
+    done
+
+    # Verify structures
+    assert_exists "${test_prefix_dir}/node"
+
+    # This should get created if it doesn't exist (doesn't in this test prefix initially)
+    assert_exists "${test_prefix}/bin"
+}
+
+ETEST_install_node_mac()
+{
+    # Setup test vars
+    local lts_codename="TestName"
+    local expected_mac_version="1"
+    local expected_package="node@${expected_mac_version}"
+
+    local test_prefix
+    test_prefix="$(mktemp -u prefix_dir.XXXXXX)"
+    local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+
+    # Setup Mocks
+    emock "get_latest_node_version" '
+    {
+        echo "1.2.3.4"
+    }'
+
+    emock "os" '
+    {
+        return 0
+    }'
+
+    emock "pkg_install" '
+    {
+        return 0
+    }'
+
+    # Make the call
+    install_nodejs --install_prefix "${test_prefix_dir}" --lts_codename "${lts_codename}"
+
+    # NOTE: This test's intent is to verify the proper calls, since we don't want to duplicate the
+    #       testing that already occurs for the individual ebash built-ins
+    # Verify the mocks being called correctly
+    assert_emock_called_with "get_latest_node_version" 0 \
+        --lts_codename "${lts_codename}"                 \
+        --sha_output_path "${default_sha_path}"
+
+    assert_emock_called_with "os" 0 \
+        darwin
+
+    assert_emock_called_with "pkg_install" 0 \
+        --sync "${expected_package}"
 }
 
 ETEST_install_prefix_real_files()
@@ -90,26 +220,17 @@ ETEST_install_prefix_real_files()
     local test_prefix
     test_prefix="$(mktemp -u usr_local.XXXXXX)"
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
-    local extracted_dir="${test_prefix_dir}/node-1.2.3.4"
+    local test_file="${test_prefix_dir}/bin/node"
 
-    # Simulate existing install
-    mkdir -p "${extracted_dir}/bin"
-    ln -sv "${extracted_dir}" "${test_prefix_dir}/node"
+    # Simulate existing install creating a real file, not a symlink
+    mkdir -p "${test_prefix_dir}/bin"
+    echo "I think therefor I am" > "${test_file}"
 
-    # Create a real file for testing, not a symlink
-    echo "I think therefor I am" > "${extracted_dir}/bin/node"
+    # Verify the call fails
+    assert_false cleanup_node_symlinks --install_prefix "${test_prefix_dir}"
 
-    try
-    {
-        cleanup_node_symlinks --install_prefix "${test_prefix_dir}"
-        die "Real files existed, but cleanup didn't fail."
-    }
-    catch
-    {
-        einfo "Properly failed when binary files existed"
-    }
-
-    assert_exists "${extracted_dir}/bin/node"
+    # Make sure the file wasn't removed
+    assert_exists "${test_file}"
 }
 
 ETEST_node_installation_check()
@@ -181,7 +302,6 @@ END
     try
     {
         actual_version=$(get_latest_node_version --lts_codename "${codename}" --sha_output_path "${sha_file}")
-        assert_eq "${expected_version}" "${actual_version}"
     }
     catch
     {
@@ -189,7 +309,6 @@ END
         # Validate sha file was cleaned up
         assert_not_exists "${sha_file}"
     }
-
 }
 
 ETEST_verify_symlinks()
@@ -222,15 +341,10 @@ ETEST_verify_symlinks()
 
     # Remove a symlink and reverify
     rm -f "${test_prefix_dir}/bin/node"
+
+    # Make sure folder doesn't exist
     assert_not_exists "${test_prefix_dir}/bin/node"
 
-    try
-    {
-        verify_symlinks --install_prefix "${test_prefix}" --lts_version "${test_lts_version}"
-    }
-    catch
-    {
-        einfo "Properly failed when binary exists without a symlink"
-    }
-
+    # Make sure the function call fails
+    assert_false verify_symlinks --install_prefix "${test_prefix}" --lts_version "${test_lts_version}"
 }
