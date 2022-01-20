@@ -141,7 +141,7 @@ get_latest_node_version()
     )
 
     # Retrieve the sha file and apply cleanup
-    retrieve_sha --lts_codename "${lts_codename}" --sha_output_path "${sha_output_path}"
+    retrieve_sha --lts-codename "${lts_codename}" --sha-output-path "${sha_output_path}"
     trap_add "rm -f ${sha_output_path}"
 
     edebug "$(cat "${sha_output_path}")"
@@ -158,7 +158,7 @@ install_nodejs()
         ":lts_codename   c | The codename for the lts version to install"
     )
 
-    lts_version=$(get_latest_node_version --lts_codename "${lts_codename}" --sha_output_path "${default_sha_path}")
+    lts_version=$(get_latest_node_version --lts-codename "${lts_codename}" --sha-output-path "${default_sha_path}")
     einfo "Installing latest version of nodejs codename '${lts_codename}': ${lts_version}"
 
     if os darwin; then
@@ -189,7 +189,7 @@ install_nodejs()
         nodejs_dir="${install_prefix}/node-v${lts_version}-linux-x64"
 
         # Clean up symlinks
-        cleanup_node_symlinks --install_prefix "${install_prefix}"
+        cleanup_node_symlinks --install-prefix "${install_prefix}"
 
         # Create the high level symlink
         lts_location="${install_prefix}/node-v${lts_version}-linux-x64"
@@ -201,7 +201,7 @@ install_nodejs()
         ln -sv "${install_prefix}/node/bin/"* "${install_prefix}/bin"
 
         # Verify installation
-        verify_symlinks --install_prefix "${install_prefix}" --lts_version "${lts_version}"
+        verify_symlinks --install-prefix "${install_prefix}" --lts-version "${lts_version}"
     else
         die "Cannot install nodejs on $(os_pretty_name)"
     fi
@@ -243,7 +243,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if ! check_for_node_installation; then
         ewarn "Nodejs binaries were found, the user will need to assume responsibility for proper nodejs installation."
     else
-        install_nodejs --lts_codename "${nodejs_codename}" --install_prefix "${default_prefix}"
+        install_nodejs --lts-codename "${nodejs_codename}" --install-prefix "${default_prefix}"
     fi
     exit 0
 else
