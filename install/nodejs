@@ -144,16 +144,8 @@ get_latest_node_version()
     retrieve_sha --lts_codename "${lts_codename}" --sha_output_path "${sha_output_path}"
     trap_add "rm -f ${sha_output_path}"
 
-    try
-    {
-        # Find entry with version, and sanitize
-        grep "node-v" "${sha_output_path}" | head -n 1 | awk -F- '{ print $2 }' | sed 's/v//g'
-    }
-    catch
-    {
-        edebug "$(cat "${sha_output_path}")"
-        die "Failed to retrieve version from ${sha_output_path}"
-    }
+    edebug "$(cat "${sha_output_path}")"
+    grep "node-v" "${sha_output_path}" | head -n 1 | awk -F- '{ print $2 }' | sed 's/v//g'
 }
 
 opt_usage install_node <<'END'
