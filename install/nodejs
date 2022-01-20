@@ -122,7 +122,7 @@ retrieve_sha()
     edebug "Using url: ${sha_url}"
 
     # Download SHA256 to determine version
-    eretry efetch --style=einfo "${sha_url}" "${sha_output_path}" | edebug
+    eretry efetch --style=einfo "${sha_url}" "${sha_output_path}" |& edebug
 }
 
 opt_usage get_latest_node_version <<'END'

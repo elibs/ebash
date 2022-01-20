@@ -23,7 +23,8 @@ ETEST_clean_installation_check()
 ETEST_cleanup_with_existing_symlinks()
 {
     # Establish a test directory to install into
-    local test_prefix="$(mktemp -u usr_local.XXXXXX)"
+    local test_prefix
+    test_prefix="$(mktemp -u usr_local.XXXXXX)"
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
     local extracted_dir="${test_prefix_dir}/node-1.2.3.4"
 
@@ -59,7 +60,8 @@ ETEST_cleanup_with_existing_symlinks()
 ETEST_cleanup_with_node_dir()
 {
     # Establish a test directory to install into
-    local test_prefix="$(mktemp -u prefix_dir.XXXXXX)"
+    local test_prefix
+    test_prefix="$(mktemp -u prefix_dir.XXXXXX)"
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
     mkdir -p "${test_prefix_dir}/node"
 
@@ -83,7 +85,8 @@ ETEST_install_node()
 ETEST_install_prefix_real_files()
 {
     # Establish a test directory to install into
-    local test_prefix="$(mktemp -u usr_local.XXXXXX)"
+    local test_prefix
+    test_prefix="$(mktemp -u usr_local.XXXXXX)"
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
     local extracted_dir="${test_prefix_dir}/node-1.2.3.4"
 
@@ -191,7 +194,8 @@ ETEST_verify_symlinks()
 {
     # Establish a test directory to install into
     local test_lts_version="1.2.3.4"
-    local test_prefix="$(mktemp -u usr_local.XXXXXX)"
+    local test_prefix
+    test_prefix="$(mktemp -u usr_local.XXXXXX)"
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
     local extracted_dir="${test_prefix_dir}/node-v${test_lts_version}-linux-x64"
 
