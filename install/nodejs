@@ -32,6 +32,10 @@ for the provided lts codename.
 END
 check_for_node_installation()
 {
+    local nodejs_path
+    local npm_path
+    local nvm_path
+
     # Grab the paths if they exist
     nodejs_path=$(which node 2>/dev/null || true)
     npm_path=$(which npm 2>/dev/null || true)
@@ -89,7 +93,8 @@ cleanup_node_symlinks()
 
     # For all the binaries in the nodejs_dir, delete corresponding symlinks
     for spath in "${symlink_paths[@]}"; do
-        local check_file="${install_prefix}/bin/$(basename "${spath}")"
+        local check_file
+        check_file="${install_prefix}/bin/$(basename "${spath}")"
 
         if [[ -e "${check_file}" && ! -L "${check_file}" ]]; then
             ewarn "Previous node configuration found! ${check_file}"
@@ -202,10 +207,10 @@ install_nodejs()
         # Add symlinks to <install_prefix>/bin for all node binaries
         einfo "Creating symbolic links for node binaries"
         ln -sv "${install_prefix}/node/bin/"* "${install_prefix}/bin"
-    fi
 
-    # Verify installation
-    verify_symlinks --install_prefix "${install_prefix}" --lts_version "${lts_version}"
+        # Verify installation
+        verify_symlinks --install_prefix "${install_prefix}" --lts_version "${lts_version}"
+    fi
 }
 
 opt_usage verify_symlinks <<'END'

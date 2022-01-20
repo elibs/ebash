@@ -72,6 +72,8 @@ ETEST_cleanup_with_node_dir()
     }
     catch
     {
+        # Make sure the folder wasn't removed
+        assert_exists "${test_prefix_dir}/node"
         einfo "Properly failed when <install_prefix>/node wasn't a symlink"
     }
 }
