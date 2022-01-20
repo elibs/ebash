@@ -41,15 +41,14 @@ check_for_node_installation()
     # If the path check didn't fail then abort (even if a symlink)
     if [[ "${nvm_path}" != "failed" ]]; then
         eerror "NVM has been detected as a non-symlink (${nvm_path}), stopping installation."
-        ewarn "The user will need to assume responsibility for proper nodejs installation."
-        exit 0
+        return 1
     fi
 
     # If the path check didn't fail, and the path isn't a symlink then we abort
     if [[ "${npm_path}" != "failed" && ! -L "${npm_path}" ]]; then
         eerror "npm has been detected as a non-symlink (${npm_path}), stopping installation."
         ewarn "The user will need to assume responsibility for proper nodejs installation."
-        exit 0
+        return 2
     else
         edebug "npm detected as a symlink, continuing installation"
     fi
@@ -58,10 +57,12 @@ check_for_node_installation()
     if [[ "${nodejs_path}" != "failed" && ! -L "${nodejs_path}" ]]; then
         eerror "node (nodejs) has been detected as a non-symlink (${nodejs_path}), stopping installation."
         ewarn "The user will need to assume responsibility for proper nodejs installation."
-        exit 0
+        return 3
     else
         edebug "nodejs detected as a symlink, continuing installation"
     fi
+
+    return 0
 }
 
 opt_usage cleanup_node_symlinks <<'END'
@@ -70,7 +71,6 @@ END
 cleanup_node_symlinks()
 {
     $(opt_parse                                                            \
-        ":nodejs_dir     d | The location of the extracted nodejs tarball" \
         ":install_prefix p | The install prefix"
     )
 
@@ -167,7 +167,7 @@ install_node()
         nodejs_dir="${install_prefix}/node-v${lts_version}-linux-x64"
 
         # Clean up symlinks
-        cleanup_node_symlinks --nodejs_dir "${nodejs_dir}" --install_prefix "${install_prefix}"
+        cleanup_node_symlinks --install_prefix "${install_prefix}"
 
         # Create the high level symlink
         lts_location="${install_prefix}/node-v${lts_version}-linux-x64"
@@ -206,8 +206,11 @@ verify_symlinks()
 # (e.g. for testability). Otherwise execute main().
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Check existing node installation and install appropriate version based on codename
-    check_for_node_installation
-    install_node --lts_codename "${nodejs_codename}" --install_prefix "${default_prefix}"
+    if !check_for_node_installation; then
+        ewarn "Nodejs binaries were found, the user will need to assume responsibility for proper nodejs installation."
+    else
+        install_node --lts_codename "${nodejs_codename}" --install_prefix "${default_prefix}"
+    fi
     exit 0
 else
     return 0

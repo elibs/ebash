@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+# Import
+source "${EBASH_HOME}/install/nodejs"
+
+ETEST_clean_installation_check()
+{
+    emock "which" '
+    {
+        return 1
+    }'
+    check_for_node_installation
+}
+
+ETEST_nvm_installation_check()
+{
+    emock "which" '
+    {
+        if [[ arg[0] == "nvm" ]]; then
+            echo "/usr/local/bin/nvm"
+            return 0
+        else
+            return 1
+        fi
+    }'
+    check_for_node_installation || assert_eq 1 "${?}"
+}
+
+ETEST_npm_installation_check()
+{
+    emock "which" '
+    {
+        if [[ arg[0] == "npm" ]]; then
+            echo "/usr/local/bin/npm"
+            return 0
+        else
+            return 1
+        fi
+    }'
+    check_for_node_installation || assert_eq 2 "${?}"
+}
+
+ETEST_node_installation_check()
+{
+    emock "which" '
+    {
+        if [[ arg[0] == "node" ]]; then
+            echo "/usr/local/bin/node"
+            return 0
+        else
+            return 1
+        fi
+    }'
+    check_for_node_installation || assert_eq 3 "${?}"
+}
+
+
+ETEST_cleanup_node_symlinks()
+{
+    return 0
+}
+
+ETEST_get_latest_node_version()
+{
+    return 0
+}
+
+ETEST_install_node()
+{
+    return 0
+}
+
+ETEST_verify_symlinks()
+{
+    return 0
+}
