@@ -154,7 +154,7 @@ get_latest_node_version()
 opt_usage install_node <<'END'
 Installs the nodejs lts version based on the codename passed in
 END
-install_node()
+install_nodejs()
 {
     $(opt_parse                                                           \
         ":install_prefix p | The install prefix"                          \
@@ -236,7 +236,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if ! check_for_node_installation; then
         ewarn "Nodejs binaries were found, the user will need to assume responsibility for proper nodejs installation."
     else
-        install_node --lts_codename "${nodejs_codename}" --install_prefix "${default_prefix}"
+        install_nodejs --lts_codename "${nodejs_codename}" --install_prefix "${default_prefix}"
     fi
     exit 0
 else
