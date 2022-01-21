@@ -44,7 +44,7 @@ check_for_node_installation()
     edebug "$(lval nodejs_path npm_path nvm_path)"
 
     # If the path check didn't fail then abort (even if a symlink)
-    if [[ "${nvm_path}" ]]; then
+    if [[ ! -z "${nvm_path}" ]]; then
         eerror "NVM has been detected as a non-symlink (${nvm_path}), stopping installation."
         return 1
     fi
