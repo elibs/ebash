@@ -50,11 +50,8 @@ check_for_node_installation()
     fi
 
     if os darwin; then
-        # If brew installed node, then let brew handle reinstall
-        if brew list | grep "node@"; then
-            edebug "Darwin detected, using brew to handle install/reinstall"
-            return 0
-        fi
+        edebug "Darwin detected, using brew to handle install/reinstall"
+        return 0
     fi
 
     # If the path check didn't fail, and the path isn't a symlink then we abort
