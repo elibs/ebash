@@ -187,6 +187,9 @@ install_nodejs()
         # Install the latest codenamed version of node using brew
         pkg_install --sync "node@${mac_lts_version}"
 
+        # Workaround issue with Catalina
+        command_exists "npm" || brew link "node@${mac_lts_version}"
+
     # If the distro is linux, always download the lts codename's latest versioned binary
     elif os linux; then
 
