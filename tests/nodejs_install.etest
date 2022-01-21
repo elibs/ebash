@@ -332,8 +332,11 @@ ETEST_verify_symlinks()
         "npx"
     )
 
+    PATH="${test_prefix_dir}/bin:${PATH}"
+
     for binary in "${binaries[@]}"; do
         echo "I think therefor I am" > "${extracted_dir}/bin/${binary}"
+        chmod +x "${extracted_dir}/bin/${binary}"
         ln -sv "${test_prefix_dir}/node/bin/${binary}" "${test_prefix_dir}/bin/${binary}"
     done
 

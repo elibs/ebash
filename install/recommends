@@ -251,7 +251,6 @@ elif os darwin; then
 
     packages+=(
         git
-        gnu-tar
         iproute2mac
         jq
         pstree
