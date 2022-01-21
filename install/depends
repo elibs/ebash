@@ -52,6 +52,7 @@ if [ "${DISTRO}" = "alpine" ]; then
     apk add                  \
         bash                 \
         coreutils            \
+        curl                 \
         diffutils            \
         file                 \
         findutils            \
@@ -61,6 +62,7 @@ if [ "${DISTRO}" = "alpine" ]; then
         procps               \
         sed                  \
         util-linux           \
+        which                \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -70,6 +72,7 @@ if [ "${DISTRO}" = "alpine" ]; then
 elif [ "${DISTRO}" = "arch" ]; then
 
     pacman -Syu --noconfirm --needed \
+        curl                 \
         diffutils            \
         perl                 \
         which                \
@@ -84,6 +87,7 @@ elif [ "${DISTRO}" = "centos" ]; then
     yum install epel-release -y
 
     yum install -y          \
+        curl                \
         diffutils           \
         file                \
         perl                \
@@ -100,6 +104,7 @@ elif [ "${DISTRO}" = "debian" ]; then
 
     apt install -y          \
         bsdmainutils        \
+        curl                \
         file                \
         lsb-release         \
         procps              \
@@ -112,6 +117,7 @@ elif [ "${DISTRO}" = "debian" ]; then
 elif [ "${DISTRO}" = "fedora" ]; then
 
     dnf install -y          \
+        curl                \
         diffutils           \
         file                \
         findutils           \
@@ -126,7 +132,7 @@ elif [ "${DISTRO}" = "fedora" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "gentoo" ]; then
 
-    # Nothing to install on gentoo as everythying is included by default!
+    # Nothing to install on gentoo as everything is included by default!
     true
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -139,6 +145,7 @@ elif [ "${DISTRO}" = "rocky" ]; then
     yum install epel-release -y
 
     yum install -y          \
+        curl                \
         diffutils           \
         file                \
         perl                \
@@ -156,6 +163,7 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 
     apt install -y          \
         bsdmainutils        \
+        curl                \
         file                \
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -180,6 +188,7 @@ elif [ "${DISTRO}" = "darwin" ]; then
 		brew "findutils"
 		brew "gawk"
 		brew "gnu-sed"
+		brew "gnu-tar"
 		brew "gnu-which"
 		brew "grep"
 		EOF

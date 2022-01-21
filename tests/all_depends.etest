@@ -111,3 +111,17 @@ ETEST_install_go()
 
     assert_commands_installed "${commands[@]}"
 }
+
+ETEST_install_nodejs()
+{
+    local commands=(
+        "node"
+        "npm"
+        "npx"
+    )
+
+    # Run the install script
+    ${EBASH_HOME}/install/nodejs
+
+    assert_commands_installed "${commands[@]}"
+}

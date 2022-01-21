@@ -29,7 +29,6 @@ ebanner --uppercase "Installing recommended packages" \
 packages=(
     bzip2
     cpio
-    curl
     dialog
     gdb
     gettext
@@ -251,7 +250,6 @@ elif os darwin; then
 
     packages+=(
         git
-        gnu-tar
         iproute2mac
         jq
         pstree
