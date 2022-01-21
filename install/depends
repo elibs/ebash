@@ -52,6 +52,7 @@ if [ "${DISTRO}" = "alpine" ]; then
     apk add                  \
         bash                 \
         coreutils            \
+        curl                 \
         diffutils            \
         file                 \
         findutils            \
@@ -71,6 +72,7 @@ if [ "${DISTRO}" = "alpine" ]; then
 elif [ "${DISTRO}" = "arch" ]; then
 
     pacman -Syu --noconfirm --needed \
+        curl                 \
         diffutils            \
         perl                 \
         which                \
@@ -85,6 +87,7 @@ elif [ "${DISTRO}" = "centos" ]; then
     yum install epel-release -y
 
     yum install -y          \
+        curl                \
         diffutils           \
         file                \
         perl                \
@@ -101,6 +104,7 @@ elif [ "${DISTRO}" = "debian" ]; then
 
     apt install -y          \
         bsdmainutils        \
+        curl                \
         file                \
         lsb-release         \
         procps              \
@@ -113,6 +117,7 @@ elif [ "${DISTRO}" = "debian" ]; then
 elif [ "${DISTRO}" = "fedora" ]; then
 
     dnf install -y          \
+        curl                \
         diffutils           \
         file                \
         findutils           \
@@ -140,6 +145,7 @@ elif [ "${DISTRO}" = "rocky" ]; then
     yum install epel-release -y
 
     yum install -y          \
+        curl                \
         diffutils           \
         file                \
         perl                \
@@ -157,6 +163,7 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
 
     apt install -y          \
         bsdmainutils        \
+        curl                \
         file                \
 
 #----------------------------------------------------------------------------------------------------------------------

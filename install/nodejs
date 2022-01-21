@@ -49,6 +49,14 @@ check_for_node_installation()
         return 1
     fi
 
+    if os darwin; then
+        # If brew installed node, then let brew handle reinstall
+        if brew list | grep "node@"; then
+            edebug "Darwin detected, using brew to handle install/reinstall"
+            return 0
+        fi
+    fi
+
     # If the path check didn't fail, and the path isn't a symlink then we abort
     if [[ ! -z "${npm_path}" && ! -L "${npm_path}" ]]; then
         eerror "npm has been detected as a non-symlink (${npm_path}), stopping installation."
@@ -81,6 +89,17 @@ cleanup_node_symlinks()
 
     local symlink_paths=()
     eprogress "Cleaning up existing symlinks"
+
+    if os darwin; then
+        einfo "Darwin detected: nodejs install is handled by brew on MacOS, skipping symlink cleanup."
+        return 0
+    fi
+
+    # Nothing to clean up if the needed symlink or directory doesn't exist
+    if [[ ! -e "${install_prefix}/node" ]]; then
+        einfo "${install_prefix}/node not found, nothing to clean up"
+        return 0
+    fi
 
     # Assumption is that if <install_prefix>/node is a non symlink, it should be left alone
     if [[ ! -L "${install_prefix}/node" ]]; then
@@ -216,6 +235,11 @@ verify_symlinks()
         ":install_prefix p | The install prefix"                        \
         ":lts_version    v | The lts version to install"                \
     )
+
+    if os darwin; then
+        einfo "Darwin detected: nodejs install is handled by brew on MacOS, skipping symlink verification."
+        return 0
+    fi
 
     ## Verify binaries provided by the lts package are in the path
     nodejs_bin="${install_prefix}/node-v${lts_version}-linux-x64/bin"

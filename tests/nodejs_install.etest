@@ -41,6 +41,14 @@ ETEST_cleanup_with_existing_symlinks()
         "nvm"
     )
 
+    # Mock os call to disable darwin check
+    emock "os" '
+    {
+        if [[ "$@" == "darwin" ]]; then
+            return 1
+        fi
+    }'
+
     for binary in "${binaries[@]}"; do
         echo "I think therefor I am" > "${extracted_dir}/bin/${binary}"
         ln -sv "${test_prefix_dir}/node/bin/${binary}" "${test_prefix_dir}/bin/${binary}"
@@ -62,6 +70,56 @@ ETEST_cleanup_with_existing_symlinks()
     done
 }
 
+ETEST_cleanup_with_existing_symlinks_on_mac()
+{
+    # Establish a test directory to install into
+    local test_prefix
+    test_prefix="$(mktemp -u usr_local.XXXXXX)"
+    local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+    local extracted_dir="${test_prefix_dir}/node-1.2.3.4"
+
+    # Simulate existing install
+    mkdir -p "${extracted_dir}/bin"
+    mkdir -p "${test_prefix_dir}/bin"
+    ln -sv "${extracted_dir}" "${test_prefix_dir}/node"
+
+    # Create binary symlinks
+    binaries=(
+        "node"
+        "npm"
+        "npx"
+        "nvm"
+    )
+
+    for binary in "${binaries[@]}"; do
+        echo "I think therefor I am" > "${extracted_dir}/bin/${binary}"
+        ln -sv "${test_prefix_dir}/node/bin/${binary}" "${test_prefix_dir}/bin/${binary}"
+    done
+
+    # Setup Mock for Mac
+    emock "os" '
+    {
+        if [[ "$@" == "darwin" ]]; then
+            return 0
+        fi
+    }'
+
+    cleanup_node_symlinks --install-prefix "${test_prefix_dir}"
+
+    # Nothing should be cleaned up, make sure all files still exist
+    for binary in "${binaries[@]}"; do
+        assert_exists "${test_prefix_dir}/bin/${binary}"
+    done
+
+    # Make sure top level node symlink is also removed
+    assert_exists "${test_prefix_dir}/node"
+
+    # All files in the 'extracted' nodejs directory should still exist
+    for binary in "${binaries[@]}"; do
+        assert_exists "${extracted_dir}/bin/${binary}"
+    done
+}
+
 ETEST_cleanup_with_node_dir()
 {
     # Establish a test directory to install into
@@ -69,6 +127,14 @@ ETEST_cleanup_with_node_dir()
     test_prefix="$(mktemp -u prefix_dir.XXXXXX)"
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
     mkdir -p "${test_prefix_dir}/node"
+
+    # Mock os call to disable darwin check
+    emock "os" '
+    {
+        if [[ "$@" == "darwin" ]]; then
+            return 1
+        fi
+    }'
 
     assert_false cleanup_node_symlinks --install-prefix "${test_prefix_dir}"
     assert_exists "${test_prefix_dir}/node"
@@ -214,6 +280,9 @@ ETEST_install_node_mac()
         --sync "${expected_package}"
 }
 
+# Simulate cleaning up a system that has parts of nodejs installed.
+# This is a separation of concerns test such that regardless of whatever files are in <prefix>/bin
+# there's nothing to clean up because a <prefix>/node directory doesn't exist
 ETEST_install_prefix_real_files()
 {
     # Establish a test directory to install into
@@ -226,10 +295,18 @@ ETEST_install_prefix_real_files()
     mkdir -p "${test_prefix_dir}/bin"
     echo "I think therefor I am" > "${test_file}"
 
-    # Verify the call fails
-    assert_false cleanup_node_symlinks --install-prefix "${test_prefix_dir}"
+    # Mock os call to disable darwin check
+    emock "os" '
+    {
+        if [[ "$@" == "darwin" ]]; then
+            return 1
+        fi
+    }'
 
-    # Make sure the file wasn't removed
+    # Verify the call passes, the <test_prefix>/node folder doesn't exist so there is nothing to clean up
+    assert_true cleanup_node_symlinks --install-prefix "${test_prefix_dir}"
+
+    # Make sure the file wasn't touched
     assert_exists "${test_file}"
 }
 
@@ -299,16 +376,8 @@ END
 451367428b40095656133  node-.13.2-aix-ppc64.tar.gz
 END
 
-    try
-    {
-        actual_version=$(get_latest_node_version --lts-codename "${codename}" --sha-output-path "${sha_file}")
-    }
-    catch
-    {
-        einfo "Properly failed when bogus entries were provided"
-        # Validate sha file was cleaned up
-        assert_not_exists "${sha_file}"
-    }
+    assert_false get_latest_node_version --lts-codename "${codename}" --sha-output-path "${sha_file}"
+    assert_not_exists "${sha_file}"
 }
 
 ETEST_verify_symlinks()
@@ -334,6 +403,14 @@ ETEST_verify_symlinks()
 
     PATH="${test_prefix_dir}/bin:${PATH}"
 
+    # Mock os call to disable darwin check
+    emock "os" '
+    {
+        if [[ "$@" == "darwin" ]]; then
+            return 1
+        fi
+    }'
+
     for binary in "${binaries[@]}"; do
         echo "I think therefor I am" > "${extracted_dir}/bin/${binary}"
         chmod +x "${extracted_dir}/bin/${binary}"
@@ -350,4 +427,54 @@ ETEST_verify_symlinks()
 
     # Make sure the function call fails
     assert_false verify_symlinks --install-prefix "${test_prefix}" --lts-version "${test_lts_version}"
+}
+
+ETEST_verify_symlinks_on_mac()
+{
+    # Establish a test directory to install into
+    local test_lts_version="1.2.3.4"
+    local test_prefix
+    test_prefix="$(mktemp -u usr_local.XXXXXX)"
+    local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
+    local extracted_dir="${test_prefix_dir}/node-v${test_lts_version}-linux-x64"
+
+    # Simulate existing install
+    mkdir -p "${extracted_dir}/bin"
+    mkdir -p "${test_prefix_dir}/bin"
+    ln -sv "${extracted_dir}" "${test_prefix_dir}/node"
+
+    # Create test symlinks
+    binaries=(
+        "node"
+        "npm"
+        "npx"
+    )
+
+    PATH="${test_prefix_dir}/bin:${PATH}"
+
+    # Create entries in the extracted dir, but not in the <test_prefix_dir>/bin
+    for binary in "${binaries[@]}"; do
+        echo "I think therefor I am" > "${extracted_dir}/bin/${binary}"
+        chmod +x "${extracted_dir}/bin/${binary}"
+    done
+
+    # Setup Mock for Mac
+    emock "os" '
+    {
+        if [[ "$@" == "darwin" ]]; then
+            return 0
+        fi
+    }'
+
+    # This should pass since this function is a no-op on mac
+    verify_symlinks --install-prefix "${test_prefix}" --lts-version "${test_lts_version}"
+
+    # NOTE: This test setup on Linux should fail, we are verifying the no-op aspect
+    for binary in "${binaries[@]}"; do
+        # Symlinks were created for extracted dir
+        assert_exists "${extracted_dir}/bin/${binary}"
+
+        # Symlinks never created in prefix dir
+        assert_not_exists "${test_prefix_dir}/bin/${binary}"
+    done
 }
