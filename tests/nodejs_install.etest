@@ -253,15 +253,11 @@ ETEST_install_node_mac()
         echo "1.2.3.4"
     }'
 
-    emock "os" '
-    {
-        return 0
-    }'
+    emock --return 0 "os"
 
-    emock "pkg_install" '
-    {
-        return 0
-    }'
+    emock --return 0 "pkg_install"
+
+    emock --return 0 "brew"
 
     # Make the call
     install_nodejs --install-prefix "${test_prefix_dir}" --lts-codename "${lts_codename}"
