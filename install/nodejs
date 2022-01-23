@@ -196,6 +196,8 @@ install_nodejs()
         edebug "Use alpines package manager to install nodejs and friends."
         pkg_install --sync npm nodejs
 
+        einfo "$(npm -v)"
+
     # If the distro is linux, always download the lts codename's latest versioned binary
     elif os linux; then
 
