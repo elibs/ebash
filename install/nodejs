@@ -217,7 +217,11 @@ install_nodejs()
 
         # Add symlinks to <install_prefix>/bin for all node binaries
         einfo "Creating symbolic links for node binaries"
-        ln -sv "${install_prefix}/node/bin/"* "${install_prefix}/bin"
+        for file in "${install_prefix}/node/bin/*"; do
+            file_to_link=$(readlink -f "${file}")
+            linked_file=$(basename "${file}")
+            ln -sv "${file_to_link}" "${install_prefix}/bin/${linked_file}"
+        done
 
         # Verify installation
         verify_symlinks --install-prefix "${install_prefix}" --lts-version "${lts_version}"
