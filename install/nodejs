@@ -189,6 +189,12 @@ install_nodejs()
 
         # Workaround issue with Catalina
         command_exists "npm" || brew link "node@${mac_lts_version}"
+    elif os_distro alpine; then
+
+        # nodejs precompiled binaries are against glib, and alpine needs musl
+        # for now, use whatever alpine is providing
+        edebug "Use alpines package manager to install nodejs and friends."
+        pkg_install --sync npm nodejs
 
     # If the distro is linux, always download the lts codename's latest versioned binary
     elif os linux; then
