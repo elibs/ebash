@@ -150,7 +150,12 @@ ETEST_install_node_non_supported()
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
 
     emock --stdout "${lts_version}" --return 0 "get_latest_node_version"
+
+    # Fail all os checks
     emock --return 1 "os"
+
+    # Ignore alpine
+    emock --return 1 "os_distro"
 
     assert_false install_nodejs --install-prefix "${test_prefix_dir}" --lts-codename "${lts_codename}"
 }
@@ -204,6 +209,9 @@ ETEST_install_node_linux()
             return 1
         fi
     }'
+
+    # Ignore alpine, as we use apk to install nodejs currently on alpine
+    emock --return 1 "os_distro"
 
     # Make the call
     install_nodejs --install-prefix "${test_prefix_dir}" --lts-codename "${lts_codename}"
