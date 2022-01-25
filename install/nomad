@@ -38,6 +38,7 @@ fi
 # Need to make sure to unmask nomad for gentoo
 if os_distro gentoo; then
     emerge --autounmask=y --autounmask-write --autounmask-continue sys-cluster/nomad
+    exit 0
 fi
 
 # If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
