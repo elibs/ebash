@@ -44,6 +44,7 @@ assert_commands_installed()
 ETEST_depends()
 {
     local commands=(
+        "7za"
         "awk"
         "base64"
         "bash"
@@ -51,6 +52,7 @@ ETEST_depends()
         "file"
         "find"
         "grep"
+        "jq"
         "perl"
         "ps"
         "readlink"
@@ -73,7 +75,6 @@ ETEST_recommends()
         "git"
         "gzip|pigz"
         "ip"
-        "jq"
         "logger"
         "lzma|xz"
         "mount"
@@ -122,6 +123,18 @@ ETEST_install_nodejs()
 
     # Run the install script
     ${EBASH_HOME}/install/nodejs
+
+    assert_commands_installed "${commands[@]}"
+}
+
+ETEST_install_nomad()
+{
+    local commands=(
+        "nomad"
+    )
+
+    # Run the install script
+    ${EBASH_HOME}/install/nomad
 
     assert_commands_installed "${commands[@]}"
 }

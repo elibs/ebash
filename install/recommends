@@ -57,7 +57,6 @@ if os_distro alpine; then
         gnupg
         iproute2
         iputils
-        jq
         ncurses
         ncurses-terminfo
         net-tools
@@ -79,7 +78,6 @@ elif os_distro arch; then
         cdrkit
         debootstrap
         git
-        jq
         net-tools
     )
 
@@ -98,7 +96,6 @@ elif os_distro centos; then
         git
         iproute
         iptables
-        jq
         ncurses
         net-tools
         psmisc
@@ -126,7 +123,6 @@ elif os_distro debian; then
         iproute2
         iptables
         iputils-ping
-        jq
         net-tools
         psmisc
         xz-utils
@@ -154,7 +150,6 @@ elif os_distro fedora; then
         iproute
         iptables
         iputils
-        jq
         ncurses
         net-tools
         psmisc
@@ -202,7 +197,6 @@ elif os_distro rocky; then
         git
         iproute
         iptables
-        jq
         ncurses
         net-tools
         psmisc
@@ -233,7 +227,6 @@ elif os_distro ubuntu; then
         iproute2
         iptables
         iputils-ping
-        jq
         mkisofs
         net-tools
         psmisc
@@ -251,7 +244,6 @@ elif os darwin; then
     packages+=(
         git
         iproute2mac
-        jq
         pstree
     )
 

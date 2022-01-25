@@ -58,6 +58,8 @@ if [ "${DISTRO}" = "alpine" ]; then
         findutils            \
         gawk                 \
         grep                 \
+        jq                   \
+        p7zip                \
         perl                 \
         procps               \
         sed                  \
@@ -74,6 +76,8 @@ elif [ "${DISTRO}" = "arch" ]; then
     pacman -Syu --noconfirm --needed \
         curl                 \
         diffutils            \
+        jq                   \
+        p7zip                \
         perl                 \
         which                \
 
@@ -90,6 +94,8 @@ elif [ "${DISTRO}" = "centos" ]; then
         curl                \
         diffutils           \
         file                \
+        jq                  \
+        p7zip               \
         perl                \
         which               \
 
@@ -106,7 +112,9 @@ elif [ "${DISTRO}" = "debian" ]; then
         bsdmainutils        \
         curl                \
         file                \
+        jq                  \
         lsb-release         \
+        p7zip-full          \
         procps              \
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -121,6 +129,8 @@ elif [ "${DISTRO}" = "fedora" ]; then
         diffutils           \
         file                \
         findutils           \
+        jq                  \
+        p7zip               \
         perl-core           \
         procps              \
         which               \
@@ -132,8 +142,14 @@ elif [ "${DISTRO}" = "fedora" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "gentoo" ]; then
 
-    # Nothing to install on gentoo as everything is included by default!
-    true
+    portdir=$(portageq get_repo_path / gentoo)
+    if [[ ! -d "${portdir}" ]]; then
+        emerge-webrsync
+    fi
+
+    emerge --ask=n --quiet-build=y --noreplace \
+        app-misc/jq         \
+        app-arch/p7zip      \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -148,6 +164,8 @@ elif [ "${DISTRO}" = "rocky" ]; then
         curl                \
         diffutils           \
         file                \
+        jq                  \
+        p7zip               \
         perl                \
         procps              \
         which               \
@@ -165,6 +183,8 @@ elif [ "${DISTRO}" = "ubuntu" ]; then
         bsdmainutils        \
         curl                \
         file                \
+        jq                  \
+        p7zip-full          \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -191,6 +211,8 @@ elif [ "${DISTRO}" = "darwin" ]; then
 		brew "gnu-tar"
 		brew "gnu-which"
 		brew "grep"
+		brew "jq"
+		brew "p7zip"
 		EOF
 
 #----------------------------------------------------------------------------------------------------------------------
