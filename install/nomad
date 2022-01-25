@@ -31,7 +31,7 @@ fi
 
 # Determine what the name of the package is to install on this OS/Distro (if any).
 package=""
-if os darwin || os_distro alpine arch gentoo; then
+if os darwin || os_distro alpine arch; then
     package="nomad"
 fi
 
