@@ -29,16 +29,16 @@ if command_exists nomad; then
     exit 0
 fi
 
-# Determine what the name of the package is to install on this OS/Distro (if any).
-package=""
-if os darwin || os_distro alpine arch; then
-    package="nomad"
-fi
-
 # Need to make sure to unmask nomad for gentoo
 if os_distro gentoo; then
     emerge --autounmask=y --autounmask-write --autounmask-continue sys-cluster/nomad
     exit 0
+fi
+
+# Determine what the name of the package is to install on this OS/Distro (if any).
+package=""
+if os darwin || os_distro alpine arch; then
+    package="nomad"
 fi
 
 # If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
