@@ -45,7 +45,7 @@ ETEST_depends()
 {
     # Because, unicorns.
     p7zip="7z"
-    if os_distro rocky; then
+    if os_distro rocky || os_distro centos; then
         p7zip="7za"
     fi
 
