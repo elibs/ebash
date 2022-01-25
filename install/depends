@@ -147,7 +147,9 @@ elif [ "${DISTRO}" = "gentoo" ]; then
         emerge-webrsync
     fi
 
-    emerge --ask=n --quiet-build=y --noreplace app-misc/jq
+    emerge --ask=n --quiet-build=y --noreplace \
+        app-misc/jq         \
+        app-arch/p7zip      \
 
 #----------------------------------------------------------------------------------------------------------------------
 #
