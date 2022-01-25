@@ -21,7 +21,8 @@ END
 #----------------------------------------------------------------------------------------------------------------------
 
 default_prefix="/usr/local"
-default_sha_path="/tmp/SHASUMS256.txt"
+default_sha_output_path="/tmp"
+default_sha_path="${default_sha_output_path}/SHASUMS256.txt"
 nodejs_codename="gallium"
 lts_url="https://nodejs.org/download/release/latest-${nodejs_codename}/"
 
@@ -135,15 +136,16 @@ retrieve_sha()
 {
     $(opt_parse                                                    \
         ":lts_codename     c | The codename of the lts to install" \
-        ":sha_output_path  o | The place to store the sha"         \
+        ":sha_output_dir  o | The place to store the sha"         \
     )
 
+    local sha_url
     einfo "Retrieving SHASUM256.txt for codename ${lts_codename}"
-    local sha_url="https://nodejs.org/download/release/latest-${lts_codename}/SHASUMS256.txt"
+    sha_url="https://nodejs.org/download/release/latest-${lts_codename}/SHASUMS256.txt"
     edebug "Using url: ${sha_url}"
 
     # Download SHA256 to determine version
-    eretry efetch --style=einfo "${sha_url}" "${sha_output_path}" |& edebug
+    eretry efetch --style=einfo "${sha_url}" "${sha_output_dir}" |& edebug
 }
 
 opt_usage get_latest_node_version <<'END'
@@ -153,15 +155,18 @@ get_latest_node_version()
 {
     $(opt_parse                                                                    \
         ":lts_codename    c | The lts codename to retrieve the latest version for" \
-        ":sha_output_path o | The path where the sha should be saved"
+        ":sha_output_dir o | The path where the sha should be saved"
     )
 
-    # Retrieve the sha file and apply cleanup
-    retrieve_sha --lts-codename "${lts_codename}" --sha-output-path "${sha_output_path}"
-    trap_add "rm -f ${sha_output_path}"
+    local basename="SHASUMS256.txt"
 
-    edebug "$(cat "${sha_output_path}")"
-    grep "node-v" "${sha_output_path}" | head -n 1 | awk -F- '{ print $2 }' | sed 's/v//g'
+    # Retrieve the sha file and apply cleanup
+    retrieve_sha --lts-codename "${lts_codename}" --sha-output-dir "${sha_output_dir}"
+    trap_add "rm -f ${sha_output_dir}/${basename}"
+
+    edebug "$(cat "${sha_output_dir}/${basename}")"
+
+    grep "node-v" "${sha_output_dir}/${basename}" | head -n 1 | awk -F- '{ print $2 }' | sed 's/v//g'
 }
 
 opt_usage install_node <<'END'
@@ -174,7 +179,7 @@ install_nodejs()
         ":lts_codename   c | The codename for the lts version to install"
     )
 
-    lts_version=$(get_latest_node_version --lts-codename "${lts_codename}" --sha-output-path "${default_sha_path}")
+    lts_version=$(get_latest_node_version --lts-codename "${lts_codename}" --sha-output-dir "${default_sha_output_path}")
     einfo "Installing latest version of nodejs codename '${lts_codename}': ${lts_version}"
 
     if os darwin; then

@@ -219,7 +219,7 @@ ETEST_install_node_linux()
     # Verify correct Mocks
     assert_emock_called_with "get_latest_node_version" 0 \
         --lts-codename "${lts_codename}"                 \
-        --sha-output-path "${default_sha_path}"
+        --sha-output-dir "${default_sha_output_path}"
 
     assert_emock_called_with "eretry" 0 \
         efetch --style=einfo "${test_url}" "${tarball}"
@@ -275,7 +275,7 @@ ETEST_install_node_mac()
     # Verify the mocks being called correctly
     assert_emock_called_with "get_latest_node_version" 0 \
         --lts-codename "${lts_codename}"                 \
-        --sha-output-path "${default_sha_path}"
+        --sha-output-dir "${default_sha_output_path}"
 
     assert_emock_called_with "os" 0 \
         darwin
@@ -360,7 +360,6 @@ ETEST_get_latest_node_version()
 {
     local codename="gallium"
     local expected_version="16.13.2"
-    local sha_file="${TEST_DIR_OUTPUT}/nodejs_SHASUMS256.txt"
 
     # Establish mock
     emock "retrieve_sha" '
@@ -368,11 +367,13 @@ ETEST_get_latest_node_version()
         return 0
     }'
 
+    sha_file="${default_sha_output_path}/SHASUMS256.txt"
+
     # Test Legit version
     cat > "${sha_file}" <<-END
 451367428b40095656133  node-v16.13.2-aix-ppc64.tar.gz
 END
-    actual_version=$(get_latest_node_version --lts-codename "${codename}" --sha-output-path "${sha_file}")
+    actual_version=$(get_latest_node_version --lts-codename "${codename}" --sha-output-dir "${default_sha_output_path}")
     assert_eq "${expected_version}" "${actual_version}"
 
     # Test Bogus version
@@ -380,7 +381,7 @@ END
 451367428b40095656133  node-.13.2-aix-ppc64.tar.gz
 END
 
-    assert_false get_latest_node_version --lts-codename "${codename}" --sha-output-path "${sha_file}"
+    assert_false get_latest_node_version --lts-codename "${codename}" --sha-output-dir "${default_sha_output_path}"
     assert_not_exists "${sha_file}"
 }
 
