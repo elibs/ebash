@@ -34,7 +34,7 @@ if [[ -n "${package}" ]]; then
     pkg_install --sync "${package}"
 elif os linux; then
 
-    # If we already have Go installed there's nothing to do.
+    # If we already have Nomad installed there's nothing to do.
     if ! which nomad &>/dev/null; then
         einfo "Nomad not available via package manager on $(os_pretty_name). Downloading from official Nomad URL."
 
