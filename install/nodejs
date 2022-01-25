@@ -203,7 +203,8 @@ install_nodejs()
 
         # Download tarball
         lts_url="https://nodejs.org/download/release/latest-${lts_codename}/node-v${lts_version}-linux-x64.tar.gz"
-        tarball="${TMPDIR:-/tmp}/$(basename "${lts_url}")"
+        : ${TMPDIR:=/tmp}
+        tarball="${TMPDIR}/$(basename "${lts_url}")"
 
         edebug "$(lval lts_version tarball lts-url)"
 

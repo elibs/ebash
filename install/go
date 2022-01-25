@@ -21,6 +21,11 @@ END
 #
 #----------------------------------------------------------------------------------------------------------------------
 
+if command_exists go; then
+    edebug "go already installed -- nothing to do"
+    exit 0
+fi
+
 # Determine what the name of the package is to install on this OS/Distro (if any).
 package=""
 if os darwin || os_distro alpine arch gentoo; then
@@ -31,28 +36,27 @@ fi
 
 # If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
 if [[ -n "${package}" ]]; then
-    pkg_install --sync "${package}"
+    pkg_install "${package}"
 elif os linux; then
 
-    # If we already have Go installed there's nothing to do.
-    if ! which go &>/dev/null; then
-        einfo "Go not available via package manager on $(os_pretty_name). Downloading from official Go URL."
+    einfo "Go not available via package manager on $(os_pretty_name). Downloading from official Go URL."
 
-        # Download
-        version="$(curl --silent --location https://golang.org/VERSION?m=text)"
-        url="https://dl.google.com/go/${version}.linux-amd64.tar.gz"
-        tarball="${TMPDIR:-/tmp}/$(basename "${url}")"
-        eretry efetch --style=einfo "${url}" "${tarball}"
-        trap_add "rm -f ${tarball}"
+    # Download
+    version="$(curl --silent --location https://golang.org/VERSION?m=text)"
+    url="https://dl.google.com/go/${version}.linux-amd64.tar.gz"
+    : ${TMPDIR:=/tmp}
+    tarball="${TMPDIR}/$(basename "${url}")"
+    mkdir -p "$(dirname "${tarball}")"
+    eretry efetch --style=einfo "${url}" "${tarball}"
+    trap_add "rm -f ${tarball}"
 
-        # Extract
-        mkdir -p "/usr/local/bin"
-        tar --directory "/usr/local" --extract --gzip --file "${tarball}"
+    # Extract
+    mkdir -p "/usr/local/bin"
+    tar --directory "/usr/local" --extract --gzip --file "${tarball}"
 
-        # Add symlinks to /usr/local/bin
-        einfo "Creating symbolic links for go binaries"
-        ln -sv "/usr/local/go/bin/"* "/usr/local/bin"
-    fi
+    # Add symlinks to /usr/local/bin
+    einfo "Creating symbolic links for go binaries"
+    ln -sv "/usr/local/go/bin/"* "/usr/local/bin"
 
 else
     die "Cannot install Go on $(os_pretty_name)"

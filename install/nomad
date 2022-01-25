@@ -56,7 +56,8 @@ elif os linux; then
     fi
 
     url="https://releases.hashicorp.com/nomad/${version}/nomad_${version}_linux_amd64.zip"
-    zipped_file="${TMPDIR:-/tmp}/$(basename "${url}")"
+    : ${TMPDIR:=/tmp}
+    zipped_file="${TMPDIR}/$(basename "${url}")"
     eretry efetch --style=einfo "${url}" "${zipped_file}"
     trap_add "rm -f ${zipped_file}"
 
