@@ -43,14 +43,8 @@ assert_commands_installed()
 # Verify all required commands are installed
 ETEST_depends()
 {
-    # Because, unicorns.
-    p7zip="7z"
-    if os_distro rocky || os_distro centos; then
-        p7zip="7za"
-    fi
-
     local commands=(
-        "${p7zip}"
+        "7za"
         "awk"
         "base64"
         "bash"

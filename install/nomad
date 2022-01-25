@@ -23,12 +23,6 @@ END
 #
 #----------------------------------------------------------------------------------------------------------------------
 
-# Because, unicorns.
-p7zip="7z"
-if os_distro rocky || os_distro centos; then
-    p7zip="7za"
-fi
-
 # Determine what the name of the package is to install on this OS/Distro (if any).
 package=""
 if os darwin || os_distro alpine arch gentoo; then
@@ -59,7 +53,7 @@ elif os linux; then
 
         einfo "Extracting nomad binary"
         mkdir -p "/usr/local/bin"
-        "${p7zip}" -o/usr/local/bin x "${zipped_file}"
+        7za -o/usr/local/bin x "${zipped_file}"
     fi
 
 else
