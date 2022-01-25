@@ -23,38 +23,45 @@ END
 #
 #----------------------------------------------------------------------------------------------------------------------
 
+# If we already have Nomad installed there's nothing to do.
+if command_exists nomad; then
+    edebug "nomad already installed -- nothing to do"
+    exit 0
+fi
+
 # Determine what the name of the package is to install on this OS/Distro (if any).
 package=""
 if os darwin || os_distro alpine arch gentoo; then
     package="nomad"
 fi
 
+# Need to make sure to unmask nomad for gentoo
+if os_distro gentoo; then
+    emerge --autounmask=y --autounmask-write --autounmask-continue sys-cluster/nomad
+fi
+
 # If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
 if [[ -n "${package}" ]]; then
     pkg_install --sync "${package}"
 elif os linux; then
+    einfo "Nomad not available via package manager on $(os_pretty_name). Downloading from official Nomad URL."
 
-    # If we already have Nomad installed there's nothing to do.
-    if ! which nomad &>/dev/null; then
-        einfo "Nomad not available via package manager on $(os_pretty_name). Downloading from official Nomad URL."
+    # Download
+    version="$(curl --silent --location https://checkpoint-api.hashicorp.com/v1/check/nomad | \
+                  jq -r '.current_version' 2>/dev/null || true)"
 
-        # Download
-        version="$(curl --silent --location https://checkpoint-api.hashicorp.com/v1/check/nomad | \
-                      jq -r '.current_version' 2>/dev/null || true)"
-
-        if [[ -z "${version}" ]]; then
-            die "Failed finding correct version of Nomad to download!"
-        fi
-
-        url="https://releases.hashicorp.com/nomad/${version}/nomad_${version}_linux_amd64.zip"
-        zipped_file="${TMPDIR:-/tmp}/$(basename "${url}")"
-        eretry efetch --style=einfo "${url}" "${zipped_file}"
-        trap_add "rm -f ${zipped_file}"
-
-        einfo "Extracting nomad binary"
-        mkdir -p "/usr/local/bin"
-        7za -o/usr/local/bin x "${zipped_file}"
+    if [[ -z "${version}" ]]; then
+        die "Failed finding correct version of Nomad to download!"
     fi
+
+    url="https://releases.hashicorp.com/nomad/${version}/nomad_${version}_linux_amd64.zip"
+    zipped_file="${TMPDIR:-/tmp}/$(basename "${url}")"
+    eretry efetch --style=einfo "${url}" "${zipped_file}"
+    trap_add "rm -f ${zipped_file}"
+
+    einfo "Extracting nomad binary"
+    mkdir -p "/usr/local/bin"
+    7za -o/usr/local/bin x "${zipped_file}"
 
 else
     die "Cannot install Nomad on $(os_pretty_name)"
