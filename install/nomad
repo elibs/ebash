@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+: ${EBASH_HOME:=$(dirname $0)/..}
+: ${EBASH:=${EBASH_HOME}/share}
+source "${EBASH}/ebash.sh" || { echo "Unable to source ${EBASH}/ebash.sh" ; exit 1 ; }
+
+opt_usage main <<'END'
+This script is used to install Nomad onto a system. Darwin, alpine, arch, and gentoo will use the package manager to
+install nomad as it's a part of their repos. All other supported distributions will pull the latest Nomad binary from
+upstream.
+
+NOTE: The version downloaded is pulled using Hashicorp's checkpoint API:
+    https://checkpoint-api.hashicorp.com/v1/check/nomad
+END
+
+#----------------------------------------------------------------------------------------------------------------------
+#
+# Main
+#
+#----------------------------------------------------------------------------------------------------------------------
+
+# Determine what the name of the package is to install on this OS/Distro (if any).
+package=""
+if os darwin || os_distro alpine arch gentoo; then
+    package="nomad"
+fi
+
+# If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
+if [[ -n "${package}" ]]; then
+    pkg_install --sync "${package}"
+elif os linux; then
+
+    # If we already have Go installed there's nothing to do.
+    if ! which nomad &>/dev/null; then
+        einfo "Nomad not available via package manager on $(os_pretty_name). Downloading from official Nomad URL."
+
+        # Download
+        version="$(curl --silent --location https://checkpoint-api.hashicorp.com/v1/check/nomad | \
+                      jq -r '.current_version' 2>/dev/null || true)"
+
+        if [[ -z "${version}" ]]; then
+            die "Failed finding correct version of Nomad to download!"
+        fi
+
+        url="https://releases.hashicorp.com/nomad/${version}/nomad_${version}_linux_amd64.zip"
+        zipped_file="${TMPDIR:-/tmp}/$(basename "${url}")"
+        echo "Attempting to download: '${url}'"
+        eretry efetch --style=einfo "${url}" "${zipped_file}"
+        trap_add "rm -f ${zipped_file}"
+
+        einfo "Extracting nomad binary"
+        mkdir -p "/usr/local/bin"
+        7z -o"${zipped_file}" "${zipped_file}"
+    fi
+
+else
+    die "Cannot install Nomad on $(os_pretty_name)"
+fi
+
+# Verify installation succeeded
+command_exists "nomad"
