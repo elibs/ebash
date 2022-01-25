@@ -54,13 +54,12 @@ elif os linux; then
 
         url="https://releases.hashicorp.com/nomad/${version}/nomad_${version}_linux_amd64.zip"
         zipped_file="${TMPDIR:-/tmp}/$(basename "${url}")"
-        echo "Attempting to download: '${url}'"
         eretry efetch --style=einfo "${url}" "${zipped_file}"
         trap_add "rm -f ${zipped_file}"
 
         einfo "Extracting nomad binary"
         mkdir -p "/usr/local/bin"
-        "${p7zip} -o/usr/local/bin x ${zipped_file}"
+        "${p7zip}" -o/usr/local/bin x "${zipped_file}"
     fi
 
 else
