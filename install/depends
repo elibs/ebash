@@ -142,6 +142,11 @@ elif [ "${DISTRO}" = "fedora" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "gentoo" ]; then
 
+    portdir=$(portageq get_repo_path / gentoo)
+    if [[ ! -d "${portdir}" ]]; then
+        emerge-webrsync
+    fi
+
     emerge --ask=n --quiet-build=y --noreplace app-misc/jq
 
 #----------------------------------------------------------------------------------------------------------------------
