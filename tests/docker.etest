@@ -1202,3 +1202,183 @@ ETEST_docker_run_passthrough_args()
         --rm            \
         --workdir /ebash
 }
+
+ETEST_docker_compose_envlist()
+{
+    emock --stdout "tmp/file1" "mktemp"
+    emock "docker-compose"
+
+    # Set some environment variables we want to pass through into docker
+    etestmsg "Creating dummy variables"
+    FOO=1
+    BAR=2
+    ZAP="This one has spaces in it"
+    DAB="${PATH}"
+
+    etestmsg "Calling docker_compose with env list"
+    docker_compose --envlist 'FOO BAR ZAP DAB BLAH=PATH ARG=1 ARG2="Another with spaces"'
+
+    etestmsg "Verifying mock called expected number of times"
+    assert_emock_called "docker-compose" 1
+
+    etestmsg "Validating arguments"
+    assert_emock_called_with "docker-compose" 0 \
+        --env-file "tmp/file1"
+}
+
+ETEST_docker_compose_copy_to_volume()
+{
+    emock "docker"
+    emock "docker-compose"
+
+    etestmsg "Calling docker_compose with multiple copy_to_volume"
+
+    # Run this inside a subshell so that we can ensure the traps are getting called to remove the ephemeral volumes
+    (
+        docker_compose                                         \
+            --copy-to-volume "foo:foo:/foo"                    \
+            --copy-to-volume "data:/home/marshall/data:/data"  \
+            --copy-to-volume "ebash:/home/ebash:/baggins"      \
+            --                                                 \
+            up
+    )
+
+    etestmsg "Verifying docker called 12 times"
+    assert_emock_called "docker" 12
+
+    etestmsg "Validating arguments (0) -- container create"
+    assert_emock_called_with "docker" 0 \
+        container create        \
+        --name foo              \
+        -v foo:/foo             \
+        busybox
+
+    etestmsg "Validating args (1) -- docker cp"
+    assert_emock_called_with "docker" 1 \
+        cp "foo/."              \
+        "foo:/foo"
+
+    etestmsg "Validating arguments (2) -- container create"
+    assert_emock_called_with "docker" 2 \
+        container create        \
+        --name data             \
+        -v data:/data           \
+        busybox
+
+    etestmsg "Validating args (3) -- docker cp"
+    assert_emock_called_with "docker" 3 \
+        cp "/home/marshall/data/." "data:/data"
+
+    etestmsg "Validating arguments (4) -- container create"
+    assert_emock_called_with "docker" 4 \
+        container create        \
+        --name ebash            \
+        -v ebash:/baggins       \
+        busybox
+
+    etestmsg "Validating args (5) -- docker cp"
+    assert_emock_called_with "docker" 5 \
+        cp "/home/ebash/." "ebash:/baggins"
+
+    etestmsg "Validating args (6) -- docker rm"
+    assert_emock_called_with "docker" 6 \
+        rm ebash
+
+    etestmsg "Validating args (7) -- docker volume rm"
+    assert_emock_called_with "docker" 7 \
+        volume rm ebash
+
+    etestmsg "Validating args (8) -- docker rm"
+    assert_emock_called_with "docker" 8 \
+        rm data
+
+    etestmsg "Validating args (9) -- docker volume rm"
+    assert_emock_called_with "docker" 9 \
+        volume rm data
+
+    etestmsg "Validating args (10) -- docker rm"
+    assert_emock_called_with "docker" 10 \
+        rm foo
+
+    etestmsg "Validating args (11) -- docker volume rm"
+    assert_emock_called_with "docker" 11 \
+        volume rm foo
+
+    etestmsg "Validating args (0) -- docker-compose"
+    assert_emock_called_with "docker-compose" 0 \
+        up
+}
+
+ETEST_docker_compose_copy_from_volume()
+{
+    emock "docker"
+    trap_add "eunmock docker"
+    emock "docker-compose"
+    trap_add "eunmock docker-compose"
+
+    emock "rm"
+    trap_add "eunmock rm"
+
+    etestmsg "Calling docker_compose with multiple copy_from_volume"
+
+    # Run this inside a subshell so that we can ensure the traps are getting called to remove the ephemeral volumes
+    (
+        docker_compose                                           \
+            --copy-from-volume "foo:/foo:foo"                    \
+            --copy-from-volume-delete "foo/bad"                  \
+            --copy-from-volume "data:/home/marshall/data:data"   \
+            --copy-from-volume "ebash:/home/ebash:/home/baggins" \
+            --copy-from-volume-delete "/home/baggins/trash"      \
+            --                                                   \
+            up
+    )
+
+    etestmsg "Verifying mock called 3 times"
+    assert_emock_called "docker" 3
+
+    etestmsg "Validating args (0) -- docker cp"
+    assert_emock_called_with "docker" 0 \
+        cp "ebash:/home/ebash/." "/home/baggins"
+
+    etestmsg "Validating args (1) -- docker cp"
+    assert_emock_called_with "docker" 1 \
+        cp "data:/home/marshall/data/." "data"
+
+    etestmsg "Validating args (2) -- docker cp"
+    assert_emock_called_with "docker" 2 \
+        cp "foo:/foo/." "foo"
+
+    etestmsg "Verifying post-copy deletes called"
+    assert_emock_called "rm" 2
+    assert_emock_called_with "rm" 0 \
+        --recursive --force "/home/baggins/trash"
+    assert_emock_called_with "rm" 1 \
+        --recursive --force "foo/bad"
+
+    etestmsg "Validating args (0) -- docker-compose"
+    assert_emock_called_with "docker-compose" 0 \
+        up
+}
+
+ETEST_docker_compose_passthrough_args()
+{
+    emock "docker-compose"
+
+    etestmsg "Calling docker_compose with passthrough args"
+
+    docker_compose   -- \
+        --file some.yml \
+        --verbose       \
+        --no-ansi       \
+        up
+
+    etestmsg "Verifying mock called 1 times"
+    assert_emock_called "docker-compose" 1
+
+    etestmsg "Verifying args"
+    assert_emock_called_with "docker-compose" 0 \
+        --file some.yml \
+        --verbose       \
+        --no-ansi       \
+        up
+}
