@@ -862,7 +862,6 @@ docker_compose_run()
     # Final list of docker args we will use
     local docker_args=(
         --file "${file}"
-        --verbose
     )
 
     # Expand env variables as required
@@ -893,7 +892,7 @@ docker_compose_run()
     # The tailing of the logfile will run in the foreground and block until the parent docker-compose job completes.
     edebug "Calling docker-compose with $(lval docker_args)"
     local pid
-    docker-compose "${docker_args[@]}" run ${*:-} |& edebug &
+    docker-compose --verbose "${docker_args[@]}" run ${*:-} |& edebug &
     pid=$!
     edebug "Backgrounded docker-compose with $(lval pid)"
 
@@ -919,15 +918,12 @@ docker_compose_run()
                     # docker compose file for this service. If there isn't we'll get a "Template parsing error". In which case
                     # we fallback to just checking the status.
                     status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Health.Status')
-                    edebug "$(lval service status)"
                     if [[ "${status}" == "healthy" ]]; then
-                        checkbox_close
                         break
                     elif [[ "${status}" == "null" ]]; then
                         status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Status')
 
                         if [[ "${status}" == "running" ]]; then
-                            checkbox_close
                             break
                         fi
                     fi
@@ -935,6 +931,9 @@ docker_compose_run()
 
                 sleep "${wait_delay}"
             done
+
+            checkbox_close
+
         done
     fi
 
