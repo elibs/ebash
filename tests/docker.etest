@@ -1227,7 +1227,7 @@ ETEST_docker_compose_run_envlist()
         --verbose                               \
         --file docker-compose.yml               \
         --env-file "tmp/file1"                  \
-        run
+        run -T
 }
 
 ETEST_docker_compose_run_file()
@@ -1245,7 +1245,7 @@ ETEST_docker_compose_run_file()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file foo.yml                          \
-        run
+        run -T
 }
 
 ETEST_docker_compose_run_logfile()
@@ -1263,7 +1263,7 @@ ETEST_docker_compose_run_logfile()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 }
 
 ETEST_docker_compose_run_wait()
@@ -1281,7 +1281,7 @@ ETEST_docker_compose_run_wait()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
@@ -1317,7 +1317,7 @@ ETEST_docker_compose_run_wait_no_healthcheck()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
@@ -1371,7 +1371,7 @@ ETEST_docker_compose_run_wait_with_healthcheck()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
@@ -1409,7 +1409,7 @@ ETEST_docker_compose_run_default_wait_teardown()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
@@ -1442,7 +1442,7 @@ ETEST_docker_compose_run_custom_wait_teardown()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
@@ -1536,7 +1536,7 @@ ETEST_docker_compose_run_copy_to_volume()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 }
 
 ETEST_docker_compose_run_copy_from_volume()
@@ -1590,7 +1590,7 @@ ETEST_docker_compose_run_copy_from_volume()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
@@ -1622,7 +1622,7 @@ ETEST_docker_compose_run_passthrough_args()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                 \
         --file docker-compose.yml \
-        run                       \
+        run -T                    \
         --foo                     \
         --bar
 }
@@ -1661,7 +1661,7 @@ ETEST_docker_compose_run_follow()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
@@ -1727,7 +1727,7 @@ ETEST_docker_compose_run_follow_json()
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
-        run
+        run -T
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \

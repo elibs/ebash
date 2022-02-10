@@ -895,7 +895,7 @@ docker_compose_run()
     # The tailing of the logfile will run in the foreground and block until the parent docker-compose job completes.
     edebug "Calling docker-compose with $(lval docker_args)"
     local pid
-    docker-compose --verbose "${docker_args[@]}" run ${*:-} |& edebug &
+    docker-compose --verbose "${docker_args[@]}" run -T ${*:-} |& edebug &
     pid=$!
     edebug "Backgrounded docker-compose with $(lval pid)"
 
@@ -951,7 +951,7 @@ docker_compose_run()
         docker logs "${id}" --follow | tee "${logfile}"
     elif [[ -n "${follow_json}" ]]; then
         id=$(docker-compose --file "${file}" ps -q "${follow_json}")
-        docker logs "${id}" --follow | tee "${logfile}" | jq -R '. as $line | try (fromjson) catch $line'
+        docker logs "${id}" --follow | tee "${logfile}" | jq --unbuffered --raw-input '. as $line | try (fromjson) catch $line'
     fi
 
     # Wait on our backgrounded process and propogate any failure from it.
