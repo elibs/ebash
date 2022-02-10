@@ -856,6 +856,9 @@ docker_compose_run()
                                               necessary cleanup. This is a useful mechanism to ensure we bring down all
                                               containers and volumes via teardown='down --volumes --remove-orphans'"   \
         "+wait=1                            | Wait for ready status"                                                   \
+        ":wait_services                     | Explicit list of whitespace separated services to wait for. If not
+                                              provided all services will be waited on during startup. This only applies
+                                              if wait=1."                                                              \
         ":wait_delay=1s                     | How long to wait between checks for service health during wait."         \
     )
 
@@ -900,7 +903,11 @@ docker_compose_run()
     if [[ ${wait} -eq 1 ]]; then
 
         local id status service services=()
-        readarray -t services < <(docker-compose --file "${file}" ps --services)
+        if [[ -n "${wait_services}" ]]; then
+            array_init services "${wait_services}"
+        else
+            readarray -t services < <(docker-compose --file "${file}" ps --services)
+        fi
 
         echo
         einfo "Waiting for $(lval services)"
