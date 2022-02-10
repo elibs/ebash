@@ -1312,7 +1312,7 @@ ETEST_docker_compose_run_wait_no_healthcheck()
         if [[ ${called} -eq 1 ]]; then
             echo "minio"
         else
-            echo ""
+            echo "42"
         fi
     }'
 
@@ -1327,7 +1327,7 @@ ETEST_docker_compose_run_wait_no_healthcheck()
     docker_compose_run --wait
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 5
+    assert_emock_called "docker-compose" 4
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
@@ -1347,11 +1347,6 @@ ETEST_docker_compose_run_wait_no_healthcheck()
     etestmsg "Validating args (3)"
     assert_emock_called_with "docker-compose" 3 \
         --file docker-compose.yml               \
-        ps -q minio
-
-    etestmsg "Validating args (4)"
-    assert_emock_called_with "docker-compose" 4 \
-        --file docker-compose.yml               \
         logs --follow
 
     etestmsg "Verifying docker called expected number of times"
@@ -1359,11 +1354,11 @@ ETEST_docker_compose_run_wait_no_healthcheck()
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker" 0 \
-        inspect
+        inspect 42
 
     etestmsg "Validating args (1)"
     assert_emock_called_with "docker" 1 \
-        inspect
+        inspect 42
 }
 
 ETEST_docker_compose_run_wait_with_healthcheck()
@@ -1373,7 +1368,7 @@ ETEST_docker_compose_run_wait_with_healthcheck()
         if [[ ${called} -eq 1 ]]; then
             echo "minio"
         else
-            echo ""
+            echo "42"
         fi
     }'
 
@@ -1417,7 +1412,7 @@ ETEST_docker_compose_run_wait_with_healthcheck()
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker" 0 \
-        inspect
+        inspect 42
 }
 
 ETEST_docker_compose_run_default_wait_teardown()

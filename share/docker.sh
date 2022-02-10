@@ -900,36 +900,46 @@ docker_compose_run()
     # The tailing of the logfile will run in the foreground and block until the parent docker-compose job completes.
     edebug "Calling docker-compose with $(lval docker_args)"
     local pid
-    docker-compose "${docker_args[@]}" run ${@:-} &
+    if [[ "${verbose}" -gt 0 ]]; then
+        docker-compose "${docker_args[@]}" run ${*:-} &
+    else
+        docker-compose "${docker_args[@]}" run ${*:-} | edebug &
+    fi
     pid=$!
     edebug "Backgrounded docker-compose with $(lval pid)"
 
     # If wait is requested then wait until status is ready for all containers
     if [[ ${wait} -eq 1 ]]; then
 
-        local status service services=()
+        local id status service services=()
         readarray -t services < <(docker-compose --file "${file}" ps --services)
         einfo "Waiting for $(lval services)"
-        for service in ${services[@]}; do
+        for service in "${services[@]}"; do
 
-            einfos -n "${service}"
+            [[ "${verbose}" -eq 0 ]] && einfos -n "${service}"
 
             while true; do
 
-                # First try to look for actual Health Status. That only works if there is a HEALTHCHECK section in the
-                # docker compose file for this service. If there isn't we'll get a "Template parsing error". In which case
-                # we fallback to just checking the status.
-                status=$(docker inspect $(docker-compose --file "${file}" ps -q "${service}") | jq --raw-output '.[0].State.Health.Status')
-                edebug "$(lval service status)"
-                if [[ "${status}" == "healthy" ]]; then
-                    eend 0
-                    break
-                elif [[ "${status}" == "null" ]]; then
-                    status=$(docker inspect $(docker-compose --file "${file}" ps -q "${service}") | jq --raw-output '.[0].State.Status')
+                # Lookup the service name to a running docker ID. If we find an ID for this named service then check its
+                # status.
+                id=$(docker-compose --file "${file}" ps -q "${service}" 2>/dev/null || true)
+                if [[ -n "${id}" ]]; then
 
-                    if [[ "${status}" == "running" ]]; then
-                        eend 0
+                    # First try to look for actual Health Status. That only works if there is a HEALTHCHECK section in the
+                    # docker compose file for this service. If there isn't we'll get a "Template parsing error". In which case
+                    # we fallback to just checking the status.
+                    status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Health.Status')
+                    edebug "$(lval service status)"
+                    if [[ "${status}" == "healthy" ]]; then
+                        [[ "${verbose}" -eq 0 ]] && eend 0
                         break
+                    elif [[ "${status}" == "null" ]]; then
+                        status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Status')
+
+                        if [[ "${status}" == "running" ]]; then
+                            [[ "${verbose}" -eq 0 ]] && eend 0
+                            break
+                        fi
                     fi
                 fi
 
