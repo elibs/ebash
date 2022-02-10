@@ -685,6 +685,10 @@ docker_export()
     eprogress_kill
 }
 
+opt_usage __docker_setup_copy_volumes<<'END'
+__docker_setup_copy_volumes is an internal only helper function used to setup the copy-to-volume and copy-from-volume
+and copy-from-volume-delete options and traps used by both `docker_run` and `docker_compose_run`.
+END
 __docker_setup_copy_volumes()
 {
     $(opt_parse \
@@ -911,7 +915,7 @@ docker_compose_run()
 
         echo >&2
         einfo "Waiting for $(lval services)"
-        for service in "${services[@]}"; do
+        for service in ${services[*]:-}; do
 
             checkbox_open_timer "${service}"
 
