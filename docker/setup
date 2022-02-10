@@ -71,9 +71,13 @@ elif [ "${DISTRO}" = "arch" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "centos" ]; then
 
-    sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
-    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
-    yum update -y
+    # CentOS 8 packages have all moved from centos merrors to vault.centos.org so we have to update things appropriately
+    if [ "$(awk -F'[="]*' '/^VERSION_ID=/ {print $2}' /etc/os-release)" = "8" ]; then
+        echo "Updating from mirror.centos.org -> vault.centos.org"
+        sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+        sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+        yum update -y
+    fi
 
     yum install epel-release -y
 
