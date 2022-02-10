@@ -855,9 +855,6 @@ docker_compose_run()
         ":teardown                          | Teardown code to execute after docker_compose completion to perform any
                                               necessary cleanup. This is a useful mechanism to ensure we bring down all
                                               containers and volumes via teardown='down --volumes --remove-orphans'"   \
-        ":verbose v=0                       | Verbosity level. This is boolean for native docker-compose but we allow
-                                              various log levels and map it to boolean values when we pass it into the
-                                              lower-level docker-compose."                                             \
         "+wait=1                            | Wait for ready status"                                                   \
         ":wait_delay=1s                     | How long to wait between checks for service health during wait."         \
     )
@@ -865,12 +862,8 @@ docker_compose_run()
     # Final list of docker args we will use
     local docker_args=(
         --file "${file}"
+        --verbose
     )
-
-    # Dynamically map verbosity level into boolean flag
-    if [[ "${verbose}" -gt 0 ]]; then
-        docker_args+=( --verbose )
-    fi
 
     # Expand env variables as required
     if [[ -n "${envlist}" ]]; then
@@ -900,11 +893,7 @@ docker_compose_run()
     # The tailing of the logfile will run in the foreground and block until the parent docker-compose job completes.
     edebug "Calling docker-compose with $(lval docker_args)"
     local pid
-    if [[ "${verbose}" -gt 0 ]]; then
-        docker-compose "${docker_args[@]}" run ${*:-} &
-    else
-        docker-compose "${docker_args[@]}" run ${*:-} | edebug &
-    fi
+    docker-compose "${docker_args[@]}" run ${*:-} |& edebug &
     pid=$!
     edebug "Backgrounded docker-compose with $(lval pid)"
 
@@ -916,7 +905,7 @@ docker_compose_run()
         einfo "Waiting for $(lval services)"
         for service in "${services[@]}"; do
 
-            [[ "${verbose}" -eq 0 ]] && einfos -n "${service}"
+            einfos "${service}"
 
             while true; do
 
@@ -931,13 +920,13 @@ docker_compose_run()
                     status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Health.Status')
                     edebug "$(lval service status)"
                     if [[ "${status}" == "healthy" ]]; then
-                        [[ "${verbose}" -eq 0 ]] && eend 0
+                        eend 0
                         break
                     elif [[ "${status}" == "null" ]]; then
                         status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Status')
 
                         if [[ "${status}" == "running" ]]; then
-                            [[ "${verbose}" -eq 0 ]] && eend 0
+                            eend 0
                             break
                         fi
                     fi

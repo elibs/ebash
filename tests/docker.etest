@@ -1225,6 +1225,7 @@ ETEST_docker_compose_run_envlist()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         --env-file "tmp/file1"                  \
         run
 
@@ -1248,6 +1249,7 @@ ETEST_docker_compose_run_file()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file foo.yml                          \
+        --verbose                               \
         run
 
     etestmsg "Validating args (1)"
@@ -1270,6 +1272,7 @@ ETEST_docker_compose_run_logfile()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         run
 
     etestmsg "Validating args (1)"
@@ -1292,6 +1295,7 @@ ETEST_docker_compose_run_wait()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         run
 
     etestmsg "Validating args (1)"
@@ -1332,6 +1336,7 @@ ETEST_docker_compose_run_wait_no_healthcheck()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         run
 
     etestmsg "Validating args (1)"
@@ -1390,6 +1395,7 @@ ETEST_docker_compose_run_wait_with_healthcheck()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         run
 
     etestmsg "Validating args (1)"
@@ -1432,6 +1438,7 @@ ETEST_docker_compose_run_default_wait_teardown()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         run
 
     etestmsg "Validating args (1)"
@@ -1447,6 +1454,7 @@ ETEST_docker_compose_run_default_wait_teardown()
     etestmsg "Validating teardown args"
     assert_emock_called_with "docker-compose" 3 \
         --file docker-compose.yml               \
+        --verbose                               \
         down                                    \
         --volumes                               \
         --remove-orphans
@@ -1469,6 +1477,7 @@ ETEST_docker_compose_run_custom_wait_teardown()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         run
 
     etestmsg "Validating args (1)"
@@ -1484,6 +1493,7 @@ ETEST_docker_compose_run_custom_wait_teardown()
     etestmsg "Validating teardown args"
     assert_emock_called_with "docker-compose" 3 \
         --file docker-compose.yml               \
+        --verbose                               \
         down                                    \
         --volumes
 }
@@ -1567,6 +1577,7 @@ ETEST_docker_compose_run_copy_to_volume()
     etestmsg "Validating args (0) -- docker-compose"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         run
 }
 
@@ -1620,6 +1631,7 @@ ETEST_docker_compose_run_copy_from_volume()
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml               \
+        --verbose                               \
         run
 
     etestmsg "Validating args (1)"
@@ -1635,6 +1647,7 @@ ETEST_docker_compose_run_copy_from_volume()
     etestmsg "Validating teardown args"
     assert_emock_called_with "docker-compose" 3 \
         --file docker-compose.yml               \
+        --verbose                               \
         down                                    \
         --volumes                               \
         --remove-orphans
@@ -1656,32 +1669,10 @@ ETEST_docker_compose_run_passthrough_args()
     etestmsg "Verifying args"
     assert_emock_called_with "docker-compose" 0 \
         --file docker-compose.yml \
+        --verbose                 \
         run                       \
         --foo                     \
         --bar
-}
-
-ETEST_docker_compose_run_verbose_value()
-{
-    emock "docker-compose"
-
-    etestmsg "Calling docker_compose_run with --verbose=1"
-
-    docker_compose_run --no-wait --verbose=5
-
-    etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 2
-
-    etestmsg "Verifying args"
-    assert_emock_called_with "docker-compose" 0 \
-        --file docker-compose.yml \
-        --verbose                 \
-        run
-
-    etestmsg "Validating args (2)"
-    assert_emock_called_with "docker-compose" 1 \
-        --file docker-compose.yml               \
-        logs --follow
 }
 
 ETEST_docker_compose_run_follow()
