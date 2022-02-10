@@ -902,10 +902,11 @@ docker_compose_run()
 
         local id status service services=()
         readarray -t services < <(docker-compose --file "${file}" ps --services)
+        echo
         einfo "Waiting for $(lval services)"
         for service in "${services[@]}"; do
 
-            einfos "${service}"
+            checkbox_open_timer "${service}"
 
             while true; do
 
@@ -920,13 +921,13 @@ docker_compose_run()
                     status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Health.Status')
                     edebug "$(lval service status)"
                     if [[ "${status}" == "healthy" ]]; then
-                        eend 0
+                        checkbox_close
                         break
                     elif [[ "${status}" == "null" ]]; then
                         status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Status')
 
                         if [[ "${status}" == "running" ]]; then
-                            eend 0
+                            checkbox_close
                             break
                         fi
                     fi
