@@ -27,6 +27,7 @@ docker()
 setup()
 {
     docker_tags_pushed=()
+    EDEBUG+=" docker"
 }
 
 ETEST_docker_build()
@@ -1015,7 +1016,7 @@ ETEST_docker_run_envlist()
     etestmsg "Calling docker_run with env list"
     docker_run --interactive=no --envlist 'FOO BAR ZAP DAB BLAH=PATH ARG=1 ARG2="Another with spaces"'
 
-    etestmsg "Verifying mock called expected number of times"
+    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
 
     etestmsg "Validating arguments"
@@ -1036,7 +1037,7 @@ ETEST_docker_run_nested()
     etestmsg "Calling docker_run with --nested"
     docker_run --interactive=no --nested
 
-    etestmsg "Verifying mock called expected number of times"
+    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
 
     etestmsg "Validating arguments"
@@ -1058,7 +1059,7 @@ ETEST_docker_run_copy_to_volume()
             --copy-to-volume "ebash:/home/ebash:/baggins"      \
     )
 
-    etestmsg "Verifying mock called 13 times"
+    etestmsg "Verifying docker called 13 times"
     assert_emock_called "docker" 13
 
     etestmsg "Validating arguments (0) -- container create"
@@ -1148,7 +1149,7 @@ ETEST_docker_run_copy_from_volume()
             --copy-from-volume-delete "/home/baggins/trash"      \
     )
 
-    etestmsg "Verifying mock called 4 times"
+    etestmsg "Verifying docker called 4 times"
     assert_emock_called "docker" 4
 
     etestmsg "Validating args (0) -- docker run"
@@ -1189,7 +1190,7 @@ ETEST_docker_run_passthrough_args()
         --rm            \
         --workdir /ebash
 
-    etestmsg "Verifying mock called 1 times"
+    etestmsg "Verifying docker called 1 times"
     assert_emock_called "docker" 1
 
     etestmsg "Verifying args"
@@ -1203,7 +1204,7 @@ ETEST_docker_run_passthrough_args()
         --workdir /ebash
 }
 
-ETEST_docker_compose_envlist()
+ETEST_docker_compose_run_envlist()
 {
     emock --stdout "tmp/file1" "mktemp"
     emock "docker-compose"
@@ -1215,35 +1216,299 @@ ETEST_docker_compose_envlist()
     ZAP="This one has spaces in it"
     DAB="${PATH}"
 
-    etestmsg "Calling docker_compose with env list"
-    docker_compose --envlist 'FOO BAR ZAP DAB BLAH=PATH ARG=1 ARG2="Another with spaces"'
+    etestmsg "Calling docker_compose_run with env list"
+    docker_compose_run --no-wait --envlist 'FOO BAR ZAP DAB BLAH=PATH ARG=1 ARG2="Another with spaces"'
 
-    etestmsg "Verifying mock called expected number of times"
-    assert_emock_called "docker-compose" 1
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 2
 
-    etestmsg "Validating arguments"
+    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
-        --env-file "tmp/file1"
+        --file docker-compose.yml               \
+        --env-file "tmp/file1"                  \
+        run
+
+    etestmsg "Validating arguments (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        logs --follow
 }
 
-ETEST_docker_compose_copy_to_volume()
+ETEST_docker_compose_run_file()
+{
+    emock "docker-compose"
+
+    etestmsg "Calling docker_compose_run with --file"
+
+    docker_compose_run --no-wait --file "foo.yml"
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 2
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --file foo.yml                          \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file foo.yml                          \
+        logs --follow
+}
+
+ETEST_docker_compose_run_logfile()
+{
+    emock "docker-compose"
+
+    etestmsg "Calling docker_compose_run with logfile"
+
+    docker_compose_run --no-wait --logfile foo.log
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 2
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        logs --follow
+}
+
+ETEST_docker_compose_run_wait()
+{
+    emock "docker-compose"
+
+    etestmsg "Calling docker_compose_run with --wait"
+
+    docker_compose_run --wait
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 3
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        ps --services
+
+    etestmsg "Validating args (2)"
+    assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        logs --follow
+}
+
+ETEST_docker_compose_run_wait_no_healthcheck()
+{
+    emock "docker-compose" '
+    {
+        if [[ ${called} -eq 1 ]]; then
+            echo "minio"
+        else
+            echo ""
+        fi
+    }'
+
+    emock "docker" '
+    {
+        if [[ $1 == "inspect" ]]; then
+            echo "[{\"State\": {\"Status\": \"running\"}}]"
+        fi
+    }'
+
+    etestmsg "Calling docker_compose_run with --wait"
+    docker_compose_run --wait
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 5
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        ps --services
+
+    etestmsg "Validating args (2)"
+    assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        ps -q minio
+
+    etestmsg "Validating args (3)"
+    assert_emock_called_with "docker-compose" 3 \
+        --file docker-compose.yml               \
+        ps -q minio
+
+    etestmsg "Validating args (4)"
+    assert_emock_called_with "docker-compose" 4 \
+        --file docker-compose.yml               \
+        logs --follow
+
+    etestmsg "Verifying docker called expected number of times"
+    assert_emock_called "docker" 2
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker" 0 \
+        inspect
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker" 1 \
+        inspect
+}
+
+ETEST_docker_compose_run_wait_with_healthcheck()
+{
+    emock "docker-compose" '
+    {
+        if [[ ${called} -eq 1 ]]; then
+            echo "minio"
+        else
+            echo ""
+        fi
+    }'
+
+    emock "docker" '
+    {
+        if [[ ${called} -eq 0 ]]; then
+            echo "[{\"State\": {\"Health\": {\"Status\": \"healthy\"}}}]"
+        else
+            echo "[{\"State\": {\"Status\": \"running\"}}]"
+        fi
+    }'
+
+    etestmsg "Calling docker_compose_run with --wait"
+    docker_compose_run --wait
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 4
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        ps --services
+
+    etestmsg "Validating args (2)"
+    assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        ps -q minio
+
+    etestmsg "Validating args (3)"
+    assert_emock_called_with "docker-compose" 3 \
+        --file docker-compose.yml               \
+        logs --follow
+
+    etestmsg "Verifying docker called expected number of times"
+    assert_emock_called "docker" 1
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker" 0 \
+        inspect
+}
+
+ETEST_docker_compose_run_default_wait_teardown()
+{
+    emock "docker-compose"
+
+    etestmsg "Calling docker_compose_run with default --wait and --teardown"
+
+    # Run this inside a subshell so that we can ensure the traps are getting called to remove the ephemeral volumes
+    (
+        docker_compose_run
+    )
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 4
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        ps --services
+
+    etestmsg "Validating args (2)"
+    assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        logs --follow
+
+    etestmsg "Validating teardown args"
+    assert_emock_called_with "docker-compose" 3 \
+        --file docker-compose.yml               \
+        down                                    \
+        --volumes                               \
+        --remove-orphans
+}
+
+ETEST_docker_compose_run_custom_wait_teardown()
+{
+    emock "docker-compose"
+
+    etestmsg "Calling docker_compose_run with --wait and custom --teardown"
+
+    # Run this inside a subshell so that we can ensure the traps are getting called to remove the ephemeral volumes
+    (
+        docker_compose_run --teardown "down --volumes"
+    )
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 4
+
+    etestmsg "Validating arguments (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        ps --services
+
+    etestmsg "Validating args (2)"
+    assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        logs --follow
+
+    etestmsg "Validating teardown args"
+    assert_emock_called_with "docker-compose" 3 \
+        --file docker-compose.yml               \
+        down                                    \
+        --volumes
+}
+
+ETEST_docker_compose_run_copy_to_volume()
 {
     emock "docker"
     emock "docker-compose"
 
-    etestmsg "Calling docker_compose with multiple copy_to_volume"
+    etestmsg "Calling docker_compose_run with multiple copy_to_volume"
 
     # Run this inside a subshell so that we can ensure the traps are getting called to remove the ephemeral volumes
     (
-        docker_compose                                         \
+        docker_compose_run                                     \
             --copy-to-volume "foo:foo:/foo"                    \
             --copy-to-volume "data:/home/marshall/data:/data"  \
             --copy-to-volume "ebash:/home/ebash:/baggins"      \
-            --                                                 \
-            up
     )
 
-    etestmsg "Verifying docker called 12 times"
+    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 12
 
     etestmsg "Validating arguments (0) -- container create"
@@ -1306,10 +1571,11 @@ ETEST_docker_compose_copy_to_volume()
 
     etestmsg "Validating args (0) -- docker-compose"
     assert_emock_called_with "docker-compose" 0 \
-        up
+        --file docker-compose.yml               \
+        run
 }
 
-ETEST_docker_compose_copy_from_volume()
+ETEST_docker_compose_run_copy_from_volume()
 {
     emock "docker"
     trap_add "eunmock docker"
@@ -1319,21 +1585,19 @@ ETEST_docker_compose_copy_from_volume()
     emock "rm"
     trap_add "eunmock rm"
 
-    etestmsg "Calling docker_compose with multiple copy_from_volume"
+    etestmsg "Calling docker_compose_run with multiple copy_from_volume"
 
     # Run this inside a subshell so that we can ensure the traps are getting called to remove the ephemeral volumes
     (
-        docker_compose                                           \
+        docker_compose_run                                       \
             --copy-from-volume "foo:/foo:foo"                    \
             --copy-from-volume-delete "foo/bad"                  \
             --copy-from-volume "data:/home/marshall/data:data"   \
             --copy-from-volume "ebash:/home/ebash:/home/baggins" \
             --copy-from-volume-delete "/home/baggins/trash"      \
-            --                                                   \
-            up
     )
 
-    etestmsg "Verifying mock called 3 times"
+    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 3
 
     etestmsg "Validating args (0) -- docker cp"
@@ -1355,30 +1619,145 @@ ETEST_docker_compose_copy_from_volume()
     assert_emock_called_with "rm" 1 \
         --recursive --force "foo/bad"
 
-    etestmsg "Validating args (0) -- docker-compose"
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 4
+
+    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
-        up
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        ps --services
+
+    etestmsg "Validating args (2)"
+    assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        logs --follow
+
+    etestmsg "Validating teardown args"
+    assert_emock_called_with "docker-compose" 3 \
+        --file docker-compose.yml               \
+        down                                    \
+        --volumes                               \
+        --remove-orphans
 }
 
-ETEST_docker_compose_passthrough_args()
+ETEST_docker_compose_run_passthrough_args()
 {
     emock "docker-compose"
 
-    etestmsg "Calling docker_compose with passthrough args"
+    etestmsg "Calling docker_compose_run with passthrough args"
 
-    docker_compose   -- \
-        --file some.yml \
-        --verbose       \
-        --no-ansi       \
-        up
+    docker_compose_run --no-wait -- \
+        --foo                       \
+        --bar
 
-    etestmsg "Verifying mock called 1 times"
-    assert_emock_called "docker-compose" 1
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 2
 
     etestmsg "Verifying args"
     assert_emock_called_with "docker-compose" 0 \
-        --file some.yml \
-        --verbose       \
-        --no-ansi       \
-        up
+        --file docker-compose.yml \
+        run                       \
+        --foo                     \
+        --bar
+}
+
+ETEST_docker_compose_run_verbose_value()
+{
+    emock "docker-compose"
+
+    etestmsg "Calling docker_compose_run with --verbose=1"
+
+    docker_compose_run --no-wait --verbose=5
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 2
+
+    etestmsg "Verifying args"
+    assert_emock_called_with "docker-compose" 0 \
+        --file docker-compose.yml \
+        --verbose                 \
+        run
+
+    etestmsg "Validating args (2)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        logs --follow
+}
+
+ETEST_docker_compose_run_follow()
+{
+    etestmsg "Expected output"
+	cat <<-END >expect
+	Attaching to docker_ServiceA_1, docker_ServiceB_1, docker_ServiceB-testdata_1, docker_ServiceA-migrations_1
+	ServiceA_1 | INSERT 0 1
+	ServiceB_1 | {"level":"info","msg":"Starting up server","service":"ServiceA","time":"2022-02-10T00:41:53Z"}
+	END
+    cat expect
+
+    emock "docker-compose" '
+    {
+        if [[ ${called} -eq 1 ]]; then
+            cat expect
+        fi
+    }'
+
+    etestmsg "Calling docker_compose_run with --follow"
+    docker_compose_run --no-wait --follow > actual
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 2
+
+    etestmsg "Actual Output"
+    cat actual
+
+    etestmsg "Diff"
+    diff -u expect actual
+}
+
+ETEST_docker_compose_run_follow_json()
+{
+    etestmsg "Raw output"
+	cat <<-END >raw
+	Attaching to docker_ServiceA_1, docker_ServiceB_1, docker_ServiceB-testdata_1, docker_ServiceA-migrations_1
+	ServiceA_1 | INSERT 0 1
+	SerivceB_1 | {"level":"info","msg":"Starting up server","service":"ServiceA","time":"2022-02-10T00:41:53Z"}
+	END
+    cat raw
+
+    etestmsg "Expected formatted output"
+	cat <<-END >expect
+	"Attaching to docker_ServiceA_1, docker_ServiceB_1, docker_ServiceB-testdata_1, docker_ServiceA-migrations_1"
+	"INSERT 0 1"
+	{
+	  "level": "info",
+	  "msg": "Starting up server",
+	  "service": "ServiceA",
+	  "time": "2022-02-10T00:41:53Z"
+	}
+	END
+    cat expect
+
+    emock "docker-compose" '
+    {
+        if [[ ${called} -eq 1 ]]; then
+            cat raw
+        fi
+    }'
+
+    etestmsg "Calling docker_compose_run with --follow-json"
+    docker_compose_run --no-wait --follow-json > actual
+
+    etestmsg "Verifying docker-compose called expected number of times"
+    assert_emock_called "docker-compose" 2
+
+    etestmsg "Actual Output"
+    cat actual
+
+    etestmsg "Diff"
+    diff -u expect actual
 }

@@ -685,6 +685,53 @@ docker_export()
     eprogress_kill
 }
 
+__docker_setup_copy_volumes()
+{
+    $(opt_parse \
+        "+add_volume_to_args | Whether to add --volume flags to docker_args" \
+    )
+
+    # Deal with all copy_to_volumes
+    local entry name parts
+    for entry in ${copy_to_volume[*]:-}; do
+
+        array_init parts "${entry}" ":"
+        assert_eq 3 "$(array_size parts)"
+        local name=${parts[0]}
+        local lpath=${parts[1]}
+        local rpath=${parts[2]}
+
+        edebug "Creating docker container for volume $(lval name lpath rpath)"
+        docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
+        trap_add "docker volume rm ${name} |& edebug"
+        trap_add "docker rm ${name} |& edebug"
+        docker cp "${lpath}/." "${name}:${rpath}"
+
+        if [[ "${add_volume_to_args}" -eq 1 ]]; then
+            docker_args+=( --volume="${name}:${rpath}" )
+        fi
+    done
+
+    # Setup traps for copy_from_volume
+    for entry in ${copy_from_volume[*]:-}; do
+
+        array_init parts "${entry}" ":"
+        assert_eq 3 "$(array_size parts)"
+        local name=${parts[0]}
+        local rpath=${parts[1]}
+        local lpath=${parts[2]}
+
+        edebug "Setting trap to copy from $(lval name rpath lpath)"
+        trap_add "docker cp ${name}:${rpath}/. ${lpath}"
+    done
+
+    # Setup traps for copy_from_volume_delete
+    for entry in ${copy_from_volume_delete[*]:-}; do
+        edebug "Setting trap to delete $(lval entry) post-copy"
+        trap_add "rm --recursive --force \"${entry}\""
+    done
+}
+
 opt_usage docker_run <<'END'
 `docker_run` is an intelligent wrapper around vanilla `docker run` which integrates nicely with ebash. In addition to
 the normal additional error checking and hardening the ebash variety brings, this version provides the following super
@@ -742,43 +789,8 @@ docker_run()
         docker_args+=( --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" )
     fi
 
-    # Deal with all copy_to_volumes
-    local entry name parts
-    for entry in ${copy_to_volume[*]:-}; do
-
-        array_init parts "${entry}" ":"
-        assert_eq 3 "$(array_size parts)"
-        local name=${parts[0]}
-        local lpath=${parts[1]}
-        local rpath=${parts[2]}
-
-        edebug "Creating docker container for volume $(lval name lpath rpath)"
-        docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
-        trap_add "docker volume rm ${name} |& edebug"
-        trap_add "docker rm ${name} |& edebug"
-        docker cp "${lpath}/." "${name}:${rpath}"
-
-        docker_args+=( --volume="${name}:${rpath}" )
-    done
-
-    # Setup traps for copy_from_volume
-    for entry in ${copy_from_volume[*]:-}; do
-
-        array_init parts "${entry}" ":"
-        assert_eq 3 "$(array_size parts)"
-        local name=${parts[0]}
-        local rpath=${parts[1]}
-        local lpath=${parts[2]}
-
-        edebug "Setting trap to copy from $(lval name rpath lpath)"
-        trap_add "docker cp ${name}:${rpath}/. ${lpath}"
-    done
-
-    # Setup traps for copy_from_volume_delete
-    for entry in ${copy_from_volume_delete[*]:-}; do
-        edebug "Setting trap to delete $(lval entry) post-copy"
-        trap_add "rm --recursive --force \"${entry}\""
-    done
+    # Setup copy_to_volumes and copy_from_volume and copy_from_volume_delete
+    __docker_setup_copy_volumes --add-volume-to-args
 
     # Set --interactive as requested
     if [[ "${interactive,,}" == "yes" ]]; then
@@ -802,26 +814,25 @@ docker_run()
 }
 
 opt_usage docker_compose <<'END'
-`docker_compose` is an intelligent wrapper around vanilla `docker-compose` which integrates nicely with ebash. In
+`docker_compose_run` is an intelligent wrapper around vanilla `docker-compose` which integrates nicely with ebash. In
 addition to the normal additional error checking and hardening the ebash variety brings, this version provides the
 following super useful features:
 
-- Accept a list of environment variables which should be exported into the underlying docker run command. Each of these
-  variables will be expanded in-place by ebash using `expand_vars`. As such the variables can be a simple list of env
-  variables to export as in `FOO BAR ZAP` or they can point to other variables as in `FOO=PWD BAR ZAP` or they can
-  point to string literals as in `FOO=/home/marshall BAR=1 ZAP=blah`. Each of these will be expanded into a formatted
-  option to docker of the form `--env FOO=VALUE`.
-- Enable seamless nested docker-in-docker support by bind-mounting the docker socket into the the container.
+- Accept a list of environment variables which should be exported into the underlying docker_compose run command. Each
+  of these variables will be expanded in-place by ebash using `expand_vars`. As such the variables can be a simple list
+  of env variables to export as in `FOO BAR ZAP` or they can point to other variables as in `FOO=PWD BAR ZAP` or they
+  can point to string literals as in `FOO=/home/marshall BAR=1 ZAP=blah`. Each of these will be expanded into a
+  formatted option and stored in an environment file that docker_compose will use.
 - Create ephemeral docker volumes and copy a specified local path into the docker volume and attach that volume to the
-  running docker container. This is useful for running with a DOCKER_HOST which points to an external docker server.
-- Automatically determine what value to use for --interactive.
+  running docker containers. This is useful for running with a DOCKER_HOST which points to an external docker server.
+- Automatically copy files into or out of the ephemeral docker volumes.
+- Wait for the docker composed containers to be in a ready state.
+- Tail the logs from the docker composed containers.
+- Automatically teardown the docker composed containers safely and also remove the volumes.
 END
-docker_compose()
+docker_compose_run()
 {
     $(opt_parse \
-        ":envlist                           | List of environment variables to pass into lowever level docker run. These
-                                              will be sorted before passing them into docker for better testability and
-                                              consistency."                                                            \
         "&copy_to_volume                    | Copy the specified path into a volume which is attached to the docker run
                                               instance. This is useful when running with a remote DOCKER_HOST where a
                                               simple bind mount does not work. This is also safe to use when running
@@ -832,10 +843,34 @@ docker_compose()
                                               container. The syntax for this is name:docker_path:local_path"           \
         "&copy_from_volume_delete           | After copying all volumes back to the local site, delete any paths in this
                                               list. This is because docker cp doesn't support an exclusion mechanism." \
+        ":envlist                           | List of environment variables to pass into lowever level docker run. These
+                                              will be sorted before passing them into docker for better testability and
+                                              consistency."                                                            \
+        ":file f=docker-compose.yml         | Docker compose file to use. Defaults to docker-compose.yml"              \
+        "+follow                            | Follow the output from the docker compose launched processes on STDOUT." \
+        "+follow_json                       | Follow the output from the docker compose launched processes on STDOUT but
+                                              pretty-print the logs as JSON. This is tolerant of non-JSON output too so
+                                              that no output is lost even if it is not actually JSON."                 \
+        ":logfile=docker-compose.log        | Logfile to capture all docker-compose output into."                      \
+        ":teardown                          | Teardown code to execute after docker_compose completion to perform any
+                                              necessary cleanup. This is a useful mechanism to ensure we bring down all
+                                              containers and volumes via teardown='down --volumes --remove-orphans'"   \
+        ":verbose v=0                       | Verbosity level. This is boolean for native docker-compose but we allow
+                                              various log levels and map it to boolean values when we pass it into the
+                                              lower-level docker-compose."                                             \
+        "+wait=1                            | Wait for ready status"                                                   \
+        ":wait_delay=1s                     | How long to wait between checks for service health during wait."         \
     )
 
     # Final list of docker args we will use
-    local docker_args=()
+    local docker_args=(
+        --file "${file}"
+    )
+
+    # Dynamically map verbosity level into boolean flag
+    if [[ "${verbose}" -gt 0 ]]; then
+        docker_args+=( --verbose )
+    fi
 
     # Expand env variables as required
     if [[ -n "${envlist}" ]]; then
@@ -854,45 +889,67 @@ docker_compose()
         docker_args+=( --env-file "${envfile}" )
     fi
 
-    # Deal with all copy_to_volumes
-    local entry name parts
-    for entry in ${copy_to_volume[*]:-}; do
+    # Setup copy_to_volumes and copy_from_volume and copy_from_volume_delete
+    __docker_setup_copy_volumes --no-add-volume-to-args
 
-        array_init parts "${entry}" ":"
-        assert_eq 3 "$(array_size parts)"
-        local name=${parts[0]}
-        local lpath=${parts[1]}
-        local rpath=${parts[2]}
+    # Setup any additional teardown traps
+    : ${teardown:="down --volumes --remove-orphans"}
+    trap_add "docker-compose ${docker_args[*]} ${teardown}"
 
-        edebug "Creating docker container for volume $(lval name lpath rpath)"
-        docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
-        trap_add "docker volume rm ${name} |& edebug"
-        trap_add "docker rm ${name} |& edebug"
-        docker cp "${lpath}/." "${name}:${rpath}"
-    done
-
-    # Setup traps for copy_from_volume
-    for entry in ${copy_from_volume[*]:-}; do
-
-        array_init parts "${entry}" ":"
-        assert_eq 3 "$(array_size parts)"
-        local name=${parts[0]}
-        local rpath=${parts[1]}
-        local lpath=${parts[2]}
-
-        edebug "Setting trap to copy from $(lval name rpath lpath)"
-        trap_add "docker cp ${name}:${rpath}/. ${lpath}"
-    done
-
-    # Setup traps for copy_from_volume_delete
-    for entry in ${copy_from_volume_delete[*]:-}; do
-        edebug "Setting trap to delete $(lval entry) post-copy"
-        trap_add "rm --recursive --force \"${entry}\""
-    done
-
-    # Pass any other provided arguments into docker run directly.
-    docker_args+=( ${@:-} )
-
+    # Launch docker-compose in teh background and tail the logs in the foreground writing to the requested logfile.
+    # The tailing of the logfile will run in the foreground and block until the parent docker-compose job completes.
     edebug "Calling docker-compose with $(lval docker_args)"
-    docker-compose "${docker_args[@]:-}"
+    local pid
+    docker-compose "${docker_args[@]}" run ${@:-} &
+    pid=$!
+    edebug "Backgrounded docker-compose with $(lval pid)"
+
+    # If wait is requested then wait until status is ready for all containers
+    if [[ ${wait} -eq 1 ]]; then
+
+        local status service services=()
+        readarray -t services < <(docker-compose --file "${file}" ps --services)
+        einfo "Waiting for $(lval services)"
+        for service in ${services[@]}; do
+
+            einfos -n "${service}"
+
+            while true; do
+
+                # First try to look for actual Health Status. That only works if there is a HEALTHCHECK section in the
+                # docker compose file for this service. If there isn't we'll get a "Template parsing error". In which case
+                # we fallback to just checking the status.
+                status=$(docker inspect $(docker-compose --file "${file}" ps -q "${service}") | jq --raw-output '.[0].State.Health.Status')
+                edebug "$(lval service status)"
+                if [[ "${status}" == "healthy" ]]; then
+                    eend 0
+                    break
+                elif [[ "${status}" == "null" ]]; then
+                    status=$(docker inspect $(docker-compose --file "${file}" ps -q "${service}") | jq --raw-output '.[0].State.Status')
+
+                    if [[ "${status}" == "running" ]]; then
+                        eend 0
+                        break
+                    fi
+                fi
+
+                sleep "${wait_delay}"
+            done
+        done
+    fi
+
+    # Now we just block here following the logs. This will automatically exit when the parent docker-compose job exits.
+    if [[ "${follow}" -eq 1 ]]; then
+        docker-compose --file "${file}" logs --follow | tee "${logfile}"
+    elif [[ "${follow_json}" -eq 1 ]]; then
+        docker-compose --file "${file}" logs --follow | tee "${logfile}" \
+            | noansi \
+            | sed 's/.*| //' \
+            | jq -R '. as $line | try (fromjson) catch $line'
+    else
+        docker-compose --file "${file}" logs --follow > "${logfile}"
+    fi
+
+    # Wait on our backgrounded process and propogate any failure from it.
+    wait "${pid}"
 }
