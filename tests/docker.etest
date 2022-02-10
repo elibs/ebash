@@ -1220,7 +1220,7 @@ ETEST_docker_compose_run_envlist()
     docker_compose_run --no-wait --envlist 'FOO BAR ZAP DAB BLAH=PATH ARG=1 ARG2="Another with spaces"'
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 2
+    assert_emock_called "docker-compose" 1
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
@@ -1228,11 +1228,6 @@ ETEST_docker_compose_run_envlist()
         --file docker-compose.yml               \
         --env-file "tmp/file1"                  \
         run
-
-    etestmsg "Validating arguments (1)"
-    assert_emock_called_with "docker-compose" 1 \
-        --file docker-compose.yml               \
-        logs --follow
 }
 
 ETEST_docker_compose_run_file()
@@ -1244,18 +1239,13 @@ ETEST_docker_compose_run_file()
     docker_compose_run --no-wait --file "foo.yml"
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 2
+    assert_emock_called "docker-compose" 1
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file foo.yml                          \
         run
-
-    etestmsg "Validating args (1)"
-    assert_emock_called_with "docker-compose" 1 \
-        --file foo.yml                          \
-        logs --follow
 }
 
 ETEST_docker_compose_run_logfile()
@@ -1267,18 +1257,13 @@ ETEST_docker_compose_run_logfile()
     docker_compose_run --no-wait --logfile foo.log
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 2
+    assert_emock_called "docker-compose" 1
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run
-
-    etestmsg "Validating args (1)"
-    assert_emock_called_with "docker-compose" 1 \
-        --file docker-compose.yml               \
-        logs --follow
 }
 
 ETEST_docker_compose_run_wait()
@@ -1290,7 +1275,7 @@ ETEST_docker_compose_run_wait()
     docker_compose_run --wait
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 3
+    assert_emock_called "docker-compose" 2
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
@@ -1302,11 +1287,6 @@ ETEST_docker_compose_run_wait()
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps --services
-
-    etestmsg "Validating args (2)"
-    assert_emock_called_with "docker-compose" 2 \
-        --file docker-compose.yml               \
-        logs --follow
 }
 
 ETEST_docker_compose_run_wait_no_healthcheck()
@@ -1331,7 +1311,7 @@ ETEST_docker_compose_run_wait_no_healthcheck()
     docker_compose_run --wait
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 4
+    assert_emock_called "docker-compose" 3
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
@@ -1348,11 +1328,6 @@ ETEST_docker_compose_run_wait_no_healthcheck()
     assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
         ps -q minio
-
-    etestmsg "Validating args (3)"
-    assert_emock_called_with "docker-compose" 3 \
-        --file docker-compose.yml               \
-        logs --follow
 
     etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 2
@@ -1390,7 +1365,7 @@ ETEST_docker_compose_run_wait_with_healthcheck()
     docker_compose_run --wait
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 4
+    assert_emock_called "docker-compose" 3
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
@@ -1407,11 +1382,6 @@ ETEST_docker_compose_run_wait_with_healthcheck()
     assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
         ps -q minio
-
-    etestmsg "Validating args (3)"
-    assert_emock_called_with "docker-compose" 3 \
-        --file docker-compose.yml               \
-        logs --follow
 
     etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
@@ -1433,7 +1403,7 @@ ETEST_docker_compose_run_default_wait_teardown()
     )
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 4
+    assert_emock_called "docker-compose" 3
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
@@ -1446,13 +1416,8 @@ ETEST_docker_compose_run_default_wait_teardown()
         --file docker-compose.yml               \
         ps --services
 
-    etestmsg "Validating args (2)"
-    assert_emock_called_with "docker-compose" 2 \
-        --file docker-compose.yml               \
-        logs --follow
-
     etestmsg "Validating teardown args"
-    assert_emock_called_with "docker-compose" 3 \
+    assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
         down                                    \
         --volumes                               \
@@ -1471,7 +1436,7 @@ ETEST_docker_compose_run_custom_wait_teardown()
     )
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 4
+    assert_emock_called "docker-compose" 3
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
@@ -1484,13 +1449,8 @@ ETEST_docker_compose_run_custom_wait_teardown()
         --file docker-compose.yml               \
         ps --services
 
-    etestmsg "Validating args (2)"
-    assert_emock_called_with "docker-compose" 2 \
-        --file docker-compose.yml               \
-        logs --follow
-
     etestmsg "Validating teardown args"
-    assert_emock_called_with "docker-compose" 3 \
+    assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
         down                                    \
         --volumes
@@ -1624,7 +1584,7 @@ ETEST_docker_compose_run_copy_from_volume()
         --recursive --force "foo/bad"
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 4
+    assert_emock_called "docker-compose" 3
 
     etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
@@ -1637,13 +1597,8 @@ ETEST_docker_compose_run_copy_from_volume()
         --file docker-compose.yml               \
         ps --services
 
-    etestmsg "Validating args (2)"
-    assert_emock_called_with "docker-compose" 2 \
-        --file docker-compose.yml               \
-        logs --follow
-
     etestmsg "Validating teardown args"
-    assert_emock_called_with "docker-compose" 3 \
+    assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
         down                                    \
         --volumes                               \
@@ -1661,7 +1616,7 @@ ETEST_docker_compose_run_passthrough_args()
         --bar
 
     etestmsg "Verifying docker-compose called expected number of times"
-    assert_emock_called "docker-compose" 2
+    assert_emock_called "docker-compose" 1
 
     etestmsg "Verifying args"
     assert_emock_called_with "docker-compose" 0 \
@@ -1674,26 +1629,51 @@ ETEST_docker_compose_run_passthrough_args()
 
 ETEST_docker_compose_run_follow()
 {
-    etestmsg "Expected output"
-	cat <<-END >expect
-	Attaching to docker_ServiceA_1, docker_ServiceB_1, docker_ServiceB-testdata_1, docker_ServiceA-migrations_1
-	ServiceA_1 | INSERT 0 1
-	ServiceB_1 | {"level":"info","msg":"Starting up server","service":"ServiceA","time":"2022-02-10T00:41:53Z"}
-	END
-    cat expect
-
     emock "docker-compose" '
     {
-        if [[ ${called} -eq 1 ]]; then
+        if [[ ${called} -eq 0 ]]; then
+            echo ""
+        else
+            echo "42"
+        fi
+    }'
+
+    emock "docker" '
+    {
+        if [[ $1 == "logs" ]]; then
             cat expect
         fi
     }'
 
-    etestmsg "Calling docker_compose_run with --follow"
-    docker_compose_run --no-wait --follow > actual
+    etestmsg "Expected output"
+	cat <<-END >expect
+	{"level":"info","msg":"Starting up server","service":"ServiceA","time":"2022-02-10T00:41:53Z"}
+	END
+    cat expect
+
+    etestmsg "Calling docker_compose_run with --follow ServiceA"
+    docker_compose_run --no-wait --follow ServiceA > actual
 
     etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 2
+
+    etestmsg "Validating args (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --verbose                               \
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        ps -q ServiceA
+
+    etestmsg "Verifying docker called expected number of times"
+    assert_emock_called "docker" 1
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker" 0 \
+        logs 42 --follow
 
     etestmsg "Actual Output"
     cat actual
@@ -1704,18 +1684,30 @@ ETEST_docker_compose_run_follow()
 
 ETEST_docker_compose_run_follow_json()
 {
+    emock "docker-compose" '
+    {
+        if [[ ${called} -eq 0 ]]; then
+            echo ""
+        else
+            echo "42"
+        fi
+    }'
+
+    emock "docker" '
+    {
+        if [[ $1 == "logs" ]]; then
+            cat raw
+        fi
+    }'
+
     etestmsg "Raw output"
 	cat <<-END >raw
-	Attaching to docker_ServiceA_1, docker_ServiceB_1, docker_ServiceB-testdata_1, docker_ServiceA-migrations_1
-	ServiceA_1 | INSERT 0 1
-	SerivceB_1 | {"level":"info","msg":"Starting up server","service":"ServiceA","time":"2022-02-10T00:41:53Z"}
+	{"level":"info","msg":"Starting up server","service":"ServiceA","time":"2022-02-10T00:41:53Z"}
 	END
     cat raw
 
     etestmsg "Expected formatted output"
 	cat <<-END >expect
-	"Attaching to docker_ServiceA_1, docker_ServiceB_1, docker_ServiceB-testdata_1, docker_ServiceA-migrations_1"
-	"INSERT 0 1"
 	{
 	  "level": "info",
 	  "msg": "Starting up server",
@@ -1725,18 +1717,29 @@ ETEST_docker_compose_run_follow_json()
 	END
     cat expect
 
-    emock "docker-compose" '
-    {
-        if [[ ${called} -eq 1 ]]; then
-            cat raw
-        fi
-    }'
-
-    etestmsg "Calling docker_compose_run with --follow-json"
-    docker_compose_run --no-wait --follow-json > actual
+    etestmsg "Calling docker_compose_run with --follow-json ServiceA"
+    docker_compose_run --no-wait --follow-json ServiceA > actual
 
     etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 2
+
+    etestmsg "Validating args (0)"
+    assert_emock_called_with "docker-compose" 0 \
+        --verbose                               \
+        --file docker-compose.yml               \
+        run
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        ps -q ServiceA
+
+    etestmsg "Verifying docker called expected number of times"
+    assert_emock_called "docker" 1
+
+    etestmsg "Validating args (1)"
+    assert_emock_called_with "docker" 0 \
+        logs 42 --follow
 
     etestmsg "Actual Output"
     cat actual

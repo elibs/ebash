@@ -847,10 +847,10 @@ docker_compose_run()
                                               will be sorted before passing them into docker for better testability and
                                               consistency."                                                            \
         ":file f=docker-compose.yml         | Docker compose file to use. Defaults to docker-compose.yml"              \
-        "+follow                            | Follow the output from the docker compose launched processes on STDOUT." \
-        "+follow_json                       | Follow the output from the docker compose launched processes on STDOUT but
-                                              pretty-print the logs as JSON. This is tolerant of non-JSON output too so
-                                              that no output is lost even if it is not actually JSON."                 \
+        ":follow                            | Follow the output from the named container."                             \
+        ":follow_json                       | Follow the output from the named container but pretty-print the logs as
+                                              JSON. This is tolerant of non-JSON output too so that no output is lost
+                                              even if it is not actually JSON."                                        \
         ":logfile=docker-compose.log        | Logfile to capture all docker-compose output into."                      \
         ":teardown                          | Teardown code to execute after docker_compose completion to perform any
                                               necessary cleanup. This is a useful mechanism to ensure we bring down all
@@ -901,6 +901,7 @@ docker_compose_run()
 
         local id status service services=()
         readarray -t services < <(docker-compose --file "${file}" ps --services)
+
         echo
         einfo "Waiting for $(lval services)"
         for service in "${services[@]}"; do
@@ -937,18 +938,16 @@ docker_compose_run()
         done
     fi
 
-    # Now we just block here following the logs. This will automatically exit when the parent docker-compose job exits.
-    if [[ "${follow}" -eq 1 ]]; then
-        docker-compose --file "${file}" logs --follow | tee "${logfile}"
-    elif [[ "${follow_json}" -eq 1 ]]; then
-        docker-compose --file "${file}" logs --follow | tee "${logfile}" \
-            | noansi \
-            | sed 's/.*| //' \
-            | jq -R '. as $line | try (fromjson) catch $line'
-    else
-        docker-compose --file "${file}" logs --follow > "${logfile}"
+    # Optionally tail the output of a specific container
+     if [[ -n "${follow}" ]]; then
+        id=$(docker-compose --file "${file}" ps -q "${follow}")
+        docker logs "${id}" --follow | tee "${logfile}"
+    elif [[ -n "${follow_json}" ]]; then
+        id=$(docker-compose --file "${file}" ps -q "${follow_json}")
+        docker logs "${id}" --follow | tee "${logfile}" | jq -R '. as $line | try (fromjson) catch $line'
     fi
 
     # Wait on our backgrounded process and propogate any failure from it.
+    edebug "Waiting for docker-compose to complete"
     wait "${pid}"
 }
