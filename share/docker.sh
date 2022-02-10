@@ -909,7 +909,7 @@ docker_compose_run()
             readarray -t services < <(docker-compose --file "${file}" ps --services)
         fi
 
-        echo
+        echo >&2
         einfo "Waiting for $(lval services)"
         for service in "${services[@]}"; do
 
@@ -943,6 +943,8 @@ docker_compose_run()
             checkbox_close
 
         done
+
+        echo >&2
     fi
 
     # Optionally tail the output of a specific container
