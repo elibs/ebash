@@ -108,7 +108,7 @@ ETEST_install_go()
     )
 
     # Run the install script
-    ${EBASH_HOME}/install/go
+    EDEBUG=go ${EBASH_HOME}/install/go
 
     assert_commands_installed "${commands[@]}"
 }
