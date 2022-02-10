@@ -924,7 +924,7 @@ docker_compose_run()
                     elif [[ "${status}" == "null" ]]; then
                         status=$(docker inspect "${id}" | jq --raw-output '.[0].State.Status')
 
-                        if [[ "${status}" == "running" ]]; then
+                        if [[ "${status}" == @(exited|running) ]]; then
                             break
                         fi
                     fi
