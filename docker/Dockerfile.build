@@ -1,19 +1,22 @@
 ARG IMAGE
 FROM ${IMAGE}
 
-# Copy install directory. This is what will trigger new builds when dependencies change.
+# Install build dependencies (e.g. unzip is needed)
 COPY docker/setup /ebash-build/docker/setup
-COPY install /ebash-build/install
-RUN sed -i -e 's|${EBASH_HOME}|/ebash-build|g' /ebash-build/install/all
-RUN sed -i -e 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/ebash-main"|' /ebash-build/install/*
-
-# Install build dependencies
 RUN /ebash-build/docker/setup
 
 # Fetch ebash from master as an opaque thing to avoid using our local code. That way we
 # don't invalidate our image.
 RUN curl --location --remote-name https://github.com/elibs/ebash/archive/main.zip
 RUN unzip main.zip
+RUN mv /ebash-main /ebash
+
+# Copy install directory over the top of the latest stable version that we just unpacked above.
+# This is what will trigger new builds when dependencies change.
+COPY install /ebash/install
+RUN sed -i -e 's|${EBASH_HOME}|/ebash|g' /ebash/install/all
+RUN sed -i -e 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/ebash"|' /ebash/install/*
+RUN cat /ebash/install/shellcheck
 
 # Install all dependencies
-RUN /ebash-build/install/all
+RUN /ebash/install/all

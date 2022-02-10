@@ -60,14 +60,18 @@ checkbox_eend()
                          value will emit '[✘]'." \
     )
 
+    {
+        printf "\r"
 
-    printf "\r"
+        if [[ "${return_code}" -eq 0 ]]; then
+            echo "$(tput setaf 2)$(tput bold)[✓]$(tput sgr0)"
+        else
+            echo "$(tput setaf 1)$(tput bold)[✘]$(tput sgr0)"
+        fi
 
-    if [[ "${return_code}" -eq 0 ]]; then
-        echo "$(tput setaf 2)$(tput bold)[✓]$(tput sgr0)"
-    else
-        echo "$(tput setaf 1)$(tput bold)[✘]$(tput sgr0)"
-    fi
+        printf "\r"
+
+    } >&2
 }
 
 opt_usage checkbox <<'END'

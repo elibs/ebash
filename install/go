@@ -41,9 +41,29 @@ elif os linux; then
 
     einfo "Go not available via package manager on $(os_pretty_name). Downloading from official Go URL."
 
-    # Download
-    version="$(curl --silent --location https://golang.org/VERSION?m=text)"
-    url="https://dl.google.com/go/${version}.linux-amd64.tar.gz"
+    # Find a verison we can download. We used to just use the latest version as defined by calling
+    # `curl --silent --location https://golang.org/VERSION?m=text` but unfortunately that is sometimes ahead of the
+    # versions that you can actually download via go.dev/dl. So instead, what we do now is use the provided golang.org
+    # URL which provides a LIST of downloadable versions. And we'll just try one at a time until we find one we can
+    # successfully download.
+    url=""
+    versions=()
+    readarray -t versions < <(curl --silent -L https://golang.org/dl/?mode=json | jq --raw-output '.[].version')
+    for version in "${versions[@]}"; do
+        url_candidate="https://go.dev/dl/${version}.linux-amd64.tar.gz"
+        edebug "Checking $(lval version url_candidate)"
+        if curl --output /dev/null --silent --head --fail "${url_candidate}"; then
+            edebug "${version} is avaiable for download"
+            url="${url_candidate}"
+            break
+        fi
+    done
+
+    if [[ -z "${url}" ]]; then
+        die "Unable to find a downloadable version of Go"
+    fi
+
+    # Now download the URL
     : ${TMPDIR:=/tmp}
     tarball="${TMPDIR}/$(basename "${url}")"
     mkdir -p "$(dirname "${tarball}")"
