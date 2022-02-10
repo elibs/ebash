@@ -27,7 +27,7 @@ ebanner --uppercase "Installing ShellCheck package" OS
 
 # Determine what the name of the package is to install on this OS/Distro (if any).
 package=""
-if os darwin || os_distro alpine arch; then
+if os darwin || os_distro alpine; then
     package="shellcheck"
 elif os_distro fedora; then
     package="ShellCheck"
