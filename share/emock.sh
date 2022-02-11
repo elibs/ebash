@@ -794,7 +794,7 @@ emock_dump_state()
     statedir+="/$(basename "${name}")"
 
     local fpath="" fname="" contents=""
-    for fname in $(find "${statedir}" -type f -printf '%P\n'); do
+    for fname in $(find "${statedir}" -type f -printf '%P\n' | sort --version-sort); do
 
         fpath="${statedir}/${fname}"
         contents=""

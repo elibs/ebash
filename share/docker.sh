@@ -706,6 +706,7 @@ __docker_setup_copy_volumes()
         local rpath=${parts[2]}
 
         edebug "Creating docker container for volume $(lval name lpath rpath)"
+        docker rm "/${name}" &>/dev/null || true
         docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
         trap_add "docker volume rm ${name} |& edebug"
         trap_add "docker rm ${name} |& edebug"
@@ -734,6 +735,28 @@ __docker_setup_copy_volumes()
         edebug "Setting trap to delete $(lval entry) post-copy"
         trap_add "rm --recursive --force \"${entry}\""
     done
+}
+
+opt_usage __docker_wait_for_container_id <<'END'
+__docker_wait_for_container_id is an internal only helper function used to wait for a named container to have an
+assigned container ID.
+END
+__docker_wait_for_container_id()
+{
+    $(opt_parse \
+        "name | The name of the container to wait for it to have an assigned container ID." \
+    )
+
+    local id=""
+    while true; do
+        id=$(docker-compose --file "${file}" ps -q "${name}" 2>/dev/null || true)
+        if [[ -n "${id}" ]]; then
+            break
+        fi
+        sleep "${wait_delay}"
+    done
+
+    echo "${id}"
 }
 
 opt_usage docker_run <<'END'
@@ -855,7 +878,9 @@ docker_compose_run()
         ":follow_json                       | Follow the output from the named container but pretty-print the logs as
                                               JSON. This is tolerant of non-JSON output too so that no output is lost
                                               even if it is not actually JSON."                                        \
-        ":logfile=docker-compose.log        | Logfile to capture all docker-compose output into."                      \
+        ":follow_logfile                    | Optional file to capture the output from followed container into in
+                                              addition to following it on the console."                                \
+        ":logfile                           | Optional logfile to capture all docker-compose output into."             \
         ":teardown                          | Teardown code to execute after docker_compose completion to perform any
                                               necessary cleanup. This is a useful mechanism to ensure we bring down all
                                               containers and volumes via teardown='down --volumes --remove-orphans'"   \
@@ -893,7 +918,7 @@ docker_compose_run()
 
     # Setup any additional teardown traps
     : ${teardown:="down --volumes --remove-orphans"}
-    trap_add "docker-compose ${docker_args[*]} ${teardown}"
+    trap_add "echo >&2 ; einfo Teardown ; docker-compose ${docker_args[*]} ${teardown}"
 
     # Launch docker-compose in teh background and tail the logs in the foreground writing to the requested logfile.
     # The tailing of the logfile will run in the foreground and block until the parent docker-compose job completes.
@@ -902,6 +927,25 @@ docker_compose_run()
     docker-compose --verbose "${docker_args[@]}" run -T ${*:-} |& edebug &
     pid=$!
     edebug "Backgrounded docker-compose with $(lval pid)"
+
+    # Start following the requested container (if any) immediately rather than tailing it AFTER we wait for the
+    # containers to all be healthy as we will miss the container's existence entirely for fast-running containers.
+    # But we don't want to SHOW the output to the console until after the wait block. So we'll save it off in the
+    # requested follow_logfile (if any).
+    if [[ -z "${follow_logfile}" ]]; then
+        follow_logfile=$(mktemp --tmpdir ebash-docker-compose-XXXXXX)
+        trap_add "rm --force ${follow_logfile}"
+    fi
+    (
+        if [[ -n "${follow}" ]]; then
+            id="$(__docker_wait_for_container_id "${follow}")"
+            docker logs "${id}" --follow &> "${follow_logfile}"
+        elif [[ -n "${follow_json}" ]]; then
+            id="$(__docker_wait_for_container_id "${follow_json}")"
+            docker logs "${id}" --follow &> "${follow_logfile}"
+        fi
+    ) &
+    local log_pid=$!
 
     # If wait is requested then wait until status is ready for all containers
     if [[ ${wait} -eq 1 ]]; then
@@ -951,16 +995,22 @@ docker_compose_run()
         echo >&2
     fi
 
-    # Optionally tail the output of a specific container
-     if [[ -n "${follow}" ]]; then
-        id=$(docker-compose --file "${file}" ps -q "${follow}")
-        docker logs "${id}" --follow | tee "${logfile}"
+    # Now that our WAIT block is complete we can show the followed container output (if any) that we began capturing
+    # asynchronously above.
+    if [[ -n "${follow}" ]]; then
+        tail --pid "${log_pid}" --follow "${follow_logfile}" --retry 2>/dev/null || true
     elif [[ -n "${follow_json}" ]]; then
-        id=$(docker-compose --file "${file}" ps -q "${follow_json}")
-        docker logs "${id}" --follow | tee "${logfile}" | jq --unbuffered --raw-input '. as $line | try (fromjson) catch $line'
+        tail --pid "${log_pid}" --follow "${follow_logfile}" --retry 2>/dev/null \
+            | jq --raw-input '. as $line | try (fromjson) catch $line' || true
     fi
 
     # Wait on our backgrounded process and propogate any failure from it.
     edebug "Waiting for docker-compose to complete"
-    wait "${pid}"
+    wait "${pid}" "${log_pid}"
+
+    # Optionally capture all container logfiles
+    if [[ -n "${logfile}" ]]; then
+        edebug "Capturing docker-compose logfile"
+        docker-compose --file "${file}" logs > "${logfile}"
+    fi
 }
