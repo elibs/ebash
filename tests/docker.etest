@@ -1016,10 +1016,8 @@ ETEST_docker_run_envlist()
     etestmsg "Calling docker_run with env list"
     docker_run --interactive=no --envlist 'FOO BAR ZAP DAB BLAH=PATH ARG=1 ARG2="Another with spaces"'
 
-    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
 
-    etestmsg "Validating arguments"
     assert_emock_called_with "docker" 0 run     \
         --env ARG=1                             \
         --env ARG2="Another with spaces"        \
@@ -1037,10 +1035,8 @@ ETEST_docker_run_nested()
     etestmsg "Calling docker_run with --nested"
     docker_run --interactive=no --nested
 
-    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
 
-    etestmsg "Validating arguments"
     assert_emock_called_with "docker" 0 run     \
         --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock"
 }
@@ -1059,74 +1055,68 @@ ETEST_docker_run_copy_to_volume()
             --copy-to-volume "ebash:/home/ebash:/baggins"      \
     )
 
-    etestmsg "Verifying docker called 13 times"
-    assert_emock_called "docker" 13
+    assert_emock_called "docker" 16
 
-    etestmsg "Validating arguments (0) -- container create"
     assert_emock_called_with "docker" 0 \
+        rm /foo
+
+    assert_emock_called_with "docker" 1 \
         container create        \
         --name foo              \
         -v foo:/foo             \
         busybox
 
-    etestmsg "Validating args (1) -- docker cp"
-    assert_emock_called_with "docker" 1 \
+    assert_emock_called_with "docker" 2 \
         cp "foo/."              \
         "foo:/foo"
 
-    etestmsg "Validating arguments (2) -- container create"
-    assert_emock_called_with "docker" 2 \
+    assert_emock_called_with "docker" 3 \
+        rm /data
+
+    assert_emock_called_with "docker" 4 \
         container create        \
         --name data             \
         -v data:/data           \
         busybox
 
-    etestmsg "Validating args (3) -- docker cp"
-    assert_emock_called_with "docker" 3 \
+    assert_emock_called_with "docker" 5 \
         cp "/home/marshall/data/." "data:/data"
 
-    etestmsg "Validating arguments (4) -- container create"
-    assert_emock_called_with "docker" 4 \
+    assert_emock_called_with "docker" 6 \
+        rm /ebash
+
+    assert_emock_called_with "docker" 7 \
         container create        \
         --name ebash            \
         -v ebash:/baggins       \
         busybox
 
-    etestmsg "Validating args (5) -- docker cp"
-    assert_emock_called_with "docker" 5 \
+    assert_emock_called_with "docker" 8 \
         cp "/home/ebash/." "ebash:/baggins"
 
-    etestmsg "Validating args (6) -- docker run"
-    assert_emock_called_with "docker" 6 \
+    assert_emock_called_with "docker" 9 \
         run                     \
         --volume=foo:/foo       \
         --volume=data:/data     \
         --volume=ebash:/baggins \
 
-    etestmsg "Validating args (7) -- docker rm"
-    assert_emock_called_with "docker" 7 \
+    assert_emock_called_with "docker" 10 \
         rm ebash
 
-    etestmsg "Validating args (8) -- docker volume rm"
-    assert_emock_called_with "docker" 8 \
+    assert_emock_called_with "docker" 11 \
         volume rm ebash
 
-    etestmsg "Validating args (9) -- docker rm"
-    assert_emock_called_with "docker" 9 \
+    assert_emock_called_with "docker" 12 \
         rm data
 
-    etestmsg "Validating args (10) -- docker volume rm"
-    assert_emock_called_with "docker" 10 \
+    assert_emock_called_with "docker" 13 \
         volume rm data
 
-    etestmsg "Validating args (11) -- docker rm"
-    assert_emock_called_with "docker" 11 \
+    assert_emock_called_with "docker" 14 \
         rm foo
 
-    etestmsg "Validating args (12) -- docker volume rm"
-    assert_emock_called_with "docker" 12 \
+    assert_emock_called_with "docker" 15 \
         volume rm foo
-
 }
 
 ETEST_docker_run_copy_from_volume()
@@ -1149,22 +1139,17 @@ ETEST_docker_run_copy_from_volume()
             --copy-from-volume-delete "/home/baggins/trash"      \
     )
 
-    etestmsg "Verifying docker called 4 times"
     assert_emock_called "docker" 4
 
-    etestmsg "Validating args (0) -- docker run"
     assert_emock_called_with "docker" 0 \
         run                     \
 
-    etestmsg "Validating args (1) -- docker cp"
     assert_emock_called_with "docker" 1 \
         cp "ebash:/home/ebash/." "/home/baggins"
 
-    etestmsg "Validating args (2) -- docker cp"
     assert_emock_called_with "docker" 2 \
         cp "data:/home/marshall/data/." "data"
 
-    etestmsg "Validating args (3) -- docker cp"
     assert_emock_called_with "docker" 3 \
         cp "foo:/foo/." "foo"
 
@@ -1190,7 +1175,6 @@ ETEST_docker_run_passthrough_args()
         --rm            \
         --workdir /ebash
 
-    etestmsg "Verifying docker called 1 times"
     assert_emock_called "docker" 1
 
     etestmsg "Verifying args"
@@ -1219,10 +1203,8 @@ ETEST_docker_compose_run_envlist()
     etestmsg "Calling docker_compose_run with env list"
     docker_compose_run --no-wait --envlist 'FOO BAR ZAP DAB BLAH=PATH ARG=1 ARG2="Another with spaces"'
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 1
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
@@ -1238,10 +1220,8 @@ ETEST_docker_compose_run_file()
 
     docker_compose_run --no-wait --file "foo.yml"
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 1
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file foo.yml                          \
@@ -1256,16 +1236,13 @@ ETEST_docker_compose_run_logfile()
 
     docker_compose_run --no-wait --logfile foo.log
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 2
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating arguments (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         logs
@@ -1279,16 +1256,13 @@ ETEST_docker_compose_run_wait()
 
     docker_compose_run --wait
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 2
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps --services
@@ -1315,33 +1289,26 @@ ETEST_docker_compose_run_wait_no_healthcheck()
     etestmsg "Calling docker_compose_run with --wait"
     docker_compose_run --wait
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 3
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps --services
 
-    etestmsg "Validating args (2)"
     assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
         ps -q minio
 
-    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 2
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker" 0 \
         inspect 42
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker" 1 \
         inspect 42
 }
@@ -1369,29 +1336,23 @@ ETEST_docker_compose_run_wait_with_healthcheck()
     etestmsg "Calling docker_compose_run with --wait"
     docker_compose_run --wait
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 3
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps --services
 
-    etestmsg "Validating args (2)"
     assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
         ps -q minio
 
-    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker" 0 \
         inspect 42
 }
@@ -1407,16 +1368,13 @@ ETEST_docker_compose_run_default_wait_teardown()
         docker_compose_run
     )
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 3
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps --services
@@ -1440,16 +1398,13 @@ ETEST_docker_compose_run_custom_wait_teardown()
         docker_compose_run --teardown "down --volumes"
     )
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 3
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps --services
@@ -1476,81 +1431,64 @@ ETEST_docker_compose_run_copy_to_volume()
             --copy-to-volume "ebash:/home/ebash:/baggins"      \
     )
 
-    etestmsg "Verifying docker called expected number of times"
     emock_dump_state "docker"
     assert_emock_called "docker" 15
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker" 0 \
         rm "/foo"
 
-    etestmsg "Validating arguments (1)"
     assert_emock_called_with "docker" 1 \
         container create        \
         --name foo              \
         -v foo:/foo             \
         busybox
 
-    etestmsg "Validating args (2)"
     assert_emock_called_with "docker" 2 \
         cp "foo/."              \
         "foo:/foo"
 
-    etestmsg "Validating arguments (3)"
     assert_emock_called_with "docker" 3 \
         rm "/data"
 
-    etestmsg "Validating arguments (4)"
     assert_emock_called_with "docker" 4 \
         container create        \
         --name data             \
         -v data:/data           \
         busybox
 
-    etestmsg "Validating args (5)"
     assert_emock_called_with "docker" 5 \
         cp "/home/marshall/data/." "data:/data"
 
-    etestmsg "Validating arguments (6)"
     assert_emock_called_with "docker" 6 \
         rm "/ebash"
 
-    etestmsg "Validating arguments (7)"
     assert_emock_called_with "docker" 7 \
         container create        \
         --name ebash            \
         -v ebash:/baggins       \
         busybox
 
-    etestmsg "Validating args (8)"
     assert_emock_called_with "docker" 8 \
         cp "/home/ebash/." "ebash:/baggins"
 
-    etestmsg "Validating args (9)"
     assert_emock_called_with "docker" 9 \
         rm ebash
 
-    etestmsg "Validating args (10)"
     assert_emock_called_with "docker" 10 \
         volume rm ebash
 
-    etestmsg "Validating args (11)"
     assert_emock_called_with "docker" 11 \
         rm data
 
-    etestmsg "Validating args (12)"
     assert_emock_called_with "docker" 12 \
         volume rm data
 
-    etestmsg "Validating args (13)"
     assert_emock_called_with "docker" 13 \
         rm foo
 
-    etestmsg "Validating args (14)"
     assert_emock_called_with "docker" 14 \
         volume rm foo
 
-    etestmsg "Validating args (0) -- docker-compose"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
@@ -1581,18 +1519,14 @@ ETEST_docker_compose_run_copy_from_volume()
             --copy-from-volume-delete "/home/baggins/trash"      \
     )
 
-    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 3
 
-    etestmsg "Validating args (0) -- docker cp"
     assert_emock_called_with "docker" 0 \
         cp "ebash:/home/ebash/." "/home/baggins"
 
-    etestmsg "Validating args (1) -- docker cp"
     assert_emock_called_with "docker" 1 \
         cp "data:/home/marshall/data/." "data"
 
-    etestmsg "Validating args (2) -- docker cp"
     assert_emock_called_with "docker" 2 \
         cp "foo:/foo/." "foo"
 
@@ -1608,16 +1542,13 @@ ETEST_docker_compose_run_copy_from_volume()
     assert_emock_called_with "rm" 2 \
         --recursive --force "foo/bad"
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 3
 
-    etestmsg "Validating arguments (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps --services
@@ -1640,7 +1571,6 @@ ETEST_docker_compose_run_passthrough_args()
         --foo                       \
         --bar
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 1
 
     etestmsg "Verifying args"
@@ -1679,24 +1609,19 @@ ETEST_docker_compose_run_follow()
     etestmsg "Calling docker_compose_run with --follow ServiceA"
     docker_compose_run --no-wait --follow ServiceA > actual
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 2
 
-    etestmsg "Validating args (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps -q ServiceA
 
-    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker" 0 \
         logs 42 --follow
 
@@ -1734,24 +1659,19 @@ ETEST_docker_compose_run_follow_logfile()
     etestmsg "Calling docker_compose_run with --follow and --follow-logfile"
     docker_compose_run --no-wait --follow ServiceA --follow-logfile service.log > actual
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 2
 
-    etestmsg "Validating args (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps -q ServiceA
 
-    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker" 0 \
         logs 42 --follow
 
@@ -1803,24 +1723,19 @@ ETEST_docker_compose_run_follow_json()
     etestmsg "Calling docker_compose_run with --follow-json ServiceA"
     docker_compose_run --no-wait --follow-json ServiceA > actual
 
-    etestmsg "Verifying docker-compose called expected number of times"
     assert_emock_called "docker-compose" 2
 
-    etestmsg "Validating args (0)"
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
         ps -q ServiceA
 
-    etestmsg "Verifying docker called expected number of times"
     assert_emock_called "docker" 1
 
-    etestmsg "Validating args (1)"
     assert_emock_called_with "docker" 0 \
         logs 42 --follow
 
