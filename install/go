@@ -36,7 +36,7 @@ fi
 
 # If a package is available on this OS/distro install it. Otherwise download the package from upstream pre-built binary
 if [[ -n "${package}" ]]; then
-    pkg_install "${package}"
+    pkg_install --sync "${package}"
 elif os linux; then
 
     einfo "Go not available via package manager on $(os_pretty_name). Downloading from official Go URL."
