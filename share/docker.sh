@@ -875,11 +875,12 @@ docker_compose_run()
                                               consistency."                                                            \
         ":file f=docker-compose.yml         | Docker compose file to use. Defaults to docker-compose.yml"              \
         ":follow                            | Follow the output from the named container."                             \
-        ":follow_json                       | Follow the output from the named container but pretty-print the logs as
-                                              JSON. This is tolerant of non-JSON output too so that no output is lost
-                                              even if it is not actually JSON."                                        \
-        ":follow_logfile                    | Optional file to capture the output from followed container into in
-                                              addition to following it on the console."                                \
+        "+follow_all                        | Follow the output from all docker-compose containers."                   \
+        "+follow_json                       | Follow the output from the containers and pretty-print the logs as JSON.
+                                              This is tolerant of non-JSON output too so that no output is lost even if
+                                              it is not actually JSON. In that case it is printed as a JSON string"    \
+        ":follow_logfile                    | Optional file to capture the output from followed containers into in
+                                              addition to following on the console."                                   \
         ":logfile                           | Optional logfile to capture all docker-compose output into."             \
         ":teardown                          | Teardown code to execute after docker_compose completion to perform any
                                               necessary cleanup. This is a useful mechanism to ensure we bring down all
@@ -936,16 +937,13 @@ docker_compose_run()
         follow_logfile=$(mktemp --tmpdir ebash-docker-compose-XXXXXX)
         trap_add "rm --force ${follow_logfile}"
     fi
-    (
-        if [[ -n "${follow}" ]]; then
-            id="$(__docker_wait_for_container_id "${follow}")"
-            docker logs "${id}" --follow &> "${follow_logfile}"
-        elif [[ -n "${follow_json}" ]]; then
-            id="$(__docker_wait_for_container_id "${follow_json}")"
-            docker logs "${id}" --follow &> "${follow_logfile}"
-        fi
-    ) &
-    local log_pid=$!
+
+    local log_pid=0
+    if [[ -n "${follow}" ]]; then
+        id="$(__docker_wait_for_container_id "${follow}")"
+        docker logs "${id}" --follow &> "${follow_logfile}" &
+        log_pid=$!
+    fi
 
     # If wait is requested then wait until status is ready for all containers
     if [[ ${wait} -eq 1 ]]; then
@@ -995,18 +993,31 @@ docker_compose_run()
         echo >&2
     fi
 
+    if [[ ${follow_all} -eq 1 ]]; then
+
+        docker-compose --file "${file}" logs --follow --no-color \
+            | grep --line-buffered --color=never -Po '.* \| \K.*' &> "${follow_logfile}" &
+
+        log_pid=$!
+        edebug "Following output of all docker-compose containers $(lval log_pid)"
+    fi
+
     # Now that our WAIT block is complete we can show the followed container output (if any) that we began capturing
     # asynchronously above.
-    if [[ -n "${follow}" ]]; then
-        tail --pid "${log_pid}" --follow "${follow_logfile}" --retry 2>/dev/null || true
-    elif [[ -n "${follow_json}" ]]; then
-        tail --pid "${log_pid}" --follow "${follow_logfile}" --retry 2>/dev/null \
-            | jq --raw-input '. as $line | try (fromjson) catch $line' || true
-    fi
+    if [[ "${log_pid}" -ne 0 ]]; then
+        if [[ ${follow_json} -eq 1 ]]; then
+            tail --pid "${log_pid}" --follow "${follow_logfile}" --sleep-interval=0.1 \
+                | jq --unbuffered --raw-input '. as $line | try (fromjson) catch $line' || true
+        else
+            tail --pid "${log_pid}" --follow "${follow_logfile}" || true
+        fi
+
+        wait "${pid}"
+   fi
 
     # Wait on our backgrounded process and propogate any failure from it.
     edebug "Waiting for docker-compose to complete"
-    wait "${pid}" "${log_pid}"
+    wait "${pid}"
 
     # Optionally capture all container logfiles
     if [[ -n "${logfile}" ]]; then
