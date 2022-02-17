@@ -1006,10 +1006,10 @@ docker_compose_run()
     # asynchronously above.
     if [[ "${log_pid}" -ne 0 ]]; then
         if [[ ${follow_json} -eq 1 ]]; then
-            tail --pid "${log_pid}" --follow "${follow_logfile}" --sleep-interval=0.1 \
+            tail --pid "${log_pid}" --follow "${follow_logfile}" --retry 2>/dev/null \
                 | jq --unbuffered --raw-input '. as $line | try (fromjson) catch $line' || true
         else
-            tail --pid "${log_pid}" --follow "${follow_logfile}" || true
+            tail --pid "${log_pid}" --follow "${follow_logfile}" --retry 2>/dev/null || true
         fi
 
         wait "${pid}"
