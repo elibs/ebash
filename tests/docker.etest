@@ -1632,6 +1632,57 @@ ETEST_docker_compose_run_follow()
     diff -u expect actual
 }
 
+ETEST_docker_compose_run_follow_all()
+{
+    emock "docker"
+    emock "docker-compose" '
+    {
+        if [[ ${called} -eq 1 ]]; then
+            cat raw
+        fi
+    }'
+
+    etestmsg "Raw output"
+	cat <<-END >raw
+	ServiceA                   | {"level":"info","msg":"Starting up server","service":"ServiceA","time":"2022-02-10T00:41:53Z"}
+	ServiceB                   | {"level":"info","msg":"Starting up server","service":"ServiceB","time":"2022-02-10T00:41:53Z"}
+	ServiceWithAReallyLongName | {"level":"info","msg":"Starting up server","service":"ServiceC","time":"2022-02-10T00:41:53Z"}
+	END
+    cat raw
+
+    etestmsg "Expected output"
+	cat <<-END >expect
+	{"level":"info","msg":"Starting up server","service":"ServiceA","time":"2022-02-10T00:41:53Z"}
+	{"level":"info","msg":"Starting up server","service":"ServiceB","time":"2022-02-10T00:41:53Z"}
+	{"level":"info","msg":"Starting up server","service":"ServiceC","time":"2022-02-10T00:41:53Z"}
+	END
+    cat expect
+
+    etestmsg "Calling docker_compose_run with --follow-all"
+    docker_compose_run --no-wait --follow-all > actual
+
+    assert_emock_called "docker-compose" 2
+
+    assert_emock_called_with "docker-compose" 0 \
+        --verbose                               \
+        --file docker-compose.yml               \
+        run -T
+
+    assert_emock_called_with "docker-compose" 1 \
+        --file docker-compose.yml               \
+        logs                                    \
+        --follow                                \
+        --no-color                              \
+
+    assert_emock_called "docker" 0
+
+    etestmsg "Actual Output"
+    cat actual
+
+    etestmsg "Diff"
+    diff -u expect actual
+}
+
 ETEST_docker_compose_run_follow_logfile()
 {
     emock "docker-compose" '
@@ -1720,8 +1771,8 @@ ETEST_docker_compose_run_follow_json()
 	END
     cat expect
 
-    etestmsg "Calling docker_compose_run with --follow-json ServiceA"
-    docker_compose_run --no-wait --follow-json ServiceA > actual
+    etestmsg "Calling docker_compose_run with --follow ServiceA --follow-json"
+    docker_compose_run --no-wait --follow ServiceA --follow-json > actual
 
     assert_emock_called "docker-compose" 2
 

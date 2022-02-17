@@ -86,19 +86,18 @@ doc:
 #----------------------------------------------------------------------------------------------------------------------
 
 DISTROS =           \
-	alpine-3.15     \
 	alpine-3.14     \
+	alpine-3.15     \
 	archlinux       \
-	centos-8        \
 	centos-7        \
-	debian-11       \
 	debian-10       \
-	fedora-35       \
+	debian-11       \
 	fedora-33       \
+	fedora-35       \
 	gentoo          \
 	rocky-8         \
-	ubuntu-20.04    \
 	ubuntu-18.04    \
+	ubuntu-20.04    \
 
 # Template for running tests inside a Linux distro container
 DRUN = bin/ebash docker_run                                 \

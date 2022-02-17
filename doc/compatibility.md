@@ -13,7 +13,6 @@ combinations:
 | Linux | Alpine | 3.15    |
 | Linux | Alpine | 3.14    |
 | Linux | Arch   | rolling |
-| Linux | CentOS | 8       |
 | Linux | CentOS | 7       |
 | Linux | Debian | 11      |
 | Linux | Debian | 10      |

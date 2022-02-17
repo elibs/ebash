@@ -44,7 +44,6 @@ jobs:
           - "alpine-3.15"
           - "alpine-3.14"
           - "archlinux"
-          - "centos-8"
           - "centos-7"
           - "debian-11"
           - "debian-10"
