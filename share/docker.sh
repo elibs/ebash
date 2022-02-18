@@ -709,7 +709,7 @@ __docker_setup_copy_volumes()
         docker rm "/${name}" &>/dev/null || true
         docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
         trap_add "docker volume rm ${name} |& edebug"
-        trap_add "docker rm ${name} |& edebug"
+        trap_add "docker rm --volumes ${name} |& edebug"
         docker cp "${lpath}/." "${name}:${rpath}"
 
         if [[ "${add_volume_to_args}" -eq 1 ]]; then

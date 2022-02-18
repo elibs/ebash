@@ -1101,19 +1101,19 @@ ETEST_docker_run_copy_to_volume()
         --volume=ebash:/baggins \
 
     assert_emock_called_with "docker" 10 \
-        rm ebash
+        rm --volumes ebash
 
     assert_emock_called_with "docker" 11 \
         volume rm ebash
 
     assert_emock_called_with "docker" 12 \
-        rm data
+        rm --volumes data
 
     assert_emock_called_with "docker" 13 \
         volume rm data
 
     assert_emock_called_with "docker" 14 \
-        rm foo
+        rm --volumes foo
 
     assert_emock_called_with "docker" 15 \
         volume rm foo
@@ -1472,19 +1472,19 @@ ETEST_docker_compose_run_copy_to_volume()
         cp "/home/ebash/." "ebash:/baggins"
 
     assert_emock_called_with "docker" 9 \
-        rm ebash
+        rm --volumes ebash
 
     assert_emock_called_with "docker" 10 \
         volume rm ebash
 
     assert_emock_called_with "docker" 11 \
-        rm data
+        rm --volumes data
 
     assert_emock_called_with "docker" 12 \
         volume rm data
 
     assert_emock_called_with "docker" 13 \
-        rm foo
+        rm --volumes foo
 
     assert_emock_called_with "docker" 14 \
         volume rm foo
