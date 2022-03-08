@@ -695,6 +695,12 @@ __docker_setup_copy_volumes()
         "+add_volume_to_args | Whether to add --volume flags to docker_args" \
     )
 
+    if array_empty copy_to_volume; then
+        return 0
+    fi
+
+    einfo "Creating docker $(lval copy_to_volumes)"
+
     # Deal with all copy_to_volumes
     local entry name parts
     for entry in ${copy_to_volume[*]:-}; do
@@ -705,7 +711,7 @@ __docker_setup_copy_volumes()
         local lpath=${parts[1]}
         local rpath=${parts[2]}
 
-        einfo "Creating docker container for volume $(lval name lpath rpath)"
+        edebug "Creating docker container for volume $(lval name lpath rpath)"
         docker rm "/${name}" &>/dev/null || true
         docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
         trap_add "docker volume rm ${name} |& edebug"
@@ -757,6 +763,8 @@ __docker_setup_ssh_port_forwarding()
         return 0
     fi
 
+    einfo "Creating docker $(lval ssh_port_forward)"
+
     # Get the docker context we are running under.
     #
     # NOTES:
@@ -795,7 +803,7 @@ __docker_setup_ssh_port_forwarding()
             die "Illegal syntax for ssh_port_forward: ${entry}"
         fi
 
-        einfo "Creating SSH Port Forward $(lval docker_user docker_host docker_port lport rport)"
+        edebug "Creating SSH Port Forward $(lval docker_user docker_host docker_port lport rport)"
 
         ssh -NL "127.0.0.1:${lport}:127.0.0.1:${rport}" "${docker_user}@${docker_host}" -p ${docker_port} &
         trap_add "ekill $!"
