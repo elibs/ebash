@@ -754,13 +754,13 @@ __docker_setup_ssh_port_forwarding()
     local docker_user docker_host docker_port
     edebug "__docker_setup_ssh_port_forwarding called with $(lval DOCKER_HOST)"
 
-    if [[ -z "${DOCKER_HOST}" ]]; then
+    if [[ -z "${DOCKER_HOST:-}" ]]; then
         return 0
-    elif [[ "${DOCKER_HOST}" =~ ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
+    elif [[ "${DOCKER_HOST:-}" =~ ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
         docker_user="${BASH_REMATCH[1]}"
         docker_host="${BASH_REMATCH[2]}"
         docker_port="${BASH_REMATCH[3]}"
-    elif [[ "${DOCKER_HOST}" =~ ssh://([^@]+)@([^:]+)$ ]]; then
+    elif [[ "${DOCKER_HOST:-}" =~ ssh://([^@]+)@([^:]+)$ ]]; then
         docker_user="${BASH_REMATCH[1]}"
         docker_host="${BASH_REMATCH[2]}"
         docker_port="22"
