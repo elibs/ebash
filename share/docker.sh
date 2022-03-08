@@ -695,11 +695,9 @@ __docker_setup_copy_volumes()
         "+add_volume_to_args | Whether to add --volume flags to docker_args" \
     )
 
-    if array_empty copy_to_volume; then
-        return 0
+    if array_not_empty copy_to_volume; then
+        einfo "Creating docker $(lval copy_to_volume)"
     fi
-
-    einfo "Creating docker $(lval copy_to_volume)"
 
     # Deal with all copy_to_volumes
     local entry name parts
