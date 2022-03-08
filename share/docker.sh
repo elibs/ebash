@@ -739,8 +739,9 @@ __docker_setup_copy_volumes()
 
 opt_usage __docker_setup_ssh_port_forwarding<<'END'
 __docker_setup_ssh_port_forwarding is an internal only helper function used to setup SSH Port Forwarding when docker is
-used with a remote SSH DOCKER_HOST. This will essentially create some local SSH port forwarding so that the ports that
-are being exposed on the remote docker host can be accessed locally. The syntax for this option is as follows:
+used with a remote docker context or DOCKER_HOST. This will essentially create some local SSH port forwarding so that
+the ports that are being exposed on the remote docker host can be accessed locally. The syntax for this option is as
+follows:
 
 - local_port:remote_port
 - local_port
@@ -751,12 +752,22 @@ equivalent to `8080:8080`.
 END
 __docker_setup_ssh_port_forwarding()
 {
-    local docker_user docker_host docker_port
-    edebug "__docker_setup_ssh_port_forwarding called with $(lval DOCKER_HOST)"
-
-    if [[ -z "${DOCKER_HOST:-}" ]]; then
+    # If there are no SSH Port Forward options then we can just return as there is nothing to do.
+    if array_empty ssh_port_forward; then
         return 0
-    elif [[ "${DOCKER_HOST:-}" =~ ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
+    fi
+
+    # Get the docker context we are running under.
+    #
+    # NOTES:
+    #
+    # (1) The **current** docker context is returned as the first element in the `docker context inspect` command.
+    # (2) If DOCKER_HOST is set to a remote SSH host, then this will get returned from the `docker context` command.
+    # (3) If DOCKER_CONTEXT is set that will be what is returned from the `docker context` command.
+    local docker_context docker_user docker_host docker_port
+    docker_host=$(docker context inspect | jq --raw-output '.[0].Endpoints.docker.Host')
+    edebug "Docker context $(lval docker_host)"
+    if [[ "${DOCKER_HOST:-}" =~ ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
         docker_user="${BASH_REMATCH[1]}"
         docker_host="${BASH_REMATCH[2]}"
         docker_port="${BASH_REMATCH[3]}"
@@ -765,7 +776,7 @@ __docker_setup_ssh_port_forwarding()
         docker_host="${BASH_REMATCH[2]}"
         docker_port="22"
     else
-        die "Unsupported $(lval DOCKER_HOST)"
+        return 0
     fi
 
     local entry name parts
@@ -825,10 +836,11 @@ useful features:
   option to docker of the form `--env FOO=VALUE`.
 - Enable seamless nested docker-in-docker support by bind-mounting the docker socket into the the container.
 - Create ephemeral docker volumes and copy a specified local path into the docker volume and attach that volume to the
-  running docker container. This is useful for running with a DOCKER_HOST which points to an external docker server.
+  running docker container. This is useful for running with a remote docker context or DOCKER_HOST which points to an
+  external docker server.
 - Automatically determine what value to use for --interactive.
-- Optionally setup SSH Port Forwarding when used with a remote DOCKER_HOST. If DOCKER_HOST is not set to a remote SSH
-  host, then this option will have no effect.
+- Optionally setup SSH Port Forwarding when used with a remote docker context or DOCKER_HOST. If the context is not set
+  to a remote SSH host, then this option will have no effect.
 END
 docker_run()
 {
@@ -838,10 +850,10 @@ docker_run()
                                               consistency."                                                            \
         "+nested                            | Enable nested docker-in-docker."                                         \
         "&copy_to_volume                    | Copy the specified path into a volume which is attached to the docker run
-                                              instance. This is useful when running with a remote DOCKER_HOST where a
-                                              simple bind mount does not work. This is also safe to use when running
-                                              against a local docker host so should be preferred. The syntax for this is
-                                              name:local_path:docker_path"                                             \
+                                              instance. This is useful when running with a remote docker context or
+                                              DOCKER_HOST where a simple bind mount does not work. This is also safe to
+                                              use when running against a local docker host so should be preferred. The
+                                              syntax for this is name:local_path:docker_path"                          \
         "&copy_from_volume                  | Copy the specified path out of a volume attached to the docker container
                                               before it is removed. This is useful to copy artifacts out from a test
                                               container. The syntax for this is name:docker_path:local_path"           \
@@ -849,8 +861,9 @@ docker_run()
                                               list. This is because docker cp doesn't support an exclusion mechanism." \
         ":interactive=auto                  | This can be 'yes' or 'no' or 'auto' to automatically determine if we are
                                               interactive by looking at we're run from an interactive shell or not."   \
-        "&ssh_port_forward                  | Setup SSH Port Forwarding for use with remote DOCKER_HOST. If DOCKER_HOST
-                                              is not set to a remote SSH host, then this option has no effect."        \
+        "&ssh_port_forward                  | Setup SSH Port Forwarding for use with remote docker context or remote
+                                              DOCKER_HOST. If the context is not set to a remote SSH host, then this
+                                              option has no effect."                                                   \
     )
 
     # Final list of docker args we will use

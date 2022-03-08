@@ -1197,8 +1197,66 @@ ETEST_docker_run_ssh_port_forward()
 
     docker_run --ssh-port-forward 8080
 
-    assert_emock_called "docker" 1
+    assert_emock_called "docker" 2
+
     assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 2 \
+        run           \
+        --interactive
+
+    assert_emock_called "ssh" 1
+    assert_emock_called_with "ssh" 0  \
+        -NL                           \
+        127.0.0.1:8080:127.0.0.1:8080 \
+        someuser@somehost -p 1234
+}
+
+ETEST_docker_run_ssh_port_forward_context()
+{
+    etestmsg "Fake docker context"
+	cat <<-END >context
+	[
+	  {
+	    "Name": "default",
+	    "Metadata": {
+	      "StackOrchestrator": "swarm"
+	    },
+	    "Endpoints": {
+	      "docker": {
+	        "Host": "ssh://marshall@asgard",
+	        "SkipTLSVerify": false
+	      }
+	    },
+	    "TLSMaterial": {},
+	    "Storage": {
+	      "MetadataPath": "<IN MEMORY>",
+	      "TLSPath": "<IN MEMORY>"
+	    }
+	  }
+	]
+	END
+    cat context
+
+    emock "ssh"
+    emock "docker" '
+    {
+        if [[ $1 == "context" && $2 == "inspect" ]]; then
+            cat context
+        fi
+    }'
+
+    docker_run --ssh-port-forward 8080
+
+    assert_emock_called "docker" 2
+
+    assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 1 \
         run           \
         --interactive
 
@@ -1218,8 +1276,13 @@ ETEST_docker_run_ssh_port_forward_multiple()
 
     docker_run --ssh-port-forward 8080 --ssh-port-forward 2222
 
-    assert_emock_called "docker" 1
+    assert_emock_called "docker" 2
+
     assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 2 \
         run           \
         --interactive
 
@@ -1244,8 +1307,13 @@ ETEST_docker_run_ssh_port_forward_diff()
 
     docker_run --ssh-port-forward 80:8080
 
-    assert_emock_called "docker" 1
+    assert_emock_called "docker" 2
+
     assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 1 \
         run           \
         --interactive
 
@@ -1265,8 +1333,13 @@ ETEST_docker_run_ssh_port_forward_diff_multiple()
 
     docker_run --ssh-port-forward 80:8080 --ssh-port-forward 22:2222
 
-    assert_emock_called "docker" 1
+    assert_emock_called "docker" 2
+
     assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 1 \
         run           \
         --interactive
 
@@ -1892,7 +1965,6 @@ ETEST_docker_compose_run_ssh_port_forward()
     export DOCKER_HOST="ssh://someuser@somehost:1234"
 
     emock "docker-compose"
-    emock "docker"
     emock "ssh"
 
     docker_compose_run --no-wait --ssh-port-forward 8080
@@ -1915,7 +1987,6 @@ ETEST_docker_compose_run_ssh_port_forward_multiple()
     export DOCKER_HOST="ssh://someuser@somehost"
 
     emock "docker-compose"
-    emock "docker"
     emock "ssh"
 
     docker_compose_run --no-wait --ssh-port-forward 8080 --ssh-port-forward 2222
@@ -1943,7 +2014,6 @@ ETEST_docker_compose_run_ssh_port_forward_diff()
     export DOCKER_HOST="ssh://someuser@somehost:1234"
 
     emock "docker-compose"
-    emock "docker"
     emock "ssh"
 
     docker_compose_run --no-wait --ssh-port-forward 80:8080
@@ -1958,7 +2028,7 @@ ETEST_docker_compose_run_ssh_port_forward_diff()
     assert_emock_called_with "ssh" 0 \
         -NL                          \
         127.0.0.1:80:127.0.0.1:8080  \
-        someuser@somehost:1234
+        someuser@somehost -p 1234
 }
 
 ETEST_docker_compose_run_ssh_port_forward_diff_multiple()
@@ -1966,7 +2036,6 @@ ETEST_docker_compose_run_ssh_port_forward_diff_multiple()
     export DOCKER_HOST="ssh://someuser@somehost"
 
     emock "docker-compose"
-    emock "docker"
     emock "ssh"
 
     docker_compose_run --no-wait --ssh-port-forward 80:8080 --ssh-port-forward 22:2222
@@ -1981,10 +2050,10 @@ ETEST_docker_compose_run_ssh_port_forward_diff_multiple()
     assert_emock_called_with "ssh" 0 \
         -NL                          \
         127.0.0.1:80:127.0.0.1:8080  \
-        someuser@somehost:22
+        someuser@somehost -p 22
 
     assert_emock_called_with "ssh" 1 \
         -NL                          \
         127.0.0.1:22:127.0.0.1:2222  \
-        someuser@somehost:22
+        someuser@somehost -p 22
 }
