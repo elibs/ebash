@@ -737,6 +737,60 @@ __docker_setup_copy_volumes()
     done
 }
 
+opt_usage __docker_setup_ssh_port_forwarding<<'END'
+__docker_setup_ssh_port_forwarding is an internal only helper function used to setup SSH Port Forwarding when docker is
+used with a remote SSH DOCKER_HOST. This will essentially create some local SSH port forwarding so that the ports that
+are being exposed on the remote docker host can be accessed locally. The syntax for this option is as follows:
+
+- local_port:remote_port
+- local_port
+
+When the shorter syntax of `local_port` is used, then the same port will be used both locally and remote. e.g. `8080` is
+equivalent to `8080:8080`.
+
+END
+__docker_setup_ssh_port_forwarding()
+{
+    local docker_user docker_host docker_port
+    edebug "__docker_setup_ssh_port_forwarding called with $(lval DOCKER_HOST)"
+
+    if [[ -z "${DOCKER_HOST}" ]]; then
+        return 0
+    elif [[ "${DOCKER_HOST}" =~ ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
+        docker_user="${BASH_REMATCH[1]}"
+        docker_host="${BASH_REMATCH[2]}"
+        docker_port="${BASH_REMATCH[3]}"
+    elif [[ "${DOCKER_HOST}" =~ ssh://([^@]+)@([^:]+)$ ]]; then
+        docker_user="${BASH_REMATCH[1]}"
+        docker_host="${BASH_REMATCH[2]}"
+        docker_port="22"
+    else
+        die "Unsupported $(lval DOCKER_HOST)"
+    fi
+
+    local entry name parts
+    for entry in ${ssh_port_forward[*]:-}; do
+
+        array_init parts "${entry}" ":"
+
+        local lport rport
+        if [[ $(array_size parts) -eq 2 ]]; then
+            lport=${parts[0]}
+            rport=${parts[1]}
+        elif [[ $(array_size parts) -eq 1 ]]; then
+            lport=${parts[0]}
+            rport=${parts[0]}
+        else
+            die "Illegal syntax for ssh_port_forward: ${entry}"
+        fi
+
+        edebug "Creating SSH Port Forward $(lval docker_user docker_host docker_port lport rport)"
+
+        ssh -NL "127.0.0.1:${lport}:127.0.0.1:${rport}" "${docker_user}@${docker_host}:${docker_port}" &
+        trap_add "ekill $!"
+    done
+}
+
 opt_usage __docker_wait_for_container_id <<'END'
 __docker_wait_for_container_id is an internal only helper function used to wait for a named container to have an
 assigned container ID.
@@ -773,6 +827,8 @@ useful features:
 - Create ephemeral docker volumes and copy a specified local path into the docker volume and attach that volume to the
   running docker container. This is useful for running with a DOCKER_HOST which points to an external docker server.
 - Automatically determine what value to use for --interactive.
+- Optionally setup SSH Port Forwarding when used with a remote DOCKER_HOST. If DOCKER_HOST is not set to a remote SSH
+  host, then this option will have no effect.
 END
 docker_run()
 {
@@ -793,6 +849,8 @@ docker_run()
                                               list. This is because docker cp doesn't support an exclusion mechanism." \
         ":interactive=auto                  | This can be 'yes' or 'no' or 'auto' to automatically determine if we are
                                               interactive by looking at we're run from an interactive shell or not."   \
+        "&ssh_port_forward                  | Setup SSH Port Forwarding for use with remote DOCKER_HOST. If DOCKER_HOST
+                                              is not set to a remote SSH host, then this option has no effect."        \
     )
 
     # Final list of docker args we will use
@@ -818,6 +876,9 @@ docker_run()
 
     # Setup copy_to_volumes and copy_from_volume and copy_from_volume_delete
     __docker_setup_copy_volumes --add-volume-to-args
+
+    # Setup SSH Port Forwarding
+    __docker_setup_ssh_port_forwarding
 
     # Set --interactive as requested
     if [[ "${interactive,,}" == "yes" ]]; then
@@ -856,6 +917,8 @@ following super useful features:
 - Wait for the docker composed containers to be in a ready state.
 - Tail the logs from the docker composed containers.
 - Automatically teardown the docker composed containers safely and also remove the volumes.
+- Optionally setup SSH Port Forwarding when used with a remote DOCKER_HOST. If DOCKER_HOST is not set to a remote SSH
+  host, then this option will have no effect.
 END
 docker_compose_run()
 {
@@ -882,6 +945,8 @@ docker_compose_run()
         ":follow_logfile                    | Optional file to capture the output from followed containers into in
                                               addition to following on the console."                                   \
         ":logfile                           | Optional logfile to capture all docker-compose output into."             \
+        "&ssh_port_forward                  | Setup SSH Port Forwarding for use with remote DOCKER_HOST. If DOCKER_HOST
+                                              is not set to a remote SSH host, then this option has no effect."        \
         ":teardown                          | Teardown code to execute after docker_compose completion to perform any
                                               necessary cleanup. This is a useful mechanism to ensure we bring down all
                                               containers and volumes via teardown='down --volumes --remove-orphans'"   \
@@ -917,9 +982,17 @@ docker_compose_run()
     # Setup copy_to_volumes and copy_from_volume and copy_from_volume_delete
     __docker_setup_copy_volumes --no-add-volume-to-args
 
+    # Setup SSH Port Forwarding
+    __docker_setup_ssh_port_forwarding
+
     # Setup any additional teardown traps
     : ${teardown:="down --volumes --remove-orphans"}
     trap_add "echo >&2 ; einfo Teardown ; docker-compose ${docker_args[*]} ${teardown}"
+
+    # Setup trap to capture logs
+    if [[ -n "${logfile}" ]]; then
+        trap_add "docker-compose --file \"${file}\" logs > \"${logfile}\""
+    fi
 
     # Launch docker-compose in teh background and tail the logs in the foreground writing to the requested logfile.
     # The tailing of the logfile will run in the foreground and block until the parent docker-compose job completes.
@@ -1018,10 +1091,4 @@ docker_compose_run()
     # Wait on our backgrounded process and propogate any failure from it.
     edebug "Waiting for docker-compose to complete"
     wait "${pid}"
-
-    # Optionally capture all container logfiles
-    if [[ -n "${logfile}" ]]; then
-        edebug "Capturing docker-compose logfile"
-        docker-compose --file "${file}" logs > "${logfile}"
-    fi
 }
