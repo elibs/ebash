@@ -705,7 +705,7 @@ __docker_setup_copy_volumes()
         local lpath=${parts[1]}
         local rpath=${parts[2]}
 
-        edebug "Creating docker container for volume $(lval name lpath rpath)"
+        einfo "Creating docker container for volume $(lval name lpath rpath)"
         docker rm "/${name}" &>/dev/null || true
         docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
         trap_add "docker volume rm ${name} |& edebug"
@@ -767,11 +767,11 @@ __docker_setup_ssh_port_forwarding()
     local docker_context docker_user docker_host docker_port
     docker_host=$(docker context inspect | jq --raw-output '.[0].Endpoints.docker.Host')
     edebug "Docker context $(lval docker_host)"
-    if [[ "${DOCKER_HOST:-}" =~ ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
+    if [[ "${docker_host}" =~ ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
         docker_user="${BASH_REMATCH[1]}"
         docker_host="${BASH_REMATCH[2]}"
         docker_port="${BASH_REMATCH[3]}"
-    elif [[ "${DOCKER_HOST:-}" =~ ssh://([^@]+)@([^:]+)$ ]]; then
+    elif [[ "${docker_host}" =~ ssh://([^@]+)@([^:]+)$ ]]; then
         docker_user="${BASH_REMATCH[1]}"
         docker_host="${BASH_REMATCH[2]}"
         docker_port="22"
@@ -795,7 +795,7 @@ __docker_setup_ssh_port_forwarding()
             die "Illegal syntax for ssh_port_forward: ${entry}"
         fi
 
-        edebug "Creating SSH Port Forward $(lval docker_user docker_host docker_port lport rport)"
+        einfo "Creating SSH Port Forward $(lval docker_user docker_host docker_port lport rport)"
 
         ssh -NL "127.0.0.1:${lport}:127.0.0.1:${rport}" "${docker_user}@${docker_host}" -p ${docker_port} &
         trap_add "ekill $!"

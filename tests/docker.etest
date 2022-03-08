@@ -30,6 +30,40 @@ setup()
     EDEBUG+=" docker"
 }
 
+mock_docker_with_context()
+{
+    etestmsg "Fake docker context"
+	cat <<-END >context
+	[
+	  {
+	    "Name": "default",
+	    "Metadata": {
+	      "StackOrchestrator": "swarm"
+	    },
+	    "Endpoints": {
+	      "docker": {
+	        "Host": "ssh://someuser@somehost:1234",
+	        "SkipTLSVerify": false
+	      }
+	    },
+	    "TLSMaterial": {},
+	    "Storage": {
+	      "MetadataPath": "<IN MEMORY>",
+	      "TLSPath": "<IN MEMORY>"
+	    }
+	  }
+	]
+	END
+    cat context
+
+    emock "docker" '
+    {
+        if [[ $1 == "context" && $2 == "inspect" ]]; then
+            cat context
+        fi
+    }'
+}
+
 ETEST_docker_build()
 {
     etestmsg "Creating Dockerfile"
@@ -1190,9 +1224,7 @@ ETEST_docker_run_passthrough_args()
 
 ETEST_docker_run_ssh_port_forward()
 {
-    export DOCKER_HOST="ssh://someuser@somehost:1234"
-
-    emock "docker"
+    mock_docker_with_context
     emock "ssh"
 
     docker_run --ssh-port-forward 8080
@@ -1203,7 +1235,7 @@ ETEST_docker_run_ssh_port_forward()
         context \
         inspect
 
-    assert_emock_called_with "docker" 2 \
+    assert_emock_called_with "docker" 1 \
         run           \
         --interactive
 
@@ -1216,37 +1248,8 @@ ETEST_docker_run_ssh_port_forward()
 
 ETEST_docker_run_ssh_port_forward_context()
 {
-    etestmsg "Fake docker context"
-	cat <<-END >context
-	[
-	  {
-	    "Name": "default",
-	    "Metadata": {
-	      "StackOrchestrator": "swarm"
-	    },
-	    "Endpoints": {
-	      "docker": {
-	        "Host": "ssh://marshall@asgard",
-	        "SkipTLSVerify": false
-	      }
-	    },
-	    "TLSMaterial": {},
-	    "Storage": {
-	      "MetadataPath": "<IN MEMORY>",
-	      "TLSPath": "<IN MEMORY>"
-	    }
-	  }
-	]
-	END
-    cat context
-
+    mock_docker_with_context
     emock "ssh"
-    emock "docker" '
-    {
-        if [[ $1 == "context" && $2 == "inspect" ]]; then
-            cat context
-        fi
-    }'
 
     docker_run --ssh-port-forward 8080
 
@@ -1269,9 +1272,7 @@ ETEST_docker_run_ssh_port_forward_context()
 
 ETEST_docker_run_ssh_port_forward_multiple()
 {
-    export DOCKER_HOST="ssh://someuser@somehost"
-
-    emock "docker"
+    mock_docker_with_context
     emock "ssh"
 
     docker_run --ssh-port-forward 8080 --ssh-port-forward 2222
@@ -1282,7 +1283,7 @@ ETEST_docker_run_ssh_port_forward_multiple()
         context \
         inspect
 
-    assert_emock_called_with "docker" 2 \
+    assert_emock_called_with "docker" 1 \
         run           \
         --interactive
 
@@ -1290,19 +1291,17 @@ ETEST_docker_run_ssh_port_forward_multiple()
     assert_emock_called_with "ssh" 0  \
         -NL                           \
         127.0.0.1:8080:127.0.0.1:8080 \
-        someuser@somehost -p 22
+        someuser@somehost -p 1234
 
     assert_emock_called_with "ssh" 1  \
         -NL                           \
         127.0.0.1:2222:127.0.0.1:2222 \
-        someuser@somehost -p 22
+        someuser@somehost -p 1234
 }
 
 ETEST_docker_run_ssh_port_forward_diff()
 {
-    export DOCKER_HOST="ssh://someuser@somehost:1234"
-
-    emock "docker"
+    mock_docker_with_context
     emock "ssh"
 
     docker_run --ssh-port-forward 80:8080
@@ -1326,9 +1325,7 @@ ETEST_docker_run_ssh_port_forward_diff()
 
 ETEST_docker_run_ssh_port_forward_diff_multiple()
 {
-    export DOCKER_HOST="ssh://someuser@somehost"
-
-    emock "docker"
+    mock_docker_with_context
     emock "ssh"
 
     docker_run --ssh-port-forward 80:8080 --ssh-port-forward 22:2222
@@ -1347,12 +1344,12 @@ ETEST_docker_run_ssh_port_forward_diff_multiple()
     assert_emock_called_with "ssh" 0 \
         -NL                          \
         127.0.0.1:80:127.0.0.1:8080  \
-        someuser@somehost -p 22
+        someuser@somehost -p 1234
 
     assert_emock_called_with "ssh" 1 \
         -NL                          \
         127.0.0.1:22:127.0.0.1:2222  \
-        someuser@somehost -p 22
+        someuser@somehost -p 1234
 }
 
 ETEST_docker_compose_run_envlist()
