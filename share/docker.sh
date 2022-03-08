@@ -786,7 +786,7 @@ __docker_setup_ssh_port_forwarding()
 
         edebug "Creating SSH Port Forward $(lval docker_user docker_host docker_port lport rport)"
 
-        ssh -NL "127.0.0.1:${lport}:127.0.0.1:${rport}" "${docker_user}@${docker_host} -p ${docker_port}" &
+        ssh -NL "127.0.0.1:${lport}:127.0.0.1:${rport}" "${docker_user}@${docker_host}" -p ${docker_port} &
         trap_add "ekill $!"
     done
 }
