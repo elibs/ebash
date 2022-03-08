@@ -1206,7 +1206,7 @@ ETEST_docker_run_ssh_port_forward()
     assert_emock_called_with "ssh" 0  \
         -NL                           \
         127.0.0.1:8080:127.0.0.1:8080 \
-        someuser@somehost:1234
+        someuser@somehost -p 1234
 }
 
 ETEST_docker_run_ssh_port_forward_multiple()
@@ -1227,12 +1227,12 @@ ETEST_docker_run_ssh_port_forward_multiple()
     assert_emock_called_with "ssh" 0  \
         -NL                           \
         127.0.0.1:8080:127.0.0.1:8080 \
-        someuser@somehost:22
+        someuser@somehost -p 22
 
     assert_emock_called_with "ssh" 1  \
         -NL                           \
         127.0.0.1:2222:127.0.0.1:2222 \
-        someuser@somehost:22
+        someuser@somehost -p 22
 }
 
 ETEST_docker_run_ssh_port_forward_diff()
@@ -1253,7 +1253,7 @@ ETEST_docker_run_ssh_port_forward_diff()
     assert_emock_called_with "ssh" 0 \
         -NL                          \
         127.0.0.1:80:127.0.0.1:8080  \
-        someuser@somehost:1234
+        someuser@somehost -p 1234
 }
 
 ETEST_docker_run_ssh_port_forward_diff_multiple()
@@ -1274,12 +1274,12 @@ ETEST_docker_run_ssh_port_forward_diff_multiple()
     assert_emock_called_with "ssh" 0 \
         -NL                          \
         127.0.0.1:80:127.0.0.1:8080  \
-        someuser@somehost:22
+        someuser@somehost -p 22
 
     assert_emock_called_with "ssh" 1 \
         -NL                          \
         127.0.0.1:22:127.0.0.1:2222  \
-        someuser@somehost:22
+        someuser@somehost -p 22
 }
 
 ETEST_docker_compose_run_envlist()
@@ -1907,7 +1907,7 @@ ETEST_docker_compose_run_ssh_port_forward()
     assert_emock_called_with "ssh" 0  \
         -NL                           \
         127.0.0.1:8080:127.0.0.1:8080 \
-        someuser@somehost:1234
+        someuser@somehost -p 1234
 }
 
 ETEST_docker_compose_run_ssh_port_forward_multiple()
@@ -1930,12 +1930,12 @@ ETEST_docker_compose_run_ssh_port_forward_multiple()
     assert_emock_called_with "ssh" 0  \
         -NL                           \
         127.0.0.1:8080:127.0.0.1:8080 \
-        someuser@somehost:22
+        someuser@somehost -p 22
 
     assert_emock_called_with "ssh" 1  \
         -NL                           \
         127.0.0.1:2222:127.0.0.1:2222 \
-        someuser@somehost:22
+        someuser@somehost -p 22
 }
 
 ETEST_docker_compose_run_ssh_port_forward_diff()
