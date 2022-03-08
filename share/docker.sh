@@ -699,7 +699,7 @@ __docker_setup_copy_volumes()
         return 0
     fi
 
-    einfo "Creating docker $(lval copy_to_volumes)"
+    einfo "Creating docker $(lval copy_to_volume)"
 
     # Deal with all copy_to_volumes
     local entry name parts
@@ -1049,7 +1049,6 @@ docker_compose_run()
             readarray -t services < <(docker-compose --file "${file}" ps --services)
         fi
 
-        echo >&2
         einfo "Waiting for $(lval services)"
         for service in ${services[*]:-}; do
 
