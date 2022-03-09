@@ -1227,7 +1227,7 @@ ETEST_docker_run_ssh_port_forward()
     mock_docker_with_context
     emock "ssh"
 
-    docker_run --ssh-port-forward 8080
+    docker_run --interactive=no --ssh-port-forward 8080
 
     assert_emock_called "docker" 2
 
@@ -1236,8 +1236,7 @@ ETEST_docker_run_ssh_port_forward()
         inspect
 
     assert_emock_called_with "docker" 1 \
-        run           \
-        --interactive
+        run
 
     assert_emock_called "ssh" 1
     assert_emock_called_with "ssh" 0  \
@@ -1251,7 +1250,7 @@ ETEST_docker_run_ssh_port_forward_context()
     mock_docker_with_context
     emock "ssh"
 
-    docker_run --ssh-port-forward 8080
+    docker_run --interactive=no --ssh-port-forward 8080
 
     assert_emock_called "docker" 2
 
@@ -1260,8 +1259,7 @@ ETEST_docker_run_ssh_port_forward_context()
         inspect
 
     assert_emock_called_with "docker" 1 \
-        run           \
-        --interactive
+        run
 
     assert_emock_called "ssh" 1
     assert_emock_called_with "ssh" 0  \
@@ -1275,7 +1273,7 @@ ETEST_docker_run_ssh_port_forward_multiple()
     mock_docker_with_context
     emock "ssh"
 
-    docker_run --ssh-port-forward 8080 --ssh-port-forward 2222
+    docker_run --interactive=no --ssh-port-forward 8080 --ssh-port-forward 2222
 
     assert_emock_called "docker" 2
 
@@ -1284,8 +1282,7 @@ ETEST_docker_run_ssh_port_forward_multiple()
         inspect
 
     assert_emock_called_with "docker" 1 \
-        run           \
-        --interactive
+        run
 
     assert_emock_called "ssh" 2
     assert_emock_called_with "ssh" 0  \
@@ -1304,7 +1301,7 @@ ETEST_docker_run_ssh_port_forward_diff()
     mock_docker_with_context
     emock "ssh"
 
-    docker_run --ssh-port-forward 80:8080
+    docker_run --interactive=no --ssh-port-forward 80:8080
 
     assert_emock_called "docker" 2
 
@@ -1313,8 +1310,7 @@ ETEST_docker_run_ssh_port_forward_diff()
         inspect
 
     assert_emock_called_with "docker" 1 \
-        run           \
-        --interactive
+        run
 
     assert_emock_called "ssh" 1
     assert_emock_called_with "ssh" 0 \
@@ -1328,7 +1324,7 @@ ETEST_docker_run_ssh_port_forward_diff_multiple()
     mock_docker_with_context
     emock "ssh"
 
-    docker_run --ssh-port-forward 80:8080 --ssh-port-forward 22:2222
+    docker_run --interactive=no --ssh-port-forward 80:8080 --ssh-port-forward 22:2222
 
     assert_emock_called "docker" 2
 
@@ -1337,8 +1333,7 @@ ETEST_docker_run_ssh_port_forward_diff_multiple()
         inspect
 
     assert_emock_called_with "docker" 1 \
-        run           \
-        --interactive
+        run
 
     assert_emock_called "ssh" 2
     assert_emock_called_with "ssh" 0 \
