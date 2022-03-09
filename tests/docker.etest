@@ -30,6 +30,40 @@ setup()
     EDEBUG+=" docker"
 }
 
+mock_docker_with_context()
+{
+    etestmsg "Fake docker context"
+	cat <<-END >context
+	[
+	  {
+	    "Name": "default",
+	    "Metadata": {
+	      "StackOrchestrator": "swarm"
+	    },
+	    "Endpoints": {
+	      "docker": {
+	        "Host": "ssh://someuser@somehost:1234",
+	        "SkipTLSVerify": false
+	      }
+	    },
+	    "TLSMaterial": {},
+	    "Storage": {
+	      "MetadataPath": "<IN MEMORY>",
+	      "TLSPath": "<IN MEMORY>"
+	    }
+	  }
+	]
+	END
+    cat context
+
+    emock "docker" '
+    {
+        if [[ $1 == "context" && $2 == "inspect" ]]; then
+            cat context
+        fi
+    }'
+}
+
 ETEST_docker_build()
 {
     etestmsg "Creating Dockerfile"
@@ -1188,6 +1222,131 @@ ETEST_docker_run_passthrough_args()
         --workdir /ebash
 }
 
+ETEST_docker_run_ssh_port_forward()
+{
+    mock_docker_with_context
+    emock "ssh"
+
+    docker_run --interactive=no --ssh-port-forward 8080
+
+    assert_emock_called "docker" 2
+
+    assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 1 \
+        run
+
+    assert_emock_called "ssh" 1
+    assert_emock_called_with "ssh" 0  \
+        -NL                           \
+        127.0.0.1:8080:127.0.0.1:8080 \
+        someuser@somehost -p 1234
+}
+
+ETEST_docker_run_ssh_port_forward_context()
+{
+    mock_docker_with_context
+    emock "ssh"
+
+    docker_run --interactive=no --ssh-port-forward 8080
+
+    assert_emock_called "docker" 2
+
+    assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 1 \
+        run
+
+    assert_emock_called "ssh" 1
+    assert_emock_called_with "ssh" 0  \
+        -NL                           \
+        127.0.0.1:8080:127.0.0.1:8080 \
+        someuser@somehost -p 1234
+}
+
+ETEST_docker_run_ssh_port_forward_multiple()
+{
+    mock_docker_with_context
+    emock "ssh"
+
+    docker_run --interactive=no --ssh-port-forward 8080 --ssh-port-forward 2222
+
+    assert_emock_called "docker" 2
+
+    assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 1 \
+        run
+
+    assert_emock_called "ssh" 2
+    assert_emock_called_with "ssh" 0  \
+        -NL                           \
+        127.0.0.1:8080:127.0.0.1:8080 \
+        someuser@somehost -p 1234
+
+    assert_emock_called_with "ssh" 1  \
+        -NL                           \
+        127.0.0.1:2222:127.0.0.1:2222 \
+        someuser@somehost -p 1234
+}
+
+ETEST_docker_run_ssh_port_forward_diff()
+{
+    mock_docker_with_context
+    emock "ssh"
+
+    docker_run --interactive=no --ssh-port-forward 80:8080
+
+    assert_emock_called "docker" 2
+
+    assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 1 \
+        run
+
+    assert_emock_called "ssh" 1
+    assert_emock_called_with "ssh" 0 \
+        -NL                          \
+        127.0.0.1:80:127.0.0.1:8080  \
+        someuser@somehost -p 1234
+}
+
+ETEST_docker_run_ssh_port_forward_diff_multiple()
+{
+    mock_docker_with_context
+    emock "ssh"
+
+    docker_run --interactive=no --ssh-port-forward 80:8080 --ssh-port-forward 22:2222
+
+    assert_emock_called "docker" 2
+
+    assert_emock_called_with "docker" 0 \
+        context \
+        inspect
+
+    assert_emock_called_with "docker" 1 \
+        run
+
+    assert_emock_called "ssh" 2
+    assert_emock_called_with "ssh" 0 \
+        -NL                          \
+        127.0.0.1:80:127.0.0.1:8080  \
+        someuser@somehost -p 1234
+
+    assert_emock_called_with "ssh" 1 \
+        -NL                          \
+        127.0.0.1:22:127.0.0.1:2222  \
+        someuser@somehost -p 1234
+}
+
 ETEST_docker_compose_run_envlist()
 {
     emock --stdout "tmp/file1" "mktemp"
@@ -1236,16 +1395,12 @@ ETEST_docker_compose_run_logfile()
 
     docker_compose_run --no-wait --logfile foo.log
 
-    assert_emock_called "docker-compose" 2
+    assert_emock_called "docker-compose" 1
 
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
         --file docker-compose.yml               \
         run -T
-
-    assert_emock_called_with "docker-compose" 1 \
-        --file docker-compose.yml               \
-        logs
 }
 
 ETEST_docker_compose_run_wait()
@@ -1795,4 +1950,102 @@ ETEST_docker_compose_run_follow_json()
 
     etestmsg "Diff"
     diff -u expect actual
+}
+
+ETEST_docker_compose_run_ssh_port_forward()
+{
+    export DOCKER_HOST="ssh://someuser@somehost:1234"
+
+    emock "docker-compose"
+    emock "ssh"
+
+    docker_compose_run --no-wait --ssh-port-forward 8080
+
+    assert_emock_called "docker-compose" 1
+    assert_emock_called_with "docker-compose" 0 \
+        --verbose                 \
+        --file docker-compose.yml \
+        run -T
+
+    assert_emock_called "ssh" 1
+    assert_emock_called_with "ssh" 0  \
+        -NL                           \
+        127.0.0.1:8080:127.0.0.1:8080 \
+        someuser@somehost -p 1234
+}
+
+ETEST_docker_compose_run_ssh_port_forward_multiple()
+{
+    export DOCKER_HOST="ssh://someuser@somehost"
+
+    emock "docker-compose"
+    emock "ssh"
+
+    docker_compose_run --no-wait --ssh-port-forward 8080 --ssh-port-forward 2222
+
+    assert_emock_called "docker-compose" 1
+    assert_emock_called_with "docker-compose" 0 \
+        --verbose                 \
+        --file docker-compose.yml \
+        run -T
+
+    assert_emock_called "ssh" 2
+    assert_emock_called_with "ssh" 0  \
+        -NL                           \
+        127.0.0.1:8080:127.0.0.1:8080 \
+        someuser@somehost -p 22
+
+    assert_emock_called_with "ssh" 1  \
+        -NL                           \
+        127.0.0.1:2222:127.0.0.1:2222 \
+        someuser@somehost -p 22
+}
+
+ETEST_docker_compose_run_ssh_port_forward_diff()
+{
+    export DOCKER_HOST="ssh://someuser@somehost:1234"
+
+    emock "docker-compose"
+    emock "ssh"
+
+    docker_compose_run --no-wait --ssh-port-forward 80:8080
+
+    assert_emock_called "docker-compose" 1
+    assert_emock_called_with "docker-compose" 0 \
+        --verbose                 \
+        --file docker-compose.yml \
+        run -T
+
+    assert_emock_called "ssh" 1
+    assert_emock_called_with "ssh" 0 \
+        -NL                          \
+        127.0.0.1:80:127.0.0.1:8080  \
+        someuser@somehost -p 1234
+}
+
+ETEST_docker_compose_run_ssh_port_forward_diff_multiple()
+{
+    export DOCKER_HOST="ssh://someuser@somehost"
+
+    emock "docker-compose"
+    emock "ssh"
+
+    docker_compose_run --no-wait --ssh-port-forward 80:8080 --ssh-port-forward 22:2222
+
+    assert_emock_called "docker-compose" 1
+    assert_emock_called_with "docker-compose" 0 \
+        --verbose                 \
+        --file docker-compose.yml \
+        run -T
+
+    assert_emock_called "ssh" 2
+    assert_emock_called_with "ssh" 0 \
+        -NL                          \
+        127.0.0.1:80:127.0.0.1:8080  \
+        someuser@somehost -p 22
+
+    assert_emock_called_with "ssh" 1 \
+        -NL                          \
+        127.0.0.1:22:127.0.0.1:2222  \
+        someuser@somehost -p 22
 }
