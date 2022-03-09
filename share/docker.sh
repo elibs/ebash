@@ -695,10 +695,6 @@ __docker_setup_copy_volumes()
         "+add_volume_to_args | Whether to add --volume flags to docker_args" \
     )
 
-    if array_not_empty copy_to_volume; then
-        einfo "Creating docker $(lval copy_to_volume)"
-    fi
-
     # Deal with all copy_to_volumes
     local entry name parts
     for entry in ${copy_to_volume[*]:-}; do
@@ -709,6 +705,7 @@ __docker_setup_copy_volumes()
         local lpath=${parts[1]}
         local rpath=${parts[2]}
 
+        einfo "Creating docker $(lval copy_to_volume=name)"
         edebug "Creating docker container for volume $(lval name lpath rpath)"
         docker rm "/${name}" &>/dev/null || true
         docker container create --name "${name}" -v "${name}:${rpath}" busybox | edebug
