@@ -767,11 +767,16 @@ __docker_setup_ssh_port_forwarding()
     #
     # NOTES:
     #
+    # (0) `docker context` is not supported on some older Distros. In those cases or any failure, fallback to older
+    #     DOCKER_HOST.
     # (1) The **current** docker context is returned as the first element in the `docker context inspect` command.
     # (2) If DOCKER_HOST is set to a remote SSH host, then this will get returned from the `docker context` command.
     # (3) If DOCKER_CONTEXT is set that will be what is returned from the `docker context` command.
     local docker_context docker_user docker_host docker_port
-    docker_host=$(docker context inspect | jq --raw-output '.[0].Endpoints.docker.Host')
+    $(tryrc --stdout docker_host "docker context inspect 2>/dev/null | jq --raw-output '.[0].Endpoints.docker.Host'")
+    if [[ ${rc} -ne 0 ]]; then
+        docker_host="${DOCKER_HOST:-}"
+    fi
     edebug "Docker context $(lval docker_host)"
     if [[ "${docker_host}" =~ ssh://([^@]+)@([^:]+):([0-9]+)$ ]]; then
         docker_user="${BASH_REMATCH[1]}"
