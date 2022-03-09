@@ -531,13 +531,43 @@ ETEST_tryrc_stacktrace()
 
 ETEST_tryrc_multiple_commands()
 {
-    $(EDEBUG=0 tryrc -o=stdout -e=stderr eval "mkdir -p foo; echo -n 'zap' > foo/file; echo 'done'")
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr "mkdir -p foo; echo -n 'zap' > foo/file; echo 'done'")
     einfo "$(lval rc stdout stderr)"
 
     assert_exists foo foo/file
     assert_eq "zap" "$(cat foo/file)"
     assert_eq "done" "${stdout}"
     assert_eq ""     "${stderr}"
+}
+
+ETEST_tryrc_pipeline_pass()
+{
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr "echo foo | grep foo")
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 0      "${rc}"
+    assert_eq "foo" "${stdout}"
+    assert_eq ""    "${stderr}"
+}
+
+ETEST_tryrc_pipeline_fail()
+{
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr "echo foo | grep bar")
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 1     "${rc}"
+    assert_eq ""    "${stdout}"
+    assert_eq ""    "${stderr}"
+}
+
+ETEST_tryrc_pipeline_multiple()
+{
+    $(EDEBUG=0 tryrc -o=stdout -e=stderr "echo foobar | grep foo | grep -Po bar")
+    einfo "$(lval rc stdout stderr)"
+
+    assert_eq 0     "${rc}"
+    assert_eq "bar" "${stdout}"
+    assert_eq ""    "${stderr}"
 }
 
 ETEST_tryrc_deep_error()
