@@ -1058,7 +1058,7 @@ docker_compose_run()
 
                 # Lookup the service name to a running docker ID. If we find an ID for this named service then check its
                 # status.
-                id=$(docker-compose --file "${file}" ps -q "${service}" 2>/dev/null || true)
+                id=$(docker-compose --file "${file}" ps -a -q "${service}" 2>/dev/null || true)
                 if [[ -n "${id}" ]]; then
 
                     # First try to look for actual Health Status. That only works if there is a HEALTHCHECK section in the
