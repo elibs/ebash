@@ -1008,7 +1008,7 @@ docker_compose_run()
 
     # Setup any additional teardown traps
     : ${teardown:="down --volumes --remove-orphans"}
-    trap_add "echo >&2 ; einfo Teardown ; docker-compose ${docker_args[*]} kill || true; docker-compose ${docker_args[*]} ${teardown} || true"
+    trap_add "echo >&2 ; einfo Teardown ; docker-compose ${docker_args[*]} kill || true ; docker-compose ${docker_args[*]} ${teardown} || true"
 
     # Setup trap to capture logs
     if [[ -n "${logfile}" ]]; then
