@@ -1523,7 +1523,7 @@ ETEST_docker_compose_run_default_wait_teardown()
         docker_compose_run
     )
 
-    assert_emock_called "docker-compose" 3
+    assert_emock_called "docker-compose" 4
 
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
@@ -1534,8 +1534,11 @@ ETEST_docker_compose_run_default_wait_teardown()
         --file docker-compose.yml               \
         ps --services
 
-    etestmsg "Validating teardown args"
     assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        kill
+
+    assert_emock_called_with "docker-compose" 3 \
         --file docker-compose.yml               \
         down                                    \
         --volumes                               \
@@ -1553,7 +1556,7 @@ ETEST_docker_compose_run_custom_wait_teardown()
         docker_compose_run --teardown "down --volumes"
     )
 
-    assert_emock_called "docker-compose" 3
+    assert_emock_called "docker-compose" 4
 
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
@@ -1564,8 +1567,11 @@ ETEST_docker_compose_run_custom_wait_teardown()
         --file docker-compose.yml               \
         ps --services
 
-    etestmsg "Validating teardown args"
     assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        kill
+
+    assert_emock_called_with "docker-compose" 3 \
         --file docker-compose.yml               \
         down                                    \
         --volumes
@@ -1697,7 +1703,7 @@ ETEST_docker_compose_run_copy_from_volume()
     assert_emock_called_with "rm" 2 \
         --recursive --force "foo/bad"
 
-    assert_emock_called "docker-compose" 3
+    assert_emock_called "docker-compose" 4
 
     assert_emock_called_with "docker-compose" 0 \
         --verbose                               \
@@ -1708,8 +1714,11 @@ ETEST_docker_compose_run_copy_from_volume()
         --file docker-compose.yml               \
         ps --services
 
-    etestmsg "Validating teardown args"
     assert_emock_called_with "docker-compose" 2 \
+        --file docker-compose.yml               \
+        kill
+
+    assert_emock_called_with "docker-compose" 3 \
         --file docker-compose.yml               \
         down                                    \
         --volumes                               \
