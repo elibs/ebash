@@ -1457,7 +1457,7 @@ ETEST_docker_compose_run_wait_no_healthcheck()
 
     assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
-        ps -q minio
+        ps -a -q minio
 
     assert_emock_called "docker" 2
 
@@ -1504,7 +1504,7 @@ ETEST_docker_compose_run_wait_with_healthcheck()
 
     assert_emock_called_with "docker-compose" 2 \
         --file docker-compose.yml               \
-        ps -q minio
+        ps -a -q minio
 
     assert_emock_called "docker" 1
 
@@ -1782,7 +1782,7 @@ ETEST_docker_compose_run_follow()
 
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
-        ps -q ServiceA
+        ps -a -q ServiceA
 
     assert_emock_called "docker" 1
 
@@ -1883,7 +1883,7 @@ ETEST_docker_compose_run_follow_logfile()
 
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
-        ps -q ServiceA
+        ps -a -q ServiceA
 
     assert_emock_called "docker" 1
 
@@ -1947,7 +1947,7 @@ ETEST_docker_compose_run_follow_json()
 
     assert_emock_called_with "docker-compose" 1 \
         --file docker-compose.yml               \
-        ps -q ServiceA
+        ps -a -q ServiceA
 
     assert_emock_called "docker" 1
 
