@@ -822,7 +822,7 @@ __docker_wait_for_container_id()
 
     local id=""
     while true; do
-        id=$(docker-compose --file "${file}" ps -q "${name}" 2>/dev/null || true)
+        id=$(docker-compose --file "${file}" ps -a -q "${name}" 2>/dev/null || true)
         if [[ -n "${id}" ]]; then
             break
         fi
