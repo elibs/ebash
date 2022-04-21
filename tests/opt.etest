@@ -39,6 +39,12 @@ ETEST_opt_parse()
     assert_eq "arg3" "$3"
 }
 
+ETEST_opt_parse_nullglob()
+{
+    shopt -s nullglob
+    assert_false ETEST_opt_parse
+}
+
 ETEST_opt_raw()
 {
     set -- -e 2 -i 10 -p 8 -v 101 -d 7 -m 9 -a 127.0.0.1 -u ebash -w ebash
