@@ -102,7 +102,12 @@ jobs:
           fetch-depth: 0
 
       - name: Install Dependencies
-        run: install/all
+        run: |
+            # Brew is so dumb. Trying to install git fails because both 2.35 and 2.36 are available and installing the
+            # newer one causes a symlink collision. So we just work around this be removing the old one if it is
+            # present.
+            brew unlink git@2.35.1 || true
+            install/all
 
       - name: Lint
         run: make lint

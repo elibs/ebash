@@ -262,6 +262,18 @@ return successfully after printing this usage statement.
 END
 opt_parse()
 {
+    # Pre-emptively check if `nullglob` has been enabled and immediately die with an error if it is enabled.
+    # This is because `nullglob` dramatically affects how bash and other GNU tools pare their option flags. As such it
+    # completely breaks `opt_parse` functionality. I tried to simply disable here in `opt_parse` but unfortunately that
+    # doesn't work.
+    if shopt -q nullglob; then
+
+        # NOTE: We can't use die() here because it requires a functional opt_parse which causes infinite recursion...
+        echo 'eval eerror "opt_parse does not work if shell option nullglob is enabled. Remove \"shopt -s nullglob\" from your code" ;'
+        echo 'exit 1'
+        exit 1
+    fi
+
     # An interesting but non-obvious trick is being played here. Opt_parse_setup is called during the opt_parse call,
     # and it sets up some variables (such as __EBASH_OPT and __EBASH_ARG). Since they're already created, when we eval
     # the calls to opt_parse_options and opt_parse_arguments, we can modify those variables and pass them amongst the
