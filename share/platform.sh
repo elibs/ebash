@@ -181,7 +181,6 @@ __EBASH_GNU_TOOLS=(
 
     # And these are GNU tools that are not in coreutils but which we also
     # depend heavily on.
-    egrep
     find
     grep
     readlink
@@ -210,6 +209,12 @@ rm()
 sort()
 {
     LC_COLLATE="C" command gsort "${@}"
+}
+
+# Replace egrep with grep -E
+egrep()
+{
+    command grep -E "${@}"
 }
 
 return 0
