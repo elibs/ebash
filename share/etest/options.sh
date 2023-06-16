@@ -101,14 +101,18 @@ $(opt_parse \
 # Verify --jobs is a valid integer.
 assert_int_ge "${jobs}" 0 "jobs must be an integer value greater than or equal to 0"
 
+# Automatically sudo if requested
+if [[ ${sudo} -eq 1 ]]; then
+    reexec --sudo
+fi
+
 # Use mount namespaces as long as:
 #   1) they weren't forcibly turned off
-#   2) we're running with sudo enabled
-#   3) we're on linux
-#   4) we're not inside docker (because docker requires us to be privileged, and because the benefit is no longer there
+#   2) we're on linux
+#   3) we're not inside docker (because docker requires us to be privileged, and because the benefit is no longer there
 #      -- docker already protects us inside a mount namespace)
-if [[ ${mountns} -eq 1 && ${sudo} -eq 1 ]] && os linux && ! running_in_docker; then
-    reexec --sudo --mount-ns
+if [[ ${mountns} -eq 1 ]] && os linux && ! running_in_docker; then
+    reexec --sudo --mountns
 fi
 
 # On Linux, if requested, set the CHILD_SUBREAPER flag so that any processes created by etest get reparented to etest.
