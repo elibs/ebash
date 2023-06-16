@@ -92,7 +92,7 @@ create_summary()
 					"filter": "${filter}",
 					"html": "${html}",
 					"logdir": "${logdir}",
-					"mount_ns": "${mount_ns}",
+					"mountns": "${mountns}",
 					"repeat": "${repeat}",
 					"test_list": $(array_to_json test_list),
 					"tests": $(array_to_json tests),

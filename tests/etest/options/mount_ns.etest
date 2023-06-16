@@ -48,7 +48,7 @@ teardown()
 #-----------------------------------------------------------------------------------------------------------------------
 
 # Verify we will use mount namespaces by default if on Linux
-ETEST_options_mount_ns()
+ETEST_options_mountns()
 {
     etestmsg "Calling 'etest'"
     set -- --no-subreaper
@@ -63,7 +63,7 @@ ETEST_options_mount_ns()
 }
 
 # Verify we will use mount namespaces if on Linux
-ETEST_options_mount_ns_opt_in()
+ETEST_options_mountns_opt_in()
 {
     etestmsg "Calling 'etest --mount-ns'"
     set -- --no-subreaper --mount-ns
@@ -78,7 +78,7 @@ ETEST_options_mount_ns_opt_in()
 }
 
 # Verify we will not use mount namespaces if not on Linux
-ETEST_options_mount_ns_not_linux()
+ETEST_options_mountns_not_linux()
 {
     etestmsg "Setting up test-specific mocks"
     emock --return 1 "os"
@@ -95,7 +95,7 @@ ETEST_options_mount_ns_not_linux()
 }
 
 # Verify we can opt-out of mount namespaces
-ETEST_options_mount_ns_opt_out()
+ETEST_options_mountns_opt_out()
 {
     etestmsg "Calling 'etest --no-mount-ns'"
     set -- --no-subreaper --no-mount-ns
@@ -108,7 +108,7 @@ ETEST_options_mount_ns_opt_out()
 }
 
 # Verify mount namespaces not used on docker
-ETEST_options_mount_ns_docker()
+ETEST_options_mountns_docker()
 {
     etestmsg "Setting up test-specific mocks"
     emock "running_in_docker"

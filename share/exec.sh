@@ -34,8 +34,8 @@ reexec()
     fi
 
     $(opt_parse \
-        "+sudo     | Ensure this process is root, and use sudo to become root if not." \
-        "+mount_ns | Create a new mount namespace to run in.")
+        "+sudo             | Ensure this process is root, and use sudo to become root if not." \
+        "+mountns mount_ns | Create a new mount namespace to run in.")
 
     array_not_empty __EBASH_REEXEC_CMD || die "reexec must be called via its eponymous alias."
 
@@ -46,7 +46,7 @@ reexec()
         exec sudo TMPDIR=${TMPDIR:-/tmp} -E -- "${__EBASH_REEXEC_CMD[@]}"
     fi
 
-    if [[ ${mount_ns} -eq 1 && ${__EBASH_REEXEC_MOUNT_NS:-} != ${BASHPID} ]] ; then
+    if [[ ${mountns} -eq 1 && ${__EBASH_REEXEC_MOUNT_NS:-} != ${BASHPID} ]] ; then
         export __EBASH_REEXEC_MOUNT_NS=${BASHPID}
         exec unshare -m -- "${__EBASH_REEXEC_CMD[@]}"
     fi
