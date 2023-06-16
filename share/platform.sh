@@ -211,10 +211,4 @@ sort()
     LC_COLLATE="C" command gsort "${@}"
 }
 
-# Replace egrep with grep -E
-egrep()
-{
-    command grep -E "${@}"
-}
-
 return 0

@@ -161,24 +161,24 @@ for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
         rc=0
 
         # Ensure none of the scripts are using non-versioned /usr/local/share/ebash
-        echo "${CONTENTS}" | egrep "(:|)/usr/local/share/ebash(:|/|\"|$)" \
+        echo "${CONTENTS}" | grep -E "(:|)/usr/local/share/ebash(:|/|\"|$)" \
             && fail "Non-versioned ebash"
 
         # Ensure not using removed $(esource ...)
-        echo "${CONTENTS}" | egrep '\s*\$\(esource ' \
+        echo "${CONTENTS}" | grep -E '\s*\$\(esource ' \
             && fail "Using removed esource function"
 
         # Ensure not using removed argument parsing functions
-        echo "${CONTENTS}" | egrep '(declare_globals|declare_exports|declare_args|declare_opts)' \
+        echo "${CONTENTS}" | grep -E '(declare_globals|declare_exports|declare_args|declare_opts)' \
             && fail "Using removed declare_globals|declare_exports functions"
 
         # Don't allow using removed legacy IFS ebash functions
-        echo "${CONTENTS}" | egrep '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
+        echo "${CONTENTS}" | grep -E '(ifs_save|ifs_restore|ifs_nl|ifs_space|ifs_set)' \
             && fail "Using non-existent deprecated ifs_* functions"
 
         # Ensure we don't have any sloppy 'return' statements which don't specify what return code to use. Because this
         # usually returns the prior return code which is generally not what is intended and causes 'set -e' problems.
-        echo "${CONTENTS}" | egrep '^[^#]*return(\s*;|$)' \
+        echo "${CONTENTS}" | grep -E '^[^#]*return(\s*;|$)' \
             && fail "Ambiguous return statements"
 
         echo "${CONTENTS}" | grep -P 'ekill.*-(SIG|TERM|KILL|INT|[0-9])' \
@@ -187,7 +187,7 @@ for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
         echo "${CONTENTS}" | grep -P '(assert|assert_true|assert_false)\s+\[\[' \
             && fail "Assert commands cannot be followed by a double bracket expression"
 
-        echo "${CONTENTS}" | egrep '(local|export|declare|readonly)\s+.*=.*\$\(' \
+        echo "${CONTENTS}" | grep -E '(local|export|declare|readonly)\s+.*=.*\$\(' \
             && fail "Combined local variable declaration and assignment masks fatal errors"
     fi
 
