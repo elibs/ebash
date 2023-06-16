@@ -32,8 +32,6 @@ create_vcs_info()
             branch="$(git rev-parse --abbrev-ref HEAD)"               \
             bookmark=""                                               \
             commit="$(git rev-parse --short=12 HEAD)"
-    else
-        die "Unsupported VCS"
     fi
 }
 
