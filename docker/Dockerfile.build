@@ -14,8 +14,6 @@ RUN mv /ebash-main /ebash
 # Copy install directory over the top of the latest stable version that we just unpacked above.
 # This is what will trigger new builds when dependencies change.
 COPY install /ebash/install
-RUN sed -i -e 's|${EBASH_HOME}|/ebash|g' /ebash/install/all
-RUN sed -i -e 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/ebash"|' /ebash/install/*
 RUN cat /ebash/install/shellcheck
 
 # Install all dependencies
