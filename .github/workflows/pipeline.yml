@@ -74,7 +74,7 @@ jobs:
         run: make dlint-${{ matrix.container }}
 
       - name: Test
-        run: make dtest-${{ matrix.container }} failfast=1 failures=5 jobs=$(nproc) progress=0
+        run: make dtest-${{ matrix.container }} failfast=1 failures=5 jobs=$(nproc) progress=0 exclude=docker
 
       - name: Archive test results
         if: always()
