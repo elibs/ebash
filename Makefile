@@ -22,7 +22,7 @@ EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
 FAILURES ?= $(or ${failures},0)
 FILTER   ?= $(or ${filter},)
-JOBS     ?= $(or ${jobs},0)
+JOBS     ?= $(or ${jobs},$(shell nproc))
 PROGRESS ?= $(or ${progress},1)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
@@ -71,8 +71,10 @@ test:
 		--failures=${FAILURES}      \
 		--filter="${FILTER}"        \
 		--jobs=${JOBS}              \
+		--mountns                   \
 		--jobs-progress=${PROGRESS} \
 		--repeat=${REPEAT}          \
+		--sudo                      \
 		--verbose=${V}
 
 .PHONY: doc
