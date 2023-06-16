@@ -59,6 +59,8 @@ ETEST_results_vcs_info_mecurial()
 # Test create_vcs_info for git
 ETEST_results_vcs_info_git()
 {
+    git config --global --add safe.directory /ebash
+
     etestmsg "Calling create_vcs_info"
     create_vcs_info
     pack_to_json VCS_INFO | jq --color-output .
