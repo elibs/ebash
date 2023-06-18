@@ -14,12 +14,8 @@ suite_setup()
 {
     local pkg_known pkg_installed pkg_unknown pkg_candidates pkg_installable pkg_to_install
 
-    pkg_known=coreutils
-    pkg_installed=coreutils
-    if os_distro centos rocky && os_release 8 8.5; then
-        pkg_known=coreutils-single
-        pkg_installed=coreutils-single
-    fi
+    pkg_known=bash
+    pkg_installed=bash
     pkg_unknown=does-not-exist
     pkg_candidates="hello banner lolcat fortune skaffold sqlite telnet terraform thanos tmux"
     pkg_installable=""
