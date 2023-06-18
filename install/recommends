@@ -203,6 +203,7 @@ elif os_distro gentoo; then
         app-arch/pigz
         app-cdr/cdrtools
         app-containers/docker
+        app-containers/docker-cli
         app-misc/jq
         dev-util/debootstrap
         dev-util/dialog
