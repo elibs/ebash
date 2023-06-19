@@ -71,7 +71,6 @@ ETEST_recommends()
         "cpio"
         "curl"
         "docker"
-        "gdb"
         "git"
         "gzip|pigz"
         "ip"

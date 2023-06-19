@@ -25,18 +25,8 @@ OS=$(os_pretty_name)
 ebanner --uppercase "Installing recommended packages" \
     OS
 
-# Generic list of packages that are universally named in all distros
-packages=(
-    bzip2
-    cpio
-    dialog
-    gdb
-    gettext
-    gzip
-    util-linux
-)
-
-# Linux-only packages
+# Empty list of packages that we'll add to for each distro
+packages=()
 if os linux; then
     packages+=( squashfs-tools )
 fi
@@ -50,17 +40,24 @@ fi
 if os_distro alpine; then
 
     packages+=(
+        bzip2
         cdrkit
+        cpio
         debootstrap
+        dialog
         docker
+        gdb
+        gettext
         git
         gnupg
+        gzip
         iproute2
         iputils
         ncurses
         ncurses-terminfo
         net-tools
         pstree
+        util-linux
         xz
     )
 
@@ -75,10 +72,17 @@ elif os_distro arch; then
     pacman -Syu --overwrite "/usr/bin/docker-init" --noconfirm  docker
 
     packages+=(
+        bzip2
         cdrkit
+        cpio
         debootstrap
+        dialog
+        gdb
+        gettext
         git
+        gzip
         net-tools
+        util-linux
     )
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -90,15 +94,22 @@ elif os_distro arch; then
 elif os_distro centos; then
 
     packages+=(
+        bzip2
+        cpio
         debootstrap
+        dialog
         docker
+        gdb
         genisoimage
+        gettext
         git
+        gzip
         iproute
         iptables
         ncurses
         net-tools
         psmisc
+        util-linux
         xz
     )
 
@@ -116,15 +127,22 @@ elif os_distro debian; then
     pkg_sync
 
     packages+=(
+        bzip2
+        cpio
         debootstrap
+        dialog
         docker-ce
+        gdb
         genisoimage
+        gettext
         git
+        gzip
         iproute2
         iptables
         iputils-ping
         net-tools
         psmisc
+        util-linux
         xz-utils
     )
 
@@ -141,19 +159,26 @@ elif os_distro fedora; then
     pkg_sync
 
     packages+=(
+        ShellCheck
+        bzip2
         containerd.io
+        cpio
         debootstrap
+        dialog
         docker-ce
         docker-ce-cli
+        gdb
         genisoimage
+        gettext
         git
+        gzip
         iproute
         iptables
         iputils
         ncurses
         net-tools
         psmisc
-        ShellCheck
+        util-linux
         xz
     )
 
@@ -171,15 +196,23 @@ elif os_distro gentoo; then
     fi
 
     packages+=(
+        app-arch/bzip2
+        app-arch/cpio
+        app-arch/gzip
+        app-arch/lbzip2
+        app-arch/pigz
+        app-cdr/cdrtools
         app-containers/docker
+        app-containers/docker-cli
         app-misc/jq
-        cdrtools
-        debootstrap
+        dev-util/debootstrap
+        dev-util/dialog
         dev-vcs/git
-        lbzip2
-        net-tools
-        pigz
-        psmisc
+        sys-apps/net-tools
+        sys-apps/util-linux
+        sys-devel/gdb
+        sys-devel/gettext
+        sys-process/psmisc
     )
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -191,15 +224,22 @@ elif os_distro gentoo; then
 elif os_distro rocky; then
 
     packages+=(
+        bzip2
+        cpio
         debootstrap
+        dialog
         docker
+        gdb
         genisoimage
+        gettext
         git
+        gzip
         iproute
         iptables
         ncurses
         net-tools
         psmisc
+        util-linux
         xz
     )
 
@@ -217,19 +257,26 @@ elif os_distro ubuntu; then
     pkg_sync
 
     packages+=(
+        bzip2
+        cgroup-lite
+        containerd.io
+        cpio
+        debootstrap
+        dialog
         docker-ce
         docker-ce-cli
-        containerd.io
-        cgroup-lite
-        debootstrap
+        gdb
+        gettext
         git
         gnupg-agent
+        gzip
         iproute2
         iptables
         iputils-ping
         mkisofs
         net-tools
         psmisc
+        util-linux
         xz-utils
     )
 
@@ -242,9 +289,16 @@ elif os_distro ubuntu; then
 elif os darwin; then
 
     packages+=(
+        bzip2
+        cpio
+        dialog
+        gdb
+        gettext
         git
+        gzip
         iproute2mac
         pstree
+        util-linux
     )
 
     if ! command_exists docker; then

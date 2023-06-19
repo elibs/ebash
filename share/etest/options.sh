@@ -62,8 +62,9 @@ $(opt_parse \
                                      uses sleep(1) time syntax."                                                       \
     "+jobs_progress=1              | Show jobs eprogress summary ticker while running."                                \
     ":logdir log_dir               | Directory to place logs in. Defaults to the current directory."                   \
-    "+mount_ns=1                   | Run tests inside a mount namespace."                                              \
+    "+mountns mount_ns=0           | Run tests inside a mount namespace."                                              \
     ":repeat  r=${REPEAT:-1}       | Number of times to repeat each test."                                             \
+    "+sudo S=0                     | Reexec as root and preserve environment before running tests."                    \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
     "&test_list l                  | File that contains a list of tests to run. This file may contain comments on lines
                                      that begin with the # character. All other nonblank lines will be interpreted as
@@ -100,13 +101,18 @@ $(opt_parse \
 # Verify --jobs is a valid integer.
 assert_int_ge "${jobs}" 0 "jobs must be an integer value greater than or equal to 0"
 
+# Automatically sudo if requested
+if [[ ${sudo} -eq 1 ]]; then
+    reexec --sudo
+fi
+
 # Use mount namespaces as long as:
 #   1) they weren't forcibly turned off
 #   2) we're on linux
 #   3) we're not inside docker (because docker requires us to be privileged, and because the benefit is no longer there
 #      -- docker already protects us inside a mount namespace)
-if [[ ${mount_ns} -eq 1 ]] && os linux && ! running_in_docker; then
-    reexec --mount-ns
+if [[ ${mountns} -eq 1 ]] && os linux && ! running_in_docker; then
+    reexec --sudo --mountns
 fi
 
 # On Linux, if requested, set the CHILD_SUBREAPER flag so that any processes created by etest get reparented to etest.

@@ -181,7 +181,6 @@ __EBASH_GNU_TOOLS=(
 
     # And these are GNU tools that are not in coreutils but which we also
     # depend heavily on.
-    egrep
     find
     grep
     readlink

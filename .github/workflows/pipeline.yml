@@ -63,7 +63,7 @@ jobs:
           password: ${{ secrets.CICD_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -74,11 +74,11 @@ jobs:
         run: make dlint-${{ matrix.container }}
 
       - name: Test
-        run: make dtest-${{ matrix.container }} failfast=1 failures=5 jobs=$(nproc) progress=0
+        run: make dtest-${{ matrix.container }} sudo=1 mountns=1 failfast=1 failures=5 jobs=$(nproc) progress=0 exclude=docker
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.container }}
           path: .work/docker/${{ matrix.container }}/**
@@ -92,12 +92,12 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: ["11.0", "10.15"]
+        os: ["11.0"]
 
     runs-on: macos-${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -119,7 +119,7 @@ jobs:
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: macos-${{ matrix.os }}
           path: .work/**
@@ -137,7 +137,7 @@ jobs:
 
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: artifacts
 
@@ -164,7 +164,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.CICD_TOKEN }}

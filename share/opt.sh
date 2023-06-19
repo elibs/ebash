@@ -928,7 +928,7 @@ strings and numbers. But array and associative array values are still quoted to 
 END
 opt_log()
 {
-    local quotes=1 local prefix=""
+    local quotes=1 prefix=""
     if [[ "${1:-}" == "-n" || ${1:-} == "--no-quotes" ]] ; then
         quotes=0
         shift

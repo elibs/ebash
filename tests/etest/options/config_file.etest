@@ -20,7 +20,7 @@ ETEST_options_config_file_missing()
     trap_add "eunmock conf_read"
 
     etestmsg "Calling 'etest'"
-    set -- --no-mount-ns --no-subreaper
+    set -- --no-mountns --no-subreaper
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verify mock called"
@@ -37,7 +37,7 @@ ETEST_options_config_file_legacy_log_dir()
 	END
 
     etestmsg "Calling 'etest'"
-    set -- --no-mount-ns --no-subreaper
+    set -- --no-mountns --no-subreaper
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verify config"
@@ -54,7 +54,7 @@ ETEST_options_config_file_newer_logdir()
 	END
 
     etestmsg "Calling 'etest'"
-    set -- --no-mount-ns --no-subreaper
+    set -- --no-mountns --no-subreaper
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verify config"
@@ -72,7 +72,7 @@ ETEST_options_config_file_prefer_newer_logdir()
 	END
 
     etestmsg "Calling 'etest'"
-    set -- --no-mount-ns --no-subreaper
+    set -- --no-mountns --no-subreaper
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verify config"
@@ -89,7 +89,7 @@ ETEST_options_config_file_legacy_work_dir()
 	END
 
     etestmsg "Calling 'etest'"
-    set -- --no-mount-ns --no-subreaper
+    set -- --no-mountns --no-subreaper
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verify config"
@@ -106,7 +106,7 @@ ETEST_options_config_file_newer_workdir()
 	END
 
     etestmsg "Calling 'etest'"
-    set -- --no-mount-ns --no-subreaper
+    set -- --no-mountns --no-subreaper
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verify config"
@@ -124,7 +124,7 @@ ETEST_options_config_file_prefer_newer_workdir()
 	END
 
     etestmsg "Calling 'etest'"
-    set -- --no-mount-ns --no-subreaper
+    set -- --no-mountns --no-subreaper
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verify config"
@@ -144,7 +144,7 @@ ETEST_options_config_file_prefer_runtime_options()
 	END
 
     etestmsg "Calling 'etest'"
-    set -- --no-mount-ns --no-subreaper --logdir=.work/log --workdir=.work/testdir
+    set -- --no-mountns --no-subreaper --logdir=.work/log --workdir=.work/testdir
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verify config"

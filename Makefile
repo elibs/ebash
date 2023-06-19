@@ -22,12 +22,14 @@ EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
 FAILURES ?= $(or ${failures},0)
 FILTER   ?= $(or ${filter},)
-JOBS     ?= $(or ${jobs},0)
+JOBS     ?= $(or ${jobs},$(shell nproc))
+MOUNTNS  ?= $(or ${mountns},0)
 PROGRESS ?= $(or ${progress},1)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
 REGISTRY ?= $(or ${registry},ghcr.io)
 REPEAT   ?= $(or ${repeat},0)
+SUDO     ?= $(or ${sudo},0)
 V        ?= $(or $v,0)
 
 # Variables that need to be exported to be seen by external processes we exec.
@@ -71,8 +73,10 @@ test:
 		--failures=${FAILURES}      \
 		--filter="${FILTER}"        \
 		--jobs=${JOBS}              \
+		--mountns=${MOUNTNS}        \
 		--jobs-progress=${PROGRESS} \
 		--repeat=${REPEAT}          \
+		--sudo=${SUDO}              \
 		--verbose=${V}
 
 .PHONY: doc

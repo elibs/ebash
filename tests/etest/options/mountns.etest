@@ -47,26 +47,24 @@ teardown()
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
-# Verify we will use mount namespaces by default if on Linux
-ETEST_options_mount_ns()
+# Verify we will NOT use mount namespaces by default. This is opt-in only now.
+ETEST_options_mountns_defaults()
 {
     etestmsg "Calling 'etest'"
     set -- --no-subreaper
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
-    assert_emock_called "os"                1
-    assert_emock_called "running_in_docker" 1
-    assert_emock_called "reexec"            1
-    assert_emock_called_with "reexec" 0 \
-        --mount-ns
+    assert_emock_called "os"                0
+    assert_emock_called "running_in_docker" 0
+    assert_emock_called "reexec"            0
 }
 
-# Verify we will use mount namespaces if on Linux
-ETEST_options_mount_ns_opt_in()
+# Verify we cant opt-in for mount namespaces.
+ETEST_options_mountns_opt_in()
 {
-    etestmsg "Calling 'etest --mount-ns'"
-    set -- --no-subreaper --mount-ns
+    etestmsg "Calling 'etest --mountns'"
+    set -- --no-subreaper --mountns
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
@@ -74,18 +72,18 @@ ETEST_options_mount_ns_opt_in()
     assert_emock_called "running_in_docker" 1
     assert_emock_called "reexec"            1
     assert_emock_called_with "reexec" 0 \
-        --mount-ns
+        --sudo --mountns
 }
 
-# Verify we will not use mount namespaces if not on Linux
-ETEST_options_mount_ns_not_linux()
+# Verify we will not use mount namespaces if not on Linux EVEN IF we opted in for it!
+ETEST_options_mountns_not_linux()
 {
     etestmsg "Setting up test-specific mocks"
     emock --return 1 "os"
     trap_add "eunmock os"
 
-    etestmsg "Calling 'etest --mount-ns --no-subreaper'"
-    set -- --no-subreaper --mount-ns
+    etestmsg "Calling 'etest --mountns'"
+    set -- --no-subreaper --mountns
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
@@ -95,10 +93,10 @@ ETEST_options_mount_ns_not_linux()
 }
 
 # Verify we can opt-out of mount namespaces
-ETEST_options_mount_ns_opt_out()
+ETEST_options_mountns_opt_out()
 {
-    etestmsg "Calling 'etest --no-mount-ns'"
-    set -- --no-subreaper --no-mount-ns
+    etestmsg "Calling 'etest --no-mountns'"
+    set -- --no-subreaper --no-mountns
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
@@ -108,13 +106,13 @@ ETEST_options_mount_ns_opt_out()
 }
 
 # Verify mount namespaces not used on docker
-ETEST_options_mount_ns_docker()
+ETEST_options_mountns_docker()
 {
     etestmsg "Setting up test-specific mocks"
     emock "running_in_docker"
 
-    etestmsg "Calling 'etest --no-subreaper'"
-    set -- --no-subreaper
+    etestmsg "Calling 'etest'"
+    set -- --no-subreaper --mountns
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"

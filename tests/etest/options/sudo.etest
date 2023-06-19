@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+#
+# Copyright 2023, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Setup
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+MOCKS=(
+    "os"
+    "reexec"
+    "running_in_docker"
+)
+
+# Create a bunch of mocks for cgroup related functions.
+setup()
+{
+    etestmsg "Creating $(lval MOCKS)"
+    for mock in "${MOCKS[@]}"; do
+        emock "${mock}"
+    done
+
+    emock --return 1 "running_in_docker"
+
+    trap_add "teardown"
+
+    emock_dump_all_state
+}
+
+teardown()
+{
+    etestmsg "Unmocking $(lval MOCKS)"
+    for mock in "${MOCKS[@]}"; do
+        eunmock "${mock}"
+    done
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Verify we do not use sudo by default.
+ETEST_options_sudo_off_by_default()
+{
+    etestmsg "Calling 'etest'"
+    set -- --no-subreaper
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verifying mocks"
+    assert_emock_called "os"                0
+    assert_emock_called "reexec"            0
+}
+
+# Verify we will use sudo if we ask for it.
+ETEST_options_sudo_opt_in()
+{
+    etestmsg "Calling 'etest --sudo'"
+    set -- --no-subreaper --sudo
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verifying mocks"
+    assert_emock_called "reexec"            1
+    assert_emock_called_with "reexec" 0 \
+        --sudo
+}
+
+# Verify we can opt-out of sudo
+ETEST_options_sudo_opt_out()
+{
+    etestmsg "Calling 'etest --no-sudo'"
+    set -- --no-subreaper --no-sudo
+    source "${EBASH}/etest/options.sh"
+
+    etestmsg "Verifying mocks"
+    assert_emock_called "os"                0
+    assert_emock_called "reexec"            0
+}

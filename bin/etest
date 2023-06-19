@@ -13,10 +13,6 @@ source ${EBASH}/ebash.sh || { echo "Unable to source ebash." ; exit 1 ; }
 export EBASH
 export PATH="${PATH}:${EBASH_HOME}/bin"
 
-if [[ ${EBASH_OS} == "Linux" ]] ; then
-    reexec --sudo
-fi
-
 # Normalize EBASH path in case any tests depend on it looking... normal. Note: wait until after sourcing so that we can
 # let ebash make sure we get GNU readlink rater than BSD readlink.
 EBASH_HOME=$(readlink -f "${EBASH_HOME}")
