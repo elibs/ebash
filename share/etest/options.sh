@@ -27,7 +27,7 @@ etest provides several additional security and auditing features of interest:
     1) Every test is run in its own subshell to ensure process isolation.
     2) Every test is run inside a unique cgroup (on Linux) to further isolate the process, mounts and networking from
        the rest of the system.
-    3) Each test is monitored for process leaks and mount leaks.
+    3) Each test is monitored for process leaks and mount leaks (unless disabled).
 
 Tests can be repeated, filtered, excluded, debugged, traced and a host of other extensive developer friendly features.
 
@@ -39,6 +39,8 @@ END
 $(opt_parse \
     "+failfast break b=${FAILFAST} | Stop immediately on first failure."                                               \
     "+clean   c=0                  | Clean only and then exit."                                                        \
+    "+check_process_leaks=1        | Check for process leaks."                                                         \
+    "+check_mount_leaks=1          | Check for mount leaks."                                                           \
     ":debug   D=${EDEBUG:-}        | EDEBUG output."                                                                   \
     "+delete  d=1                  | Delete all output files when tests complete."                                     \
     ":name                         | Name of this test run to use for artifacts and display purposes (default=etest)." \
