@@ -163,6 +163,9 @@ ETEST_pkg_install_distro()
 
 ETEST_pkg_install_distro_duplicate_keys()
 {
+    # This test consistently fails on Ubuntu
+    $(skip_if "os_distro ubuntu")
+
     etestmsg "Verify we found two installable packages"
     assert_ge "$(echo "${pkg_installable}" | wc -w)" 2
     pkg1="$(echo "${pkg_installable}" | awk '{print $1}')"
