@@ -32,7 +32,7 @@ die_handler()
 
 assert_no_process_leaks()
 {
-    if ! cgroup_supported; then
+    if [[ ${check_process_leaks} -eq 0 ]] || ! cgroup_supported; then
         return 0
     fi
 
@@ -67,6 +67,10 @@ assert_no_process_leaks()
 
 assert_no_mount_leaks()
 {
+    if [[ ${check_mount_leaks} -eq 0 ]]; then
+        return 0
+    fi
+
     local mounts=()
     mounts=( $(efindmnt "${workdir}" ) )
 
