@@ -221,11 +221,17 @@ json_import()
         "+global g           | Emit global variables instead of local ones." \
         "+export e           | Emit exported variables instead of local ones." \
         ":file f=-           | Parse contents of provided file instead of stdin." \
+        "+lower_snake_case l | Convert all keys into lower_snake_case." \
         "+upper_snake_case u | Convert all keys into UPPER_SNAKE_CASE." \
         ":prefix p           | Prefix all keys with the provided required prefix." \
         ":query jq q         | Use JQ style query expression on given JSON before parsing." \
         ":exclude x          | Whitespace separated list of keys to exclude while importing." \
         "@_json_import_keys  | Optional list of json keys to import. If none, all are imported." )
+
+    # Check for conflicting flags
+    if [[ "${lower_snake_case}" -eq 1 && "${upper_snake_case}" -eq 1 ]]; then
+        die "lower_snake_case and upper_snake_case are mutually exclusive"
+    fi
 
     # Determine flags to pass into declare
     local dflags=""
@@ -261,17 +267,26 @@ json_import()
             val=$(jq -c -r ".${key}//empty" <<< ${_json_import_data})
         else
 
-            has_field=$(jq --raw-output '. | has("'${key}'")' <<< "${_json_import_data}")
+            has_field=$(jq --raw-output --arg KEY "${key}" '. | has($KEY)' <<< "${_json_import_data}")
 
             if [[ ${has_field} != "true" ]] ; then
                 die "Data does not contain required $(lval key _json_import_input _json_import_data)"
             fi
 
-            val=$(jq -c -r '.'${key} <<< "${_json_import_data}")
+            val=$(jq -c -r --arg KEY "${key}" '.[$KEY]' <<< "${_json_import_data}")
         fi
 
         edebug $(lval key val)
-        [[ ${upper_snake_case} -eq 1 ]] && key=$(to_upper_snake_case "${key}")
+        if [[ ${lower_snake_case} -eq 1 ]]; then
+            key=$(to_lower_snake_case "${key}")
+        elif [[ ${upper_snake_case} -eq 1 ]]; then
+            key=$(to_upper_snake_case "${key}")
+        fi
+
+        # Replace illegal characters that can't be in a variable
+        key="${key// /_}"
+        key="${key//-/_}"
+        key="${key//__/_}"
 
         # If the value is an array implicitly convert it
         if [[ "${val:0:1}" == "[" && "${val: -1}" == "]" ]]; then

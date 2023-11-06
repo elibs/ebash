@@ -254,6 +254,24 @@ ETEST_json_import()
     assert_eq "1.0.2.3" "${lsiFirmware}"
 }
 
+ETEST_json_import_dashes()
+{
+    $(json_import <<< '{ "drive-size": 100, "lsi-firmware-latest": "1.0.2.3" }')
+    einfo "$(lval drive_size lsi_firmware_latest)"
+    argcheck drive_size lsi_firmware_latest
+    assert_eq "100"     "${drive_size}"
+    assert_eq "1.0.2.3" "${lsi_firmware_latest}"
+}
+
+ETEST_json_import_spaces()
+{
+    $(json_import <<< '{ "drive size": 100, "lsi firmware": "1.0.2.3" }')
+    einfo "$(lval drive_size lsi_firmware)"
+    argcheck drive_size lsi_firmware
+    assert_eq "100"     "${drive_size}"
+    assert_eq "1.0.2.3" "${lsi_firmware}"
+}
+
 ETEST_json_import_explicit_keys()
 {
     $(json_import driveSize lsiFirmware <<< '{ "driveSize": 100, "lsiFirmware": "1.0.2.3", "sliceDriveSize": 100 }')
@@ -296,6 +314,15 @@ ETEST_json_import_upper_snake_case()
     argcheck DRIVE_SIZE LSI_FIRMWARE
     assert_eq "100"     "${DRIVE_SIZE}"
     assert_eq "1.0.2.3" "${LSI_FIRMWARE}"
+}
+
+ETEST_json_import_lower_snake_case()
+{
+    $(json_import -l <<< '{ "drive-Size": 100, "lsi Firmware": "1.0.2.3" }')
+
+    argcheck drive_size lsi_firmware
+    assert_eq "100"     "${drive_size}"
+    assert_eq "1.0.2.3" "${lsi_firmware}"
 }
 
 assert_declare()
