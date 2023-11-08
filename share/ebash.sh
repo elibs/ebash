@@ -32,7 +32,7 @@
 # gets invoked. This prevents ebash from being setup and executing properly. We solve this by simply checking if we're
 # running inside a native BASH context and if we are not, we simply execute bash directly with our script as a parameter
 # as well as any arguments we were passed.
-if [[ "$(ps -p $$ -ocomm=)" != "bash" ]]; then
+if [[ -z "${BASH:-}" ]]; then
     exec bash "$0" "${@}"
 fi
 
