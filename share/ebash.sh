@@ -32,7 +32,10 @@
 # gets invoked. This prevents ebash from being setup and executing properly. We solve this by simply checking if we're
 # running inside a native BASH context and if we are not, we simply execute bash directly with our script as a parameter
 # as well as any arguments we were passed.
-if [[ -z "${BASH:-}" || ( "${BASH##*/}" != "bash" ) ]]; then
+#
+# NOTE: Do not use modern BASH [[ ... ]] here because if we're being invoked in a non-bash environment we can't use it.
+# So instead use POSIX [] for better portability.
+if [ -z "${BASH:-}" ] || [ "${BASH##*/}" != "bash" ]; then
     exec bash "$0" "${@}"
 fi
 
