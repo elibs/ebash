@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Copyright 2011-2022, Marshall McMullen <marshall.mcmullen@gmail.com>
 #
@@ -108,6 +107,12 @@ run_single_test()
                 suite_setup
             fi
 
+            if [[ ${testidx} -eq ${testidx_total} ]]; then
+                trap_add __suite_teardown EXIT
+            else
+                trap_add __suite_teardown ${DIE_SIGNALS[@]}
+            fi
+
             # Run optional test setup function if provided
             if is_function setup ; then
                 etestmsg "Running setup"
@@ -129,16 +134,16 @@ run_single_test()
                 etestmsg "Running teardown"
                 teardown
             fi
-
-            # Run suite teardown function if provided and we're on the last test
-            if is_function suite_teardown && [[ ${testidx} -eq ${testidx_total} ]]; then
-                etestmsg "Running suite_teardown $(lval testidx testidx_total)"
-                suite_teardown
-            fi
         }
         catch
         {
             rc=$?
+            if [[ ${failfast} -eq 1 && ${testidx} -ne ${testidx_total} ]]; then
+                if [[ -n ${source} ]] ; then
+                    source "${source}"
+                fi
+                __suite_teardown
+            fi
         }
         edebug "Finished $(lval testname display_testname rc tries failures)"
 
@@ -202,6 +207,14 @@ run_single_test()
     # etest already knows how to detect and report errors.
     if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
         eerror "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
+    fi
+}
+
+__suite_teardown()
+{
+    if is_function suite_teardown; then
+        etestmsg "Running suite_teardown $(lval testidx testidx_total)"
+        suite_teardown
     fi
 }
 
