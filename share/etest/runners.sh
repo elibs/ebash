@@ -108,6 +108,14 @@ run_single_test()
                 suite_setup
             fi
 
+            # Register __suite_teardown function as a trap callback and trigger it when the test receives an interrupt.
+            # If running the last test case, instead of triggering it by interrupt, always trigger it at the end of the test. 
+            if [[ ${testidx} -eq ${testidx_total} ]]; then
+                trap_add __suite_teardown EXIT
+            else
+                trap_add __suite_teardown ${DIE_SIGNALS[@]}
+            fi
+
             # Run optional test setup function if provided
             if is_function setup ; then
                 etestmsg "Running setup"
@@ -129,16 +137,18 @@ run_single_test()
                 etestmsg "Running teardown"
                 teardown
             fi
-
-            # Run suite teardown function if provided and we're on the last test
-            if is_function suite_teardown && [[ ${testidx} -eq ${testidx_total} ]]; then
-                etestmsg "Running suite_teardown $(lval testidx testidx_total)"
-                suite_teardown
-            fi
         }
         catch
         {
             rc=$?
+            # If failfast flag is enabled and is not running the last test case, call __suite_teardown in the catch block.
+            # Otherwise, nothing to do here as __suite_teardown will be triggered at the end of the test.
+            if [[ ${failfast} -eq 1 && ${testidx} -ne ${testidx_total} ]]; then
+                if [[ -n ${source} ]] ; then
+                    source "${source}"
+                fi
+                __suite_teardown
+            fi
         }
         edebug "Finished $(lval testname display_testname rc tries failures)"
 
@@ -202,6 +212,15 @@ run_single_test()
     # etest already knows how to detect and report errors.
     if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
         eerror "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
+    fi
+}
+
+# A wrapper function that calls suite_teardown if it is defined by user.
+__suite_teardown()
+{
+    if is_function suite_teardown; then
+        etestmsg "Running suite_teardown $(lval testidx testidx_total)"
+        suite_teardown
     fi
 }
 
