@@ -109,8 +109,7 @@ run_single_test()
             fi
 
             # Register __suite_teardown function as a trap callback and trigger it when the test receives an interrupt.
-            # If running the last test case, instead of triggering it by interrupt, make this function always triggered
-            # at the end of the test. 
+            # If running the last test case, instead of triggering it by interrupt, always trigger it at the end of the test. 
             if [[ ${testidx} -eq ${testidx_total} ]]; then
                 trap_add __suite_teardown EXIT
             else
@@ -143,7 +142,7 @@ run_single_test()
         {
             rc=$?
             # If failfast flag is enabled and is not running the last test case, call __suite_teardown in the catch block.
-            # Otherwise, nothing to do at here and __suite_teardown will be triggered at the end of the test.
+            # Otherwise, nothing to do here as __suite_teardown will be triggered at the end of the test.
             if [[ ${failfast} -eq 1 && ${testidx} -ne ${testidx_total} ]]; then
                 if [[ -n ${source} ]] ; then
                     source "${source}"
