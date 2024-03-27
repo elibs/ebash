@@ -22,5 +22,4 @@ combinations:
 | Linux | Rocky  | 8.4     |
 | Linux | Ubuntu | 20.04   |
 | Linux | Ubuntu | 18.04   |
-| MacOS | N/A    |  11.0   |
-| MacOS | N/A    | 10.15   |
+| MacOS | N/A    | 12.0    |
