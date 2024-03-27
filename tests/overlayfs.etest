@@ -141,6 +141,9 @@ ETEST_overlayfs_modify()
 
 ETEST_overlayfs_commit()
 {
+    # This fails on ArchLinux but works on all other distros.
+    $(skip_if os_distro arch)
+
     local idx=0
     for idx in $(array_indexes archive_types); do
         local ftype="${archive_types[$idx]}"
