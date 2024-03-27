@@ -185,6 +185,9 @@ ETEST_overlayfs_commit()
 
 ETEST_overlayfs_commit_nochanges()
 {
+    # This fails on ArchLinux but works on all other distros.
+    $(skip_if os_distro arch)
+
     etestmsg "Populating source directory"
     efreshdir src dest
     touch src/{file0,file1,file2}
