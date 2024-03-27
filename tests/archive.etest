@@ -9,6 +9,11 @@
 
 [[ ${EBASH_OS} == Linux ]] || return 0
 
+# Archive tests fail on older debian
+if os_distro debian && os_release 10; then
+    return 0
+fi
+
 #-----------------------------------------------------------------------------------------------------------------------
 #
 # Test Helpers

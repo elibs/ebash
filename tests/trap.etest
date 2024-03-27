@@ -11,7 +11,7 @@
 ETEST_trap_add()
 {
     trap_add 'echo foo' SIGHUP
-    assert_eq 'echo foo;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
+    assert_eq 'echo foo;__suite_teardown;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
 }
 
 # Verify a bug is fixed where we were building up a combined trap with the same command multiple times if given an
@@ -20,8 +20,8 @@ ETEST_trap_add()
 ETEST_trap_add_multiple_signals()
 {
     trap_add 'echo foo' SIGHUP SIGUSR1
-    assert_eq 'echo foo;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
-    assert_eq 'echo foo;die -s=SIGUSR1 "[Caught SIGUSR1 pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGUSR1)"
+    assert_eq 'echo foo;__suite_teardown;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
+    assert_eq 'echo foo;__suite_teardown;die -s=SIGUSR1 "[Caught SIGUSR1 pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGUSR1)"
 
     # Untrapped signals still receive default handling without the 'echo foo' command
     if [[ ${ETEST_JOBS} -eq 0 ]]; then
@@ -37,7 +37,7 @@ ETEST_trap_add_multiple_signals()
                 continue
             fi
 
-            assert_eq 'die -s='${sig}' "[Caught '${sig}' pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get ${sig})"
+            assert_eq '__suite_teardown;die -s='${sig}' "[Caught '${sig}' pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get ${sig})"
         done
     fi
 }
@@ -47,8 +47,8 @@ ETEST_trap_add_exit()
 {
     trap_add 'echo foo' EXIT SIGHUP SIGUSR1
     assert_eq '_ebash_on_exit_start;echo foo;_ebash_on_exit_end' "$(trap_get EXIT)"
-    assert_eq 'echo foo;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
-    assert_eq 'echo foo;die -s=SIGUSR1 "[Caught SIGUSR1 pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGUSR1)"
+    assert_eq 'echo foo;__suite_teardown;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
+    assert_eq 'echo foo;__suite_teardown;die -s=SIGUSR1 "[Caught SIGUSR1 pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGUSR1)"
 }
 
 # Verify implicit traps when no signals added
@@ -67,7 +67,7 @@ ETEST_trap_add_defaults()
                 continue
             fi
 
-            assert_eq 'die -s='${sig}' "[Caught '${sig}' pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get ${sig})"
+            assert_eq '__suite_teardown;die -s='${sig}' "[Caught '${sig}' pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get ${sig})"
         done
     fi
 }
