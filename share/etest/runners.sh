@@ -113,7 +113,7 @@ run_single_test()
             if [[ ${testidx} -eq ${testidx_total} ]]; then
                 trap_add __suite_teardown EXIT
             else
-                trap_add __suite_teardown ${DIE_SIGNALS[@]}
+                trap_add __suite_teardown "${DIE_SIGNALS[@]}"
             fi
 
             # Run optional test setup function if provided
