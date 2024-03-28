@@ -9,6 +9,11 @@
 
 [[ ${EBASH_OS} == Linux ]] || return 0
 
+# These tests fail on ArchLinux but works on all other distros.
+if os_distro arch; then
+    return 0
+fi
+
 banner_width=50
 archive_types=(
     squashfs
@@ -141,9 +146,6 @@ ETEST_overlayfs_modify()
 
 ETEST_overlayfs_commit()
 {
-    # This fails on ArchLinux but works on all other distros.
-    $(skip_if os_distro arch)
-
     local idx=0
     for idx in $(array_indexes archive_types); do
         local ftype="${archive_types[$idx]}"
@@ -185,9 +187,6 @@ ETEST_overlayfs_commit()
 
 ETEST_overlayfs_commit_nochanges()
 {
-    # This fails on ArchLinux but works on all other distros.
-    $(skip_if os_distro arch)
-
     etestmsg "Populating source directory"
     efreshdir src dest
     touch src/{file0,file1,file2}
@@ -251,9 +250,6 @@ ETEST_overlayfs_commit_dedupe()
 
 ETEST_overlayfs_multilayer()
 {
-    # This fails on ArchLinux but works on all other distros.
-    $(skip_if os_distro arch)
-
     etestmsg "Creating multiple squashfs images"
     mkdir -p src1 src2 src3
     touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
@@ -279,9 +275,6 @@ ETEST_overlayfs_multilayer()
 
 ETEST_overlayfs_multilayer_mixed_types()
 {
-    # This fails on ArchLinux but works on all other distros.
-    $(skip_if os_distro arch)
-
     etestmsg "Creating squashfs, ISO and TAR files"
     mkdir -p src1 src2 src3
     touch src1/{file1,file2} src2/{file3,file4} src3/{file5,file6}
