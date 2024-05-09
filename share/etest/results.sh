@@ -38,7 +38,13 @@ create_vcs_info()
 create_status_json()
 {
     RUNTIME=$(( SECONDS - START_TIME ))
-    PERCENT=$((200*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} % 2 + 100*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL}))
+
+    # Compute percent complete handling corner cases with zero tests to avoid division by zero
+    if [[ "${NUM_TESTS_TOTAL}" -eq 0 ]]; then
+        PERCENT="0"
+    else
+        PERCENT=$((200*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} % 2 + 100*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL}))
+    fi
 
 	cat <<-EOF > ${ETEST_JSON}.tmp
 	{
