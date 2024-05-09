@@ -46,6 +46,7 @@ $(opt_parse \
     ":name                         | Name of this test run to use for artifacts and display purposes (default=etest)." \
     "+print_only print p           | Print list of tests that would be executed based on provided filter and exclude
                                      to stdout and then exit without actually running any tests."                      \
+    "+print_json                   | Identical to --print-only except print in structured JSON."                       \
     ":exclude x                    | Tests whose name or file match this regular expression will not be run."          \
     ":failures=${FAILURES:-0}      | Number of failures per-test to permit. Normally etest will return non-zero if any
                                      test fails at all. However, in certain circumstances where flaky tests exist it may

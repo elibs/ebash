@@ -43,10 +43,6 @@ source "${EBASH}/etest/test_list.sh"
 
 export ETEST_PID=$$
 
-elogrotate "${ETEST_JSON}"
-elogrotate "${ETEST_XML}"
-elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
-
 global_setup
 trap_add global_teardown
 
@@ -94,6 +90,12 @@ if [[ ${print_only} -eq 1 ]]; then
     exit 0
 fi
 
+# If we are in print_json mode only report what we found in JSON and exit
+if [[ ${print_json} -eq 1 ]]; then
+    associative_array_to_json_split TEST_FUNCTIONS_TO_RUN
+    exit 0
+fi
+
 # If total timeout is requested thn create a background process that will sleep that amount of time and then kill our
 # main etest process.
 if [[ -n "${total_timeout}" && "${total_timeout}" != "infinity" ]]; then
@@ -117,6 +119,11 @@ if [[ -n "${total_timeout}" && "${total_timeout}" != "infinity" ]]; then
 
     trap_add "ekill ${watcher_pid} &>/dev/null" EXIT
 fi
+
+# Create logfile
+elogrotate "${ETEST_JSON}"
+elogrotate "${ETEST_XML}"
+elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 
 # Run all tests the requested number of times
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
