@@ -226,7 +226,11 @@ run_single_test()
         eerror "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
     fi
 
-    create_status_json
+    # If jobs==0 update status json file inline. Otherwise this happens in chunks as jobs are finished
+    # for parallel execution in __process_completed_jobs
+    if [[ ${jobs} -eq 0 ]]; then
+        create_status_json
+    fi
 }
 
 # A wrapper function that calls suite_teardown if it is defined by user.
@@ -499,6 +503,7 @@ __process_completed_jobs()
         if [[ ${jobs_progress} -eq 0 ]]; then
             cat "${path}/etest.out"  >> "${ETEST_OUT}"
         fi
+
     done
 }
 
