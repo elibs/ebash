@@ -32,8 +32,20 @@ run_single_test()
         display_testname="${source}:${testname}"
     fi
 
-    local index_string="${testidx}/${testidx_total}"
-    ebanner --uppercase "${testname}" OS debug exclude failfast failures filter jobs repeat=REPEAT_STRING INDEX=index_string timeout total_timeout verbose
+    local progress="${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} (${PERCENT}%%)"
+    ebanner --uppercase "${testname}" \
+        OS                   \
+        debug                \
+        exclude              \
+        failfast             \
+        failures             \
+        filter               \
+        jobs                 \
+        progress             \
+        repeat=REPEAT_STRING \
+        timeout              \
+        total_timeout        \
+        verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
     # top-level test script.
@@ -109,7 +121,7 @@ run_single_test()
             fi
 
             # Register __suite_teardown function as a trap callback and trigger it when the test receives an interrupt.
-            # If running the last test case, instead of triggering it by interrupt, always trigger it at the end of the test. 
+            # If running the last test case, instead of triggering it by interrupt, always trigger it at the end of the test.
             if [[ ${testidx} -eq ${testidx_total} ]]; then
                 trap_add __suite_teardown EXIT
             else
@@ -213,6 +225,8 @@ run_single_test()
     if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
         eerror "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
     fi
+
+    create_status_json
 }
 
 # A wrapper function that calls suite_teardown if it is defined by user.
@@ -469,6 +483,9 @@ __process_completed_jobs()
         array_add TESTS_PASSED "${tests_passed}"
         array_add TESTS_FAILED "${tests_failed}"
         array_add TESTS_FLAKY  "${tests_flaky}"
+
+        # Update our final status json file with new results
+        create_status_json
 
         if ! array_contains TEST_SUITES "${suite}"; then
             TEST_SUITES+=( "${suite}" )

@@ -174,6 +174,7 @@ exec {ETEST_STDERR_FD}<&2
 artifact_name="$(echo "${logdir}/${name:-etest}" | tr ' ' '_')"
 ETEST_LOG="${artifact_name}.log"
 ETEST_JSON="${artifact_name}.json"
+ETEST_VCS="${artifact_name}.vcs.json"
 ETEST_XML="${artifact_name}.xml"
 
 # Setup redirection for "etest" and actual "test" output

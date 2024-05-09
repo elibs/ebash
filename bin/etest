@@ -68,10 +68,18 @@ declare -g  NUM_TESTS_EXECUTED=0
 declare -g  NUM_TESTS_PASSED=0
 declare -g  NUM_TESTS_FAILED=0
 declare -g  NUM_TESTS_FLAKY=0
+declare -g  NUM_TESTS_TOTAL=0
+declare -g  PERCENT=0
 
 # Create initial test list and then find all matching tests
 create_test_list
 find_matching_tests
+
+# Compute total number of tests to run across all files
+for fname in "${!TEST_FUNCTIONS_TO_RUN[@]}"; do
+    array_init fname_tests "${TEST_FUNCTIONS_TO_RUN[$fname]}"
+    increment NUM_TESTS_TOTAL "${#fname_tests[@]}"
+done
 
 # If we are in print_only mode only report what we found and exit
 if [[ ${print_only} -eq 1 ]]; then

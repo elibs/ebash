@@ -35,9 +35,53 @@ create_vcs_info()
     fi
 }
 
+create_status_json()
+{
+    RUNTIME=$(( SECONDS - START_TIME ))
+    PERCENT=$((200*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} % 2 + 100*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL}))
+
+	cat <<-EOF > ${ETEST_JSON}.tmp
+	{
+		"numTestsTotal": ${NUM_TESTS_TOTAL},
+		"numTestsExecuted": ${NUM_TESTS_EXECUTED},
+		"numTestsPassed": ${NUM_TESTS_PASSED},
+		"numTestsFailed": ${NUM_TESTS_FAILED},
+		"numTestsFlaky": ${NUM_TESTS_FLAKY},
+		"testsPassed": $(associative_array_to_json_split TESTS_PASSED),
+		"testsFailed": $(associative_array_to_json_split TESTS_FAILED),
+		"testsFlaky": $(associative_array_to_json_split TESTS_FLAKY),
+		"percent": ${PERCENT},
+		"runtime": "${RUNTIME} seconds",
+		"datetime": "$(etimestamp_rfc3339)",
+		"options": {
+			"clean": "${clean}",
+			"debug": "${debug}",
+			"delete": "${delete}",
+			"exclude": "${exclude}",
+			"failfast": "${failfast}",
+			"failures": "${failures}",
+			"filter": "${filter}",
+			"html": "${html}",
+			"logdir": "${logdir}",
+			"mountns": "${mountns}",
+			"repeat": "${repeat}",
+			"test_list": $(array_to_json test_list),
+			"tests": $(array_to_json tests),
+			"verbose": "${verbose}",
+			"workdir": "${workdir}"
+		}
+	}
+	EOF
+
+    mv "${ETEST_JSON}.tmp" "${ETEST_JSON}"
+}
+
 create_summary()
 {
     create_vcs_info
+    pack_to_json VCS_INFO > "${ETEST_VCS}"
+
+    create_status_json
 
     {
         echo
@@ -68,46 +112,10 @@ create_summary()
             ecolor off
         fi
 
-        # Create a summary file with relevant statistics
-        if command_exists jq; then
-
-			jq . <<-EOF > ${ETEST_JSON}
-			{
-				"numTestsExecuted": "${NUM_TESTS_EXECUTED}",
-				"numTestsPassed": "${NUM_TESTS_PASSED}",
-				"numTestsFailed": "${NUM_TESTS_FAILED}",
-				"numTestsFlaky": "${NUM_TESTS_FLAKY}",
-				"testsPassed": $(associative_array_to_json_split TESTS_PASSED),
-				"testsFailed": $(associative_array_to_json_split TESTS_FAILED),
-				"testsFlaky": $(associative_array_to_json_split TESTS_FLAKY),
-				"runtime": "${RUNTIME} seconds",
-				"datetime": "$(etimestamp_rfc3339)",
-				"options": {
-					"clean": "${clean}",
-					"debug": "${debug}",
-					"delete": "${delete}",
-					"exclude": "${exclude}",
-					"failfast": "${failfast}",
-					"failures": "${failures}",
-					"filter": "${filter}",
-					"html": "${html}",
-					"logdir": "${logdir}",
-					"mountns": "${mountns}",
-					"repeat": "${repeat}",
-					"test_list": $(array_to_json test_list),
-					"tests": $(array_to_json tests),
-					"verbose": "${verbose}",
-                    "workdir": "${workdir}"
-				},
-				"vcs": $(pack_to_json VCS_INFO)
-			}
-			EOF
-
-            # Additionally display summary output to the terminal if requested
-            if [[ "${summary}" -eq 1 ]]; then
-                einfo "Summary"
-                jq --color-output . ${ETEST_JSON}
-            fi
+        # Display summary output to the terminal if requested
+        if [[ "${summary}" -eq 1 ]] && command_exists jq; then
+            einfo "Summary"
+            jq --color-output . ${ETEST_JSON}
         fi
 
     } |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
