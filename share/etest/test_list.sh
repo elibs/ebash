@@ -93,9 +93,9 @@ print_tests()
 {
     ebanner --uppercase "ETEST TESTS" OS exclude failfast filter repeat
 
-    for testname in "${TEST_FILES_TO_RUN[@]}"; do
-        einfo "${testname}"
-        echo "${TEST_FUNCTIONS_TO_RUN[$testname]:-}" | tr ' ' '\n'
+    for suite in "${TEST_FILES_TO_RUN[@]}"; do
+        einfo "${suite}"
+        echo "${TEST_FUNCTIONS_TO_RUN[$suite]:-}" | tr ' ' '\n'
     done
 }
 
@@ -117,7 +117,7 @@ print_tests_json_array()
         array_init tests "${entry}" " "
 
         echo "${indent}${indent}{"
-        echo "${indent}${indent}${indent}\"suite\": \"$(basename ${suite%.*}}\","
+        echo "${indent}${indent}${indent}\"suite\": \"$(basename ${suite%.*})\","
         echo "${indent}${indent}${indent}\"tests\": $(array_to_json tests)"
         echo -n "${indent}${indent}}"
     done

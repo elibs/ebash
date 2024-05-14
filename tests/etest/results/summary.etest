@@ -55,7 +55,7 @@ ETEST_results_summary_passed()
     assert_eq 5 "${numTestsPassed}"
     assert_eq 0 "${numTestsFailed}"
     assert_eq 0 "${numTestsFlaky}"
-    assert_eq "${DURATION} seconds" "${duration}"
+    assert_eq "${DURATION}s" "${duration}"
 
     etestmsg "Checking test suite results in json file"
     assert_eq '{"suite":["test1","test2","test3","test4","test5"]}' "${testsPassed[*]}"
@@ -98,7 +98,7 @@ ETEST_results_summary_failed()
     assert_eq 0 "${numTestsPassed}"
     assert_eq 5 "${numTestsFailed}"
     assert_eq 0 "${numTestsFlaky}"
-    assert_eq "${DURATION} seconds" "${duration}"
+    assert_eq "${DURATION}s" "${duration}"
 
     etestmsg "Checking test suite results in json file"
     assert_eq '{}' "${testsPassed[*]}"
@@ -142,7 +142,7 @@ ETEST_results_summary_mixed()
     assert_eq 3 "${numTestsPassed}"
     assert_eq 1 "${numTestsFailed}"
     assert_eq 1 "${numTestsFlaky}"
-    assert_eq "${DURATION} seconds" "${duration}"
+    assert_eq "${DURATION}s" "${duration}"
 
     etestmsg "Checking test suite results in json file"
     assert_eq '{"suite":["test1","test3","test5"]}' "${testsPassed[*]}"
