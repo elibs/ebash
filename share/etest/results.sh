@@ -65,9 +65,9 @@ create_status_json()
 	    "numTestsTotal": ${NUM_TESTS_TOTAL},
 	    "percent": ${PERCENT},
 	    "pids": $(array_to_json pids),
-	    "testsFailed": $(print_tests_json_array TESTS_FAILED),
-	    "testsFlaky": $(print_tests_json_array TESTS_FLAKY),
-	    "testsPassed": $(print_tests_json_array TESTS_PASSED)
+	    "testsFailed": $(print_tests_json_array TESTS_FAILED "    "),
+	    "testsFlaky": $(print_tests_json_array TESTS_FLAKY "    "),
+	    "testsPassed": $(print_tests_json_array TESTS_PASSED "    ")
 	}
 	EOF
 
