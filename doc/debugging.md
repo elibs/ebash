@@ -65,4 +65,4 @@ function name. The `etrace` functionality has a much higher overhead than does r
 be immensely helpful when you really need it.
 
 One caveat: you can't change the value of `ETRACE` on the fly. The value it had when you sourced `ebash` is the one that
-will affect the entire runtime of the script.
+will affect the entire duration of the script.

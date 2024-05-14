@@ -579,6 +579,12 @@ opt_parse_options()
                     # The value that will get assigned to this boolean option
                     local value=1
                     if [[ -n ${has_arg} ]] ; then
+                        if [[ "${opt_arg,,}" == @(t|true) ]]; then
+                            opt_arg=1
+                        elif [[ "${opt_arg,,}" == @(f|false) ]]; then
+                            opt_arg=0
+                        fi
+
                         value=${opt_arg}
                     fi
 

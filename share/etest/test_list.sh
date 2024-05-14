@@ -81,4 +81,57 @@ find_matching_tests()
             TEST_FILES_TO_RUN+=( "${testfile}" )
         fi
     done
+
+    # Compute total number of tests to run across all files
+    for fname in "${!TEST_FUNCTIONS_TO_RUN[@]}"; do
+        array_init fname_tests "${TEST_FUNCTIONS_TO_RUN[$fname]}"
+        increment NUM_TESTS_TOTAL "${#fname_tests[@]}"
+    done
+}
+
+print_tests()
+{
+    ebanner --uppercase "ETEST TESTS" OS exclude failfast filter repeat
+
+    for testname in "${TEST_FILES_TO_RUN[@]}"; do
+        einfo "${testname}"
+        echo "${TEST_FUNCTIONS_TO_RUN[$testname]:-}" | tr ' ' '\n'
+    done
+}
+
+print_tests_json_array()
+{
+    $(opt_parse \
+        "input   | Name of the associative array to convert to json array." \
+        "?indent | Amount of space to indent."                              \
+    )
+
+    echo "["
+
+    local first=1 suite tests
+    for suite in $(array_indexes_sort ${input}); do
+
+        [[ ${first} -eq 1 ]] && first=0 || echo ","
+
+        eval "entry=\${$input}[$suite]}"
+        array_init tests "${entry}" " "
+
+        echo "${indent}${indent}{"
+        echo "${indent}${indent}${indent}\"suite\": \"$(basename ${suite%.*}}\","
+        echo "${indent}${indent}${indent}\"tests\": $(array_to_json tests)"
+        echo -n "${indent}${indent}}"
+    done
+
+    echo ""
+    echo "${indent}]"
+}
+
+print_tests_json()
+{
+    echo "{"
+    echo "    \"exclude\": \"${exclude}\","
+    echo "    \"filter\": \"${filter}\","
+    echo -n "    \"suites\": "
+    print_tests_json_array TEST_FUNCTIONS_TO_RUN "    "
+    echo "}"
 }

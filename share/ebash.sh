@@ -101,7 +101,7 @@ for arg in "$@" ; do
     fi
 done
 
-# This function is used to create documentation for bash functions that can be queried at runtime. To avoid bloating
+# This function is used to create documentation for bash functions that can be queried at duration. To avoid bloating
 # the interpreter for this all the time, it is only performed when __EBASH_SAVE_DOC is set to 1.
 #
 # In order to create documentation for your command, do something like this near it:

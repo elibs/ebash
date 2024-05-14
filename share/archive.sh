@@ -27,7 +27,7 @@ written sector on an optical disc, including the optical disc file system. The n
 - **TAR**: A tar file is an archive file format that may or may not be compressed. The archive data sets created by tar
 contain various file system parameters, such as time stamps, ownership, file access permissions, and directory
 organization. Our archive_compress_program function is used to generalize our use of tar so that compression format is
-handled seamlessly based on the file extension in a way which picks the best compression program at runtime.
+handled seamlessly based on the file extension in a way which picks the best compression program at duration.
 
 - **CPIO**: "cpio is a general file archiver utility and its associated file format. It is primarily installed on Unix-like
 computer operating systems. The software utility was originally intended as a tape archiving program as part of the

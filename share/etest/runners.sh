@@ -23,8 +23,8 @@ run_single_test()
 
     local rc=0
 
-    # Record start time of the test and at the end of the test we'll update the total runtime for the test. This will
-    # be total runtime including any suite setup, test setup, test teardown and suite teardown.
+    # Record start time of the test and at the end of the test we'll update the total duration for the test. This will
+    # be total duration including any suite setup, test setup, test teardown and suite teardown.
     local start_time="${SECONDS}"
 
     local display_testname=${testname}
@@ -217,8 +217,8 @@ run_single_test()
         $(tryrc -r=teardown_rc teardown)
     fi
 
-    # Finally record the total runtime of this test
-    TESTS_RUNTIME[${testname}]=$(( ${SECONDS} - ${start_time} ))
+    # Finally record the total duration of this test
+    TESTS_DURATION[${testname}]=$(( ${SECONDS} - ${start_time} ))
 
     # NOTE: If failfast is enabled don't DIE here just log the error for informational purposes and return.
     # etest already knows how to detect and report errors.
@@ -337,7 +337,7 @@ __run_all_tests_serially()
              die "Failure encountered and failfast=1" &>${ETEST_OUT}
         fi
 
-        SUITE_RUNTIME[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
+        SUITE_DURATION[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
     done
 }
 
@@ -476,8 +476,8 @@ __process_completed_jobs()
         array_remove etest_jobs_running ${pid}
 
         # Update global stats
-        TESTS_RUNTIME[${suite}]=${runtime}
-        SUITE_RUNTIME[${suite}]=$(( ${SUITE_RUNTIME[${suite}]:-0} + ${runtime} ))
+        TESTS_DURATION[${suite}]=${duration}
+        SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
         increment NUM_TESTS_EXECUTED ${num_tests_executed}
         increment NUM_TESTS_PASSED   ${num_tests_passed}
         increment NUM_TESTS_FAILED   ${num_tests_failed}
@@ -537,7 +537,7 @@ __spawn_new_job()
 
         # Capture suite name and start time.
         local suite=""
-        local runtime="" start_time=${SECONDS}
+        local duration="" start_time=${SECONDS}
 
         # Run the correct test runner depending on the type of file.
         if [[ "${testfile}" =~ \.etest$ ]]; then
@@ -554,7 +554,7 @@ __spawn_new_job()
             jobpath="${jobpath}"                       \
             job=$(basename "${jobpath}")               \
             rc="${NUM_TESTS_FAILED}"                   \
-            runtime=$(( ${SECONDS} - ${start_time} ))  \
+            duration=$(( ${SECONDS} - ${start_time} ))  \
             suite="${suite}"                           \
             testfile="${testfile}"                     \
             num_tests_passed="${NUM_TESTS_PASSED}"     \

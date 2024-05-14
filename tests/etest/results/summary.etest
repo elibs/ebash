@@ -32,7 +32,7 @@ ETEST_results_summary_passed()
     NUM_TESTS_PASSED=5 TESTS_PASSED=( [suite]="test1 test2 test3 test4 test5" )
     NUM_TESTS_FAILED=0 TESTS_FAILED=()
     NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
-    RUNTIME="${SECONDS}"
+    DURATION="${SECONDS}"
 
     etestmsg "Calling create_summary"
     create_summary
@@ -44,7 +44,7 @@ ETEST_results_summary_passed()
     [[ -s "${ETEST_JSON}" ]]
 
     etestmsg "Checking log file"
-    grep -q "Finished testing $(pack_get VCS_INFO info). 5/5 tests passed in ${RUNTIME} seconds." "${ETEST_LOG}"
+    grep -q "Finished testing $(pack_get VCS_INFO info). 5/5 tests passed in ${DURATION} seconds." "${ETEST_LOG}"
     assert_false grep "FAILED TESTS:" "${ETEST_LOG}"
     assert_false grep "FLAKY TESTS:"  "${ETEST_LOG}"
 
@@ -55,7 +55,7 @@ ETEST_results_summary_passed()
     assert_eq 5 "${numTestsPassed}"
     assert_eq 0 "${numTestsFailed}"
     assert_eq 0 "${numTestsFlaky}"
-    assert_eq "${RUNTIME} seconds" "${runtime}"
+    assert_eq "${DURATION} seconds" "${duration}"
 
     etestmsg "Checking test suite results in json file"
     assert_eq '{"suite":["test1","test2","test3","test4","test5"]}' "${testsPassed[*]}"
@@ -69,7 +69,7 @@ ETEST_results_summary_failed()
     NUM_TESTS_PASSED=0 TESTS_PASSED=()
     NUM_TESTS_FAILED=5 TESTS_FAILED=( [suite]="test1 test2 test3 test4 test5" )
     NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
-    RUNTIME="${SECONDS}"
+    DURATION="${SECONDS}"
 
     etestmsg "Calling create_summary"
     create_summary
@@ -84,7 +84,7 @@ ETEST_results_summary_failed()
     noansi "${ETEST_LOG}"
     cat "${ETEST_LOG}" | edebug
 
-    grep -q "Finished testing $(pack_get VCS_INFO info). 0/5 tests passed in ${RUNTIME} seconds." "${ETEST_LOG}"
+    grep -q "Finished testing $(pack_get VCS_INFO info). 0/5 tests passed in ${DURATION} seconds." "${ETEST_LOG}"
 
     grep -Poz 'FAILED TESTS:\n\s*test1\n\s*test2\n\s*test3\n\s*test4\n\s*test5' "${ETEST_LOG}"
     echo
@@ -98,7 +98,7 @@ ETEST_results_summary_failed()
     assert_eq 0 "${numTestsPassed}"
     assert_eq 5 "${numTestsFailed}"
     assert_eq 0 "${numTestsFlaky}"
-    assert_eq "${RUNTIME} seconds" "${runtime}"
+    assert_eq "${DURATION} seconds" "${duration}"
 
     etestmsg "Checking test suite results in json file"
     assert_eq '{}' "${testsPassed[*]}"
@@ -112,7 +112,7 @@ ETEST_results_summary_mixed()
     NUM_TESTS_PASSED=3 TESTS_PASSED=( [suite]="test1 test3 test5" )
     NUM_TESTS_FAILED=1 TESTS_FAILED=( [suite]="test2" )
     NUM_TESTS_FLAKY=1  TESTS_FLAKY=( [suite]="test4" )
-    RUNTIME="${SECONDS}"
+    DURATION="${SECONDS}"
 
     etestmsg "Calling create_summary"
     create_summary
@@ -127,7 +127,7 @@ ETEST_results_summary_mixed()
     noansi "${ETEST_LOG}"
     cat "${ETEST_LOG}" | edebug
 
-    grep -q "Finished testing $(pack_get VCS_INFO info). 3/5 tests passed in ${RUNTIME} seconds." "${ETEST_LOG}"
+    grep -q "Finished testing $(pack_get VCS_INFO info). 3/5 tests passed in ${DURATION} seconds." "${ETEST_LOG}"
 
     grep -Poz 'FAILED TESTS:\n\s*test2' "${ETEST_LOG}"
     echo
@@ -142,7 +142,7 @@ ETEST_results_summary_mixed()
     assert_eq 3 "${numTestsPassed}"
     assert_eq 1 "${numTestsFailed}"
     assert_eq 1 "${numTestsFlaky}"
-    assert_eq "${RUNTIME} seconds" "${runtime}"
+    assert_eq "${DURATION} seconds" "${duration}"
 
     etestmsg "Checking test suite results in json file"
     assert_eq '{"suite":["test1","test3","test5"]}' "${testsPassed[*]}"
