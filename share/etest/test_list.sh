@@ -113,9 +113,8 @@ print_tests_json_array()
 
         [[ ${first} -eq 1 ]] && first=0 || echo ","
 
-        eval "entry=\${$input[$suite]:-}"
+        eval "entry=\${${input}[$suite]:-}"
         array_init tests "${entry}" " "
-
         echo "${indent}${indent}{"
         echo "${indent}${indent}${indent}\"suite\": \"$(basename ${suite%.*})\","
         echo "${indent}${indent}${indent}\"tests\": $(array_to_json tests)"
