@@ -125,7 +125,7 @@ fi
 
 # Create logfile
 elogrotate "${ETEST_JSON}"
-elogrotate "${ETEST_OPTIONS_JSON}"
+elogrotate "${ETEST_OPTIONS}"
 elogrotate "${ETEST_XML}"
 elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 create_status_json
