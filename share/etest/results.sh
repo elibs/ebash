@@ -37,7 +37,7 @@ create_vcs_info()
 
 create_status_json()
 {
-    RUNTIME=$(( SECONDS - START_TIME ))
+    DURATION=$(( SECONDS - START_TIME ))
 
     # Compute percent complete handling corner cases with zero tests to avoid division by zero
     if [[ "${NUM_TESTS_TOTAL}" -eq 0 ]]; then
@@ -46,40 +46,58 @@ create_status_json()
         PERCENT=$((200*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} % 2 + 100*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL}))
     fi
 
+    local pids=()
+    if cgroup_supported; then
+        pids=( $(cgroup_pids -r ${ETEST_CGROUP}) )
+    else
+        pids=( $(process_tree) )
+    fi
+
 	cat <<-EOF > ${ETEST_JSON}.tmp
 	{
-		"numTestsTotal": ${NUM_TESTS_TOTAL},
-		"numTestsExecuted": ${NUM_TESTS_EXECUTED},
-		"numTestsPassed": ${NUM_TESTS_PASSED},
-		"numTestsFailed": ${NUM_TESTS_FAILED},
-		"numTestsFlaky": ${NUM_TESTS_FLAKY},
-		"testsPassed": $(associative_array_to_json_split TESTS_PASSED),
-		"testsFailed": $(associative_array_to_json_split TESTS_FAILED),
-		"testsFlaky": $(associative_array_to_json_split TESTS_FLAKY),
-		"percent": ${PERCENT},
-		"runtime": "${RUNTIME} seconds",
-		"datetime": "$(etimestamp_rfc3339)",
-		"options": {
-			"clean": "${clean}",
-			"debug": "${debug}",
-			"delete": "${delete}",
-			"exclude": "${exclude}",
-			"failfast": "${failfast}",
-			"failures": "${failures}",
-			"filter": "${filter}",
-			"html": "${html}",
-			"logdir": "${logdir}",
-			"mountns": "${mountns}",
-			"repeat": "${repeat}",
-			"test_list": $(array_to_json test_list),
-			"tests": $(array_to_json tests),
-			"verbose": "${verbose}",
-			"workdir": "${workdir}"
-		}
+	    "cgroup": "${ETEST_CGROUP}",
+	    "datetime": "$(etimestamp_rfc3339)",
+	    "duration": "${DURATION}s",
+	    "numTestsExecuted": ${NUM_TESTS_EXECUTED},
+	    "numTestsFailed": ${NUM_TESTS_FAILED},
+	    "numTestsFlaky": ${NUM_TESTS_FLAKY},
+	    "numTestsPassed": ${NUM_TESTS_PASSED},
+	    "numTestsTotal": ${NUM_TESTS_TOTAL},
+	    "percent": ${PERCENT},
+	    "pids": $(array_to_json pids),
+	    "testsFailed": $(print_tests_json_array TESTS_FAILED "    "),
+	    "testsFlaky": $(print_tests_json_array TESTS_FLAKY "    "),
+	    "testsPassed": $(print_tests_json_array TESTS_PASSED "    ")
 	}
 	EOF
 
     mv "${ETEST_JSON}.tmp" "${ETEST_JSON}"
+}
+
+create_options_json()
+{
+	cat <<-EOF > ${ETEST_OPTIONS}.tmp
+	{
+	    "clean": "${clean}",
+	    "debug": "${debug}",
+	    "delete": "${delete}",
+	    "exclude": "${exclude}",
+	    "failfast": "${failfast}",
+	    "failures": "${failures}",
+	    "filter": "${filter}",
+	    "html": "${html}",
+	    "logdir": "${logdir}",
+	    "mountns": "${mountns}",
+	    "repeat": "${repeat}",
+	    "silent": "${silent}",
+	    "test_list": $(array_to_json test_list),
+	    "tests": $(array_to_json tests),
+	    "verbose": "${verbose}",
+	    "workdir": "${workdir}"
+	}
+	EOF
+
+    mv "${ETEST_OPTIONS}.tmp" "${ETEST_OPTIONS}"
 }
 
 create_summary()
@@ -87,13 +105,14 @@ create_summary()
     create_vcs_info
     pack_to_json VCS_INFO > "${ETEST_VCS}"
 
+    create_options_json
     create_status_json
 
     {
         echo
         message="Finished testing $(pack_get VCS_INFO info)."
         message+=" $(( ${NUM_TESTS_PASSED} ))/${NUM_TESTS_EXECUTED} tests passed"
-        message+=" in ${RUNTIME} seconds."
+        message+=" in ${DURATION} seconds."
 
         if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
             eerror "${message}"
@@ -135,7 +154,7 @@ create_xml()
             "$(etimestamp_rfc3339)" \
             "${NUM_TESTS_EXECUTED}" \
             "${NUM_TESTS_FAILED}"   \
-            "${RUNTIME}"
+            "${DURATION}"
 
         for suite in "${TEST_SUITES[@]}"; do
 
@@ -148,21 +167,21 @@ create_xml()
                 "${suite}"                                                      \
                 $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} ))        \
                 ${#testcases_failed[@]}                                         \
-                ${SUITE_RUNTIME[$suite]}
+                ${SUITE_DURATION[$suite]}
 
             local xml_lines=()
             local name
 
             # Add all passing tests
             for name in ${testcases_passed[*]:-}; do
-                xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s"></testcase>\n' "${suite}" "${name}" "${TESTS_RUNTIME[$name]}")" )
+                xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s"></testcase>\n' "${suite}" "${name}" "${TESTS_DURATION[$name]}")" )
             done
 
             # Add all failing tests
             for name in ${testcases_failed[*]:-}; do
                 local failure_msg
                 failure_msg="$(printf '<failure message="%s:%s failed" type="ERROR"></failure>' "${suite}" "${name}")"
-                xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s">%s</testcase>\n' "${suite}" "${name}" "${TESTS_RUNTIME[$name]}" "${failure_msg}")" )
+                xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s">%s</testcase>\n' "${suite}" "${name}" "${TESTS_DURATION[$name]}" "${failure_msg}")" )
             done
 
             array_sort xml_lines

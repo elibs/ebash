@@ -132,7 +132,7 @@ ETEST_options_config_file_prefer_newer_workdir()
 }
 
 # Runtime options override both config file settings
-ETEST_options_config_file_prefer_runtime_options()
+ETEST_options_config_file_prefer_duration_options()
 {
     etestmsg "Creating config file"
 	cat >.ebash <<- 'END'

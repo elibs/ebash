@@ -51,6 +51,22 @@ if [[ ${clean} -eq 1 ]]; then
     exit 0
 fi
 
+# If destroy is requested then we kill all running etest instances system-wide.
+#
+# We nominally do this using our handy cgroup containerization if available.
+# Otherwise we fall back to a more crude `pkill`.
+if [[ ${destroy} -eq 1 ]]; then
+
+    eerror "Destroying all etest instances"
+
+    if cgroup_exists "${ETEST_CGROUP_BASE}"; then
+        cgroup_kill --signal=SIGKILL ${ETEST_CGROUP_BASE}
+        cgroup_destroy --recursive ${ETEST_CGROUP_BASE}
+    else
+        pkill -9 -f etest
+    fi
+fi
+
 # Global variables for state tracking
 declare -ag TEST_FILES_TO_RUN
 declare -Ag TEST_FUNCTIONS_TO_RUN
@@ -58,8 +74,8 @@ declare -ag TEST_SUITES=()
 declare -Ag TESTS_PASSED=()
 declare -Ag TESTS_FAILED=()
 declare -Ag TESTS_FLAKY=()
-declare -Ag SUITE_RUNTIME=()
-declare -Ag TESTS_RUNTIME=()
+declare -Ag SUITE_DURATION=()
+declare -Ag TESTS_DURATION=()
 declare -g  NUM_TESTS_EXECUTED=0
 declare -g  NUM_TESTS_PASSED=0
 declare -g  NUM_TESTS_FAILED=0
@@ -71,32 +87,19 @@ declare -g  PERCENT=0
 create_test_list
 find_matching_tests
 
-# Compute total number of tests to run across all files
-for fname in "${!TEST_FUNCTIONS_TO_RUN[@]}"; do
-    array_init fname_tests "${TEST_FUNCTIONS_TO_RUN[$fname]}"
-    increment NUM_TESTS_TOTAL "${#fname_tests[@]}"
-done
-
 # If we are in print_only mode only report what we found and exit
 if [[ ${print_only} -eq 1 ]]; then
-
-    ebanner --uppercase "ETEST TESTS" OS exclude failfast filter repeat
-
-    for testname in "${TEST_FILES_TO_RUN[@]}"; do
-        einfo "${testname}"
-        echo "${TEST_FUNCTIONS_TO_RUN[$testname]:-}" | tr ' ' '\n'
-    done
-
+    print_tests
     exit 0
 fi
 
 # If we are in print_json mode only report what we found in JSON and exit
 if [[ ${print_json} -eq 1 ]]; then
-    associative_array_to_json_split TEST_FUNCTIONS_TO_RUN
+    print_tests_json
     exit 0
 fi
 
-# If total timeout is requested thn create a background process that will sleep that amount of time and then kill our
+# If total timeout is requested then create a background process that will sleep that amount of time and then kill our
 # main etest process.
 if [[ -n "${total_timeout}" && "${total_timeout}" != "infinity" ]]; then
     (
@@ -122,8 +125,10 @@ fi
 
 # Create logfile
 elogrotate "${ETEST_JSON}"
+elogrotate "${ETEST_OPTIONS}"
 elogrotate "${ETEST_XML}"
 elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
+create_status_json
 
 # Run all tests the requested number of times
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
@@ -132,7 +137,7 @@ for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
 done
 
 # Collect and report results
-RUNTIME=$(( SECONDS - START_TIME ))
+DURATION=$(( SECONDS - START_TIME ))
 create_summary
 create_xml
 
