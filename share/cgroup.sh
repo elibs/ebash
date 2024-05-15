@@ -300,7 +300,11 @@ cgroup_pids()
     fi
 
     edebug "$(lval found_pids ignorepids ignore_regex)"
-    echo "${found_pids[@]:-}"
+
+    if array_not_empty found_pids; then
+        echo "${found_pids[@]:-}"
+    fi
+
     return "${rc}"
 }
 
