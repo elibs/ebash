@@ -48,14 +48,14 @@ create_status_json()
 
     local pids=()
     if cgroup_supported; then
-        pids=( $(cgroup_pids -r ${ETEST_CGROUP}) )
+        pids=( $(cgroup_pids -r ${ETEST_CGROUP_BASE}) )
     else
         pids=( $(process_tree) )
     fi
 
 	cat <<-EOF > ${ETEST_JSON}.tmp
 	{
-	    "cgroup": "${ETEST_CGROUP}",
+	    "cgroup": "${ETEST_CGROUP_BASE}",
 	    "datetime": "$(etimestamp_rfc3339)",
 	    "duration": "${DURATION}s",
 	    "numTestsExecuted": ${NUM_TESTS_EXECUTED},
