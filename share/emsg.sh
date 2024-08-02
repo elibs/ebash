@@ -776,11 +776,11 @@ eerror_stacktrace()
     fi
 
     # Figure out the longest function name
-    local longest=0 line="" func="" file=""
+    local len=0 longest=0 line="" func="" file=""
     for frame in "${frames[@]}"; do
         line=$(echo ${frame} | awk '{print $1}')
         file=$(basename $(echo ${frame} | awk '{print $3}'))
-        local len=$(( ${#file} + ${#line} + 1 ))
+        len=$(( ${#file} + ${#line} + 1 ))
         (( len > longest )) && longest=$len
     done
 
