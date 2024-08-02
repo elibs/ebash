@@ -775,7 +775,15 @@ eerror_stacktrace()
         return 0
     fi
 
-    local line="" func="" file=""
+    # Figure out the longest function name
+    local longest=0 line="" func="" file=""
+    for frame in "${frames[@]}"; do
+        line=$(echo ${frame} | awk '{print $1}')
+        file=$(basename $(echo ${frame} | awk '{print $3}'))
+        local len=$(( ${#file} + ${#line} + 1 ))
+        (( len > longest )) && longest=$len
+    done
+
     for frame in "${frames[@]}"; do
         line=$(echo ${frame} | awk '{print $1}')
         func=$(echo ${frame} | awk '{print $2}')
@@ -783,7 +791,8 @@ eerror_stacktrace()
 
         [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
 
-        printf "$(ecolor ${color})   :: %-20s | ${func}$(ecolor none)\n" "${file}:${line}" >&2
+        pad=$((longest-${#file}-${#line}))
+        printf "$(ecolor ${color})   :: %s%${pad}s | ${func}$(ecolor none)\n" "${file}:${line}" " " >&2
     done
 }
 
