@@ -117,7 +117,10 @@ run_single_test()
             # Run suite setup function if provided and we're on the first test.
             if is_function suite_setup && [[ ${testidx} -eq 0 ]]; then
                 etestmsg "Running suite_setup $(lval testidx testidx_total)"
-                suite_setup
+                (
+                    cgroup_move "${ETEST_CGROUP_BASE}" ${BASHPID}
+                    suite_setup
+                )
             fi
 
             # Register __suite_teardown function as a trap callback and trigger it when the test receives an interrupt.
