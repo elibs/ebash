@@ -118,7 +118,9 @@ run_single_test()
             if is_function suite_setup && [[ ${testidx} -eq 0 ]]; then
                 etestmsg "Running suite_setup $(lval testidx testidx_total)"
                 (
-                    cgroup_move "${ETEST_CGROUP_BASE}" ${BASHPID}
+                    if cgroup_supported; then
+                        cgroup_move "${ETEST_CGROUP_BASE}" ${BASHPID}
+                    fi
                     suite_setup
                 )
             fi
