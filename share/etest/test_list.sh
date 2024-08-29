@@ -45,8 +45,8 @@ find_matching_tests()
 {
     # Expand tests to find all standalone executable scripts as well as any *.etest files.
     local all_tests=(
-        $(find "${tests[@]}" \( -type f -or -type l \) -executable -not -name "*.etest" | sort || true)
-        $(find "${tests[@]}" -type f -name "*.etest" | sort || true)
+        $(find -L "${tests[@]}" \( -type f -or -type l \) -executable -not -name "*.etest" | sort || true)
+        $(find -L "${tests[@]}" -type f -name "*.etest" | sort || true)
     )
 
     # Get a list of tests we should actually run.
