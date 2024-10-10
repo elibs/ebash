@@ -19,6 +19,12 @@
 #
 : ${EBASH_DISTRO:=}
 
+# EBASH_OS_PRETTY is used to allow the user to customize the pretty-printed version of the OS. This is not used within
+# our code for anything as this is merely used for display purposes. Allowing the user to customize how this presented
+# allows them to make it display the way they want. It also allows easier integration into custom Linux OS variants
+# where they want the custom name displayed instead of the underlying base OS.
+: ${EBASH_OS_PRETTY:=}
+
 opt_usage edistro <<'END'
 edistro is a generic way to figure out what "distro" we are running on. This is largely only a Linux concept so on MacOS
 this produces "darwin" as per `uname` output. Otherwise, Linux generically supports getting the Distro by looking in
@@ -169,9 +175,19 @@ Gentoo Linux 2.7
 Alpine Linux 3.11
 Darwin 10.15.7
 ```
+
+This can be customized using EBASH_OS_PRETTY environment variable to give the caller complete control over how this will
+be displayed.
+
 EOF
 os_pretty_name()
 {
+    # If a pretty string is defined then just return that.
+    if [[ -n "${EBASH_OS_PRETTY}" ]]; then
+        echo "${EBASH_OS_PRETTY}"
+        return 0
+    fi
+
     if os darwin; then
         echo "Darwin $(os_release)"
     else
