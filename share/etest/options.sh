@@ -116,7 +116,7 @@ fi
 #   2) we're on linux
 #   3) we're not inside docker (because docker requires us to be privileged, and because the benefit is no longer there
 #      -- docker already protects us inside a mount namespace)
-if [[ ${mountns} -eq 1 ]] && os linux && ! running_in_docker; then
+if [[ ${mountns} -eq 1 ]] && os linux && ! running_in_container; then
     reexec --sudo --mountns
 fi
 

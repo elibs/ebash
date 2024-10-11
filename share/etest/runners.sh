@@ -296,8 +296,8 @@ run_etest_file()
 run_all_tests()
 {
     OS="$(os_pretty_name)"
-    if running_in_docker; then
-        OS+=" (docker)"
+    if running_in_container; then
+        OS+=" (container)"
     else
         OS+=" (native)"
     fi

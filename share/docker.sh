@@ -20,6 +20,14 @@ running_in_docker()
     [[ -f "/.dockerenv" ]] || grep -qw docker /proc/$$/cgroup 2>/dev/null
 }
 
+opt_usage running_in_container <<'END'
+Check if we are running inside a container or not.
+END
+running_in_container()
+{
+    [[ -f "/.dockerenv" || -f "/run/.containerenv" ]] || grep -E -qw 'docker|podman' /proc/$$/cgroup 2>/dev/null
+}
+
 EBASH_DOCKER_REGISTRY="https://index.docker.io/v1/"
 : ${DOCKER_REGISTRY:=${EBASH_DOCKER_REGISTRY}}
 

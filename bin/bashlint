@@ -95,8 +95,8 @@ if [[ ${quiet} -eq 1 ]]; then
 fi
 
 OS="$(os_pretty_name)"
-if running_in_docker; then
-    OS+=" (docker)"
+if running_in_container; then
+    OS+=" (container)"
 else
     OS+=" (native)"
 fi
