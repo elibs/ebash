@@ -181,6 +181,11 @@ ETEST_OPTIONS="${artifact_name}_options.json"
 ETEST_VCS="${artifact_name}.vcs.json"
 ETEST_XML="${artifact_name}.xml"
 
+# Do not allow verbose output with --jobs because all the output gets interleaved
+if [[ ${jobs} -gt 0 && ${verbose} -gt 0 ]]; then
+    die "Cannot use --verbose and --jobs at the same time"
+fi
+
 # Setup redirection for "etest" and actual "test" output
 if [[ ${silent} -eq 1 ]]; then
     ETEST_OUT="/dev/null"

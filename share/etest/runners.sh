@@ -316,7 +316,6 @@ run_all_tests()
     if [[ ${jobs} -gt 0 ]]; then
         elogfile_kill --all
         __run_all_tests_parallel
-        cat "${logdir}"/jobs/*/output.log > "${ETEST_LOG}"
     else
         __run_all_tests_serially
     fi
@@ -505,8 +504,11 @@ __process_completed_jobs()
             pack_to_json info | jq --color-output --sort-keys .
         fi
 
+        # Append the output of this completed job to our LOG file
+        cat "${path}/output.log" >> "${ETEST_LOG}"
+
         if [[ ${jobs_progress} -eq 0 ]]; then
-            cat "${path}/etest.out"  >> "${ETEST_OUT}"
+            cat "${path}/etest.out" >> "${ETEST_OUT}"
         fi
 
     done
