@@ -103,8 +103,18 @@ $(opt_parse \
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
+# Default values we will override later. These are needed so if we get an assert failure or die failure in arg
+# validation they don't fail because of undefined variables.
+ETEST_OUT="/dev/null"
+TEST_OUT="/dev/null"
+
 # Verify --jobs is a valid integer.
 assert_int_ge "${jobs}" 0 "jobs must be an integer value greater than or equal to 0"
+
+# Do not allow verbose output with --jobs because all the output gets interleaved
+if [[ "${jobs}" != 0 && "${verbose}" != 0 ]]; then
+    die "Cannot use --verbose and --jobs at the same time"
+fi
 
 # Automatically sudo if requested
 if [[ ${sudo} -eq 1 ]]; then
@@ -180,11 +190,6 @@ ETEST_JSON="${artifact_name}.json"
 ETEST_OPTIONS="${artifact_name}_options.json"
 ETEST_VCS="${artifact_name}.vcs.json"
 ETEST_XML="${artifact_name}.xml"
-
-# Do not allow verbose output with --jobs because all the output gets interleaved
-if [[ ${jobs} -gt 0 && ${verbose} -gt 0 ]]; then
-    die "Cannot use --verbose and --jobs at the same time"
-fi
 
 # Setup redirection for "etest" and actual "test" output
 if [[ ${silent} -eq 1 ]]; then

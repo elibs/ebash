@@ -26,7 +26,7 @@ ETEST_options_jobs_non_number()
         }
 
         etestmsg "Calling 'etest --jobs=A'"
-        set -- --jobs=A
+        set -- --jobs="A"
         source "${EBASH}/etest/options.sh"
     )
 
@@ -52,7 +52,7 @@ ETEST_options_jobs_non_integer()
         }
 
         etestmsg "Calling 'etest --jobs=0.1'"
-        set -- --jobs=A
+        set -- --jobs=0.1
         source "${EBASH}/etest/options.sh"
     )
 
