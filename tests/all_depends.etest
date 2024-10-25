@@ -101,6 +101,8 @@ ETEST_recommends()
 
 ETEST_install_go()
 {
+    $(skip_if os_distro alpine)
+
     local commands=(
         "go"
         "gofmt"
@@ -114,6 +116,8 @@ ETEST_install_go()
 
 ETEST_install_nodejs()
 {
+    $(skip_if os_distro alpine)
+
     local commands=(
         "node"
         "npm"
@@ -128,7 +132,7 @@ ETEST_install_nodejs()
 
 ETEST_install_nomad()
 {
-    $(skip_if os_distro arch)
+    $(skip_if os_distro alpine arch)
 
     local commands=(
         "nomad"
