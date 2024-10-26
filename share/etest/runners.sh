@@ -59,6 +59,7 @@ run_single_test()
     echo -n "${einfo_message}" &>>${ETEST_OUT}
     einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
 
+    decrement NUM_TESTS_QUEUED
     increment NUM_TESTS_EXECUTED
 
     local suite
@@ -313,10 +314,13 @@ run_all_tests()
         ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat=REPEAT_STRING timeout total_timeout verbose &>>${ETEST_OUT}
     fi
 
+    NUM_TESTS_QUEUED=${NUM_TESTS_TOTAL}
+
     if [[ ${jobs} -gt 0 ]]; then
         elogfile_kill --all
         __run_all_tests_parallel
     else
+        NUM_TESTS_RUNNING=1
         __run_all_tests_serially
     fi
 }
@@ -355,9 +359,6 @@ __run_all_tests_parallel()
 {
     local etest_jobs_running=()
     local etest_jobs_finished=()
-    local etest_jobs_passed=()
-    local etest_jobs_failed=()
-    local etest_jobs_flaky=()
     local etest_jobs_queued=( ${TEST_FILES_TO_RUN[@]} )
     local etest_job_total=${#TEST_FILES_TO_RUN[@]}
     local etest_job_count=0
@@ -373,7 +374,7 @@ __run_all_tests_parallel()
         eprogress                           \
             --style einfos                  \
             --file "${etest_progress_file}" \
-            "Total: $(ecolor bold)${etest_job_total}$(ecolor reset)" &>> ${ETEST_OUT}
+            "Total: $(ecolor bold)${NUM_TESTS_TOTAL}$(ecolor reset)" &>> ${ETEST_OUT}
 
         # NOTE: We must explicitly empty out __EBASH_EPROGRESS_PIDS otherwise subsequent tests we run may kill this
         # eprogress and we want it to continue running. So we'll manually handle that here.
@@ -388,7 +389,7 @@ __run_all_tests_parallel()
 
         __process_completed_jobs
 
-        if [[ ${failfast} -eq 1 && ${#etest_jobs_failed[@]} -gt 0 ]] ; then
+        if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
             eerror "Failure encountered and failfast=1" &>> ${ETEST_OUT}
             break
         fi
@@ -406,7 +407,7 @@ __run_all_tests_parallel()
     done
 
     array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
-    eprogress_kill --rc=${#etest_jobs_failed[@]} &>> ${ETEST_OUT}
+    eprogress_kill --rc=${NUM_TESTS_FAILED} &>> ${ETEST_OUT}
 
     if [[ ${jobs_progress} -eq 1 ]]; then
         __display_results_table &>> ${ETEST_OUT}
@@ -420,22 +421,25 @@ __update_jobs_progress_file()
     local tmpfile="${etest_progress_file}.tmp"
 
     {
-        echo -n "   Queued: $(ecolor dim)$(( ${#etest_jobs_queued[@]} - ${etest_job_count} ))"
+        echo -n "   Queued: $(ecolor dim)${NUM_TESTS_QUEUED}"
         ecolor reset
 
-        echo -n "   Running: $(ecolor bold)${#etest_jobs_running[@]}"
+        echo -n "   Running: $(ecolor bold)${NUM_TESTS_RUNNING}"
         ecolor reset
 
-        echo -n "   Passed: $(ecolor bold green)${#etest_jobs_passed[@]}"
+        echo -n "   Percent: $(ecolor bold)${PERCENT}%"
         ecolor reset
 
-        if [[ ${#etest_jobs_failed[@]} -gt 0 ]]; then
-            echo -n "   Failed: $(ecolor bold red)${#etest_jobs_failed[@]}"
+        echo -n "   Passed: $(ecolor bold green)${NUM_TESTS_PASSED}"
+        ecolor reset
+
+        if [[ "${NUM_TESTS_FAILED}" -gt 0 ]]; then
+            echo -n "   Failed: $(ecolor bold red)${NUM_TESTS_FAILED}"
             ecolor reset
         fi
 
-        if [[ ${#etest_jobs_flaky[@]} -gt 0 ]]; then
-            echo -n "   Flaky: $(ecolor bold yellow)${#etest_jobs_flaky[@]}"
+        if [[ "${NUM_TESTS_FLAKY}" -gt 0 ]]; then
+            echo -n "   Flaky: $(ecolor bold yellow)${NUM_TESTS_FLAKY}"
             ecolor reset
         fi
 
@@ -469,13 +473,7 @@ __process_completed_jobs()
         pack_load info "${path}/info.pack"
         $(pack_import info)
 
-        # Record it as a passing or failing job
-        if [[ ${rc} -eq 0 ]]; then
-            etest_jobs_passed+=( ${pid} )
-        else
-            etest_jobs_failed+=( ${pid} )
-        fi
-
+        NUM_TESTS_RUNNING=${#etest_jobs_running[@]}
         etest_jobs_finished+=( ${pid} )
         array_remove etest_jobs_running ${pid}
 
@@ -486,6 +484,7 @@ __process_completed_jobs()
         increment NUM_TESTS_PASSED   ${num_tests_passed}
         increment NUM_TESTS_FAILED   ${num_tests_failed}
         increment NUM_TESTS_FLAKY    ${num_tests_flaky}
+        NUM_TESTS_QUEUED=$(( NUM_TESTS_TOTAL - NUM_TESTS_EXECUTED - NUM_TESTS_RUNNING ))
 
         # Update list of tests
         array_add TESTS_PASSED "${tests_passed}"

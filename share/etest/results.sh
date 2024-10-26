@@ -58,6 +58,8 @@ create_status_json()
 	    "cgroup": "${ETEST_CGROUP_BASE}",
 	    "datetime": "$(etimestamp_rfc3339)",
 	    "duration": "${DURATION}s",
+	    "numTestsQueued": ${NUM_TESTS_QUEUED},
+	    "numTestsRunning": ${NUM_TESTS_RUNNING},
 	    "numTestsExecuted": ${NUM_TESTS_EXECUTED},
 	    "numTestsFailed": ${NUM_TESTS_FAILED},
 	    "numTestsFlaky": ${NUM_TESTS_FLAKY},
