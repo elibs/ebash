@@ -134,7 +134,9 @@ if [[ ${jobs} -eq 0 ]]; then
 else
     elogfile --rotate_count=10 --tail=0 /dev/null
 fi
+
 create_status_json
+create_options_json
 
 # Run all tests the requested number of times
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do

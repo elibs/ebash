@@ -107,7 +107,6 @@ create_summary()
     create_vcs_info
     pack_to_json VCS_INFO > "${ETEST_VCS}"
 
-    create_options_json
     create_status_json
 
     {
