@@ -88,6 +88,7 @@ create_options_json()
 	    "failures": "${failures}",
 	    "filter": "${filter}",
 	    "html": "${html}",
+	    "jobs": "${jobs}",
 	    "logdir": "${logdir}",
 	    "mountns": "${mountns}",
 	    "repeat": "${repeat}",
