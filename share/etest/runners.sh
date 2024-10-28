@@ -59,8 +59,11 @@ run_single_test()
     echo -n "${einfo_message}" &>>${ETEST_OUT}
     einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
 
-    decrement NUM_TESTS_QUEUED
     increment NUM_TESTS_EXECUTED
+    decrement NUM_TESTS_QUEUED
+    if [[ ${NUM_TESTS_QUEUED} -lt 0 ]]; then
+        NUM_TESTS_QUEUED=0
+    fi
 
     local suite
     if [[ -n "${source}" ]]; then
@@ -322,6 +325,7 @@ run_all_tests()
     else
         NUM_TESTS_RUNNING=1
         __run_all_tests_serially
+        NUM_TESTS_RUNNING=0
     fi
 }
 
