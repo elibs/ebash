@@ -494,9 +494,17 @@ __process_completed_jobs()
         fi
 
         # Update list of tests
-        array_add TESTS_PASSED "${tests_passed}"
-        array_add TESTS_FAILED "${tests_failed}"
-        array_add TESTS_FLAKY  "${tests_flaky}"
+        if [[ -n "${tests_passed}" ]]; then
+            TESTS_PASSED[$suite]+="${tests_passed} "
+        fi
+
+        if [[ -n "${tests_failed}" ]]; then
+            TESTS_FAILED[$suite]+="${tests_failed} "
+        fi
+
+        if [[ -n "${tests_flaky}" ]]; then
+            TESTS_FLAKY[$suite]+="${tests_flaky} "
+        fi
 
         # Update our final status json file with new results
         create_status_json

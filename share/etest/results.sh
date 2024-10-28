@@ -62,6 +62,7 @@ create_status_json()
 	    "numTestsRunning": ${NUM_TESTS_RUNNING},
 	    "numTestsExecuted": ${NUM_TESTS_EXECUTED},
 	    "numTestsFailed": ${NUM_TESTS_FAILED},
+        :qa
 	    "numTestsFlaky": ${NUM_TESTS_FLAKY},
 	    "numTestsPassed": ${NUM_TESTS_PASSED},
 	    "numTestsTotal": ${NUM_TESTS_TOTAL},
