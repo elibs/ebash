@@ -489,6 +489,9 @@ __process_completed_jobs()
         increment NUM_TESTS_FAILED   ${num_tests_failed}
         increment NUM_TESTS_FLAKY    ${num_tests_flaky}
         NUM_TESTS_QUEUED=$(( NUM_TESTS_TOTAL - NUM_TESTS_EXECUTED - NUM_TESTS_RUNNING ))
+        if [[ ${NUM_TESTS_QUEUED} -lt 0 ]]; then
+            NUM_TESTS_QUEUED=0
+        fi
 
         # Update list of tests
         array_add TESTS_PASSED "${tests_passed}"
