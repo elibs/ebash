@@ -111,9 +111,10 @@ TEST_OUT="/dev/null"
 # Verify --jobs is a valid integer.
 assert_int_ge "${jobs}" 0 "jobs must be an integer value greater than or equal to 0"
 
-# Do not allow verbose output with --jobs because all the output gets interleaved
+# If running multiple jobs with verbosity we have to disable jobs_progress otherwise the job progess ticker and the
+# verbose output would write on top of one another.
 if [[ "${jobs}" != 0 && "${verbose}" != 0 ]]; then
-    die "Cannot use --verbose and --jobs at the same time"
+    jobs_progress=0
 fi
 
 # Automatically sudo if requested

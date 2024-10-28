@@ -521,10 +521,13 @@ __process_completed_jobs()
         # Append the output of this completed job to our LOG file
         cat "${path}/output.log" >> "${ETEST_LOG}"
 
-        if [[ ${jobs_progress} -eq 0 ]]; then
-            cat "${path}/etest.out" >> "${ETEST_OUT}"
+        # If jobs_progress mode is disabled then display etest status in non-verbose mode or display the actual test
+        # output in verbose mode.
+        if [[ ${jobs_progress} -eq 0 && ${verbose} -eq 0 ]]; then
+            cat "${path}/etest.out" >> "$(fd_path)/${ETEST_STDERR_FD}"
+        elif [[ ${jobs_progress} -eq 0 && ${verbose} -eq 1 ]]; then
+            cat "${path}/output.log" >> "$(fd_path)/${ETEST_STDERR_FD}"
         fi
-
     done
 }
 
