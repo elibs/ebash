@@ -623,10 +623,9 @@ __spawn_new_job()
 __display_results_table()
 {
     echo
-    echo
 
     declare -a table
-    array_init_nl table "Job|Suite|Result|# Passed|# Failed|# Flaky|Output"
+    array_init_nl table "Suite|Result|# Passed|# Failed|# Flaky"
 
     local entry
     for entry in ${logdir}/jobs/*; do
@@ -661,9 +660,9 @@ __display_results_table()
             num_tests_flaky="$(ecolor bold yellow)${num_tests_flaky}$(ecolor none)"
         fi
 
-        array_add_nl table "${job}|${suite}|${status}|${num_tests_passed}|${num_tests_failed}|${num_tests_flaky}|${entry}/output.log"
+        array_add_nl table "${suite}|${status}|${num_tests_passed}|${num_tests_failed}|${num_tests_flaky}"
 
     done
 
-    etable --title="$(ecolor bold green)Etest Results$(ecolor none)" "${table[@]}"
+    etable --title="$(ecolor bold)Test Results$(ecolor none)" "${table[@]}"
 }
