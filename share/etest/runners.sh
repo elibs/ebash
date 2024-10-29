@@ -481,8 +481,15 @@ __process_completed_jobs()
         etest_jobs_finished+=( ${pid} )
         array_remove etest_jobs_running ${pid}
 
+        # Unpack base64 encoded "tests_duration" associative array and from this specific test instance and copy those
+        # values into the gloval TESTS_DURATION associative array.
+        eval "$(echo "${tests_duration}" | base64 --decode)"
+        local key
+        for key in "${!tests_duration[@]}"; do
+            TESTS_DURATION[$key]=${tests_duration[$key]}
+        done
+
         # Update global stats
-        TESTS_DURATION[${suite}]=${duration}
         SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
         increment NUM_TESTS_EXECUTED ${num_tests_executed}
         increment NUM_TESTS_PASSED   ${num_tests_passed}
@@ -526,7 +533,10 @@ __process_completed_jobs()
         if [[ ${jobs_progress} -eq 0 && ${verbose} -eq 0 ]]; then
             cat "${path}/etest.out" >> "$(fd_path)/${ETEST_STDERR_FD}"
         elif [[ ${jobs_progress} -eq 0 && ${verbose} -eq 1 ]]; then
-            cat "${path}/output.log" >> "$(fd_path)/${ETEST_STDERR_FD}"
+
+            # Display more update to date progress status since the results can come in out of order
+            local progress="${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} (${PERCENT}%)"
+            cat "${path}/output.log" | sed 's|\(PROGRESS\s*::\s*\)".*"|\1'"${progress}"'|' >> "$(fd_path)/${ETEST_STDERR_FD}"
         fi
     done
 }
@@ -558,6 +568,7 @@ __spawn_new_job()
         NUM_TESTS_PASSED=0
         NUM_TESTS_FAILED=0
         NUM_TESTS_FLAKY=0
+        TESTS_DURATION=()
 
         # Capture suite name and start time.
         local suite=""
@@ -572,13 +583,19 @@ __spawn_new_job()
             suite="$(basename "${testfile}")"
         fi
 
+        # We need to manually encode TESTS_DURATION as it's an associative array so we can't directly store this into a
+        # pack. So we print out the key/value pairs using "declare -p" and then base64 encode this. We can then store
+        # that directly into the pack and then unpack it in the result processing step.
+        tests_duration="$(declare -p TESTS_DURATION | sed 's|declare -A TESTS_DURATION|declare -A tests_duration|' | base64 --wrap 0)"
+
         # Capture all state from this test run and save it into a pack.
         local info=""
         pack_set info                                  \
             jobpath="${jobpath}"                       \
             job=$(basename "${jobpath}")               \
             rc="${NUM_TESTS_FAILED}"                   \
-            duration=$(( ${SECONDS} - ${start_time} ))  \
+            duration=$(( ${SECONDS} - ${start_time} )) \
+            tests_duration="${tests_duration}"         \
             suite="${suite}"                           \
             testfile="${testfile}"                     \
             num_tests_passed="${NUM_TESTS_PASSED}"     \
