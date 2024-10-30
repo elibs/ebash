@@ -20,7 +20,6 @@ DELETE   ?= $(or ${delete},1)
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
-FAILURES ?= $(or ${failures},0)
 FILTER   ?= $(or ${filter},)
 JOBS     ?= $(or ${jobs},$(shell nproc))
 MOUNTNS  ?= $(or ${mountns},0)
@@ -28,12 +27,13 @@ PROGRESS ?= $(or ${progress},1)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
 REGISTRY ?= $(or ${registry},ghcr.io)
+RETRIES  ?= $(or ${retries},0)
 REPEAT   ?= $(or ${repeat},0)
 SUDO     ?= $(or ${sudo},0)
 V        ?= $(or $v,0)
 
 # Variables that need to be exported to be seen by external processes we exec.
-ENVLIST  ?= CACHE COLUMNS EDEBUG EXCLUDE FAILFAST FAILURES FILTER JOBS PRETEND PROGRESS PULL PUSH REGISTRY REPEAT V
+ENVLIST  ?= CACHE COLUMNS EDEBUG EXCLUDE FAILFAST FILTER JOBS PRETEND PROGRESS PULL PUSH REGISTRY REPEAT RETRIES V
 export ${ENVLIST}
 
 .SILENT:
@@ -70,12 +70,12 @@ test:
 		--delete=${DELETE}          \
 		--exclude="${EXCLUDE}"      \
 		--failfast=${FAILFAST}      \
-		--failures=${FAILURES}      \
 		--filter="${FILTER}"        \
 		--jobs=${JOBS}              \
 		--mountns=${MOUNTNS}        \
 		--jobs-progress=${PROGRESS} \
 		--repeat=${REPEAT}          \
+		--retries=${RETRIES}        \
 		--sudo=${SUDO}              \
 		--verbose=${V}
 

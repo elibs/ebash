@@ -49,10 +49,6 @@ $(opt_parse \
                                      to stdout and then exit without actually running any tests."                      \
     "+print_json                   | Identical to --print-only except print in structured JSON."                       \
     ":exclude x                    | Tests whose name or file match this regular expression will not be run."          \
-    ":failures=${FAILURES:-0}      | Number of failures per-test to permit. Normally etest will return non-zero if any
-                                     test fails at all. However, in certain circumstances where flaky tests exist it may
-                                     be desireable to allow each test to retried a specified number of times and only
-                                     classify it as a failure if that test fails more than the requested threshold."   \
     ":filter  f                    | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0                  | Produce an HTML logfile and strip color codes out of etest.log."                  \
     ":jobs    j=0                  | Number of parallel jobs to run. If this is greater than 0, then the output will
@@ -68,6 +64,11 @@ $(opt_parse \
     ":logdir log_dir               | Directory to place logs in. Defaults to the current directory."                   \
     "+mountns mount_ns=0           | Run tests inside a mount namespace."                                              \
     ":repeat  r=${REPEAT:-1}       | Number of times to repeat each test."                                             \
+    ":retries failures=${RETRIES:-${FAILURES:-0}} | Number of retry attempts per-test. Normally etest will return
+                                     non-zero if any test fails at all. However, in certain circumstances where flaky
+                                     tests exist it may be desireable to allow each test to retried a specified number
+                                     of times and only classify it as a failure if that test fails more than the
+                                     requested threshold."                                                             \
     "+silent                       | Make etest as silent as possible. All output will be directed to the logfile."    \
     "+sudo S=0                     | Reexec as root and preserve environment before running tests."                    \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \

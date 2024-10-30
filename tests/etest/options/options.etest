@@ -25,7 +25,6 @@ ETEST_options_usage()
     grep "delete, -d"                   output
     grep "exclude, -x <value>"          output
     grep "failfast, --break, -b"        output
-    grep "failures <value>"             output
     grep "filter, -f <value>"           output
     grep "html, -h"                     output
     grep "jobs, -j <value>"             output
@@ -36,6 +35,7 @@ ETEST_options_usage()
     grep "name <value>"                 output
     grep "print-only, --print, -p"      output
     grep "repeat, -r <value>"           output
+    grep "retries <value>"              output
     grep "subreaper"                    output
     grep "summary, -s"                  output
     grep "test-list, -l (&)"            output

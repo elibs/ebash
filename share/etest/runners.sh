@@ -38,11 +38,11 @@ run_single_test()
         debug                \
         exclude              \
         failfast             \
-        failures             \
         filter               \
         jobs                 \
         progress             \
         repeat=REPEAT_STRING \
+        retries              \
         timeout              \
         total_timeout        \
         verbose
@@ -72,8 +72,8 @@ run_single_test()
         suite="$(basename "${testname}")"
     fi
 
-    local tries=0
-    for (( tries=0; tries <= ${failures}; tries++ )); do
+    local attempt=0
+    for (( attempt=0; attempt <= ${retries}; attempt++ )); do
 
         rc=0
 
@@ -145,7 +145,7 @@ run_single_test()
 
             : ${ETEST_TIMEOUT:=${timeout}}
             : ${ETEST_JOBS:=${jobs}}
-            etestmsg "Running $(lval command tries failures testidx testidx_total timeout=ETEST_TIMEOUT jobs=ETEST_JOBS)"
+            etestmsg "Running $(lval command attempt retries testidx testidx_total timeout=ETEST_TIMEOUT jobs=ETEST_JOBS)"
 
             if [[ -n "${ETEST_TIMEOUT}" && "${ETEST_TIMEOUT}" != "infinity" ]]; then
                 etimeout --timeout="${ETEST_TIMEOUT}" "${command}"
@@ -171,7 +171,7 @@ run_single_test()
                 __suite_teardown
             fi
         }
-        edebug "Finished $(lval testname display_testname rc tries failures)"
+        edebug "Finished $(lval testname display_testname rc attempt retries)"
 
         # Verify there are no process or memory leaks. If so kill them and try again if that is permitted.
         #
@@ -201,9 +201,9 @@ run_single_test()
         TEST_SUITES+=( "${suite}" )
     fi
 
-    # If the test eventually passed (rc==0) but we had to try more than one time (tries > 0) then by definition
+    # If the test eventually passed (rc==0) but we had to try more than one time (attempt > 0) then by definition
     # this is a flaky test.
-    if [[ ${rc} -eq 0 && ${tries} -gt 0 ]]; then
+    if [[ ${rc} -eq 0 && ${attempt} -gt 0 ]]; then
         TESTS_FLAKY[$suite]+="${testname} "
         (( NUM_TESTS_FLAKY += 1 ))
     fi
@@ -312,9 +312,9 @@ run_all_tests()
     fi
 
     if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat=REPEAT_STRING timeout total_timeout verbose
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast filter jobs repeat=REPEAT_STRING retries timeout total_timeout verbose
     else
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast failures filter jobs repeat=REPEAT_STRING timeout total_timeout verbose &>>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" OS debug exclude failfast filter jobs repeat=REPEAT_STRING retries timeout total_timeout verbose &>>${ETEST_OUT}
     fi
 
     NUM_TESTS_QUEUED=${NUM_TESTS_TOTAL}
