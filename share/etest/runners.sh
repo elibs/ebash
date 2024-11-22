@@ -374,9 +374,8 @@ __run_all_tests_parallel()
     local etest_progress_file="${logdir}/jobs/progress.txt"
     __update_jobs_progress_file
     if [[ ${jobs_progress} -eq 1 ]]; then
-        einfo "Running etest ($(lval jobs))" &>> ${ETEST_OUT}
-        eprogress                           \
-            --style einfos                  \
+        EMSG_PREFIX= eprogress              \
+            --style einfo                   \
             --file "${etest_progress_file}" \
             "Total: $(ecolor bold)${NUM_TESTS_TOTAL}$(ecolor reset)" &>> ${ETEST_OUT}
 
@@ -410,9 +409,16 @@ __run_all_tests_parallel()
 
     done
 
+    # One final update of progress file so we see everything complete as expected.
+    NUM_TESTS_RUNNING=0
+    __update_jobs_progress_file
+    sleep ${EPROGRESS_DELAY:-1}
+
+    # Update pids
     array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
     eprogress_kill --rc=${NUM_TESTS_FAILED} &>> ${ETEST_OUT}
 
+    # Display results table
     if [[ ${jobs_progress} -eq 1 ]]; then
         __display_results_table &>> ${ETEST_OUT}
     fi
@@ -423,27 +429,28 @@ __run_all_tests_parallel()
 __update_jobs_progress_file()
 {
     local tmpfile="${etest_progress_file}.tmp"
+    local width="${#NUM_TESTS_TOTAL}"
 
     {
-        echo -n "   Queued: $(ecolor dim)${NUM_TESTS_QUEUED}"
+        printf "  Queued: $(ecolor dim)%*s" ${width} ${NUM_TESTS_QUEUED}
         ecolor reset
 
-        echo -n "   Running: $(ecolor bold)${NUM_TESTS_RUNNING}"
+        printf "  Running: $(ecolor bold)%*s" ${width} ${NUM_TESTS_RUNNING}
         ecolor reset
 
-        echo -n "   Percent: $(ecolor bold)${PERCENT}%"
+        printf "  Percent: $(ecolor bold)%*s%%" 3 ${PERCENT}
         ecolor reset
 
-        echo -n "   Passed: $(ecolor bold green)${NUM_TESTS_PASSED}"
+        printf "  Passed: $(ecolor bold green)%*s" ${width} ${NUM_TESTS_PASSED}
         ecolor reset
 
         if [[ "${NUM_TESTS_FAILED}" -gt 0 ]]; then
-            echo -n "   Failed: $(ecolor bold red)${NUM_TESTS_FAILED}"
+            printf "  Failed: $(ecolor bold red)%*s" ${width} ${NUM_TESTS_FAILED}
             ecolor reset
         fi
 
         if [[ "${NUM_TESTS_FLAKY}" -gt 0 ]]; then
-            echo -n "   Flaky: $(ecolor bold yellow)${NUM_TESTS_FLAKY}"
+            printf "  Flaky: $(ecolor bold yellow)%*s" ${width} ${NUM_TESTS_FLAKY}
             ecolor reset
         fi
 
@@ -526,17 +533,18 @@ __process_completed_jobs()
         fi
 
         # Append the output of this completed job to our LOG file
-        cat "${path}/output.log" >> "${ETEST_LOG}"
+        #
+        # NOTE: Strip out PROGRESS as it's confusing and incorrect since jobs finish out of order.
+        cat "${path}/output.log" | sed '/• PROGRESS.*/d' >> "${ETEST_LOG}"
 
         # If jobs_progress mode is disabled then display etest status in non-verbose mode or display the actual test
         # output in verbose mode.
+        #
+        # NOTE: Strip out PROGRESS as it's confusing and incorrect since jobs finish out of order.
         if [[ ${jobs_progress} -eq 0 && ${verbose} -eq 0 ]]; then
             cat "${path}/etest.out" >> "$(fd_path)/${ETEST_STDERR_FD}"
         elif [[ ${jobs_progress} -eq 0 && ${verbose} -eq 1 ]]; then
-
-            # Display more update to date progress status since the results can come in out of order
-            local progress="${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} (${PERCENT}%)"
-            cat "${path}/output.log" | sed 's|\(PROGRESS\s*::\s*\)".*"|\1'"${progress}"'|' >> "$(fd_path)/${ETEST_STDERR_FD}"
+            cat "${path}/output.log" | sed '/• PROGRESS.*/d' >> "$(fd_path)/${ETEST_STDERR_FD}"
         fi
     done
 }
