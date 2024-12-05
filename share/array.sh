@@ -374,6 +374,7 @@ array_equal()
 {
      $(opt_parse \
         "+verbose v | Enable verbose mode to show which elements differ." \
+        "+sort    s | Sort both arrays before comparision."               \
         "__array1   | First array for comparison."                        \
         "__array2   | Second array for comparison."                       \
     )
@@ -385,6 +386,12 @@ array_equal()
         fi
 
         return 1
+    fi
+
+    # Optionally sort the arrays before comparision.
+    if [[ "${sort}" -eq 1 ]]; then
+        array_sort __array1
+        array_sort __array2
     fi
 
     # We don't want to simply try to join the arrays into a single string and check that for equality as that could

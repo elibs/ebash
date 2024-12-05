@@ -582,6 +582,15 @@ ETEST_array_equal()
     array_equal array1 array2
 }
 
+ETEST_array_equal_sort()
+{
+    local array1=( {a..z} )
+    local array2=( {z..a} )
+    etestmsg "Comparing $(lval array1 array2)"
+
+    array_equal --sort array1 array2
+}
+
 ETEST_array_equal_spaces()
 {
     local array1=("a 1" "b 2" "c 3" "d 4")
