@@ -390,8 +390,8 @@ array_equal()
 
     # Optionally sort the arrays before comparision.
     if [[ "${sort}" -eq 1 ]]; then
-        array_sort __array1
-        array_sort __array2
+        array_sort ${__array1}
+        array_sort ${__array2}
     fi
 
     # We don't want to simply try to join the arrays into a single string and check that for equality as that could
