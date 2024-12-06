@@ -373,20 +373,11 @@ END
 array_equal()
 {
      $(opt_parse \
-        "+verbose v | Enable verbose mode to show which elements differ." \
-        "+sort    s | Sort both arrays before comparision."               \
-        "__array1   | First array for comparison."                        \
-        "__array2   | Second array for comparison."                       \
+        "+verbose v | Show contextual diff between two arrays." \
+        "+sort    s | Sort both arrays before comparision."     \
+        "__array1   | First array for comparison."              \
+        "__array2   | Second array for comparison."             \
     )
-
-    if [[ $(array_size ${__array1}) -ne $(array_size ${__array2}) ]]; then
-
-        if [[ "${verbose}" -eq 1 ]]; then
-            eerror "Array size mismatch: $(array_size ${__array1}) vs $(array_size ${__array2})"
-        fi
-
-        return 1
-    fi
 
     # Optionally sort the arrays before comparision.
     if [[ "${sort}" -eq 1 ]]; then
@@ -394,25 +385,14 @@ array_equal()
         array_sort ${__array2}
     fi
 
-    # We don't want to simply try to join the arrays into a single string and check that for equality as that could
-    # result in incorrect behavior with certain input values, e.g. array1=( "a 1 a" "1") array2=( "a 1" "a 1" ). And we
-    # can't just iterate over the indexes directly as the arrays could be holey (e.g. after an unset or a remove
-    # operation). So the safest implementation is to iterate over the indexes of each array and grab the associated
-    # element from each array and see if they are equal.
-    local offset array1_indexes=() array2_indexes=()
-    array1_indexes=( $(array_indexes ${__array1}) )
-    array2_indexes=( $(array_indexes ${__array2}) )
-    for (( offset=0; offset < ${#array1_indexes[@]}; offset++ )); do
-        eval "local this=\${${__array1}[${array1_indexes[$offset]}]}"
-        eval "local that=\${${__array2}[${array2_indexes[$offset]}]}"
+    # Join arrays with each entry on its own line for easy diffing.
+    local __array1_content="$(array_join_nl ${__array1})"
+    local __array2_content="$(array_join_nl ${__array2})"
 
-        if [[ "${this}" != "${that}" ]]; then
-
-            if [[ "${verbose}" -eq 1 ]]; then
-                eerror "Mismatch at $(lval offset this that)"
-            fi
-
-            return 1
-        fi
-    done
+    # Compare contents of both arrays
+    if [[ ${verbose} -eq 1 ]]; then
+        diff -u <(echo "${__array1_content}") <(echo "${__array2_content}")
+    else
+        diff -u <(echo "${__array1_content}") <(echo "${__array2_content}") &>/dev/null
+    fi
 }

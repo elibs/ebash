@@ -628,7 +628,7 @@ ETEST_array_equal_fail()
     local array2=("b 2" "c 3" "d 4" "a 1")
     etestmsg "Comparing $(lval array1 array2)"
 
-    assert_false array_equal array1 array2
+    assert_false array_equal --verbose array1 array2
 }
 
 ETEST_array_equal_fail_removals()
