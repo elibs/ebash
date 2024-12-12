@@ -303,8 +303,8 @@ END
 array_sort()
 {
     $(opt_parse \
-        "+unique u  | Remove all but one copy of each item in the array." \
-        "+version V | Perform a natural (version number) sort.")
+        "+unique          u | Remove all but one copy of each item in the array." \
+        "+version natural V | Perform a natural (version number) sort.")
 
     local __array
     for __array in "${@}" ; do
@@ -381,8 +381,8 @@ array_equal()
 
     # Optionally sort the arrays before comparision.
     if [[ "${sort}" -eq 1 ]]; then
-        array_sort ${__array1}
-        array_sort ${__array2}
+        array_sort --natural ${__array1}
+        array_sort --natural ${__array2}
     fi
 
     # Join arrays with each entry on its own line for easy diffing.

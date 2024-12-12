@@ -460,6 +460,13 @@ ETEST_array_sort_version()
     assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
 }
 
+ETEST_array_sort_natural()
+{
+    local array=(a.1 a.2 a.100)
+    array_sort --natural array
+    assert_eq "a.1|a.2|a.100" "$(array_join array '|')"
+}
+
 ETEST_array_indexes()
 {
     A=(1 2 3 4)
@@ -586,6 +593,15 @@ ETEST_array_equal_sort()
 {
     local array1=( {a..z} )
     local array2=( {z..a} )
+    etestmsg "Comparing $(lval array1 array2)"
+
+    array_equal --sort array1 array2
+}
+
+ETEST_array_equal_sort_natural()
+{
+    local array1=( a1 a2 a4 a10 a20 )
+    local array2=( a1 a10 a2 a20 a4 )
     etestmsg "Comparing $(lval array1 array2)"
 
     array_equal --sort array1 array2
