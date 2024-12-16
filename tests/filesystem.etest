@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#
+# Copyright 2024, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+ETEST_filesystem_ebackup()
+{
+    assert_not_exists input.txt
+
+    touch input.txt
+
+    ebackup input.txt
+    assert_exists input.txt input.txt.bak
+}
+
+ETEST_filesystem_ebackup_failure()
+{
+    assert_not_exists input.txt
+
+    assert_false ebackup input.txt
+    assert_not_exists input.txt input.txt.bak
+}
+
+ETEST_filesystem_is_backed_up()
+{
+    assert_not_exists input.txt
+
+    touch input.txt
+
+    ebackup input.txt
+    assert_exists input.txt input.txt.bak
+    is_backed_up input.txt
+}
+
+ETEST_filesystem_is_backed_up_fail()
+{
+    assert_false is_backed_up input.txt
+}
+
+ETEST_filesystem_erestore()
+{
+    assert_not_exists input.txt
+
+    touch input.txt
+
+    ebackup input.txt
+    assert_exists input.txt input.txt.bak
+    is_backed_up input.txt
+
+    erestore input.txt
+    assert_exists input.txt
+    assert_not_exists input.txt.bak
+
+    assert_false is_backed_up input.txt
+}
+
+ETEST_filesystem_erestore_failure()
+{
+    assert_not_exists input.txt
+
+    assert_false erestore input.txt
+    assert_not_exists input.txt input.txt.bak
+}

@@ -63,13 +63,23 @@ efreshdir()
 }
 
 opt_usage ebackup <<'END'
-Copies the given file to *.bak if it doesn't already exist.
+Copies the given file to *.bak.
+
+This version of ebackup() has been hardened a bit from prior versions. In particular it will now:
+(1) assert the requested source file exists
+(2) assert the backup file does not exist
+
+This pushes some responsibility to the caller to orchestrate things properly instead of making assumptions about how
+ebash will handle this.
 END
 ebackup()
 {
     $(opt_parse src)
 
-    [[ -e "${src}" && ! -e "${src}.bak" ]] && cp -arL "${src}" "${src}.bak" || true
+    assert_exists "${src}"
+    assert_not_exists "${src}.bak"
+
+    cp -arL "${src}" "${src}.bak"
 }
 
 opt_usage erestore <<'END'
@@ -79,7 +89,20 @@ erestore()
 {
     $(opt_parse src)
 
-    [[ -e "${src}.bak" ]] && mv "${src}.bak" "${src}"
+    assert_exists "${src}.bak"
+
+    mv "${src}.bak" "${src}"
+}
+
+opt_usage is_backed_up <<'END'
+This is a helper function to check if ebackup was previously run against a source file.
+This will mean for any given ${src} file there exists a ${src}.bak.
+END
+is_backed_up()
+{
+    $(opt_parse src)
+
+    [[ -e "${src}.bak" ]]
 }
 
 opt_usage directory_empty <<'END'
