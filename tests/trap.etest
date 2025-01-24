@@ -46,7 +46,7 @@ ETEST_trap_add_multiple_signals()
 ETEST_trap_add_exit()
 {
     trap_add 'echo foo' EXIT SIGHUP SIGUSR1
-    assert_eq '_ebash_on_exit_start;echo foo;_ebash_on_exit_end' "$(trap_get EXIT)"
+    assert_eq '_ebash_on_exit_start;echo foo;_ebash_on_exit_start;__teardown;_ebash_on_exit_end;_ebash_on_exit_end' "$(trap_get EXIT)"
     assert_eq 'echo foo;__suite_teardown;die -s=SIGHUP "[Caught SIGHUP pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGHUP)"
     assert_eq 'echo foo;__suite_teardown;die -s=SIGUSR1 "[Caught SIGUSR1 pid=${BASHPID} cmd=$(string_truncate -e $(tput cols) ${BASH_COMMAND})"]' "$(trap_get SIGUSR1)"
 }
@@ -55,7 +55,7 @@ ETEST_trap_add_exit()
 ETEST_trap_add_defaults()
 {
     trap_add 'echo foo'
-    assert_eq '_ebash_on_exit_start;echo foo;_ebash_on_exit_end' "$(trap_get EXIT)"
+    assert_eq '_ebash_on_exit_start;echo foo;_ebash_on_exit_start;__teardown;_ebash_on_exit_end;_ebash_on_exit_end' "$(trap_get EXIT)"
 
     # Untrapped signals still receive default handling without the 'echo foo' command
     if [[ ${ETEST_JOBS} -eq 0 ]]; then

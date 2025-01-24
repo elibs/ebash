@@ -137,6 +137,9 @@ run_single_test()
                 trap_add __suite_teardown "${DIE_SIGNALS[@]}"
             fi
 
+            # Register trap to ensure we call teardown regardless of how we exit this subshell.
+            trap_add __teardown
+
             # Run optional test setup function if provided
             if is_function setup ; then
                 etestmsg "Running setup"
@@ -152,16 +155,11 @@ run_single_test()
             else
                 "${command}"
             fi
-
-            # Run optional test teardown function if provided
-            if is_function teardown ; then
-                etestmsg "Running teardown"
-                teardown
-            fi
         }
         catch
         {
             rc=$?
+
             # If failfast flag is enabled and is not running the last test case, call __suite_teardown in the catch block.
             # Otherwise, nothing to do here as __suite_teardown will be triggered at the end of the test.
             if [[ ${failfast} -eq 1 && ${testidx} -ne ${testidx_total} ]]; then
@@ -220,12 +218,6 @@ run_single_test()
 
     eend --inline --inline-offset=${einfo_message_length} ${rc} &>>${ETEST_OUT}
 
-    # Unit test provided teardown
-    if declare -f teardown &>/dev/null ; then
-        etestmsg "Calling test_teardown"
-        $(tryrc -r=teardown_rc teardown)
-    fi
-
     # Finally record the total duration of this test
     TESTS_DURATION[${testname}]=$(( ${SECONDS} - ${start_time} ))
 
@@ -248,6 +240,15 @@ __suite_teardown()
     if is_function suite_teardown; then
         etestmsg "Running suite_teardown $(lval testidx testidx_total)"
         suite_teardown
+    fi
+}
+
+# A wrapper function that calls teardown if it is defined by user.
+__teardown()
+{
+    if is_function teardown; then
+        etestmsg "Running teardown"
+        teardown
     fi
 }
 
