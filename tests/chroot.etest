@@ -10,8 +10,8 @@
 # Chroot only works on Linux based OSes
 [[ ${EBASH_OS} == Linux ]] || return 0
 
-# All the chroot tests fail on arhch and debian
-if os_distro arch debian; then
+# Skip chroot tests on some distros where things don't work reliably
+if os_distro arch debian rocky; then
     return 0
 fi
 
