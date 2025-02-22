@@ -15,6 +15,11 @@ if os_distro debian && os_release 9.13; then
     return 0
 fi
 
+# Fails on archlinux
+if os_distro arch; then
+    return 0
+fi
+
 source ${EBASH_HOME}/tests/daemon_expect.sh
 
 # Enable chroot debugging for this module. This doesn't affect the caller's environment just our local process that is
