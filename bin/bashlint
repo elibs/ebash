@@ -141,7 +141,7 @@ for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
     EFUNCS_COLOR=$(efuncs_color_as_bool)
     einfo_message=$(einfo -n "${fname}" 2>&1)
     einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
-    decrement einfo_message_length
+    (( einfo_message_length += 1 ))
 
     echo -n "${einfo_message}" >&2
 
