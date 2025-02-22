@@ -375,7 +375,7 @@ cgroup_current()
 
     local line=""
     line=$(grep -w "${CGROUP_SUBSYSTEMS[0]}" /proc/${pid}/cgroup)
-    echo "${line##*:}" | sed 's#^'"${CGROUP_ROOT}"'/*##'
+    echo "${line##*:}" | sed 's#^'"${CGROUP_SYSFS}"'/*##'
 }
 
 

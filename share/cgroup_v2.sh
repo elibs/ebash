@@ -321,8 +321,8 @@ cgroup_current()
     : ${pid:=${BASHPID}}
 
     local line=""
-    line=$(grep -w "${CGROUP_CONTROLLERS[0]}" /proc/${pid}/cgroup)
-    echo "${line##*:}" | sed 's#^'"${CGROUP_ROOT}"'/*##'
+    line="$(cat /proc/${pid}/cgroup)"
+    echo "${line##*:}"
 }
 
 
