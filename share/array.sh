@@ -386,8 +386,9 @@ array_equal()
     fi
 
     # Join arrays with each entry on its own line for easy diffing.
-    local __array1_content="$(array_join_nl ${__array1})"
-    local __array2_content="$(array_join_nl ${__array2})"
+    local __array1_content __array2_content
+    __array1_content="$(array_join_nl ${__array1})"
+    __array2_content="$(array_join_nl ${__array2})"
 
     # Compare contents of both arrays
     if [[ ${verbose} -eq 1 ]]; then
