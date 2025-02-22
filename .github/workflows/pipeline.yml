@@ -49,8 +49,8 @@ jobs:
           - "fedora-35"
           - "fedora-33"
           - "gentoo"
-          - "rocky-8"
           - "rocky-9"
+          - "rocky-8"
           - "ubuntu-20.04"
           - "ubuntu-18.04"
 
