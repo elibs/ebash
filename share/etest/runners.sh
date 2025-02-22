@@ -58,6 +58,7 @@ run_single_test()
 
     echo -n "${einfo_message}" &>>${ETEST_OUT}
     einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
+    (( einfo_message_length += 1 ))
 
     increment NUM_TESTS_EXECUTED
     decrement NUM_TESTS_QUEUED

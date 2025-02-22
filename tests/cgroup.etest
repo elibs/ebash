@@ -142,12 +142,14 @@ ETEST_cgroup_exists()
     cgroup_create ${CGROUP}
     assert cgroup_exists ${CGROUP}
 
-    etestmsg "Generates special exit code for inconsistent cgroup"
-    rc=0
-    rmdir /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${CGROUP}
-    find /sys/fs/cgroup -wholename "${CGROUP}" -ls
-    $(tryrc cgroup_exists ${CGROUP})
-    assert test ${rc} -eq 2
+    if [[ ${CGROUP_VERSION} -eq 1 ]]; then
+        etestmsg "Generates special exit code for inconsistent cgroup"
+        rc=0
+        rmdir /sys/fs/cgroup/${CGROUP_SUBSYSTEMS[0]}/${CGROUP}
+        find /sys/fs/cgroup -wholename "${CGROUP}" -ls
+        $(tryrc cgroup_exists ${CGROUP})
+        assert test ${rc} -eq 2
+    fi
 }
 
 ETEST_cgroup_pids_recursive()
@@ -285,6 +287,8 @@ ETEST_cgroup_move_blows_up_if_cgroup_not_created()
 
 ETEST_cgroup_pids_checks_all_subsystems()
 {
+    $(skip_if '[[ ${CGROUP_VERSION} -ne 1 ]]')
+
     CGROUP=${ETEST_CGROUP}/${FUNCNAME}
     trap_add "cgroup_kill_and_wait ${CGROUP} ; cgroup_destroy -r ${CGROUP}"
 
@@ -397,7 +401,7 @@ ETEST_cgroup_current()
     etestmsg "cgroup info"
     cat /proc/$$/cgroup
 
-    einfo "$(lval CGROUP_SYSFS CGROUP_ROOT)"
+    einfo "$(lval CGROUP_SYSFS)"
 
     local current
     current=$(cgroup_current)

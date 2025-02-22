@@ -322,7 +322,7 @@ cgroup_current()
 
     local line=""
     line="$(cat /proc/${pid}/cgroup)"
-    echo "${line##*:}"
+    echo "${line##*:/}"
 }
 
 
