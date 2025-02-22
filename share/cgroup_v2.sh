@@ -101,7 +101,7 @@ cgroup_move()
     if array_not_empty pids ; then
         local tmp
         tmp="$(array_join_nl pids)"
-        echo -e "${tmp}" > ${CGROUP_SYSFS}/${cgroup}/tasks
+        echo -e "${tmp}" > ${CGROUP_SYSFS}/${cgroup}/cgroup.procs
     fi
 }
 
@@ -157,29 +157,33 @@ cgroup_pids()
 
     for cgroup in "${cgroups[@]}" ; do
         cgroup_path="$(readlink -m ${CGROUP_SYSFS}/${cgroup})"
+        edebug "Checking $(lval cgroup cgroup_path)"
+
+        if ! cgroup_exists "${cgroup}"; then
+            (( rc += 1 ))
+            continue
+        fi
 
         local files file
         if [[ ${recursive} -eq 1 ]] ; then
-            array_init files "$(find "${cgroup_path}" -depth -name tasks 2>/dev/null)"
+            array_init files "$(find "${cgroup_path}" -depth -name cgroup.procs 2>/dev/null)"
         else
-            files+=("${cgroup_path}/tasks")
+            if [[ -e "${cgroup_path}/cgroup.procs" ]]; then
+                files+=("${cgroup_path}/cgroup.procs")
+            fi
         fi
 
         if ! [[ $(array_size files) -gt 0 ]] ; then
-            edebug "cgroup_pids is unable to find cgroup ${cgroup}"
-            (( rc += 1 ))
             continue
-        else
-            edebug "looking for processes $(lval cgroup)"
         fi
 
         local file
         for file in "${files[@]}" ; do
             local file_pids
 
-            # NOTE: It's very important to not create another process while reading the tasks file, because if your
-            # process is running in the cgroup being checked, its pid will be there during this command but disappear
-            # before it returns
+            # NOTE: It's very important to not create another process while reading the cgroup.procs file, because if
+            # your process is running in the cgroup being checked, its pid will be there during this command but
+            # disappear before it returns
             #
             # It is also safe to ignore failures here, because these files are set up by the kernel. Read fails if the
             # file is empty, but that is a perfectly valid situation to be in. It just means the cgroup is empty. And
@@ -222,21 +226,17 @@ cgroup_ps()
         "+recursive r | List processes for specified cgroup and all children." \
         "cgroup       | Name of cgroup to examine.")
 
-    local options=()
-    [[ ${recursive} -eq 1 ]] && options+=("-r")
+    local pids=()
+    pids=( $(opt_forward cgroup_pids recursive -- -x="${BASHPID} ${exclude}" "${cgroups}") )
+    edebug "Found $(lval cgroup pids)"
 
-    local pid cgroup_pids
-    cgroup_pids=($(cgroup_pids "${options[@]:-}" -x="${BASHPID} ${exclude}" "${cgroup}"))
+    if array_empty pids; then
+        return 0
+    fi
 
-    array_empty cgroup_pids && return 0
-
-    edebug "Done with cgroup_pids"
-
-    # Put together an awk regex that will match any of those pids as long as
-    # it's the whole string
+    # Put together an awk regex that will match any of those pids as long as it's the whole string
     local awk_regex
-    awk_regex='^('$(array_join cgroup_pids '|')')$'
-
+    awk_regex='^('$(array_join pids '|')')$'
     edebug "$(lval awk_regex)"
 
     ps -e --format pid,ppid,start,nlwp,nice,stat,command ${COLUMNS+--columns ${COLUMNS}} --forest | awk 'NR == 1 ; match($1,/'${awk_regex}'/) { print }'
@@ -278,7 +278,8 @@ cgroup_tree()
         local cgroup_path
         cgroup_path=$(readlink -m ${CGROUP_SYSFS}/${cgroup}/)
 
-        array_add found_cgroups "$(find "${cgroup_path}" -type d )"
+        array_add found_cgroups \
+            "$(find "${cgroup_path}" -type d | sed -e 's|^'${CGROUP_SYSFS}/'||' | 2>/dev/null || true)"
 
         edebug $(lval cgroup_path)
 
