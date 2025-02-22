@@ -100,6 +100,7 @@ DISTROS =           \
 	fedora-35       \
 	gentoo          \
 	rocky-8         \
+	rocky-9         \
 	ubuntu-18.04    \
 	ubuntu-20.04    \
 

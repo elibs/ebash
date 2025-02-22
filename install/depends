@@ -161,7 +161,6 @@ elif [ "${DISTRO}" = "rocky" ]; then
     yum install epel-release -y
 
     yum install -y          \
-        curl                \
         diffutils           \
         file                \
         jq                  \

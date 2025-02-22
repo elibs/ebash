@@ -220,7 +220,6 @@ docker_build()
     eprogress "Building docker $(lval image tags=tag)"
     local docker_build_args=(
         --file "${dockerfile}"
-        --cache-from "${cache_from}"
         --tag "${image}"
         $(array_join --before tag " --tag ")
         $(array_join --before build_arg " --build-arg ")
@@ -228,6 +227,8 @@ docker_build()
 
     if [[ ${cache} -eq 0 ]]; then
         docker_build_args+=( --no-cache )
+    elif [[ -n "${cache_from}" ]]; then
+        docker_build_args+=( --cache-from "${cache_from}" )
     fi
 
     edebug "Calling docker build with $(lval docker_build_args)"
