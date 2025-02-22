@@ -51,6 +51,7 @@ jobs:
           - "fedora-33"
           - "gentoo"
           - "rocky-8"
+          - "rocky-9"
           - "ubuntu-20.04"
           - "ubuntu-18.04"
 
@@ -78,7 +79,7 @@ jobs:
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: ${{ matrix.container }}
           path: .work/docker/${{ matrix.container }}/**
@@ -119,7 +120,7 @@ jobs:
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: macos-${{ matrix.os }}
           path: .work/**
