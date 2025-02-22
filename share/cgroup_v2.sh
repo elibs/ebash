@@ -227,7 +227,7 @@ cgroup_ps()
         "cgroup       | Name of cgroup to examine.")
 
     local pids=()
-    pids=( $(opt_forward cgroup_pids recursive -- -x="${BASHPID} ${exclude}" "${cgroups}") )
+    pids=( $(opt_forward cgroup_pids recursive -- -x="${BASHPID} ${exclude}" "${cgroup}") )
     edebug "Found $(lval cgroup pids)"
 
     if array_empty pids; then
@@ -279,7 +279,7 @@ cgroup_tree()
         cgroup_path=$(readlink -m ${CGROUP_SYSFS}/${cgroup}/)
 
         array_add found_cgroups \
-            "$(find "${cgroup_path}" -type d | sed -e 's|^'${CGROUP_SYSFS}/'||' | 2>/dev/null || true)"
+            "$(find "${cgroup_path}" -type d | sed -e 's|^'${CGROUP_SYSFS}/'||' 2>/dev/null || true)"
 
         edebug $(lval cgroup_path)
 
