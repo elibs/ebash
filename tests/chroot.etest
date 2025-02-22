@@ -10,13 +10,8 @@
 # Chroot only works on Linux based OSes
 [[ ${EBASH_OS} == Linux ]] || return 0
 
-# All the chroot tests fail on older debian because debootstrap doesn't work anymore
-if os_distro debian && os_release 9.13; then
-    return 0
-fi
-
-# Fails on archlinux
-if os_distro arch; then
+# All the chroot tests fail on arhch and debian
+if os_distro arch debian; then
     return 0
 fi
 

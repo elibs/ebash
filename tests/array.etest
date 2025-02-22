@@ -23,7 +23,7 @@ ETEST_array_size_empty_and_undefined()
     assert_eq 0 $(array_size C)
 }
 
-ETEST_array_that_is_holey()
+ETEST_array_with_holes()
 {
     A=(1 2 3 4)
     unset A[0]

@@ -1,6 +1,6 @@
 # General Bash Gotchas
 
-## Arrays may be holey!
+## Arrays may have holes!
 
 Although conceptually indexed by numbers, bash arrays are not necessarily contiguous. Really, they’re more like
 associative arrays except that bash forces the indexes to be numerical.
