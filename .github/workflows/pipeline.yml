@@ -137,7 +137,7 @@ jobs:
 
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.8
         with:
           path: artifacts
 
@@ -145,7 +145,7 @@ jobs:
         run: find artifacts
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v1.6
+        uses: EnricoMi/publish-unit-test-result-action@v2.18.0
         with:
           check_name: Publish Test Results
           github_token: ${{ secrets.GITHUB_TOKEN }}
