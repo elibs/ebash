@@ -131,7 +131,6 @@ elif os_distro debian; then
         cpio
         debootstrap
         dialog
-        docker
         gdb
         genisoimage
         gettext
@@ -145,6 +144,12 @@ elif os_distro debian; then
         util-linux
         xz-utils
     )
+
+    if os_release 11; then
+        packages+=( docker-ce )
+    elif os_release 12; then
+        packages+=( docker.io )
+    fi
 
 #----------------------------------------------------------------------------------------------------------------------
 #
