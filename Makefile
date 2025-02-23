@@ -93,13 +93,13 @@ DISTROS =           \
 	alpine-3.14     \
 	alpine-3.15     \
 	archlinux       \
-	centos-7        \
-	debian-10       \
 	debian-11       \
+	debian-12       \
 	fedora-33       \
 	fedora-35       \
 	gentoo          \
 	rocky-8         \
+	rocky-9         \
 	ubuntu-18.04    \
 	ubuntu-20.04    \
 

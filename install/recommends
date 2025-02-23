@@ -131,7 +131,6 @@ elif os_distro debian; then
         cpio
         debootstrap
         dialog
-        docker-ce
         gdb
         genisoimage
         gettext
@@ -145,6 +144,12 @@ elif os_distro debian; then
         util-linux
         xz-utils
     )
+
+    if os_release 11; then
+        packages+=( docker-ce )
+    elif os_release 12; then
+        packages+=( docker.io )
+    fi
 
 #----------------------------------------------------------------------------------------------------------------------
 #
@@ -205,12 +210,12 @@ elif os_distro gentoo; then
         app-containers/docker
         app-containers/docker-cli
         app-misc/jq
+        dev-debug/gdb
         dev-util/debootstrap
         dev-util/dialog
         dev-vcs/git
         sys-apps/net-tools
         sys-apps/util-linux
-        sys-devel/gdb
         sys-devel/gettext
         sys-process/psmisc
     )

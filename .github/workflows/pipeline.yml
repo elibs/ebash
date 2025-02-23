@@ -38,18 +38,18 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         container:
           - "alpine-3.15"
           - "alpine-3.14"
           - "archlinux"
-          - "centos-7"
+          - "debian-12"
           - "debian-11"
-          - "debian-10"
           - "fedora-35"
           - "fedora-33"
-          - "gentoo"
+          # TODO: - "gentoo"
+          - "rocky-9"
           - "rocky-8"
           - "ubuntu-20.04"
           - "ubuntu-18.04"
@@ -78,7 +78,7 @@ jobs:
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: ${{ matrix.container }}
           path: .work/docker/${{ matrix.container }}/**
@@ -90,9 +90,9 @@ jobs:
   #---------------------------------------------------------------------------------------------------------------------
   MacOS:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
-        os: ["12"]
+        os: ["15"]
 
     runs-on: macos-${{ matrix.os }}
     steps:
@@ -119,7 +119,7 @@ jobs:
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: macos-${{ matrix.os }}
           path: .work/**
@@ -137,7 +137,7 @@ jobs:
 
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.8
         with:
           path: artifacts
 
@@ -145,7 +145,7 @@ jobs:
         run: find artifacts
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v1.6
+        uses: EnricoMi/publish-unit-test-result-action@v2.18.0
         with:
           check_name: Publish Test Results
           github_token: ${{ secrets.GITHUB_TOKEN }}

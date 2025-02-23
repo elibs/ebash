@@ -14,7 +14,7 @@
 
 MOCKS=(
     "os"
-    "running_in_docker"
+    "running_in_container"
     "reexec"
 )
 
@@ -26,7 +26,7 @@ setup()
         emock "${mock}"
     done
 
-    emock --return 1 "running_in_docker"
+    emock --return 1 "running_in_container"
 
     trap_add "teardown"
 
@@ -55,9 +55,9 @@ ETEST_options_mountns_defaults()
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
-    assert_emock_called "os"                0
-    assert_emock_called "running_in_docker" 0
-    assert_emock_called "reexec"            0
+    assert_emock_called "os"                   0
+    assert_emock_called "running_in_container" 0
+    assert_emock_called "reexec"               0
 }
 
 # Verify we cant opt-in for mount namespaces.
@@ -68,9 +68,9 @@ ETEST_options_mountns_opt_in()
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
-    assert_emock_called "os"                1
-    assert_emock_called "running_in_docker" 1
-    assert_emock_called "reexec"            1
+    assert_emock_called "os"                   1
+    assert_emock_called "running_in_container" 1
+    assert_emock_called "reexec"               1
     assert_emock_called_with "reexec" 0 \
         --sudo --mountns
 }
@@ -87,9 +87,9 @@ ETEST_options_mountns_not_linux()
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
-    assert_emock_called "os"                1
-    assert_emock_called "running_in_docker" 0
-    assert_emock_called "reexec"            0
+    assert_emock_called "os"                   1
+    assert_emock_called "running_in_container" 0
+    assert_emock_called "reexec"               0
 }
 
 # Verify we can opt-out of mount namespaces
@@ -100,23 +100,23 @@ ETEST_options_mountns_opt_out()
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
-    assert_emock_called "os"                0
-    assert_emock_called "running_in_docker" 0
-    assert_emock_called "reexec"            0
+    assert_emock_called "os"                   0
+    assert_emock_called "running_in_container" 0
+    assert_emock_called "reexec"               0
 }
 
-# Verify mount namespaces not used on docker
-ETEST_options_mountns_docker()
+# Verify mount namespaces not used on container
+ETEST_options_mountns_container()
 {
     etestmsg "Setting up test-specific mocks"
-    emock "running_in_docker"
+    emock "running_in_container"
 
     etestmsg "Calling 'etest'"
     set -- --no-subreaper --mountns
     source "${EBASH}/etest/options.sh"
 
     etestmsg "Verifying mocks"
-    assert_emock_called "os"                1
-    assert_emock_called "running_in_docker" 1
-    assert_emock_called "reexec"            0
+    assert_emock_called "os"                   1
+    assert_emock_called "running_in_container" 1
+    assert_emock_called "reexec"               0
 }

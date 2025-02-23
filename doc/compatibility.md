@@ -17,9 +17,10 @@ combinations:
 | Linux | Debian | 11      |
 | Linux | Debian | 10      |
 | Linux | Fedora | 35      |
-| Linux | Fedora | 34      |
+| Linux | Fedora | 33      |
 | Linux | Gentoo | rolling |
 | Linux | Rocky  | 8.4     |
+| Linux | Rocky  | 9.4     |
 | Linux | Ubuntu | 20.04   |
 | Linux | Ubuntu | 18.04   |
-| MacOS | N/A    | 12.0    |
+| MacOS | N/A    | 15.0    |

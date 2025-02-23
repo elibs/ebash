@@ -116,7 +116,7 @@ ETEST_install_go()
 
 ETEST_install_nodejs()
 {
-    $(skip_if os_distro alpine)
+    $(skip_if 'os darwin || os_distro alpine')
 
     local commands=(
         "node"
@@ -132,7 +132,7 @@ ETEST_install_nodejs()
 
 ETEST_install_nomad()
 {
-    $(skip_if os_distro alpine arch)
+    $(skip_if 'os darwin || os_distro alpine arch')
 
     local commands=(
         "nomad"

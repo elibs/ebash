@@ -94,7 +94,7 @@ ETEST_docker_build()
     image="$(cat .work/docker/ebash/image)"
     assert_eq "elibs/ebash:$(cat .work/docker/ebash/sha.short)" "${image}"
     etestmsg "$(lval image)"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
 
     assert_docker_image_exists "${image}"
 }
@@ -237,7 +237,7 @@ ETEST_docker_build_cache_from()
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
     etestmsg "$(lval image)"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
 
     assert_docker_image_exists "${image}"
 }
@@ -274,7 +274,7 @@ ETEST_docker_build_custom_dockerfile()
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
     etestmsg "$(lval image)"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
 
     assert_docker_image_exists "${image}"
 }
@@ -311,7 +311,7 @@ ETEST_docker_build_custom_dockerfile()
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/elibs_ebash/image)"
     etestmsg "$(lval image)"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
 
     assert_docker_image_exists "${image}"
 }
@@ -348,7 +348,7 @@ ETEST_docker_custom_shafunc()
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
     etestmsg "$(lval image)"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
 
     assert_docker_image_exists "${image}"
 }
@@ -374,7 +374,7 @@ ETEST_docker_build_tags()
 
     etestmsg "Building docker image"
     eval "docker_build --name elibs/ebash $(array_join --before tags ' --tag ')"
-    trap_add "docker rmi ${tags[*]}"
+    trap_add "docker rmi --force ${tags[*]}"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -392,7 +392,7 @@ ETEST_docker_build_tags()
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
     etestmsg "$(lval image)"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
     assert_docker_image_exists "${image}"
 
     etestmsg "Validating all tags were built"
@@ -440,7 +440,7 @@ ETEST_docker_build_tags_push()
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
     etestmsg "$(lval image)"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
     assert_docker_image_exists "${image}"
 
     etestmsg "Validating all tags were built"
@@ -489,7 +489,7 @@ ETEST_docker_build_twice()
     image="$(cat .work/docker/ebash/image)"
     etestmsg "$(lval image)"
     assert_docker_image_exists "${image}"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
 
     for part in build.log dockerfile history image inspect sha sha.short sha.detail; do
         cp ".work/docker/ebash/${part}" ".work/docker/ebash/${part}.orig"
@@ -554,7 +554,7 @@ ETEST_docker_build_twice_changed()
     image="$(cat .work/docker/ebash/image)"
     etestmsg "$(lval image)"
     assert_docker_image_exists "${image}"
-    trap_add "docker rmi ${image}"
+    trap_add "docker rmi --force ${image}"
 
     for part in dockerfile sha sha.short sha.detail; do
         cp ".work/docker/ebash/${part}" ".work/docker/ebash/${part}.orig"
@@ -682,7 +682,6 @@ ETEST_docker_build_overlay()
 ETEST_docker_build_overlay_systemctl_wrapper()
 {
     # For no explicable reason, this test is very flaky on Centos:8 but perfectly stable on all other distros.
-    $(skip_if "os_distro centos && os_release 8")
     $(skip_if "os_distro rocky  && os_release 8.4")
 
     EDEBUG=daemon
@@ -1000,7 +999,7 @@ ETEST_docker_export_tgz()
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
-    trap_add "docker rmi ${image} &>/dev/null || true"
+    trap_add "docker rmi --force ${image} &>/dev/null || true"
     assert_docker_image_exists "${image}"
 
     etestmsg "Converting docker image to tgz"
@@ -1029,7 +1028,7 @@ ETEST_docker_export_squashfs()
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
-    trap_add "docker rmi ${image} &>/dev/null || true"
+    trap_add "docker rmi --force ${image} &>/dev/null || true"
     assert_docker_image_exists "${image}"
 
     etestmsg "Converting docker image to squashfs"

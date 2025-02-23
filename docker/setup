@@ -60,6 +60,8 @@ if [ "${DISTRO}" = "alpine" ]; then
 #----------------------------------------------------------------------------------------------------------------------
 elif [ "${DISTRO}" = "arch" ]; then
 
+    echo "SigLevel = Never" >> /etc/pacman.conf
+
     pacman -Syu --noconfirm --needed \
         make                 \
         unzip                \

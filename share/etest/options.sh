@@ -64,11 +64,10 @@ $(opt_parse \
     ":logdir log_dir               | Directory to place logs in. Defaults to the current directory."                   \
     "+mountns mount_ns=0           | Run tests inside a mount namespace."                                              \
     ":repeat  r=${REPEAT:-1}       | Number of times to repeat each test."                                             \
-    ":retries failures=${RETRIES:-${FAILURES:-0}} | Number of retry attempts per-test. Normally etest will return
-                                     non-zero if any test fails at all. However, in certain circumstances where flaky
-                                     tests exist it may be desireable to allow each test to retried a specified number
-                                     of times and only classify it as a failure if that test fails more than the
-                                     requested threshold."                                                             \
+    ":retries failures=${RETRIES:-${FAILURES:-0}} | Number of retry attempts per-test. Normally etest will error if any
+                                     test fails at all. However, in certain circumstances where flaky tests exist it may
+                                     be desireable to allow each test to retried a specified number of times and only
+                                     classify it as a failure if that test fails more than the requested threshold."   \
     "+silent                       | Make etest as silent as possible. All output will be directed to the logfile."    \
     "+sudo S=0                     | Reexec as root and preserve environment before running tests."                    \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
