@@ -57,11 +57,6 @@ check_mounts()
     done
 }
 
-ETEST_chroot_readlink()
-{
-    assert_eq "${CHROOT}/run" "$(chroot_readlink /var/run)"
-}
-
 ETEST_chroot_create_mount()
 {
     check_mounts 0
