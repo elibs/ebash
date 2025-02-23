@@ -93,8 +93,8 @@ DISTROS =           \
 	alpine-3.14     \
 	alpine-3.15     \
 	archlinux       \
-	debian-10       \
 	debian-11       \
+	debian-12       \
 	fedora-33       \
 	fedora-35       \
 	gentoo          \

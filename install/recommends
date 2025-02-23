@@ -131,7 +131,7 @@ elif os_distro debian; then
         cpio
         debootstrap
         dialog
-        docker-ce
+        docker
         gdb
         genisoimage
         gettext
