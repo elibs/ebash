@@ -22,7 +22,7 @@ suite_setup()
     einfo "Making chroot in ${CHROOT}"
     efreshdir ${CHROOT}
     etestmsg "Cleaned ${CHROOT}"
-    mkchroot ${CHROOT} precise amd64
+    eretry mkchroot ${CHROOT} precise amd64
     etestmsg "Finished creating ${CHROOT}"
 }
 
