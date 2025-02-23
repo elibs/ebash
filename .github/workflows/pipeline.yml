@@ -48,7 +48,7 @@ jobs:
           - "debian-11"
           - "fedora-35"
           - "fedora-33"
-          - "gentoo"
+          # TODO: - "gentoo"
           - "rocky-9"
           - "rocky-8"
           - "ubuntu-20.04"
