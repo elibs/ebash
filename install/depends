@@ -110,6 +110,7 @@ elif [ "${DISTRO}" = "debian" ]; then
     apt update
 
     apt install -y          \
+        binutils            \
         bsdmainutils        \
         curl                \
         file                \

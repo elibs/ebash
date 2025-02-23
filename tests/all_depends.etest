@@ -132,7 +132,7 @@ ETEST_install_nodejs()
 
 ETEST_install_nomad()
 {
-    $(skip_if os_distro alpine arch)
+    $(skip_if 'os darwin || os_distro alpine arch')
 
     local commands=(
         "nomad"
