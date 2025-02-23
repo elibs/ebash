@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         container:
           - "alpine-3.15"
@@ -90,7 +90,7 @@ jobs:
   #---------------------------------------------------------------------------------------------------------------------
   MacOS:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: ["15"]
 
