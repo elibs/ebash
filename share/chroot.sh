@@ -280,7 +280,7 @@ chroot_uninstall()
     [[ $# -eq 0 ]] && return 0
 
     einfos "Uninstalling $*"
-    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge $*"
+    chroot ${CHROOT} ${CHROOT_ENV} -c "${CHROOT_APT} remove --purge-unused $*"
 }
 
 chroot_dpkg()

@@ -10,11 +10,6 @@
 # Chroot only works on Linux based OSes
 [[ ${EBASH_OS} == Linux ]] || return 0
 
-# Skip chroot tests on some distros where things don't work reliably
-if os_distro arch debian rocky; then
-    return 0
-fi
-
 source ${EBASH_HOME}/tests/daemon_expect.sh
 
 # Enable chroot debugging for this module. This doesn't affect the caller's environment just our local process that is
@@ -169,7 +164,7 @@ ETEST_chroot_install()
     chroot_mount
     trap_add "chroot_exit"
 
-    chroot_install "hello>=2.7-2"
+    chroot_install "hello"
     chroot_uninstall "hello"
 
     # Empty

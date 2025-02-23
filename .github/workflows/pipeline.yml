@@ -92,7 +92,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: ["12"]
+        os: ["15"]
 
     runs-on: macos-${{ matrix.os }}
     steps:

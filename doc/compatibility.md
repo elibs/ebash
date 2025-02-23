@@ -23,4 +23,4 @@ combinations:
 | Linux | Rocky  | 9.4     |
 | Linux | Ubuntu | 20.04   |
 | Linux | Ubuntu | 18.04   |
-| MacOS | N/A    | 12.0    |
+| MacOS | N/A    | 15.0    |
