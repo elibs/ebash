@@ -35,7 +35,7 @@ ETEST_options_usage()
     grep "name <value>"                 output
     grep "print-only, --print, -p"      output
     grep "repeat, -r <value>"           output
-    grep "retries <value>"              output
+    grep "retries, --failures <value>"  output
     grep "subreaper"                    output
     grep "summary, -s"                  output
     grep "test-list, -l (&)"            output

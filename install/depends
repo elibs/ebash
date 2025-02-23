@@ -74,6 +74,7 @@ if [ "${DISTRO}" = "alpine" ]; then
 elif [ "${DISTRO}" = "arch" ]; then
 
     pacman -Syu --noconfirm --needed \
+        binutils             \
         curl                 \
         diffutils            \
         jq                   \
