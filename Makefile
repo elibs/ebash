@@ -61,7 +61,7 @@ clobber: clean
 
 .PHONY: lint bashlint
 lint bashlint:
-	bin/bashlint --failfast=${FAILFAST} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
+	bin/bashlint --git-files --failfast=${FAILFAST} --internal --severity=error --filter=${FILTER} --exclude=${EXCLUDE}
 
 .PHONY: test
 test:
