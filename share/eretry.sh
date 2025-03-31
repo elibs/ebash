@@ -116,14 +116,25 @@ eretry_internal()
         seconds=$(( ${SECONDS} - ${start} ))
         edebug "Executing $(lval cmd) timeout=(${seconds}s/${timeout}) retries=(${attempt}/${retries})"
 
-        # Run the command through timeout wrapped in tryrc so we can throw away the stdout on any errors. The reason for
-        # this is any caller who cares about the output of eretry might see part of the output if the process times out.
-        # If we just keep emitting that output they'd be getting repeated output from failed attempts which could be
-        # completely invalid output (e.g. truncated XML, Json, etc).
-        stdout=""
-        $(tryrc -o=stdout etimeout -t=${timeout} -s=${signal} "${cmd[@]}")
+        # If our output is the console just display it as-is. This way if someone is running `eretry <long command>`
+        # they will see the output in realtime. If the output is not the console then capture the output and we'll
+        # display it at the end. This will avoid errors when someone is capturing the output e.g. `foo=$(eretry cmd)`
+        # from seeing partial or duplicate output.
+        if [[ -t 1 ]]; then
+            try {
+                etimeout -t=${timeout} -s=${signal} "${cmd[@]}"
+            } catch {
+                rc=$?
+            }
+        else
+            # Run the command through timeout wrapped in tryrc so we can throw away the stdout on any errors. The reason for
+            # this is any caller who cares about the output of eretry might see part of the output if the process times out.
+            # If we just keep emitting that output they'd be getting repeated output from failed attempts which could be
+            # completely invalid output (e.g. truncated XML, Json, etc).
+            stdout=""
+            $(tryrc -o=stdout etimeout -t=${timeout} -s=${signal} "${cmd[@]}")
+        fi
 
-        # Append list of exit codes we've seen
         exit_codes+=(${rc})
         edebug "$(lval cmd seconds timeout exit_codes attempt retries)"
 
@@ -152,8 +163,10 @@ eretry_internal()
 
     [[ ${rc} -eq 0 ]] || ewarn "Failed $(lval cmd timeout exit_codes) retries=(${attempt}/${retries})"
 
-    # Emit stdout
-    echo -n "${stdout}"
+    # Emit stdout if being captured
+    if [[ ! -t 1 ]]; then
+        echo -n "${stdout}"
+    fi
 
     # Return final return code
     return ${rc}
