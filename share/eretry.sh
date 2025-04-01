@@ -97,9 +97,7 @@ eretry_internal()
 
     # Command
     local attempt=0
-    local rc=0
     local exit_codes=()
-    local stdout=""
     local start=${SECONDS}
     local warn_seconds="${SECONDS}"
     : ${warn_color:=${COLOR_WARN}}
@@ -111,6 +109,11 @@ eretry_internal()
     fi
 
     while true; do
+
+        # Reset stdout and rc on every iteration
+        local stdout=""
+        local rc=0
+
         [[ ${retries} != "infinity" && ${attempt} -ge ${retries} ]] && break || (( attempt+=1 ))
 
         seconds=$(( ${SECONDS} - ${start} ))
@@ -134,7 +137,6 @@ eretry_internal()
             # this is any caller who cares about the output of eretry might see part of the output if the process times out.
             # If we just keep emitting that output they'd be getting repeated output from failed attempts which could be
             # completely invalid output (e.g. truncated XML, Json, etc).
-            stdout=""
             $(tryrc -o=stdout etimeout -t=${timeout} -s=${signal} "${cmd[@]}")
         fi
 
