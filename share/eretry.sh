@@ -121,6 +121,7 @@ eretry_internal()
         # display it at the end. This will avoid errors when someone is capturing the output e.g. `foo=$(eretry cmd)`
         # from seeing partial or duplicate output.
         if [[ -t 1 ]]; then
+            rc=0
             try
             {
                 etimeout -t=${timeout} -s=${signal} "${cmd[@]}"
