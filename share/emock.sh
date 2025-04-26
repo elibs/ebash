@@ -781,6 +781,7 @@ assert_emock_called_with()
 
     # Manually parse each line from the file because it is base64 encoded
     local actual=()
+    local line
     while IFS= read -r line; do
         actual+=( "$(echo "${line}" | base64 -d)" )
     done < "${statedir}/${num}/args"
