@@ -166,7 +166,8 @@ emock()
 
         # base64 encode each argument so that we can handle arguments with spaces and newlines properly
         for arg in "${@}"; do
-            echo "${arg}" | base64
+            echo "${arg}" | base64 --wrap 0
+            echo
         done > "${statedir}/${called}/args"
 
         # Optionally read from standard input and store into a file
