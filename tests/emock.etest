@@ -532,6 +532,52 @@ ETEST_emock_args()
     assert_emock_called_with "func" 0 "${expected[@]}"
 }
 
+ETEST_emock_args_newlines()
+{
+    func(){ true; }
+
+    local input0="Simple input with spaces"
+
+    local input1="## Description
+
+JIRA-1234: This is a description"
+
+    local input2="## Description
+
+JIRA-1234:
+
+This is a description
+
+Footer"
+
+    etestmsg "Mocking with body"
+    emock func
+
+    etestmsg "Calling with ${input0}"
+    func "${input0}"
+    emock_dump_state "func"
+    assert_eq 0 ${rc}
+    etestmsg "Mocked function was called with:"
+    base64 -d .emock-$$/func/0/args
+    assert_emock_called_with "func" 0 "${input0}"
+
+    etestmsg "Calling with ${input1}"
+    func "${input1}"
+    emock_dump_state "func"
+    assert_eq 0 ${rc}
+    etestmsg "Mocked function was called with:"
+    base64 -d .emock-$$/func/1/args
+    assert_emock_called_with "func" 1 "${input1}"
+
+    etestmsg "Calling with ${input2}"
+    func "${input2}"
+    emock_dump_state "func"
+    assert_eq 0 ${rc}
+    etestmsg "Mocked function was called with:"
+    base64 -d .emock-$$/func/2/args
+    assert_emock_called_with "func" 2 "${input2}"
+}
+
 ETEST_emock_body()
 {
     func(){ true; }
@@ -552,7 +598,7 @@ ETEST_emock_body()
     emock_dump_state "func"
     assert_eq 0 ${rc}
     etestmsg "Mocked function was called with:"
-    cat .emock-$$/func/0/args
+    base64 -d .emock-$$/func/0/args
     assert_emock_called_with "func" 0 "bar"
 
     etestmsg "Mocked function return_code:"
@@ -564,7 +610,7 @@ ETEST_emock_body()
     emock_dump_state "func"
     assert_eq 1 ${rc}
     etestmsg "Mocked function was called with:"
-    cat .emock-$$/func/1/args
+    base64 -d .emock-$$/func/1/args
     emock_args "func" 1
     assert_emock_called_with "func" 1 "foo"
 

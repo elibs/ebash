@@ -161,9 +161,13 @@ emock()
         # Create directory to store files in for this invocation
         mkdir -p "${statedir}/${called}"
 
-        # Save off timestamp and argument array
+        # Save off timestamp
         echo -en $(date "+%FT%TZ") > "${statedir}/${called}/timestamp"
-        printf "%s\n" "${@}" > "${statedir}/${called}/args"
+
+        # base64 encode each argument so that we can handle arguments with spaces and newlines properly
+        for arg in "${@}"; do
+            echo "${arg}" | base64
+        done > "${statedir}/${called}/args"
 
         # Optionally read from standard input and store into a file
         > "${statedir}/${called}/stdin"
@@ -543,7 +547,9 @@ emock_stderr()
 opt_usage emock_args <<'END'
 `emock_args` is a utility function to make it easier to get the argument array from a particular invocation of a mocked
 function. This is stored on-disk and is easy to manually retrieve, but this function should always be used to provide a
-clean abstraction. If the call number is not provided, this will default to the most recent invocation's argument array.
+clean abstraction. Also since the args are stored base64 encoded this function makes it simpler to unpack them.
+
+If the call number is not provided, this will default to the most recent invocation's argument array.
 
 Inside the statedir, the argument array is stored as a newline separated file so that whitespace is preserved.
 To convert this back into an array, the best thing to do is to use array_init_nl:
@@ -571,7 +577,7 @@ emock_args()
 
     statedir+="/$(basename "${name}")"
     if [[ -e "${statedir}/${num}/args" ]]; then
-        cat "${statedir}/${num}/args"
+        base64 -d "${statedir}/${num}/args"
     fi
 }
 
@@ -766,15 +772,24 @@ assert_emock_called_with()
         "@expect                            | Argument array we expect the mock function to have been called with."    \
     )
 
-    local actual=""
-    array_init_nl actual "$(opt_forward emock_args statedir -- ${name} ${num})"
+    if [[ -z "${num}" ]]; then
+        num=$(opt_forward emock_indexes statedir -- --last ${name})
+    fi
+
+    statedir+="/$(basename "${name}")"
+
+    # Manually parse each line from the file because it is base64 encoded
+    local actual=()
+    while IFS= read -r line; do
+        actual+=( "$(echo "${line}" | base64 -d)" )
+    done < "${statedir}/${num}/args"
 
     if edebug_enabled; then
         edebug "EXPECT: $(lval expect)"
         edebug "ACTUAL: $(lval actual)"
     fi
 
-    diff <(printf "%s\n" "${expect[@]}") <(printf "%s\n" "${actual[@]}")
+    array_equal --verbose expect actual
 }
 
 opt_usage emock_dump_state <<'END'
@@ -799,8 +814,12 @@ emock_dump_state()
         fpath="${statedir}/${fname}"
         contents=""
 
+        # Manually parse each line from the file because it is base64 encoded
         if [[ $(basename "${fpath}") == "args" ]]; then
-            array_init_nl contents "$(cat ${fpath})"
+            contents=()
+            while IFS= read -r line; do
+                contents+=( "$(echo "${line}" | base64 -d)" )
+            done < "${fpath}"
         else
             contents="$(cat "${fpath}")"
         fi
