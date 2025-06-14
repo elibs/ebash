@@ -98,30 +98,30 @@ END
 emock()
 {
     $(opt_parse \
-        ":return_code return rc r=0                  | Return code mock should return. By default this is 0."          \
-        "+stdin       i                              | Mock should read from standard input and store it into a file." \
-        ":stdout      o                              | What standard output should be returned by the mock."           \
-        ":stderr      e                              | What standard error should be returned by the mock."            \
-        "+filesystem  f                              | Write out the mock to the filesystem."                          \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the return code, stdout, and
-                                                       stderr for each invocation."                                    \
-        "+reset       r                              | Reset existing mock state from prior mock invocations."         \
-        "+textfile    t                              | Treat the body as a simple text file rather than a shell script.
-                                                       In this mode there will be no generated stdin, stdout or stderr
-                                                       and the mock will not be executable. The additional tracking
-                                                       emock does around how many times a mock is called is also
-                                                       disabled when in this mode. This is suitable for mocking out
-                                                       simple text files which your code will read or write to."       \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode).
-                                                       This must match the calling convention at the call site."       \
-        "?body                                       | This allows fine-grained control over the body of the mocked
-                                                       function that is created. Instead of using return_code, stdout,
-                                                       and stderr, you can directly provide the entire body of the
-                                                       script in this string. The syntax of this is single quotes with
-                                                       enclosing curly braces. This is identical to what you would use
-                                                       with override_function."                                        \
+        ":return_code return rc r=0           | Return code mock should return. By default this is 0."          \
+        "+stdin       i                       | Mock should read from standard input and store it into a file." \
+        ":stdout      o                       | What standard output should be returned by the mock."           \
+        ":stderr      e                       | What standard error should be returned by the mock."            \
+        "+filesystem  f                       | Write out the mock to the filesystem."                          \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the return code, stdout, and
+                                                stderr for each invocation."                                    \
+        "+reset       r                       | Reset existing mock state from prior mock invocations."         \
+        "+textfile    t                       | Treat the body as a simple text file rather than a shell script.
+                                                In this mode there will be no generated stdin, stdout or stderr
+                                                and the mock will not be executable. The additional tracking
+                                                emock does around how many times a mock is called is also
+                                                disabled when in this mode. This is suitable for mocking out
+                                                simple text files which your code will read or write to."       \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode).
+                                                This must match the calling convention at the call site."       \
+        "?body                                | This allows fine-grained control over the body of the mocked
+                                                function that is created. Instead of using return_code, stdout,
+                                                and stderr, you can directly provide the entire body of the
+                                                script in this string. The syntax of this is single quotes with
+                                                enclosing curly braces. This is identical to what you would use
+                                                with override_function."                                        \
     )
 
     # Prepare statedir
@@ -356,11 +356,11 @@ END
 eunmock()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
     )
 
     statedir+="/$(basename "${name}")"
@@ -408,11 +408,11 @@ END
 emock_called()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
     )
 
     statedir+="/$(basename "${name}")"
@@ -435,12 +435,12 @@ END
 emock_indexes()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "+last                                       | Display the LAST index only rather than all indexes."           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "+last                                | Display the LAST index only rather than all indexes."           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
     )
 
     local path base indexes=()
@@ -475,12 +475,12 @@ END
 emock_stdin()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "?num                                        | The call number to get the standard output for."                \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "?num                                 | The call number to get the standard output for."                \
     )
 
     if [[ -z "${num}" ]]; then
@@ -505,12 +505,12 @@ END
 emock_stdout()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "?num                                        | The call number to get the standard output for."                \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "?num                                 | The call number to get the standard output for."                \
     )
 
     if [[ -z "${num}" ]]; then
@@ -535,12 +535,12 @@ END
 emock_stderr()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "?num                                        | The call number to get the standard error for."                 \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "?num                                 | The call number to get the standard error for."                 \
     )
 
     if [[ -z "${num}" ]]; then
@@ -576,12 +576,12 @@ END
 emock_args()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "?num                                        | The call number to get the standard error for."                 \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "?num                                 | The call number to get the standard error for."                 \
     )
 
     if [[ -z "${num}" ]]; then
@@ -603,12 +603,12 @@ END
 emock_return_code()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "?num                                        | The call number to get the standard error for."                 \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "?num                                 | The call number to get the standard error for."                 \
     )
 
     if [[ -z "${num}" ]]; then
@@ -629,11 +629,11 @@ END
 emock_mode()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
     )
 
     statedir+="/$(basename "${name}")"
@@ -658,12 +658,12 @@ END
 assert_emock_called()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "times                                       | Number of times we expect the mock to have been called."        \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "times                                | Number of times we expect the mock to have been called."        \
     )
 
     assert_eq "${times}" "$(opt_forward emock_called statedir -- ${name})"
@@ -682,13 +682,13 @@ END
 assert_emock_stdin()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "num                                         | The call number to look at the arguments for."                  \
-        "stdin                                       | The expected stdandard input."                                  \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "num                                  | The call number to look at the arguments for."                  \
+        "stdin                                | The expected stdandard input."                                  \
     )
 
     diff --unified <(echo "${stdin}") <(echo "$(opt_forward emock_stdin statedir -- ${name} ${num})")
@@ -707,13 +707,13 @@ END
 assert_emock_stdout()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "num                                         | The call number to look at the arguments for."                  \
-        "stdout                                      | The expected stdandard output."                                 \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "num                                  | The call number to look at the arguments for."                  \
+        "stdout                               | The expected stdandard output."                                 \
     )
 
     assert_eq "${stdout}" "$(opt_forward emock_stdout statedir -- ${name} ${num})"
@@ -732,13 +732,13 @@ END
 assert_emock_stderr()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "num                                         | The call number to look at the arguments for."                  \
-        "stderr                                      | The expected stdandard error."                                  \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "num                                  | The call number to look at the arguments for."                  \
+        "stderr                               | The expected stdandard error."                                  \
     )
 
     assert_eq "${stderr}" "$(opt_forward emock_stderr statedir -- ${name} ${num})"
@@ -757,13 +757,13 @@ END
 assert_emock_return_code()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "num                                         | The call number to look at the arguments for."                  \
-        "return_code=0                               | The expected return code."                                      \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "num                                  | The call number to look at the arguments for."                  \
+        "return_code=0                        | The expected return code."                                      \
     )
 
     assert_eq "${return_code}" "$(opt_forward emock_return_code statedir -- ${name} ${num})"
@@ -784,13 +784,13 @@ END
 assert_emock_called_with()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
-        "num                                         | The call number to look at the arguments for."                  \
-        "@expect                                     | Argument array we expect the mock function to be called with."  \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        "num                                  | The call number to look at the arguments for."                  \
+        "@expect                              | Argument array we expect the mock function to be called with."  \
     )
 
     if [[ -z "${num}" ]]; then
@@ -820,11 +820,11 @@ END
 emock_dump_state()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
-        "name                                        | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
+        "name                                 | Name of binary to mock (e.g. dmidecode or /usr/sbin/dmidecode)."\
     )
 
     einfo "Dumping Mock State for $(lval name)"
@@ -857,10 +857,10 @@ END
 emock_dump_all_state()
 {
     $(opt_parse \
-        ":statedir=${__EBASH_EMOCK_RUNDIR}/.emock-$$ | This directory is used to track state about mocked binaries.
-                                                       This will hold metadata information such as the number of times
-                                                       the mock was called as well as the exit code, stdout, and stderr
-                                                       for each invocation."                                           \
+        ":statedir=${__EBASH_EMOCK_RUNDIR}/$$ | This directory is used to track state about mocked binaries.
+                                                This will hold metadata information such as the number of times
+                                                the mock was called as well as the exit code, stdout, and stderr
+                                                for each invocation."                                           \
     )
 
     local entry
