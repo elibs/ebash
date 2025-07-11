@@ -85,7 +85,7 @@ ETEST_emock_filesystem_multiple()
 
 ETEST_emock_called()
 {
-    statedir="${__EBASH_EMOCK_RUNDIR}/$$"
+    statedir="${__EBASH_EMOCK_RUNDIR}/$$/${FUNCNAME[0]}"
 
     func() { true; }
 
@@ -146,7 +146,7 @@ ETEST_emock_called()
 
 ETEST_emock_called_filesystem()
 {
-    statedir="${__EBASH_EMOCK_RUNDIR}/$$"
+    statedir="${__EBASH_EMOCK_RUNDIR}/$$/${FUNCNAME[0]}"
 
     # Skip if we are not running in docker to avoid changing root filesystem
     $(skip_if "! running_in_docker")
@@ -207,7 +207,7 @@ ETEST_emock_called_filesystem()
 
 ETEST_emock_called_nonexistent()
 {
-    statedir="${__EBASH_EMOCK_RUNDIR}/$$"
+    statedir="${__EBASH_EMOCK_RUNDIR}/$$/${FUNCNAME[0]}"
 
     etestmsg "Mocking nonexistent function"
     emock "nonexistent"
@@ -272,7 +272,7 @@ ETEST_emock_called_nonexistent()
 
 ETEST_emock_called_nonexistent_filesystem()
 {
-    statedir="${__EBASH_EMOCK_RUNDIR}/$$"
+    statedir="${__EBASH_EMOCK_RUNDIR}/$$/${FUNCNAME[0]}"
 
     etestmsg "Mocking nonexistent file"
     emock --filesystem "nonexistent"
@@ -542,7 +542,7 @@ ETEST_emock_args()
 
 ETEST_emock_args_newlines()
 {
-    statedir="${__EBASH_EMOCK_RUNDIR}/$$"
+    statedir="${__EBASH_EMOCK_RUNDIR}/$$/${FUNCNAME[0]}"
 
     func(){ true; }
 
@@ -590,7 +590,7 @@ Footer"
 
 ETEST_emock_body()
 {
-    statedir="${__EBASH_EMOCK_RUNDIR}/$$"
+    statedir="${__EBASH_EMOCK_RUNDIR}/$$/${FUNCNAME[0]}"
 
     func(){ true; }
 
