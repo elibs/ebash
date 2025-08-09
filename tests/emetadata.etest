@@ -53,6 +53,24 @@ ETEST_emetadata_basic()
     assert_var_empty SHA1
 }
 
+ETEST_emetadata_json()
+{
+    local src meta
+    src="$(make_testfile)"
+    meta="${src}.json"
+
+    emetadata --json ${src} > ${meta}
+    jq . ${meta}
+
+    $(json_import --file ${meta})
+
+    assert_eq "${filename}" "$(basename "${src}")"
+    assert_eq "${size}"     "$(stat --printf='%s' ${src})"
+    assert_eq "${md5}"      "$(md5sum    ${src} | awk '{print $1}')"
+    assert_eq "${sha256}"   "$(sha256sum ${src} | awk '{print $1}')"
+    assert_eq "${sha512}"   "$(sha512sum ${src} | awk '{print $1}')"
+}
+
 ETEST_emetadata_build_date()
 {
     local src meta

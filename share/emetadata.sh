@@ -34,6 +34,7 @@ emetadata()
     $(opt_parse \
         "+build_date  b=1   | Include the current UTC date as BuildDate." \
         "+git         g=1   | Include common Git metadata such as GitBranch, GitCommit, GitOriginUrl, GitVersion." \
+        "+json              | Convert metadata to JSON format." \
         ":keyphrase k       | The keyphrase to use for the specified private key." \
         ":private_key p     | Also check the PGP signature based on this private key." \
         "path               | Path of the filename to generate metadata for." \
@@ -42,6 +43,11 @@ emetadata()
     local rpath
     rpath=$(readlink -m "${path}")
     assert_exists "${rpath}" "${path}"
+
+    local format_func="sort"
+    if [[ "${json}" -eq 1 ]]; then
+        format_func="__emetadata_format_json"
+    fi
 
     {
         echo "Filename=$(basename ${path})"
@@ -116,7 +122,22 @@ emetadata()
         echo "PGPKey=$(basename ${private_key})"
         echo "PGPSignature=$(GPG_AGENT_INFO="" GNUPGHOME="${gpg_home}" gpg --no-tty --yes ${keyring_command} --sign --detach-sign --armor ${keyphrase_command} --output - ${rpath} 2>/dev/null | base64 --wrap 0)"
 
-    } | sort
+    } | ${format_func}
+}
+
+opt_usage __emetadata_format_json <<'END'
+Internal helper method to modify the output of emetadata to convert it to JSON.
+This will convert the naming convention of the keys to use typical JSON naming of lowerCamelCase.
+END
+__emetadata_format_json()
+{
+    perl -pe 's/\b[A-Z0-9]+\b/\L$&/g; s/^([A-Z])/\l\1/' | jq -R -s '
+        split("\n")             |
+        map(select(length > 0)) |
+        map(split("="))         |
+        map({(.[0]): .[1]})     |
+        add
+    '
 }
 
 opt_usage emetadata_check <<'END'
