@@ -35,6 +35,7 @@ END
 elogfile()
 {
     $(opt_parse \
+        ":cgroup           | Optional cgroup to run elogfile process in instead of current one." \
         "+stderr e=1       | Whether to redirect stderr to the logfile." \
         "+stdout o=1       | Whether to redirect stdout to the logfile." \
         ":rotate_count r=0 | When rotating log files, keep this number of log files." \
@@ -111,9 +112,10 @@ elogfile()
 
                 # If we are in a cgroup, move the tee process out of that cgroup so that we do not kill the tee. It
                 # will nicely terminate on its own once the process dies.
-                if cgroup_supported && [[ ${EUID} -eq 0 && -n "$(cgroup_current)" ]] ; then
-                    edebug "Moving tee process out of cgroup"
-                    cgroup_move "/" ${BASHPID}
+                if cgroup_supported && [[ -n "${cgroup}" ]]; then
+                    edebug "Moving tee process into $(lval cgroup)"
+                    cgroup_create ${cgroup}
+                    cgroup_move ${cgroup} ${BASHPID}
                 fi
 
                 # Ignore signals that came from the TTY for these special processes.

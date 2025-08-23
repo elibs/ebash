@@ -130,9 +130,9 @@ elogrotate "${ETEST_JSON}"
 elogrotate "${ETEST_OPTIONS}"
 elogrotate "${ETEST_XML}"
 if [[ ${jobs} -eq 0 ]]; then
-    elogfile --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
+    elogfile --cgroup=${ETEST_CGROUP} --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 else
-    elogfile --rotate_count=10 --tail=0 /dev/null
+    elogfile --cgroup=${ETEST_CGROUP} --rotate_count=10 --tail=0 /dev/null
 fi
 
 create_status_json
