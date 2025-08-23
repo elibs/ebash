@@ -216,7 +216,7 @@ daemon_start()
 
         # Setup logfile
         if [[ -n "${logfile}" ]] ; then
-            elogfile --stdout --stderr --no-tail --rotate_count ${logfile_count} --rotate_size ${logfile_size} "${logfile}"
+            elogfile --cgroup "${cgroup}" --stdout --stderr --no-tail --rotate_count ${logfile_count} --rotate_size ${logfile_size} "${logfile}"
         fi
 
         # Info
@@ -367,7 +367,7 @@ daemon_stop()
 
     # Setup logfile
     if [[ -n "${logfile}" ]] ; then
-        elogfile -o=1 -e=1 "${logfile}"
+        elogfile --cgroup "${cgroup}" --stdout --stderr "${logfile}"
     fi
 
     # Info
