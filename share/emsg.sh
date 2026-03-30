@@ -680,10 +680,10 @@ tput()
         return 0
     fi
 
-    # Skip cursor hide/show commands in non-interactive terminals (avoids "25l" shown in CI logs)
-    if [[ "${1:-}" == @(civis|cnorm) ]] && ! einteractive; then
-        return 0
-    fi
+    # TODO:
+    #if [[ "${1:-}" == @(civis|cnorm) ]] && ! einteractive; then
+    #    return 0
+    #fi
 
     command tput "$@" || true
 }
