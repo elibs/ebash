@@ -230,18 +230,19 @@ create_xml()
             array_sort failing_names
             for name in "${failing_names[@]}"; do
                 local test_output=""
+                local error_line=""
                 if [[ -f "${ETEST_LOG}" ]]; then
                     # Extract test output (last occurrence only), strip ANSI codes, and escape CDATA end sequence
                     test_output=$(tac "${ETEST_LOG}" \
-                        | sed -n "/\b${name}\b.*FAILED/,/Running command=\"${name}\"/p" \
+                        | sed -n "/${name}.*FAILED/,/Running command=\"${name}\"/p" \
                         | tac \
                         | sed 's/\x1b\[[0-9;]*m//g' \
                         | sed 's/]]>/]]]]><![CDATA[>/g')
+                    # Extract the error line (line before stacktrace), strip timestamp
+                    error_line=$(echo "${test_output}" | grep -B1 "^   :: " | head -1 | sed 's/^\[.*\] //')
                 fi
                 echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\">"
-                echo "<failure message=\"${suite}:${name} FAILED\" type=\"ERROR\"><![CDATA["
-                echo "${suite}:${name} FAILED (see full output below)"
-                echo ""
+                echo "<failure message=\"${suite}:${name} — ${error_line:-failed}\" type=\"ERROR\"><![CDATA["
                 echo "${test_output}"
                 echo "]]></failure>"
                 echo "</testcase>"
