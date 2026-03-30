@@ -91,6 +91,8 @@ ETEST_eprogress_ticker_off()
 {
     (
         exec &> ${OUTPUT}
+
+        CI=
         COLUMNS=0
         EFUNCS_COLOR=0
         EDEBUG=0
@@ -132,6 +134,7 @@ ETEST_eprogress_ticker_align_right()
     (
         exec &> ${OUTPUT}
 
+        CI=
         COLUMNS=28
         EDEBUG=0
         EFUNCS_COLOR=0
@@ -172,6 +175,7 @@ ETEST_eprogress_ticker_align_left()
     (
         exec &> ${OUTPUT}
 
+        CI=
         COLUMNS=28
         EDEBUG=0
         EFUNCS_COLOR=0
