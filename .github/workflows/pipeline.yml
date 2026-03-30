@@ -85,7 +85,7 @@ jobs:
         if: always()
         uses: dorny/test-reporter@v1.9.1
         with:
-          name: Test Results
+          name: Test Results (${{ matrix.container }})
           path: .work/docker/${{ matrix.container }}/**/etest.xml
           reporter: java-junit
 
@@ -129,7 +129,7 @@ jobs:
         if: always()
         uses: dorny/test-reporter@v1.9.1
         with:
-          name: Test Results
+          name: Test Results (macos-${{ matrix.os }})
           path: .work/**/etest.xml
           reporter: java-junit
 
