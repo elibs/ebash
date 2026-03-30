@@ -256,6 +256,8 @@ create_xml()
                 fi
                 echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\">"
                 echo "<failure message=\"${suite}:${name} — ${error_line:-failed}\" type=\"ERROR\"><![CDATA["
+                echo "${error_line:-No error details}"
+                echo ""
                 echo "${test_output}"
                 echo "]]></failure>"
                 echo "</testcase>"
