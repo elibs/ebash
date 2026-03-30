@@ -211,17 +211,19 @@ create_xml()
                 "${suite}"                                                      \
                 $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} ))        \
                 ${#testcases_failed[@]}                                         \
-                ${SUITE_DURATION[$suite]}
+                "${SUITE_DURATION[$suite]:-0}"
 
             local name
 
             # Add all passing tests (sorted)
             local passing_lines=()
             for name in ${testcases_passed[*]:-}; do
-                passing_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s"></testcase>' "${suite}" "${name}" "${TESTS_DURATION[$name]}")" )
+                passing_lines+=( "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\"></testcase>" )
             done
             array_sort passing_lines
-            printf "%s\n" "${passing_lines[@]:-}"
+            if array_not_empty passing_lines; then
+                printf '%s\n' "${passing_lines[@]}"
+            fi
 
             # Add all failing tests with output (sorted by name)
             local failing_names=( ${testcases_failed[*]:-} )
@@ -229,15 +231,16 @@ create_xml()
             for name in "${failing_names[@]:-}"; do
                 local test_output=""
                 if [[ -f "${ETEST_LOG}" ]]; then
-                    # Extract test output and strip ANSI codes (CDATA handles XML escaping)
+                    # Extract test output, strip ANSI codes, and escape CDATA end sequence
                     test_output=$(sed -n "/Running command=\"${name}\"/,/${name}.*FAILED/p" "${ETEST_LOG}" \
-                        | sed 's/\x1b\[[0-9;]*m//g')
+                        | sed 's/\x1b\[[0-9;]*m//g' \
+                        | sed 's/]]>/]]]]><![CDATA[>/g')
                 fi
-                printf '<testcase classname="%s" name="%s" time="%s">\n' "${suite}" "${name}" "${TESTS_DURATION[$name]}"
-                printf '<failure message="%s:%s failed" type="ERROR"><![CDATA[\n' "${suite}" "${name}"
-                printf '%s\n' "${test_output}"
-                printf ']]></failure>\n'
-                printf '</testcase>\n'
+                echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\">"
+                echo "<failure message=\"${suite}:${name} failed\" type=\"ERROR\"><![CDATA["
+                echo "${test_output}"
+                echo "]]></failure>"
+                echo "</testcase>"
             done
             echo "</testsuite>"
         done
