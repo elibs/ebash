@@ -66,6 +66,7 @@ lint bashlint:
 .PHONY: test
 test:
 	bin/etest \
+		--cgroup=1                  \
 		--debug="${EDEBUG}"         \
 		--delete=${DELETE}          \
 		--exclude="${EXCLUDE}"      \
