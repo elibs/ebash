@@ -233,7 +233,7 @@ create_xml()
                 if [[ -f "${ETEST_LOG}" ]]; then
                     # Extract test output (last occurrence only), strip ANSI codes, and escape CDATA end sequence
                     test_output=$(tac "${ETEST_LOG}" \
-                        | sed -n "/${name}.*FAILED/,/Running command=\"${name}\"/p" \
+                        | sed -n "/\b${name}\b.*FAILED/,/Running command=\"${name}\"/p" \
                         | tac \
                         | sed 's/\x1b\[[0-9;]*m//g' \
                         | sed 's/]]>/]]]]><![CDATA[>/g')
