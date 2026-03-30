@@ -12,6 +12,9 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
+# Enable mount leak checking for these tests
+check_mount_leaks=1
+
 MOCKS=(
     "efindmnt"
     "eunmount"

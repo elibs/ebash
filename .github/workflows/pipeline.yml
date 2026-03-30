@@ -54,14 +54,14 @@ jobs:
 
     steps:
       - name: Log in to the Container registry
-        uses: docker/login-action@v1.12.0
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.CICD_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -81,6 +81,14 @@ jobs:
           name: ${{ matrix.container }}
           path: .work/docker/${{ matrix.container }}/**
 
+      - name: Publish Test Results
+        if: always()
+        uses: dorny/test-reporter@v1.9.1
+        with:
+          name: Test Results (${{ matrix.container }})
+          path: .work/docker/${{ matrix.container }}/**/etest.xml
+          reporter: java-junit
+
   #---------------------------------------------------------------------------------------------------------------------
   #
   # MacOS
@@ -95,17 +103,12 @@ jobs:
     runs-on: macos-${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Install Dependencies
-        run: |
-            # Brew is so dumb. Trying to install git fails because both 2.35 and 2.36 are available and installing the
-            # newer one causes a symlink collision. So we just work around this be removing the old one if it is
-            # present.
-            brew unlink git@2.35.1 || true
-            install/all
+        run: install/all
 
       - name: Lint
         run: make lint
@@ -122,32 +125,13 @@ jobs:
           name: macos-${{ matrix.os }}
           path: .work/**
 
-  #---------------------------------------------------------------------------------------------------------------------
-  #
-  # Test Results
-  #
-  #---------------------------------------------------------------------------------------------------------------------
-  test-results:
-    name: "Tests Results"
-    needs: [Linux, MacOS]
-    runs-on: ubuntu-latest
-    if: always() && github.ref != 'refs/heads/develop'
-
-    steps:
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4.1.8
-        with:
-          path: artifacts
-
-      - name: Details
-        run: find artifacts
-
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2.18.0
+        if: always()
+        uses: dorny/test-reporter@v1.9.1
         with:
-          check_name: Publish Test Results
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          files: artifacts/**/etest.xml
+          name: Test Results (macos-${{ matrix.os }})
+          path: .work/**/etest.xml
+          reporter: java-junit
 
   #---------------------------------------------------------------------------------------------------------------------
   #
@@ -162,7 +146,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.CICD_TOKEN }}

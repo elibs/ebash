@@ -47,7 +47,7 @@ create_status_json()
     fi
 
     local pids=()
-    if cgroup_supported; then
+    if cgroup_enabled; then
         pids=( $(cgroup_pids -r ${ETEST_CGROUP_BASE}) )
     else
         pids=( $(process_tree) )
@@ -103,6 +103,45 @@ create_options_json()
     mv "${ETEST_OPTIONS}.tmp" "${ETEST_OPTIONS}"
 }
 
+display_failure_output()
+{
+    if [[ "${failure_output}" -eq 0 ]]; then
+        return 0
+    fi
+
+    if array_empty TESTS_FAILED; then
+        return 0
+    fi
+
+    if [[ ! -f "${ETEST_LOG}" ]]; then
+        return 0
+    fi
+
+    local cols text="Failure Output" left right pad
+    cols=$(tput cols)
+    pad=$(( (cols - ${#text} - 2) / 2 ))
+    left=$(printf '─%.0s' $(seq 1 ${pad}))
+    right=$(printf '─%.0s' $(seq 1 $(( cols - pad - ${#text} - 2 )) ))
+    echo
+    echo "$(ecolor bold red)${left} ${text} ${right}$(ecolor off)"
+
+    local suite test_name
+    for suite in "${!TESTS_FAILED[@]}"; do
+        for test_name in ${TESTS_FAILED[$suite]}; do
+            echo
+            echo "$(ecolor red)● ${suite}:${test_name#ETEST_}$(ecolor off)"
+            echo
+
+            # Extract output for this test from the log file (last occurrence only)
+            # Match from "Running command" line to FAILED line (pattern accounts for ANSI codes)
+            tac "${ETEST_LOG}" \
+                | sed -n "/${test_name}.*FAILED/,/Running command=\"${test_name}\"/p" \
+                | tac \
+                | sed 's/^/   /'
+        done
+    done
+}
+
 create_summary()
 {
     create_vcs_info
@@ -146,6 +185,9 @@ create_summary()
         fi
 
     } |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
+
+    # Display verbose output for failed tests if requested (after log is complete)
+    display_failure_output >&${ETEST_STDERR_FD} 2>&1
 }
 
 create_xml()
@@ -169,26 +211,52 @@ create_xml()
                 "${suite}"                                                      \
                 $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} ))        \
                 ${#testcases_failed[@]}                                         \
-                ${SUITE_DURATION[$suite]}
+                "${SUITE_DURATION[$suite]:-0}"
 
-            local xml_lines=()
             local name
 
-            # Add all passing tests
+            # Add all passing tests (sorted)
+            local passing_lines=()
             for name in ${testcases_passed[*]:-}; do
-                xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s"></testcase>\n' "${suite}" "${name}" "${TESTS_DURATION[$name]}")" )
+                passing_lines+=( "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\"></testcase>" )
             done
+            array_sort passing_lines
+            if array_not_empty passing_lines; then
+                printf '%s\n' "${passing_lines[@]}"
+            fi
 
-            # Add all failing tests
-            for name in ${testcases_failed[*]:-}; do
-                local failure_msg
-                failure_msg="$(printf '<failure message="%s:%s failed" type="ERROR"></failure>' "${suite}" "${name}")"
-                xml_lines+=( "$(printf '<testcase classname="%s" name="%s" time="%s">%s</testcase>\n' "${suite}" "${name}" "${TESTS_DURATION[$name]}" "${failure_msg}")" )
+            # Add all failing tests with output (sorted by name)
+            local failing_names=( ${testcases_failed[*]:-} )
+            array_sort failing_names
+            for name in "${failing_names[@]}"; do
+                local test_output=""
+                local error_line=""
+                local error_line_escaped=""
+                if [[ -f "${ETEST_LOG}" ]]; then
+                    # Extract test output (last occurrence only), strip ANSI codes, and escape CDATA end sequence
+                    test_output=$(tac "${ETEST_LOG}" \
+                        | sed -n "/${name}.*FAILED/,/Running command=\"${name}\"/p" \
+                        | tac \
+                        | sed 's/\x1b\[[0-9;]*m//g' \
+                        | sed 's/]]>/]]]]><![CDATA[>/g')
+
+                    # Extract the error line (line before stacktrace), strip timestamp
+                    error_line=$(echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
+
+                    # XML-escape for the attribute
+                    error_line_escaped="${error_line//&/\&amp;}"
+                    error_line_escaped="${error_line_escaped//</\&lt;}"
+                    error_line_escaped="${error_line_escaped//>/\&gt;}"
+                    error_line_escaped="${error_line_escaped//\"/\&quot;}"
+                fi
+                echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\">"
+                echo "<failure message=\"${suite}:${name} — ${error_line_escaped:-failed}\" type=\"ERROR\"><![CDATA["
+                echo "${error_line:-No error details}"
+                echo ""
+                echo "${test_output}"
+                echo "]]></failure>"
+                echo "</testcase>"
             done
-
-            array_sort xml_lines
-            edebug "$(lval xml_lines)"
-            printf "%s\n" "${xml_lines[@]:-}"
             echo "</testsuite>"
         done
 

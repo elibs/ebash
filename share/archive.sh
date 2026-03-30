@@ -530,6 +530,10 @@ archive_extract()
                 # Do the actual extracting
                 cp --archive --recursive --parents "${includes[@]}" "${dest_real}"
             fi
+
+            # ISO/squashfs files are read-only. After extraction with --archive, directories retain read-only
+            # permissions. Make them writable to allow subsequent operations (e.g., docker cp).
+            chmod -R u+w "${dest_real}"
         )
 
     # TAR or CPIO

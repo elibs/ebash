@@ -9,6 +9,8 @@
 
 [[ ${EBASH_OS} != Linux ]] && return 0
 
+## !!WARNING!! chroot code is deprecated and planned to be removed in a future release
+
 #-----------------------------------------------------------------------------------------------------------------------
 # CORE CHROOT FUNCTIONS
 #-----------------------------------------------------------------------------------------------------------------------
@@ -399,7 +401,7 @@ mkchroot()
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
     einfo "Creating $(lval CHROOT UBUNTU_RELEASE UBUNTU_ARCH)"
     efreshdir ${CHROOT}
-    debootstrap --no-check-gpg --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT}
+    debootstrap --no-check-gpg --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT} http://archive.ubuntu.com/ubuntu
 
     chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${UBUNTU_ARCH}
 }

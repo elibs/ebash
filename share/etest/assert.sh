@@ -32,7 +32,7 @@ die_handler()
 
 assert_no_process_leaks()
 {
-    if [[ ${check_process_leaks} -eq 0 ]] || ! cgroup_supported; then
+    if [[ ${check_process_leaks} -eq 0 ]] || ! cgroup_enabled; then
         return 0
     fi
 

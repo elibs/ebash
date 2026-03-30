@@ -57,8 +57,9 @@ run_single_test()
     fi
 
     echo -n "${einfo_message}" &>>${ETEST_OUT}
-    einfo_message_length=$(echo -n "${einfo_message}" | noansi | wc -c)
-    (( einfo_message_length += 1 ))
+    # Strip ANSI codes and get length (pure bash, no subprocesses)
+    local einfo_message_stripped="${einfo_message//$'\e'\[*([0-9;])m/}"
+    einfo_message_length=$(( ${#einfo_message_stripped} + 1 ))
 
     increment NUM_TESTS_EXECUTED
     decrement NUM_TESTS_QUEUED
@@ -104,7 +105,7 @@ run_single_test()
             TMPDIR="$(readlink -m ${testdir}/tmp)"
             export TMPDIR
 
-            if cgroup_supported; then
+            if cgroup_enabled; then
                 cgroup_create ${ETEST_CGROUP}
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
@@ -123,7 +124,7 @@ run_single_test()
             if is_function suite_setup && [[ ${testidx} -eq 0 ]]; then
                 etestmsg "Running suite_setup $(lval testidx testidx_total)"
                 (
-                    if cgroup_supported; then
+                    if cgroup_enabled; then
                         cgroup_move "${ETEST_CGROUP_BASE}" ${BASHPID}
                     fi
                     suite_setup
@@ -359,8 +360,8 @@ __run_all_tests_serially()
 # run all tests in parallel. It uses the --jobs option to control how many test suites can be run in parallel at the
 # same time. All test suites are essentially queued up into a runnable list. In has a `while true` loop where on each
 # iteration it will launch a new backgrounded job up until it reaches our limit specified via --jobs. During that loop
-# it will also wait on any previously backgrounded jobs and collect results about that job as they finish. It will also
-# delay up to jobs_delay on each iteration to avoid hammering the system too much busy waiting for long running results.
+# it will also wait on any previously backgrounded jobs and collect results about that job as they finish. When all job
+# slots are full, it uses `wait -n` to efficiently block until any child process exits.
 __run_all_tests_parallel()
 {
     local etest_jobs_running=()
@@ -405,8 +406,8 @@ __run_all_tests_parallel()
         elif [[ ${#etest_jobs_running[@]} -lt ${jobs} && ${etest_job_count} -lt ${etest_job_total} ]]; then
             __spawn_new_job
         else
-            edebug "Throttling by $(lval jobs_delay)"
-            sleep "${jobs_delay}"
+            # Wait for any child process to exit (much faster than polling with sleep)
+            wait -n 2>/dev/null || true
         fi
 
     done
@@ -414,7 +415,9 @@ __run_all_tests_parallel()
     # One final update of progress file so we see everything complete as expected.
     NUM_TESTS_RUNNING=0
     __update_jobs_progress_file
-    sleep ${EPROGRESS_DELAY:-1}
+    if [[ ${jobs_progress} -eq 1 ]]; then
+        sleep ${EPROGRESS_DELAY:-0.1}
+    fi
 
     # Update pids
     array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS

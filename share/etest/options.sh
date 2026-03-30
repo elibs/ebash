@@ -39,8 +39,9 @@ END
 $(opt_parse \
     "+failfast break b=${FAILFAST} | Stop immediately on first failure."                                               \
     "+clean   c=0                  | Clean only and then exit."                                                        \
-    "+check_process_leaks=1        | Check for process leaks."                                                         \
-    "+check_mount_leaks=1          | Check for mount leaks."                                                           \
+    "+cgroup=0                     | Use cgroup for process isolation and leak detection. Requires root."              \
+    "+check_process_leaks=0        | Check for process leaks. Requires --cgroup."                                      \
+    "+check_mount_leaks=0          | Check for mount leaks."                                                           \
     ":debug   D=${EDEBUG:-}        | EDEBUG output."                                                                   \
     "+delete  d=1                  | Delete all output files when tests complete."                                     \
     "+destroy                      | Kill and destroy all instances of etest running on the system."                   \
@@ -58,8 +59,6 @@ $(opt_parse \
                                      single job at a time but allows execution of the parallel job code paths. This
                                      is useful as it allows consistency for the caller to just pass the value of nproc
                                      into etest and the results and output will be identical."                         \
-    ":jobs_delay=5s                | Amount of time to sleep in job monitor while waiting for jobs to complete. This
-                                     uses sleep(1) time syntax."                                                       \
     "+jobs_progress=1              | Show jobs eprogress summary ticker while running."                                \
     ":logdir log_dir               | Directory to place logs in. Defaults to the current directory."                   \
     "+mountns mount_ns=0           | Run tests inside a mount namespace."                                              \
@@ -71,6 +70,7 @@ $(opt_parse \
     "+silent                       | Make etest as silent as possible. All output will be directed to the logfile."    \
     "+sudo S=0                     | Reexec as root and preserve environment before running tests."                    \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
+    "+failure_output=1             | Display verbose output for each failed test after the summary."        \
     "&test_list l                  | File that contains a list of tests to run. This file may contain comments on lines
                                      that begin with the # character. All other nonblank lines will be interpreted as
                                      things that could be passed as @tests -- directories, executable scripts, or .etest
@@ -175,7 +175,17 @@ EDEBUG=${debug}
 [[ ${EDEBUG:-0} != "0" || ${print_only} -eq 1 ]] && verbose=1 || true
 edebug "$(lval TOPDIR TEST_DIR) $(opt_dump)"
 
-if ! cgroup_supported ; then
+# Validate cgroup option
+if [[ "${cgroup}" -eq 1 ]]; then
+    if ! cgroup_supported; then
+        die "--cgroup requires kernel cgroup support"
+    fi
+    if [[ "${EUID}" -ne 0 ]]; then
+        die "--cgroup requires root (use --sudo or run as root)"
+    fi
+fi
+
+if ! cgroup_enabled ; then
     export ETEST_CGROUP_BASE=unsupported
 else
     # Global cgroup name for all unit tests run here
