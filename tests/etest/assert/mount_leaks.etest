@@ -7,7 +7,7 @@
 # version.
 
 # Enable mount leak checking for tests tests
-check_mount_leakds=1
+check_mount_leaks=1
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
