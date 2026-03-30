@@ -42,12 +42,6 @@ suite_setup()
     echo ""
 }
 
-# Ensure any lingering mounts are cleaned up before test directory removal.
-teardown()
-{
-    eunmount --all --recursive --delete .
-}
-
 # Helper function to run a provided callback test function on every supported archive type. It does them all in their
 # own separate unique directories and does them all in parallel to make overall test time faster.
 test_all_archives()
