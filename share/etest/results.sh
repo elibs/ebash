@@ -239,7 +239,12 @@ create_xml()
                         | sed 's/\x1b\[[0-9;]*m//g' \
                         | sed 's/]]>/]]]]><![CDATA[>/g')
                     # Extract the error line (line before stacktrace), strip timestamp
+                    # XML-escape the error line for use in attribute
                     error_line=$(echo "${test_output}" | grep -B1 "^   :: " | head -1 | sed 's/^\[.*\] //')
+                    error_line="${error_line//&/&amp;}"
+                    error_line="${error_line//</&lt;}"
+                    error_line="${error_line//>/&gt;}"
+                    error_line="${error_line//\"/&quot;}"
                 fi
                 echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\">"
                 echo "<failure message=\"${suite}:${name} — ${error_line:-failed}\" type=\"ERROR\"><![CDATA["
