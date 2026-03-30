@@ -239,7 +239,7 @@ create_xml()
                         | sed 's/\x1b\[[0-9;]*m//g' \
                         | sed 's/]]>/]]]]><![CDATA[>/g')
                     # Extract the error line (line before stacktrace), strip timestamp
-                    error_line=$(echo "${test_output}" | awk '/^   :: /{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
+                    error_line=$(echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
                     error_line="${error_line//&/\&amp;}"
                     error_line="${error_line//</\&lt;}"
                     error_line="${error_line//>/\&gt;}"
