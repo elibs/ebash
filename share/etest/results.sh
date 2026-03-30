@@ -238,6 +238,13 @@ create_xml()
                         | tac \
                         | sed 's/\x1b\[[0-9;]*m//g' \
                         | sed 's/]]>/]]]]><![CDATA[>/g')
+
+                    # DEBUG - remove after fixing
+                    echo "DEBUG test_output first 10 lines:" >&2
+                    echo "${test_output}" | head -10 >&2
+                    echo "DEBUG stacktrace match:" >&2
+                    echo "${test_output}" | grep -m1 ":: [^ ]*:[0-9]" >&2
+
                     # Extract the error line (line before stacktrace), strip timestamp
                     error_line=$(echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
                     error_line="${error_line//&/\&amp;}"
