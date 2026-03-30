@@ -120,8 +120,8 @@ display_failure_output()
     local cols text="Failure Output" left right pad
     cols=$(tput cols)
     pad=$(( (cols - ${#text} - 2) / 2 ))
-    left=$(printf '━%.0s' $(seq 1 ${pad}))
-    right=$(printf '━%.0s' $(seq 1 $(( cols - pad - ${#text} - 2 )) ))
+    left=$(printf '─%.0s' $(seq 1 ${pad}))
+    right=$(printf '─%.0s' $(seq 1 $(( cols - pad - ${#text} - 2 )) ))
     echo
     echo "$(ecolor bold red)${left} ${text} ${right}$(ecolor off)"
 
