@@ -680,10 +680,9 @@ tput()
         return 0
     fi
 
-    # TODO:
-    #if [[ "${1:-}" == @(civis|cnorm) ]] && ! einteractive; then
-    #    return 0
-    #fi
+    if [[ "${1:-}" == @(civis|cnorm) ]] && ! einteractive; then
+        return 0
+    fi
 
     command tput "$@" || true
 }
