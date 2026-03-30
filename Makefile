@@ -151,7 +151,7 @@ dshell-$1: docker-$1
 .PHONY: docker-$1
 docker-$1:
 	bin/ebanner "Building Docker Image '$${$1_IMAGE}'" REGISTRY PULL PUSH
-	bin/ebash docker_build                   \
+	bin/ebash --interactive=0 docker_build   \
 		--file docker/Dockerfile.build       \
 		--ibuild-arg IMAGE=$${$1_IMAGE_BASE} \
 		--name $${$1_IMAGE}                  \

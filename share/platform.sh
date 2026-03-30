@@ -106,7 +106,8 @@ __EBASH_GNU_TOOLS=(
     id
     install
     join
-    kill
+    # NOTE: Don't override bash builtin 'kill' with gkill
+    #kill
     link
     ln
     logname
