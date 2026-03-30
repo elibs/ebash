@@ -45,7 +45,7 @@ suite_setup()
 # Ensure any lingering mounts are cleaned up before test directory removal.
 teardown()
 {
-    eunmount --all --recursive --delete .
+    eunmount --all --recursive --delete . &>/dev/null || true
 }
 
 # Helper function to run a provided callback test function on every supported archive type. It does them all in their
