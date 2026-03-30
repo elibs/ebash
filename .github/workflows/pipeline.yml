@@ -81,6 +81,14 @@ jobs:
           name: ${{ matrix.container }}
           path: .work/docker/${{ matrix.container }}/**
 
+      - name: Publish Test Results
+        if: always()
+        uses: dorny/test-reporter@v1.9.1
+        with:
+          name: Test Results
+          path: .work/docker/${{ matrix.container }}/**/etest.xml
+          reporter: java-junit
+
   #---------------------------------------------------------------------------------------------------------------------
   #
   # MacOS
@@ -117,36 +125,12 @@ jobs:
           name: macos-${{ matrix.os }}
           path: .work/**
 
-  #---------------------------------------------------------------------------------------------------------------------
-  #
-  # Test Results
-  #
-  #---------------------------------------------------------------------------------------------------------------------
-  test-results:
-    name: "Tests Results"
-    needs: [Linux, MacOS]
-    runs-on: ubuntu-latest
-    if: always() && github.ref != 'refs/heads/develop'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4.1.8
-        with:
-          path: artifacts
-
-      - name: Details
-        run: find artifacts
-
       - name: Publish Test Results
+        if: always()
         uses: dorny/test-reporter@v1.9.1
         with:
           name: Test Results
-          path: artifacts/**/etest.xml
+          path: .work/**/etest.xml
           reporter: java-junit
 
   #---------------------------------------------------------------------------------------------------------------------
