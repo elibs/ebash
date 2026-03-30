@@ -399,7 +399,7 @@ mkchroot()
     local CHROOT_IMAGE="chroot_${UBUNTU_RELEASE}.tgz"
     einfo "Creating $(lval CHROOT UBUNTU_RELEASE UBUNTU_ARCH)"
     efreshdir ${CHROOT}
-    debootstrap --no-check-gpg --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT}
+    debootstrap --no-check-gpg --arch ${UBUNTU_ARCH} ${UBUNTU_RELEASE} ${CHROOT} http://archive.ubuntu.come/ubuntu
 
     chroot_setup ${CHROOT} ${UBUNTU_RELEASE} ${UBUNTU_ARCH}
 }

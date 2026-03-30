@@ -232,11 +232,22 @@ edebug_out()
 opt_usage einteractive <<'END'
 Check if we are "interactive" or not. For our purposes, we are interactive if STDERR is attached to a terminal or not.
 This is checked via the bash idiom "[[ -t 2 ]]" where "2" is STDERR. But we can override this default check with the
-global variable EINTERACTIVE=1.
+global variable EINTERACTIVE=1 to force interactive mode or EINTERACTIVE=0 to force non-interactive mode.
 END
 einteractive()
 {
-    [[ ${EINTERACTIVE:-0} -eq 1 ]] && return 0
+    # CI environments are never interactive
+    if [[ "${CI:-}" == "true" ]]; then
+        return 1
+    fi
+
+    # If EINTERACTIVE is explicitly set, use that value
+    if [[ ${EINTERACTIVE:-0} -eq 1 ]]; then
+        return 0
+    elif [[ ${EINTERACTIVE:-0} -eq 0 ]]; then
+        return 1
+    fi
+
     [[ -t 2 ]]
 }
 
@@ -680,6 +691,7 @@ tput()
         return 0
     fi
 
+    # Skip cursor hide/show commands in non-interactive terminals or CI builds (avoids "25l" in CI logs)
     if [[ "${1:-}" == @(civis|cnorm) ]] && ! einteractive; then
         return 0
     fi
