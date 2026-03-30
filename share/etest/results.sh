@@ -231,13 +231,17 @@ create_xml()
             for name in "${failing_names[@]:-}"; do
                 local test_output=""
                 if [[ -f "${ETEST_LOG}" ]]; then
-                    # Extract test output, strip ANSI codes, and escape CDATA end sequence
-                    test_output=$(sed -n "/Running command=\"${name}\"/,/${name}.*FAILED/p" "${ETEST_LOG}" \
+                    # Extract test output (last occurrence only), strip ANSI codes, and escape CDATA end sequence
+                    test_output=$(tac "${ETEST_LOG}" \
+                        | sed -n "/${name}.*FAILED/,/Running command=\"${name}\"/p" \
+                        | tac \
                         | sed 's/\x1b\[[0-9;]*m//g' \
                         | sed 's/]]>/]]]]><![CDATA[>/g')
                 fi
                 echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\">"
-                echo "<failure message=\"${suite}:${name} failed\" type=\"ERROR\"><![CDATA["
+                echo "<failure message=\"${suite}:${name} FAILED\" type=\"ERROR\"><![CDATA["
+                echo "${suite}:${name} FAILED (see full output below)"
+                echo ""
                 echo "${test_output}"
                 echo "]]></failure>"
                 echo "</testcase>"
