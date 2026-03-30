@@ -687,7 +687,7 @@ tput()
     fi
 
     # Skip cursor hide/show commands in non-interactive terminals or CI builds (avoids "25l" in CI logs)
-    if [[ "${1:-}" == @(civis|cnorm) ]] && { ! einteractive || [[ "${CI:-}" == "true" ]] }; then
+    if [[ "${1:-}" == @(civis|cnorm) ]] && { ! einteractive || [[ "${CI:-}" == "true" ]]; }; then
         return 0
     fi
 
