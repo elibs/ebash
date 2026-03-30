@@ -12,7 +12,8 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
-# Enable process leak checking for these tests
+# Enable cgroup and process leak checking for these tests
+cgroup=1
 check_process_leaks=1
 
 MOCKS=(
