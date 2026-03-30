@@ -236,11 +236,6 @@ global variable EINTERACTIVE=1 to force interactive mode or EINTERACTIVE=0 to fo
 END
 einteractive()
 {
-    # CI environments are never interactive
-    if [[ "${CI:-}" == "true" ]]; then
-        return 1
-    fi
-
     # If EINTERACTIVE is explicitly set, use that value
     if [[ ${EINTERACTIVE:-0} -eq 1 ]]; then
         return 0
@@ -692,7 +687,7 @@ tput()
     fi
 
     # Skip cursor hide/show commands in non-interactive terminals or CI builds (avoids "25l" in CI logs)
-    if [[ "${1:-}" == @(civis|cnorm) ]] && ! einteractive; then
+    if [[ "${1:-}" == @(civis|cnorm) ]] && { ! einteractive || [[ "${CI:-}" == "true" ]] }; then
         return 0
     fi
 
