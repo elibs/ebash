@@ -143,11 +143,11 @@ jobs:
         run: find artifacts
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2.18.0
+        uses: dorny/test-reporter@v1.9.1
         with:
-          check_name: Publish Test Results
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          files: artifacts/**/etest.xml
+          name: Test Results
+          path: artifacts/**/etest.xml
+          reporter: java-junit
 
   #---------------------------------------------------------------------------------------------------------------------
   #
