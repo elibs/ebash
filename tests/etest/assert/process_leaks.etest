@@ -12,6 +12,9 @@
 #
 #-----------------------------------------------------------------------------------------------------------------------
 
+# Enable process leak checking for these tests
+check_process_leaks=1
+
 MOCKS=(
     "cgroup_supported"
     "cgroup_exists"

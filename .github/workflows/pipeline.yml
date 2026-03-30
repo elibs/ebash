@@ -54,14 +54,14 @@ jobs:
 
     steps:
       - name: Log in to the Container registry
-        uses: docker/login-action@v1.12.0
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.CICD_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -95,17 +95,12 @@ jobs:
     runs-on: macos-${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Install Dependencies
-        run: |
-            # Brew is so dumb. Trying to install git fails because both 2.35 and 2.36 are available and installing the
-            # newer one causes a symlink collision. So we just work around this be removing the old one if it is
-            # present.
-            brew unlink git@2.35.1 || true
-            install/all
+        run: install/all
 
       - name: Lint
         run: make lint
@@ -135,7 +130,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -167,7 +162,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.CICD_TOKEN }}
