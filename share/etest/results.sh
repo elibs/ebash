@@ -228,7 +228,7 @@ create_xml()
             # Add all failing tests with output (sorted by name)
             local failing_names=( ${testcases_failed[*]:-} )
             array_sort failing_names
-            for name in "${failing_names[@]:-}"; do
+            for name in "${failing_names[@]}"; do
                 local test_output=""
                 if [[ -f "${ETEST_LOG}" ]]; then
                     # Extract test output (last occurrence only), strip ANSI codes, and escape CDATA end sequence
