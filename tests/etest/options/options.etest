@@ -28,7 +28,6 @@ ETEST_options_usage()
     grep "filter, -f <value>"           output
     grep "html, -h"                     output
     grep "jobs, -j <value>"             output
-    grep "jobs-delay <value>"           output
     grep "jobs-progress"                output
     grep "logdir, --log-dir <value>"    output
     grep "mount-ns"                     output
