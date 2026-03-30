@@ -112,7 +112,7 @@ elogfile()
 
                 # If we are in a cgroup, move the tee process out of that cgroup so that we do not kill the tee. It
                 # will nicely terminate on its own once the process dies.
-                if cgroup_supported && [[ -n "${cgroup}" ]]; then
+                if cgroup_enabled && [[ -n "${cgroup}" ]]; then
                     edebug "Moving tee process into $(lval cgroup)"
                     cgroup_create ${cgroup}
                     cgroup_move ${cgroup} ${BASHPID}
