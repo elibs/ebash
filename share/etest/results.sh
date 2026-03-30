@@ -231,6 +231,7 @@ create_xml()
             for name in "${failing_names[@]}"; do
                 local test_output=""
                 local error_line=""
+                local error_line_escaped=""
                 if [[ -f "${ETEST_LOG}" ]]; then
                     # Extract test output (last occurrence only), strip ANSI codes, and escape CDATA end sequence
                     test_output=$(tac "${ETEST_LOG}" \
@@ -239,23 +240,17 @@ create_xml()
                         | sed 's/\x1b\[[0-9;]*m//g' \
                         | sed 's/]]>/]]]]><![CDATA[>/g')
 
-                    # DEBUG - remove after fixing
-                    echo "DEBUG test_output first 10 lines:" >&${ETEST_STDERR_FD}
-                    echo "${test_output}" | head -10 >&${ETEST_STDERR_FD}
-                    echo "DEBUG stacktrace match:" >&${ETEST_STDERR_FD}
-                    echo "${test_output}" | grep -m1 ":: [^ ]*:[0-9]" >&${ETEST_STDERR_FD}
-                    echo "DEBUG awk result:" >&${ETEST_STDERR_FD}
-                    echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' >&${ETEST_STDERR_FD}
-
                     # Extract the error line (line before stacktrace), strip timestamp
                     error_line=$(echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
-                    error_line="${error_line//&/\&amp;}"
-                    error_line="${error_line//</\&lt;}"
-                    error_line="${error_line//>/\&gt;}"
-                    error_line="${error_line//\"/\&quot;}"
+
+                    # XML-escape for the attribute
+                    error_line_escaped="${error_line//&/\&amp;}"
+                    error_line_escaped="${error_line_escaped//</\&lt;}"
+                    error_line_escaped="${error_line_escaped//>/\&gt;}"
+                    error_line_escaped="${error_line_escaped//\"/\&quot;}"
                 fi
                 echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\">"
-                echo "<failure message=\"${suite}:${name} — ${error_line:-failed}\" type=\"ERROR\"><![CDATA["
+                echo "<failure message=\"${suite}:${name} — ${error_line_escaped:-failed}\" type=\"ERROR\"><![CDATA["
                 echo "${error_line:-No error details}"
                 echo ""
                 echo "${test_output}"
