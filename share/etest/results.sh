@@ -240,10 +240,10 @@ create_xml()
                         | sed 's/]]>/]]]]><![CDATA[>/g')
 
                     # DEBUG - remove after fixing
-                    echo "DEBUG test_output first 10 lines:" >&2
-                    echo "${test_output}" | head -10 >&2
-                    echo "DEBUG stacktrace match:" >&2
-                    echo "${test_output}" | grep -m1 ":: [^ ]*:[0-9]" >&2
+                    echo "DEBUG test_output first 10 lines:" >&${ETEST_STDERR_FD}
+                    echo "${test_output}" | head -10 >&${ETEST_STDERR_FD}
+                    echo "DEBUG stacktrace match:" >&${ETEST_STDERR_FD}
+                    echo "${test_output}" | grep -m1 ":: [^ ]*:[0-9]" >&${ETEST_STDERR_FD}
 
                     # Extract the error line (line before stacktrace), strip timestamp
                     error_line=$(echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
