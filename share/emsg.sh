@@ -682,6 +682,13 @@ tput()
         fi
     fi
 
+    # Handle hpa (horizontal position absolute) portably using ANSI CHA sequence.
+    # tput hpa is not reliably available on all terminal types, particularly on macOS.
+    if [[ "${1:-}" == "hpa" ]]; then
+        echo -en "\033[${2}G"
+        return 0
+    fi
+
     if ! which tput &> /dev/null; then
         return 0
     fi
@@ -835,7 +842,7 @@ eend()
         if [[ ${startcol} -gt 0 ]]; then
             # Use hpa (horizontal position absolute) instead of cuf (cursor forward) to ensure
             # we go to the correct column regardless of where the cursor currently is
-            echo -en "$(tput cuu1)$(tput hpa ${startcol} 2>/dev/null)" >&2
+            echo -en "$(tput cuu1)$(tput hpa ${startcol})" >&2
         fi
     else
         startcol=$(( columns - inline_offset - 6 ))
