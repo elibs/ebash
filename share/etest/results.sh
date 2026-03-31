@@ -103,11 +103,10 @@ create_options_json()
     mv "${ETEST_OPTIONS}.tmp" "${ETEST_OPTIONS}"
 }
 
-display_failure_output()
+create_failure_output()
 {
-    if [[ "${failure_output}" -eq 0 ]]; then
-        return 0
-    fi
+    # Always create the file (even if empty) so it exists for consumers
+    : > "${ETEST_FAILURE_LOG}"
 
     if array_empty TESTS_FAILED; then
         return 0
@@ -117,29 +116,50 @@ display_failure_output()
         return 0
     fi
 
-    local cols text="Failure Output" left right pad
-    cols=$(tput cols)
-    pad=$(( (cols - ${#text} - 2) / 2 ))
-    left=$(printf '─%.0s' $(seq 1 ${pad}))
-    right=$(printf '─%.0s' $(seq 1 $(( cols - pad - ${#text} - 2 )) ))
-    echo
-    echo "$(ecolor bold red)${left} ${text} ${right}$(ecolor off)"
+    # Write plain text (no ANSI codes) to the failure log file
+    {
+        local cols text="Failure Output" inner padding
+        cols=120
+        inner=$(( cols - 2 ))
+        padding=$(( inner - 2 - ${#text} ))
+        echo
+        printf '╔%s╗\n' "$(printf '═%.0s' $(seq 1 ${inner}))"
+        printf '║  %s%s║\n' "${text}" "$(printf ' %.0s' $(seq 1 ${padding}))"
+        printf '╚%s╝\n' "$(printf '═%.0s' $(seq 1 ${inner}))"
 
-    local suite test_name
-    for suite in "${!TESTS_FAILED[@]}"; do
-        for test_name in ${TESTS_FAILED[$suite]}; do
-            echo
-            echo "$(ecolor red)● ${suite}:${test_name#ETEST_}$(ecolor off)"
-            echo
+        local suite test_name
+        for suite in "${!TESTS_FAILED[@]}"; do
+            for test_name in ${TESTS_FAILED[$suite]}; do
+                echo
+                echo "● ${suite}:${test_name#ETEST_}"
+                echo
 
-            # Extract output for this test from the log file (last occurrence only)
-            # Match from "Running command" line to FAILED line (pattern accounts for ANSI codes)
-            tac "${ETEST_LOG}" \
-                | sed -n "/${test_name}.*FAILED/,/Running command=\"${test_name}\"/p" \
-                | tac \
-                | sed 's/^/   /'
+                # Extract output for this test from the log file (last occurrence only)
+                # Match from "Running command" line to FAILED line (pattern accounts for ANSI codes)
+                # Strip ANSI codes for clean file output
+                tac "${ETEST_LOG}" \
+                    | sed -n "/${test_name}.*FAILED/,/Running command=\"${test_name}\"/p" \
+                    | tac \
+                    | sed 's/\x1b\[[0-9;]*m//g' \
+                    | sed 's/^/   /'
+            done
         done
-    done
+    } > "${ETEST_FAILURE_LOG}"
+
+    # Optionally display to stderr with colors
+    if [[ "${failure_output}" -eq 1 ]]; then
+        local line
+        while IFS= read -r line; do
+            # Color the box border and header lines
+            if [[ "${line}" == "╔"* ]] || [[ "${line}" == "╚"* ]] || [[ "${line}" == "║"* ]]; then
+                echo "$(ecolor bold red)${line}$(ecolor off)"
+            elif [[ "${line}" == "● "* ]]; then
+                echo "$(ecolor red)${line}$(ecolor off)"
+            else
+                echo "${line}"
+            fi
+        done < "${ETEST_FAILURE_LOG}" >&${ETEST_STDERR_FD}
+    fi
 }
 
 create_summary()
@@ -186,8 +206,8 @@ create_summary()
 
     } |& tee -a ${ETEST_LOG} >&${ETEST_STDERR_FD}
 
-    # Display verbose output for failed tests if requested (after log is complete)
-    display_failure_output >&${ETEST_STDERR_FD} 2>&1
+    # Create failure output file and optionally display to stderr (after log is complete)
+    create_failure_output
 }
 
 create_xml()
