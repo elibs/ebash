@@ -55,9 +55,10 @@ __EBASH_CGROUP_SUPPORTED=""
 cgroup_supported()
 {
     # Return cached result if available
-    if [[ -n "${__EBASH_CGROUP_SUPPORTED}" ]]; then
-        [[ "${__EBASH_CGROUP_SUPPORTED}" -eq 1 ]]
-        return
+    if [[ "${__EBASH_CGROUP_SUPPORTED:-}" -eq 1 ]]; then
+        return 0
+    elif [[ "${__EBASH_CGROUP_SUPPORTED:-}" -eq 0 ]]; then
+        return 1
     fi
 
     # Assume not supported, then check conditions
