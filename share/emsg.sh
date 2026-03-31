@@ -833,7 +833,9 @@ eend()
     if einteractive && [[ ${inline} -eq 0 ]]; then
         startcol=$(( columns - 6 ))
         if [[ ${startcol} -gt 0 ]]; then
-            echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
+            # Use hpa (horizontal position absolute) instead of cuf (cursor forward) to ensure
+            # we go to the correct column regardless of where the cursor currently is
+            echo -en "$(tput cuu1)$(tput hpa ${startcol} 2>/dev/null)" >&2
         fi
     else
         startcol=$(( columns - inline_offset - 6 ))

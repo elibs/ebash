@@ -57,6 +57,11 @@ repl()
         # Skip empty commands
         [[ -z ${cmd} ]] && continue
 
+        # Re-route "quit" to "exit"
+        if [[ "${cmd}" == "quit" ]]; then
+            cmd="exit"
+        fi
+
         history -s "${cmd}"
         eval ${cmd}
     done
