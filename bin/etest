@@ -45,7 +45,7 @@ export ETEST_PID=$$
 
 # Set EFUNCS_COLOR early so it propagates to command substitutions where [[ -t 2 ]] would return false.
 # Use efuncs_color_as_bool which honors both EFUNCS_COLOR (if set) and einteractive.
-export EFUNCS_COLOR=$(efuncs_color_as_bool)
+EFUNCS_COLOR=$(efuncs_color_as_bool)
 
 global_setup
 trap_add global_teardown
