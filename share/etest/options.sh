@@ -39,8 +39,7 @@ END
 $(opt_parse \
     "+failfast break b=${FAILFAST} | Stop immediately on first failure."                                               \
     "+clean   c=0                  | Clean only and then exit."                                                        \
-    "+cgroup=0                     | Use cgroup for process isolation and leak detection. Requires root."              \
-    "+check_process_leaks=0        | Check for process leaks. Requires --cgroup."                                      \
+    "+check_process_leaks=0        | Check for process leaks. Requires cgroups and root."                              \
     "+check_mount_leaks=0          | Check for mount leaks."                                                           \
     ":debug   D=${EDEBUG:-}        | EDEBUG output."                                                                   \
     "+delete  d=1                  | Delete all output files when tests complete."                                     \
@@ -175,17 +174,7 @@ EDEBUG=${debug}
 [[ ${EDEBUG:-0} != "0" || ${print_only} -eq 1 ]] && verbose=1 || true
 edebug "$(lval TOPDIR TEST_DIR) $(opt_dump)"
 
-# Validate cgroup option
-if [[ "${cgroup}" -eq 1 ]]; then
-    if ! cgroup_supported; then
-        die "--cgroup requires kernel cgroup support"
-    fi
-    if [[ "${EUID}" -ne 0 ]]; then
-        die "--cgroup requires root (use --sudo or run as root)"
-    fi
-fi
-
-if ! cgroup_enabled ; then
+if ! cgroup_supported ; then
     export ETEST_CGROUP_BASE=unsupported
 else
     # Global cgroup name for all unit tests run here

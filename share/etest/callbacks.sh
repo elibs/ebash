@@ -22,7 +22,7 @@ global_setup()
 
     # If cgroups are enabled, create a new parent cgroup which will contain all our processes including the elogfile
     # processes we already launched.
-    if cgroup_enabled; then
+    if cgroup_supported; then
         cgroup_create ${ETEST_CGROUP}
         cgroup_move ${ETEST_CGROUP_BASE} $$ $(elogfile_pids)
     fi
@@ -54,7 +54,7 @@ global_teardown()
     elogfile_kill --all
 
     # Destroy parent cgroup
-    if cgroup_enabled; then
+    if cgroup_supported; then
         cgroup_destroy --recursive ${ETEST_CGROUP}
     fi
 }

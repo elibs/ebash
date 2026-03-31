@@ -216,7 +216,7 @@ emetadata_check()
             # Setup a cgroup to track the gpg agent that we're going to spawn so we can ensure it gets killed. If
             # cgroups are not supported, then we'll fallback to using ekill below.
             local cgroup=""
-            if cgroup_enabled ; then
+            if cgroup_supported ; then
                 cgroup="ebash/$$"
                 trap_add "cgroup_kill_and_wait ${cgroup} ; cgroup_destroy -r ${cgroup}"
                 cgroup_create ${cgroup}

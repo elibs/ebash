@@ -49,10 +49,20 @@ fi
 
 opt_usage cgroup_supported <<'END'
 Detect whether the machine currently running this code is built with kernel support for all of the cgroups subsystems
-that ebash depends on.
+that ebash depends on. The result is cached for efficiency.
 END
+__EBASH_CGROUP_SUPPORTED=""
 cgroup_supported()
 {
+    # Return cached result if available
+    if [[ -n "${__EBASH_CGROUP_SUPPORTED}" ]]; then
+        [[ "${__EBASH_CGROUP_SUPPORTED}" -eq 1 ]]
+        return
+    fi
+
+    # Assume not supported, then check conditions
+    __EBASH_CGROUP_SUPPORTED=0
+
     if [[ ! -e /proc/cgroups ]] ; then
         edebug "No support for cgroups"
         return 1
@@ -83,33 +93,21 @@ cgroup_supported()
             fi
         done
 
+        if [[ ${missing_count} -eq 0 ]]; then
+            __EBASH_CGROUP_SUPPORTED=1
+        fi
         return ${missing_count}
     elif [[ ${CGROUP_VERSION} -eq 2 ]]; then
+        # Check if cgroup sysfs is writable
+        if [[ ! -w "${CGROUP_SYSFS}" ]]; then
+            edebug "Missing writeable support for ${CGROUP_SYSFS}"
+            return 1
+        fi
+        __EBASH_CGROUP_SUPPORTED=1
         return 0
     else
         return 1
     fi
-}
-
-opt_usage cgroup_enabled <<'END'
-Check whether cgroups are enabled and usable. This checks:
-1. The `cgroups` variable is set to 1 (opt-in, defaults to 0 if unset)
-2. cgroup_supported returns true (kernel support)
-3. Running as root (EUID=0)
-The result is cached for efficiency.
-END
-__EBASH_CGROUP_ENABLED=""
-cgroup_enabled()
-{
-    if [[ -z "${__EBASH_CGROUP_ENABLED}" ]]; then
-        if [[ "${cgroup}" -eq 1 ]] && cgroup_supported && [[ "${EUID}" -eq 0 ]]; then
-            __EBASH_CGROUP_ENABLED=1
-        else
-            __EBASH_CGROUP_ENABLED=0
-        fi
-    fi
-
-    [[ "${__EBASH_CGROUP_ENABLED}" -eq 1 ]]
 }
 
 [[ ${EBASH_OS} == Linux && -e /proc/cgroups ]] || return 0
