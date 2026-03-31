@@ -125,19 +125,18 @@ eprogress()
                 ecolor none
             fi
 
-            # Optionally display the spinner.
+            # Optionally display the spinner. Check done flag between frames for faster response to signals.
             if [[ ${spinner} -eq 1 ]]; then
                 echo -n " "
                 ecolor clear_to_eol
 
-                spinout "/"
-                spinout "-"
-                spinout "\\"
-                spinout "|"
-                spinout "/"
-                spinout "-"
-                spinout "\\"
-                spinout "|"
+                local spin_chars=("/" "-" "\\" "|" "/" "-" "\\" "|")
+                for char in "${spin_chars[@]}"; do
+                    [[ ${done} -eq 1 ]] && break
+                    echo -n -e "\b${char}" >&2
+                    sleep 0.10 &
+                    wait $! 2>/dev/null || true
+                done
             fi
 
             # If we are done then break out of the loop and perform necessary clean-up. Otherwise prepare for next
@@ -146,9 +145,10 @@ eprogress()
                 break
             fi
 
-            # Optionally sleep if delay was requested.
+            # Optionally sleep if delay was requested. Use background sleep + wait for interruptibility.
             if [[ -n "${delay}" ]]; then
-                sleep "${delay}"
+                sleep "${delay}" &
+                wait $! 2>/dev/null || true
             fi
 
             # If we are NOT in inline mode, then emit a newline followed by the static message to prepare for the next

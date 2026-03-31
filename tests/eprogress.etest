@@ -166,7 +166,14 @@ ETEST_eprogress_ticker_align_right()
     # fixed.
     sed -i "s|\[[0-9]\+;[0-9]\+H||" ${OUTPUT}
 
-    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H| $\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+    # Normalize hpa (horizontal position absolute) cursor codes - different terminals/widths produce different values
+    sed -i "s|\[[0-9]\+G||" ${OUTPUT}
+
+    # Normalize spinner frames - the number of frames displayed varies based on timing since the spinner checks for
+    # termination between each frame. Replace any sequence of spinner frames with a single canonical frame.
+    sed -i 's|\(\^H[/\|\\-]\)\+|\^H/|g' ${OUTPUT}
+
+    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00]  ^H/ $\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_ticker_align_left()
@@ -196,14 +203,21 @@ ETEST_eprogress_ticker_align_left()
     cat -evt ${OUTPUT}
     etestmsg "End ${OUTPUT} contents"
 
-    # The ticker may actuall run for slightly longer than we requested due to how sleep works. Change instances of
+    # The ticker may actually run for slightly longer than we requested due to how sleep works. Change instances of
     # 00:00:0[1-9] to 00:00:00 in the output for easier validation.
     sed -i "s|:01\]|:00\]|g" ${OUTPUT}
 
     # Different terms have different codes. Ignore the number in the ANSI code.
     sed -i "s|\[[0-9]\+C||" ${OUTPUT}
 
-    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00]  ^H/^H-^H\^H|^H/^H-^H\^H|"$'\x20\x24\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+    # Normalize hpa (horizontal position absolute) cursor codes - different terminals/widths produce different values
+    sed -i "s|\[[0-9]\+G||" ${OUTPUT}
+
+    # Normalize spinner frames - the number of frames displayed varies based on timing since the spinner checks for
+    # termination between each frame. Replace any sequence of spinner frames with a single canonical frame.
+    sed -i 's|\(\^H[/\|\\-]\)\+|\^H/|g' ${OUTPUT}
+
+    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00]  ^H/"$'\x20\x24\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_inside_eretry()

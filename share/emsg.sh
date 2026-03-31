@@ -236,10 +236,10 @@ global variable EINTERACTIVE=1 to force interactive mode or EINTERACTIVE=0 to fo
 END
 einteractive()
 {
-    # If EINTERACTIVE is explicitly set, use that value
-    if [[ ${EINTERACTIVE:-0} -eq 1 ]]; then
+    # If EINTERACTIVE is explicitly set, use that value. Use string comparision because empty string equals 0 with -eq.
+    if [[ "${EINTERACTIVE:-}" == "1" ]]; then
         return 0
-    elif [[ ${EINTERACTIVE:-0} -eq 0 ]]; then
+    elif [[ "${EINTERACTIVE:-}" == "0" ]]; then
         return 1
     fi
 
@@ -682,6 +682,13 @@ tput()
         fi
     fi
 
+    # Handle hpa (horizontal position absolute) portably using ANSI CHA sequence.
+    # tput hpa is not reliably available on all terminal types, particularly on macOS.
+    if [[ "${1:-}" == "hpa" ]]; then
+        echo -en "\033[${2}G"
+        return 0
+    fi
+
     if ! which tput &> /dev/null; then
         return 0
     fi
@@ -833,7 +840,9 @@ eend()
     if einteractive && [[ ${inline} -eq 0 ]]; then
         startcol=$(( columns - 6 ))
         if [[ ${startcol} -gt 0 ]]; then
-            echo -en "$(tput cuu1)$(tput cuf ${startcol} 2>/dev/null)" >&2
+            # Use hpa (horizontal position absolute) instead of cuf (cursor forward) to ensure
+            # we go to the correct column regardless of where the cursor currently is
+            echo -en "$(tput cuu1)$(tput hpa ${startcol})" >&2
         fi
     else
         startcol=$(( columns - inline_offset - 6 ))

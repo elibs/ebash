@@ -43,6 +43,10 @@ source "${EBASH}/etest/test_list.sh"
 
 export ETEST_PID=$$
 
+# Set EFUNCS_COLOR early so it propagates to command substitutions where [[ -t 2 ]] would return false.
+# Use efuncs_color_as_bool which honors both EFUNCS_COLOR (if set) and einteractive.
+EFUNCS_COLOR=$(efuncs_color_as_bool)
+
 global_setup
 trap_add global_teardown
 
@@ -129,11 +133,15 @@ fi
 elogrotate "${ETEST_JSON}"
 elogrotate "${ETEST_OPTIONS}"
 elogrotate "${ETEST_XML}"
+elogrotate "${ETEST_FAILURE_LOG}"
 if [[ ${jobs} -eq 0 ]]; then
     elogfile --cgroup=${ETEST_CGROUP} --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
 else
     elogfile --cgroup=${ETEST_CGROUP} --rotate_count=10 --tail=0 /dev/null
 fi
+
+# Create empty failure log so it exists even if tests abort early
+: > "${ETEST_FAILURE_LOG}"
 
 create_status_json
 create_options_json
