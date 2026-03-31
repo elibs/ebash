@@ -236,10 +236,10 @@ global variable EINTERACTIVE=1 to force interactive mode or EINTERACTIVE=0 to fo
 END
 einteractive()
 {
-    # If EINTERACTIVE is explicitly set, use that value
-    if [[ ${EINTERACTIVE:-0} -eq 1 ]]; then
+    # If EINTERACTIVE is explicitly set, use that value. Use string comparision because empty string equals 0 with -eq.
+    if [[ "${EINTERACTIVE:-}" == "1" ]]; then
         return 0
-    elif [[ ${EINTERACTIVE:-0} -eq 0 ]]; then
+    elif [[ "${EINTERACTIVE:-}" == "0" ]]; then
         return 1
     fi
 

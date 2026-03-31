@@ -161,8 +161,6 @@ else
 
     # Or run ebash-repl if nothing was specified
     else
-        EINTERACTIVE=1
-        EFUNCS_COLOR=1
         exec ${EBASH_HOME}/bin/ebash-repl --load "${load}"
     fi
 
