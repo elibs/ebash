@@ -54,10 +54,10 @@ END
 __EBASH_CGROUP_SUPPORTED=""
 cgroup_supported()
 {
-    # Return cached result if available
-    if [[ "${__EBASH_CGROUP_SUPPORTED:-}" -eq 1 ]]; then
+    # Return cached result if available. Use string comparision because empty string equals 0 with -eq.
+    if [[ "${__EBASH_CGROUP_SUPPORTED}" == "1" ]]; then
         return 0
-    elif [[ "${__EBASH_CGROUP_SUPPORTED:-}" -eq 0 ]]; then
+    elif [[ "${__EBASH_CGROUP_SUPPORTED}" == "0" ]]; then
         return 1
     fi
 
