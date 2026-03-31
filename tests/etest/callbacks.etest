@@ -17,7 +17,7 @@ MOCKS=(
     "assert_no_process_leaks"
     "cgroup_create"
     "cgroup_destroy"
-    "cgroup_enabled"
+    "cgroup_supported"
     "cgroup_move"
     "efreshdir"
     "elogfile_kill"
@@ -46,16 +46,16 @@ teardown()
 ETEST_global_setup_without_cgroups()
 {
     etestmsg "Creating local mocks"
-    emock --return 1 "cgroup_enabled"
+    emock --return 1 "cgroup_supported"
 
     etestmsg "Calling global_setup"
     global_setup
 
     etestmsg "Validating setup code paths"
-    assert_emock_called "efreshdir"      1
-    assert_emock_called "cgroup_enabled" 1
-    assert_emock_called "cgroup_create"  0
-    assert_emock_called "cgroup_move"    0
+    assert_emock_called "efreshdir"        1
+    assert_emock_called "cgroup_supported" 1
+    assert_emock_called "cgroup_create"    0
+    assert_emock_called "cgroup_move"      0
 }
 
 # Verify global_setup works properly when cgroups are supported.
@@ -65,10 +65,10 @@ ETEST_global_setup_with_cgroups()
     global_setup
 
     etestmsg "Validating setup code paths"
-    assert_emock_called "efreshdir"      1
-    assert_emock_called "cgroup_enabled" 1
-    assert_emock_called "cgroup_create"  1
-    assert_emock_called "cgroup_move"    1
+    assert_emock_called "efreshdir"        1
+    assert_emock_called "cgroup_supported" 1
+    assert_emock_called "cgroup_create"    1
+    assert_emock_called "cgroup_move"      1
 
     etestmsg "Verify correct pids moved into cgroup"
     assert_emock_called_with "cgroup_create" 0 \
@@ -81,7 +81,7 @@ ETEST_global_setup_with_cgroups()
 ETEST_global_teardown_without_cgroups()
 {
     etestmsg "Creating local mocks"
-    emock --return 1 "cgroup_enabled"
+    emock --return 1 "cgroup_supported"
 
     etestmsg "Calling global_teardown"
     global_teardown
@@ -90,7 +90,7 @@ ETEST_global_teardown_without_cgroups()
     assert_emock_called "assert_no_process_leaks" 1
     assert_emock_called "assert_no_mount_leaks"   1
     assert_emock_called "elogfile_kill"           1
-    assert_emock_called "cgroup_enabled"          1
+    assert_emock_called "cgroup_supported"        1
     assert_emock_called "cgroup_destroy"          0
 }
 
@@ -104,7 +104,7 @@ ETEST_global_teardown_with_cgroups()
     assert_emock_called "assert_no_process_leaks" 1
     assert_emock_called "assert_no_mount_leaks"   1
     assert_emock_called "elogfile_kill"           1
-    assert_emock_called "cgroup_enabled"          1
+    assert_emock_called "cgroup_supported"        1
     assert_emock_called "cgroup_destroy"          1
 
     etestmsg "Verifying cgroup recursively destroyed"
@@ -127,7 +127,7 @@ ETEST_global_teardown_with_cgroups_and_leaks()
     assert_emock_called "assert_no_process_leaks" 1
     assert_emock_called "assert_no_mount_leaks"   1
     assert_emock_called "elogfile_kill"           1
-    assert_emock_called "cgroup_enabled"          1
+    assert_emock_called "cgroup_supported"        1
     assert_emock_called "cgroup_destroy"          1
 
     etestmsg "Verifying cgroup recursively destroyed"

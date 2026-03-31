@@ -47,7 +47,7 @@ create_status_json()
     fi
 
     local pids=()
-    if cgroup_enabled; then
+    if cgroup_supported; then
         pids=( $(cgroup_pids -r ${ETEST_CGROUP_BASE}) )
     else
         pids=( $(process_tree) )

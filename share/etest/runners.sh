@@ -105,7 +105,7 @@ run_single_test()
             TMPDIR="$(readlink -m ${testdir}/tmp)"
             export TMPDIR
 
-            if cgroup_enabled; then
+            if cgroup_supported; then
                 cgroup_create ${ETEST_CGROUP}
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
@@ -124,7 +124,7 @@ run_single_test()
             if is_function suite_setup && [[ ${testidx} -eq 0 ]]; then
                 etestmsg "Running suite_setup $(lval testidx testidx_total)"
                 (
-                    if cgroup_enabled; then
+                    if cgroup_supported; then
                         cgroup_move "${ETEST_CGROUP_BASE}" ${BASHPID}
                     fi
                     suite_setup
