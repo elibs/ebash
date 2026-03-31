@@ -171,7 +171,7 @@ ETEST_eprogress_ticker_align_right()
 
     # Normalize spinner frames - the number of frames displayed varies based on timing since the spinner checks for
     # termination between each frame. Replace any sequence of spinner frames with a single canonical frame.
-    sed -i 's|\(\^H[/\|\\-]\)\+|\^H/|g' ${OUTPUT}
+    sed -i 's#\(\^H[/|\\-]\)\+#\^H/#g' ${OUTPUT}
 
     assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00]  ^H/ $\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
@@ -215,7 +215,7 @@ ETEST_eprogress_ticker_align_left()
 
     # Normalize spinner frames - the number of frames displayed varies based on timing since the spinner checks for
     # termination between each frame. Replace any sequence of spinner frames with a single canonical frame.
-    sed -i 's|\(\^H[/\|\\-]\)\+|\^H/|g' ${OUTPUT}
+    sed -i 's#\(\^H[/|\\-]\)\+#\^H/#g' ${OUTPUT}
 
     assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00]  ^H/"$'\x20\x24\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
