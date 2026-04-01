@@ -134,7 +134,8 @@ __EBASH_GNU_TOOLS=(
     # GNU Coreutils
     \[
     base64
-    basename
+    # NOTE: Don't override 'basename' as we have a native bash function above.
+    # basename
     cat
     chcon
     chgrp
@@ -151,7 +152,8 @@ __EBASH_GNU_TOOLS=(
     df
     dir
     dircolors
-    dirname
+    # NOTE: Don't override 'dirname' as we have a native bash function above.
+    # dirname
     du
     # NOTE: Don't override bash builtin with function.
     #echo
