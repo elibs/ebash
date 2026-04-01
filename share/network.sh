@@ -38,7 +38,8 @@ hostname_to_ip()
 
     [[ ${output} =~ " has address " ]] || { ewarn "Unable to resolve ${hostname}." ; return 1 ; }
 
-    ip=$(echo ${output} | awk '{print $4}')
+    local fields=( ${output} )
+    ip="${fields[3]}"
 
     valid_ip ${ip}
     echo ${ip}
@@ -59,8 +60,7 @@ fully_qualify_hostname()
         output=$(host ${hostname})
 
         [[ ${output} =~ " has address " ]]
-        local fqhostname
-        fqhostname=$(echo ${output} | awk '{print $1}')
+        local fqhostname="${output%% *}"
         echo "${fqhostname,,}"
     }
     catch
@@ -270,7 +270,7 @@ get_permanent_mac_address()
                 | grep "Permanent HW addr" \
                 | sed -e "s/Permanent HW addr: //"
         else
-            cat ${__EBASH_SYSFS}/class/net/${ifname}/address
+            echo "$(<"${__EBASH_SYSFS}/class/net/${ifname}/address")"
         fi
     elif command_exists ethtool; then
         ethtool -P "${ifname}" | sed -e 's|Permanent address: ||'
@@ -378,7 +378,7 @@ get_network_ports()
         # Convert the line into an array for easy access to the fields
         # Replace * with 0 so that we don't get a glob pattern and end up with an array full of filenames from the local directory
         local fields
-        array_init fields "$(echo ${line} | tr '*' '0')" " :/"
+        array_init fields "${line//\*/0}" " :/"
 
         # Skip this line if this is not TCP or UDP
         [[ ${fields[0]} =~ (tcp|udp) ]] || continue
@@ -457,8 +457,7 @@ netselect()
         array_add_nl rows "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${parts[4]}"
     done
 
-    local best
-    best=$(echo "${sorted[0]}" | cut -d\| -f1)
+    local best="${sorted[0]%%|*}"
 
     if [[ ${quiet} -ne 1 ]] ; then
         eprogress_kill

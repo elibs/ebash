@@ -134,7 +134,7 @@ dialog()
     # NOTE: We cannot reliably use the return from `wait` if we're running inside a container. So we instead manually
     #       save off the return code from the actual dialog command into a file and then read that back in here.
     wait ${dialog_pid} &>/dev/null || true
-    dialog_rc=$(cat "${rc_file}")
+    dialog_rc=$(<"${rc_file}")
     if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
         dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
         return ${dialog_rc}
@@ -673,7 +673,7 @@ dialog_prompt()
         # NOTE: We cannot reliably use the return from `wait` if we're running inside a container. So we instead manually
         #       save off the return code from the actual dialog command into a file and then read that back in here.
         wait ${dialog_pid} &>/dev/null || true
-        dialog_rc=$(cat "${rc_file}")
+        dialog_rc=$(<"${rc_file}")
         if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
             dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
             return ${dialog_rc}
@@ -988,7 +988,7 @@ __dialog_select_list()
     # NOTE: We cannot reliably use the return from `wait` if we're running inside a container. So we instead manually
     #       save off the return code from the actual dialog command into a file and then read that back in here.
     wait ${dialog_pid} &>/dev/null || true
-    dialog_rc=$(cat "${rc_file}")
+    dialog_rc=$(<"${rc_file}")
     if [[ ${dialog_rc} != @(${DIALOG_OK}|${DIALOG_CANCEL}|${DIALOG_HELP}|${DIALOG_EXTRA}|${DIALOG_ITEM_HELP}|${DIALOG_ESC}) ]]; then
         dialog_error "Dialog failed with an unknown exit code (${dialog_rc})"
         return ${dialog_rc}

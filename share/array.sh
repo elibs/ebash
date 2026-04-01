@@ -249,7 +249,7 @@ array_join()
     # last element in the array because we only want to emit the trailing delimiter if requested.
     local indexes=() idx_last=0
     indexes=( $(array_indexes ${__array}) )
-    idx_last=$(echo "${indexes[@]}" | awk '{print $NF}')
+    idx_last="${indexes[-1]}"
 
     local idx
     for idx in "${indexes[@]}"; do

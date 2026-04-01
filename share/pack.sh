@@ -62,7 +62,7 @@ pack_set_internal()
 
     argcheck _tag
     [[ ${_tag} =~ = ]] && die "ebash internal error: tag ${_tag} cannot contain equal sign"
-    [[ $(echo "${_val}" | wc -l) -gt 1 ]] && die "packed values cannot hold newlines"
+    [[ "${_val}" == *$'\n'* ]] && die "packed values cannot hold newlines"
 
     local _removeOld _addNew _packed
     _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=' || true)"
@@ -301,6 +301,6 @@ pack_load()
     )
 
     local _pack_load_data
-    _pack_load_data="$(cat "${_pack_load_file}")"
+    _pack_load_data="$(<"${_pack_load_file}")"
     pack_copy _pack_load_data ${_pack_load_name}
 }

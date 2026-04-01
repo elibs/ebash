@@ -23,7 +23,7 @@ netns_supported()
     array_contains valid_areas "${area}" || die "netns_supported: Invalid area [${area}]"
 
     if [[ ${area} =~ all|user ]] ; then
-       if [[ $(id -u) -ne 0 ]] ; then
+       if [[ ${EUID} -ne 0 ]] ; then
           edebug "netns_supported: Invalid User"
           return 1
        fi

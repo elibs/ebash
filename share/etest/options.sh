@@ -184,7 +184,8 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
-artifact_name="$(echo "${logdir}/${name:-etest}" | tr ' ' '_')"
+artifact_name="${logdir}/${name:-etest}"
+artifact_name="${artifact_name// /_}"
 ETEST_LOG="${artifact_name}.log"
 ETEST_JSON="${artifact_name}.json"
 ETEST_OPTIONS="${artifact_name}_options.json"

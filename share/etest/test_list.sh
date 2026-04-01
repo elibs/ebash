@@ -17,13 +17,19 @@ create_test_list()
     # options passed in on the command-line. Join any whitespace with a '|' to convert it to a bash style regex.
     base_filter=$(conf_get _EBASH_CONF etest.filter)
     : ${filter:=${FILTER:-}}
-    filter=$(echo "${base_filter} ${filter}" | tr ' ' '|' | sed -e 's/^|//' -e 's/|$//')
+    filter="${base_filter} ${filter}"
+    filter="${filter// /|}"
+    filter="${filter#|}"
+    filter="${filter%|}"
 
     # Layer the exclude setting by first looking for any static exclusions in the config file, then any explicit exclusions
     # passed in on the command-line. Join any whitespace with a '|' to convert it to a bash style regex.
     base_exclude=$(conf_get _EBASH_CONF etest.exclude)
     : ${exclude:=${EXCLUDE:-}}
-    exclude=$(echo "${base_exclude} ${exclude}" | tr ' ' '|' | sed -e 's/^|//' -e 's/|$//')
+    exclude="${base_exclude} ${exclude}"
+    exclude="${exclude// /|}"
+    exclude="${exclude#|}"
+    exclude="${exclude%|}"
 
     # Layer the list of tests by first looking for any static tests in the config file, then any explicit tests
     # passed in on the command-line. Append all of these into a single array.
@@ -93,9 +99,12 @@ print_tests()
 {
     ebanner --uppercase "ETEST TESTS" OS exclude failfast filter repeat
 
+    local suite
     for suite in "${TEST_FILES_TO_RUN[@]}"; do
         einfo "${suite}"
-        echo "${TEST_FUNCTIONS_TO_RUN[$suite]:-}" | tr ' ' '\n'
+        local tests
+        array_init tests "${TEST_FUNCTIONS_TO_RUN[$suite]:-}"
+        printf '%s\n' "${tests[@]}"
     done
 }
 

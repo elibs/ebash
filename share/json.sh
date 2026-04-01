@@ -244,7 +244,7 @@ json_import()
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN. In either case read into
     # a local variable so we can parse it repeatedly in this function.
     local _json_import_input _json_import_data
-    _json_import_input=$(cat ${file} || true)
+    _json_import_input=$(<"${file}") || true
     _json_import_data=$(jq -r "${query}" <<< ${_json_import_input} || true)
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
@@ -320,7 +320,7 @@ file_to_json()
         # Parse the file and strip out any ansi escape codes and then replace newlines with spaces. This gives a bunch
         # of separate, quoted items that we can safely insert into a pack. We can then pass that pack through eval so
         # that bash can safely interpret those quotes and make them separate arguments passed into pack_set.
-        array_init_nl parts "$(cat "${file}" | noansi)"
+        array_init_nl parts "$(noansi < "${file}")"
         pack_set pack "${parts[@]}"
         opt_forward pack_to_json lowercase -- pack
     )

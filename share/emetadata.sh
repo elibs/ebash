@@ -161,7 +161,7 @@ emetadata_check()
     assert_exists "${rpath}" "${path}" "${meta}"
 
     local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0 pgpsignature=""
-    pack_set metapack $(cat "${meta}")
+    pack_set metapack $(<"${meta}")
     pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
 
     # Figure out what digests we're going to validate
@@ -176,7 +176,7 @@ emetadata_check()
     fi
 
     if [[ ${quiet} -eq 0 ]]; then
-        einfo "Verifying integrity of $(basename ${path})"
+        einfo "Verifying integrity of ${path##*/}"
         eprogress --style einfos "$(lval metadata=digests)"
     fi
 
@@ -263,7 +263,7 @@ emd5sum()
     $(opt_parse path)
 
     local dname="" fname=""
-    dname=$(dirname  "${path}")
+    dname=$(dirname "${path}")
     fname=$(basename "${path}")
 
     pushd "${dname}"

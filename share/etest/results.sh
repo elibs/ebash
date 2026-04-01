@@ -122,10 +122,17 @@ create_failure_output()
         cols=120
         inner=$(( cols - 2 ))
         padding=$(( inner - 2 - ${#text} ))
+
+        # Create repeated character strings using pure bash
+        local __border __spaces
+        printf -v __border '%*s' "${inner}" ''
+        __border="${__border// /═}"
+        printf -v __spaces '%*s' "${padding}" ''
+
         echo
-        printf '╔%s╗\n' "$(printf '═%.0s' $(seq 1 ${inner}))"
-        printf '║  %s%s║\n' "${text}" "$(printf ' %.0s' $(seq 1 ${padding}))"
-        printf '╚%s╝\n' "$(printf '═%.0s' $(seq 1 ${inner}))"
+        printf '╔%s╗\n' "${__border}"
+        printf '║  %s%s║\n' "${text}" "${__spaces}"
+        printf '╚%s╝\n' "${__border}"
 
         local suite test_name
         for suite in "${!TESTS_FAILED[@]}"; do
@@ -184,7 +191,8 @@ create_summary()
 
         if array_not_empty TESTS_FAILED; then
             eerror "FAILED TESTS:"
-            for failed_test in $(echo "${TESTS_FAILED[@]}" | tr ' ' '\n') ; do
+            local failed_test
+            for failed_test in "${TESTS_FAILED[@]}"; do
                 echo "$(ecolor "red")      ${failed_test}"
             done
             ecolor off
@@ -192,7 +200,8 @@ create_summary()
 
         if array_not_empty TESTS_FLAKY; then
             ewarn "FLAKY TESTS:"
-            for flaky_test in $(echo "${TESTS_FLAKY[@]}" | tr ' ' '\n') ; do
+            local flaky_test
+            for flaky_test in "${TESTS_FLAKY[@]}"; do
                 echo "$(ecolor "yellow")      ${flaky_test}"
             done
             ecolor off

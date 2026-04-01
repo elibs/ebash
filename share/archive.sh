@@ -82,7 +82,8 @@ archive_suffixes()
     # because it is an order of magnitude faster, the array is well-formed without holes, and we don't need additional
     # functionality offered by array_join.
     if [[ ${pattern} -eq 1 ]]; then
-        echo "${results[@]}" | sed -e 's/ /|/g'
+        local output="${results[*]}"
+        echo "${output// /|}"
     else
         echo "${results[@]}"
     fi
@@ -326,7 +327,7 @@ archive_create()
 
     done | sort --unique >> "${exclude_file}"
 
-    edebug $'Exclude File:\n'"$(cat ${exclude_file})"
+    edebug $'Exclude File:\n'"$(<"${exclude_file}")"
 
     # In order to provide a common interface around all the archive formats we must deal with inconsistencies in how
     # multiple mount points are handled. mksquashfs would use the basename of each provided path, whereas mkisofs would

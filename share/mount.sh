@@ -348,7 +348,7 @@ eunmount()
 
                 # Optionally log what is being unmounted
                 local nmatches=0
-                nmatches=$(echo "${matches[@]}" | wc -l)
+                nmatches=${#matches[@]}
                 [[ ${verbose} -eq 1 ]] && einfo "Recursively unmounting ${mnt} (${nmatches})"
                 edebug "$(lval matches nmatches)"
 

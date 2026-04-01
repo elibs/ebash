@@ -155,7 +155,7 @@ emock()
 
         # Get current call count for all our state files. Then update called count inside the file.
         # Do not modify our local variable as that would cause us to write out to the wrong state files.
-        called=$(cat "${statedir}/called")
+        called=$(<"${statedir}/called")
         echo "$(( called + 1 ))" > "${statedir}/called"
 
         # Create directory to store files in for this invocation
@@ -361,7 +361,7 @@ eunmock()
 
     # If the mock was written out to disk remove it
     local mode
-    mode=$(cat "${statedir}/mode")
+    mode=$(<"${statedir}/mode")
     if [[ "${mode}" == "filesystem" ]]; then
 
         # Check if the _real exists so we can move it back over.
@@ -411,7 +411,7 @@ emock_called()
     statedir+="/$(basename "${name}")"
     local called=0
     if [[ -e "${statedir}/called" ]]; then
-        called="$(cat "${statedir}/called")"
+        called="$(<"${statedir}/called")"
     fi
 
     echo -n "${called}"
@@ -481,7 +481,7 @@ emock_stdin()
     statedir+="/$(basename "${name}")"
     local actual=""
     if [[ -e "${statedir}/${num}/stdin" ]]; then
-        actual="$(cat "${statedir}/${num}/stdin")"
+        actual="$(<"${statedir}/${num}/stdin")"
     fi
 
     echo -n "${actual}"
@@ -510,7 +510,7 @@ emock_stdout()
     statedir+="/$(basename "${name}")"
     local actual=""
     if [[ -e "${statedir}/${num}/stdout" ]]; then
-        actual="$(cat "${statedir}/${num}/stdout")"
+        actual="$(<"${statedir}/${num}/stdout")"
     fi
 
     echo -n "${actual}"
@@ -539,7 +539,7 @@ emock_stderr()
     statedir+="/$(basename "${name}")"
     local actual=""
     if [[ -e "${statedir}/${num}/stderr" ]]; then
-        actual="$(cat "${statedir}/${num}/stderr")"
+        actual="$(<"${statedir}/${num}/stderr")"
     fi
 
     echo -n "${actual}"
@@ -604,7 +604,7 @@ emock_return_code()
 
     statedir+="/$(basename "${name}")"
     if [[ -e "${statedir}/${num}/return_code" ]]; then
-        cat "${statedir}/${num}/return_code"
+        echo "$(<"${statedir}/${num}/return_code")"
     fi
 }
 
@@ -623,7 +623,7 @@ emock_mode()
     )
 
     statedir+="/$(basename "${name}")"
-    cat "${statedir}/mode"
+    echo "$(<"${statedir}/mode")"
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -817,13 +817,13 @@ emock_dump_state()
         contents=""
 
         # Manually parse each line from the file because it is base64 encoded
-        if [[ $(basename "${fpath}") == "args" ]]; then
+        if [[ "$(basename "${fpath}")" == "args" ]]; then
             contents=()
             while IFS= read -r line; do
                 contents+=( "$(echo "${line}" | base64 -d)" )
             done < "${fpath}"
         else
-            contents="$(cat "${fpath}")"
+            contents="$(<"${fpath}")"
         fi
 
         einfos "${fname}: $(print_value contents)"

@@ -189,8 +189,10 @@ daemon_start()
 
     # Don't restart the daemon if it is already running.
     if daemon_running ${optpack}; then
-        local pid
-        pid=$(cat ${pidfile} 2>/dev/null || true)
+        local pid=""
+        if [[ -s "${pidfile}" ]]; then
+            pid=$(<"${pidfile}")
+        fi
         einfo "${name} is already running"
         edebug "${name} is already running $(lval pid %${optpack})"
         eend 0
@@ -229,7 +231,7 @@ daemon_start()
         close_fds
 
         # Create empty pidfile
-        mkdir -p $(dirname ${pidfile})
+        mkdir -p "$(dirname "${pidfile}")"
         touch "${pidfile}"
         local runs=0
 
@@ -279,7 +281,7 @@ daemon_start()
                             if [[ -d ${src} ]]; then
                                 mkdir -p ${CHROOT}/${dest}
                             else
-                                mkdir -p "$(dirname ${CHROOT}/${dest})"
+                                mkdir -p "$(dirname "${CHROOT}/${dest}")"
                                 touch ${CHROOT}/${dest}
                             fi
 
@@ -387,8 +389,10 @@ daemon_stop()
 
     # If it is remove the pidfile then stop the process with provided signal. NOTE: It's important we remove the
     # pidfile BEFORE we kill the process so that it won't try to respawn!
-    local pid
-    pid=$(cat ${pidfile} 2>/dev/null || true)
+    local pid=""
+    if [[ -s "${pidfile}" ]]; then
+        pid=$(<"${pidfile}")
+    fi
     rm --force ${pidfile}
     if [[ -n ${pid} ]]; then
         # kill the process with requested signal
@@ -445,8 +449,10 @@ daemon_status()
         fi
 
         # Pidfile, but not running
-        local pid
-        pid=$(cat ${pidfile} 2>/dev/null || true)
+        local pid=""
+        if [[ -s "${pidfile}" ]]; then
+            pid=$(<"${pidfile}")
+        fi
         if [[ -z ${pid} ]]; then
             eend 1
             edebug "Not Running (no pid)"

@@ -48,7 +48,9 @@ edistro()
     if [[ "${name}" == "Darwin" ]]; then
         result="darwin"
     elif [[ -e "/etc/os-release" ]]; then
-        result=$(awk -F'[="]*' '/^ID=/ {print $2}' /etc/os-release)
+        result=$(grep '^ID=' /etc/os-release)
+        result="${result#ID=}"
+        result="${result//\"/}"
     elif command_exists lsb_release; then
         result=$(lsb_release -is)
     else
@@ -106,7 +108,9 @@ os_release()
         if command_exists lsb_release; then
             actual_release=$(lsb_release --release --short)
         else
-            actual_release=$(awk -F'[="]*' '/^VERSION_ID=/ {print $2}' /etc/os-release)
+            actual_release=$(grep '^VERSION_ID=' /etc/os-release)
+            actual_release="${actual_release#VERSION_ID=}"
+            actual_release="${actual_release//\"/}"
         fi
 
     elif os darwin ; then
@@ -203,7 +207,8 @@ external program.
 END
 command_exists()
 {
-    { declare -f "${1}" || which "${1}"; } &>/dev/null
+    # Use type -P (bash builtin) instead of which (external command)
+    { declare -f "${1}" || type -P "${1}"; } &>/dev/null
 }
 
 opt_usage require <<'END'
