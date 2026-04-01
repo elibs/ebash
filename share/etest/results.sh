@@ -192,7 +192,7 @@ create_summary()
         if array_not_empty TESTS_FAILED; then
             eerror "FAILED TESTS:"
             local failed_test
-            # Note: unquoted to allow word splitting on space-separated test names within each suite value
+            # shellcheck disable=SC2068 -- Intentional word splitting for space-separated test names
             for failed_test in ${TESTS_FAILED[@]}; do
                 echo "$(ecolor "red")      ${failed_test}"
             done
@@ -202,7 +202,7 @@ create_summary()
         if array_not_empty TESTS_FLAKY; then
             ewarn "FLAKY TESTS:"
             local flaky_test
-            # Note: unquoted to allow word splitting on space-separated test names within each suite value
+            # shellcheck disable=SC2068 -- Intentional word splitting for space-separated test names
             for flaky_test in ${TESTS_FLAKY[@]}; do
                 echo "$(ecolor "yellow")      ${flaky_test}"
             done
