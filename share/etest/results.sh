@@ -141,7 +141,7 @@ create_failure_output()
                 local label="● ${suite}:${test_name#ETEST_} "
                 local label_len=${#label}
                 local dashes_len dashes
-                dashs_len=$(( cols - label_len ))
+                dashes_len=$(( cols - label_len ))
                 printf -v dashes '%*s' "${dashes_len}" ''
                 dashes="${dashes// /─}"
                 echo "${label}${dashes}"
