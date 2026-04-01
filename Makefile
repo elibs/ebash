@@ -20,6 +20,7 @@ DELETE   ?= $(or ${delete},1)
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
+FAILOUT  ?= $(or ${failout},0)
 FILTER   ?= $(or ${filter},)
 JOBS     ?= $(or ${jobs},$(shell nproc))
 MOUNTNS  ?= $(or ${mountns},0)
@@ -33,7 +34,7 @@ SUDO     ?= $(or ${sudo},0)
 V        ?= $(or $v,0)
 
 # Variables that need to be exported to be seen by external processes we exec.
-ENVLIST  ?= CACHE CI COLUMNS EDEBUG EINTERACTIVE EXCLUDE FAILFAST FILTER JOBS PRETEND PROGRESS PULL PUSH REGISTRY REPEAT RETRIES V
+ENVLIST  ?= CACHE CI COLUMNS EDEBUG EINTERACTIVE EXCLUDE FAILFAST FAILOUT FILTER JOBS PRETEND PROGRESS PULL PUSH REGISTRY REPEAT RETRIES V
 export ${ENVLIST}
 
 .SILENT:
@@ -70,6 +71,7 @@ test:
 		--delete=${DELETE}          \
 		--exclude="${EXCLUDE}"      \
 		--failfast=${FAILFAST}      \
+		--failure-output=${FAILOUT} \
 		--filter="${FILTER}"        \
 		--jobs=${JOBS}              \
 		--mountns=${MOUNTNS}        \
