@@ -48,9 +48,9 @@ create_status_json()
 
     local pids=()
     if cgroup_supported; then
-        pids=( $(cgroup_pids -r ${ETEST_CGROUP_BASE}) )
+        pids=( $(cgroup_pids -r ${ETEST_CGROUP_BASE} 2>/dev/null || true) )
     else
-        pids=( $(process_tree) )
+        pids=( $(process_tree 2>/dev/null || true) )
     fi
 
 	cat <<-EOF > ${ETEST_JSON}.tmp
