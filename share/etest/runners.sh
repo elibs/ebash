@@ -477,9 +477,9 @@ __process_completed_jobs()
         pack_load info "${path}/info.pack"
         $(pack_import info)
 
-        NUM_TESTS_RUNNING=${#etest_jobs_running[@]}
         etest_jobs_finished+=( ${pid} )
         array_remove etest_jobs_running ${pid}
+        NUM_TESTS_RUNNING=${#etest_jobs_running[@]}
 
         # Unpack base64 encoded "tests_duration" associative array and from this specific test instance and copy those
         # values into the gloval TESTS_DURATION associative array.
