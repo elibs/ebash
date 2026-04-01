@@ -277,6 +277,9 @@ create_summary()
         echo
         echo
         echo "$(ecolor cyan)Test output:$(ecolor off)  $(ecolor magenta)${ETEST_LOG#$PWD/}$(ecolor off)"
+        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
+            echo "$(ecolor cyan)Failure log:$(ecolor off)  $(ecolor magenta)${ETEST_FAILURE_LOG#$PWD/}$(ecolor off)"
+        fi
         echo "$(ecolor cyan)JUnit XML:$(ecolor off)    $(ecolor magenta)${ETEST_XML#$PWD/}$(ecolor off)"
         echo "$(ecolor cyan)JSON:$(ecolor off)         $(ecolor magenta)${ETEST_JSON#$PWD/}$(ecolor off)"
         echo
