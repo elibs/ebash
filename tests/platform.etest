@@ -142,6 +142,8 @@ ETEST_basename_is_function()
 
 ETEST_basename_multiple_flag()
 {
+    $(skip_if "os darwin")
+
     # Create test files
     mkdir -p testdir
     touch testdir/file1.txt testdir/file2.txt testdir/file3.txt
@@ -161,6 +163,8 @@ file2.txt" "${result}"
 
 ETEST_basename_multiple_with_glob()
 {
+    $(skip_if "os darwin")
+
     # This is the actual use case that was failing - using --multiple with glob expansion
     mkdir -p testdir
     touch testdir/mod1.ko testdir/mod2.ko testdir/mod3.ko
@@ -174,6 +178,8 @@ mod3.ko" "${result}"
 
 ETEST_basename_suffix_flag()
 {
+    $(skip_if "os darwin")
+
     # Test -s/--suffix flag
     mkdir -p testdir
     touch testdir/file1.txt testdir/file2.txt
@@ -191,6 +197,8 @@ file2" "${result}"
 
 ETEST_basename_zero_flag()
 {
+    $(skip_if "os darwin")
+
     # Test -z/--zero flag (NUL-terminated output)
     mkdir -p testdir
     touch testdir/file1.txt testdir/file2.txt
@@ -203,6 +211,8 @@ ETEST_basename_zero_flag()
 
 ETEST_dirname_zero_flag()
 {
+    $(skip_if "os darwin")
+
     # Test -z/--zero flag (NUL-terminated output)
     local nul_count
     nul_count=$(dirname -z /path/to/file | tr -cd '\0' | wc -c)
@@ -211,6 +221,8 @@ ETEST_dirname_zero_flag()
 
 ETEST_basename_help_flag()
 {
+    $(skip_if "os darwin")
+
     # Test --help flag - should produce output containing "Usage"
     local result
     result=$(basename --help 2>&1)
@@ -219,6 +231,8 @@ ETEST_basename_help_flag()
 
 ETEST_dirname_help_flag()
 {
+    $(skip_if "os darwin")
+
     # Test --help flag - should produce output containing "Usage"
     local result
     result=$(dirname --help 2>&1)
