@@ -379,9 +379,9 @@ __run_all_tests_parallel()
 
     while true; do
 
-        __update_jobs_progress_file
-
         __process_completed_jobs
+
+        __update_jobs_progress_file
 
         if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
             eerror "Failure encountered and failfast=1" &>> ${ETEST_OUT}
@@ -401,11 +401,11 @@ __run_all_tests_parallel()
     done
 
     # One final update of progress file so we see everything complete as expected.
+    # eprogress will read and display this final state before exiting.
     NUM_TESTS_RUNNING=0
+    NUM_TESTS_QUEUED=0
+    PERCENT=100
     __update_jobs_progress_file
-    if [[ ${jobs_progress} -eq 1 ]]; then
-        sleep ${EPROGRESS_DELAY:-0.1}
-    fi
 
     # Update pids
     array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS

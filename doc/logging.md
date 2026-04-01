@@ -153,7 +153,7 @@ We frequently have to run very long-running tasks which can take tens of minutes
 process has hung or if it's still making progress. So we invented [eprogress](modules/emsg.md#func-eprogress) to make
 this very easy to do in a very configurable manner.
 
-This shows an animated spinner and a time counter:
+This shows a time counter:
 
 ```shell
 $ eprogress "Doing stuff"
@@ -165,5 +165,4 @@ The ticker can be very customized:
 * Disabled entirely using `EPROGRESS=0`
 * Show on the left or right via `--align`
 * Change how often it is printed via `--delay`
-* Show the **timer** but not the **spinner** via `--no-spinner`
 * Display contents of a **file** on each iteration

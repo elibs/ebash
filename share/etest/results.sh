@@ -259,6 +259,7 @@ create_summary()
         printf -v line '%*s' "${cols}" ''
         line="${line// /─}"
 
+        # Test counts
         echo
         echo "$(ecolor cyan)${line}$(ecolor off)"
         echo
@@ -274,7 +275,8 @@ create_summary()
             printf "  Flaky: %s%d%s" \
                 "$(ecolor bold yellow)" "${NUM_TESTS_FLAKY}" "$(ecolor off)"
         fi
-        # Format runtime
+
+        # Runtime
         local runtime
         if [[ ${DURATION} -ge 60 ]]; then
             runtime="$((DURATION / 60))m$((DURATION % 60))s"
@@ -284,6 +286,8 @@ create_summary()
         printf "  %s(Runtime: %s)%s" \
             "$(ecolor cyan)" "${runtime}" "$(ecolor off)"
         echo
+
+        # Log files
         echo
         if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
             echo "$(ecolor bold red)Test failures:$(ecolor off) $(ecolor bold red)${ETEST_FAILURE_LOG#$PWD/}$(ecolor off)"

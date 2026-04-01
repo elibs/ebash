@@ -140,9 +140,8 @@ ETEST_eprogress_ticker_align_right()
         EFUNCS_COLOR=0
         EINTERACTIVE=1
         EMSG_PREFIX=""
-        EPROGRESS_DELAY=""
+        EPROGRESS_DELAY="1"
         EPROGRESS_INLINE=1
-        EPROGRESS_SPINNER=1
         ETRACE=0
 
         # Output stored in this test expects what it would look like if term were screen-256color
@@ -169,12 +168,7 @@ ETEST_eprogress_ticker_align_right()
     # Normalize hpa (horizontal position absolute) cursor codes - different terminals/widths produce different values
     sed -i "s|\[[0-9]\+G||" ${OUTPUT}
 
-    # Normalize spinner frames - the number of frames displayed varies based on timing since the spinner checks for
-    # termination between each frame. Replace any sequence of spinner frames with a single canonical frame.
-    # Use actual backspace character (0x08) not literal ^H since cat -evt converts 0x08 to ^H for display.
-    sed -i $'s#\(\x08[/|\\\\-]\)\\+#\x08/#g' ${OUTPUT}
-
-    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00]  ^H/ $\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00] $\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_ticker_align_left()
@@ -189,9 +183,8 @@ ETEST_eprogress_ticker_align_left()
         EFUNCS_COLOR=0
         EINTERACTIVE=1
         EMSG_PREFIX=""
-        EPROGRESS_DELAY=""
+        EPROGRESS_DELAY="1"
         EPROGRESS_INLINE=1
-        EPROGRESS_SPINNER=1
         ETRACE=0
 
         # Output stored in this test expects what it would look like if term were screen-256color
@@ -214,12 +207,7 @@ ETEST_eprogress_ticker_align_left()
     # Normalize hpa (horizontal position absolute) cursor codes - different terminals/widths produce different values
     sed -i "s|\[[0-9]\+G||" ${OUTPUT}
 
-    # Normalize spinner frames - the number of frames displayed varies based on timing since the spinner checks for
-    # termination between each frame. Replace any sequence of spinner frames with a single canonical frame.
-    # Use actual backspace character (0x08) not literal ^H since cat -evt converts 0x08 to ^H for display.
-    sed -i $'s#\(\x08[/|\\\\-]\)\\+#\x08/#g' ${OUTPUT}
-
-    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00]  ^H/"$'\x20\x24\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00] "$'\x24\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_inside_eretry()
