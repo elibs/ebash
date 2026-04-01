@@ -160,8 +160,9 @@ emetadata_check()
     meta="${path}.meta"
     assert_exists "${rpath}" "${path}" "${meta}"
 
-    local metapack="" digests=() validated=() expect="" actual="" ctype="" rc=0 pgpsignature=""
-    pack_set metapack $(<"${meta}")
+    local metapack="" meta_content="" digests=() validated=() expect="" actual="" ctype="" rc=0 pgpsignature=""
+    readall meta_content < "${meta}"
+    pack_set metapack ${meta_content}
     pgpsignature=$(pack_get metapack PGPSignature | base64 --decode)
 
     # Figure out what digests we're going to validate

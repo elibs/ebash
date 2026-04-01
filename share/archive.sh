@@ -327,7 +327,9 @@ archive_create()
 
     done | sort --unique >> "${exclude_file}"
 
-    edebug $'Exclude File:\n'"$(<"${exclude_file}")"
+    local exclude_file_content
+    readall exclude_file_content < "${exclude_file}"
+    edebug $'Exclude File:\n'"${exclude_file_content}"
 
     # In order to provide a common interface around all the archive formats we must deal with inconsistencies in how
     # multiple mount points are handled. mksquashfs would use the basename of each provided path, whereas mkisofs would

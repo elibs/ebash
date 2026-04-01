@@ -301,6 +301,6 @@ pack_load()
     )
 
     local _pack_load_data
-    _pack_load_data="$(<"${_pack_load_file}")"
+    readall _pack_load_data < "${_pack_load_file}"
     pack_copy _pack_load_data ${_pack_load_name}
 }

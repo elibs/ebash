@@ -105,7 +105,9 @@ eprogress()
 
             # Display file contents if appropriate (minus final newline)
             if [[ -n ${file} && -r ${file} ]] ; then
-                printf "%s" "$(<${file})"
+                local file_content
+                readall file_content < "${file}"
+                printf "%s" "${file_content}"
             fi
 
             if [[ ${time} -eq 1 ]] ; then

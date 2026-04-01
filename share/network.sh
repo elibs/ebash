@@ -270,7 +270,9 @@ get_permanent_mac_address()
                 | grep "Permanent HW addr" \
                 | sed -e "s/Permanent HW addr: //"
         else
-            echo "$(<"${__EBASH_SYSFS}/class/net/${ifname}/address")"
+            local mac_address
+            readall mac_address < "${__EBASH_SYSFS}/class/net/${ifname}/address"
+            echo "${mac_address}"
         fi
     elif command_exists ethtool; then
         ethtool -P "${ifname}" | sed -e 's|Permanent address: ||'

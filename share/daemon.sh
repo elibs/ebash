@@ -191,7 +191,7 @@ daemon_start()
     if daemon_running ${optpack}; then
         local pid=""
         if [[ -s "${pidfile}" ]]; then
-            pid=$(<"${pidfile}")
+            readall pid < "${pidfile}"
         fi
         einfo "${name} is already running"
         edebug "${name} is already running $(lval pid %${optpack})"
@@ -391,7 +391,7 @@ daemon_stop()
     # pidfile BEFORE we kill the process so that it won't try to respawn!
     local pid=""
     if [[ -s "${pidfile}" ]]; then
-        pid=$(<"${pidfile}")
+        readall pid < "${pidfile}"
     fi
     rm --force ${pidfile}
     if [[ -n ${pid} ]]; then
@@ -451,7 +451,7 @@ daemon_status()
         # Pidfile, but not running
         local pid=""
         if [[ -s "${pidfile}" ]]; then
-            pid=$(<"${pidfile}")
+            readall pid < "${pidfile}"
         fi
         if [[ -z ${pid} ]]; then
             eend 1

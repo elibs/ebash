@@ -64,3 +64,36 @@ ETEST_filesystem_erestore_failure()
     assert_false erestore input.txt
     assert_not_exists input.txt input.txt.bak
 }
+
+ETEST_readall()
+{
+    printf "hello world" > input.txt
+
+    readall content < input.txt
+
+    assert_eq "hello world" "${content}"
+}
+
+ETEST_readall_multiline()
+{
+    printf "line1\nline2\nline3" > input.txt
+
+    readall content < input.txt
+
+    assert_eq "line1
+line2
+line3" "${content}"
+}
+
+ETEST_readall_stdin()
+{
+    printf "from stdin" | { readall content; assert_eq "from stdin" "${content}"; }
+}
+
+ETEST_readall_missing_file()
+{
+    assert_not_exists missing.txt
+
+    # Redirection error happens at shell level, wrap in subshell to catch
+    assert_false eval 'readall content < missing.txt 2>/dev/null'
+}

@@ -134,7 +134,7 @@ docker_build()
     # Compute dependency SHA
     $(__docker_depends_sha_variables)
     __docker_depends_sha
-    sha_short=$(<"${shafile_short}")
+    readall sha_short < "${shafile_short}"
 
     # Image we should look for
     image="${name}:${sha_short}"
@@ -598,7 +598,7 @@ __docker_depends_sha()
     echo "${sha_detail}" | "${shafunc}sum" | awk '{print "'${shafunc}':"$1}' > "${shafile}"
 
     local sha sha_short
-    sha=$(<"${shafile}")
+    readall sha < "${shafile}"
     sha_short="$(string_truncate 12 "${sha#*:}")"
     echo "${sha_short}" > "${shafile_short}"
 }

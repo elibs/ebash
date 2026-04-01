@@ -132,7 +132,9 @@ cgroup_get()
         "cgroup  | Name of the cgroup (e.g distbox/dtest or usa/colorado)" \
         "setting | Name of the controller-specific setting e.g. memory.kmem.limit_in.bytes)")
 
-    echo "$(<"$(cgroup_find_setting_file ${cgroup} ${setting})")"
+    local setting_value
+    readall setting_value < "$(cgroup_find_setting_file ${cgroup} ${setting})"
+    echo "${setting_value}"
 }
 
 opt_usage cgroup_pids <<'END'
@@ -322,7 +324,7 @@ cgroup_current()
     : ${pid:=${BASHPID}}
 
     local line=""
-    line="$(<"/proc/${pid}/cgroup")"
+    readall line < "/proc/${pid}/cgroup"
     echo "${line##*:/}"
 }
 
