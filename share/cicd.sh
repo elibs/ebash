@@ -32,10 +32,12 @@ cicd_version()
     )
 
     # Prefer git describe - it's more accurate for development (includes commit offset)
-    if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+    # Use explicit --git-dir and --work-tree to handle containers/copied repos with different ownership (CVE-2022-24765)
+    local git="git --git-dir=${PWD}/.git --work-tree=${PWD}"
+    if command -v git &>/dev/null && ${git} rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
         local ver date
-        ver=$(git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null)
-        date=$(git log -1 --format=%cs 2>/dev/null)
+        ver=$(${git} describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null)
+        date=$(${git} log -1 --format=%cs 2>/dev/null)
         if [[ -n "${ver}" ]]; then
             [[ -n "${date}" ]] && ver+=" (${date})"
             echo "${ver}"

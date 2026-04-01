@@ -1033,7 +1033,8 @@ ETEST_opt_display_version()
     version_output=$(opt_display_version 2>&1)
     echo "${version_output}"
 
-    assert_match "${version_output}" "${EBASH_VERSION}"
+    # Use grep -F for literal string match since EBASH_VERSION contains regex special chars like ()
+    grep -qF "${EBASH_VERSION}" <<< "${version_output}"
 }
 
 ETEST_argcheck()
