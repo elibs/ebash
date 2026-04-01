@@ -20,36 +20,30 @@
 
 opt_usage cicd_version <<'END'
 cicd_version outputs the current version string. It checks sources in this order:
-1. VERSION file (if specified and exists)
-2. git describe output
+1. git describe (preferred - includes commit offset and dirty state)
+2. VERSION file (fallback for installed systems without git)
 
 Always includes "-dirty" suffix if there are uncommitted changes.
 END
 cicd_version()
 {
     $(opt_parse \
-        ":file f | Path to VERSION file to read." \
+        ":file f | Path to VERSION file to read (fallback if git not available)." \
     )
 
-    # Check for VERSION file first
+    # Prefer git describe - it's more accurate for development (includes commit offset)
+    if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+        git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null && return 0
+    fi
+
+    # Fall back to VERSION file (for installed systems without git)
     if [[ -n "${file}" && -r "${file}" ]]; then
         local ver
         read -r ver < "${file}"
         if [[ -n "${ver}" ]]; then
-            # Add dirty suffix if we're in a git repo with uncommitted changes
-            if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
-                if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
-                    ver="${ver}-dirty"
-                fi
-            fi
             echo "${ver}"
             return 0
         fi
-    fi
-
-    # Fall back to git describe
-    if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
-        git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null && return 0
     fi
 
     echo "unknown"

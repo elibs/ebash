@@ -406,17 +406,17 @@ ETEST_cicd_info_rc_suffix_with_offset()
 
 ETEST_cicd_version()
 {
-    etestmsg "Test cicd_version from git describe"
+    etestmsg "Test cicd_version from git describe (preferred)"
     local ver
     ver=$(cicd_version)
     assert_not_empty "${ver}"
     assert_match "${ver}" "^v[0-9]"
 
-    etestmsg "Test cicd_version from VERSION file"
+    etestmsg "Test cicd_version prefers git over VERSION file"
     echo "v9.9.9" > VERSION
     ver=$(cicd_version --file=VERSION)
-    # Should include -dirty since we have uncommitted changes
-    assert_match "${ver}" "^v9.9.9"
+    # Should use git describe (v1.0.0 from setup), not VERSION file
+    assert_match "${ver}" "^v1.0.0"
 
     etestmsg "Test cicd_version_update"
     cicd_version_update --file=VERSION_TEST
@@ -434,11 +434,11 @@ ETEST_cicd_update_version_files()
     assert_eq "v1.2.3" "$(cat VERSION)"
 
     etestmsg "Test updating README without existing badge"
-    cat > README.md <<-'EOF'
-       [![CI/CD](https://example.com/badge.svg)](https://example.com)
+    cat > README.md <<'EOF'
+[![CI/CD](https://example.com/badge.svg)](https://example.com)
 
-       # My Project
-       EOF
+# My Project
+EOF
 
     cicd_update_version_files --tag "v1.2.3" --readme README.md --release-url "https://github.com/test/repo/releases"
     cat README.md
