@@ -37,6 +37,9 @@ into Jenkins, GitHub Actions, and BitBucket Pipelines for clear test visibility 
 END
 : ${FAILFAST:=${BREAK:-0}}
 $(opt_parse \
+    ":directory C                  | Change to this directory before running tests. Similar to tar -C or git -C.
+                                     Paths for --logdir and --workdir are resolved before this cd occurs, so
+                                     relative paths will be relative to the original directory."                       \
     "+failfast break b=${FAILFAST} | Stop immediately on first failure."                                               \
     "+clean   c=0                  | Clean only and then exit."                                                        \
     "+check_process_leaks=0        | Check for process leaks. Requires cgroups and root."                              \
@@ -167,6 +170,13 @@ logdir=$(readlink -f ${logdir})
 : ${workdir:=./etest}
 mkdir -p "${workdir}"
 workdir=$(readlink -f ${workdir})
+
+# Change to specified directory if -C/--directory was provided
+# Save original PWD for displaying relative paths in results
+ETEST_ORIGINAL_PWD="${PWD}"
+if [[ -n "${directory}" ]]; then
+    cd "${directory}" || die "Failed to cd to $(lval directory)"
+fi
 
 EDEBUG=${debug}
 

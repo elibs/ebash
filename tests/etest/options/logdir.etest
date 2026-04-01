@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests: logdir_relative
+#
+# These tests verify that etest correctly captures and uses relative paths for log file display, which is important
+# when running tests inside containers where the absolute path differs from the host path.
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Run nested etest in a clean environment to avoid inheriting parent etest variables
+# Run from a subdirectory to avoid picking up .ebash.conf from repo root
+run_nested_etest()
+{
+    mkdir -p nested_etest
+    (
+        cd nested_etest
+        env -i HOME="${HOME}" PATH="${PATH}" TERM="${TERM}" \
+            "${EBASH_HOME}/bin/etest" "$@" 2>&1
+    )
+}
+
+ETEST_logdir_relative_with_relative_path()
+{
+    etestmsg "Running etest with relative logdir"
+    output=$(run_nested_etest --logdir=build/testlogs --filter=MATCH_NOTHING_12345 ${EBASH_HOME}/tests/array.etest)
+
+    etestmsg "Checking output shows relative path"
+    echo "${output}" | grep -q "Test output:.*build/testlogs/etest.log"
+    echo "${output}" | grep -q "JUnit XML:.*build/testlogs/etest.xml"
+    echo "${output}" | grep -q "Test details:.*build/testlogs/etest.json"
+
+    etestmsg "Cleaning up"
+    rm -rf build/testlogs
+}
+
+ETEST_logdir_relative_with_absolute_path()
+{
+    etestmsg "Running etest with absolute logdir (inside nested_etest)"
+    mkdir -p nested_etest/build/testlogs_abs
+
+    # Get the absolute path from inside nested_etest
+    local abs_logdir
+    abs_logdir=$(cd nested_etest && pwd)/build/testlogs_abs
+
+    output=$(run_nested_etest --logdir="${abs_logdir}" --filter=MATCH_NOTHING_12345 ${EBASH_HOME}/tests/array.etest)
+
+    etestmsg "Checking output shows relative path (not absolute)"
+    echo "${output}" | grep -q "Test output:.*build/testlogs_abs/etest.log"
+    # Should NOT contain /home/ since it should be relative
+    assert_false grep -q "Test output:.*/home/" <<< "${output}"
+
+    etestmsg "Cleaning up"
+    rm -rf nested_etest/build
+}
+
+ETEST_logdir_relative_with_nested_path()
+{
+    etestmsg "Running etest with nested relative logdir"
+    output=$(run_nested_etest --logdir=build/deep/nested/logs --filter=MATCH_NOTHING_12345 ${EBASH_HOME}/tests/array.etest)
+
+    etestmsg "Checking output shows full nested relative path"
+    echo "${output}" | grep -q "Test output:.*build/deep/nested/logs/etest.log"
+
+    etestmsg "Cleaning up"
+    rm -rf build/deep
+}
+
+# Test the -C/--directory option which allows running tests from a different directory
+# while keeping log paths relative to the original directory.
+# - Caller is in /home/user/project
+# - Passes --logdir=/home/user/project/build/test (absolute)
+# - Uses -C /other/dir to run tests from there
+# - Expects output to show build/test/etest.log (relative to original)
+ETEST_logdir_relative_with_directory_option()
+{
+    etestmsg "Setting up project directory"
+    mkdir -p project/build/test
+    mkdir -p otherdir
+
+    local project_abs
+    project_abs=$(cd project && pwd)
+
+    etestmsg "Running etest with -C to change directory, but logdir relative to original"
+    output=$(
+        cd project
+        env -i HOME="${HOME}" PATH="${PATH}" TERM="${TERM}" \
+            "${EBASH_HOME}/bin/etest" -C "${PWD}/../otherdir" \
+            --logdir="${PWD}/build/test" \
+            --filter=MATCH_NOTHING_12345 \
+            "${EBASH_HOME}/tests/array.etest" 2>&1
+    )
+
+    etestmsg "Checking banner shows DIRECTORY"
+    echo "${output}"
+    grep -q "DIRECTORY.*otherdir" <<< "${output}"
+
+    etestmsg "Checking output shows relative path (build/test, not absolute)"
+    grep -q "Test output:.*build/test/etest.log" <<< "${output}"
+    assert_false grep -q "Test output:.*/home/" <<< "${output}"
+
+    etestmsg "Cleaning up"
+    rm -rf project otherdir
+}

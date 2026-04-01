@@ -287,12 +287,12 @@ create_summary()
             "$(ecolor cyan)" "${runtime}" "$(ecolor off)"
         echo
 
-        # Log files (relative to PWD when possible)
+        # Log files (relative to original PWD when possible)
         local rel_failure_log rel_log rel_xml rel_json
-        rel_failure_log=$(realpath --relative-to="${PWD}" "${ETEST_FAILURE_LOG}" 2>/dev/null) || rel_failure_log="${ETEST_FAILURE_LOG}"
-        rel_log=$(realpath --relative-to="${PWD}" "${ETEST_LOG}" 2>/dev/null) || rel_log="${ETEST_LOG}"
-        rel_xml=$(realpath --relative-to="${PWD}" "${ETEST_XML}" 2>/dev/null) || rel_xml="${ETEST_XML}"
-        rel_json=$(realpath --relative-to="${PWD}" "${ETEST_JSON}" 2>/dev/null) || rel_json="${ETEST_JSON}"
+        rel_failure_log=$(realpath --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_FAILURE_LOG}" 2>/dev/null) || rel_failure_log="${ETEST_FAILURE_LOG}"
+        rel_log=$(realpath  --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_LOG}"  2>/dev/null) || rel_log="${ETEST_LOG}"
+        rel_xml=$(realpath  --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_XML}"  2>/dev/null) || rel_xml="${ETEST_XML}"
+        rel_json=$(realpath --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_JSON}" 2>/dev/null) || rel_json="${ETEST_JSON}"
 
         echo
         if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then

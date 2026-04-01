@@ -302,10 +302,13 @@ run_all_tests()
         etest_name+=" - \"${name//_/ }\""
     fi
 
+    local banner_args=(OS debug exclude failfast filter jobs repeat=REPEAT_STRING retries timeout total_timeout verbose)
+    [[ -n "${directory}" ]] && banner_args+=(directory)
+
     if [[ "${verbose}" -eq 1 ]]; then
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast filter jobs repeat=REPEAT_STRING retries timeout total_timeout verbose
+        ebanner --uppercase "${etest_name}" "${banner_args[@]}"
     else
-        ebanner --uppercase "${etest_name}" OS debug exclude failfast filter jobs repeat=REPEAT_STRING retries timeout total_timeout verbose &>>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" "${banner_args[@]}" &>>${ETEST_OUT}
     fi
 
     NUM_TESTS_QUEUED=${NUM_TESTS_TOTAL}

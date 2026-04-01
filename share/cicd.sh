@@ -19,11 +19,11 @@
 #-----------------------------------------------------------------------------------------------------------------------
 
 opt_usage cicd_version <<'END'
-cicd_version outputs the current version string. It checks sources in this order:
-1. git describe (preferred - includes commit offset and dirty state)
+cicd_version outputs the current version string with build date. It checks sources in this order:
+1. git describe + commit date (preferred - includes commit offset and dirty state)
 2. VERSION file (fallback for installed systems without git)
 
-Always includes "-dirty" suffix if there are uncommitted changes.
+Always includes "-dirty" suffix if there are uncommitted changes. Format: "version (YYYY-MM-DD)"
 END
 cicd_version()
 {
@@ -33,7 +33,14 @@ cicd_version()
 
     # Prefer git describe - it's more accurate for development (includes commit offset)
     if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
-        git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null && return 0
+        local ver date
+        ver=$(git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null)
+        date=$(git log -1 --format=%cs 2>/dev/null)
+        if [[ -n "${ver}" ]]; then
+            [[ -n "${date}" ]] && ver+=" (${date})"
+            echo "${ver}"
+            return 0
+        fi
     fi
 
     # Fall back to VERSION file (for installed systems without git)
@@ -50,8 +57,8 @@ cicd_version()
 }
 
 opt_usage cicd_version_update <<'END'
-cicd_version_update writes the current git describe version to a VERSION file. This is typically called during the
-release process to embed the version in the release artifact.
+cicd_version_update writes the current git describe version and build date to a VERSION file. This is typically called
+during the release process to embed the version in the release artifact. Format: "version (YYYY-MM-DD)"
 END
 cicd_version_update()
 {
@@ -59,11 +66,15 @@ cicd_version_update()
         ":file f=VERSION | Path to VERSION file to write." \
     )
 
-    local ver
+    local ver date
     ver=$(git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null) || ver="unknown"
+    date=$(git log -1 --format=%cs 2>/dev/null) || date=""
 
-    einfo "Writing ${ver} to ${file}"
-    echo "${ver}" > "${file}"
+    local output="${ver}"
+    [[ -n "${date}" ]] && output+=" (${date})"
+
+    einfo "Writing ${output} to ${file}"
+    echo "${output}" > "${file}"
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
