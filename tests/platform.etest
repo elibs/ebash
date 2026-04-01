@@ -130,3 +130,111 @@ ETEST_basename_is_function()
     type_output=$(type -t basename)
     assert_eq "function" "${type_output}" "basename should be a function, not external binary"
 }
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Flag fallback tests
+#
+# These tests verify that when flags are passed to basename/dirname, we correctly fall back to the external binary
+# which supports those flags.
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_basename_multiple_flag()
+{
+    $(skip_if "os darwin")
+
+    # Create test files
+    mkdir -p testdir
+    touch testdir/file1.txt testdir/file2.txt testdir/file3.txt
+
+    # Test --multiple flag
+    local result
+    result=$(basename --multiple testdir/file1.txt testdir/file2.txt testdir/file3.txt)
+    assert_eq "file1.txt
+file2.txt
+file3.txt" "${result}"
+
+    # Test -a flag (short form of --multiple)
+    result=$(basename -a testdir/file1.txt testdir/file2.txt)
+    assert_eq "file1.txt
+file2.txt" "${result}"
+}
+
+ETEST_basename_multiple_with_glob()
+{
+    $(skip_if "os darwin")
+
+    # This is the actual use case that was failing - using --multiple with glob expansion
+    mkdir -p testdir
+    touch testdir/mod1.ko testdir/mod2.ko testdir/mod3.ko
+
+    local result
+    result=$(basename --multiple testdir/*.ko | sort)
+    assert_eq "mod1.ko
+mod2.ko
+mod3.ko" "${result}"
+}
+
+ETEST_basename_suffix_flag()
+{
+    $(skip_if "os darwin")
+
+    # Test -s/--suffix flag
+    mkdir -p testdir
+    touch testdir/file1.txt testdir/file2.txt
+
+    local result
+    result=$(basename -s .txt testdir/file1.txt testdir/file2.txt)
+    assert_eq "file1
+file2" "${result}"
+
+    # Test --suffix= form
+    result=$(basename --suffix=.txt testdir/file1.txt testdir/file2.txt)
+    assert_eq "file1
+file2" "${result}"
+}
+
+ETEST_basename_zero_flag()
+{
+    $(skip_if "os darwin")
+
+    # Test -z/--zero flag (NUL-terminated output)
+    mkdir -p testdir
+    touch testdir/file1.txt testdir/file2.txt
+
+    # Count NUL bytes - should have 2 for 2 files
+    local nul_count
+    nul_count=$(basename -z -a testdir/file1.txt testdir/file2.txt | tr -cd '\0' | wc -c)
+    assert_eq 2 "${nul_count}"
+}
+
+ETEST_dirname_zero_flag()
+{
+    $(skip_if "os darwin")
+
+    # Test -z/--zero flag (NUL-terminated output)
+    local nul_count
+    nul_count=$(dirname -z /path/to/file | tr -cd '\0' | wc -c)
+    assert_eq 1 "${nul_count}"
+}
+
+ETEST_basename_help_flag()
+{
+    $(skip_if "os darwin")
+
+    # Test --help flag - should produce output containing "Usage"
+    local result
+    result=$(basename --help 2>&1)
+    assert_match "${result}" "Usage"
+}
+
+ETEST_dirname_help_flag()
+{
+    $(skip_if "os darwin")
+
+    # Test --help flag - should produce output containing "Usage"
+    local result
+    result=$(dirname --help 2>&1)
+    assert_match "${result}" "Usage"
+}
