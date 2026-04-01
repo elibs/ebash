@@ -192,7 +192,8 @@ create_summary()
         if array_not_empty TESTS_FAILED; then
             eerror "FAILED TESTS:"
             local failed_test
-            for failed_test in "${TESTS_FAILED[@]}"; do
+            # Note: unquoted to allow word splitting on space-separated test names within each suite value
+            for failed_test in ${TESTS_FAILED[@]}; do
                 echo "$(ecolor "red")      ${failed_test}"
             done
             ecolor off
@@ -201,7 +202,8 @@ create_summary()
         if array_not_empty TESTS_FLAKY; then
             ewarn "FLAKY TESTS:"
             local flaky_test
-            for flaky_test in "${TESTS_FLAKY[@]}"; do
+            # Note: unquoted to allow word splitting on space-separated test names within each suite value
+            for flaky_test in ${TESTS_FLAKY[@]}; do
                 echo "$(ecolor "yellow")      ${flaky_test}"
             done
             ecolor off

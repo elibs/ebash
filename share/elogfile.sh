@@ -140,7 +140,11 @@ elogfile()
         ) &
 
         # Save pid into our list of local pids that we'll add to __EBASH_ELOGFILE_PID_SETS at the end of this function.
-        pids+=( $(<"${pid_pipe}") )
+        # Use read builtin instead of $(<file) because bash handles EINTR internally, avoiding "Interrupted system call"
+        # errors on macOS when a signal arrives during the blocking read from the FIFO.
+        local pid_value
+        read -r pid_value < "${pid_pipe}"
+        pids+=( "${pid_value}" )
 
         # Re-exec so  our output stream(s) are redirected to the pipe.
         # NOTE: If we're merging stdout+stderr we redirect both streams into the pipe
