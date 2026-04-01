@@ -243,8 +243,9 @@ json_import()
 
     # Lookup optional filename to use. If no filename was given then we're operating on STDIN. In either case read into
     # a local variable so we can parse it repeatedly in this function.
+    [[ "${file}" == "-" ]] && file="/dev/stdin"
     local _json_import_input _json_import_data
-    _json_import_input=$(<"${file}") || true
+    _json_import_input=$(<"${file}")
     _json_import_data=$(jq -r "${query}" <<< ${_json_import_input} || true)
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
