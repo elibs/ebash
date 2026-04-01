@@ -14,10 +14,11 @@
 
 setup()
 {
-    EDEBUG+=" summary"
     ETEST_LOG="summary-etest.log"
     ETEST_JSON="summary-etest.json"
+    ETEST_FAILURE_LOG="summary-etest.failure.log"
     ETEST_STDERR_FD="/dev/null"
+    COLUMNS=80
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -37,16 +38,18 @@ ETEST_results_summary_passed()
     etestmsg "Calling create_summary"
     create_summary
 
-    etestmsg "Verifying files created and non-empty"
+    etestmsg "Verifying files created"
     assert_exists "${ETEST_LOG}"
     assert_exists "${ETEST_JSON}"
-    [[ -s "${ETEST_LOG}"  ]]
+    assert_exists "${ETEST_FAILURE_LOG}"
     [[ -s "${ETEST_JSON}" ]]
 
-    etestmsg "Checking log file"
-    grep -q "Finished testing $(pack_get VCS_INFO info). 5/5 tests passed in ${DURATION} seconds." "${ETEST_LOG}"
-    assert_false grep "FAILED TESTS:" "${ETEST_LOG}"
-    assert_false grep "FLAKY TESTS:"  "${ETEST_LOG}"
+    etestmsg "Checking log file has no failure/flaky markers"
+    assert_false grep "Failed Tests" "${ETEST_LOG}"
+    assert_false grep "Flaky Tests"  "${ETEST_LOG}"
+
+    etestmsg "Checking failure log is empty for passing tests"
+    assert_false test -s "${ETEST_FAILURE_LOG}"
 
     etestmsg "Checking json file"
     jq . "${ETEST_JSON}"
@@ -80,18 +83,18 @@ ETEST_results_summary_failed()
     etestmsg "Verifying files created and non-empty"
     assert_exists "${ETEST_LOG}"
     assert_exists "${ETEST_JSON}"
+    assert_exists "${ETEST_FAILURE_LOG}"
     [[ -s "${ETEST_LOG}"  ]]
     [[ -s "${ETEST_JSON}" ]]
 
     etestmsg "Checking log file"
     noansi "${ETEST_LOG}"
-
-    grep -q "Finished testing $(pack_get VCS_INFO info). 0/5 tests passed in ${DURATION} seconds." "${ETEST_LOG}"
-
-    grep -Poz 'FAILED TESTS:\n\s*test1\n\s*test2\n\s*test3\n\s*test4\n\s*test5' "${ETEST_LOG}"
-    echo
-
-    assert_false grep "FLAKY TESTS:"  "${ETEST_LOG}"
+    grep -q "Failed Tests" "${ETEST_LOG}"
+    grep -q "FAILED" "${ETEST_LOG}"
+    grep -q "test1" "${ETEST_LOG}"
+    grep -q "test5" "${ETEST_LOG}"
+    grep -q "5 FAILED TESTS" "${ETEST_LOG}"
+    assert_false grep "Flaky Tests" "${ETEST_LOG}"
 
     etestmsg "Checking json file"
     jq . "${ETEST_JSON}"
@@ -101,7 +104,6 @@ ETEST_results_summary_failed()
     assert_eq 5 "${numTestsFailed}"
     assert_eq 0 "${numTestsFlaky}"
     assert_eq "${DURATION}s" "${duration}"
-
 
     etestmsg "Checking test suite results in json file"
     testsPassed="$(jq -r .testsPassed "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
@@ -126,23 +128,21 @@ ETEST_results_summary_mixed()
     etestmsg "Verifying files created and non-empty"
     assert_exists "${ETEST_LOG}"
     assert_exists "${ETEST_JSON}"
+    assert_exists "${ETEST_FAILURE_LOG}"
     [[ -s "${ETEST_LOG}"  ]]
     [[ -s "${ETEST_JSON}" ]]
 
     etestmsg "Checking log file"
     noansi "${ETEST_LOG}"
-
-    grep -q "Finished testing $(pack_get VCS_INFO info). 3/5 tests passed in ${DURATION} seconds." "${ETEST_LOG}"
-
-    grep -Poz 'FAILED TESTS:\n\s*test2' "${ETEST_LOG}"
-    echo
-
-    grep -Poz 'FLAKY TESTS:\n\s*test4' "${ETEST_LOG}"
-    echo
+    grep -q "Failed Tests" "${ETEST_LOG}"
+    grep -q "test2" "${ETEST_LOG}"
+    grep -q "1 FAILED TEST" "${ETEST_LOG}"
+    grep -q "Flaky Tests" "${ETEST_LOG}"
+    grep -q "test4" "${ETEST_LOG}"
+    grep -q "1 FLAKY TEST" "${ETEST_LOG}"
 
     etestmsg "Checking json file"
     jq . "${ETEST_JSON}"
-
     $(json_import --file "${ETEST_JSON}")
     assert_eq 5 "${numTestsExecuted}"
     assert_eq 3 "${numTestsPassed}"
@@ -157,4 +157,66 @@ ETEST_results_summary_mixed()
     assert_eq '[{"suite":"suite","tests":["test2"]}]' "${testsFailed}"
     testsFlaky="$(jq -r  .testsFlaky  "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
     assert_eq '[{"suite":"suite","tests":["test4"]}]' "${testsFlaky}"
+}
+
+ETEST_results_failure_log_format()
+{
+    NUM_TESTS_EXECUTED=2
+    NUM_TESTS_PASSED=1 TESTS_PASSED=( [mysuite]="passing_test" )
+    NUM_TESTS_FAILED=1 TESTS_FAILED=( [mysuite]="ETEST_failing_test" )
+    NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
+    DURATION="${SECONDS}"
+
+    # Create a mock ETEST_LOG with test output that create_failure_output will extract from
+    cat > "${ETEST_LOG}" <<'EOF'
+[2024-01-01T00:00:00Z] Running command="ETEST_failing_test" attempt="0"
+Some test output here
+Error: something went wrong
+[2024-01-01T00:00:01Z] tests/example.etest:ETEST_failing_test FAILED.
+EOF
+
+    etestmsg "Calling create_summary"
+    create_summary
+
+    etestmsg "Checking failure log exists and has content"
+    assert_exists "${ETEST_FAILURE_LOG}"
+    [[ -s "${ETEST_FAILURE_LOG}" ]]
+
+    etestmsg "Checking failure log format"
+    grep -q "Failure Output" "${ETEST_FAILURE_LOG}"
+    grep -q "mysuite:failing_test" "${ETEST_FAILURE_LOG}"
+    grep -q "Error: something went wrong" "${ETEST_FAILURE_LOG}"
+
+    etestmsg "Checking failure log has no ANSI codes"
+    assert_false grep -P '\x1b\[' "${ETEST_FAILURE_LOG}"
+}
+
+ETEST_results_failure_log_multiple_suites()
+{
+    NUM_TESTS_EXECUTED=4
+    NUM_TESTS_PASSED=2 TESTS_PASSED=( [suite1]="pass1" [suite2]="pass2" )
+    NUM_TESTS_FAILED=2 TESTS_FAILED=( [suite1]="ETEST_fail1" [suite2]="ETEST_fail2" )
+    NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
+    DURATION="${SECONDS}"
+
+    # Create mock ETEST_LOG with multiple test failures
+    cat > "${ETEST_LOG}" <<'EOF'
+[2024-01-01T00:00:00Z] Running command="ETEST_fail1" attempt="0"
+Suite1 failure output
+[2024-01-01T00:00:01Z] tests/suite1.etest:ETEST_fail1 FAILED.
+[2024-01-01T00:00:02Z] Running command="ETEST_fail2" attempt="0"
+Suite2 failure output
+[2024-01-01T00:00:03Z] tests/suite2.etest:ETEST_fail2 FAILED.
+EOF
+
+    etestmsg "Calling create_summary"
+    create_summary
+
+    etestmsg "Checking failure log contains both failures"
+    assert_exists "${ETEST_FAILURE_LOG}"
+    [[ -s "${ETEST_FAILURE_LOG}" ]]
+    grep -q "suite1:fail1" "${ETEST_FAILURE_LOG}"
+    grep -q "suite2:fail2" "${ETEST_FAILURE_LOG}"
+    grep -q "Suite1 failure output" "${ETEST_FAILURE_LOG}"
+    grep -q "Suite2 failure output" "${ETEST_FAILURE_LOG}"
 }

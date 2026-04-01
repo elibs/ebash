@@ -229,17 +229,15 @@ create_summary()
             echo "$(ecolor bold yellow)╚${__border}╝$(ecolor off)"
 
             local flaky_test
-            local num_flaky=0
             # shellcheck disable=SC2068 # Intentional word splitting for space-separated test names
             for flaky_test in ${TESTS_FLAKY[@]}; do
                 echo "$(ecolor yellow)  [  FLAKY   ] ${flaky_test}$(ecolor off)"
-                (( num_flaky++ ))
             done
 
             echo
             local plural=""
-            [[ ${num_flaky} -ne 1 ]] && plural="S"
-            echo "$(ecolor bold yellow)  ${num_flaky} FLAKY TEST${plural}$(ecolor off)"
+            [[ ${NUM_TESTS_FLAKY} -ne 1 ]] && plural="S"
+            echo "$(ecolor bold yellow)  ${NUM_TESTS_FLAKY} FLAKY TEST${plural}$(ecolor off)"
             echo
         fi
 
@@ -264,8 +262,8 @@ create_summary()
         echo
         echo "$(ecolor cyan)${line}$(ecolor off)"
         echo
-        printf "%s Total: %s%d%s  Passed: %s%d%s" \
-            "$(ecolor bold green)>>" \
+        printf "%s%s Total: %s%d%s  Passed: %s%d%s" \
+            "$(ecolor bold green)>>" "$(ecolor off)" \
             "$(ecolor bold)" "${NUM_TESTS_EXECUTED}" "$(ecolor off)" \
             "$(ecolor bold green)" "${NUM_TESTS_PASSED}" "$(ecolor off)"
         if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
@@ -278,9 +276,9 @@ create_summary()
         fi
         echo
         echo
-        echo "$(ecolor cyan)Test output:$(ecolor off)  $(ecolor magenta)${ETEST_LOG}$(ecolor off)"
-        echo "$(ecolor cyan)JUnit XML:$(ecolor off)    $(ecolor magenta)${ETEST_XML}$(ecolor off)"
-        echo "$(ecolor cyan)JSON:$(ecolor off)         $(ecolor magenta)${ETEST_JSON}$(ecolor off)"
+        echo "$(ecolor cyan)Test output:$(ecolor off)  $(ecolor magenta)${ETEST_LOG#$PWD/}$(ecolor off)"
+        echo "$(ecolor cyan)JUnit XML:$(ecolor off)    $(ecolor magenta)${ETEST_XML#$PWD/}$(ecolor off)"
+        echo "$(ecolor cyan)JSON:$(ecolor off)         $(ecolor magenta)${ETEST_JSON#$PWD/}$(ecolor off)"
         echo
     } >&${ETEST_STDERR_FD}
 }

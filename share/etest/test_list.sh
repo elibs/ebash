@@ -50,45 +50,56 @@ create_test_list()
 find_matching_tests()
 {
     # Expand tests to find all standalone executable scripts as well as any *.etest files.
-    local all_tests=(
-        $(find -L "${tests[@]}" \( -type f -or -type l \) -executable -not -name "*.etest" | sort || true)
-        $(find -L "${tests[@]}" -type f -name "*.etest" | sort || true)
-    )
+    local all_scripts all_etests
+    readarray -t all_scripts < <(find -L "${tests[@]}" \( -type f -or -type l \) -executable -not -name "*.etest" 2>/dev/null | sort || true)
+    readarray -t all_etests < <(find -L "${tests[@]}" -type f -name "*.etest" 2>/dev/null | sort || true)
 
-    # Get a list of tests we should actually run.
+    # Build function list for all .etest files in a single grep pass (much faster than per-file grep)
+    # Output format: "filepath:ETEST_funcname()" - we parse this to build TEST_FUNCTIONS_TO_RUN
+    if [[ ${#all_etests[@]} -gt 0 ]]; then
+        local grep_line testfile function
+        while IFS= read -r grep_line; do
+            testfile="${grep_line%%:ETEST_*}"
+            function="${grep_line#*:}"
+            function="${function%%\(\)*}"
+
+            if [[ -n ${exclude} && ${function} =~ ${exclude} ]]; then
+                continue
+            fi
+
+            if [[ -z ${filter} || ${testfile} =~ ${filter} || ${function} =~ ${filter} ]]; then
+                TEST_FUNCTIONS_TO_RUN[$testfile]+="${function} "
+            fi
+        done < <(grep -H "^ETEST_.*()" "${all_etests[@]}" 2>/dev/null || true)
+    fi
+
+    # Process standalone scripts
     local testfile
-    for testfile in "${all_tests[@]}"; do
-
-        # If the test name matches a specified EXCLUDE, then skip it
+    for testfile in "${all_scripts[@]}"; do
         if [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] ; then
             continue
         fi
-
-        # If this is an etest, see if any of the functions inside the file match the filter.
-        local has_matching_functions=false
-        if [[ ${testfile} =~ \.etest$ ]]; then
-
-            local function
-            for function in $(grep "^ETEST_.*()" "${testfile}" | sed 's|().*||' || true); do
-
-                if [[ -n ${exclude} && ${function} =~ ${exclude} ]]; then
-                    continue
-                fi
-
-                if [[ -z ${filter} || ${testfile} =~ ${filter} || ${function} =~ ${filter} ]]; then
-                    TEST_FUNCTIONS_TO_RUN[$testfile]+="${function} "
-                    has_matching_functions=true
-                fi
-            done
+        if [[ -z ${filter} || ${testfile} =~ ${filter} ]]; then
+            TEST_FILES_TO_RUN+=( "${testfile}" )
         fi
+    done
 
-        # If the filename matches a non-empty filter or we found functions that match the filter then run it.
+    # Process .etest files - add to TEST_FILES_TO_RUN if they have matching functions or match filter
+    for testfile in "${all_etests[@]}"; do
+        if [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] ; then
+            continue
+        fi
+        local has_matching_functions=false
+        if [[ -n "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}" ]]; then
+            has_matching_functions=true
+        fi
         if [[ -z ${filter} || ${testfile} =~ ${filter} || ${has_matching_functions} == "true" ]]; then
             TEST_FILES_TO_RUN+=( "${testfile}" )
         fi
     done
 
     # Compute total number of tests to run across all files
+    local fname fname_tests
     for fname in "${!TEST_FUNCTIONS_TO_RUN[@]}"; do
         array_init fname_tests "${TEST_FUNCTIONS_TO_RUN[$fname]}"
         increment NUM_TESTS_TOTAL "${#fname_tests[@]}"

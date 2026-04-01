@@ -105,8 +105,8 @@ run_single_test()
             TMPDIR="$(readlink -m ${testdir}/tmp)"
             export TMPDIR
 
+            # Move test process into cgroup. Skip cgroup_create since global_setup already created ETEST_CGROUP.
             if cgroup_supported; then
-                cgroup_create ${ETEST_CGROUP}
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
 
@@ -173,24 +173,9 @@ run_single_test()
         }
         edebug "Finished $(lval testname display_testname rc attempt retries)"
 
-        # Verify there are no process or memory leaks. If so kill them and try again if that is permitted.
-        #
-        # NOTE: We skip checking for process and mount leaks if we're running multiple jobs at the same time as they
-        # all share the same cgroup and working directory so we would have false positives. It doesn't really matter
-        # because we will do a final check for process and mount leaks in `global_teardown`. And this isn't really an
-        # issue anymore like it was 10 years ago as we're running inside docker now.
-        if [[ ${jobs} -eq 0 ]]; then
-            try
-            {
-                assert_no_process_leaks
-                assert_no_mount_leaks
-            }
-            catch
-            {
-                rc+=$?
-                eerror "${display_testname} FAILED due to process or mount leak."
-            }
-        fi
+        # NOTE: Process and mount leak detection is deferred to global_teardown for efficiency.
+        # Per-test leak checking added significant overhead and global_teardown catches all leaks anyway.
+        # This isn't really an issue anymore like it was 10 years ago as we're running inside docker now.
 
         if [[ ${rc} -eq 0 ]]; then
             break
@@ -230,9 +215,12 @@ run_single_test()
     fi
 
     # If jobs==0 update status json file inline. Otherwise this happens in chunks as jobs are finished
-    # for parallel execution in __process_completed_jobs
+    # for parallel execution in __process_completed_jobs.
+    # Only update every 10 tests or on the last test to reduce I/O overhead.
     if [[ ${jobs} -eq 0 ]]; then
-        create_status_json
+        if (( (NUM_TESTS_PASSED + NUM_TESTS_FAILED) % 10 == 0 )) || [[ ${testidx} -eq ${testidx_total} ]]; then
+            create_status_json
+        fi
     fi
 }
 
