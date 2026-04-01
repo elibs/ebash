@@ -744,8 +744,8 @@ opt_display_usage()
         echo -n "Usage: $(opt_parse_usage_name) "
 
         # Sort option keys so we can display options in sorted order.
-        local opt_keys=()
-        opt_keys=( $(echo ${!__EBASH_OPT[*]} | tr ' ' '\n' | sort) )
+        local opt_keys=( "${!__EBASH_OPT[@]}" )
+        array_sort opt_keys
 
         # Display any REQUIRED options
         local opt
@@ -912,7 +912,10 @@ are pretty-printed using print_value.
 END
 opt_dump()
 {
-    for option in $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort); do
+    local __opt_keys=( "${!__EBASH_OPT[@]}" )
+    array_sort __opt_keys
+    local option
+    for option in "${__opt_keys[@]}"; do
         if [[ ${__EBASH_OPT_TYPE[$option]:-} == "accumulator" ]]; then
             array_init_nl value "${__EBASH_OPT[$option]}"
             echo "${option}=$(print_value value)"
@@ -940,7 +943,10 @@ opt_log()
         shift
     fi
 
-    for option in $(echo "${!__EBASH_OPT[@]}" | tr ' ' '\n' | sort); do
+    local __opt_keys=( "${!__EBASH_OPT[@]}" )
+    array_sort __opt_keys
+    local option
+    for option in "${__opt_keys[@]}"; do
         if [[ ${__EBASH_OPT_TYPE[$option]:-} == "accumulator" ]]; then
             array_init_nl value "${__EBASH_OPT[$option]}"
 

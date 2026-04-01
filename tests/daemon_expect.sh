@@ -47,7 +47,10 @@ daemon_react()
         while true; do
 
             elock ${DAEMON_LOCK}
-            expected=$(cat ${DAEMON_STATE} 2>/dev/null || true)
+            expected=""
+            if [[ -s "${DAEMON_STATE}" ]]; then
+                expected=$(<"${DAEMON_STATE}")
+            fi
             if [[ -z ${expected} ]]; then
                 edebug "Waiting for test code to setup expected state...$(lval actual)"
                 eunlock ${DAEMON_LOCK}
@@ -85,7 +88,10 @@ daemon_expect()
         while true; do
 
             elock ${DAEMON_LOCK}
-            pending=$(cat "${DAEMON_STATE}" || true)
+            pending=""
+            if [[ -s "${DAEMON_STATE}" ]]; then
+                pending=$(<"${DAEMON_STATE}")
+            fi
             eunlock ${DAEMON_LOCK}
             [[ -z ${pending} ]] && break
 

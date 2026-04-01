@@ -332,3 +332,74 @@ ETEST_cicd_release_branch_error()
     assert_false cicd_release
     assert_eq 0           "$(array_size git_tags_pushed)"
 }
+
+ETEST_cicd_info_rc_suffix()
+{
+    etestmsg "Deleting default tag and creating RC tag"
+    git tag -d "v1.0.0"
+    git tag -am "Tagged by etest" "v2.1.0-rc1"
+
+    # Create CICD Pack
+    etestmsg "Test CI/CD Info with RC suffix"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Validating CI/CD Info"
+    # The -rc1 suffix is stripped when calculating base_tag and version components
+    assert_eq "v2.1.0"                              "${base_tag}"
+    assert_eq "develop"                             "${branch}"
+    assert_eq "$(git rev-parse HEAD)"               "${commit}"
+    assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
+    assert_eq "2"                                   "${major}"
+    assert_eq "1"                                   "${minor}"
+    assert_eq "0"                                   "${patch}"
+    assert_eq "0"                                   "${offset}"
+    assert_eq "git@github.com:elibs/etest.git"      "${origin_url}"
+    assert_eq "etest"                               "${repo_slug}"
+    assert_eq "2.1"                                 "${series}"
+    # version and version_tag retain the full tag including -rc1
+    assert_eq "2.1.0-rc1"                           "${version}"
+    assert_eq "v2.1.0-rc1"                          "${version_tag}"
+    # Next version is the final release (not incremented) since this is an RC
+    assert_eq "v2.1.0"                              "${version_tag_next}"
+}
+
+ETEST_cicd_info_rc_suffix_with_offset()
+{
+    etestmsg "Deleting default tag and creating RC tag"
+    git tag -d "v1.0.0"
+    git tag -am "Tagged by etest" "v2.1.0-rc1"
+
+    etestmsg "Adding a commit after the RC tag"
+    echo "post-rc change" >> "file1.txt"
+    git add "file1.txt"
+    git commit -am "Post-RC commit"
+
+    # Create CICD Pack
+    # git describe will now return something like: v2.1.0-rc1-1-g<hash>
+    etestmsg "Test CI/CD Info with RC suffix and offset"
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Validating CI/CD Info"
+    # The -rc1-1-g<hash> suffix is stripped when calculating base_tag
+    assert_eq "v2.1.0"                              "${base_tag}"
+    assert_eq "develop"                             "${branch}"
+    assert_eq "$(git rev-parse HEAD)"               "${commit}"
+    assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
+    assert_eq "2"                                   "${major}"
+    assert_eq "1"                                   "${minor}"
+    assert_eq "0"                                   "${patch}"
+    # offset is 0 because base_tag (v2.1.0) doesn't exist as a real tag - the actual tag is v2.1.0-rc1
+    assert_eq "0"                                   "${offset}"
+    assert_eq "git@github.com:elibs/etest.git"      "${origin_url}"
+    assert_eq "etest"                               "${repo_slug}"
+    assert_eq "2.1"                                 "${series}"
+    # version and version_tag include the full git describe output
+    assert_match "${version}"                       "2.1.0-rc1-1-g"
+    assert_match "${version_tag}"                   "v2.1.0-rc1-1-g"
+    # Next version should be the final release (v2.1.0), not an incremented patch
+    assert_eq "v2.1.0"                              "${version_tag_next}"
+}

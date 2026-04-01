@@ -495,8 +495,8 @@ ebanner()
             echo -e "|"
 
             # Sort the keys and store into an array
-            local keys=( "${!details[@]}" )
-            array_sort keys
+            local keys
+            keys=( $(for key in "${!details[@]}"; do echo "${key}"; done | sort) )
 
             # Figure out the longest key
             local longest=0
@@ -794,20 +794,18 @@ eerror_stacktrace()
     fi
 
     # Figure out the longest function name
-    local len=0 longest=0 line="" func="" file="" parts=()
+    local len=0 longest=0 line="" func="" file=""
     for frame in "${frames[@]}"; do
-        parts=( ${frame} )
-        line="${parts[0]}"
-        file=$(basename "${parts[2]}")
+        line=$(echo ${frame} | awk '{print $1}')
+        file=$(basename $(echo ${frame} | awk '{print $3}'))
         len=$(( ${#file} + ${#line} + 1 ))
         (( len > longest )) && longest=$len
     done
 
     for frame in "${frames[@]}"; do
-        parts=( ${frame} )
-        line="${parts[0]}"
-        func="${parts[1]}"
-        file=$(basename "${parts[2]}")
+        line=$(echo ${frame} | awk '{print $1}')
+        func=$(echo ${frame} | awk '{print $2}')
+        file=$(basename $(echo ${frame} | awk '{print $3}'))
 
         [[ ${file} == "efuncs.sh" && ${func} == ${FUNCNAME} ]] && break
 
@@ -983,10 +981,7 @@ expand_vars()
         if [[ "${quotes}" -eq 1 ]]; then
             printf -v ${__details}[${__key}] "${__val}"
         else
-            # Strip leading and trailing quotes
-            local __stripped="${__val#\"}"
-            __stripped="${__stripped%\"}"
-            printf -v ${__details}[${__key}] "${__stripped}"
+            printf -v ${__details}[${__key}] "$(echo ${__val} | sed -e 's|^"||' -e 's|"$||')"
         fi
     done
 }

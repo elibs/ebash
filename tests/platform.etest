@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+#
+# Copyright 2011-2021, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# dirname tests
+#
+# These tests verify that our native bash dirname wrapper function behaves identically to /usr/bin/dirname.
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_dirname_basic()
+{
+    assert_eq "/usr/bin"  "$(dirname /usr/bin/sort)"
+    assert_eq "/usr"      "$(dirname /usr/bin)"
+    assert_eq "/"         "$(dirname /usr)"
+    assert_eq "."         "$(dirname .)"
+    assert_eq "."         "$(dirname ..)"
+}
+
+ETEST_dirname_no_slash()
+{
+    # When there's no slash, dirname should return "."
+    assert_eq "." "$(dirname filename)"
+    assert_eq "." "$(dirname somefile.txt)"
+    assert_eq "." "$(dirname "file with spaces")"
+}
+
+ETEST_dirname_trailing_slash()
+{
+    # Trailing slashes should be handled correctly
+    assert_eq "/usr" "$(dirname /usr/bin/)"
+    assert_eq "/"    "$(dirname /usr/)"
+}
+
+ETEST_dirname_multiple_slashes()
+{
+    assert_eq "/foo/bar" "$(dirname /foo/bar/baz)"
+    assert_eq "/foo"     "$(dirname /foo/bar)"
+    assert_eq "foo/bar"  "$(dirname foo/bar/baz)"
+    assert_eq "foo"      "$(dirname foo/bar)"
+}
+
+ETEST_dirname_relative_paths()
+{
+    assert_eq "."     "$(dirname ./file)"
+    assert_eq ".."    "$(dirname ../file)"
+    assert_eq "../.." "$(dirname ../../file)"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# basename tests
+#
+# These tests verify that our native bash basename wrapper function behaves identically to /usr/bin/basename.
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_basename_basic()
+{
+    assert_eq "sort"    "$(basename /usr/bin/sort)"
+    assert_eq "bin"     "$(basename /usr/bin)"
+    assert_eq "usr"     "$(basename /usr)"
+    assert_eq "."       "$(basename .)"
+    assert_eq ".."      "$(basename ..)"
+}
+
+ETEST_basename_no_slash()
+{
+    # When there's no slash, basename should return the filename as-is
+    assert_eq "filename"     "$(basename filename)"
+    assert_eq "somefile.txt" "$(basename somefile.txt)"
+}
+
+ETEST_basename_trailing_slash()
+{
+    # Trailing slashes should be handled correctly
+    assert_eq "bin" "$(basename /usr/bin/)"
+    assert_eq "usr" "$(basename /usr/)"
+}
+
+ETEST_basename_with_suffix()
+{
+    # Test suffix removal
+    assert_eq "file"     "$(basename file.txt .txt)"
+    assert_eq "archive"  "$(basename archive.tar.gz .tar.gz)"
+    assert_eq "file.txt" "$(basename file.txt .log)"  # suffix doesn't match
+    assert_eq ".txt"     "$(basename .txt .txt)"      # entire name is suffix
+}
+
+ETEST_basename_relative_paths()
+{
+    assert_eq "file" "$(basename ./file)"
+    assert_eq "file" "$(basename ../file)"
+    assert_eq "file" "$(basename ../../file)"
+}
+
+ETEST_basename_spaces_in_name()
+{
+    assert_eq "file with spaces"     "$(basename "/path/to/file with spaces")"
+    assert_eq "file with spaces.txt" "$(basename "file with spaces.txt")"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Verify wrapper functions are being used instead of external binaries
+#
+# These tests ensure that our native bash implementations are actually being invoked rather than /usr/bin/dirname
+# and /usr/bin/basename. This is critical for the performance benefits we're seeking.
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_dirname_is_function()
+{
+    # Verify dirname is a shell function, not an external binary
+    local type_output
+    type_output=$(type -t dirname)
+    assert_eq "function" "${type_output}" "dirname should be a function, not external binary"
+}
+
+ETEST_basename_is_function()
+{
+    # Verify basename is a shell function, not an external binary
+    local type_output
+    type_output=$(type -t basename)
+    assert_eq "function" "${type_output}" "basename should be a function, not external binary"
+}

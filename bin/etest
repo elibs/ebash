@@ -130,6 +130,7 @@ if [[ -n "${total_timeout}" && "${total_timeout}" != "infinity" ]]; then
 fi
 
 # Create logfile
+elogrotate "${ETEST_LOG}"
 elogrotate "${ETEST_JSON}"
 elogrotate "${ETEST_OPTIONS}"
 elogrotate "${ETEST_XML}"

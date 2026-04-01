@@ -9,18 +9,7 @@
 # Default eprogress settings
 : ${EPROGRESS:=1}
 : ${EPROGRESS_DELAY:=}
-: ${EPROGRESS_SPINNER:=1}
 : ${EPROGRESS_INLINE:=1}
-
-opt_usage spintout <<'END'
-`spinout` is used to print a spinner to STDERR and is used by various function such as `eprogress`.
-END
-spinout()
-{
-    local char="$1"
-    echo -n -e "\b${char}" >&2
-    sleep 0.10
-}
 
 opt_usage eprogress <<'END'
 `eprogress` is used to print a progress bar to STDERR in a highly configurable format. The typical use case for this is
@@ -30,7 +19,6 @@ hung. The ticker can be customized:
 - Disabled entirely using `EPROGRESS=0`
 - Show on the left or right via `--align`
 - Change how often it is printed via `--delay`
-- Show the **timer** but not the **spinner** via `--no-spinner`
 - Display contents of a **file** on each iteration
 END
 eprogress()
@@ -40,8 +28,8 @@ eprogress()
         ":delay=${EPROGRESS_DELAY}     | Optional delay between tickers to avoid flooding the screen. Useful for
                                          automated CI/CD builds where we are not writing to an actual terminal but want
                                          to see periodic updates."                                                     \
-        "+spinner=${EPROGRESS_SPINNER} | Display spinner inline with the message and timer."                           \
-        "+inline=${EPROGRESS_INLINE}   | Display message, timer and spinner all inline. If you disable this the full
+        "+spinner=0                    | DEPRECATED: This option is ignored. Spinner has been removed."                \
+        "+inline=${EPROGRESS_INLINE}   | Display message, timer and ticker all inline. If you disable this the full
                                          message and timer is printed on a separate line on each iteration instead. This
                                          is useful for automated CI/CD builds where we are not writing to a real TTY." \
         "+delete d=1                   | Delete file when eprogress completes if one was specified via --file."        \
@@ -105,7 +93,14 @@ eprogress()
 
             # Display file contents if appropriate (minus final newline)
             if [[ -n ${file} && -r ${file} ]] ; then
-                printf "%s" "$(<${file})"
+                local file_content
+                readall file_content < "${file}"
+                printf "%s" "${file_content}"
+            fi
+
+            # Check done flag early so we always display final file state before exiting
+            if [[ ${done} -eq 1 ]]; then
+                break
             fi
 
             if [[ ${time} -eq 1 ]] ; then
@@ -125,25 +120,8 @@ eprogress()
                 ecolor none
             fi
 
-            # Optionally display the spinner. Check done flag between frames for faster response to signals.
-            if [[ ${spinner} -eq 1 ]]; then
-                echo -n " "
-                ecolor clear_to_eol
-
-                local spin_chars=("/" "-" "\\" "|" "/" "-" "\\" "|")
-                for char in "${spin_chars[@]}"; do
-                    [[ ${done} -eq 1 ]] && break
-                    echo -n -e "\b${char}" >&2
-                    sleep 0.10 &
-                    wait $! 2>/dev/null || true
-                done
-            fi
-
-            # If we are done then break out of the loop and perform necessary clean-up. Otherwise prepare for next
-            # iteration.
-            if [[ ${done} -eq 1 ]]; then
-                break
-            fi
+            # Clear to end of line after time display
+            ecolor clear_to_eol
 
             # Optionally sleep if delay was requested. Use background sleep + wait for interruptibility.
             if [[ -n "${delay}" ]]; then
@@ -161,11 +139,6 @@ eprogress()
             fi
 
         done >&2
-
-        # If we're terminating delete whatever character was lost displayed and print a blank space over it
-        if [[ ${inline} -eq 1 ]]; then
-            { ecolor move_left ; echo -n " " ; } >&2
-        fi
 
         # Delete file if requested
         if [[ -n ${file} && -r ${file} && ${delete} -eq 1 ]] ; then
@@ -191,7 +164,7 @@ eprogress_kill()
         "+all a                      | If set, kill ALL known eprogress processes, not just the current one"           \
         ":callback=eend              | Callback to call as each progress ticker is killed."                            \
         ":return_code rc r=0         | Should this eprogress show a mark for success or failure?"                      \
-        "+inline=${EPROGRESS_INLINE} | Display message, timer and spinner all inline. If you disable this the full
+        "+inline=${EPROGRESS_INLINE} | Display message and timer all inline. If you disable this the full
                                        message and timer is printed on a separate line on each iteration instead. This
                                        is useful for automated CI/CD builds where we are not writing to a TTY."        \
     )

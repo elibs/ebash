@@ -105,8 +105,8 @@ run_single_test()
             TMPDIR="$(readlink -m ${testdir}/tmp)"
             export TMPDIR
 
+            # Move test process into cgroup. Skip cgroup_create since global_setup already created ETEST_CGROUP.
             if cgroup_supported; then
-                cgroup_create ${ETEST_CGROUP}
                 cgroup_move ${ETEST_CGROUP} ${BASHPID}
             fi
 
@@ -173,24 +173,9 @@ run_single_test()
         }
         edebug "Finished $(lval testname display_testname rc attempt retries)"
 
-        # Verify there are no process or memory leaks. If so kill them and try again if that is permitted.
-        #
-        # NOTE: We skip checking for process and mount leaks if we're running multiple jobs at the same time as they
-        # all share the same cgroup and working directory so we would have false positives. It doesn't really matter
-        # because we will do a final check for process and mount leaks in `global_teardown`. And this isn't really an
-        # issue anymore like it was 10 years ago as we're running inside docker now.
-        if [[ ${jobs} -eq 0 ]]; then
-            try
-            {
-                assert_no_process_leaks
-                assert_no_mount_leaks
-            }
-            catch
-            {
-                rc+=$?
-                eerror "${display_testname} FAILED due to process or mount leak."
-            }
-        fi
+        # NOTE: Process and mount leak detection is deferred to global_teardown for efficiency.
+        # Per-test leak checking added significant overhead and global_teardown catches all leaks anyway.
+        # This isn't really an issue anymore like it was 10 years ago as we're running inside docker now.
 
         if [[ ${rc} -eq 0 ]]; then
             break
@@ -230,9 +215,12 @@ run_single_test()
     fi
 
     # If jobs==0 update status json file inline. Otherwise this happens in chunks as jobs are finished
-    # for parallel execution in __process_completed_jobs
+    # for parallel execution in __process_completed_jobs.
+    # Only update every 10 tests or on the last test to reduce I/O overhead.
     if [[ ${jobs} -eq 0 ]]; then
-        create_status_json
+        if (( (NUM_TESTS_PASSED + NUM_TESTS_FAILED) % 10 == 0 )) || [[ ${testidx} -eq ${testidx_total} ]]; then
+            create_status_json
+        fi
     fi
 }
 
@@ -391,9 +379,9 @@ __run_all_tests_parallel()
 
     while true; do
 
-        __update_jobs_progress_file
-
         __process_completed_jobs
+
+        __update_jobs_progress_file
 
         if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
             eerror "Failure encountered and failfast=1" &>> ${ETEST_OUT}
@@ -413,11 +401,11 @@ __run_all_tests_parallel()
     done
 
     # One final update of progress file so we see everything complete as expected.
+    # eprogress will read and display this final state before exiting.
     NUM_TESTS_RUNNING=0
+    NUM_TESTS_QUEUED=0
+    PERCENT=100
     __update_jobs_progress_file
-    if [[ ${jobs_progress} -eq 1 ]]; then
-        sleep ${EPROGRESS_DELAY:-0.1}
-    fi
 
     # Update pids
     array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
@@ -489,9 +477,9 @@ __process_completed_jobs()
         pack_load info "${path}/info.pack"
         $(pack_import info)
 
-        NUM_TESTS_RUNNING=${#etest_jobs_running[@]}
         etest_jobs_finished+=( ${pid} )
         array_remove etest_jobs_running ${pid}
+        NUM_TESTS_RUNNING=${#etest_jobs_running[@]}
 
         # Unpack base64 encoded "tests_duration" associative array and from this specific test instance and copy those
         # values into the gloval TESTS_DURATION associative array.

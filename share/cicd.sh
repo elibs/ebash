@@ -61,11 +61,18 @@ cicd_info()
     array_init parts "${version%%-*}" "."
     edebug "$(lval parts)"
 
-    # If the build is not numeric we can't increment it later
+    # Extract suffix (everything after base version, e.g. "-rc1" or "-rc1-1-g5a8ea80568")
+    local suffix="${version_tag#${base_tag}}"
+
+    # Determine next version tag. If the suffix matches -rc*, do NOT increment the patch - just use it with the -rc*
+    # stripped off. This allows RC releases to naturally lead to the final release version.
     local version_tag_next
     if ! is_int "${parts[2]}"; then
         version_tag_next=""
         edebug "Cannot increment non-integer patch component -- setting version_tag_next to an empty string"
+    elif [[ "${suffix}" =~ ^-rc[0-9]+ ]]; then
+        version_tag_next="v${parts[0]}.${parts[1]}.${parts[2]}"
+        edebug "Detected RC suffix -- not incrementing patch $(lval suffix version_tag_next)"
     else
         version_tag_next="v${parts[0]}.${parts[1]}.$(( ${parts[2]:-0} + 1 ))"
     fi

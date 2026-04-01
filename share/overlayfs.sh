@@ -272,7 +272,9 @@ overlayfs_layers()
     local metadir
     metadir=$(dirname $(readlink -m "${entry}"))
     if [[ -e ${metadir}/layer.pack ]]; then
-        eval "${layers_var}=\$(<"\${metadir}/layer.pack")"
+        local layer_pack_content
+        readall layer_pack_content < "${metadir}/layer.pack"
+        eval "${layers_var}=\"\${layer_pack_content}\""
     else
         pack_set ${layers_var} merged="${mnt}" metadir= lowerdirs= upperdir= workdir= sources= lowest= src=
     fi

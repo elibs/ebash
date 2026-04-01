@@ -361,7 +361,7 @@ eunmock()
 
     # If the mock was written out to disk remove it
     local mode
-    mode=$(cat "${statedir}/mode")
+    readall mode < "${statedir}/mode"
     if [[ "${mode}" == "filesystem" ]]; then
 
         # Check if the _real exists so we can move it back over.
@@ -411,7 +411,7 @@ emock_called()
     statedir+="/$(basename "${name}")"
     local called=0
     if [[ -e "${statedir}/called" ]]; then
-        called="$(cat "${statedir}/called")"
+        readall called < "${statedir}/called"
     fi
 
     echo -n "${called}"
@@ -481,7 +481,7 @@ emock_stdin()
     statedir+="/$(basename "${name}")"
     local actual=""
     if [[ -e "${statedir}/${num}/stdin" ]]; then
-        actual="$(cat "${statedir}/${num}/stdin")"
+        readall actual < "${statedir}/${num}/stdin"
     fi
 
     echo -n "${actual}"
@@ -510,7 +510,7 @@ emock_stdout()
     statedir+="/$(basename "${name}")"
     local actual=""
     if [[ -e "${statedir}/${num}/stdout" ]]; then
-        actual="$(cat "${statedir}/${num}/stdout")"
+        readall actual < "${statedir}/${num}/stdout"
     fi
 
     echo -n "${actual}"
@@ -539,7 +539,7 @@ emock_stderr()
     statedir+="/$(basename "${name}")"
     local actual=""
     if [[ -e "${statedir}/${num}/stderr" ]]; then
-        actual="$(cat "${statedir}/${num}/stderr")"
+        readall actual < "${statedir}/${num}/stderr"
     fi
 
     echo -n "${actual}"
@@ -603,9 +603,11 @@ emock_return_code()
     fi
 
     statedir+="/$(basename "${name}")"
+    local rc=""
     if [[ -e "${statedir}/${num}/return_code" ]]; then
-        cat "${statedir}/${num}/return_code"
+        readall rc < "${statedir}/${num}/return_code"
     fi
+    echo "${rc}"
 }
 
 opt_usage emock_mode <<'END'
@@ -623,7 +625,9 @@ emock_mode()
     )
 
     statedir+="/$(basename "${name}")"
-    cat "${statedir}/mode"
+    local mode
+    readall mode < "${statedir}/mode"
+    echo "${mode}"
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -814,16 +818,17 @@ emock_dump_state()
     for fname in $(find "${statedir}" -type f -printf '%P\n' | sort --version-sort); do
 
         fpath="${statedir}/${fname}"
+        [[ -f "${fpath}" ]] || continue
         contents=""
 
         # Manually parse each line from the file because it is base64 encoded
-        if [[ $(basename "${fpath}") == "args" ]]; then
+        if [[ "$(basename "${fpath}")" == "args" ]]; then
             contents=()
             while IFS= read -r line; do
                 contents+=( "$(echo "${line}" | base64 -d)" )
             done < "${fpath}"
         else
-            contents="$(cat "${fpath}")"
+            readall contents < "${fpath}"
         fi
 
         einfos "${fname}: $(print_value contents)"

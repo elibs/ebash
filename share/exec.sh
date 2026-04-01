@@ -42,7 +42,7 @@ reexec()
     # If sudo was requested and the caller is not already root then exec sudo. Take special care to pass through the
     # TMPDIR variable since glibc silently deletes it from the environment of any suid binary such as sudo. If TMPDIR
     # isn't set, then set it to /tmp which is what would normally happen if the variable wasn't set.
-    if [[ ${sudo} -eq 1 && $(id -u) != 0 ]] ; then
+    if [[ ${sudo} -eq 1 && ${EUID} != 0 ]] ; then
         exec sudo TMPDIR=${TMPDIR:-/tmp} -E -- "${__EBASH_REEXEC_CMD[@]}"
     fi
 

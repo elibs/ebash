@@ -48,9 +48,9 @@ create_status_json()
 
     local pids=()
     if cgroup_supported; then
-        pids=( $(cgroup_pids -r ${ETEST_CGROUP_BASE}) )
+        pids=( $(cgroup_pids -r ${ETEST_CGROUP_BASE} 2>/dev/null || true) )
     else
-        pids=( $(process_tree) )
+        pids=( $(process_tree 2>/dev/null || true) )
     fi
 
 	cat <<-EOF > ${ETEST_JSON}.tmp
@@ -119,19 +119,32 @@ create_failure_output()
     # Write plain text (no ANSI codes) to the failure log file
     {
         local cols text="Failure Output" inner padding
-        cols=120
+        cols=$(tput cols)
         inner=$(( cols - 2 ))
         padding=$(( inner - 2 - ${#text} ))
+
+        # Create repeated character strings using pure bash
+        local __border __spaces
+        printf -v __border '%*s' "${inner}" ''
+        __border="${__border// /═}"
+        printf -v __spaces '%*s' "${padding}" ''
+
         echo
-        printf '╔%s╗\n' "$(printf '═%.0s' $(seq 1 ${inner}))"
-        printf '║  %s%s║\n' "${text}" "$(printf ' %.0s' $(seq 1 ${padding}))"
-        printf '╚%s╝\n' "$(printf '═%.0s' $(seq 1 ${inner}))"
+        printf '╔%s╗\n' "${__border}"
+        printf '║  %s%s║\n' "${text}" "${__spaces}"
+        printf '╚%s╝\n' "${__border}"
 
         local suite test_name
         for suite in "${!TESTS_FAILED[@]}"; do
             for test_name in ${TESTS_FAILED[$suite]}; do
                 echo
-                echo "● ${suite}:${test_name#ETEST_}"
+                local label="● ${suite}:${test_name#ETEST_} "
+                local label_len=${#label}
+                local dashes_len dashes
+                dashes_len=$(( cols - label_len ))
+                printf -v dashes '%*s' "${dashes_len}" ''
+                dashes="${dashes// /─}"
+                echo "${label}${dashes}"
                 echo
 
                 # Extract output for this test from the log file (last occurrence only)
@@ -170,32 +183,62 @@ create_summary()
     create_status_json
 
     {
-        echo
-        message="Finished testing $(pack_get VCS_INFO info)."
-        message+=" $(( ${NUM_TESTS_PASSED} ))/${NUM_TESTS_EXECUTED} tests passed"
-        message+=" in ${DURATION} seconds."
-
-        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
-            eerror "${message}"
-        else
-            einfo "${message}"
-        fi
-        echo
-
         if array_not_empty TESTS_FAILED; then
-            eerror "FAILED TESTS:"
-            for failed_test in $(echo "${TESTS_FAILED[@]}" | tr ' ' '\n') ; do
-                echo "$(ecolor "red")      ${failed_test}"
+            local cols text="Failed Tests" inner padding
+            cols=$(tput cols)
+            inner=$(( cols - 2 ))
+            padding=$(( inner - 2 - ${#text} ))
+
+            local __border __spaces
+            printf -v __border '%*s' "${inner}" ''
+            __border="${__border// /═}"
+            printf -v __spaces '%*s' "${padding}" ''
+
+            echo
+            echo "$(ecolor bold red)╔${__border}╗$(ecolor off)"
+            echo "$(ecolor bold red)║  ${text}${__spaces}║$(ecolor off)"
+            echo "$(ecolor bold red)╚${__border}╝$(ecolor off)"
+
+            local failed_test
+            # shellcheck disable=SC2068 # Intentional word splitting for space-separated test names
+            for failed_test in ${TESTS_FAILED[@]}; do
+                echo "$(ecolor red)  [  FAILED  ] ${failed_test}$(ecolor off)"
             done
-            ecolor off
+
+            echo
+            local plural=""
+            [[ ${NUM_TESTS_FAILED} -ne 1 ]] && plural="S"
+            echo "$(ecolor bold red)  ${NUM_TESTS_FAILED} FAILED TEST${plural}$(ecolor off)"
+            echo
         fi
 
         if array_not_empty TESTS_FLAKY; then
-            ewarn "FLAKY TESTS:"
-            for flaky_test in $(echo "${TESTS_FLAKY[@]}" | tr ' ' '\n') ; do
-                echo "$(ecolor "yellow")      ${flaky_test}"
+            local cols text="Flaky Tests" inner padding
+            cols=$(tput cols)
+            inner=$(( cols - 2 ))
+            padding=$(( inner - 2 - ${#text} ))
+
+            local __border __spaces
+            printf -v __border '%*s' "${inner}" ''
+            __border="${__border// /═}"
+            printf -v __spaces '%*s' "${padding}" ''
+
+            echo
+            echo "$(ecolor bold yellow)╔${__border}╗$(ecolor off)"
+            echo "$(ecolor bold yellow)║  ${text}${__spaces}║$(ecolor off)"
+            echo "$(ecolor bold yellow)╚${__border}╝$(ecolor off)"
+
+            local flaky_test
+            # shellcheck disable=SC2068 # Intentional word splitting for space-separated test names
+            for flaky_test in ${TESTS_FLAKY[@]}; do
+                echo "$(ecolor yellow)  [  FLAKY   ] ${flaky_test}$(ecolor off)"
             done
-            ecolor off
+
+            echo
+            local plural=""
+            [[ ${NUM_TESTS_FLAKY} -ne 1 ]] && plural="S"
+            echo "$(ecolor bold yellow)  ${NUM_TESTS_FLAKY} FLAKY TEST${plural}$(ecolor off)"
+            echo
         fi
 
         # Display summary output to the terminal if requested
@@ -208,6 +251,52 @@ create_summary()
 
     # Create failure output file and optionally display to stderr (after log is complete)
     create_failure_output
+
+    # Print gotest-style summary with file locations
+    {
+        local cols line
+        cols=$(tput cols)
+        printf -v line '%*s' "${cols}" ''
+        line="${line// /─}"
+
+        # Test counts
+        echo
+        echo "$(ecolor cyan)${line}$(ecolor off)"
+        echo
+        printf "%s%s Total: %s%d%s  Passed: %s%d%s" \
+            "$(ecolor bold green)>>" "$(ecolor off)" \
+            "$(ecolor bold)" "${NUM_TESTS_EXECUTED}" "$(ecolor off)" \
+            "$(ecolor bold green)" "${NUM_TESTS_PASSED}" "$(ecolor off)"
+        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
+            printf "  Failed: %s%d%s" \
+                "$(ecolor bold red)" "${NUM_TESTS_FAILED}" "$(ecolor off)"
+        fi
+        if [[ ${NUM_TESTS_FLAKY} -gt 0 ]]; then
+            printf "  Flaky: %s%d%s" \
+                "$(ecolor bold yellow)" "${NUM_TESTS_FLAKY}" "$(ecolor off)"
+        fi
+
+        # Runtime
+        local runtime
+        if [[ ${DURATION} -ge 60 ]]; then
+            runtime="$((DURATION / 60))m$((DURATION % 60))s"
+        else
+            runtime="${DURATION}s"
+        fi
+        printf "  %s(Runtime: %s)%s" \
+            "$(ecolor cyan)" "${runtime}" "$(ecolor off)"
+        echo
+
+        # Log files
+        echo
+        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
+            echo "$(ecolor bold red)Test failures:$(ecolor off) $(ecolor bold red)${ETEST_FAILURE_LOG#$PWD/}$(ecolor off)"
+        fi
+        echo "$(ecolor cyan)Test output:  $(ecolor off) $(ecolor magenta)${ETEST_LOG#$PWD/}$(ecolor off)"
+        echo "$(ecolor cyan)JUnit XML:    $(ecolor off) $(ecolor magenta)${ETEST_XML#$PWD/}$(ecolor off)"
+        echo "$(ecolor cyan)Test details: $(ecolor off) $(ecolor magenta)${ETEST_JSON#$PWD/}$(ecolor off)"
+        echo
+    } >&${ETEST_STDERR_FD}
 }
 
 create_xml()

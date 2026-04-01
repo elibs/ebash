@@ -17,6 +17,64 @@ fi
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
+# Native Bash Replacements for External Binaries
+#
+# The following functions replace external binaries with native bash implementations. This provides several benefits:
+# 1. Reduced process spawning overhead (no fork/exec for simple string operations)
+# 2. Consistent behavior across platforms (no GNU vs BSD differences)
+# 3. Faster execution for frequently-called operations
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Native bash replacement for /usr/bin/dirname
+# Returns the directory component of a pathname, or "." if there is no directory component.
+dirname()
+{
+    local path="$1"
+    if [[ "${path}" == */* ]]; then
+        # Remove trailing slashes, then remove the last component
+        path="${path%/}"
+        local result="${path%/*}"
+        # Handle root case: if result is empty but path started with /, return /
+        if [[ -z "${result}" ]]; then
+            echo "/"
+        else
+            echo "${result}"
+        fi
+    else
+        echo "."
+    fi
+}
+
+# Native bash replacement for /usr/bin/basename
+# Returns the final component of a pathname, optionally removing a suffix.
+basename()
+{
+    local path="$1"
+    local suffix="${2:-}"
+
+    # Remove trailing slashes
+    path="${path%/}"
+
+    # Handle root case
+    if [[ -z "${path}" ]]; then
+        echo "/"
+        return 0
+    fi
+
+    # Extract the final component
+    local result="${path##*/}"
+
+    # Remove suffix if provided and if it matches
+    if [[ -n "${suffix}" && "${result}" != "${suffix}" && "${result}" == *"${suffix}" ]]; then
+        result="${result%"${suffix}"}"
+    fi
+
+    echo "${result}"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
 # LINUX
 #
 #-----------------------------------------------------------------------------------------------------------------------
@@ -24,9 +82,13 @@ fi
 if [[ ${EBASH_OS} == "Linux" ]]; then
 
     # Detect what version of the kernel is running for code which requires it.
-    __EBASH_KERNEL_MAJOR=$(uname -r | awk -F . '{print $1}')
-    __EBASH_KERNEL_MINOR=$(uname -r | awk -F . '{print $2}')
-    __EBASH_KERNEL_MICRO=$(uname -r | awk -F . '{print $3}' | sed 's|-\S*||')
+    __EBASH_KERNEL_VERSION=$(uname -r)
+    __EBASH_KERNEL_MAJOR=${__EBASH_KERNEL_VERSION%%.*}
+    __EBASH_KERNEL_REST=${__EBASH_KERNEL_VERSION#*.}
+    __EBASH_KERNEL_MINOR=${__EBASH_KERNEL_REST%%.*}
+    __EBASH_KERNEL_REST=${__EBASH_KERNEL_REST#*.}
+    __EBASH_KERNEL_MICRO=${__EBASH_KERNEL_REST%%-*}
+    unset __EBASH_KERNEL_VERSION __EBASH_KERNEL_REST
 
     # Replace rm to ensure we always pass in --one-file-system flag.
     rm()
@@ -72,7 +134,8 @@ __EBASH_GNU_TOOLS=(
     # GNU Coreutils
     \[
     base64
-    basename
+    # NOTE: Don't override 'basename' as we have a native bash function above.
+    # basename
     cat
     chcon
     chgrp
@@ -89,7 +152,8 @@ __EBASH_GNU_TOOLS=(
     df
     dir
     dircolors
-    dirname
+    # NOTE: Don't override 'dirname' as we have a native bash function above.
+    # dirname
     du
     # NOTE: Don't override bash builtin with function.
     #echo

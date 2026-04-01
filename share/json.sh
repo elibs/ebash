@@ -241,11 +241,9 @@ json_import()
     # optional jq query, or . which selects everything in jq
     : ${query:=.}
 
-    # Lookup optional filename to use. If no filename was given then we're operating on STDIN. In either case read into
-    # a local variable so we can parse it repeatedly in this function.
-    local _json_import_input _json_import_data
-    _json_import_input=$(cat ${file} || true)
-    _json_import_data=$(jq -r "${query}" <<< ${_json_import_input} || true)
+    # Read file (or stdin if "-") into a local variable so we can parse it repeatedly in this function.
+    local _json_import_data
+    readall _json_import_data < <(jq -r "${query}" "${file}" || true)
 
     # Check if explicit keys are requested. If not, slurp all keys in from provided data.
     array_empty _json_import_keys && array_init_json _json_import_keys "$(jq -c -r keys <<< ${_json_import_data})"
@@ -270,7 +268,7 @@ json_import()
             has_field=$(jq --raw-output --arg KEY "${key}" '. | has($KEY)' <<< "${_json_import_data}")
 
             if [[ ${has_field} != "true" ]] ; then
-                die "Data does not contain required $(lval key _json_import_input _json_import_data)"
+                die "Data does not contain required $(lval key _json_import_data)"
             fi
 
             val=$(jq -c -r --arg KEY "${key}" '.[$KEY]' <<< "${_json_import_data}")
@@ -320,7 +318,7 @@ file_to_json()
         # Parse the file and strip out any ansi escape codes and then replace newlines with spaces. This gives a bunch
         # of separate, quoted items that we can safely insert into a pack. We can then pass that pack through eval so
         # that bash can safely interpret those quotes and make them separate arguments passed into pack_set.
-        array_init_nl parts "$(cat "${file}" | noansi)"
+        array_init_nl parts "$(noansi < "${file}")"
         pack_set pack "${parts[@]}"
         opt_forward pack_to_json lowercase -- pack
     )
@@ -355,5 +353,8 @@ json_compare_files()
 
     assert_exists "${left}" "${right}"
 
-    json_compare "$(< "${left}")" "$(< "${right}")"
+    local left_content right_content
+    readall left_content < "${left}"
+    readall right_content < "${right}"
+    json_compare "${left_content}" "${right_content}"
 }

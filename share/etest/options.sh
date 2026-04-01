@@ -69,7 +69,7 @@ $(opt_parse \
     "+silent                       | Make etest as silent as possible. All output will be directed to the logfile."    \
     "+sudo S=0                     | Reexec as root and preserve environment before running tests."                    \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
-    "+failure_output=1             | Display verbose output for each failed test after the summary."        \
+    "+failure_output=0             | Display verbose output for each failed test after the summary."        \
     "&test_list l                  | File that contains a list of tests to run. This file may contain comments on lines
                                      that begin with the # character. All other nonblank lines will be interpreted as
                                      things that could be passed as @tests -- directories, executable scripts, or .etest
@@ -184,7 +184,8 @@ export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
 # Setup logfile
 exec {ETEST_STDERR_FD}<&2
-artifact_name="$(echo "${logdir}/${name:-etest}" | tr ' ' '_')"
+artifact_name="${logdir}/${name:-etest}"
+artifact_name="${artifact_name// /_}"
 ETEST_LOG="${artifact_name}.log"
 ETEST_JSON="${artifact_name}.json"
 ETEST_OPTIONS="${artifact_name}_options.json"

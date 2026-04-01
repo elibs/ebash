@@ -171,7 +171,9 @@ cgroup_get()
         "cgroup  | Name of the cgroup (e.g distbox/dtest or usa/colorado)" \
         "setting | Name of the subsystem-specific setting e.g. memory.kmem.limit_in.bytes)")
 
-    cat $(cgroup_find_setting_file ${cgroup} ${setting})
+    local setting_value
+    readall setting_value < "$(cgroup_find_setting_file ${cgroup} ${setting})"
+    echo "${setting_value}"
 }
 
 opt_usage cgroup_pids <<'END'
@@ -355,7 +357,8 @@ cgroup_pstree()
         # Must subtract 3 from columns here to account for the three characters added to the string below (i.e. "| ")
         cols=$(( ${COLUMNS:-120} - 3 ))
         ps_output=$(COLUMNS=${cols} cgroup_ps ${cgroup})
-        count=$(( $(echo "${ps_output}" | wc -l) - 1 ))
+        local __ps_lines ; readarray -t __ps_lines <<< "${ps_output}"
+        count=$(( ${#__ps_lines[@]} - 1 ))
 
         echo "$(ecolor green)+--${cgroup} [${count}]$(ecolor off)"
 

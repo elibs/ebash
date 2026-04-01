@@ -29,6 +29,31 @@ popd()
     builtin popd "${@}" >/dev/null
 }
 
+opt_usage readall <<'END'
+Read entire contents into a variable using the read builtin. This is more efficient than $(cat file) as it avoids
+fork/exec overhead. Unlike `read` which reads one line, `readall` reads all content. Usage mirrors the native read
+builtin with file redirection:
+
+```shell
+readall content < file.txt
+readall content < /dev/stdin
+readall content <<< "string"
+```
+
+Trailing newlines are stripped to match $(cat file) behavior.
+Returns success for normal reads (including EOF), failure for actual errors.
+END
+readall()
+{
+    local _rf_rc=0
+    IFS= read -r -d '' "${1}" || _rf_rc=$?
+    # Strip all trailing newlines to match $(cat file) behavior
+    while [[ "${!1}" == *$'\n' ]]; do
+        printf -v "${1}" '%s' "${!1%$'\n'}"
+    done
+    [[ ${_rf_rc} -le 1 ]]
+}
+
 opt_usage echmodown <<'END'
 echmodown is basically chmod and chown combined into one function.
 END
