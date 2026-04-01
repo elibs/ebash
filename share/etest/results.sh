@@ -274,14 +274,23 @@ create_summary()
             printf "  Flaky: %s%d%s" \
                 "$(ecolor bold yellow)" "${NUM_TESTS_FLAKY}" "$(ecolor off)"
         fi
-        echo
-        echo
-        echo "$(ecolor cyan)Test output:$(ecolor off)  $(ecolor magenta)${ETEST_LOG#$PWD/}$(ecolor off)"
-        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
-            echo "$(ecolor cyan)Failure log:$(ecolor off)  $(ecolor magenta)${ETEST_FAILURE_LOG#$PWD/}$(ecolor off)"
+        # Format runtime
+        local runtime
+        if [[ ${DURATION} -ge 60 ]]; then
+            runtime="$((DURATION / 60))m$((DURATION % 60))s"
+        else
+            runtime="${DURATION}s"
         fi
-        echo "$(ecolor cyan)JUnit XML:$(ecolor off)    $(ecolor magenta)${ETEST_XML#$PWD/}$(ecolor off)"
-        echo "$(ecolor cyan)JSON:$(ecolor off)         $(ecolor magenta)${ETEST_JSON#$PWD/}$(ecolor off)"
+        printf "  %s(Runtime: %s)%s" \
+            "$(ecolor cyan)" "${runtime}" "$(ecolor off)"
+        echo
+        echo
+        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
+            echo "$(ecolor bold red)Test failures:$(ecolor off) $(ecolor bold red)${ETEST_FAILURE_LOG#$PWD/}$(ecolor off)"
+        fi
+        echo "$(ecolor cyan)Test output:  $(ecolor off) $(ecolor magenta)${ETEST_LOG#$PWD/}$(ecolor off)"
+        echo "$(ecolor cyan)JUnit XML:    $(ecolor off) $(ecolor magenta)${ETEST_XML#$PWD/}$(ecolor off)"
+        echo "$(ecolor cyan)Test details: $(ecolor off) $(ecolor magenta)${ETEST_JSON#$PWD/}$(ecolor off)"
         echo
     } >&${ETEST_STDERR_FD}
 }
