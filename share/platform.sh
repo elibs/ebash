@@ -34,7 +34,7 @@ dirname()
     # Fall back to external command if any flags are passed
     if [[ "${1:-}" == -* ]]; then
         command dirname "$@"
-        return
+        return $?
     fi
 
     local path="$1"
@@ -61,7 +61,7 @@ basename()
     # Fall back to external command if any flags are passed
     if [[ "${1:-}" == -* ]]; then
         command basename "$@"
-        return
+        return $?
     fi
 
     local path="$1"
