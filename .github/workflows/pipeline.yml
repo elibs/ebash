@@ -141,7 +141,18 @@ jobs:
             git config user.name "github-actions"
             git config user.email "github-actions@github.com"
 
-            # Increment and push new version
+            # Get the next version
+            next_version=$(bin/ebash cicd_info | grep version_tag_next | cut -d= -f2)
+
+            # Update version files and commit
+            bin/ebash cicd_update_version_files \
+                --tag "${next_version}"         \
+                --version-file share/VERSION    \
+                --readme README.md              \
+                --release-url "https://github.com/elibs/ebash/releases" \
+                --commit
+
+            # Create and push new version tag
             bin/ebash cicd_create_next_version_tag --push
 
       - name: Release

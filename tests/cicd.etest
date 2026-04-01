@@ -403,3 +403,58 @@ ETEST_cicd_info_rc_suffix_with_offset()
     # Next version should be the final release (v2.1.0), not an incremented patch
     assert_eq "v2.1.0"                              "${version_tag_next}"
 }
+
+ETEST_cicd_version()
+{
+    etestmsg "Test cicd_version from git describe"
+    local ver
+    ver=$(cicd_version)
+    assert_not_empty "${ver}"
+    assert_match "${ver}" "^v[0-9]"
+
+    etestmsg "Test cicd_version from VERSION file"
+    echo "v9.9.9" > VERSION
+    ver=$(cicd_version --file=VERSION)
+    # Should include -dirty since we have uncommitted changes
+    assert_match "${ver}" "^v9.9.9"
+
+    etestmsg "Test cicd_version_update"
+    cicd_version_update --file=VERSION_TEST
+    assert_exists VERSION_TEST
+    local written_ver
+    read -r written_ver < VERSION_TEST
+    assert_match "${written_ver}" "^v[0-9]"
+}
+
+ETEST_cicd_update_version_files()
+{
+    etestmsg "Test updating VERSION file"
+    cicd_update_version_files --tag "v1.2.3" --version-file VERSION
+    assert_exists VERSION
+    assert_eq "v1.2.3" "$(cat VERSION)"
+
+    etestmsg "Test updating README without existing badge"
+    cat > README.md <<-'EOF'
+       [![CI/CD](https://example.com/badge.svg)](https://example.com)
+
+       # My Project
+       EOF
+
+    cicd_update_version_files --tag "v1.2.3" --readme README.md --release-url "https://github.com/test/repo/releases"
+    cat README.md
+    assert_true grep -q "Version" README.md
+    assert_true grep -q "v1.2.3" README.md
+    assert_true grep -q "https://github.com/test/repo/releases" README.md
+
+    etestmsg "Test updating README with existing badge"
+    cicd_update_version_files --tag "v2.0.0" --readme README.md --release-url "https://github.com/test/repo/releases"
+    cat README.md
+    assert_true grep -q "v2.0.0" README.md
+    assert_false grep -q "v1.2.3" README.md
+
+    etestmsg "Test with commit"
+    cicd_update_version_files --tag "v3.0.0" --version-file VERSION --commit
+    assert_eq "v3.0.0" "$(cat VERSION)"
+    # Verify the commit was made
+    assert_true git log -1 --oneline | grep -q "Update version to v3.0.0"
+}

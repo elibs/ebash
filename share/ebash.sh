@@ -64,6 +64,7 @@ alias enable_trace='[[ -n ${ETRACE:-} && ${ETRACE:-} != "0" ]] && trap etrace DE
 # misdetected or to facilitate dependency injection testing approaches.
 : ${EBASH_OS:=$(uname -s)}
 
+
 # Load configuration files
 if [[ -e /etc/ebash.conf ]]; then
     source /etc/ebash.conf
@@ -167,6 +168,10 @@ source "${EBASH}/cgroup.sh"
 source "${EBASH}/checkbox.sh"
 source "${EBASH}/chroot.sh"
 source "${EBASH}/cicd.sh"
+
+# EBASH_VERSION holds the version string for ebash. Uses cicd_version for consistent versioning.
+: ${EBASH_VERSION:=$(cicd_version --file="${EBASH}/VERSION")}
+
 source "${EBASH}/compare.sh"
 source "${EBASH}/conf.sh"
 source "${EBASH}/daemon.sh"

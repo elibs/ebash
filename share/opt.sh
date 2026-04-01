@@ -289,11 +289,18 @@ opt_parse()
     echo 'declare -a __EBASH_FULL_ARGS=("$@") ; '
     echo 'declare -a __EBASH_ARGS=("$@") ; '
     echo 'declare __EBASH_OPT_USAGE_REQUESTED=0 ; '
+    echo 'declare __EBASH_OPT_VERSION_REQUESTED=0 ; '
     echo "opt_parse_options ; "
 
-    # If usage was requsted, print it and return success without doing anything else
+    # If usage was requested, print it and return success without doing anything else
     echo 'if [[ ${__EBASH_OPT_USAGE_REQUESTED:-0} -eq 1 ]] ; then '
     echo '   opt_display_usage ; '
+    echo '   [[ -n ${FUNCNAME:-} ]] && return 0 || exit 0 ; '
+    echo 'fi ; '
+
+    # If version was requested, print it and return success without doing anything else
+    echo 'if [[ ${__EBASH_OPT_VERSION_REQUESTED:-0} -eq 1 ]] ; then '
+    echo '   opt_display_version ; '
     echo '   [[ -n ${FUNCNAME:-} ]] && return 0 || exit 0 ; '
     echo 'fi ; '
 
@@ -530,6 +537,10 @@ opt_parse_options()
                 __EBASH_OPT_USAGE_REQUESTED=1
                 return 0
                 ;;
+            --version)
+                __EBASH_OPT_VERSION_REQUESTED=1
+                return 0
+                ;;
 
             --*)
                 # Drop the initial hyphens, grab the option name and capture "=value" from the end if there is one
@@ -739,6 +750,8 @@ opt_display_usage()
 {
     {
         # Function name and <option> specification if there are any options
+        echo "$(ecolor ${COLOR_USAGE})$(basename $0) ${EBASH_VERSION:-}$(ecolor none)"
+        echo
         echo "$(ecolor ${COLOR_USAGE})SYNOPSIS$(ecolor none)"
         echo
         echo -n "Usage: $(opt_parse_usage_name) "
@@ -903,6 +916,11 @@ opt_display_usage()
         fi
 
     } >&2
+}
+
+opt_display_version()
+{
+    echo "$(basename $0) ${EBASH_VERSION:-unknown}" >&2
 }
 
 : <<'END'

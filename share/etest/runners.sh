@@ -297,7 +297,7 @@ run_all_tests()
         OS+=" (native)"
     fi
 
-    local etest_name="ETEST"
+    local etest_name="ETEST ${EBASH_VERSION:-}"
     if [[ -n "${name}" ]]; then
         etest_name+=" - \"${name//_/ }\""
     fi

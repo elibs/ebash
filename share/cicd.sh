@@ -12,6 +12,72 @@
 : ${EBASH_CICD_DEVELOP_BRANCH="develop"}
 : ${EBASH_CICD_RELEASE_BRANCH="main"}
 
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# VERSION HELPERS
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+opt_usage cicd_version <<'END'
+cicd_version outputs the current version string. It checks sources in this order:
+1. VERSION file (if specified and exists)
+2. git describe output
+
+Always includes "-dirty" suffix if there are uncommitted changes.
+END
+cicd_version()
+{
+    $(opt_parse \
+        ":file f | Path to VERSION file to read." \
+    )
+
+    # Check for VERSION file first
+    if [[ -n "${file}" && -r "${file}" ]]; then
+        local ver
+        read -r ver < "${file}"
+        if [[ -n "${ver}" ]]; then
+            # Add dirty suffix if we're in a git repo with uncommitted changes
+            if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+                if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+                    ver="${ver}-dirty"
+                fi
+            fi
+            echo "${ver}"
+            return 0
+        fi
+    fi
+
+    # Fall back to git describe
+    if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+        git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null && return 0
+    fi
+
+    echo "unknown"
+}
+
+opt_usage cicd_version_update <<'END'
+cicd_version_update writes the current git describe version to a VERSION file. This is typically called during the
+release process to embed the version in the release artifact.
+END
+cicd_version_update()
+{
+    $(opt_parse \
+        ":file f=VERSION | Path to VERSION file to write." \
+    )
+
+    local ver
+    ver=$(git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null) || ver="unknown"
+
+    einfo "Writing ${ver} to ${file}"
+    echo "${ver}" > "${file}"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# CI/CD INFO
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
 opt_usage cicd_info <<'END'
 cicd_info is used to collect all CI/CD information about the current Git repository. This includes such things as:
 * branch
@@ -156,6 +222,74 @@ cicd_create_next_version_tag()
     if [[ "${push}" -eq 1 ]]; then
         einfo "Pushing"
         git push origin "${branch}" "${version_tag_next}"
+    fi
+}
+
+opt_usage cicd_update_version_files <<'END'
+cicd_update_version_files is used to update version strings in project files as part of a release process. It can update
+a VERSION file with the version string, and optionally update a README with a version badge. Changes can optionally be
+committed to git.
+
+Example usage:
+```shell
+cicd_update_version_files --tag "v1.2.3" --version-file share/VERSION --readme README.md --commit
+```
+END
+cicd_update_version_files()
+{
+    $(opt_parse \
+        "+commit              | Commit the changes to git."                                                  \
+        ":message             | Commit message (default: '[Build Automation] Update version to TAG')."      \
+        ":readme              | Path to README.md to update with version badge."                             \
+        ":release_url         | URL for the version badge link (e.g. https://github.com/org/repo/releases)." \
+        "=tag             t   | Version tag string to set (e.g. v1.2.3)."                                    \
+        ":version_file   f    | Path to VERSION file to update."                                             \
+    )
+
+    local files_updated=()
+
+    # Update VERSION file if specified
+    if [[ -n "${version_file}" ]]; then
+        einfo "Updating ${version_file} to ${tag}"
+        echo "${tag}" > "${version_file}"
+        files_updated+=("${version_file}")
+    fi
+
+    # Update README.md version badge if specified
+    if [[ -n "${readme}" && -f "${readme}" ]]; then
+        einfo "Updating ${readme} with version ${tag}"
+        local badge_url="https://img.shields.io/badge/version-${tag}-blue"
+        local link_url="${release_url:-}"
+
+        if grep -q "^\[!\[Version\]" "${readme}"; then
+            # Update existing version badge
+            if [[ -n "${link_url}" ]]; then
+                sed -i "s|\[!\[Version\]([^)]*)\]([^)]*)|\[!\[Version\](${badge_url})\](${link_url})|" "${readme}"
+            else
+                sed -i "s|\[!\[Version\]([^)]*)\]|\[!\[Version\](${badge_url})\]|" "${readme}"
+            fi
+        else
+            # Add version badge after CI badge line (if CI badge exists)
+            local badge_line="[![Version](${badge_url})]"
+            if [[ -n "${link_url}" ]]; then
+                badge_line+="(${link_url})"
+            fi
+            if grep -q "^\[!\[CI" "${readme}"; then
+                sed -i "/^\[!\[CI/a ${badge_line}" "${readme}"
+            else
+                # Prepend to file if no CI badge
+                sed -i "1i ${badge_line}\n" "${readme}"
+            fi
+        fi
+        files_updated+=("${readme}")
+    fi
+
+    # Commit changes if requested
+    if [[ "${commit}" -eq 1 && ${#files_updated[@]} -gt 0 ]]; then
+        : ${message:="[Build Automation] Update version to ${tag}"}
+        einfo "Committing version updates"
+        git add "${files_updated[@]}"
+        git commit -m "${message}"
     fi
 }
 

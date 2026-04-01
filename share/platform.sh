@@ -28,8 +28,15 @@ fi
 
 # Native bash replacement for /usr/bin/dirname
 # Returns the directory component of a pathname, or "." if there is no directory component.
+# Falls back to external command if flags are passed (e.g., -z, --zero).
 dirname()
 {
+    # Fall back to external command if any flags are passed
+    if [[ "${1:-}" == -* ]]; then
+        command dirname "$@"
+        return
+    fi
+
     local path="$1"
     if [[ "${path}" == */* ]]; then
         # Remove trailing slashes, then remove the last component
@@ -48,8 +55,15 @@ dirname()
 
 # Native bash replacement for /usr/bin/basename
 # Returns the final component of a pathname, optionally removing a suffix.
+# Falls back to external command if flags are passed (e.g., --multiple, -a, -s, -z).
 basename()
 {
+    # Fall back to external command if any flags are passed
+    if [[ "${1:-}" == -* ]]; then
+        command basename "$@"
+        return
+    fi
+
     local path="$1"
     local suffix="${2:-}"
 
