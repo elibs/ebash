@@ -87,11 +87,11 @@ doc:
 
 .PHONY: version
 version:
-       @bin/ebash cicd_version --file=share/VERSION
+		@bin/ebash cicd_version --file=share/VERSION
 
 .PHONY: version-update
 version-update:
-       @bin/ebash cicd_version_update --file=share/VERSION
+		@bin/ebash cicd_version_update --file=share/VERSION
 
 #----------------------------------------------------------------------------------------------------------------------
 #
