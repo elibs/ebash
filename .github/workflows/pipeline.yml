@@ -18,7 +18,6 @@ env:
   EINTERACTIVE: 1
   EPROGRESS_DELAY: 15
   EPROGRESS_INLINE: 0
-  EPROGRESS_SPINNER: 0
   REGISTRY: "ghcr.io"
   TERM: "xterm-256color"
 
@@ -142,7 +141,7 @@ jobs:
             git config user.email "github-actions@github.com"
 
             # Get the next version
-            next_version=$(bin/ebash cicd_info | grep version_tag_next | cut -d= -f2)
+            next_version=$(bin/ebash cicd_print | grep version_tag_next | cut -d= -f2)
 
             # Update version files and commit
             bin/ebash cicd_update_version_files \
