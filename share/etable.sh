@@ -228,15 +228,8 @@ __etable_internal_ascii()
             local title_nocolor
             title_nocolor=$(echo "${title}" | noansi)
 
-            # Offset needs to be adjusted depending on if the title is even or odd number of characters.
-            local offset
-            if [[ ${#title_nocolor}%2 -eq 0 ]]; then
-                offset=4
-            else
-                offset=3
-            fi
-
-            len=$(( ${divider_len} - ${#title_nocolor} - ${offset} ))
+            # Use actual divider width (includes column separators) minus title and fixed frame chars
+            len=$(( ${#divider} - ${#title_nocolor} - 9 ))
 
             printf "╒══__TITLE__%${len}s ══╕\n" | sed -e "s| |═|g" -e "s|__TITLE__| ${title} |"
 
