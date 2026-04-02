@@ -379,8 +379,7 @@ _unpack()
 _pack()
 {
     # NOTE: BSD base64 is really chatty and this is the reason we discard its error output
-    # Filter empty lines and convert newlines to nulls in one process
-    awk '/./ {printf "%s\0", $0}' | base64 2>/dev/null
+    grep -av '^$' | tr '\n' '\0' | base64 2>/dev/null
 }
 
 pack_encode()
