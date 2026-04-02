@@ -29,6 +29,7 @@ PUSH     ?= $(or ${push},0)
 REGISTRY ?= $(or ${registry},ghcr.io)
 RETRIES  ?= $(or ${retries},0)
 REPEAT   ?= $(or ${repeat},0)
+SHUFFLE  ?= $(or ${shuffle},0)
 SUDO     ?= $(or ${sudo},0)
 V        ?= $(or $v,0)
 
@@ -95,6 +96,7 @@ test:
 		--mountns=${MOUNTNS}        \
 		--repeat=${REPEAT}          \
 		--retries=${RETRIES}        \
+		--shuffle=${SHUFFLE}        \
 		--sudo=${SUDO}              \
 		--verbose=${V}
 

@@ -69,6 +69,7 @@ $(opt_parse \
                                      test fails at all. However, in certain circumstances where flaky tests exist it may
                                      be desireable to allow each test to retried a specified number of times and only
                                      classify it as a failure if that test fails more than the requested threshold."   \
+    "+shuffle=${SHUFFLE:-0}        | Randomize the order tests are executed to avoid clustering CPU-intensive tests."  \
     "+silent                       | Make etest as silent as possible. All output will be directed to the logfile."    \
     "+sudo S=0                     | Reexec as root and preserve environment before running tests."                    \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \

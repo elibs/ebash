@@ -384,6 +384,13 @@ __run_all_tests_parallel()
         fi
     done
 
+    # Shuffle job queue if requested to avoid clustering CPU-intensive tests
+    if [[ ${shuffle:-0} -eq 1 ]]; then
+        local shuffled
+        readarray -t shuffled < <(printf '%s\n' "${etest_jobs_queued[@]}" | shuf)
+        etest_jobs_queued=( "${shuffled[@]}" )
+    fi
+
     local etest_job_total=${#etest_jobs_queued[@]}
     local etest_job_count=0
     declare -A pidmap=()
