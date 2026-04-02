@@ -299,9 +299,11 @@ opt_parse()
     # inherits the parent's environment including the cache. On cache miss, we output code that sets the cache in the
     # parent shell, so subsequent calls will hit the cache.
 
-    # Build unique cache key from source file and line number. BASH_SOURCE[1] is the file containing the function that
-    # called opt_parse. BASH_LINENO[0] is the line number in that file where opt_parse was called.
-    local cache_key="${BASH_SOURCE[1]:-unknown}:${BASH_LINENO[0]:-0}"
+    # Build unique cache key from source file, function name, and line number. BASH_SOURCE[1] is the file containing the
+    # function that called opt_parse. FUNCNAME[1] is that function's name. BASH_LINENO[0] is the line number where
+    # opt_parse was called. file:line alone is unique for real files; FUNCNAME is included to avoid collisions when
+    # BASH_SOURCE is unavailable (e.g. eval or bash -c).
+    local cache_key="${BASH_SOURCE[1]:-filename}:${FUNCNAME[1]:-main}:${BASH_LINENO[0]:-0}"
 
     # Check if we have cached full output for this call site
     if [[ -n "${__EBASH_OPT_PARSE_CACHE[${cache_key}]:-}" ]]; then
