@@ -72,7 +72,7 @@ jobs:
         run: make dlint-${{ matrix.container }}
 
       - name: Test
-        run: make dtest-${{ matrix.container }} sudo=1 mountns=1 failfast=1 failout=1 failures=5 jobs=$(nproc) exclude=docker
+        run: make dtest-${{ matrix.container }} sudo=1 mountns=1 failfast=1 failout=1 failures=5 exclude=docker
 
       - name: Archive test results
         if: always()
@@ -108,7 +108,7 @@ jobs:
       # Run all unit tests. We exclude docker tests for Darwin for our CI/CD pipeline as they don't run successfully
       # inside GitHub actions though they run perfectly fine locally.
       - name: Test
-        run: make test failfast=1 failout=1 failures=5 jobs=$(nproc) exclude=docker
+        run: make test failfast=1 failout=1 failures=5 exclude=docker
 
       - name: Archive test results
         if: always()
