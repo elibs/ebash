@@ -541,7 +541,7 @@ opt_parse_setup()
         printf 'opt_parse_options ; '
     else
         # Fast path: just check for --help/-? in args
-        printf 'case "${1:-}" in --help|-\?) __EBASH_OPT_USAGE_REQUESTED=1 ;; esac ; '
+        printf 'case "${1:-}" in --help|-\\?) __EBASH_OPT_USAGE_REQUESTED=1 ;; esac ; '
     fi
 
     # Usage/version handling
