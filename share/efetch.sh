@@ -399,7 +399,7 @@ efetch_wait()
 
     local tail_pid=""
     if [[ -n "${output_file}" ]]; then
-        tail --lines +1 --follow --pid "${pid}" "${output_file}" &
+        tail --lines +1 --follow --retry --pid "${pid}" "${output_file}" &
         tail_pid=$!
     fi
 
