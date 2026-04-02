@@ -135,6 +135,7 @@ jobs:
           token: ${{ secrets.CICD_TOKEN }}
 
       - name: Version
+        id: version
         run: |
             # Setup Git so we can commit
             git config user.name "github-actions"
@@ -142,6 +143,7 @@ jobs:
 
             # Get the next version
             next_version=$(bin/ebash cicd_print | grep version_tag_next | cut -d= -f2)
+            echo "tag=${next_version}" >> "${GITHUB_OUTPUT}"
 
             # Update version files and commit
             bin/ebash cicd_update_version_files \
@@ -156,3 +158,11 @@ jobs:
 
       - name: Release
         run: bin/ebash cicd_release
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.CICD_TOKEN }}

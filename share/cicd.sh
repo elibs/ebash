@@ -293,7 +293,7 @@ cicd_update_version_files()
 
     # Commit changes if requested
     if [[ "${commit}" -eq 1 && ${#files_updated[@]} -gt 0 ]]; then
-        : ${message:="[Build Automation] Update version to ${tag}"}
+        : ${message:="[Build Automation] Update version to ${tag} [skip ci]"}
         einfo "Committing version updates"
         git add "${files_updated[@]}"
         git commit -m "${message}"
