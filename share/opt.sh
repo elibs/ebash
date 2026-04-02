@@ -306,7 +306,7 @@ opt_parse()
     # Check if we have cached full output for this call site
     if [[ -n "${__EBASH_OPT_PARSE_CACHE[${cache_key}]:-}" ]]; then
         # CACHE HIT: Output cached code directly (setup + runtime combined)
-        echo "eval "
+        echo -n "eval "
         echo "${__EBASH_OPT_PARSE_CACHE[${cache_key}]}"
         return 0
     fi
@@ -320,7 +320,7 @@ opt_parse()
     runtime_code="${setup_output#*__EBASH_SETUP_MIDDLE_SPLIT__}"
     full_code="${setup_code}${runtime_code}"
 
-    echo "eval "
+    echo -n "eval "
 
     # Output code to populate the cache in the parent shell for future calls. We use printf %q to safely quote the
     # full_code for embedding in the assignment. Cache includes BOTH setup and runtime for faster cache hits.
