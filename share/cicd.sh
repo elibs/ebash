@@ -59,7 +59,7 @@ cicd_version()
         fi
     fi
 
-    echo "Unknown"
+    echo "unknown"
 }
 
 opt_usage cicd_version_update <<'END'
