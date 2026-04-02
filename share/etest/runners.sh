@@ -388,7 +388,18 @@ __run_all_tests_parallel()
     local etest_job_count=0
     declare -A pidmap=()
     efreshdir "${logdir}/jobs"
+
+    # Pre-create all job directories upfront (batch mkdir is faster than one per spawn)
+    local _i
+    for (( _i=0; _i < etest_job_total; _i++ )); do
+        mkdir "${logdir}/jobs/${_i}"
+    done
+
     local etest_eprogress_pids=()
+
+    # Cache nproc for progress updates (constant value, avoid repeated calls)
+    local etest_nproc
+    etest_nproc=$(nproc 2>/dev/null) || etest_nproc=1
 
     # Create eprogress status file
     local etest_progress_file="${logdir}/jobs/progress.txt"
@@ -427,7 +438,7 @@ __run_all_tests_parallel()
         # Fast completion check using kill -0 instead of process_running
         for pid in "${etest_jobs_running[@]}"; do
             if ! kill -0 "${pid}" 2>/dev/null; then
-                # Also check for zombies
+                # Process is gone - check if it's a zombie or fully reaped
                 local state=""
                 state=$(sed 's/.*) //' "/proc/${pid}/stat" 2>/dev/null | cut -c1) || state="X"
                 if [[ "${state}" == "Z" ]] || [[ "${state}" == "X" ]]; then
@@ -462,11 +473,16 @@ __run_all_tests_parallel()
                             TEST_SUITES+=( "${suite}" )
                         fi
 
-                        cat "${path}/output.log" | sed '/• PROGRESS.*/d' >> "${ETEST_LOG}"
-                        if [[ ${jobs_progress} -eq 0 && ${verbose} -eq 0 ]]; then
-                            cat "${path}/etest.out" >> "$(fd_path)/${ETEST_STDERR_FD}"
-                        elif [[ ${jobs_progress} -eq 0 && ${verbose} -eq 1 ]]; then
-                            cat "${path}/output.log" | sed '/• PROGRESS.*/d' >> "$(fd_path)/${ETEST_STDERR_FD}"
+                        # Use sed directly on file instead of cat|sed (1 subprocess instead of 2)
+                        sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
+                        if [[ ${jobs_progress} -eq 0 ]]; then
+                            local _fd_path
+                            _fd_path="$(fd_path)/${ETEST_STDERR_FD}"
+                            if [[ ${verbose} -eq 0 ]]; then
+                                cat "${path}/etest.out" >> "${_fd_path}"
+                            else
+                                sed '/• PROGRESS.*/d' "${path}/output.log" >> "${_fd_path}"
+                            fi
                         fi
                     fi
 
@@ -532,18 +548,22 @@ __update_jobs_progress_file()
         fi
 
         # Show CPU usage as percentage (load / cores * 100)
-        local load cores cpu_pct
-        load=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null) || load="0"
-        cores=$(nproc 2>/dev/null) || cores=1
-        cpu_pct=$(( (${load%.*} * 100) / cores ))
-        printf "  CPU: $(ecolor cyan)%d%%" "${cpu_pct}"
+        # Uses etest_nproc cached at parallel run start to avoid subprocess per update
+        # Use read builtin (single line) + bash string manipulation instead of cut subprocess
+        local load cpu_pct _loadavg=""
+        read _loadavg < /proc/loadavg 2>/dev/null || _loadavg="0"
+        load="${_loadavg%% *}"  # First space-separated field
+        [[ -z "${load}" ]] && load="0"
+        cpu_pct=$(( (${load%.*} * 100) / etest_nproc ))
+        printf "  CPU: $(ecolor cyan)%3d%%" "${cpu_pct}"
         ecolor reset
+
 
         echo -n " "
 
-    } > "${tmpfile}"
+    } > "${tmpfile}" 2>/dev/null || true
 
-    mv "${tmpfile}" "${etest_progress_file}"
+    mv "${tmpfile}" "${etest_progress_file}" 2>/dev/null || true
 }
 
 # __process_completed_jobs is a special internal helper function called by __run_all_tests_parallel to process any jobs
@@ -654,16 +674,17 @@ __spawn_new_job()
     edebug "Starting next job: ${job_spec}"
 
     local jobpath="${logdir}/jobs/${etest_job_count}"
-    mkdir -p "${jobpath}"
 
     # Run the test which could be a single test file or an entire suite (etest) file.
     (
-        # Setup logfile for this background job and also set ETEST_OUT to a per-job file to collect etest output so we
-        # can display it when the test completes (if ticker is turned off). The test output itself always goes to
-        # /dev/null because elogfile is collecting the output for us and we'll aggregate it when etest is finished.
-        elogfile "${jobpath}/output.log"
-        trap_add "elogfile_kill --all"
-        ETEST_OUT="${jobpath}/etest.out"
+        # Redirect all output to log file. This is much lighter than elogfile which spawns background tee processes.
+        # We don't need live console output during parallel execution - output is aggregated at the end.
+        exec &> "${jobpath}/output.log"
+
+        # ETEST_OUT is only needed when jobs_progress=0 (non-ticker mode) to show per-test status.
+        # In ticker mode, skip creating this file to reduce I/O.
+        ETEST_OUT="/dev/null"
+        [[ ${jobs_progress} -eq 0 ]] && ETEST_OUT="${jobpath}/etest.out"
         TEST_OUT="/dev/null"
 
         # Initialize counters to 0. Otherwise they inherit the external incrementing value. We want to only get the
@@ -697,10 +718,14 @@ __spawn_new_job()
             suite="$(basename "${testfile}")"
         fi
 
-        # We need to manually encode TESTS_DURATION as it's an associative array so we can't directly store this into a
-        # pack. So we print out the key/value pairs using "declare -p" and then base64 encode this. We can then store
-        # that directly into the pack and then unpack it in the result processing step.
-        tests_duration="$(declare -p TESTS_DURATION | sed 's|declare -A TESTS_DURATION|declare -A tests_duration|' | base64 --wrap 0)"
+        # Build tests_duration manually as base64-encoded "declare -A" string.
+        # This avoids the "declare -p | sed | base64" pipeline (3 processes → 1).
+        local _td_str="declare -A tests_duration=("
+        for _td_key in "${!TESTS_DURATION[@]}"; do
+            _td_str+="[${_td_key}]=\"${TESTS_DURATION[$_td_key]}\" "
+        done
+        _td_str+=")"
+        tests_duration=$(echo -n "${_td_str}" | base64 --wrap 0)
 
         # Capture all state from this test run and save it into a pack.
         local info=""
@@ -725,7 +750,6 @@ __spawn_new_job()
     ) &
 
     pid=$!
-    echo "${pid}" > "${jobpath}/pid"
     pidmap[$pid]="${jobpath}"
     trap_add "ekill $pid 2>/dev/null"
 
