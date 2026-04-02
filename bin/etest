@@ -74,6 +74,7 @@ fi
 # Global variables for state tracking
 declare -ag TEST_FILES_TO_RUN
 declare -Ag TEST_FUNCTIONS_TO_RUN
+declare -Ag SERIAL_FILES
 declare -ag TEST_SUITES=()
 declare -Ag TESTS_PASSED=()
 declare -Ag TESTS_FAILED=()

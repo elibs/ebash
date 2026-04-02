@@ -71,6 +71,14 @@ find_matching_tests()
                 TEST_FUNCTIONS_TO_RUN[$testfile]+="${function} "
             fi
         done < <(grep -H "^ETEST_.*()" "${all_etests[@]}" 2>/dev/null || true)
+
+        # Detect files that require serial execution (all tests in file run as single job):
+        # - Has suite_setup() or suite_teardown() (shared lifecycle)
+        # - Has ETEST_SERIALIZE=1 (explicit opt-out of parallelism)
+        # Files without these markers can parallelize at the function level.
+        while IFS= read -r testfile; do
+            SERIAL_FILES[$testfile]=1
+        done < <(grep -l -E "^suite_setup\(\)|^suite_teardown\(\)|^ETEST_SERIALIZE=1" "${all_etests[@]}" 2>/dev/null || true)
     fi
 
     # Process standalone scripts

@@ -311,7 +311,13 @@ run_all_tests()
         ebanner --uppercase "${etest_name}" "${banner_args[@]}" &>>${ETEST_OUT}
     fi
 
+    # Reset all counters at the start of each run (important for repeat mode)
     NUM_TESTS_QUEUED=${NUM_TESTS_TOTAL}
+    NUM_TESTS_EXECUTED=0
+    NUM_TESTS_PASSED=0
+    NUM_TESTS_FAILED=0
+    NUM_TESTS_FLAKY=0
+    PERCENT=0
 
     if [[ ${jobs} -gt 0 ]]; then
         elogfile_kill --all
@@ -357,8 +363,28 @@ __run_all_tests_parallel()
 {
     local etest_jobs_running=()
     local etest_jobs_finished=()
-    local etest_jobs_queued=( ${TEST_FILES_TO_RUN[@]} )
-    local etest_job_total=${#TEST_FILES_TO_RUN[@]}
+
+    # Build job queue: for serial files, one job per file; for parallel files, one job per function
+    # Job format: "filepath:funcname" for function-level, "filepath:" for file-level
+    local etest_jobs_queued=()
+    local testfile func funcs
+    for testfile in "${TEST_FILES_TO_RUN[@]}"; do
+        if [[ -n "${SERIAL_FILES[$testfile]:-}" ]]; then
+            # Serial file: single job runs all functions
+            etest_jobs_queued+=( "${testfile}:" )
+        elif [[ -n "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}" ]]; then
+            # Parallel file: one job per function
+            array_init funcs "${TEST_FUNCTIONS_TO_RUN[$testfile]}"
+            for func in "${funcs[@]}"; do
+                etest_jobs_queued+=( "${testfile}:${func}" )
+            done
+        else
+            # Standalone script (not .etest)
+            etest_jobs_queued+=( "${testfile}:" )
+        fi
+    done
+
+    local etest_job_total=${#etest_jobs_queued[@]}
     local etest_job_count=0
     declare -A pidmap=()
     efreshdir "${logdir}/jobs"
@@ -380,27 +406,82 @@ __run_all_tests_parallel()
         __EBASH_EPROGRESS_PIDS=()
     fi
 
-    while true; do
-
-        __process_completed_jobs
-
+    # Phase 1: Fill all job slots as fast as possible
+    # Main shell spawns so Running counter updates immediately
+    while [[ ${#etest_jobs_running[@]} -lt ${jobs} && ${etest_job_count} -lt ${etest_job_total} ]]; do
+        __spawn_new_job
         __update_jobs_progress_file
+    done
+
+    # Phase 2: Monitor completions and spawn replacements
+    while [[ ${#etest_jobs_finished[@]} -lt ${etest_job_total} ]]; do
 
         if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
             eerror "Failure encountered and failfast=1" &>> ${ETEST_OUT}
             break
         fi
 
-        if [[ ${#etest_jobs_running[@]} -eq 0 && ${#etest_jobs_finished[@]} -ge ${etest_job_total} ]]; then
-            edebug "All etest jobs finished"
-            break
-        elif [[ ${#etest_jobs_running[@]} -lt ${jobs} && ${etest_job_count} -lt ${etest_job_total} ]]; then
-            __spawn_new_job
-        else
-            # Wait for any child process to exit (much faster than polling with sleep)
-            wait -n 2>/dev/null || true
-        fi
+        # Wait for any job to finish
+        wait -n 2>/dev/null || true
 
+        # Fast completion check using kill -0 instead of process_running
+        for pid in "${etest_jobs_running[@]}"; do
+            if ! kill -0 "${pid}" 2>/dev/null; then
+                # Also check for zombies
+                local state=""
+                state=$(sed 's/.*) //' "/proc/${pid}/stat" 2>/dev/null | cut -c1) || state="X"
+                if [[ "${state}" == "Z" ]] || [[ "${state}" == "X" ]]; then
+                    path=${pidmap[$pid]}
+                    wait "${pid}" || true
+
+                    if [[ -f "${path}/info.pack" ]]; then
+                        local info=""
+                        pack_load info "${path}/info.pack"
+                        $(pack_import info)
+
+                        etest_jobs_finished+=( ${pid} )
+                        array_remove etest_jobs_running ${pid}
+                        NUM_TESTS_RUNNING=${#etest_jobs_running[@]}
+
+                        eval "$(echo "${tests_duration}" | base64 --decode)"
+                        for key in "${!tests_duration[@]}"; do
+                            TESTS_DURATION[$key]=${tests_duration[$key]}
+                        done
+
+                        SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
+                        increment NUM_TESTS_EXECUTED ${num_tests_executed}
+                        increment NUM_TESTS_PASSED   ${num_tests_passed}
+                        increment NUM_TESTS_FAILED   ${num_tests_failed}
+                        increment NUM_TESTS_FLAKY    ${num_tests_flaky}
+
+                        [[ -n "${tests_passed}" ]] && TESTS_PASSED[$suite]+="${tests_passed} "
+                        [[ -n "${tests_failed}" ]] && TESTS_FAILED[$suite]+="${tests_failed} "
+                        [[ -n "${tests_flaky}" ]]  && TESTS_FLAKY[$suite]+="${tests_flaky} "
+
+                        if ! array_contains TEST_SUITES "${suite}"; then
+                            TEST_SUITES+=( "${suite}" )
+                        fi
+
+                        cat "${path}/output.log" | sed '/• PROGRESS.*/d' >> "${ETEST_LOG}"
+                        if [[ ${jobs_progress} -eq 0 && ${verbose} -eq 0 ]]; then
+                            cat "${path}/etest.out" >> "$(fd_path)/${ETEST_STDERR_FD}"
+                        elif [[ ${jobs_progress} -eq 0 && ${verbose} -eq 1 ]]; then
+                            cat "${path}/output.log" | sed '/• PROGRESS.*/d' >> "$(fd_path)/${ETEST_STDERR_FD}"
+                        fi
+                    fi
+
+                    # Immediately spawn replacement
+                    if [[ ${#etest_jobs_running[@]} -lt ${jobs} && ${etest_job_count} -lt ${etest_job_total} ]]; then
+                        __spawn_new_job
+                    fi
+
+                    __update_jobs_progress_file
+                    NUM_TESTS_QUEUED=$(( NUM_TESTS_TOTAL - NUM_TESTS_EXECUTED - NUM_TESTS_RUNNING ))
+                    [[ ${NUM_TESTS_QUEUED} -lt 0 ]] && NUM_TESTS_QUEUED=0
+                    create_status_json
+                fi
+            fi
+        done
     done
 
     # One final update of progress file so we see everything complete as expected.
@@ -450,6 +531,14 @@ __update_jobs_progress_file()
             ecolor reset
         fi
 
+        # Show CPU usage as percentage (load / cores * 100)
+        local load cores cpu_pct
+        load=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null) || load="0"
+        cores=$(nproc 2>/dev/null) || cores=1
+        cpu_pct=$(( (${load%.*} * 100) / cores ))
+        printf "  CPU: $(ecolor cyan)%d%%" "${cpu_pct}"
+        ecolor reset
+
         echo -n " "
 
     } > "${tmpfile}"
@@ -467,8 +556,15 @@ __process_completed_jobs()
 {
     for pid in ${etest_jobs_running[*]:-}; do
 
+        # Check if process is still actively running (not exited or zombie)
+        # ps -p returns true for zombies, so also check /proc state
+        # Format: "pid (comm) state ..." - must parse after closing paren since comm can have spaces
         if process_running "${pid}"; then
-            continue
+            local state=""
+            state=$(sed 's/.*) //' "/proc/${pid}/stat" 2>/dev/null | cut -c1) || true
+            if [[ "${state}" != "Z" ]]; then
+                continue
+            fi
         fi
 
         path=${pidmap[$pid]}
@@ -548,10 +644,14 @@ __process_completed_jobs()
 # __spawn_new_job is a special internal helper function to take a job from the queued list and run that job
 # asynchronously in the background. We store off the pid and add it to an internal associative array `pidmap` which is
 # used to be able to lookup the status of our backgrounded jobs later in `__process_completed_jobs`.
+#
+# Job format: "filepath:funcname" for function-level jobs, "filepath:" for file-level jobs
 __spawn_new_job()
 {
-    local testfile=${etest_jobs_queued[${etest_job_count}]}
-    edebug "Starting next job: ${testfile}"
+    local job_spec=${etest_jobs_queued[${etest_job_count}]}
+    local testfile="${job_spec%%:*}"
+    local single_func="${job_spec#*:}"
+    edebug "Starting next job: ${job_spec}"
 
     local jobpath="${logdir}/jobs/${etest_job_count}"
     mkdir -p "${jobpath}"
@@ -578,10 +678,20 @@ __spawn_new_job()
         local suite=""
         local duration="" start_time=${SECONDS}
 
-        # Run the correct test runner depending on the type of file.
+        # Run the correct test runner depending on the type of job.
         if [[ "${testfile}" =~ \.etest$ ]]; then
-            run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
             suite=$(basename "${testfile}" ".etest")
+            if [[ -n "${single_func}" ]]; then
+                # Function-level job: run single test function (no suite_setup/teardown)
+                local testfilename testdir
+                testfilename=$(basename "${testfile}")
+                testdir="${workdir}/${testfilename}/${single_func}"
+                EMSG_PREFIX="" einfo "${testfile}:${single_func}" &>>${ETEST_OUT}
+                run_single_test --testdir "${testdir}" --source "${testfile}" "${single_func}"
+            else
+                # File-level job: run all functions with suite_setup/teardown
+                run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
+            fi
         else
             run_single_test --testdir "${workdir}/$(basename ${testfile})" "${testfile}"
             suite="$(basename "${testfile}")"
@@ -620,6 +730,11 @@ __spawn_new_job()
     trap_add "ekill $pid 2>/dev/null"
 
     etest_jobs_running+=( ${pid} )
+    NUM_TESTS_RUNNING=${#etest_jobs_running[@]}
+    NUM_TESTS_QUEUED=$(( NUM_TESTS_TOTAL - NUM_TESTS_EXECUTED - NUM_TESTS_RUNNING ))
+    if [[ ${NUM_TESTS_QUEUED} -lt 0 ]]; then
+        NUM_TESTS_QUEUED=0
+    fi
     increment etest_job_count
 }
 
