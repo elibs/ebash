@@ -406,13 +406,16 @@ ETEST_cicd_info_rc_suffix_with_offset()
 
 ETEST_cicd_version()
 {
-    etestmsg "Test cicd_version from git describe (preferred)"
+    etestmsg "Set origin to ebash repo for this test"
+    git remote set-url origin git@github.com:elibs/ebash.git
+
+    etestmsg "Test cicd_version from git describe (preferred in ebash repo)"
     local ver
     ver=$(cicd_version)
     assert_not_empty "${ver}"
     assert_match "${ver}" "^v[0-9]"
 
-    etestmsg "Test cicd_version prefers git over VERSION file"
+    etestmsg "Test cicd_version prefers git over VERSION file in ebash repo"
     echo "v9.9.9" > VERSION
     ver=$(cicd_version --file=VERSION)
     # Should use git describe (v1.0.0 from setup), not VERSION file
@@ -424,6 +427,26 @@ ETEST_cicd_version()
     local written_ver
     read -r written_ver < VERSION_TEST
     assert_match "${written_ver}" "^v[0-9]"
+}
+
+ETEST_cicd_version_non_ebash_repo()
+{
+    etestmsg "Ensure origin is NOT ebash (using etest from setup)"
+    local origin
+    origin=$(git remote get-url origin)
+    assert_false [[ "${origin}" == *ebash* ]]
+
+    etestmsg "Create VERSION file with known version"
+    echo "v8.8.8 (2025-01-01)" > VERSION
+
+    etestmsg "Test cicd_version uses VERSION file (not git) in non-ebash repo"
+    local ver
+    ver=$(cicd_version --file=VERSION)
+    assert_eq "v8.8.8 (2025-01-01)" "${ver}"
+
+    etestmsg "Test cicd_version returns unknown when no VERSION file in non-ebash repo"
+    ver=$(cicd_version)
+    assert_eq "unknown" "${ver}"
 }
 
 ETEST_cicd_update_version_files()
