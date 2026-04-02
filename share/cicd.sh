@@ -31,14 +31,16 @@ cicd_version()
         ":file f | Path to VERSION file to read (fallback if git not available)." \
     )
 
-    # Only use git describe if we're inside the ebash repo itself (check origin URL)
-    if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+    # Prefer git describe if we're inside ebash repo because it's more accurate for development (includes commit offset)
+    # Use explicit --git-dir and --work-tree to handle containers/copied repos with different ownership (CVE-2022-24765)
+    local git="git --git-dir=${PWD}/.git --work-tree=${PWD}"
+    if command -v git &>/dev/null && ${git} rev-parse --is-inside-work-tree &>/dev/null; then
         local origin
-        origin=$(git remote get-url origin 2>/dev/null) || true
+        origin=$(${git} remote get-url origin 2>/dev/null) || true
         if [[ "${origin}" == *ebash* ]]; then
             local ver date
-            ver=$(git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null)
-            date=$(git log -1 --format=%cs 2>/dev/null)
+            ver=$(${git} describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null)
+            date=$(${git} log -1 --format=%cs 2>/dev/null)
             if [[ -n "${ver}" ]]; then
                 [[ -n "${date}" ]] && ver+=" (${date})"
                 echo "${ver}"

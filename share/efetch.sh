@@ -399,13 +399,18 @@ efetch_wait()
 
     local tail_pid=""
     if [[ -n "${output_file}" ]]; then
-        tail --lines +1 --follow --pid "${pid}" "${output_file}" &
+        tail --lines +1 --follow --retry --pid "${pid}" "${output_file}" &
         tail_pid=$!
     fi
 
     # Wait for tail to complete. That process will stop gracefully when the process we are tailing exits.
     if [[ -n "${tail_pid}" ]]; then
-        wait ${tail_pid}
+        # Ignore tail's exit code since it may fail if the output file is deleted (expected with delete_output=1).
+        if [[ "${delete_output}" -eq 1 ]]; then
+            wait ${tail_pid} || true
+        else
+            wait ${tail_pid}
+        fi
     else
 
         if [[ "${progress}" -eq 1 ]]; then

@@ -294,7 +294,7 @@ ETEST_opt_parse_in_option_names_hyphen_and_underscore_are_equivalent()
     {
         $(opt_parse ":x_a" ":x_b" ":x_c_1")
 
-        declare -p __EBASH_OPT_REGEX __EBASH_OPT
+        declare -p __EBASH_OPT
 
         assert_eq "${x_a}" "${a}"
         assert_eq "${x_b}" "${b}"
@@ -473,7 +473,7 @@ ETEST_opt_parse_no()
     set -- --no-a --no-b --c --d --no-can-do
     $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
 
-    declare -p __EBASH_OPT __EBASH_OPT_REGEX __EBASH_OPT_TYPE
+    declare -p __EBASH_OPT __EBASH_OPT_TYPE
 
     assert_eq "0" "${a}"
     assert_eq "0" "${b}"
@@ -1035,6 +1035,42 @@ ETEST_opt_display_version()
 
     # Use grep -F for literal string match since EBASH_VERSION contains regex special chars like ()
     grep -qF "${EBASH_VERSION}" <<< "${version_output}"
+}
+
+# Test that negative numbers work as positional arguments. This verifies that -1, -2, etc. are not
+# incorrectly interpreted as short options (specifically that -1 doesn't match -? as a help flag).
+ETEST_opt_parse_negative_number_args()
+{
+    etestmsg "Testing negative numbers as positional arguments"
+
+    func_with_positional_args()
+    {
+        $(opt_parse "lh" "rh" "?msg")
+        echo "lh=${lh} rh=${rh} msg=${msg:-}"
+    }
+
+    etestmsg "Calling with -1 and 0"
+    local output
+    output=$(func_with_positional_args "-1" "0" "test message")
+    assert_eq "lh=-1 rh=0 msg=test message" "${output}"
+
+    etestmsg "Calling with -100 and -50"
+    output=$(func_with_positional_args "-100" "-50")
+    assert_eq "lh=-100 rh=-50 msg=" "${output}"
+
+    etestmsg "Testing with options AND negative number positional args (use -- to end options)"
+    func_with_options_and_args()
+    {
+        $(opt_parse "+verbose v" "num")
+        echo "verbose=${verbose} num=${num}"
+    }
+
+    # When options are defined, use -- to pass negative numbers as positional args
+    output=$(func_with_options_and_args -v -- "-42")
+    assert_eq "verbose=1 num=-42" "${output}"
+
+    output=$(func_with_options_and_args -- "-99")
+    assert_eq "verbose=0 num=-99" "${output}"
 }
 
 ETEST_argcheck()
