@@ -738,7 +738,8 @@ __spawn_new_job()
     increment etest_job_count
 }
 
-# Display a summary table of failing tests since there is no output on the screen to help them.
+# Display a summary table of results aggregated by suite (file).
+# Uses already-aggregated global arrays instead of re-reading info.pack files.
 __display_results_table()
 {
     echo
@@ -746,41 +747,46 @@ __display_results_table()
     declare -a table
     array_init_nl table "Suite|Result|# Passed|# Failed|# Flaky"
 
-    local entry
-    for entry in ${logdir}/jobs/*; do
+    local suite_name
+    for suite_name in "${TEST_SUITES[@]}"; do
+        # Count tests from space-separated lists
+        local passed=0 failed=0 flaky=0
+        local test_list
 
-        if [[ ! -e "${entry}/info.pack" ]]; then
-            job="$(basename "${entry}")"
-            status="$(ecolor dim red)ABORTED$(ecolor none)"
-            array_add_nl table "${job}|-|${status}|-|-|-|${entry}/output.log"
-            continue
+        if [[ -n "${TESTS_PASSED[$suite_name]:-}" ]]; then
+            array_init test_list "${TESTS_PASSED[$suite_name]}"
+            passed=${#test_list[@]}
+        fi
+        if [[ -n "${TESTS_FAILED[$suite_name]:-}" ]]; then
+            array_init test_list "${TESTS_FAILED[$suite_name]}"
+            failed=${#test_list[@]}
+        fi
+        if [[ -n "${TESTS_FLAKY[$suite_name]:-}" ]]; then
+            array_init test_list "${TESTS_FLAKY[$suite_name]}"
+            flaky=${#test_list[@]}
         fi
 
-        local info=""
-        pack_load info "${entry}/info.pack"
-        $(pack_import info)
-
-        # Derive status to display with color annotations
+        # Derive status
         local status
-        if [[ ${num_tests_failed} -ne 0 ]]; then
+        if [[ ${failed} -ne 0 ]]; then
             status="$(ecolor bold red)FAILED$(ecolor none)"
-        elif [[ ${num_tests_flaky} -ne 0 ]]; then
+        elif [[ ${flaky} -ne 0 ]]; then
             status="$(ecolor bold yellow)FLAKY$(ecolor none)"
         else
             status="$(ecolor bold green)PASSED$(ecolor none)"
         fi
 
-        # Annotate numver of failed and flaky tests with color
-        if [[ ${num_tests_failed} -gt 0 ]]; then
-            num_tests_failed="$(ecolor bold red)${num_tests_failed}$(ecolor none)"
+        # Color annotate counts
+        local failed_display="${failed}"
+        local flaky_display="${flaky}"
+        if [[ ${failed} -gt 0 ]]; then
+            failed_display="$(ecolor bold red)${failed}$(ecolor none)"
+        fi
+        if [[ ${flaky} -gt 0 ]]; then
+            flaky_display="$(ecolor bold yellow)${flaky}$(ecolor none)"
         fi
 
-        if [[ ${num_tests_flaky} -gt 0 ]]; then
-            num_tests_flaky="$(ecolor bold yellow)${num_tests_flaky}$(ecolor none)"
-        fi
-
-        array_add_nl table "${suite}|${status}|${num_tests_passed}|${num_tests_failed}|${num_tests_flaky}"
-
+        array_add_nl table "${suite_name}|${status}|${passed}|${failed_display}|${flaky_display}"
     done
 
     etable --title="$(ecolor bold)Test Results$(ecolor none)" "${table[@]}"
