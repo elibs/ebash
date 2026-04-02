@@ -399,6 +399,10 @@ efetch_wait()
 
     local tail_pid=""
     if [[ -n "${output_file}" ]]; then
+        # Wait for output file to exist before starting tail toa void race condition
+        while [[ ! -e "${output_file}" ]] && process_running "${pid}"; do
+            sleep 0.1
+        done
         tail --lines +1 --follow --retry --pid "${pid}" "${output_file}" &
         tail_pid=$!
     fi

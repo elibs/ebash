@@ -27,12 +27,61 @@ pack_set()
 {
     local _pack_set_pack=$1 ; shift
 
-    for _pack_set_arg in "${@}" ; do
-        local _pack_set_key="${_pack_set_arg%%=*}"
-        local _pack_set_val="${_pack_set_arg#*=}"
+    # Optimization: unpack once, modify in memory, pack once
+    # This is O(n) instead of O(n²) when setting multiple keys
+    # We use both an array (for order) and an associative array (for lookup)
+    local _pack_set_keys=()
+    declare -A _pack_set_values=()
+    local _pack_set_unpacked _pack_set_line _pack_set_key _pack_set_val
 
-        pack_set_internal "${_pack_set_pack}" "${_pack_set_key}" "${_pack_set_val}"
+    # Unpack existing data, preserving key order
+    # Use || true to gracefully handle variables that contain non-pack data
+    if [[ -n "${!_pack_set_pack:-}" ]]; then
+        _pack_set_unpacked="$(echo -n "${!_pack_set_pack}" | _unpack || true)"
+        while IFS= read -r _pack_set_line; do
+            [[ -z "${_pack_set_line}" ]] && continue
+            _pack_set_key="${_pack_set_line%%=*}"
+            _pack_set_val="${_pack_set_line#*=}"
+            _pack_set_keys+=("${_pack_set_key}")
+            _pack_set_values["${_pack_set_key}"]="${_pack_set_val}"
+        done <<< "${_pack_set_unpacked}"
+    fi
+
+    # Set new values (validates and updates)
+    # Track which keys are being set so we can reorder once at the end
+    declare -A _pack_set_new_keys_map=()
+    local _pack_set_new_keys_order=()
+
+    for _pack_set_arg in "${@}" ; do
+        _pack_set_key="${_pack_set_arg%%=*}"
+        _pack_set_val="${_pack_set_arg#*=}"
+
+        [[ -z "${_pack_set_key}" ]] && continue
+        [[ "${_pack_set_key}" == *=* ]] && die "ebash internal error: tag ${_pack_set_key} cannot contain equal sign"
+        [[ "${_pack_set_val}" == *$'\n'* ]] && die "packed values cannot hold newlines"
+
+        _pack_set_values["${_pack_set_key}"]="${_pack_set_val}"
+        if [[ -z "${_pack_set_new_keys_map[$_pack_set_key]:-}" ]]; then
+            _pack_set_new_keys_map["${_pack_set_key}"]=1
+            _pack_set_new_keys_order+=("${_pack_set_key}")
+        fi
     done
+
+    # Rebuild key order once: existing keys (excluding new ones) + new keys in order
+    local _pack_set_final_keys=()
+    for _pack_set_k in "${_pack_set_keys[@]}"; do
+        [[ -z "${_pack_set_new_keys_map[$_pack_set_k]:-}" ]] && _pack_set_final_keys+=("${_pack_set_k}")
+    done
+    _pack_set_keys=("${_pack_set_final_keys[@]}" "${_pack_set_new_keys_order[@]}")
+
+    # Pack preserving key order (single encode)
+    local _pack_set_to_pack=""
+    for _pack_set_key in "${_pack_set_keys[@]}"; do
+        _pack_set_to_pack+="${_pack_set_key}=${_pack_set_values[$_pack_set_key]}"$'\n'
+    done
+    local _pack_set_packed
+    _pack_set_packed=$(echo -n "${_pack_set_to_pack}" | _pack)
+    printf -v "${_pack_set_pack}" "%s" "${_pack_set_packed}"
 }
 
 opt_usage pack_update <<'END'
@@ -43,33 +92,32 @@ pack_update()
 {
     local _pack_update_pack=$1 ; shift
 
+    # Optimization: unpack once to check which keys exist, then batch update
+    declare -A _pack_update_existing=()
+    local _pack_update_unpacked _pack_update_line _pack_update_key
+
+    if [[ -n "${!_pack_update_pack:-}" ]]; then
+        _pack_update_unpacked="$(echo -n "${!_pack_update_pack}" | _unpack || true)"
+        while IFS= read -r _pack_update_line; do
+            [[ -z "${_pack_update_line}" ]] && continue
+            _pack_update_key="${_pack_update_line%%=*}"
+            _pack_update_existing["${_pack_update_key}"]=1
+        done <<< "${_pack_update_unpacked}"
+    fi
+
+    # Collect only the updates for keys that exist
+    local _pack_update_args=()
     for _pack_update_arg in "${@}" ; do
-        local _pack_update_key="${_pack_update_arg%%=*}"
-        local _pack_update_val="${_pack_update_arg#*=}"
-
-        if pack_contains ${_pack_update_pack} "${_pack_update_key}"; then
-            pack_set_internal "${_pack_update_pack}" "${_pack_update_key}" "${_pack_update_val}"
+        _pack_update_key="${_pack_update_arg%%=*}"
+        if [[ -n "${_pack_update_existing[$_pack_update_key]:-}" ]]; then
+            _pack_update_args+=("${_pack_update_arg}")
         fi
-
     done
-}
 
-pack_set_internal()
-{
-    local _pack_pack_set_internal=$1
-    local _tag=$2
-    local _val="$3"
-
-    argcheck _tag
-    [[ ${_tag} =~ = ]] && die "ebash internal error: tag ${_tag} cannot contain equal sign"
-    [[ "${_val}" == *$'\n'* ]] && die "packed values cannot hold newlines"
-
-    local _removeOld _addNew _packed
-    _removeOld="$(echo -n "${!1:-}" | _unpack | grep -av '^'${_tag}'=' || true)"
-    _addNew="$(echo "${_removeOld}" ; echo -n "${_tag}=${_val}")"
-    _packed=$(echo "${_addNew}" | _pack)
-
-    printf -v "${1}" "${_packed}"
+    # Batch update all at once
+    if [[ ${#_pack_update_args[@]} -gt 0 ]]; then
+        pack_set "${_pack_update_pack}" "${_pack_update_args[@]}"
+    fi
 }
 
 opt_usage pack_get <<'END'
@@ -77,20 +125,31 @@ Get the last value assigned to a particular key in this pack.
 END
 pack_get()
 {
-    local _pack_pack_get=$1
-    local _tag=$2
+    local _pack_get_pack=$1
+    local _pack_get_tag=$2
 
-    argcheck _pack_pack_get _tag
+    argcheck _pack_get_pack _pack_get_tag
 
-    local _unpacked _found
-    _unpacked="$(echo -n "${!_pack_pack_get:-}" | _unpack)"
-    _found="$(echo -n "${_unpacked}" | grep -a "^${_tag}=" || true)"
-    echo "${_found#*=}"
+    [[ -z "${!_pack_get_pack:-}" ]] && return 0
+
+    local _pack_get_unpacked _pack_get_line _pack_get_key _pack_get_result=""
+    _pack_get_unpacked="$(echo -n "${!_pack_get_pack}" | _unpack)"
+
+    while IFS= read -r _pack_get_line; do
+        [[ -z "${_pack_get_line}" ]] && continue
+        _pack_get_key="${_pack_get_line%%=*}"
+        if [[ "${_pack_get_key}" == "${_pack_get_tag}" ]]; then
+            # Keys are unique after pack_set, so we can return immediately
+            echo "${_pack_get_line#*=}"
+            return 0
+        fi
+    done <<< "${_pack_get_unpacked}"
 }
 
 pack_contains()
 {
-    [[ -n $(pack_get "$@") ]]
+    # Returns true if key exists AND has a non-empty value
+    [[ -n "$(pack_get "$@")" ]]
 }
 
 opt_usage pack_copy <<'END'
@@ -117,22 +176,19 @@ will be called once for each item in the pack and passed the key as the first va
 END
 pack_iterate()
 {
-    local _func=$1
-    local _pack_pack_iterate=$2
-    argcheck _func _pack_pack_iterate
+    local _pack_iterate_func=$1
+    local _pack_iterate_pack=$2
+    argcheck _pack_iterate_func _pack_iterate_pack
 
-    local _unpacked _lines
-    _unpacked="$(echo -n "${!_pack_pack_iterate}" | _unpack)"
-    array_init_nl _lines "${_unpacked}"
+    [[ -z "${!_pack_iterate_pack:-}" ]] && return 0
 
-    for _line in "${_lines[@]}" ; do
+    local _pack_iterate_unpacked _pack_iterate_line
+    _pack_iterate_unpacked="$(echo -n "${!_pack_iterate_pack}" | _unpack)"
 
-        local _key="${_line%%=*}"
-        local _val="${_line#*=}"
-
-        ${_func} "${_key}" "${_val}"
-
-    done
+    while IFS= read -r _pack_iterate_line; do
+        [[ -z "${_pack_iterate_line}" ]] && continue
+        ${_pack_iterate_func} "${_pack_iterate_line%%=*}" "${_pack_iterate_line#*=}"
+    done <<< "${_pack_iterate_unpacked}"
 }
 
 opt_usage pack_import <<'END'
@@ -154,26 +210,61 @@ $(pack_import pack a)
 END
 pack_import()
 {
-    $(opt_parse \
-        "+local l=1        | Emit local variables via local builtin (default)." \
-        "+global g         | Emit global variables instead of local (i.e. undeclared variables)." \
-        "+export e         | Emit exported variables via export builtin." \
-        "_pack_import_pack | Pack to operate on.")
-
-    local _pack_import_keys=("${@}")
-    [[ $(array_size _pack_import_keys) -eq 0 ]] && _pack_import_keys=($(pack_keys ${_pack_import_pack}))
-
-    # Determine requested scope for the variables
+    # Fast path: common case with no flags - first arg is pack name, rest are optional keys
+    # Flags start with - or +, pack names don't
     local _pack_import_scope="local"
-    [[ ${local} -eq 1 ]]  && _pack_import_scope="local"
-    [[ ${global} -eq 1 ]] && _pack_import_scope=""
-    [[ ${export} -eq 1 ]] && _pack_import_scope="export"
+    local _pack_import_pack=""
+    local _pack_import_keys=()
 
-    local _pack_import_cmd="" _pack_import_val=""
-    for _pack_import_key in "${_pack_import_keys[@]}" ; do
-        _pack_import_val=$(pack_get ${_pack_import_pack} ${_pack_import_key})
-        _pack_import_cmd+="$_pack_import_scope $_pack_import_key=\"${_pack_import_val}\"; "
-    done
+    if [[ $# -gt 0 && "${1:0:1}" != "-" && "${1:0:1}" != "+" ]]; then
+        # Fast path: no flags
+        _pack_import_pack=$1
+        shift
+        _pack_import_keys=("${@}")
+    else
+        # Slow path: has flags, use opt_parse
+        $(opt_parse \
+            "+local l=1        | Emit local variables via local builtin (default)." \
+            "+global g         | Emit global variables instead of local (i.e. undeclared variables)." \
+            "+export e         | Emit exported variables via export builtin." \
+            "_pack_import_pack | Pack to operate on.")
+
+        [[ ${global} -eq 1 ]] && _pack_import_scope=""
+        [[ ${export} -eq 1 ]] && _pack_import_scope="export"
+        _pack_import_keys=("${@}")
+    fi
+
+    # Optimization: unpack once into associative array, then build command
+    # This is O(n) instead of O(n²) - we decode once instead of once per key
+    declare -A _pack_import_data=()
+    local _pack_import_unpacked _pack_import_line _pack_import_key _pack_import_val
+
+    if [[ -n "${!_pack_import_pack:-}" ]]; then
+        _pack_import_unpacked="$(echo -n "${!_pack_import_pack}" | _unpack)"
+        while IFS= read -r _pack_import_line; do
+            [[ -z "${_pack_import_line}" ]] && continue
+            _pack_import_key="${_pack_import_line%%=*}"
+            _pack_import_val="${_pack_import_line#*=}"
+            _pack_import_data["${_pack_import_key}"]="${_pack_import_val}"
+        done <<< "${_pack_import_unpacked}"
+    fi
+
+    # Build command string
+    local _pack_import_cmd=""
+
+    if [[ ${#_pack_import_keys[@]} -eq 0 ]]; then
+        # Import all keys - iterate unpacked lines to preserve order
+        while IFS= read -r _pack_import_line; do
+            [[ -z "${_pack_import_line}" ]] && continue
+            _pack_import_key="${_pack_import_line%%=*}"
+            _pack_import_cmd+="${_pack_import_scope} ${_pack_import_key}=\"${_pack_import_data[$_pack_import_key]}\"; "
+        done <<< "${_pack_import_unpacked}"
+    else
+        # Import only specified keys
+        for _pack_import_key in "${_pack_import_keys[@]}"; do
+            _pack_import_cmd+="${_pack_import_scope} ${_pack_import_key}=\"${_pack_import_data[$_pack_import_key]:-}\"; "
+        done
+    fi
 
     echo "eval "${_pack_import_cmd}""
 }
@@ -207,7 +298,16 @@ pack_export()
 pack_size()
 {
     [[ -z ${1} ]] && die "pack_size requires a pack to be specified as \$1"
-    echo -n "${!1}" | _unpack | wc -l
+    [[ -z "${!1:-}" ]] && { echo 0; return 0; }
+
+    local _pack_size_unpacked _pack_size_line _pack_size_count=0
+    _pack_size_unpacked="$(echo -n "${!1}" | _unpack)"
+
+    while IFS= read -r _pack_size_line; do
+        [[ -n "${_pack_size_line}" ]] && (( ++_pack_size_count ))
+    done <<< "${_pack_size_unpacked}"
+
+    echo "${_pack_size_count}"
 }
 
 opt_usage pack_keys <<'END'
@@ -216,7 +316,15 @@ END
 pack_keys()
 {
     [[ -z ${1} ]] && die "pack_keys requires a pack to be specified as \$1"
-    echo "${!1:-}" | _unpack | sed 's/=.*$//'
+    [[ -z "${!1:-}" ]] && return 0
+
+    local _pack_keys_unpacked _pack_keys_line
+    _pack_keys_unpacked="$(echo -n "${!1}" | _unpack)"
+
+    while IFS= read -r _pack_keys_line; do
+        [[ -z "${_pack_keys_line}" ]] && continue
+        echo "${_pack_keys_line%%=*}"
+    done <<< "${_pack_keys_unpacked}"
 }
 
 opt_usage pack_keys_sort <<'END'
@@ -232,30 +340,34 @@ Note: To support working with print_value, pack_print does NOT print a newline a
 END
 pack_print()
 {
-    local _pack_pack_print=$1
-    argcheck _pack_pack_print
+    local _pack_print_pack=$1
+    argcheck _pack_print_pack
 
     echo -n '('
-    pack_iterate _pack_print_item ${_pack_pack_print}
+    if [[ -n "${!_pack_print_pack:-}" ]]; then
+        local _pack_print_unpacked _pack_print_line
+        _pack_print_unpacked="$(echo -n "${!_pack_print_pack}" | _unpack)"
+        while IFS= read -r _pack_print_line; do
+            [[ -z "${_pack_print_line}" ]] && continue
+            echo -n "[${_pack_print_line%%=*}]=\"${_pack_print_line#*=}\" "
+        done <<< "${_pack_print_unpacked}"
+    fi
     echo -n ')'
-}
-
-_pack_print_item()
-{
-    echo -n "[$1]=\"$2\" "
 }
 
 pack_print_key_value()
 {
-    local _pack_pack_print=$1
-    argcheck _pack_pack_print
+    local _pack_print_kv_pack=$1
+    argcheck _pack_print_kv_pack
 
-    pack_iterate _pack_print_key_value_item ${_pack_pack_print}
-}
+    [[ -z "${!_pack_print_kv_pack:-}" ]] && return 0
 
-_pack_print_key_value_item()
-{
-    echo "$1=\"$2\""
+    local _pack_print_kv_unpacked _pack_print_kv_line
+    _pack_print_kv_unpacked="$(echo -n "${!_pack_print_kv_pack}" | _unpack)"
+    while IFS= read -r _pack_print_kv_line; do
+        [[ -z "${_pack_print_kv_line}" ]] && continue
+        echo "${_pack_print_kv_line%%=*}=\"${_pack_print_kv_line#*=}\""
+    done <<< "${_pack_print_kv_unpacked}"
 }
 
 _unpack()
@@ -284,23 +396,21 @@ pack_decode()
 
 pack_save()
 {
-    $(opt_parse \
-        "_pack_save_name | Name of the pack to save to disk."      \
-        "_pack_save_file | Name of the file to save the pack to."  \
-    )
+    local _pack_save_name=$1
+    local _pack_save_file=$2
 
-    mkdir -p "$(dirname "${_pack_save_file}")"
+    # Use bash string manipulation instead of dirname subshell
+    local _pack_save_dir="${_pack_save_file%/*}"
+    [[ "${_pack_save_dir}" != "${_pack_save_file}" ]] && mkdir -p "${_pack_save_dir}"
     pack_encode "${_pack_save_name}" > "${_pack_save_file}"
 }
 
 pack_load()
 {
-    $(opt_parse \
-        "_pack_load_name   | Name of the pack to read into from disk."      \
-        "_pack_load_file   | Name of the file to read the pack from."  \
-    )
+    local _pack_load_name=$1
+    local _pack_load_file=$2
 
     local _pack_load_data
-    readall _pack_load_data < "${_pack_load_file}"
-    pack_copy _pack_load_data ${_pack_load_name}
+    _pack_load_data=$(<"${_pack_load_file}")
+    printf -v "${_pack_load_name}" "%s" "${_pack_load_data}"
 }

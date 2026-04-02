@@ -38,6 +38,9 @@ setup()
     git add "file1.txt"
     git commit -am "Add file1.txt"
     git tag -am "Tagged by etest" "v1.0.0"
+
+    # Ensure subsequent tags have different timestamps so git describe returns the most recent tag
+    sleep 1
 }
 
 ETEST_cicd_info()

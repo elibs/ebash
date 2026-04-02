@@ -789,5 +789,5 @@ __display_results_table()
         array_add_nl table "${suite_name}|${status}|${passed}|${failed_display}|${flaky_display}"
     done
 
-    etable --title="$(ecolor bold)Test Results$(ecolor none)" "${table[@]}"
+    etable --style=boxart --title="$(ecolor bold)Test Results$(ecolor none)" "${table[@]}"
 }
