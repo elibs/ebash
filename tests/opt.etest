@@ -294,7 +294,7 @@ ETEST_opt_parse_in_option_names_hyphen_and_underscore_are_equivalent()
     {
         $(opt_parse ":x_a" ":x_b" ":x_c_1")
 
-        declare -p __EBASH_OPT_REGEX __EBASH_OPT
+        declare -p __EBASH_OPT
 
         assert_eq "${x_a}" "${a}"
         assert_eq "${x_b}" "${b}"
@@ -473,7 +473,7 @@ ETEST_opt_parse_no()
     set -- --no-a --no-b --c --d --no-can-do
     $(opt_parse "+a=1" "+b=0" "+c=1" "+d=0" "+can_do u=1")
 
-    declare -p __EBASH_OPT __EBASH_OPT_REGEX __EBASH_OPT_TYPE
+    declare -p __EBASH_OPT __EBASH_OPT_TYPE
 
     assert_eq "0" "${a}"
     assert_eq "0" "${b}"

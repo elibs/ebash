@@ -260,10 +260,22 @@ Functions called with --help/-? as processed by opt_parse will not perform their
 return successfully after printing this usage statement.
 
 END
+# Associative array to cache opt_parse setup code. Keyed by unique call site identifier. This cache persists for the
+# shell session and is inherited by subshells (like the one created by $(opt_parse ...)), enabling cache hits on
+# subsequent calls.
+declare -gA __EBASH_OPT_PARSE_CACHE=()
+
+# Cache the bash 4.2 check result. This version requires different handling for array emptiness checks.
+# Computed once at source time since BASH_VERSINFO never changes.
+if [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -eq 2 ]]; then
+    __EBASH_BASH_4_2=1
+else
+    __EBASH_BASH_4_2=0
+fi
 opt_parse()
 {
     # Pre-emptively check if `nullglob` has been enabled and immediately die with an error if it is enabled.
-    # This is because `nullglob` dramatically affects how bash and other GNU tools pare their option flags. As such it
+    # This is because `nullglob` dramatically affects how bash and other GNU tools parse their option flags. As such it
     # completely breaks `opt_parse` functionality. I tried to simply disable here in `opt_parse` but unfortunately that
     # doesn't work.
     if shopt -q nullglob; then
@@ -274,81 +286,59 @@ opt_parse()
         exit 1
     fi
 
-    # An interesting but non-obvious trick is being played here. Opt_parse_setup is called during the opt_parse call,
-    # and it sets up some variables (such as __EBASH_OPT and __EBASH_ARG). Since they're already created, when we eval
-    # the calls to opt_parse_options and opt_parse_arguments, we can modify those variables and pass them amongst the
-    # internals of opt_parse. This makes it easier to write the more complicated stuff in literal functions. Then we
-    # can limit the size of the blocks of code that have to be "echo"-ed out for the caller to execute. Much simpler to
-    # get them to call a function (but of course that function can't create local variables for them).
+    # CACHING OPTIMIZATION
+    #
+    # The opt_parse_setup call parses the static specification strings (e.g., "__array | Name of array") and generates
+    # bash code to declare the __EBASH_OPT and __EBASH_ARG arrays. This is expensive and the output is identical for
+    # every call to the same function.
+    #
+    # We cache the setup code keyed by a unique call site identifier (source file + line number). On cache hit, we skip
+    # opt_parse_setup entirely and just echo the cached code.
+    #
+    # The cache is stored in an associative array in the parent shell. When $(opt_parse ...) spawns a subshell, it
+    # inherits the parent's environment including the cache. On cache miss, we output code that sets the cache in the
+    # parent shell, so subsequent calls will hit the cache.
+
+    # Build unique cache key from source file and line number. BASH_SOURCE[1] is the file containing the function that
+    # called opt_parse. BASH_LINENO[0] is the line number in that file where opt_parse was called.
+    local cache_key="${BASH_SOURCE[1]:-unknown}:${BASH_LINENO[0]:-0}"
+
+    # Check if we have cached full output for this call site
+    if [[ -n "${__EBASH_OPT_PARSE_CACHE[${cache_key}]:-}" ]]; then
+        # CACHE HIT: Output cached code directly (setup + runtime combined)
+        echo "eval "
+        echo "${__EBASH_OPT_PARSE_CACHE[${cache_key}]}"
+        return 0
+    fi
+
+    # CACHE MISS: Generate full code and cache it.
+    # opt_parse_setup outputs: setup_code + marker + runtime_code
+    # We split on the marker and combine them.
+    local setup_output setup_code runtime_code full_code
+    setup_output=$(opt_parse_setup "${@}")
+    setup_code="${setup_output%%__EBASH_SETUP_MIDDLE_SPLIT__*}"
+    runtime_code="${setup_output#*__EBASH_SETUP_MIDDLE_SPLIT__}"
+    full_code="${setup_code}${runtime_code}"
+
     echo "eval "
-    opt_parse_setup "${@}"
 
-    # __EBASH_FULL_ARGS is the list of arguments as initially passed to opt_parse. Opt_parse_options will modifiy
-    # __EBASH_ARGS to be whatever was left to be processed after it is finished. Note: here $@ is quoted so it refers to
-    # the caller's arguments
-    echo 'declare -a __EBASH_FULL_ARGS=("$@") ; '
-    echo 'declare -a __EBASH_ARGS=("$@") ; '
-    echo 'declare __EBASH_OPT_USAGE_REQUESTED=0 ; '
-    echo 'declare __EBASH_OPT_VERSION_REQUESTED=0 ; '
-    echo "opt_parse_options ; "
+    # Output code to populate the cache in the parent shell for future calls. We use printf %q to safely quote the
+    # full_code for embedding in the assignment. Cache includes BOTH setup and runtime for faster cache hits.
+    printf '__EBASH_OPT_PARSE_CACHE[%q]=%q ; ' "${cache_key}" "${full_code}"
 
-    # If usage was requested, print it and return success without doing anything else
-    echo 'if [[ ${__EBASH_OPT_USAGE_REQUESTED:-0} -eq 1 ]] ; then '
-    echo '   opt_display_usage ; '
-    echo '   [[ -n ${FUNCNAME:-} ]] && return 0 || exit 0 ; '
-    echo 'fi ; '
-
-    # If version was requested, print it and return success without doing anything else
-    echo 'if [[ ${__EBASH_OPT_VERSION_REQUESTED:-0} -eq 1 ]] ; then '
-    echo '   opt_display_version ; '
-    echo '   [[ -n ${FUNCNAME:-} ]] && return 0 || exit 0 ; '
-    echo 'fi ; '
-
-    # Process options
-    echo 'declare opt ; '
-    echo 'if [[ ${#__EBASH_OPT[@]} -gt 0 ]] ; then '
-    echo '    for opt in "${!__EBASH_OPT[@]}" ; do'
-    echo '        if [[ ${__EBASH_OPT_TYPE[$opt]} == "accumulator" ]] ; then '
-    echo '            array_init_nl "${opt//-/_}" "${__EBASH_OPT[$opt]}" ; '
-    echo '        else '
-    echo '            declare "${opt//-/_}=${__EBASH_OPT[$opt]}" ; '
-    echo '        fi ; '
-    echo '        if [[ ${__EBASH_OPT_TYPE[$opt]} == "required_string" ]] ; then '
-    echo '            [[ -n ${__EBASH_OPT[$opt]} ]] || die "${FUNCNAME:-}: option ${opt} is required." ; '
-    echo '        fi ; '
-    echo '    done ; '
-    echo 'fi ; '
-
-    # Process arguments
-    echo 'opt_parse_arguments ; '
-    echo 'if [[ ${#__EBASH_ARG[@]} -gt 0 ]] ; then '
-    echo '    for index in "${!__EBASH_ARG[@]}" ; do '
-    echo '        [[ -n ${index} ]] || continue ; '
-    echo '        [[ ${__EBASH_ARG_NAMES[$index]} != _ ]] && declare "${__EBASH_ARG_NAMES[$index]}=${__EBASH_ARG[$index]}" ; '
-    echo '    done ; '
-    echo 'fi ; '
-    echo 'argcheck "${__EBASH_ARG_REQUIRED[@]:-}" ; '
-
-    # Make sure $@ is filled with args that weren't already consumed
-    echo 'if [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then'
-    echo '    set -- "${__EBASH_ARGS[@]}" ; '
-    echo 'else '
-    echo '    set -- ; '
-    echo 'fi ; '
-
-    # And also put them in the "rest" array of arguments, if one was requested
-    echo 'if [[ -n ${__EBASH_ARG_REST} ]] ; then '
-    echo '    eval "declare -a ${__EBASH_ARG_REST}=(\"\$@\")" ; '
-    echo 'fi ; '
+    # Output the full code itself
+    echo "${full_code}"
 }
 
 opt_parse_setup()
 {
     local opt_cmd="__EBASH_OPT=( "
-    local opt_regex_cmd="__EBASH_OPT_REGEX=( "
     local opt_synonyms_cmd="__EBASH_OPT_SYNONYMS=( "
     local opt_type_cmd="__EBASH_OPT_TYPE=( "
     local opt_docstring_cmd="__EBASH_OPT_DOCSTRING=( "
+    # OPTIMIZATION: Direct hash lookup table mapping ALL names (including synonyms, no_ prefixes) to canonical name.
+    # This replaces the expensive regex loop in __opt_parse_find_canonical with O(1) hash lookup.
+    local opt_lookup_cmd="__EBASH_OPT_LOOKUP=( "
 
     local arg_cmd="__EBASH_ARG=( "
     local arg_names_cmd="__EBASH_ARG_NAMES=( "
@@ -357,6 +347,16 @@ opt_parse_setup()
 
     local arg_rest_var=""
     local arg_rest_docstring=""
+
+    # Track spec characteristics for generating spec-specific code
+    local has_options=0
+    local has_args=0
+
+    # Explicit declarations generated at setup time (no runtime loops)
+    local opt_decl_code=""
+    local arg_decl_code=""
+    local argcheck_code=""
+    local arg_index=0
 
     while (( $# )) ; do
 
@@ -378,6 +378,7 @@ opt_parse_setup()
         # than an implementation based on IFS and read on bash 4.3 as of 2016-05.09.
         local opt_definition=${complete_arg%%|*}
         opt_definition=${opt_definition##+([[:space:]])}
+
         local docstring=${complete_arg##*|}
 
         [[ -n ${opt_definition} ]] || die "${FUNCNAME[2]}: invalid opt_parse syntax. Option definition is empty."
@@ -412,7 +413,7 @@ opt_parse_setup()
         # OPTIONS
         if [[ ${opt_type_char} == @(:|=|&|+) ]] ; then
 
-            local name_regex=^\(${all_names//+( )/|}\)$
+            has_options=1
 
             if [[ ${opt_type_char} == ":" ]] ; then
                 opt_type="string"
@@ -425,10 +426,6 @@ opt_parse_setup()
 
             elif [[ ${opt_type_char} == "+" ]] ; then
                 opt_type="boolean"
-
-                # Boolean options implicitly get a version whose name starts with no- that is a negation of the option.
-                # Adjust the name regex.
-                name_regex=${name_regex/^/^\(no_\)?}
 
                 # And forbid double-negative options
                 [[ ! ${canonical} = no_* ]] || die "${FUNCNAME[2]}: names of boolean options may not begin with no_ because no_<option> is implicitly created."
@@ -443,14 +440,34 @@ opt_parse_setup()
 
             # Now that they're all computed, add them to the command that will generate associative arrays
             opt_cmd+="[${canonical}]='${default}' "
-            opt_regex_cmd+="[${canonical}]='${name_regex}' "
-            opt_synonyms_cmd+="[${canonical}]='${all_names}' "
             opt_type_cmd+="[${canonical}]='${opt_type}' "
 
-            # Docstring might contain weird characters like quotes and
-            # apostrophes, so let printf quote it to be sure
+            # OPTIMIZATION: Build direct lookup table for all names -> canonical
+            for name in ${all_names}; do
+                opt_lookup_cmd+="[${name}]='${canonical}' "
+                # For boolean options, also add no_ prefixed versions
+                if [[ ${opt_type_char} == "+" ]]; then
+                    opt_lookup_cmd+="[no_${name}]='${canonical}' "
+                fi
+            done
+
+            # Store synonyms (needed for --help display of option names)
+            opt_synonyms_cmd+="[${canonical}]='${all_names}' "
+
+            # Docstring might contain weird characters like quotes and apostrophes, so let printf quote it
             printf -v quoted_docstring "%q" "${docstring}"
             opt_docstring_cmd+="[${canonical}]=${quoted_docstring} "
+
+            # OPTIMIZATION: Generate explicit declaration for this option (avoids runtime loop)
+            if [[ ${opt_type} == "accumulator" ]]; then
+                opt_decl_code+="array_init_nl '${canonical}' \"\${__EBASH_OPT[${canonical}]}\" ; "
+            else
+                opt_decl_code+="declare \"${canonical}=\${__EBASH_OPT[${canonical}]}\" ; "
+            fi
+            # For required_string, add validation
+            if [[ ${opt_type} == "required_string" ]]; then
+                opt_decl_code+="[[ -n \"\${__EBASH_OPT[${canonical}]}\" ]] || die \"\${FUNCNAME:-}: option ${canonical} is required.\" ; "
+            fi
 
         elif [[ ${opt_type_char} == "@" ]] ; then
 
@@ -461,6 +478,7 @@ opt_parse_setup()
         else
             [[ ${all_names} != *[[:space:]]* ]] || die "${FUNCNAME[2]}: arguments can only have a single name, but ${all_names} was specified."
 
+            has_args=1
             arg_cmd+="'${default}' "
             arg_names_cmd+="'${canonical}' "
 
@@ -474,40 +492,114 @@ opt_parse_setup()
 
             printf -v quoted_docstring "%q" "${docstring}"
             arg_docstring_cmd+="${quoted_docstring} "
+
+            # OPTIMIZATION: Generate explicit declaration for this argument (avoids runtime loop)
+            # Skip if name is _ (placeholder for unused args)
+            if [[ ${canonical} != "_" ]]; then
+                arg_decl_code+="declare \"${canonical}=\${__EBASH_ARG[${arg_index}]}\" ; "
+            fi
+
+            # Generate argcheck for required args (non-optional)
+            if [[ ${opt_type_char} != "?" ]]; then
+                argcheck_code+="'${canonical}' "
+            fi
+
+            (( ++arg_index ))
         fi
 
     done
 
     opt_cmd+=")"
-    opt_regex_cmd+=")"
     opt_synonyms_cmd+=")"
     opt_type_cmd+=")"
     opt_docstring_cmd+=")"
+    opt_lookup_cmd+=")"
 
     arg_cmd+=")"
     arg_names_cmd+=")"
     arg_required_cmd+=")"
     arg_docstring_cmd+=")"
 
-    printf "declare -A %s %s %s %s %s ; " "${opt_cmd}" "${opt_regex_cmd}" "${opt_synonyms_cmd}" "${opt_type_cmd}" "${opt_docstring_cmd}"
+    # Output all arrays needed for parsing
+    printf "declare -A %s %s %s %s %s ; " "${opt_cmd}" "${opt_type_cmd}" "${opt_lookup_cmd}" "${opt_synonyms_cmd}" "${opt_docstring_cmd}"
     printf "declare -a %s %s %s %s ; " "${arg_cmd}" "${arg_names_cmd}" "${arg_required_cmd}" "${arg_docstring_cmd}"
     printf "declare __EBASH_ARG_REST=%s __EBASH_ARG_REST_DOCSTRING=%s ; " "${arg_rest_var}" "${arg_rest_docstring}"
+
+    # Marker separates setup code from runtime code (opt_parse splits on this)
+    printf "__EBASH_SETUP_MIDDLE_SPLIT__"
+
+    # Initialize argument arrays
+    printf 'declare -a __EBASH_FULL_ARGS=("$@") ; '
+    printf 'declare -a __EBASH_ARGS=("$@") ; '
+    printf 'declare __EBASH_OPT_USAGE_REQUESTED=0 ; '
+    printf 'declare __EBASH_OPT_VERSION_REQUESTED=0 ; '
+
+    # Spec-specific: either call opt_parse_options or fast-path for positional-only
+    if [[ ${has_options} -eq 1 ]]; then
+        printf 'opt_parse_options ; '
+    else
+        # Fast path: just check for --help/-? in args
+        printf 'case "${1:-}" in --help|-\?) __EBASH_OPT_USAGE_REQUESTED=1 ;; esac ; '
+    fi
+
+    # Usage/version handling
+    printf 'if [[ ${__EBASH_OPT_USAGE_REQUESTED:-0} -eq 1 ]] ; then '
+    printf 'opt_display_usage ; '
+    printf '[[ -n ${FUNCNAME:-} ]] && return 0 || exit 0 ; '
+    printf 'fi ; '
+    printf 'if [[ ${__EBASH_OPT_VERSION_REQUESTED:-0} -eq 1 ]] ; then '
+    printf 'opt_display_version ; '
+    printf '[[ -n ${FUNCNAME:-} ]] && return 0 || exit 0 ; '
+    printf 'fi ; '
+
+    # Output inline option/argument declarations (no runtime loops)
+    printf "%s" "${opt_decl_code}"
+    if [[ ${has_args} -eq 1 ]]; then
+        printf "opt_parse_arguments ; "
+    fi
+    printf "%s" "${arg_decl_code}"
+    if [[ -n "${argcheck_code}" ]]; then
+        printf "argcheck %s ; " "${argcheck_code}"
+    fi
+
+    # Set $@ to remaining args that weren't consumed
+    printf 'if [[ ${__EBASH_BASH_4_2} -eq 1 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then '
+    printf 'set -- "${__EBASH_ARGS[@]}" ; '
+    printf 'else '
+    printf 'set -- ; '
+    printf 'fi ; '
+
+    # Only generate rest array code if a @rest parameter was defined
+    if [[ -n "${arg_rest_var}" ]]; then
+        printf 'eval "declare -a %s=(\\"\$@\\")" ; ' "${arg_rest_var}"
+    fi
 }
 
 opt_parse_usage_name()
 {
     if [[ "${FUNCNAME[2]}" == "main" ]]; then
-        echo -n "$(basename $0)"
+        echo -n "${0##*/}"
     else
         echo -n "${FUNCNAME[2]}"
+    fi
+}
+
+# Optimized version that returns via global variable instead of spawning a subshell via echo.
+# Sets __EBASH_USAGE_NAME to the result.
+__opt_parse_usage_name()
+{
+    if [[ "${FUNCNAME[2]}" == "main" ]]; then
+        __EBASH_USAGE_NAME="${0##*/}"
+    else
+        __EBASH_USAGE_NAME="${FUNCNAME[2]}"
     fi
 }
 
 opt_parse_options()
 {
     # Odd idiom here to determine if there are no options because of bash 4.2/4.3/4.4 changing behavior. See array_size
-    # in array.sh for more info.
-    if [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -eq 2 ]] ; then
+    # in array.sh for more info. Uses cached __EBASH_BASH_4_2 to avoid repeated version checks.
+    if [[ ${__EBASH_BASH_4_2} -eq 1 ]] ; then
 
         if [[ ${#__EBASH_FULL_ARGS[@]:-} -eq 0 ]] ; then
             return 0
@@ -520,9 +612,8 @@ opt_parse_options()
 
     fi
 
-    # Function name and <option> specification if there are any options
-    local usage_name
-    usage_name=$(opt_parse_usage_name)
+    # Compute usage name once via optimized function (no subshell). Only used for error messages.
+    __opt_parse_usage_name
 
     set -- "${__EBASH_FULL_ARGS[@]}"
 
@@ -551,41 +642,42 @@ opt_parse_options()
 
                 # Find the internal name of the long option (using its name with underscores, which is how we treat it
                 # throughout the opt_parse code rather than with hyphens which is how it should be specified on the
-                # command line)
-                local canonical=""
-                canonical=$(opt_parse_find_canonical ${long_opt//-/_})
-                [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option --${long_opt}"
+                # command line). Uses optimized function that returns via global (no subshell).
+                local canonical="" opt_type=""
+                __opt_parse_find_canonical ${long_opt//-/_} || die "${__EBASH_USAGE_NAME}: unexpected option --${long_opt}"
+                canonical=${__EBASH_CANONICAL}
+                opt_type=${__EBASH_OPT_TYPE[$canonical]}
 
-                if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
+                if [[ ${opt_type} == @(string|required_string) ]] ; then
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option --${long_opt} requires an argument."
+                        [[ $# -ge 2 ]] || die "${__EBASH_USAGE_NAME}: option --${long_opt} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
 
                     # If this is a required_string assert it's non-empty
-                    if [[ ${__EBASH_OPT_TYPE[$canonical]} == "required_string" && -z "${opt_arg}" ]]; then
-                        die "$(opt_parse_usage_name): option --${long_opt} requires a non-empty argument."
+                    if [[ ${opt_type} == "required_string" && -z "${opt_arg}" ]]; then
+                        die "${__EBASH_USAGE_NAME}: option --${long_opt} requires a non-empty argument."
                     fi
 
                     __EBASH_OPT[$canonical]=${opt_arg}
 
-                elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "accumulator" ]]; then
+                elif [[ ${opt_type} == "accumulator" ]]; then
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option --${long_opt} requires an argument."
+                        [[ $# -ge 2 ]] || die "${__EBASH_USAGE_NAME}: option --${long_opt} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
 
                     # Do not allow the value to contain a newline in an accumulator since this would cause failures in
                     # array_init_nl later.
-                    [[ "${opt_arg}" =~ $'\n' ]] && die "$(opt_parse_usage_name): newlines cannot appear in accumulator values."
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "${__EBASH_USAGE_NAME}: newlines cannot appear in accumulator values."
 
                     __EBASH_OPT[$canonical]+=${opt_arg}$'\n'
 
-                elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+                elif [[ ${opt_type} == "boolean" ]] ; then
 
                     # The value that will get assigned to this boolean option
                     local value=1
@@ -610,7 +702,7 @@ opt_parse_options()
 
                     __EBASH_OPT[$canonical]=${value}
                 else
-                    die "$(opt_parse_usage_name): option --${long_opt} has an invalid type ${__EBASH_OPT_TYPE[$canonical]}"
+                    die "${__EBASH_USAGE_NAME}: option --${long_opt} has an invalid type ${opt_type}"
                 fi
                 ;;
 
@@ -623,14 +715,14 @@ opt_parse_options()
                 local opt_arg=${BASH_REMATCH[3]}
 
                 # Iterate over the single character options except the last, handling each in turn
-                local index char canonical
+                local index char canonical opt_type
                 for (( index = 0 ; index < ${#short_opts} - 1; index++ )) ; do
                     char=${short_opts:$index:1}
-                    canonical=$(opt_parse_find_canonical ${char})
-                    [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option -${short_opts:-}"
+                    __opt_parse_find_canonical ${char} || die "${__EBASH_USAGE_NAME}: unexpected option -${short_opts:-}"
+                    canonical=${__EBASH_CANONICAL}
 
                     if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
-                        die "$(opt_parse_usage_name): option -${char} requires an argument."
+                        die "${__EBASH_USAGE_NAME}: option -${char} requires an argument."
                     fi
 
                     __EBASH_OPT[$canonical]=1
@@ -638,31 +730,32 @@ opt_parse_options()
 
                 # Handle the last one separately, because it might have an argument.
                 char=${short_opts:$index}
-                canonical=$(opt_parse_find_canonical ${char})
-                [[ -n ${canonical} ]] || die "$(opt_parse_usage_name): unexpected option -${char}"
+                __opt_parse_find_canonical ${char} || die "${__EBASH_USAGE_NAME}: unexpected option -${char}"
+                canonical=${__EBASH_CANONICAL}
+                opt_type=${__EBASH_OPT_TYPE[$canonical]}
 
                 # If it expects an argument, make sure it has one and use it.
-                if [[ ${__EBASH_OPT_TYPE[$canonical]} == @(string|required_string) ]] ; then
+                if [[ ${opt_type} == @(string|required_string) ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option -${char} requires an argument."
+                        [[ $# -ge 2 ]] || die "${__EBASH_USAGE_NAME}: option -${char} requires an argument."
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
                     fi
 
                     # If this is a required_string assert it's non-empty
-                    if [[ ${__EBASH_OPT_TYPE[$canonical]} == "required_string" && -z "${opt_arg}" ]]; then
-                        die "$(opt_parse_usage_name): option -${char} requires a non-empty argument."
+                    if [[ ${opt_type} == "required_string" && -z "${opt_arg}" ]]; then
+                        die "${__EBASH_USAGE_NAME}: option -${char} requires a non-empty argument."
                     fi
 
                     __EBASH_OPT[$canonical]=${opt_arg}
 
-                elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "accumulator" ]] ; then
+                elif [[ ${opt_type} == "accumulator" ]] ; then
 
                     # If it wasn't specified after an equal sign, instead grab the next argument off the command line
                     if [[ -z ${has_arg} ]] ; then
-                        [[ $# -ge 2 ]] || die "$(opt_parse_usage_name): option -${char} requires an argument but didn't receive one."
+                        [[ $# -ge 2 ]] || die "${__EBASH_USAGE_NAME}: option -${char} requires an argument but didn't receive one."
 
                         opt_arg=$2
                         shift && (( shift_count += 1 ))
@@ -670,11 +763,11 @@ opt_parse_options()
 
                     # Do not allow the value to contain a newline in an accumulator since this would cause failures in
                     # array_init_nl later.
-                    [[ "${opt_arg}" =~ $'\n' ]] && die "$(opt_parse_usage_name): newlines cannot appear in accumulator values."
+                    [[ "${opt_arg}" =~ $'\n' ]] && die "${__EBASH_USAGE_NAME}: newlines cannot appear in accumulator values."
 
                     __EBASH_OPT[$canonical]+=${opt_arg}$'\n'
 
-                elif [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" ]] ; then
+                elif [[ ${opt_type} == "boolean" ]] ; then
 
                     # Boolean options may optionally be specified a value via -b=(0|1). Take it if it's there.
                     if [[ -n ${has_arg} ]] ; then
@@ -684,7 +777,7 @@ opt_parse_options()
                     fi
 
                 else
-                    die "$(opt_parse_usage_name): option -${char} has an invalid type ${__EBASH_OPT_TYPE[$canonical]}"
+                    die "${__EBASH_USAGE_NAME}: option -${char} has an invalid type ${opt_type}"
                 fi
                 ;;
             *)
@@ -693,9 +786,9 @@ opt_parse_options()
         esac
 
         # Make sure that the value chosen for boolean options is either 0 or 1
-        if [[ ${__EBASH_OPT_TYPE[$canonical]} == "boolean" \
+        if [[ ${opt_type:-} == "boolean" \
             && ${__EBASH_OPT[$canonical]} != 1 && ${__EBASH_OPT[$canonical]} != 0 ]] ; then
-                die "$(opt_parse_usage_name): option $canonical can only be 0 or 1 but was ${__EBASH_OPT[$canonical]}."
+                die "${__EBASH_USAGE_NAME}: option $canonical can only be 0 or 1 but was ${__EBASH_OPT[$canonical]}."
         fi
 
         # Move on to the next item, recognizing that an option may have consumed the last one
@@ -706,20 +799,26 @@ opt_parse_options()
     # in the calling function.
     #
     # Odd idiom here to determine if this array contains anything because of bash 4.2/4.3/4.4 changing behavior. See
-    # array_size in array.sh for more info.
-    if [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -eq 2 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then
+    # array_size in array.sh for more info. Uses cached __EBASH_BASH_4_2.
+    if [[ ${__EBASH_BASH_4_2} -eq 1 && ${#__EBASH_ARGS[@]:-} -gt 0 || -v __EBASH_ARGS[@] ]] ; then
         __EBASH_ARGS=( "${__EBASH_ARGS[@]:$shift_count}" )
     fi
 }
 
-opt_parse_find_canonical()
+# Optimized version that returns via global variable instead of spawning a subshell via echo.
+# Sets __EBASH_CANONICAL to the result. Returns 0 if found, 1 if not found.
+#
+# OPTIMIZATION: Uses direct hash lookup table (__EBASH_OPT_LOOKUP) for O(1) lookup instead of
+# iterating through all options with regex matching. The lookup table maps ALL valid option names
+# (including synonyms and no_ prefixes for booleans) directly to their canonical name.
+__opt_parse_find_canonical()
 {
-    for option in "${!__EBASH_OPT[@]}" ; do
-        if [[ ${1} =~ ${__EBASH_OPT_REGEX[$option]} ]] ; then
-            echo "${option}"
-            return 0
-        fi
-    done
+    if [[ -n "${__EBASH_OPT_LOOKUP[$1]:-}" ]]; then
+        __EBASH_CANONICAL="${__EBASH_OPT_LOOKUP[$1]}"
+        return 0
+    fi
+    __EBASH_CANONICAL=""
+    return 1
 }
 
 opt_parse_arguments()

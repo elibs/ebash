@@ -35,7 +35,7 @@
 #   2) Emsg and other message producing internals (but not the message functions like edebug, einfo)
 #   3) Internals of die and stack generation (but leaving some parts of die so it's more clear what is happening.)
 #   4) Signame, which does translations amongst signal names in various styles and signal numbers.
-: ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|string_trim|print_value|lval|disable_signals|reenable_signals|__eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
+: ${ETRACE_BLACKLIST:=@(opt_parse|opt_parse_setup|opt_parse_options|opt_parse_arguments|__opt_parse_find_canonical|argcheck|ecolor|ecolor_internal|ecolor_code|einteractive|emsg|string_trim|print_value|lval|disable_signals|reenable_signals|__eerror_internal|eerror_stacktrace|stacktrace|stacktrace_array|signame|array_size|array_empty|array_not_empty)}
 
 opt_usage etrace <<'END'
 `etrace` is an extremely powerful debugging technique. It essentially allows you to selectively emit a colorized
