@@ -141,8 +141,8 @@ jobs:
             git config user.name "github-actions"
             git config user.email "github-actions@github.com"
 
-            # Get the next version
-            next_version=$(bin/ebash cicd_print | grep version_tag_next | cut -d= -f2)
+            # Get the next version (strip quotes from pack output)
+            next_version=$(bin/ebash cicd_print | grep version_tag_next | cut -d= -f2 | tr -d '"')
             echo "tag=${next_version}" >> "${GITHUB_OUTPUT}"
 
             # Update version files and commit
