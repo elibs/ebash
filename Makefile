@@ -24,7 +24,6 @@ FAILOUT  ?= $(or ${failout},0)
 FILTER   ?= $(or ${filter},)
 JOBS     ?= $(or ${jobs},$(shell echo $$(($$(nproc) * 2))))
 MOUNTNS  ?= $(or ${mountns},0)
-PROGRESS ?= $(or ${progress},1)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
 REGISTRY ?= $(or ${registry},ghcr.io)
@@ -34,7 +33,26 @@ SUDO     ?= $(or ${sudo},0)
 V        ?= $(or $v,0)
 
 # Variables that need to be exported to be seen by external processes we exec.
-ENVLIST  ?= CACHE CI COLUMNS EDEBUG EINTERACTIVE EXCLUDE FAILFAST FAILOUT FILTER JOBS PRETEND PROGRESS PULL PUSH REGISTRY REPEAT RETRIES V
+ENVLIST  ?=          \
+	CACHE            \
+	CI               \
+	COLUMNS          \
+	EDEBUG           \
+	EFUNCS           \
+	EINTERACTIVE     \
+	EPROGRESS_DELAY  \
+	EPROGRESS_INLINE \
+	EXCLUDE          \
+	FAILFAST         \
+	FAILOUT          \
+	FILTER           \
+	JOBS             \
+	PULL             \
+	PUSH             \
+	REGISTRY         \
+	REPEAT           \
+	RETRIES          \
+	V
 export ${ENVLIST}
 
 .SILENT:
@@ -75,7 +93,6 @@ test:
 		--filter="${FILTER}"        \
 		--jobs=${JOBS}              \
 		--mountns=${MOUNTNS}        \
-		--jobs-progress=${PROGRESS} \
 		--repeat=${REPEAT}          \
 		--retries=${RETRIES}        \
 		--sudo=${SUDO}              \
