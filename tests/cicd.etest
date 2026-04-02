@@ -434,7 +434,9 @@ ETEST_cicd_version_non_ebash_repo()
     etestmsg "Ensure origin is NOT ebash (using etest from setup)"
     local origin
     origin=$(git remote get-url origin)
-    assert_false [[ "${origin}" == *ebash* ]]
+    if [[ "${origin}" == *ebash* ]]; then
+        die "Origin should not match ebash"
+    fi
 
     etestmsg "Create VERSION file with known version"
     echo "v8.8.8 (2025-01-01)" > VERSION
