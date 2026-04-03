@@ -101,7 +101,7 @@ create_options_json()
 }
 
 # Extract test output from ETEST_LOG for a given test name and status (FAILED/SKIPPED).
-# Matches from test banner "| ETEST_name" to the status line, strips ANSI codes and banner.
+# Matches from test banner "│ ETEST_name" to the status line, strips ANSI codes and banner.
 __extract_test_output()
 {
     local name=$1
@@ -109,12 +109,14 @@ __extract_test_output()
 
     [[ ! -f "${ETEST_LOG}" ]] && return 0
 
-    # Strip ANSI codes first, then extract between banner header and FAILED line
-    sed 's/\x1b\[[0-9;]*m//g' "${ETEST_LOG}" \
+    # Strip ANSI codes, reverse file to search backwards from status line to banner,
+    # extract the range, reverse back, then remove the banner header lines.
+    cat "${ETEST_LOG}" \
+        | noansi \
         | tac \
         | sed -n "/${name}.*${status}/,/│ ${name}/p" \
         | tac \
-        | sed '1,/^┌.*┐$/d'
+        | sed '1,/^└.*┘$/d'
 }
 
 create_failure_output()
