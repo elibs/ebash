@@ -9,8 +9,11 @@
 $(skip_file_if "! os linux")
 
 # Override default rundir to avoid requiring root
-__EBASH_DAEMON_RUNDIR="${ETEST_WORK}/daemon-run"
-mkdir -p "${__EBASH_DAEMON_RUNDIR}"
+setup()
+{
+    __EBASH_DAEMON_RUNDIR="${ETEST_WORK}/daemon-run"
+    mkdir -p "${__EBASH_DAEMON_RUNDIR}"
+}
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
