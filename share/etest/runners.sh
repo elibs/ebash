@@ -310,7 +310,8 @@ run_all_tests()
         OS+=" (native)"
     fi
 
-    local etest_name="$(ecolor bold cyan)ETEST$(ecolor bold magenta) ${EBASH_VERSION:-}$(ecolor reset)"
+    local etest_name
+    etest_name="$(ecolor bold cyan)ETEST$(ecolor bold magenta) ${EBASH_VERSION:-}$(ecolor reset)"
     if [[ -n "${name}" ]]; then
         etest_name+=" - \"${name//_/ }\""
     fi
