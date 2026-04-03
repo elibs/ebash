@@ -310,8 +310,7 @@ run_all_tests()
         OS+=" (native)"
     fi
 
-    local etest_name
-    etest_name="$(ecolor bold cyan)ETEST$(ecolor bold magenta) ${EBASH_VERSION:-}$(ecolor reset)"
+    local etest_name="$(ecolor bold cyan)ETEST$(ecolor bold magenta) ${EBASH_VERSION:-}$(ecolor reset)"
     if [[ -n "${name}" ]]; then
         etest_name+=" - \"${name//_/ }\""
     fi
@@ -390,15 +389,12 @@ __worker_main()
         # Check for abort signal before claiming a new job (failfast)
         [[ -f "${abort_file}" ]] && break
 
-        # Atomically claim next job index
+        # Atomically claim next job index using elock (cross-platform)
         local job_idx
-        job_idx=$(
-            flock "${counter_lock}" -c "
-                read n < '${counter_file}' 2>/dev/null || n=0
-                echo \$n
-                echo \$(( n + 1 )) > '${counter_file}'
-            "
-        )
+        elock "${counter_lock}"
+        read job_idx < "${counter_file}" 2>/dev/null || job_idx=0
+        echo $(( job_idx + 1 )) > "${counter_file}"
+        eunlock "${counter_lock}"
 
         # Exit if no more jobs
         [[ ${job_idx} -ge ${job_total} ]] && break
@@ -498,8 +494,8 @@ __worker_main()
 
         pack_save info "${jobpath}/info.pack"
 
-        # Signal completion by writing job index to done file (with flock for atomicity)
-        flock "${jobdir}/done.lock" -c "echo '${job_idx}' >> '${jobdir}/done'"
+        # Signal completion by creating per-job done marker (cross-platform, no flock needed)
+        touch "${jobpath}/done"
     done
 }
 
@@ -535,11 +531,8 @@ __run_all_tests_parallel()
         mkdir "${jobdir}/${_i}"
     done
 
-    # Initialize counter-based job queue
+    # Initialize counter-based job queue (locking handled by elock)
     echo "0" > "${jobdir}/counter"
-    touch "${jobdir}/counter.lock"
-    touch "${jobdir}/done"
-    touch "${jobdir}/done.lock"
 
     # Create eprogress status file
     local etest_progress_file="${jobdir}/progress.txt"
@@ -574,8 +567,8 @@ __run_all_tests_parallel()
     # Add trap to kill workers on exit
     trap_add "for p in ${worker_pids[*]}; do ekill \$p 2>/dev/null; done"
 
-    # Monitor progress by watching the done file
-    local last_done_count=0 done_count=0
+    # Monitor progress by checking per-job done markers
+    local done_count=0
     declare -A processed_jobs=()
 
     while true; do
@@ -587,68 +580,65 @@ __run_all_tests_parallel()
             fi
         done
 
-        # Process newly completed jobs
-        # IMPORTANT: Snapshot the done file contents to avoid blocking on continuous appends
-        local done_snapshot=""
-        done_snapshot=$(cat "${jobdir}/done" 2>/dev/null) || true
-        if [[ -n "${done_snapshot}" ]]; then
-            local job_idx jobs_this_batch=0
-            while read -r job_idx; do
-                [[ -z "${job_idx}" ]] && continue
-                [[ -n "${processed_jobs[$job_idx]:-}" ]] && continue
+        # Process newly completed jobs by checking for per-job done markers
+        local job_idx jobs_this_batch=0
+        for (( job_idx=0; job_idx < etest_job_total; job_idx++ )); do
+            [[ -n "${processed_jobs[$job_idx]:-}" ]] && continue
 
-                local path="${jobdir}/${job_idx}"
-                if [[ -f "${path}/info.pack" ]]; then
-                    local info=""
-                    pack_load info "${path}/info.pack"
-                    $(pack_import info)
+            local path="${jobdir}/${job_idx}"
+            # Check for done marker file (cross-platform, no flock needed)
+            [[ -f "${path}/done" ]] || continue
 
-                    processed_jobs[$job_idx]=1
+            if [[ -f "${path}/info.pack" ]]; then
+                local info=""
+                pack_load info "${path}/info.pack"
+                $(pack_import info)
 
-                    eval "$(echo "${tests_duration}" | base64 --decode)"
-                    for key in "${!tests_duration[@]}"; do
-                        TESTS_DURATION[$key]=${tests_duration[$key]}
-                    done
+                processed_jobs[$job_idx]=1
 
-                    SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
-                    NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + num_tests_executed ))
-                    NUM_TESTS_PASSED=$(( NUM_TESTS_PASSED + num_tests_passed ))
-                    NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + num_tests_failed ))
-                    NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + ${num_tests_skipped:-0} ))
+                eval "$(echo "${tests_duration}" | base64 --decode)"
+                for key in "${!tests_duration[@]}"; do
+                    TESTS_DURATION[$key]=${tests_duration[$key]}
+                done
 
-                    [[ -n "${tests_passed}" ]] && TESTS_PASSED[$suite]+="${tests_passed} "
-                    [[ -n "${tests_failed}" ]] && TESTS_FAILED[$suite]+="${tests_failed} "
-                    [[ -n "${tests_skipped:-}" ]] && TESTS_SKIPPED[$suite]+="${tests_skipped} "
+                SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
+                NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + num_tests_executed ))
+                NUM_TESTS_PASSED=$(( NUM_TESTS_PASSED + num_tests_passed ))
+                NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + num_tests_failed ))
+                NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + ${num_tests_skipped:-0} ))
 
-                    if ! array_contains TEST_SUITES "${suite}"; then
-                        TEST_SUITES+=( "${suite}" )
-                    fi
+                [[ -n "${tests_passed}" ]] && TESTS_PASSED[$suite]+="${tests_passed} "
+                [[ -n "${tests_failed}" ]] && TESTS_FAILED[$suite]+="${tests_failed} "
+                [[ -n "${tests_skipped:-}" ]] && TESTS_SKIPPED[$suite]+="${tests_skipped} "
 
-                    sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
-                    if [[ ${jobs_progress} -eq 0 ]]; then
-                        local _fd_path
-                        _fd_path="$(fd_path)/${ETEST_STDERR_FD}"
-                        if [[ ${verbose} -eq 0 ]]; then
-                            cat "${path}/etest.out" >> "${_fd_path}"
-                        else
-                            sed '/• PROGRESS.*/d' "${path}/output.log" >> "${_fd_path}"
-                        fi
-                    fi
+                if ! array_contains TEST_SUITES "${suite}"; then
+                    TEST_SUITES+=( "${suite}" )
+                fi
 
-                    # Update progress every 10 jobs for smoother display
-                    (( ++jobs_this_batch ))
-                    if (( jobs_this_batch % 10 == 0 )); then
-                        __update_jobs_progress_file
-                    fi
-
-                    # Check failfast - signal workers to stop via abort file
-                    if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]]; then
-                        touch "${jobdir}/abort"
-                        break 2
+                sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
+                if [[ ${jobs_progress} -eq 0 ]]; then
+                    local _fd_path
+                    _fd_path="$(fd_path)/${ETEST_STDERR_FD}"
+                    if [[ ${verbose} -eq 0 ]]; then
+                        cat "${path}/etest.out" >> "${_fd_path}"
+                    else
+                        sed '/• PROGRESS.*/d' "${path}/output.log" >> "${_fd_path}"
                     fi
                 fi
-            done <<< "${done_snapshot}"
-        fi
+
+                # Update progress every 10 jobs for smoother display
+                (( ++jobs_this_batch ))
+                if (( jobs_this_batch % 10 == 0 )); then
+                    __update_jobs_progress_file
+                fi
+
+                # Check failfast - signal workers to stop via abort file
+                if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]]; then
+                    touch "${jobdir}/abort"
+                    break 2
+                fi
+            fi
+        done
 
         # Update progress display
         NUM_TESTS_RUNNING=${workers_alive}
@@ -772,14 +762,7 @@ __display_results_table()
     echo
 
     declare -a table
-    local has_skipped=0
-    [[ ${NUM_TESTS_SKIPPED:-0} -gt 0 ]] && has_skipped=1
-
-    if [[ ${has_skipped} -eq 1 ]]; then
-        array_init_nl table "Suite|Result|# Passed|# Failed|# Skipped"
-    else
-        array_init_nl table "Suite|Result|# Passed|# Failed"
-    fi
+    array_init_nl table "Suite|Result|# Passed|# Failed|# Skipped"
 
     local suite_name
     for suite_name in "${TEST_SUITES[@]}"; do
@@ -820,11 +803,7 @@ __display_results_table()
             skipped_display="$(ecolor bold yellow)${skipped}$(ecolor none)"
         fi
 
-        if [[ ${has_skipped} -eq 1 ]]; then
-            array_add_nl table "${suite_name}|${status}|${passed}|${failed_display}|${skipped_display}"
-        else
-            array_add_nl table "${suite_name}|${status}|${passed}|${failed_display}"
-        fi
+        array_add_nl table "${suite_name}|${status}|${passed}|${failed_display}|${skipped_display}"
     done
 
     etable --style=boxart --title="$(ecolor bold)Test Results$(ecolor none)" "${table[@]}"
