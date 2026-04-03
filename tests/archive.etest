@@ -1014,7 +1014,7 @@ archive_create_mount_test()
     assert_directory_contents mnt src src/file1 src/file2 src/sub1 src/sub1/file1 src/sub1/file2 src/sub2 src/sub2/file3 src/sub2/file4
 
     etestmsg "Unmounting src.${ftype}"
-    eunmount_recursive mnt
+    eunmount --recursive mnt
 }
 
 ETEST_archive_create_mount_cgz()      { archive_create_mount_test cgz;      }
