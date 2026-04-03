@@ -409,12 +409,7 @@ efetch_wait()
 
     # Wait for tail to complete. That process will stop gracefully when the process we are tailing exits.
     if [[ -n "${tail_pid}" ]]; then
-        # Ignore tail's exit code since it may fail if the output file is deleted (expected with delete_output=1).
-        if [[ "${delete_output}" -eq 1 ]]; then
-            wait ${tail_pid} || true
-        else
-            wait ${tail_pid}
-        fi
+        wait ${tail_pid}
     else
 
         if [[ "${progress}" -eq 1 ]]; then
