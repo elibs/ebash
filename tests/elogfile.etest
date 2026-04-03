@@ -25,8 +25,6 @@ ETEST_elogfile()
 
 ETEST_elogfile_kill()
 {
-    etestmsg "Checking existing elogfile pids from main etest process"
-    array_not_empty __EBASH_ELOGFILE_PID_SETS
     local initial_pids=() updated_pids=()
     readarray -t initial_pids < <(elogfile_pids)
     etestmsg "$(lval initial_pids)"
@@ -64,8 +62,6 @@ ETEST_elogfile_kill()
 
 ETEST_elogfile_kill_pids()
 {
-    etestmsg "Checking existing elogfile pids from main etest process"
-    array_not_empty __EBASH_ELOGFILE_PID_SETS
     local initial_pids=() updated_pids=()
     readarray -t initial_pids < <(elogfile_pids)
     etestmsg "$(lval initial_pids)"
@@ -103,8 +99,6 @@ ETEST_elogfile_kill_pids()
 
 ETEST_elogfile_kill_pids_separately()
 {
-    etestmsg "Checking existing elogfile pids from main etest process"
-    array_not_empty __EBASH_ELOGFILE_PID_SETS
     local initial_pids=() updated_pids=()
     readarray -t initial_pids < <(elogfile_pids)
     etestmsg "$(lval initial_pids)"
@@ -143,8 +137,6 @@ ETEST_elogfile_kill_pids_separately()
 
 ETEST_elogfile_kill_pids_separately_many()
 {
-    etestmsg "Checking existing elogfile pids from main etest process"
-    array_not_empty __EBASH_ELOGFILE_PID_SETS
     local initial_pids=() updated_pids1=() updated_pids2=() new_pids=()
     readarray -t initial_pids < <(elogfile_pids)
     etestmsg "$(lval initial_pids)"
@@ -196,12 +188,8 @@ ETEST_elogfile_kill_pids_separately_many()
     done
 }
 
-
-
 ETEST_elogfile_kill_pidset()
 {
-    etestmsg "Checking existing elogfile pids from main etest process"
-    array_not_empty __EBASH_ELOGFILE_PID_SETS
     local initial_pids=() updated_pids=()
     readarray -t initial_pids < <(elogfile_pids)
     etestmsg "$(lval initial_pids)"
