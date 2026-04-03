@@ -1480,7 +1480,8 @@ archive_extract_strip_collisions_test()
     etestmsg "Extracting src.${ftype} to dest --strip=2"
     archive_extract --strip=2 src.${ftype} dest
 
-    assert_directory_contents dest f1 f2 f3 f4 sub sub/as1 sub/as2 sub/bs1 sub/bs2
+    # Directory collisions use backup numbering (sub.~1~) rather than merging
+    assert_directory_contents dest f1 f2 f3 f4 sub sub.~1~ sub/as1 sub/as2 sub.~1~/bs1 sub.~1~/bs2
 }
 
 ETEST_archive_extract_strip_collisions_cgz()      { archive_extract_strip_collisions_test cgz;      }
@@ -1640,19 +1641,24 @@ ETEST_archive_append_no_shadow_mount_directory_tar_gz() { archive_append_no_shad
 ETEST_archive_append_no_shadow_mount_directory_tlz()    { archive_append_no_shadow_mount_directory_test tlz;    }
 # Note: iso and squashfs do not support append
 
-# Verify appending to non-existing archive fails (not supported for iso/squashfs)
+# Verify appending to non-existing archive creates it (not supported for iso/squashfs)
 archive_append_nonexisting_test()
 {
     $(skip_if '[[ ${EUID} -ne 0 ]]')
     local ftype=$1
 
     etestmsg "Populating source directory"
-    efreshdir src
+    efreshdir src dest
     touch src/{file1,file2}
 
-    etestmsg "Appending to nonexisting archive (should fail)"
+    etestmsg "Appending to nonexisting archive (should create it)"
     assert_not_exists nonexisting.${ftype}
-    assert_false archive_append nonexisting.${ftype} src/file1 src/file2
+    archive_append nonexisting.${ftype} src/file1 src/file2
+    assert_exists nonexisting.${ftype}
+
+    etestmsg "Extracting and verifying contents"
+    archive_extract nonexisting.${ftype} dest
+    assert_directory_contents dest src src/file1 src/file2
 }
 
 ETEST_archive_append_nonexisting_cgz()    { archive_append_nonexisting_test cgz;    }
