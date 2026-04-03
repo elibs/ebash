@@ -685,43 +685,52 @@ __run_all_tests_parallel()
                     fi
                 done
 
-                # Build crash message and include in die (since die output clearly works)
-                local jobs_remaining crash_msg
+                # Record crash as a test failure so --failure-output shows it
+                local jobs_remaining
                 jobs_remaining=$(( etest_job_total - ${#processed_jobs[@]} ))
 
-                crash_msg="Worker ${wpid} died (exit code ${wrc})"
-                crash_msg+=", jobs: ${#processed_jobs[@]}/${etest_job_total} done, ${jobs_remaining} remaining"
                 if [[ -n "${crashed_job}" ]]; then
-                    crash_msg+=", crashed job: ${crashed_job}, log: jobs/${j}/output.log"
-                fi
+                    local testfile="${crashed_job%%:*}"
+                    local testfunc="${crashed_job#*:}"
+                    local suite
+                    suite="$(basename "${testfile}" .etest)"
 
-                # Display the crashed job's output before dying (use stdout, not stderr)
-                if [[ -n "${crashed_jobpath}" && -f "${crashed_jobpath}/output.log" ]]; then
-                    echo ""
-                    echo "=== Output from crashed job: ${crashed_job} ==="
-                    cat "${crashed_jobpath}/output.log"
-                    echo "=== End of crashed job output ==="
-                else
-                    # Show any incomplete jobs' output as fallback
-                    echo ""
-                    echo "=== Output from incomplete jobs ==="
-                    for (( j=0; j < etest_job_total; j++ )); do
-                        local jpath="${jobdir}/${j}"
-                        if [[ ! -f "${jpath}/done" && -f "${jpath}/output.log" ]]; then
-                            echo "--- Job ${j}: ${etest_jobs_queued[$j]} ---"
-                            cat "${jpath}/output.log"
-                            echo ""
+                    # Add to TESTS_FAILED so failure output picks it up
+                    TESTS_FAILED[$suite]+="${testfunc} "
+                    NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + 1 ))
+                    if ! array_contains TEST_SUITES "${suite}"; then
+                        TEST_SUITES+=( "${suite}" )
+                    fi
+
+                    # Append crashed job output to ETEST_LOG so __extract_test_output can find it
+                    # Format matches what run_single_test produces for proper extraction
+                    {
+                        echo ""
+                        echo "+------------------------------------------+"
+                        echo "| ${testfunc}"
+                        echo "+------------------------------------------+"
+                        echo ""
+                        echo "[WORKER CRASHED - exit code ${wrc}]"
+                        echo ""
+                        if [[ -f "${crashed_jobpath}/output.log" ]]; then
+                            cat "${crashed_jobpath}/output.log"
                         fi
-                    done
-                    echo "=== End of incomplete jobs output ==="
+                        echo ""
+                        echo "${testfunc} FAILED."
+                    } >> "${ETEST_LOG}"
                 fi
 
-                # Kill remaining workers
+                eerror "Worker ${wpid} crashed (exit code ${wrc}), jobs: ${#processed_jobs[@]}/${etest_job_total} done"
+                if [[ -n "${crashed_job}" ]]; then
+                    eerror "Crashed job: ${crashed_job} (log: jobs/${j}/output.log)"
+                fi
+
+                # Kill remaining workers and signal abort
                 for wpid in "${worker_pids[@]}"; do
                     kill "${wpid}" 2>/dev/null || true
                 done
-
-                die "${crash_msg}"
+                touch "${jobdir}/abort"
+                break 2
             fi
         done
 
