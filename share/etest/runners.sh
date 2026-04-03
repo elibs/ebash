@@ -666,6 +666,10 @@ __run_all_tests_parallel()
                 # Worker is dead but we never told it to stop - this is a crash
                 wait "${wpid}" 2>/dev/null && wrc=0 || wrc=$?
 
+                # Kill eprogress FIRST so our output isn't mangled by terminal codes
+                array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
+                eprogress_kill --rc=1 &>> ${ETEST_OUT} || true
+
                 # Find which job this worker was running
                 local crashed_job="" crashed_jobpath="" j
                 for (( j=0; j < etest_job_total; j++ )); do
@@ -681,30 +685,47 @@ __run_all_tests_parallel()
                     fi
                 done
 
+                # Output crash info directly to stderr (bypass eerror in case of issues)
                 local jobs_remaining
                 jobs_remaining=$(( etest_job_total - ${#processed_jobs[@]} ))
-                eerror "FATAL: Worker ${wpid} died unexpectedly (exit code ${wrc})!"
-                eerror "  Jobs total:     ${etest_job_total}"
-                eerror "  Jobs processed: ${#processed_jobs[@]}"
-                eerror "  Jobs remaining: ${jobs_remaining}"
+                echo "" >&2
+                echo "===============================================================================" >&2
+                echo "FATAL: Worker ${wpid} died unexpectedly (exit code ${wrc})" >&2
+                echo "  Jobs total:     ${etest_job_total}" >&2
+                echo "  Jobs processed: ${#processed_jobs[@]}" >&2
+                echo "  Jobs remaining: ${jobs_remaining}" >&2
                 if [[ -n "${crashed_job}" ]]; then
-                    eerror "  Crashed job:    ${crashed_job}"
+                    echo "  Crashed job:    ${crashed_job}" >&2
+                else
+                    echo "  Crashed job:    (unknown - worker.pid not found)" >&2
                 fi
-                eerror ""
+                echo "===============================================================================" >&2
 
                 # Display the crashed job's output
                 if [[ -n "${crashed_jobpath}" && -f "${crashed_jobpath}/output.log" ]]; then
-                    eerror "=== Output from crashed job ==="
+                    echo "" >&2
+                    echo "=== Output from crashed job (${crashed_jobpath}/output.log) ===" >&2
                     cat "${crashed_jobpath}/output.log" >&2
-                    eerror "=== End of crashed job output ==="
+                    echo "=== End of crashed job output ===" >&2
+                else
+                    # Show any incomplete jobs' output as fallback
+                    echo "" >&2
+                    echo "=== Output from incomplete jobs ===" >&2
+                    for (( j=0; j < etest_job_total; j++ )); do
+                        local jpath="${jobdir}/${j}"
+                        if [[ ! -f "${jpath}/done" && -f "${jpath}/output.log" ]]; then
+                            echo "--- Job ${j}: ${etest_jobs_queued[$j]} ---" >&2
+                            cat "${jpath}/output.log" >&2
+                            echo "" >&2
+                        fi
+                    done
+                    echo "=== End of incomplete jobs output ===" >&2
                 fi
 
-                # Kill remaining workers and eprogress before dying
+                # Kill remaining workers
                 for wpid in "${worker_pids[@]}"; do
                     kill "${wpid}" 2>/dev/null || true
                 done
-                array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
-                eprogress_kill --rc=1 &>> ${ETEST_OUT} || true
 
                 die "Worker crashed - cannot continue"
             fi
