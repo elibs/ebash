@@ -663,7 +663,8 @@ __run_all_tests_parallel()
                 # Worker is dead but we never told it to stop - this is a crash
                 wait "${wpid}" 2>/dev/null && wrc=0 || wrc=$?
 
-                local jobs_remaining=$(( etest_job_total - ${#processed_jobs[@]} ))
+                local jobs_remaining
+                jobs_remaining=$(( etest_job_total - ${#processed_jobs[@]} ))
                 eerror "FATAL: Worker ${wpid} died unexpectedly (exit code ${wrc})!"
                 eerror "  Jobs total:     ${etest_job_total}"
                 eerror "  Jobs processed: ${#processed_jobs[@]}"
