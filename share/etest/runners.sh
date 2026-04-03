@@ -685,41 +685,35 @@ __run_all_tests_parallel()
                     fi
                 done
 
-                # Output crash info directly to stderr (bypass eerror in case of issues)
-                local jobs_remaining
+                # Build crash message and include in die (since die output clearly works)
+                local jobs_remaining crash_msg
                 jobs_remaining=$(( etest_job_total - ${#processed_jobs[@]} ))
-                echo "" >&2
-                echo "===============================================================================" >&2
-                echo "FATAL: Worker ${wpid} died unexpectedly (exit code ${wrc})" >&2
-                echo "  Jobs total:     ${etest_job_total}" >&2
-                echo "  Jobs processed: ${#processed_jobs[@]}" >&2
-                echo "  Jobs remaining: ${jobs_remaining}" >&2
-                if [[ -n "${crashed_job}" ]]; then
-                    echo "  Crashed job:    ${crashed_job}" >&2
-                else
-                    echo "  Crashed job:    (unknown - worker.pid not found)" >&2
-                fi
-                echo "===============================================================================" >&2
 
-                # Display the crashed job's output
+                crash_msg="Worker ${wpid} died (exit code ${wrc})"
+                crash_msg+=", jobs: ${#processed_jobs[@]}/${etest_job_total} done, ${jobs_remaining} remaining"
+                if [[ -n "${crashed_job}" ]]; then
+                    crash_msg+=", crashed job: ${crashed_job}"
+                fi
+
+                # Display the crashed job's output before dying (use stdout, not stderr)
                 if [[ -n "${crashed_jobpath}" && -f "${crashed_jobpath}/output.log" ]]; then
-                    echo "" >&2
-                    echo "=== Output from crashed job (${crashed_jobpath}/output.log) ===" >&2
-                    cat "${crashed_jobpath}/output.log" >&2
-                    echo "=== End of crashed job output ===" >&2
+                    echo ""
+                    echo "=== Output from crashed job: ${crashed_job} ==="
+                    cat "${crashed_jobpath}/output.log"
+                    echo "=== End of crashed job output ==="
                 else
                     # Show any incomplete jobs' output as fallback
-                    echo "" >&2
-                    echo "=== Output from incomplete jobs ===" >&2
+                    echo ""
+                    echo "=== Output from incomplete jobs ==="
                     for (( j=0; j < etest_job_total; j++ )); do
                         local jpath="${jobdir}/${j}"
                         if [[ ! -f "${jpath}/done" && -f "${jpath}/output.log" ]]; then
-                            echo "--- Job ${j}: ${etest_jobs_queued[$j]} ---" >&2
-                            cat "${jpath}/output.log" >&2
-                            echo "" >&2
+                            echo "--- Job ${j}: ${etest_jobs_queued[$j]} ---"
+                            cat "${jpath}/output.log"
+                            echo ""
                         fi
                     done
-                    echo "=== End of incomplete jobs output ===" >&2
+                    echo "=== End of incomplete jobs output ==="
                 fi
 
                 # Kill remaining workers
@@ -727,7 +721,7 @@ __run_all_tests_parallel()
                     kill "${wpid}" 2>/dev/null || true
                 done
 
-                die "Worker crashed - cannot continue"
+                die "${crash_msg}"
             fi
         done
 
