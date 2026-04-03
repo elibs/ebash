@@ -411,6 +411,9 @@ __worker_main()
         local single_func="${job_spec#*:}"
         local jobpath="${jobdir}/${job_idx}"
 
+        # Write our PID so crash detection knows which job we're running
+        echo "${BASHPID}" > "${jobpath}/worker.pid"
+
         # Redirect output to job log
         exec &> "${jobpath}/output.log"
 
@@ -663,14 +666,38 @@ __run_all_tests_parallel()
                 # Worker is dead but we never told it to stop - this is a crash
                 wait "${wpid}" 2>/dev/null && wrc=0 || wrc=$?
 
+                # Find which job this worker was running
+                local crashed_job="" crashed_jobpath="" j
+                for (( j=0; j < etest_job_total; j++ )); do
+                    local jpath="${jobdir}/${j}"
+                    if [[ -f "${jpath}/worker.pid" ]] && [[ ! -f "${jpath}/done" ]]; then
+                        local job_pid
+                        job_pid=$(cat "${jpath}/worker.pid" 2>/dev/null || echo "")
+                        if [[ "${job_pid}" == "${wpid}" ]]; then
+                            crashed_job="${etest_jobs_queued[$j]}"
+                            crashed_jobpath="${jpath}"
+                            break
+                        fi
+                    fi
+                done
+
                 local jobs_remaining
                 jobs_remaining=$(( etest_job_total - ${#processed_jobs[@]} ))
                 eerror "FATAL: Worker ${wpid} died unexpectedly (exit code ${wrc})!"
                 eerror "  Jobs total:     ${etest_job_total}"
                 eerror "  Jobs processed: ${#processed_jobs[@]}"
                 eerror "  Jobs remaining: ${jobs_remaining}"
+                if [[ -n "${crashed_job}" ]]; then
+                    eerror "  Crashed job:    ${crashed_job}"
+                fi
                 eerror ""
-                eerror "Check ${logdir}/jobs/*/output.log for worker output"
+
+                # Display the crashed job's output
+                if [[ -n "${crashed_jobpath}" && -f "${crashed_jobpath}/output.log" ]]; then
+                    eerror "=== Output from crashed job ==="
+                    cat "${crashed_jobpath}/output.log" >&2
+                    eerror "=== End of crashed job output ==="
+                fi
 
                 # Kill remaining workers and eprogress before dying
                 for wpid in "${worker_pids[@]}"; do
