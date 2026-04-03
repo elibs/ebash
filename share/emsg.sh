@@ -739,7 +739,8 @@ tput()
         return 0
     fi
 
-    command tput "$@" || true
+    # Use -T flag to force terminal type which allows tput to work without a real TTY
+    command tput -T "${TERM}" "$@" || true
 }
 
 opt_usage einfo <<'END'
