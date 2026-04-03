@@ -98,8 +98,13 @@ elif [ "${DISTRO}" = "debian" ]; then
 
     apt install -y          \
         curl                \
+        locales             \
         make                \
         unzip               \
+
+    # Setup UTF-8 locale for proper Unicode handling
+    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen
+    locale-gen
 
 #----------------------------------------------------------------------------------------------------------------------
 #
