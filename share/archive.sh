@@ -624,16 +624,28 @@ archive_extract()
 
         # The find command below will find all files and directories that are one path node below the strip component
         # depth. These are the ones which need to be moved up to the current directory (which is the new dest_real that
-        # we extracted everything to). We add -print so that we can capture a list of the directories that we affected
-        # so we can do a second pass to remove the orphaned directories afterwards.
-        local move_level=0 orphans=()
+        # we extracted everything to). We collect the parent directories as orphans for cleanup afterwards.
+        local move_level=0 orphan_set=() orphans=()
         move_level=$((strip_components+1))
-        orphans=( $(find .              \
-            -mindepth ${move_level}     \
-            -maxdepth ${move_level}     \
-            -print0 -exec mv --backup=numbered {} . \; \
-            | xargs --null --no-run-if-empty --max-lines=1 dirname | sort --unique)
-        )
+
+        while IFS= read -r -d '' item; do
+            orphan_set+=( "$(dirname "${item}")" )
+            local name
+            name=$(basename "${item}")
+
+            if [[ -d "${item}" && -d "./${name}" ]]; then
+                # Both source and destination are directories - merge contents then remove source.
+                # Using cp -a with "/." suffix copies the contents of the directory rather than the directory itself.
+                cp -a "${item}/." "./${name}/"
+                rm -rf "${item}"
+            else
+                # For files or non-colliding directories, use mv with backup numbering for file collisions.
+                mv --backup=numbered "${item}" .
+            fi
+        done < <(find . -mindepth ${move_level} -maxdepth ${move_level} -print0)
+
+        # Deduplicate orphan directories
+        orphans=( $(printf '%s\n' "${orphan_set[@]}" | sort -u) )
 
         # Now recursively delete the orhpans. There's no good way to do this inline so it's just easier and safer to
         # do it separately.
