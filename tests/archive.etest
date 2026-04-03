@@ -1135,6 +1135,11 @@ archive_extract_pivot_root_multi_deep_test()
 
     etestmsg "Extracting to new"
     archive_extract ${oldroot}/var/log/sfbackup.${ftype} new
+
+    # Remove the archive file before comparing since it wasn't part of the original contents
+    rm ${oldroot}/var/log/sfbackup.${ftype}
+
+    # Now we can diff
     diff --recursive ${oldroot} new
 }
 
