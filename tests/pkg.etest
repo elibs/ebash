@@ -73,6 +73,8 @@ ETEST_pkg_known()
 
 ETEST_pkg_install_twice()
 {
+    $(skip_if "[[ ${EUID} -ne 0 ]]")
+
     etestmsg "First make sure $(lval pkg_to_install) is not installed."
     pkg_known ${pkg_to_install}
     assert_false pkg_installed ${pkg_to_install}
@@ -102,6 +104,8 @@ ETEST_pkg_install_twice()
 
 ETEST_pkg_install_and_upgrade()
 {
+    $(skip_if "[[ ${EUID} -ne 0 ]]")
+
     etestmsg "First make sure $(lval pkg_to_install) is not installed."
     pkg_known ${pkg_to_install}
     assert_false pkg_installed ${pkg_to_install}
@@ -131,6 +135,8 @@ ETEST_pkg_install_and_upgrade()
 
 ETEST_pkg_install_distro()
 {
+    $(skip_if "[[ ${EUID} -ne 0 ]]")
+
     etestmsg "First make sure $(lval pkg_to_install) is not installed."
     pkg_known ${pkg_to_install}
     assert_false pkg_installed ${pkg_to_install}
@@ -157,6 +163,8 @@ ETEST_pkg_install_distro()
 
 ETEST_pkg_install_distro_duplicate_keys()
 {
+    $(skip_if "[[ ${EUID} -ne 0 ]]")
+
     # This test consistently fails on some distros due to package availability.
     $(skip_if "os_distro arch debian ubuntu")
 

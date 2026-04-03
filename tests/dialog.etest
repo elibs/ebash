@@ -7,11 +7,8 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# Skip tests if dialog is not installed
-# Use type -P (bash builtin) instead of which (external command)
-if ! type -P dialog &>/dev/null; then
-    return 0
-fi
+# Skip tests if dialog binary is not installed (not the wrapper function)
+$(skip_file_if "! type -P dialog &>/dev/null")
 
 setup()
 {

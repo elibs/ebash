@@ -32,7 +32,6 @@ ETEST_results_summary_passed()
     NUM_TESTS_EXECUTED=5
     NUM_TESTS_PASSED=5 TESTS_PASSED=( [suite]="test1 test2 test3 test4 test5" )
     NUM_TESTS_FAILED=0 TESTS_FAILED=()
-    NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
     DURATION="${SECONDS}"
 
     etestmsg "Calling create_summary"
@@ -44,9 +43,8 @@ ETEST_results_summary_passed()
     assert_exists "${ETEST_FAILURE_LOG}"
     [[ -s "${ETEST_JSON}" ]]
 
-    etestmsg "Checking log file has no failure/flaky markers"
+    etestmsg "Checking log file has no failure markers"
     assert_false grep "Failed Tests" "${ETEST_LOG}"
-    assert_false grep "Flaky Tests"  "${ETEST_LOG}"
 
     etestmsg "Checking failure log is empty for passing tests"
     assert_false test -s "${ETEST_FAILURE_LOG}"
@@ -57,7 +55,6 @@ ETEST_results_summary_passed()
     assert_eq 5 "${numTestsExecuted}"
     assert_eq 5 "${numTestsPassed}"
     assert_eq 0 "${numTestsFailed}"
-    assert_eq 0 "${numTestsFlaky}"
     assert_eq "${DURATION}s" "${duration}"
 
     etestmsg "Checking test suite results in json file"
@@ -65,8 +62,6 @@ ETEST_results_summary_passed()
     assert_eq '[{"suite":"suite","tests":["test1","test2","test3","test4","test5"]}]' "${testsPassed}"
     testsFailed="$(jq -r .testsFailed "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
     assert_eq '[]' "${testsFailed}"
-    testsFlaky="$(jq -r  .testsFlaky  "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
-    assert_eq '[]' "${testsFlaky}"
 }
 
 ETEST_results_summary_failed()
@@ -74,7 +69,6 @@ ETEST_results_summary_failed()
     NUM_TESTS_EXECUTED=5
     NUM_TESTS_PASSED=0 TESTS_PASSED=()
     NUM_TESTS_FAILED=5 TESTS_FAILED=( [suite]="test1 test2 test3 test4 test5" )
-    NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
     DURATION="${SECONDS}"
 
     etestmsg "Calling create_summary"
@@ -94,7 +88,6 @@ ETEST_results_summary_failed()
     grep -q "test1" "${ETEST_LOG}"
     grep -q "test5" "${ETEST_LOG}"
     grep -q "5 FAILED TESTS" "${ETEST_LOG}"
-    assert_false grep "Flaky Tests" "${ETEST_LOG}"
 
     etestmsg "Checking json file"
     jq . "${ETEST_JSON}"
@@ -102,7 +95,6 @@ ETEST_results_summary_failed()
     assert_eq 5 "${numTestsExecuted}"
     assert_eq 0 "${numTestsPassed}"
     assert_eq 5 "${numTestsFailed}"
-    assert_eq 0 "${numTestsFlaky}"
     assert_eq "${DURATION}s" "${duration}"
 
     etestmsg "Checking test suite results in json file"
@@ -110,16 +102,13 @@ ETEST_results_summary_failed()
     assert_eq '[]' "${testsPassed}"
     testsFailed="$(jq -r .testsFailed "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
     assert_eq '[{"suite":"suite","tests":["test1","test2","test3","test4","test5"]}]' "${testsFailed}"
-    testsFlaky="$(jq -r  .testsFlaky  "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
-    assert_eq '[]' "${testsFlaky}"
 }
 
 ETEST_results_summary_mixed()
 {
     NUM_TESTS_EXECUTED=5
-    NUM_TESTS_PASSED=3 TESTS_PASSED=( [suite]="test1 test3 test5" )
+    NUM_TESTS_PASSED=4 TESTS_PASSED=( [suite]="test1 test3 test4 test5" )
     NUM_TESTS_FAILED=1 TESTS_FAILED=( [suite]="test2" )
-    NUM_TESTS_FLAKY=1  TESTS_FLAKY=( [suite]="test4" )
     DURATION="${SECONDS}"
 
     etestmsg "Calling create_summary"
@@ -137,26 +126,20 @@ ETEST_results_summary_mixed()
     grep -q "Failed Tests" "${ETEST_LOG}"
     grep -q "test2" "${ETEST_LOG}"
     grep -q "1 FAILED TEST" "${ETEST_LOG}"
-    grep -q "Flaky Tests" "${ETEST_LOG}"
-    grep -q "test4" "${ETEST_LOG}"
-    grep -q "1 FLAKY TEST" "${ETEST_LOG}"
 
     etestmsg "Checking json file"
     jq . "${ETEST_JSON}"
     $(json_import --file "${ETEST_JSON}")
     assert_eq 5 "${numTestsExecuted}"
-    assert_eq 3 "${numTestsPassed}"
+    assert_eq 4 "${numTestsPassed}"
     assert_eq 1 "${numTestsFailed}"
-    assert_eq 1 "${numTestsFlaky}"
     assert_eq "${DURATION}s" "${duration}"
 
     etestmsg "Checking test suite results in json file"
     testsPassed="$(jq -r .testsPassed "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
-    assert_eq '[{"suite":"suite","tests":["test1","test3","test5"]}]' "${testsPassed}"
+    assert_eq '[{"suite":"suite","tests":["test1","test3","test4","test5"]}]' "${testsPassed}"
     testsFailed="$(jq -r .testsFailed "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
     assert_eq '[{"suite":"suite","tests":["test2"]}]' "${testsFailed}"
-    testsFlaky="$(jq -r  .testsFlaky  "${ETEST_JSON}" | tr -d '\n' | tr -d ' ')"
-    assert_eq '[{"suite":"suite","tests":["test4"]}]' "${testsFlaky}"
 }
 
 ETEST_results_failure_log_format()
@@ -164,11 +147,14 @@ ETEST_results_failure_log_format()
     NUM_TESTS_EXECUTED=2
     NUM_TESTS_PASSED=1 TESTS_PASSED=( [mysuite]="passing_test" )
     NUM_TESTS_FAILED=1 TESTS_FAILED=( [mysuite]="ETEST_failing_test" )
-    NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
     DURATION="${SECONDS}"
 
     # Create a mock ETEST_LOG with test output that create_failure_output will extract from
+    # Must include banner format: "| ETEST_name" line and "+---+" end line
     cat > "${ETEST_LOG}" <<'EOF'
+| ETEST_failing_test
+|
++----+
 [2024-01-01T00:00:00Z] Running command="ETEST_failing_test" attempt="0"
 Some test output here
 Error: something went wrong
@@ -196,14 +182,19 @@ ETEST_results_failure_log_multiple_suites()
     NUM_TESTS_EXECUTED=4
     NUM_TESTS_PASSED=2 TESTS_PASSED=( [suite1]="pass1" [suite2]="pass2" )
     NUM_TESTS_FAILED=2 TESTS_FAILED=( [suite1]="ETEST_fail1" [suite2]="ETEST_fail2" )
-    NUM_TESTS_FLAKY=0  TESTS_FLAKY=()
     DURATION="${SECONDS}"
 
-    # Create mock ETEST_LOG with multiple test failures
+    # Create mock ETEST_LOG with multiple test failures (including banner format)
     cat > "${ETEST_LOG}" <<'EOF'
+| ETEST_fail1
+|
++----+
 [2024-01-01T00:00:00Z] Running command="ETEST_fail1" attempt="0"
 Suite1 failure output
 [2024-01-01T00:00:01Z] tests/suite1.etest:ETEST_fail1 FAILED.
+| ETEST_fail2
+|
++----+
 [2024-01-01T00:00:02Z] Running command="ETEST_fail2" attempt="0"
 Suite2 failure output
 [2024-01-01T00:00:03Z] tests/suite2.etest:ETEST_fail2 FAILED.

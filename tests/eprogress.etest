@@ -159,16 +159,20 @@ ETEST_eprogress_ticker_align_right()
     sed -i "s|:01\]|:00\]|g" ${OUTPUT}
 
     # Different terms have different codes. Ignore the number in the ANSI code.
-    sed -i "s|\[[0-9]\+C||" ${OUTPUT}
+    sed -i $'s/\x1b\\[[0-9]\\+C//g' ${OUTPUT}
 
     # Different size screens will show different output based on the size of the display so replace it with something
-    # fixed.
-    sed -i "s|\[[0-9]\+;[0-9]\+H||" ${OUTPUT}
+    # fixed. Include the escape character (\x1b) in the pattern.
+    sed -i $'s/\x1b\\[[0-9]\\+;[0-9]\\+H//g' ${OUTPUT}
 
     # Normalize hpa (horizontal position absolute) cursor codes - different terminals/widths produce different values
-    sed -i "s|\[[0-9]\+G||" ${OUTPUT}
+    sed -i $'s/\x1b\\[[0-9]\\+G//g' ${OUTPUT}
 
-    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00] $\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+    # Remove repeated timer displays (ticker may update multiple times during test)
+    # The escape char (\x1b shown as ^[ by cat -evt) precedes each timer update
+    sed -i $'s/\\( *\x1b* *\\[00:00:00\\]\\)\\+/\x1b [00:00:00]/g' ${OUTPUT}
+
+    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00] $\x0a^[M[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_ticker_align_left()
@@ -202,12 +206,19 @@ ETEST_eprogress_ticker_align_left()
     sed -i "s|:01\]|:00\]|g" ${OUTPUT}
 
     # Different terms have different codes. Ignore the number in the ANSI code.
-    sed -i "s|\[[0-9]\+C||" ${OUTPUT}
+    sed -i $'s/\x1b\\[[0-9]\\+C//g' ${OUTPUT}
+
+    # Different size screens will show different output based on the size of the display
+    sed -i $'s/\x1b\\[[0-9]\\+;[0-9]\\+H//g' ${OUTPUT}
 
     # Normalize hpa (horizontal position absolute) cursor codes - different terminals/widths produce different values
-    sed -i "s|\[[0-9]\+G||" ${OUTPUT}
+    sed -i $'s/\x1b\\[[0-9]\\+G//g' ${OUTPUT}
 
-    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00] "$'\x24\x0a^[M^[[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+    # Remove repeated timer displays (ticker may update multiple times during test)
+    # Pattern is "[00:00:00]  [00:00:00]  ..." with variable spacing
+    sed -i 's/\( *\[00:00:00\]\)\+/ [00:00:00]/g' ${OUTPUT}
+
+    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00] "$'\x24\x0a^[M[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_inside_eretry()

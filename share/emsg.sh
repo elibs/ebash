@@ -465,23 +465,62 @@ ebanner()
     )
 
     {
-        local cols lines
+        local cols lines output=""
 
-        echo ""
         cols=$(tput cols)
         cols=$((cols-2))
+
+        # Build horizontal line without subshell
         local str=""
-        eval "str=\$(printf -- '-%.0s' {1..${cols}})"
-        ecolor ${COLOR_BANNER}
-        echo -e "+${str}+"
-        ecolor ${COLOR_BANNER}
-        echo -e "|"
+        printf -v str '%*s' "$cols" ""
+        str="${str// /─}"
+
+        # Cache colors once for all lines
+        local banner_color color_off
+        banner_color=$(ecolor ${COLOR_BANNER})
+        color_off=$(ecolor none)
+        local banner_color_len=${#banner_color}
+
+        # Helper to append a line with box borders to output buffer.
+        # Adjusts for multi-byte UTF-8 characters and ANSI codes so the right border aligns correctly.
+        __append_line()
+        {
+            local text="$1"
+            local visible_len ansi_len width
+
+            # Fast path: if no ANSI codes, skip expensive stripping
+            if [[ "$text" != *$'\e'* ]]; then
+                visible_len=${#text}
+                ansi_len=0
+            else
+                # Has ANSI codes - strip them using bash pattern matching
+                local text_noansi="${text//$'\e'\[*([0-9;])m/}"
+                visible_len=${#text_noansi}
+                ansi_len=$(( ${#text} - visible_len ))
+            fi
+
+            # Append banner color so padding/border use correct color after any embedded resets
+            text="${text}${banner_color}"
+            ansi_len=$(( ansi_len + banner_color_len ))
+            width=$((cols - 2 + ansi_len))
+
+            # Build the line with padding
+            local padding_needed=$(( cols - 2 - visible_len ))
+            local padding=""
+            if [[ $padding_needed -gt 0 ]]; then
+                printf -v padding '%*s' "$padding_needed" ""
+            fi
+            output+="${banner_color}│ ${text}${padding} │"$'\n'
+        }
+
+        output+=$'\n'
+        output+="${banner_color}┌${str}┐"$'\n'
+        __append_line ""
 
         # Print the first message honoring any newlines
         array_init_nl lines "${1}"; shift
         for line in "${lines[@]}"; do
-            ecolor ${COLOR_BANNER}
-            echo -e "| ${line}"
+            __append_line "${line}"
         done
 
         # Iterate over all other arguments and stick them into an associative array optionally uppercasing the keys.
@@ -491,8 +530,7 @@ ebanner()
 
         # Now output all the details (if any)
         if [[ -n "${details[*]:-}" ]]; then
-            ecolor "${COLOR_BANNER}"
-            echo -e "|"
+            __append_line ""
 
             # Sort the keys and store into an array
             local keys=( "${!details[@]}" )
@@ -506,9 +544,9 @@ ebanner()
             done
 
             # Iterate over the keys of the associative array and print out the values
-            local pad="" ktag=""
+            local pad_str="" ktag="" detail_line=""
             for key in "${keys[@]}"; do
-                pad=$((longest-${#key}+1))
+                local pad=$((longest-${#key}+1))
                 ktag="${key}"
 
                 # Optionally uppercase the key if requested.
@@ -516,18 +554,19 @@ ebanner()
                     ktag="${ktag^^}"
                 fi
 
-                ecolor "${COLOR_BANNER}"
-                printf "| • %s%${pad}s :: %s\n" ${ktag} " " "${details[$key]}"
+                # Build padding without subshell
+                printf -v pad_str '%*s' "$pad" ""
+                detail_line="• ${ktag}${pad_str}:: ${details[$key]}"
+                __append_line "${detail_line}"
             done
         fi
 
         # Close the banner
-        ecolor ${COLOR_BANNER}
-        echo -e "|"
-        ecolor ${COLOR_BANNER}
-        echo -en "+${str}+"
-        ecolor none
-        echo ""
+        __append_line ""
+        output+="${banner_color}└${str}┘${color_off}"$'\n'
+
+        # Print entire banner at once
+        printf '%s' "$output"
 
     } >&2
 

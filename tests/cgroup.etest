@@ -7,11 +7,9 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-if cgroup_supported; then
-    __EBASH_CGROUP_ENABLED=1
-else
-    return 0
-fi
+$(skip_file_if "! cgroup_supported")
+$(skip_file_if "[[ ${EUID} -ne 0 ]]")
+__EBASH_CGROUP_ENABLED=1
 
 ETEST_cgroup_tree()
 {
