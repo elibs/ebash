@@ -386,8 +386,11 @@ __worker_main()
     local last_sourced_file=""
     local last_sourced_skip=0
 
+    local stop_file="${jobdir}/stop"
+
     while true; do
-        # Check for abort signal before claiming a new job (failfast)
+        # Check for stop signal (normal termination) or abort signal (failfast)
+        [[ -f "${stop_file}" ]] && break
         [[ -f "${abort_file}" ]] && break
 
         # Atomically claim next job index using elock (cross-platform)
@@ -397,8 +400,11 @@ __worker_main()
         echo $(( job_idx + 1 )) > "${counter_file}"
         eunlock "${counter_lock}"
 
-        # Exit if no more jobs
-        [[ ${job_idx} -ge ${job_total} ]] && break
+        # No more jobs available - wait for shutdown signal
+        if [[ ${job_idx} -ge ${job_total} ]]; then
+            sleep 0.1
+            continue
+        fi
 
         local job_spec="${etest_jobs_queued[$job_idx]}"
         local testfile="${job_spec%%:*}"
@@ -650,17 +656,48 @@ __run_all_tests_parallel()
         __update_jobs_progress_file
         create_status_json
 
-        # Exit when all jobs processed
-        [[ ${#processed_jobs[@]} -ge ${etest_job_total} ]] && break
-        [[ ${workers_alive} -eq 0 ]] && break
+        # Check for crashed workers - ANY worker death before stop signal is a crash
+        local wpid wrc
+        for wpid in "${worker_pids[@]}"; do
+            if ! kill -0 "${wpid}" 2>/dev/null; then
+                # Worker is dead but we never told it to stop - this is a crash
+                wait "${wpid}" 2>/dev/null && wrc=0 || wrc=$?
+
+                local jobs_remaining=$(( etest_job_total - ${#processed_jobs[@]} ))
+                eerror "FATAL: Worker ${wpid} died unexpectedly (exit code ${wrc})!"
+                eerror "  Jobs total:     ${etest_job_total}"
+                eerror "  Jobs processed: ${#processed_jobs[@]}"
+                eerror "  Jobs remaining: ${jobs_remaining}"
+                eerror ""
+                eerror "Check ${logdir}/jobs/*/output.log for worker output"
+
+                # Kill remaining workers and eprogress before dying
+                for wpid in "${worker_pids[@]}"; do
+                    kill "${wpid}" 2>/dev/null || true
+                done
+                array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
+                eprogress_kill --rc=1 &>> ${ETEST_OUT} || true
+
+                die "Worker crashed - cannot continue"
+            fi
+        done
+
+        # All jobs processed - signal workers to stop
+        if [[ ${#processed_jobs[@]} -ge ${etest_job_total} ]]; then
+            touch "${jobdir}/stop"
+            break
+        fi
 
         # Small sleep to avoid busy polling
         sleep 0.1
     done
 
-    # Wait for any remaining workers
+    # Wait for any remaining workers and check exit codes
+    local worker_failed=0
     for pid in "${worker_pids[@]}"; do
-        wait "${pid}" 2>/dev/null || true
+        if ! wait "${pid}" 2>/dev/null; then
+            worker_failed=1
+        fi
     done
 
     # Final progress update
