@@ -50,9 +50,10 @@ create_test_list()
 find_matching_tests()
 {
     # Expand tests to find all standalone executable scripts as well as any *.etest files.
+    # Use sort -u to deduplicate in case the same file is found via multiple paths (e.g., directory + explicit file)
     local all_scripts all_etests
-    readarray -t all_scripts < <(find -L "${tests[@]}" \( -type f -or -type l \) -executable -not -name "*.etest" 2>/dev/null | sort || true)
-    readarray -t all_etests < <(find -L "${tests[@]}" -type f -name "*.etest" 2>/dev/null | sort || true)
+    readarray -t all_scripts < <(find -L "${tests[@]}" \( -type f -or -type l \) -executable -not -name "*.etest" 2>/dev/null | sort -u || true)
+    readarray -t all_etests < <(find -L "${tests[@]}" -type f -name "*.etest" 2>/dev/null | sort -u || true)
 
     # Build function list for all .etest files in a single grep pass (much faster than per-file grep)
     # Output format: "filepath:ETEST_funcname()" - we parse this to build TEST_FUNCTIONS_TO_RUN
@@ -110,7 +111,7 @@ find_matching_tests()
     local fname fname_tests
     for fname in "${!TEST_FUNCTIONS_TO_RUN[@]}"; do
         array_init fname_tests "${TEST_FUNCTIONS_TO_RUN[$fname]}"
-        increment NUM_TESTS_TOTAL "${#fname_tests[@]}"
+        NUM_TESTS_TOTAL=$(( NUM_TESTS_TOTAL + ${#fname_tests[@]} ))
     done
 }
 

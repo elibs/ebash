@@ -38,6 +38,9 @@ The other useful feature of increment is that you can pass in an optional amount
 ```shell
 increment i 100
 ```
+
+> **WARNING**: This function uses opt_parse which adds ~1ms overhead per call. For performance-sensitive code
+> (e.g., tight loops, per-test operations), use native arithmetic instead: `var=$(( var + 1 ))`
 END
 increment()
 {
@@ -73,6 +76,8 @@ The other useful feature of decrement is that you can pass in an optional amount
 
     decrement i 100
 
+> **WARNING**: This function uses opt_parse which adds ~1ms overhead per call. For performance-sensitive code
+> (e.g., tight loops, per-test operations), use native arithmetic instead: `var=$(( var - 1 ))`
 END
 decrement()
 {
