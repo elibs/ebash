@@ -17,6 +17,7 @@
 CACHE    ?= $(or ${cache},1)
 COLUMNS  ?= $(or ${columns},$(shell tput cols))
 DELETE   ?= $(or ${delete},1)
+DISABLED ?= $(or ${disabled},0)
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
@@ -36,6 +37,7 @@ ENVLIST  ?=          \
 	CACHE            \
 	CI               \
 	COLUMNS          \
+	DISABLED         \
 	EDEBUG           \
 	EFUNCS           \
 	EINTERACTIVE     \
@@ -82,6 +84,7 @@ test:
 	bin/etest \
 		--debug="${EDEBUG}"         \
 		--delete=${DELETE}          \
+		--disabled=${DISABLED}      \
 		--exclude="${EXCLUDE}"      \
 		--failfast=${FAILFAST}      \
 		--failure-output=${FAILOUT} \

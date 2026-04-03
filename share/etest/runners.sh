@@ -325,13 +325,19 @@ run_all_tests()
         ebanner --uppercase "${etest_name}" "${banner_args[@]}" &>>${ETEST_OUT}
     fi
 
-    # Reset all counters at the start of each run (important for repeat mode)
+    # Reset all counters and arrays at the start of each run (important for repeat mode)
     NUM_TESTS_QUEUED=${NUM_TESTS_TOTAL}
     NUM_TESTS_EXECUTED=0
     NUM_TESTS_PASSED=0
     NUM_TESTS_FAILED=0
     NUM_TESTS_SKIPPED=0
     PERCENT=0
+    TESTS_PASSED=()
+    TESTS_FAILED=()
+    TESTS_SKIPPED=()
+    SUITE_DURATION=()
+    TESTS_DURATION=()
+    TEST_SUITES=()
 
     if [[ ${jobs} -gt 0 ]]; then
         elogfile_kill --all

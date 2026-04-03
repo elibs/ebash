@@ -166,6 +166,8 @@ docker_build()
     if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
 
         einfo "Using local ${image}"
+        # Only create build.log if it doesn't already exist (preserves previous build output)
+        [[ -f "${buildlog}" ]] || echo "# Build skipped - using cached local image: ${image}" > "${buildlog}"
         docker history "${image}" > "${histfile}"
         docker inspect "${image}" > "${inspfile}"
 
@@ -182,6 +184,8 @@ docker_build()
 
         if docker pull "${image}" 2>/dev/null; then
             einfo "Using pulled ${image}"
+            # Only create build.log if it doesn't already exist (preserves previous build output)
+            [[ -f "${buildlog}" ]] || echo "# Build skipped - using pulled image: ${image}" > "${buildlog}"
             docker history "${image}" > "${histfile}"
             docker inspect "${image}" > "${inspfile}"
 

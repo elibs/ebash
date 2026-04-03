@@ -88,6 +88,8 @@ $(opt_parse \
                                     reparented to etest itself instead of to init or whatever process ancestor may have
                                     set this flag. This allows us to properly detect process leak detections and ensure
                                     they are cleaned up properly. This only works on Linux with gdb installed."       \
+    "+disabled=0                  | Also run tests prefixed with DISABLED_ETEST_. These are tests that are excluded
+                                    by default (e.g. expensive stress tests) but can be run explicitly."            \
     "@tests                       | Any number of individual tests, which may be executables to be executed and checked
                                     for exit code or may be files whose names end in .etest, in which case they will be
                                     sourced and any test functions found will be executed. You may also specify

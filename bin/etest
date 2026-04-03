@@ -152,6 +152,11 @@ create_options_json
 for (( ITERATION=1; ITERATION<=${repeat}; ITERATION++ )); do
     REPEAT_STRING="${ITERATION}/${repeat}"
     run_all_tests
+
+    # Break out of repeat loop on failure if failfast is enabled
+    if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]]; then
+        break
+    fi
 done
 
 # Collect and report results

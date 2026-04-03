@@ -150,11 +150,11 @@ ETEST_results_failure_log_format()
     DURATION="${SECONDS}"
 
     # Create a mock ETEST_LOG with test output that create_failure_output will extract from
-    # Must include banner format: "| ETEST_name" line and "+---+" end line
+    # Must include banner format: "│ ETEST_name" line and "└...┘" end line (Unicode box-drawing)
     cat > "${ETEST_LOG}" <<'EOF'
-| ETEST_failing_test
-|
-+----+
+│ ETEST_failing_test
+│
+└────┘
 [2024-01-01T00:00:00Z] Running command="ETEST_failing_test" attempt="0"
 Some test output here
 Error: something went wrong
@@ -184,17 +184,17 @@ ETEST_results_failure_log_multiple_suites()
     NUM_TESTS_FAILED=2 TESTS_FAILED=( [suite1]="ETEST_fail1" [suite2]="ETEST_fail2" )
     DURATION="${SECONDS}"
 
-    # Create mock ETEST_LOG with multiple test failures (including banner format)
+    # Create mock ETEST_LOG with multiple test failures (including banner format with Unicode box-drawing)
     cat > "${ETEST_LOG}" <<'EOF'
-| ETEST_fail1
-|
-+----+
+│ ETEST_fail1
+│
+└────┘
 [2024-01-01T00:00:00Z] Running command="ETEST_fail1" attempt="0"
 Suite1 failure output
 [2024-01-01T00:00:01Z] tests/suite1.etest:ETEST_fail1 FAILED.
-| ETEST_fail2
-|
-+----+
+│ ETEST_fail2
+│
+└────┘
 [2024-01-01T00:00:02Z] Running command="ETEST_fail2" attempt="0"
 Suite2 failure output
 [2024-01-01T00:00:03Z] tests/suite2.etest:ETEST_fail2 FAILED.

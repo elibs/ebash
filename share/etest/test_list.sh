@@ -57,10 +57,18 @@ find_matching_tests()
 
     # Build function list for all .etest files in a single grep pass (much faster than per-file grep)
     # Output format: "filepath:ETEST_funcname()" - we parse this to build TEST_FUNCTIONS_TO_RUN
+    # When --disabled is set, also include DISABLED_ETEST_ functions
     if [[ ${#all_etests[@]} -gt 0 ]]; then
-        local grep_line testfile function
+        local grep_line testfile function grep_pattern
+        if [[ ${disabled:-0} -eq 1 ]]; then
+            grep_pattern="^(DISABLED_)?ETEST_.*()"
+        else
+            grep_pattern="^ETEST_.*()"
+        fi
+
         while IFS= read -r grep_line; do
-            testfile="${grep_line%%:ETEST_*}"
+            # Extract testfile (everything before :ETEST_ or :DISABLED_ETEST_)
+            testfile="${grep_line%%:*ETEST_*}"
             function="${grep_line#*:}"
             function="${function%%\(\)*}"
 
@@ -71,7 +79,7 @@ find_matching_tests()
             if [[ -z ${filter} || ${testfile} =~ ${filter} || ${function} =~ ${filter} ]]; then
                 TEST_FUNCTIONS_TO_RUN[$testfile]+="${function} "
             fi
-        done < <(grep -H "^ETEST_.*()" "${all_etests[@]}" 2>/dev/null || true)
+        done < <(grep -E -H "${grep_pattern}" "${all_etests[@]}" 2>/dev/null || true)
 
         # Detect files that require serial execution (all tests in file run as single job):
         # - Has suite_setup() or suite_teardown() (shared lifecycle)
@@ -82,14 +90,15 @@ find_matching_tests()
         done < <(grep -l -E "^suite_setup\(\)|^suite_teardown\(\)|^ETEST_SERIALIZE=1" "${all_etests[@]}" 2>/dev/null || true)
     fi
 
-    # Process standalone scripts
-    local testfile
+    # Process standalone scripts (each script counts as 1 test)
+    local testfile num_standalone_scripts=0
     for testfile in "${all_scripts[@]}"; do
         if [[ -n ${exclude} && ${testfile} =~ ${exclude} ]] ; then
             continue
         fi
         if [[ -z ${filter} || ${testfile} =~ ${filter} ]]; then
             TEST_FILES_TO_RUN+=( "${testfile}" )
+            (( ++num_standalone_scripts ))
         fi
     done
 
@@ -109,6 +118,7 @@ find_matching_tests()
 
     # Compute total number of tests to run across all files
     local fname fname_tests
+    NUM_TESTS_TOTAL=${num_standalone_scripts}
     for fname in "${!TEST_FUNCTIONS_TO_RUN[@]}"; do
         array_init fname_tests "${TEST_FUNCTIONS_TO_RUN[$fname]}"
         NUM_TESTS_TOTAL=$(( NUM_TESTS_TOTAL + ${#fname_tests[@]} ))
