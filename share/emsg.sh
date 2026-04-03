@@ -505,7 +505,8 @@ ebanner()
             width=$((cols - 2 + ansi_len))
 
             # Build the line with padding
-            local padding_needed=$(( cols - 2 - visible_len ))
+            local padding_needed
+            padding_needed=$(( cols - 2 - visible_len ))
             local padding=""
             if [[ $padding_needed -gt 0 ]]; then
                 printf -v padding '%*s' "$padding_needed" ""
@@ -546,7 +547,8 @@ ebanner()
             # Iterate over the keys of the associative array and print out the values
             local pad_str="" ktag="" detail_line=""
             for key in "${keys[@]}"; do
-                local pad=$((longest-${#key}+1))
+                local pad
+                pad=$((longest-${#key}+1))
                 ktag="${key}"
 
                 # Optionally uppercase the key if requested.
