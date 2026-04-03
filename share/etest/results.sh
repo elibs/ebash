@@ -109,11 +109,12 @@ __extract_test_output()
 
     [[ ! -f "${ETEST_LOG}" ]] && return 0
 
-    tac "${ETEST_LOG}" \
-        | sed -n "/${name}.*${status}/,/^[^:]*| ${name}$/p" \
+    # Strip ANSI codes first, then extract between banner header and FAILED line
+    sed 's/\x1b\[[0-9;]*m//g' "${ETEST_LOG}" \
         | tac \
-        | sed 's/\x1b\[[0-9;]*m//g' \
-        | sed '1,/^+-.*+$/d'
+        | sed -n "/${name}.*${status}/,/│ ${name}/p" \
+        | tac \
+        | sed '1,/^┌.*┐$/d'
 }
 
 create_failure_output()
