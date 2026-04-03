@@ -1480,8 +1480,8 @@ archive_extract_strip_collisions_test()
     etestmsg "Extracting src.${ftype} to dest --strip=2"
     archive_extract --strip=2 src.${ftype} dest
 
-    # Directory collisions use backup numbering (sub.~1~) rather than merging
-    assert_directory_contents dest f1 f2 f3 f4 sub sub.~1~ sub/as1 sub/as2 sub.~1~/bs1 sub.~1~/bs2
+    # Directories with the same name arg merged
+    assert_directory_contents dest f1 f2 f3 f4 sub sub/as1 sub/as2 sub/bs1 sub/bs2
 }
 
 ETEST_archive_extract_strip_collisions_cgz()      { archive_extract_strip_collisions_test cgz;      }
