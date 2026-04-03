@@ -692,7 +692,7 @@ __run_all_tests_parallel()
                 crash_msg="Worker ${wpid} died (exit code ${wrc})"
                 crash_msg+=", jobs: ${#processed_jobs[@]}/${etest_job_total} done, ${jobs_remaining} remaining"
                 if [[ -n "${crashed_job}" ]]; then
-                    crash_msg+=", crashed job: ${crashed_job}"
+                    crash_msg+=", crashed job: ${crashed_job}, log: jobs/${j}/output.log"
                 fi
 
                 # Display the crashed job's output before dying (use stdout, not stderr)
