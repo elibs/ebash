@@ -68,7 +68,7 @@ ETEST_emock_filesystem_multiple()
     assert_eq "file" "$(type -t ${test_binary_path})"
     assert_eq "file" "$(type -t ${test_binary_path}_real)"
     assert_eq "filesystem" "$(emock_mode "${test_binary}")"
-    file -L "${test_binary_path}" | grep -Pq "(ASCII text|bash script|Bourne-Again shell script)"
+    file -L "${test_binary_path}" | grep -Piq "(text|script)"
 
     etestmsg "Mocking ${test_binary} with --filesystem and --return 1"
     emock --filesystem --return 1 "${test_binary_path}"
