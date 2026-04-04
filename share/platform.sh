@@ -105,18 +105,10 @@ if [[ ${EBASH_OS} == "Linux" ]]; then
     unset __EBASH_KERNEL_VERSION __EBASH_KERNEL_REST
 
     # Replace rm to ensure we always pass in --one-file-system flag.
-    # Use podman unshare when available to handle directories created by containers with different user namespaces.
-    if type -P podman &>/dev/null; then
-        rm()
-        {
-            podman unshare rm --one-file-system "${@}"
-        }
-    else
-        rm()
-        {
-            command rm --one-file-system "${@}"
-        }
-    fi
+    rm()
+    {
+        command rm --one-file-system "${@}"
+    }
 
     # Replace sort with explicit LC_COLLATE so that we always get consistent sorting regardless of the user's locale.
     sort()
