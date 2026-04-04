@@ -58,6 +58,12 @@ wait_for_ticks()
     done
 }
 
+setup()
+{
+    # Use a fixed TERM value to ensure consistent tput output across all environments (local and CI)
+    export TERM=xterm-256color
+}
+
 #-----------------------------------------------------------------------------------------------------------------------
 #
 # Unit Tests
@@ -125,8 +131,10 @@ ETEST_eprogress_ticker_align_invalid()
     assert_eq 1 "${rc}"
 }
 
+# xterm-256color cursor control sequences (matches TERM set in setup)
 eprogress_civis="^[[?25l"
-eprogress_cnorm="^[[34h^[[?25h^[[34h^[[?25h"
+eprogress_cnorm="^[[?12l^[[?25h^[[?12l^[[?25h"
+eprogress_cuu1="^[[A"
 
 ETEST_eprogress_ticker_align_right()
 {
@@ -144,8 +152,6 @@ ETEST_eprogress_ticker_align_right()
         EPROGRESS_INLINE=1
         ETRACE=0
 
-        # Output stored in this test expects what it would look like if term were screen-256color
-        TERM=screen-256color
         eprogress --align right "Waiting"
         eprogress_kill
     )
@@ -172,7 +178,7 @@ ETEST_eprogress_ticker_align_right()
     # The escape char (\x1b shown as ^[ by cat -evt) precedes each timer update
     sed -i $'s/\\( *\x1b* *\\[00:00:00\\]\\)\\+/\x1b [00:00:00]/g' ${OUTPUT}
 
-    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00] $\x0a^[M[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+    assert_eq --hexdump "${eprogress_civis}>> Waiting"$'^[ [00:00:00] $\x0a'"${eprogress_cuu1}"$'[ ok ]$\x0a'"${eprogress_cnorm}" "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_ticker_align_left()
@@ -191,8 +197,6 @@ ETEST_eprogress_ticker_align_left()
         EPROGRESS_INLINE=1
         ETRACE=0
 
-        # Output stored in this test expects what it would look like if term were screen-256color
-        TERM=screen-256color
         eprogress --align left "Waiting"
         eprogress_kill
     )
@@ -218,7 +222,7 @@ ETEST_eprogress_ticker_align_left()
     # Pattern is "[00:00:00]  [00:00:00]  ..." with variable spacing
     sed -i 's/\( *\[00:00:00\]\)\+/ [00:00:00]/g' ${OUTPUT}
 
-    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00] "$'\x24\x0a^[M[ ok ]$\x0a'${eprogress_cnorm}'' "$(cat -evt ${OUTPUT})"
+    assert_eq --hexdump "${eprogress_civis}>> Waiting [00:00:00] "$'\x24\x0a'"${eprogress_cuu1}"$'[ ok ]$\x0a'"${eprogress_cnorm}" "$(cat -evt ${OUTPUT})"
 }
 
 ETEST_eprogress_inside_eretry()
