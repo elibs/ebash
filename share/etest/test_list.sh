@@ -61,10 +61,15 @@ find_matching_tests()
     if [[ ${#all_etests[@]} -gt 0 ]]; then
         local grep_line testfile function grep_pattern
         if [[ ${disabled:-0} -eq 1 ]]; then
-            grep_pattern="^(DISABLED_)?ETEST_.*()"
+            grep_pattern="^(DISABLED_)?ETEST_[a-zA-Z0-9_]+\(\)"
         else
-            grep_pattern="^ETEST_.*()"
+            grep_pattern="^ETEST_[a-zA-Z0-9_]+\(\)"
         fi
+
+        # Track functions per file to detect duplicates within the same file
+        # (Same function name in different files is OK - they're scoped by suite)
+        local -A seen_in_file=()
+        local -a duplicate_errors=()
 
         while IFS= read -r grep_line; do
             # Extract testfile (everything before :ETEST_ or :DISABLED_ETEST_)
@@ -77,9 +82,23 @@ find_matching_tests()
             fi
 
             if [[ -z ${filter} || ${testfile} =~ ${filter} || ${function} =~ ${filter} ]]; then
+                # Check for duplicate function names within the same file
+                local key="${testfile}:${function}"
+                if [[ -n "${seen_in_file[$key]:-}" ]]; then
+                    duplicate_errors+=( "  ${function} defined multiple times in ${testfile}" )
+                else
+                    seen_in_file[$key]=1
+                fi
                 TEST_FUNCTIONS_TO_RUN[$testfile]+="${function} "
             fi
         done < <(grep -E -H "${grep_pattern}" "${all_etests[@]}" 2>/dev/null || true)
+
+        # Fail if any duplicate test functions were found
+        if [[ ${#duplicate_errors[@]} -gt 0 ]]; then
+            eerror "Duplicate test function names detected:"
+            printf '%s\n' "${duplicate_errors[@]}" >&2
+            die "Test function names must be unique within each test file"
+        fi
 
         # Detect files that require serial execution (all tests in file run as single job):
         # - Has suite_setup() or suite_teardown() (shared lifecycle)

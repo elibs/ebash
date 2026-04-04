@@ -428,11 +428,14 @@ __worker_main()
         [[ ${jobs_progress} -eq 0 ]] && ETEST_OUT="${jobpath}/etest.out"
         TEST_OUT="/dev/null"
 
-        # Reset counters for this job
+        # Reset counters and arrays for this job (critical: arrays must be reset to prevent accumulation across jobs)
         NUM_TESTS_EXECUTED=0
         NUM_TESTS_PASSED=0
         NUM_TESTS_FAILED=0
         NUM_TESTS_SKIPPED=0
+        TESTS_PASSED=()
+        TESTS_FAILED=()
+        TESTS_SKIPPED=()
         TESTS_DURATION=()
 
         local suite="" start_time=${SECONDS}
