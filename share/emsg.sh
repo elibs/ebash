@@ -428,18 +428,21 @@ ecolor_internal()
 }
 
 opt_usage noansi<<'END'
-Noansi filters out ansi characters such as color codes. It can modify files in place if you specify any. If you do not,
-it will assume that you'd like it to operate on stdin and repeat the modified output to stdout.
+Noansi filters out all ANSI escape sequences including color codes, cursor control, and other terminal sequences. It can
+modify files in place if you specify any. If you do not, it will assume that you'd like it to operate on stdin and repeat
+the modified output to stdout.
 END
 noansi()
 {
     $(opt_parse "@files | Files to modify. If none are specified, operate on stdin and spew to stdout.")
 
+    # Pattern breakdown:
+    # - \x1b\[[0-9;?]*[A-Za-z] : CSI sequences (colors, cursor movement, cursor show/hide, etc.)
+    # - \x1b[A-Z]              : Simple escape sequences (e.g., \x1bM for reverse index)
     if array_empty files ; then
-        sed "s:\x1B\[[0-9;]*[mK]::g"
-
+        sed -e $'s/\x1b\\[[0-9;?]*[A-Za-z]//g' -e $'s/\x1b[A-Z]//g'
     else
-        sed -i "s:\x1B\[[0-9;]*[mK]::g" "${files[@]}"
+        sed -i -e $'s/\x1b\\[[0-9;?]*[A-Za-z]//g' -e $'s/\x1b[A-Z]//g' "${files[@]}"
     fi
 }
 
