@@ -122,8 +122,8 @@ DISTROS =           \
 	fedora-35       \
 	gentoo          \
 	rocky-9         \
-	ubuntu-18.04    \
 	ubuntu-20.04    \
+	ubuntu-22.04    \
 
 # Template for running tests inside a Linux distro container
 DRUN = bin/ebash docker_run                                 \
