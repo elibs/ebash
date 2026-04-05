@@ -712,12 +712,9 @@ __run_all_tests_parallel()
                     fi
 
                     # Append crashed job output to ETEST_LOG so __extract_test_output can find it
-                    # Format matches what run_single_test produces for proper extraction
+                    # Use ebanner to match run_single_test format for proper extraction
                     {
-                        echo ""
-                        echo "+------------------------------------------+"
-                        echo "| ${testfunc}"
-                        echo "+------------------------------------------+"
+                        ebanner --uppercase "${testfunc}"
                         echo ""
                         echo "[WORKER CRASHED - exit code ${wrc}]"
                         echo ""

@@ -174,6 +174,7 @@ workdir=$(readlink -f ${workdir})
 ETEST_ORIGINAL_PWD="${PWD}"
 if [[ -n "${directory}" ]]; then
     cd "${directory}" || die "Failed to cd to $(lval directory)"
+    TOPDIR="${PWD}"
 fi
 
 EDEBUG=${debug}
