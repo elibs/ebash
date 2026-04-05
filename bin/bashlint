@@ -111,6 +111,12 @@ ebanner --uppercase "BASHLINT"                                           \
 # -- Lint all files --
 for fname in $(grep -lr '^#!/.*bash' "${paths[@]}" | grep -v '.hg' | sort); do
 
+    # Skip files with non-script extensions (e.g., markdown files with embedded code blocks)
+    if [[ "${fname}" =~ \.(md|txt|json|xml|yaml|yml|html|css|js)$ ]]; then
+        edebug "Skipping ${fname} (non-script extension)"
+        continue
+    fi
+
     # If this isn't a bash script skip it
     if ! file ${fname} | grep -Pq "(bash script|Bourne-Again shell script)"; then
         edebug "Skipping ${fname} (non-bash file)"

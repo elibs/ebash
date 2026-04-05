@@ -57,17 +57,12 @@ array_to_json()
         return 0
     fi
 
-    # Otherwise grab the contents of the array and iterate over it and convert each element to json.
+    # Grab the contents of the array and convert to JSON in a single jq call using --args.
+    # This avoids spawning a subprocess per element which is critical for performance with large arrays.
+    # Use -c for compact output (no newlines/indentation) to match original behavior.
+    # The echo -n wrapper strips the trailing newline that jq outputs.
     eval "local __array=(\"\${${__array}[@]}\")"
-    echo -n "["
-    local i notfirst=""
-    for i in "${__array[@]}" ; do
-        [[ -n ${notfirst} ]] && echo -n ","
-        echo -n "$(json_escape "$i")"
-        notfirst=true
-    done
-
-    echo -n "]"
+    echo -n "$(jq -cn '$ARGS.positional' --args -- "${__array[@]}")"
 }
 
 opt_usage associative_array_to_json <<'END'

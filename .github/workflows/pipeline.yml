@@ -16,8 +16,10 @@ env:
   COLUMNS: 120
   EFUNCS_COLOR: 1
   EINTERACTIVE: 1
-  EPROGRESS_DELAY: 15
+  EPROGRESS_DELAY: 30
   EPROGRESS_INLINE: 0
+  LANG: "en_US.UTF-8"
+  LC_ALL: "en_US.UTF-8"
   REGISTRY: "ghcr.io"
   TERM: "xterm-256color"
 
@@ -42,14 +44,14 @@ jobs:
         container:
           - "alpine-3.15"
           - "archlinux"
-          - "debian-12"
           - "debian-11"
-          - "fedora-35"
+          - "debian-12"
           - "fedora-33"
+          - "fedora-35"
           # TODO: - "gentoo"
           - "rocky-9"
           - "ubuntu-20.04"
-          - "ubuntu-18.04"
+          - "ubuntu-22.04"
 
     steps:
       - name: Log in to the Container registry
@@ -71,7 +73,7 @@ jobs:
         run: make dlint-${{ matrix.container }}
 
       - name: Test
-        run: make dtest-${{ matrix.container }} sudo=1 mountns=1 failfast=1 failout=1 failures=5 jobs=$(nproc) progress=0 exclude=docker
+        run: make dtest-${{ matrix.container }} sudo=1 mountns=1 failfast=1 failout=1 failures=5 exclude=docker
 
       - name: Archive test results
         if: always()
@@ -107,7 +109,7 @@ jobs:
       # Run all unit tests. We exclude docker tests for Darwin for our CI/CD pipeline as they don't run successfully
       # inside GitHub actions though they run perfectly fine locally.
       - name: Test
-        run: make test failfast=1 failout=1 failures=5 jobs=$(nproc) progress=0 exclude=docker
+        run: make test failfast=1 failout=1 failures=5 exclude=docker
 
       - name: Archive test results
         if: always()

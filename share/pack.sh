@@ -250,19 +250,30 @@ pack_import()
     fi
 
     # Build command string
-    local _pack_import_cmd=""
+    # Values must be escaped for double-quote context: \ " $ `
+    local _pack_import_cmd="" _pack_import_escaped
 
     if [[ ${#_pack_import_keys[@]} -eq 0 ]]; then
         # Import all keys - iterate unpacked lines to preserve order
         while IFS= read -r _pack_import_line; do
             [[ -z "${_pack_import_line}" ]] && continue
             _pack_import_key="${_pack_import_line%%=*}"
-            _pack_import_cmd+="${_pack_import_scope} ${_pack_import_key}=\"${_pack_import_data[$_pack_import_key]}\"; "
+            _pack_import_escaped="${_pack_import_data[$_pack_import_key]}"
+            _pack_import_escaped="${_pack_import_escaped//\\/\\\\}"
+            _pack_import_escaped="${_pack_import_escaped//\"/\\\"}"
+            _pack_import_escaped="${_pack_import_escaped//\$/\\\$}"
+            _pack_import_escaped="${_pack_import_escaped//\`/\\\`}"
+            _pack_import_cmd+="${_pack_import_scope} ${_pack_import_key}=\"${_pack_import_escaped}\"; "
         done <<< "${_pack_import_unpacked}"
     else
         # Import only specified keys
         for _pack_import_key in "${_pack_import_keys[@]}"; do
-            _pack_import_cmd+="${_pack_import_scope} ${_pack_import_key}=\"${_pack_import_data[$_pack_import_key]:-}\"; "
+            _pack_import_escaped="${_pack_import_data[$_pack_import_key]:-}"
+            _pack_import_escaped="${_pack_import_escaped//\\/\\\\}"
+            _pack_import_escaped="${_pack_import_escaped//\"/\\\"}"
+            _pack_import_escaped="${_pack_import_escaped//\$/\\\$}"
+            _pack_import_escaped="${_pack_import_escaped//\`/\\\`}"
+            _pack_import_cmd+="${_pack_import_scope} ${_pack_import_key}=\"${_pack_import_escaped}\"; "
         done
     fi
 

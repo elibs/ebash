@@ -84,12 +84,9 @@ ETEST_edebug_filename()
     EDEBUG=${BASH_SOURCE[0]} edebug_enabled
 }
 
-if ! os linux ; then
-    return 0
-fi
-
 ETEST_edebug_pipe_multiple_lines()
 {
+    $(skip_if "! os linux")
     local intput output
     input="$(find ${EBASH} -type f | shuf -n 20)"
     output="$(EMSG_PREFIX=""; EFUNCS_COLOR=0; EDEBUG=${FUNCNAME}; echo -en "${input}" | edebug 2>&1 | sed "s|\[$(basename ${BASH_SOURCE[0]}):${LINENO}:${FUNCNAME}\] ||")"

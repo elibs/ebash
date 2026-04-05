@@ -10,17 +10,16 @@ combinations:
 
 | OS    | Disto  | Version |
 | ----- | -------| ------- |
-| Linux | Alpine | 3.15    |
 | Linux | Alpine | 3.14    |
+| Linux | Alpine | 3.15    |
 | Linux | Arch   | rolling |
 | Linux | CentOS | 7       |
-| Linux | Debian | 11      |
 | Linux | Debian | 10      |
-| Linux | Fedora | 35      |
+| Linux | Debian | 11      |
 | Linux | Fedora | 33      |
+| Linux | Fedora | 35      |
 | Linux | Gentoo | rolling |
-| Linux | Rocky  | 8.4     |
 | Linux | Rocky  | 9.4     |
 | Linux | Ubuntu | 20.04   |
-| Linux | Ubuntu | 18.04   |
+| Linux | Ubuntu | 22.04   |
 | MacOS | N/A    | 15.0    |

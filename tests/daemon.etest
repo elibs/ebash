@@ -6,7 +6,14 @@
 # This program is free software: you can redistribute it and/or modify it under the terms of the Apache License as
 # published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later version.
 
-[[ ${EBASH_OS} == Linux ]] || return 0
+$(skip_file_if "! os linux")
+
+# Override default rundir to avoid requiring root
+setup()
+{
+    __EBASH_DAEMON_RUNDIR="${TMPDIR}/daemon-run"
+    mkdir -p "${__EBASH_DAEMON_RUNDIR}"
+}
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
@@ -433,10 +440,8 @@ ETEST_daemon_disable_start()
 # will return 1 if the nic doesn't exist and sleep forever (like a daemon) if it does find it.
 ETEST_daemon_netns()
 {
-    if ! cgroup_supported; then
-        ewarn "Cgroups not supported"
-        return 0
-    fi
+    $(skip_if "! cgroup_supported")
+    $(skip_if "[[ ${EUID} -ne 0 ]]")
 
     local pidfile="${FUNCNAME}.pid"
     local cfgfile="${FUNCNAME}.cfg"
@@ -444,11 +449,6 @@ ETEST_daemon_netns()
     local testns_args
 
     local local_ns_name="$$"
-
-    if [[ $(id -u) -ne 0 ]] ; then
-      etestmsg "Must be uid 0 (root) to manipulate namespaces"
-      return 1
-    fi
 
     netns_init testns_args                   \
         ns_name="${local_ns_name}"           \
@@ -541,10 +541,8 @@ END
 
 ETEST_daemon_cgroup()
 {
-    if ! cgroup_supported; then
-        ewarn "Cgroups not supported"
-        return 0
-    fi
+    $(skip_if "! cgroup_supported")
+    $(skip_if "[[ ${EUID} -ne 0 ]]")
 
     CGROUP=${ETEST_CGROUP}/daemon
     cgroup_create ${CGROUP}

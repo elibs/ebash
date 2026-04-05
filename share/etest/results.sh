@@ -50,8 +50,12 @@ create_status_json()
     if cgroup_supported; then
         pids=( $(cgroup_pids -r ${ETEST_CGROUP_BASE} 2>/dev/null || true) )
     else
-        pids=( $(process_tree 2>/dev/null || true) )
+        pids=( $(nodie_on_error; process_tree 2>/dev/null) ) || pids=()
     fi
+
+    local _failed_json _passed_json
+    _failed_json=$(print_tests_json_array TESTS_FAILED "    ")
+    _passed_json=$(print_tests_json_array TESTS_PASSED "    ")
 
 	cat <<-EOF > ${ETEST_JSON}.tmp
 	{
@@ -62,14 +66,12 @@ create_status_json()
 	    "numTestsRunning": ${NUM_TESTS_RUNNING},
 	    "numTestsExecuted": ${NUM_TESTS_EXECUTED},
 	    "numTestsFailed": ${NUM_TESTS_FAILED},
-	    "numTestsFlaky": ${NUM_TESTS_FLAKY},
 	    "numTestsPassed": ${NUM_TESTS_PASSED},
 	    "numTestsTotal": ${NUM_TESTS_TOTAL},
 	    "percent": ${PERCENT},
 	    "pids": $(array_to_json pids),
-	    "testsFailed": $(print_tests_json_array TESTS_FAILED "    "),
-	    "testsFlaky": $(print_tests_json_array TESTS_FLAKY "    "),
-	    "testsPassed": $(print_tests_json_array TESTS_PASSED "    ")
+	    "testsFailed": ${_failed_json},
+	    "testsPassed": ${_passed_json}
 	}
 	EOF
 
@@ -91,7 +93,6 @@ create_options_json()
 	    "logdir": "${logdir}",
 	    "mountns": "${mountns}",
 	    "repeat": "${repeat}",
-	    "retries": "${retries}",
 	    "silent": "${silent}",
 	    "test_list": $(array_to_json test_list),
 	    "tests": $(array_to_json tests),
@@ -101,6 +102,37 @@ create_options_json()
 	EOF
 
     mv "${ETEST_OPTIONS}.tmp" "${ETEST_OPTIONS}"
+}
+
+# Prepare an ANSI-stripped version of ETEST_LOG for efficient repeated extraction.
+# Call this once before multiple calls to __extract_test_output.
+__prepare_log_noansi()
+{
+    # Initialize to empty in case log doesn't exist
+    ETEST_LOG_NOANSI=""
+
+    if [[ -f "${ETEST_LOG}" ]]; then
+        # Insert .noansi before .log suffix (e.g., etest.log -> etest.noansi.log)
+        ETEST_LOG_NOANSI="${ETEST_LOG%.log}.noansi.log"
+        # Pipe through noansi (don't pass as argument, that uses sed -i which produces no output)
+        noansi < "${ETEST_LOG}" > "${ETEST_LOG_NOANSI}"
+    fi
+}
+
+# Extract test output from ETEST_LOG for a given test name and status (FAILED/SKIPPED).
+# Matches from test banner "│ ETEST_name" to the status line, strips ANSI codes and banner.
+# Requires ETEST_LOG_NOANSI to be prepared first via __prepare_log_noansi().
+__extract_test_output()
+{
+    local name=$1
+    local status=$2
+
+    [[ -z "${ETEST_LOG_NOANSI:-}" || ! -f "${ETEST_LOG_NOANSI}" ]] && return 0
+
+    tac "${ETEST_LOG_NOANSI}" \
+        | sed -n "/${name}.*${status}/,/│ ${name}/p" \
+        | tac \
+        | sed '1,/^└.*┘$/d'
 }
 
 create_failure_output()
@@ -147,14 +179,7 @@ create_failure_output()
                 echo "${label}${dashes}"
                 echo
 
-                # Extract output for this test from the log file (last occurrence only)
-                # Match from "Running command" line to FAILED line (pattern accounts for ANSI codes)
-                # Strip ANSI codes for clean file output
-                tac "${ETEST_LOG}" \
-                    | sed -n "/${test_name}.*FAILED/,/Running command=\"${test_name}\"/p" \
-                    | tac \
-                    | sed 's/\x1b\[[0-9;]*m//g' \
-                    | sed 's/^/   /'
+                __extract_test_output "${test_name}" "FAILED" | sed 's/^/   /'
             done
         done
     } > "${ETEST_FAILURE_LOG}"
@@ -177,9 +202,12 @@ create_failure_output()
 
 create_summary()
 {
+    # Prepare cached noansi version of log for efficient repeated extraction
+    # This is used by create_failure_output and later by create_xml
+    __prepare_log_noansi
+
     create_vcs_info
     pack_to_json VCS_INFO > "${ETEST_VCS}"
-
     create_status_json
 
     {
@@ -212,35 +240,6 @@ create_summary()
             echo
         fi
 
-        if array_not_empty TESTS_FLAKY; then
-            local cols text="Flaky Tests" inner padding
-            cols=$(tput cols)
-            inner=$(( cols - 2 ))
-            padding=$(( inner - 2 - ${#text} ))
-
-            local __border __spaces
-            printf -v __border '%*s' "${inner}" ''
-            __border="${__border// /═}"
-            printf -v __spaces '%*s' "${padding}" ''
-
-            echo
-            echo "$(ecolor bold yellow)╔${__border}╗$(ecolor off)"
-            echo "$(ecolor bold yellow)║  ${text}${__spaces}║$(ecolor off)"
-            echo "$(ecolor bold yellow)╚${__border}╝$(ecolor off)"
-
-            local flaky_test
-            # shellcheck disable=SC2068 # Intentional word splitting for space-separated test names
-            for flaky_test in ${TESTS_FLAKY[@]}; do
-                echo "$(ecolor yellow)  [  FLAKY   ] ${flaky_test}$(ecolor off)"
-            done
-
-            echo
-            local plural=""
-            [[ ${NUM_TESTS_FLAKY} -ne 1 ]] && plural="S"
-            echo "$(ecolor bold yellow)  ${NUM_TESTS_FLAKY} FLAKY TEST${plural}$(ecolor off)"
-            echo
-        fi
-
         # Display summary output to the terminal if requested
         if [[ "${summary}" -eq 1 ]] && command_exists jq; then
             einfo "Summary"
@@ -263,18 +262,14 @@ create_summary()
         echo
         echo "$(ecolor cyan)${line}$(ecolor off)"
         echo
-        printf "%s%s Total: %s%d%s  Passed: %s%d%s" \
+        local total
+        total=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
+        printf "%s%s Total: %s%d%s  Passed: %s%d%s  Failed: %s%d%s  Skipped: %s%d%s" \
             "$(ecolor bold green)>>" "$(ecolor off)" \
-            "$(ecolor bold)" "${NUM_TESTS_EXECUTED}" "$(ecolor off)" \
-            "$(ecolor bold green)" "${NUM_TESTS_PASSED}" "$(ecolor off)"
-        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
-            printf "  Failed: %s%d%s" \
-                "$(ecolor bold red)" "${NUM_TESTS_FAILED}" "$(ecolor off)"
-        fi
-        if [[ ${NUM_TESTS_FLAKY} -gt 0 ]]; then
-            printf "  Flaky: %s%d%s" \
-                "$(ecolor bold yellow)" "${NUM_TESTS_FLAKY}" "$(ecolor off)"
-        fi
+            "$(ecolor bold)" "${total}" "$(ecolor off)" \
+            "$(ecolor bold green)" "${NUM_TESTS_PASSED}" "$(ecolor off)" \
+            "$(ecolor bold red)" "${NUM_TESTS_FAILED}" "$(ecolor off)" \
+            "$(ecolor bold yellow)" "${NUM_TESTS_SKIPPED}" "$(ecolor off)"
 
         # Runtime
         local runtime
@@ -309,51 +304,42 @@ create_xml()
 {
     {
         printf '<?xml version="1.0" encoding="UTF-8" ?>\n'
-        printf '<testsuites name="etest (%s)" tests="%d" failures="%d" time="%s">\n' \
-            "$(etimestamp_rfc3339)" \
-            "${NUM_TESTS_EXECUTED}" \
-            "${NUM_TESTS_FAILED}"   \
+        printf '<testsuites name="etest (%s)" tests="%d" failures="%d" skipped="%d" time="%s">\n' \
+            "$(etimestamp_rfc3339)"      \
+            "${NUM_TESTS_EXECUTED}"      \
+            "${NUM_TESTS_FAILED}"        \
+            "${NUM_TESTS_SKIPPED:-0}"    \
             "${DURATION}"
 
         for suite in "${TEST_SUITES[@]}"; do
 
-            local testcases_passed testcases_failed
-            array_init testcases_passed "${TESTS_PASSED[$suite]:-}"
-            array_init testcases_failed "${TESTS_FAILED[$suite]:-}"
-            edebug "$(lval suite testcases_passed testcases_failed)"
+            # Inline array splitting to avoid opt_parse overhead in array_init (called 3x per suite)
+            local testcases_passed testcases_failed testcases_skipped
+            IFS=' ' read -ra testcases_passed <<< "${TESTS_PASSED[$suite]:-}"
+            IFS=' ' read -ra testcases_failed <<< "${TESTS_FAILED[$suite]:-}"
+            IFS=' ' read -ra testcases_skipped <<< "${TESTS_SKIPPED[$suite]:-}"
 
-            printf '<testsuite name="%s" tests="%d" failures="%d" time="%s">\n' \
-                "${suite}"                                                      \
-                $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} ))        \
-                ${#testcases_failed[@]}                                         \
+            printf '<testsuite name="%s" tests="%d" failures="%d" skipped="%d" time="%s">\n' \
+                "${suite}"                                                                   \
+                $(( ${#testcases_passed[@]} + ${#testcases_failed[@]} + ${#testcases_skipped[@]} )) \
+                ${#testcases_failed[@]}                                                      \
+                ${#testcases_skipped[@]}                                                     \
                 "${SUITE_DURATION[$suite]:-0}"
 
+            # Add all passing tests
             local name
-
-            # Add all passing tests (sorted)
-            local passing_lines=()
             for name in ${testcases_passed[*]:-}; do
-                passing_lines+=( "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\"></testcase>" )
+                echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\"></testcase>"
             done
-            array_sort passing_lines
-            if array_not_empty passing_lines; then
-                printf '%s\n' "${passing_lines[@]}"
-            fi
 
-            # Add all failing tests with output (sorted by name)
-            local failing_names=( ${testcases_failed[*]:-} )
-            array_sort failing_names
-            for name in "${failing_names[@]}"; do
+            # Add all failing tests with output
+            for name in ${testcases_failed[*]:-}; do
                 local test_output=""
                 local error_line=""
                 local error_line_escaped=""
                 if [[ -f "${ETEST_LOG}" ]]; then
-                    # Extract test output (last occurrence only), strip ANSI codes, and escape CDATA end sequence
-                    test_output=$(tac "${ETEST_LOG}" \
-                        | sed -n "/${name}.*FAILED/,/Running command=\"${name}\"/p" \
-                        | tac \
-                        | sed 's/\x1b\[[0-9;]*m//g' \
-                        | sed 's/]]>/]]]]><![CDATA[>/g')
+                    # Extract test output and escape CDATA for XML
+                    test_output=$(__extract_test_output "${name}" "FAILED" | sed 's/]]>/]]]]><![CDATA[>/g')
 
                     # Extract the error line (line before stacktrace), strip timestamp
                     error_line=$(echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
@@ -372,6 +358,29 @@ create_xml()
                 echo "]]></failure>"
                 echo "</testcase>"
             done
+
+            # Add all skipped tests
+            # For tests skipped via failfast (never ran), there's no output to extract.
+            # Optimization: if suite has no passed/failed tests, it never ran (failfast skip).
+            local suite_ran=0
+            if [[ ${#testcases_passed[@]} -gt 0 || ${#testcases_failed[@]} -gt 0 ]]; then
+                suite_ran=1
+            fi
+
+            for name in ${testcases_skipped[*]:-}; do
+                local test_output=""
+                # Only try to extract output if the suite actually ran (has passed or failed tests)
+                if [[ ${suite_ran} -eq 1 && -f "${ETEST_LOG_NOANSI}" ]]; then
+                    test_output=$(__extract_test_output "${name}" "SKIPPED" | sed 's/]]>/]]]]><![CDATA[>/g')
+                fi
+
+                echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"0\">"
+                echo "<skipped><![CDATA["
+                echo "${test_output:-Skipped}"
+                echo "]]></skipped>"
+                echo "</testcase>"
+            done
+
             echo "</testsuite>"
         done
 

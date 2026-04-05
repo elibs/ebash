@@ -1,6 +1,10 @@
 ARG IMAGE
 FROM ${IMAGE}
 
+# Ensure UTF-8 locale for proper Unicode handling (C.UTF-8 is available on all modern Linux)
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
 # Install build dependencies (e.g. unzip is needed)
 COPY docker/setup /ebash-build/docker/setup
 RUN /ebash-build/docker/setup

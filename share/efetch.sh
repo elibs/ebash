@@ -392,17 +392,18 @@ efetch_wait()
     # Setup trap to kill the efetch pid.
     trap_add "ekill ${pid}"
 
-    # Setup trap to remove the output file if requested.
-    if [[ "${delete_output}" -eq 1 && -f "${output_file}" ]]; then
-        trap_add "rm --force ${output_file}"
-    fi
-
     local tail_pid=""
     if [[ -n "${output_file}" ]]; then
-        # Wait for output file to exist before starting tail toa void race condition
+        # Wait for output file to exist before starting tail to avoid race condition
         while [[ ! -e "${output_file}" ]] && process_running "${pid}"; do
             sleep 0.1
         done
+
+        # Setup trap to remove the output file if requested.
+        if [[ "${delete_output}" -eq 1 && -f "${output_file}" ]]; then
+            trap_add "rm --force ${output_file}"
+        fi
+
         tail --lines +1 --follow --retry --pid "${pid}" "${output_file}" &
         tail_pid=$!
     fi
