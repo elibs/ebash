@@ -6,12 +6,6 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-# Global configuration which can be overriden by the caller
-# This enforces Semantic Versioning 2.0 from https://semver.org/ with MAJOR, MINOR and PATCH.
-: ${EBASH_CICD_TAG_MATCH:="v*.*.*"}
-: ${EBASH_CICD_DEVELOP_BRANCH="develop"}
-: ${EBASH_CICD_RELEASE_BRANCH="main"}
-
 #-----------------------------------------------------------------------------------------------------------------------
 #
 # VERSION HELPERS
@@ -28,7 +22,8 @@ END
 cicd_version()
 {
     $(opt_parse \
-        ":file f | Path to VERSION file to read (fallback if git not available)." \
+        ":file f           | Path to VERSION file to read (fallback if git not available)." \
+        ":tag_match=v*.*.* | Git tag pattern for semantic versioning."                      \
     )
 
     # Prefer git describe if we're inside ebash repo because it's more accurate for development (includes commit offset)
@@ -39,7 +34,7 @@ cicd_version()
         origin=$(${git} remote get-url origin 2>/dev/null) || true
         if [[ "${origin}" == *ebash* ]]; then
             local ver date
-            ver=$(${git} describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null)
+            ver=$(${git} describe --always --tags --match "${tag_match}" --abbrev=10 --dirty 2>/dev/null)
             date=$(${git} log -1 --format=%cs 2>/dev/null)
             if [[ -n "${ver}" ]]; then
                 [[ -n "${date}" ]] && ver+=" (${date})"
@@ -69,11 +64,12 @@ END
 cicd_version_update()
 {
     $(opt_parse \
-        ":file f=VERSION | Path to VERSION file to write." \
+        ":file f=VERSION   | Path to VERSION file to write."           \
+        ":tag_match=v*.*.* | Git tag pattern for semantic versioning." \
     )
 
     local ver date
-    ver=$(git describe --always --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 --dirty 2>/dev/null) || ver="unknown"
+    ver=$(git describe --always --tags --match "${tag_match}" --abbrev=10 --dirty 2>/dev/null) || ver="unknown"
     date=$(git log -1 --format=%cs 2>/dev/null) || date=""
 
     local output="${ver}"
@@ -99,7 +95,7 @@ cicd_info is used to collect all CI/CD information about the current Git reposit
 * Version, version tag and next version tag
 
 This information is populated into a provided pack and then the caller can use the information inside the pack. For
-exmaple:
+example:
 
 ```bash
 local info=""
@@ -121,14 +117,15 @@ END
 cicd_info()
 {
     $(opt_parse \
-        "pack | Name of the pack to fill in with CICD details." \
+        ":tag_match=v*.*.* | Git tag pattern for semantic versioning."       \
+        "pack              | Name of the pack to fill in with CICD details." \
     )
 
-    # Parse the version_tag using the provided EBASH_CICD_TAG_MATCH. If we are unable to find a match use a
+    # Parse the version_tag using the provided tag_match pattern. If we are unable to find a match use a
     # corresponding default tag.
     local version_tag version base_tag
-    if ! version_tag=$(git describe --tags --match "${EBASH_CICD_TAG_MATCH}" --abbrev=10 2>/dev/null); then
-        version_tag="${EBASH_CICD_TAG_MATCH//\*/0}"
+    if ! version_tag=$(git describe --tags --match "${tag_match}" --abbrev=10 2>/dev/null); then
+        version_tag="${tag_match//\*/0}"
     fi
 
     # Now we can safely parse out the component version parts
@@ -178,12 +175,13 @@ END
 cicd_print()
 {
     $(opt_parse \
-        "+json      j | Instead of printing in simple key/value, this will instead print in JSON." \
-        "+uppercase u | Print keys in uppercase."                                                  \
+        "+json j           | Instead of printing in simple key/value, this will instead print in JSON." \
+        ":tag_match=v*.*.* | Git tag pattern for semantic versioning."                                  \
+        "+uppercase u      | Print keys in uppercase."                                                  \
     )
 
     local info=""
-    cicd_info info
+    cicd_info --tag-match "${tag_match}" info
     $(pack_import info)
 
     if [[ "${json}" -eq 1 ]]; then
@@ -197,29 +195,37 @@ cicd_print()
 
 opt_usage cicd_create_next_version_tag <<'END'
 cicd_create_next_version_tag is used to create the next version tag for a given Git repository. This operates using
-semantic versioning with the following named version components: ${major}.${minor}.${patch}.${build}. When this function
+semantic versioning with the following named version components: ${major}.${minor}.${patch}. When this function
 is called, it will utilize the `cicd_info` function which figures out what the next version tag would be by simply
-taking `${build} + 1`. This is then created and optionally pushed.
+taking `${patch} + 1`. This is then created and optionally pushed.
+
+By default, this function requires being on the `main` branch. Use `--branch` to specify a different branch.
 END
 cicd_create_next_version_tag()
 {
     local _message="[Build Automation] Auto tagged by automation pipeline"
     $(opt_parse \
-        "+push                | Push the resulting new tag."                             \
-        ":message=${_message} | Message to use for commit of new version tag."           \
+        ":branch b=main       | Branch where tags are created. Must be on this branch." \
+        ":message=${_message} | Message to use for commit of new version tag."          \
+        "+push                | Push the resulting new tag."                            \
+        ":tag_match=v*.*.*    | Git tag pattern for semantic versioning."               \
     )
 
+    # Save expected branch before pack_import overwrites the variable
+    local expected_branch="${branch}"
+
     local info=""
-    cicd_info info
+    cicd_info --tag-match "${tag_match}" info
     $(pack_import info)
+
     if edebug_enabled; then
         einfo "CI/CD Version Info"
         pack_to_json info | jq .
     fi
 
-    # Verify we are on develop branch
-    if [[ "${branch}" != "${EBASH_CICD_DEVELOP_BRANCH}" ]]; then
-        die "Must be on ${EBASH_CICD_DEVELOP_BRANCH} branch to create next version tag"
+    # Verify we are on the expected branch
+    if [[ "${branch}" != "${expected_branch}" ]]; then
+        die "Must be on ${expected_branch} branch to create next version tag (currently on ${branch})"
     fi
 
     # Verify version_tag_next was determined properly
@@ -249,12 +255,12 @@ END
 cicd_update_version_files()
 {
     $(opt_parse \
-        "+commit              | Commit the changes to git."                                                  \
-        ":message             | Commit message (default: '[Build Automation] Update version to TAG')."      \
-        ":readme              | Path to README.md to update with version badge."                             \
-        ":release_url         | URL for the version badge link (e.g. https://github.com/org/repo/releases)." \
-        "=tag             t   | Version tag string to set (e.g. v1.2.3)."                                    \
-        ":version_file   f    | Path to VERSION file to update."                                             \
+        "+commit       | Commit the changes to git."                                                  \
+        ":message      | Commit message (default: '[Build Automation] Update version to TAG')."      \
+        ":readme       | Path to README.md to update with version badge."                            \
+        ":release_url  | URL for the version badge link (e.g. https://github.com/org/repo/releases)." \
+        "=tag t        | Version tag string to set (e.g. v1.2.3)."                                   \
+        ":version_file f | Path to VERSION file to update."                                          \
     )
 
     local files_updated=()
@@ -305,24 +311,42 @@ cicd_update_version_files()
 }
 
 opt_usage cicd_release <<'END'
-cicd_release is used to push the develop branch into the release branch. Typically the develop branch is named `develop`
-and the release branch is named `master` or `main`. These can be configured via these two variables:
-* `EBASH_CICD_DEVELOP_BRANCH`
-* `EBASH_CICD_RELEASE_BRANCH`
+cicd_release is used to push from one branch to another (e.g., develop to main). This is useful for projects that use
+a two-branch workflow where development happens on one branch and releases are pushed to another.
 
-It is an error to try to release code when not on the `DEVELOP` branch.
+For single-branch workflows (where --from and --to are the same), this function is a no-op and returns successfully.
+
+Example usage:
+```shell
+# Two-branch workflow: push develop to main
+cicd_release --from develop --to main
+
+# Single-branch workflow: no-op (already on release branch)
+cicd_release --from main --to main
+```
 END
 cicd_release()
 {
+    $(opt_parse \
+        ":from=main | Source branch to release from. Must be on this branch." \
+        ":to=main   | Target branch to push to."                              \
+    )
+
+    # Single-branch model: no-op
+    if [[ "${from}" == "${to}" ]]; then
+        einfo "Single-branch model: already on release branch ${to}"
+        return 0
+    fi
+
     local info=""
     cicd_info info
     $(pack_import info)
 
-    # Verify we are on develop branch
-    if [[ "${branch}" != "${EBASH_CICD_DEVELOP_BRANCH}" ]]; then
-        die "Must be on ${EBASH_CICD_DEVELOP_BRANCH} branch to release to ${EBASH_CICD_RELEASE_BRANCH}"
+    # Verify we are on the source branch
+    if [[ "${branch}" != "${from}" ]]; then
+        die "Must be on ${from} branch to release to ${to} (currently on ${branch})"
     fi
 
-    einfo "Pushing ${EBASH_CICD_DEVELOP_BRANCH} -> ${EBASH_CICD_RELEASE_BRANCH}"
-    git push origin HEAD:${EBASH_CICD_RELEASE_BRANCH}
+    einfo "Pushing ${from} -> ${to}"
+    git push origin HEAD:${to}
 }
