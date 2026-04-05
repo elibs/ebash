@@ -20,26 +20,14 @@ test_binary="reset"
 test_binary_path="$(which ${test_binary})"
 test_binary_flag="-V"
 
-# Find an available binary for filesystem mocking that isn't currently busy.
-# Echoes the full path and mocks it. Caller must eunmock when done.
-# Uses elock to serialize selection across parallel tests.
-find_available_fs_binary()
+# Create a unique test binary for filesystem mocking.
+# Echoes the full path. Caller must clean up when done.
+create_test_binary()
 {
-    local candidates=(base32 b2sum basenc factor tsort ptx unexpand vdir pinky)
-    local lockfile="/tmp/.emock_fs_binary_lock"
-    local candidate path
-
-    elock "${lockfile}"
-    for candidate in "${candidates[@]}"; do
-        path="$(which ${candidate} 2>/dev/null)" || continue
-        if emock --filesystem "${path}" 2>/dev/null; then
-            echo "${path}"
-            eunlock "${lockfile}"
-            return 0
-        fi
-    done
-    eunlock "${lockfile}"
-    die "No available binary found for filesystem mocking"
+    local path="/tmp/emock_test_binary_$$_${BASHPID}_${RANDOM}"
+    printf '#!/bin/bash\nexit 0\n' > "${path}"
+    chmod +x "${path}"
+    echo "${path}"
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -67,16 +55,15 @@ ETEST_emock_path()
 
 ETEST_emock_filesystem()
 {
-    # Skip if we are not running in docker to avoid changing root filesystem
-    $(skip_if "! running_in_docker")
-
-    # Find an available binary that isn't busy (also mocks it)
+    # Create a unique test binary
     local test_binary_path
-    test_binary_path="$(find_available_fs_binary)"
+    test_binary_path="$(create_test_binary)"
     local test_binary="${test_binary_path##*/}"
-    trap_add "eunmock ${test_binary_path}"
+    trap_add "rm -f ${test_binary_path} ${test_binary_path}_real"
 
-    etestmsg "Mocked ${test_binary} with full path and --filesystem"
+    etestmsg "Mocking ${test_binary} with full path and --filesystem"
+    emock --filesystem "${test_binary_path}"
+
     assert_eq "file" "$(type -t ${test_binary_path})"
     assert_eq "file" "$(type -t ${test_binary_path}_real)"
     assert_eq "filesystem" "$(emock_mode "${test_binary}")"
@@ -85,19 +72,17 @@ ETEST_emock_filesystem()
 
 ETEST_emock_filesystem_multiple()
 {
-    # Skip if we are not running in docker to avoid changing root filesystem
-    $(skip_if "! running_in_docker")
-
-    # Find an available binary that isn't busy (also mocks it)
+    # Create a unique test binary
     local test_binary_path
-    test_binary_path="$(find_available_fs_binary)"
+    test_binary_path="$(create_test_binary)"
     local test_binary="${test_binary_path##*/}"
+    trap_add "rm -f ${test_binary_path} ${test_binary_path}_real"
 
-    etestmsg "Mocked ${test_binary} with full path and --filesystem"
+    etestmsg "Mocking ${test_binary} with full path and --filesystem"
+    emock --filesystem "${test_binary_path}"
     assert_eq "file" "$(type -t ${test_binary_path})"
     assert_eq "file" "$(type -t ${test_binary_path}_real)"
     assert_eq "filesystem" "$(emock_mode "${test_binary}")"
-    assert_not_match "$(file -L "${test_binary_path}")" "ELF"
 
     etestmsg "Mocking ${test_binary} with --filesystem and --return 1"
     emock --filesystem --return 1 "${test_binary_path}"
@@ -109,7 +94,7 @@ ETEST_emock_filesystem_multiple()
 
     etestmsg "Unmocking"
     eunmock "${test_binary_path}"
-    file -L "${test_binary_path}" | grep -Pq "ELF"
+    grep -q "exit 0" "${test_binary_path}"
 }
 
 ETEST_emock_called()
@@ -173,16 +158,14 @@ ETEST_emock_called()
 
 ETEST_emock_called_filesystem()
 {
-    # Skip if we are not running in docker to avoid changing root filesystem
-    $(skip_if "! running_in_docker")
-
-    # Find an available binary that isn't busy (also mocks it)
+    # Create a unique test binary
     local test_binary_path
-    test_binary_path="$(find_available_fs_binary)"
+    test_binary_path="$(create_test_binary)"
     local test_binary="${test_binary_path##*/}"
-    trap_add "eunmock ${test_binary_path}"
+    trap_add "rm -f ${test_binary_path} ${test_binary_path}_real"
 
-    etestmsg "Mocked ${test_binary} with full path and --filesystem"
+    etestmsg "Mocking ${test_binary} with full path and --filesystem"
+    emock --filesystem "${test_binary_path}"
     assert_eq "filesystem" "$(emock_mode "${test_binary}")"
     assert_exists "${test_binary_path}_real"
     assert_eq 0 "$(emock_called ${test_binary_path})"
