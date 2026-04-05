@@ -17,19 +17,18 @@
 CACHE    ?= $(or ${cache},1)
 COLUMNS  ?= $(or ${columns},$(shell tput cols))
 DELETE   ?= $(or ${delete},1)
+DISABLED ?= $(or ${disabled},0)
 EDEBUG   ?= $(or $(or ${edebug},${debug},))
 EXCLUDE  ?= $(or ${exclude},)
 FAILFAST ?= $(or ${failfast},0)
 FAILOUT  ?= $(or ${failout},0)
 FILTER   ?= $(or ${filter},)
-JOBS     ?= $(or ${jobs},$(shell echo $$(($$(nproc) * 4))))
+JOBS     ?= $(or ${jobs},$(shell nproc))
 MOUNTNS  ?= $(or ${mountns},0)
 PULL     ?= $(or ${pull},0)
 PUSH     ?= $(or ${push},0)
 REGISTRY ?= $(or ${registry},ghcr.io)
-RETRIES  ?= $(or ${retries},0)
 REPEAT   ?= $(or ${repeat},0)
-SHUFFLE  ?= $(or ${shuffle},0)
 SUDO     ?= $(or ${sudo},0)
 V        ?= $(or $v,0)
 
@@ -38,6 +37,7 @@ ENVLIST  ?=          \
 	CACHE            \
 	CI               \
 	COLUMNS          \
+	DISABLED         \
 	EDEBUG           \
 	EFUNCS           \
 	EINTERACTIVE     \
@@ -52,7 +52,6 @@ ENVLIST  ?=          \
 	PUSH             \
 	REGISTRY         \
 	REPEAT           \
-	RETRIES          \
 	V
 export ${ENVLIST}
 
@@ -74,10 +73,7 @@ clean:
 
 .PHONY: clobber
 clobber: clean
-	sudo bin/ebash rm -frv --one-file-system .work tests/self/output
-	sudo bin/ebash git clean -f
-	sudo bin/ebash git clean -fd
-	sudo bin/ebash git clean -fX
+	podman unshare rm -rfv .work tests/self/output
 
 .PHONY: lint bashlint
 lint bashlint:
@@ -88,6 +84,7 @@ test:
 	bin/etest \
 		--debug="${EDEBUG}"         \
 		--delete=${DELETE}          \
+		--disabled=${DISABLED}      \
 		--exclude="${EXCLUDE}"      \
 		--failfast=${FAILFAST}      \
 		--failure-output=${FAILOUT} \
@@ -95,8 +92,6 @@ test:
 		--jobs=${JOBS}              \
 		--mountns=${MOUNTNS}        \
 		--repeat=${REPEAT}          \
-		--retries=${RETRIES}        \
-		--shuffle=${SHUFFLE}        \
 		--sudo=${SUDO}              \
 		--verbose=${V}
 
@@ -127,8 +122,8 @@ DISTROS =           \
 	fedora-35       \
 	gentoo          \
 	rocky-9         \
-	ubuntu-18.04    \
 	ubuntu-20.04    \
+	ubuntu-22.04    \
 
 # Template for running tests inside a Linux distro container
 DRUN = bin/ebash docker_run                                 \

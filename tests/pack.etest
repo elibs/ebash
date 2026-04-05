@@ -351,3 +351,208 @@ ETEST_pack_full_character_set()
     # And make sure it does
     [[ "$CHARSET" == "$(pack_get P charset)" ]] || { eerror "P/charset not as expected [$(pack_get P charset)]" ; return 1 ; }
 }
+
+# DISABLED: Stress tests (~50s runtime). Run with: etest --disabled tests/pack.etest
+# These tests found a quoting bug in pack_import where special characters corrupted the eval string.
+
+DISABLED_ETEST_pack_stress_save_load_import()
+{
+    local iterations=100
+    local num_keys=20
+
+    etestmsg "Running ${iterations} iterations of pack save/load/import with ${num_keys} keys"
+
+    local i key val expected_vals
+    declare -A expected_vals
+
+    for (( i=0; i < iterations; i++ )); do
+
+        # Build a pack with many keys including special characters
+        unset P
+        local P=""
+        for (( key=0; key < num_keys; key++ )); do
+            val="value_${i}_${key}_with spaces_and=equals_and\"quotes"
+            pack_set P "key${key}=${val}"
+            expected_vals["key${key}"]="${val}"
+        done
+
+        # Save to file
+        pack_save P "stress_${i}.pack"
+
+        # Load into a fresh variable
+        unset Q
+        local Q=""
+        pack_load Q "stress_${i}.pack"
+
+        # Verify loaded pack matches
+        for (( key=0; key < num_keys; key++ )); do
+            local got
+            got=$(pack_get Q "key${key}")
+            assert_eq "${expected_vals[key${key}]}" "${got}" "Mismatch at iteration ${i}, key${key}"
+        done
+
+        # Import and verify variables
+        $(pack_import Q)
+        for (( key=0; key < num_keys; key++ )); do
+            local varname="key${key}"
+            assert_eq "${expected_vals[$varname]}" "${!varname}" "Import mismatch at iteration ${i}, ${varname}"
+        done
+
+        # Clean up
+        rm -f "stress_${i}.pack"
+    done
+
+    etestmsg "Completed ${iterations} iterations successfully"
+}
+
+DISABLED_ETEST_pack_stress_parallel()
+{
+    local num_workers=10
+    local iterations_per_worker=50
+
+    etestmsg "Running ${num_workers} parallel workers, ${iterations_per_worker} iterations each"
+
+    mkdir -p parallel_stress
+
+    # Worker function that runs in background
+    pack_stress_worker()
+    {
+        local worker_id=$1
+        local iterations=$2
+        local i
+
+        for (( i=0; i < iterations; i++ )); do
+            local P=""
+            pack_set P \
+                worker="${worker_id}" \
+                iteration="${i}" \
+                data="worker_${worker_id}_iter_${i}_data_with_special_chars=and\"quotes"
+
+            pack_save P "parallel_stress/worker_${worker_id}_${i}.pack"
+
+            # Immediately load and verify
+            local Q=""
+            pack_load Q "parallel_stress/worker_${worker_id}_${i}.pack"
+            $(pack_import Q)
+
+            [[ "${worker}" == "${worker_id}" ]] || die "Worker mismatch: expected ${worker_id}, got ${worker}"
+            [[ "${iteration}" == "${i}" ]] || die "Iteration mismatch: expected ${i}, got ${iteration}"
+        done
+    }
+
+    # Spawn workers
+    local pids=()
+    local w
+    for (( w=0; w < num_workers; w++ )); do
+        pack_stress_worker "${w}" "${iterations_per_worker}" &
+        pids+=($!)
+    done
+
+    # Wait for all workers
+    local pid
+    for pid in "${pids[@]}"; do
+        wait "${pid}" || die "Worker ${pid} failed"
+    done
+
+    # Verify all files exist and are valid
+    local total_files
+    total_files=$(find parallel_stress -name "*.pack" | wc -l)
+    assert_eq $(( num_workers * iterations_per_worker )) "${total_files}" "Missing pack files"
+
+    etestmsg "All ${num_workers} workers completed ${iterations_per_worker} iterations each"
+
+    rm -rf parallel_stress
+}
+
+DISABLED_ETEST_pack_stress_reimport()
+{
+    local iterations=200
+
+    etestmsg "Testing ${iterations} reimports into same variable"
+
+    local i
+    for (( i=0; i < iterations; i++ )); do
+        local P=""
+        pack_set P \
+            alpha="${i}" \
+            beta="value_${i}" \
+            gamma="iteration number ${i} with spaces"
+
+        # Import - this reuses variable names alpha, beta, gamma each iteration
+        $(pack_import P)
+
+        assert_eq "${i}" "${alpha}" "alpha mismatch at iteration ${i}"
+        assert_eq "value_${i}" "${beta}" "beta mismatch at iteration ${i}"
+        assert_eq "iteration number ${i} with spaces" "${gamma}" "gamma mismatch at iteration ${i}"
+    done
+
+    etestmsg "Completed ${iterations} reimport iterations"
+}
+
+DISABLED_ETEST_pack_stress_etest_pattern()
+{
+    local num_jobs=50
+    local repeat_iterations=5
+
+    etestmsg "Simulating etest pattern: ${num_jobs} jobs x ${repeat_iterations} repeat iterations"
+
+    mkdir -p etest_stress/jobs
+
+    local repeat_iter job_idx
+
+    for (( repeat_iter=0; repeat_iter < repeat_iterations; repeat_iter++ )); do
+        etestmsg "Repeat iteration ${repeat_iter}"
+
+        # Clear job directories (simulating efreshdir)
+        rm -rf etest_stress/jobs/*
+        for (( job_idx=0; job_idx < num_jobs; job_idx++ )); do
+            mkdir -p "etest_stress/jobs/${job_idx}"
+        done
+
+        # Simulate workers writing info packs
+        for (( job_idx=0; job_idx < num_jobs; job_idx++ )); do
+            local info=""
+            pack_set info \
+                suite="suite_${job_idx}" \
+                testfile="test_${job_idx}.etest" \
+                num_tests_passed="$((RANDOM % 10))" \
+                num_tests_failed="$((RANDOM % 3))" \
+                num_tests_skipped="$((RANDOM % 2))" \
+                num_tests_executed="$((RANDOM % 15))" \
+                tests_passed="test1 test2 test3" \
+                tests_failed="" \
+                tests_skipped="" \
+                duration="$((RANDOM % 60))" \
+                tests_duration="$(echo 'declare -A tests_duration=()' | base64)"
+
+            pack_save info "etest_stress/jobs/${job_idx}/info.pack"
+            touch "etest_stress/jobs/${job_idx}/done"
+        done
+
+        # Simulate main process reading info packs (the pattern that was failing)
+        declare -A processed_jobs=()
+
+        for (( job_idx=0; job_idx < num_jobs; job_idx++ )); do
+            local path="etest_stress/jobs/${job_idx}"
+
+            [[ -f "${path}/done" ]] || die "Missing done file for job ${job_idx}"
+
+            if [[ -f "${path}/info.pack" ]]; then
+                local info=""
+                pack_load info "${path}/info.pack"
+                $(pack_import info)
+
+                processed_jobs[$job_idx]=1
+
+                # Verify imported values
+                [[ "${suite}" == "suite_${job_idx}" ]] || die "Suite mismatch at job ${job_idx}: got ${suite}"
+                [[ "${testfile}" == "test_${job_idx}.etest" ]] || die "Testfile mismatch at job ${job_idx}"
+            fi
+        done
+
+        assert_eq "${num_jobs}" "${#processed_jobs[@]}" "Not all jobs processed in iteration ${repeat_iter}"
+    done
+
+    rm -rf etest_stress
+    etestmsg "Completed ${repeat_iterations} repeat iterations with ${num_jobs} jobs each"
+}

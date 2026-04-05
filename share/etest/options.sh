@@ -32,8 +32,8 @@ etest provides several additional security and auditing features of interest:
 Tests can be repeated, filtered, excluded, debugged, traced and a host of other extensive developer friendly features.
 
 etest produces a JUnit/XUnit compatible etest.xml file at the end of the test run listing all the tests that were
-executed along with durations and specific lists of passing, failing and flaky tests. This file can be directly hooked
-into Jenkins, GitHub Actions, and BitBucket Pipelines for clear test visibility and reporting.
+executed along with durations and specific lists of passing and failing tests. This file can be directly hooked into
+Jenkins, GitHub Actions, and BitBucket Pipelines for clear test visibility and reporting.
 END
 : ${FAILFAST:=${BREAK:-0}}
 $(opt_parse \
@@ -65,11 +65,6 @@ $(opt_parse \
     ":logdir log_dir               | Directory to place logs in. Defaults to the current directory."                   \
     "+mountns mount_ns=0           | Run tests inside a mount namespace."                                              \
     ":repeat  r=${REPEAT:-1}       | Number of times to repeat each test."                                             \
-    ":retries failures=${RETRIES:-${FAILURES:-0}} | Number of retry attempts per-test. Normally etest will error if any
-                                     test fails at all. However, in certain circumstances where flaky tests exist it may
-                                     be desireable to allow each test to retried a specified number of times and only
-                                     classify it as a failure if that test fails more than the requested threshold."   \
-    "+shuffle=${SHUFFLE:-0}        | Randomize the order tests are executed to avoid clustering CPU-intensive tests."  \
     "+silent                       | Make etest as silent as possible. All output will be directed to the logfile."    \
     "+sudo S=0                     | Reexec as root and preserve environment before running tests."                    \
     "+summary s=0                  | Display final summary to terminal in addition to logging it to etest.json."       \
@@ -93,6 +88,8 @@ $(opt_parse \
                                     reparented to etest itself instead of to init or whatever process ancestor may have
                                     set this flag. This allows us to properly detect process leak detections and ensure
                                     they are cleaned up properly. This only works on Linux with gdb installed."       \
+    "+disabled=0                  | Also run tests prefixed with DISABLED_ETEST_. These are tests that are excluded
+                                    by default (e.g. expensive stress tests) but can be run explicitly."            \
     "@tests                       | Any number of individual tests, which may be executables to be executed and checked
                                     for exit code or may be files whose names end in .etest, in which case they will be
                                     sourced and any test functions found will be executed. You may also specify

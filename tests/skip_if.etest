@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+#
+# Copyright 2024, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests: skip_if
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_skip_if_false_condition()
+{
+    # When condition is false, test should run normally
+    $(skip_if "false")
+    etestmsg "This test should run because the condition is false"
+}
+
+ETEST_skip_if_with_true_condition()
+{
+    # When condition is true, test should be skipped (exit 77)
+    $(skip_if "true")
+    die "This should never execute because test was skipped"
+}
+
+ETEST_skip_if_with_pipeline_true()
+{
+    # When pipeline condition is true, test should be skipped
+    $(skip_if "echo podman | grep -q podman")
+    die "This should never execute because test was skipped"
+}
+
+ETEST_skip_if_with_pipeline_false()
+{
+    # When pipeline condition is false, test should run
+    $(skip_if "echo docker | grep -q podman")
+    etestmsg "This test should run because the pipeline returns false"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests: skip_file_if - tested via separate test files
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_skip_file_if_sets_flag()
+{
+    # Test that skip_file_if properly sets ETEST_SKIP_FILE when condition is true
+    local ETEST_SKIP_FILE=0
+    $(skip_file_if "true")
+    assert_eq 1 "${ETEST_SKIP_FILE}"
+}
+
+ETEST_skip_file_if_does_not_set_flag_when_false()
+{
+    # Test that skip_file_if doesn't set flag when condition is false
+    local ETEST_SKIP_FILE=0
+    $(skip_file_if "false")
+    assert_eq 0 "${ETEST_SKIP_FILE}"
+}

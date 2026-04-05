@@ -450,29 +450,6 @@ ETEST_etable_boxart_title_no_headers()
     diff --unified expect actual
 }
 
-ETEST_etable_boxart_title_no_headers()
-{
-    etable --style=boxart --no-headers                          \
-        --title "Welcome To LiqidOS v2.5.0.100"                 \
-        "Component|Version|Branch|Commit|Date"                  \
-        "API|2.4.0.73|release-2.4|2f4607c24b|2021-01-26T21"     \
-        "COREBOOT|2.4.0.5|release-2.4|452ca2892a|2021-01-26T09" \
-        "NORTHBOUND|2.4.0.25|release-2.4|386bcfb5d0|2021-01-27T04" > actual
-
-    cat actual
-
-    cat > expect <<-END
-	╒══ Welcome To LiqidOS v2.5.0.100 ═════════════════════════════════╕
-	│                                                                  │
-	│ API        │ 2.4.0.73 │ release-2.4 │ 2f4607c24b │ 2021-01-26T21 │
-	│ COREBOOT   │ 2.4.0.5  │ release-2.4 │ 452ca2892a │ 2021-01-26T09 │
-	│ NORTHBOUND │ 2.4.0.25 │ release-2.4 │ 386bcfb5d0 │ 2021-01-27T04 │
-	└────────────┴──────────┴─────────────┴────────────┴───────────────┘
-	END
-
-    diff --unified expect actual
-}
-
 ETEST_etable_boxart_title_no_internal_lines()
 {
     etable --style=boxart --no-headers --no-column-delim        \

@@ -162,13 +162,29 @@ __etable_internal_ascii()
     local part
     local part_len
     local column_indexes=()
+    local output=""
+
+    # Fast visible length calculation - avoids subshells when no ANSI codes present
+    __visible_len()
+    {
+        local text="$1"
+        if [[ "$text" != *$'\e'* ]]; then
+            # No ANSI codes - just return length (handles UTF-8 correctly with ${#})
+            echo ${#text}
+        else
+            # Has ANSI codes - strip them first
+            local stripped
+            stripped="${text//$'\e'\[*([0-9;])m/}"
+            echo ${#stripped}
+        fi
+    }
 
     # First iterate over all the column headers and all the rows and figure out the longest value in each column.
     for line in "${columns}" "${entries[@]}"; do
         array_init parts "${line}" "|"
         local idx=0
         for part in "${parts[@]}"; do
-            part_len=$(echo -n "${part}" | noansi | wc -c)
+            part_len=$(__visible_len "${part}")
             [[ ${part_len} -gt ${lengths[$idx]:-} ]] && lengths[$idx]=${part_len}
             idx=$((idx+1))
         done
@@ -208,42 +224,83 @@ __etable_internal_ascii()
     column_indexes=$(array_indexes parts)
     local idx=0
 
-    local len=0
+    local len=0 hline=""
     for idx in ${column_indexes[*]}; do
         len=$((lengths[$idx]+2))
         (( divider_len += len ))
 
+        # Build horizontal line segment without subshell
+        printf -v hline '%*s' "$len" ""
+        hline="${hline// /${symbols[horizonal_line]}}"
+
         if [[ $(( idx+1 )) -eq $(array_size parts) ]]; then
-            divider+=$(printf "%${len}s${symbols[top_right]}" | sed -e "s| |${symbols[horizonal_line]}|g")
+            divider+="${hline}${symbols[top_right]}"
         else
-            divider+=$(printf "%${len}s${symbols[top_tee]}"   | sed -e "s| |${symbols[horizonal_line]}|g")
+            divider+="${hline}${symbols[top_tee]}"
         fi
     done
+
+    # Pre-compute all divider variations using bash string replacement (avoid sed subshells)
+    local divider_title divider_title_no_delim divider_header divider_header_no_delim divider_footer divider_footer_no_delim divider_row
+    # Title divider (after title, before column headers) - keeps ┬
+    divider_title="${divider//${symbols[top_left]}/${symbols[left_tee]}}"
+    divider_title="${divider_title//${symbols[top_right]}/${symbols[right_tee]}}"
+    # Title divider without column delimiters
+    divider_title_no_delim="${divider//${symbols[top_tee]}/${symbols[horizonal_line]}}"
+    divider_title_no_delim="${divider_title_no_delim//${symbols[top_left]}/${symbols[left_tee]}}"
+    divider_title_no_delim="${divider_title_no_delim//${symbols[top_right]}/${symbols[right_tee]}}"
+    # Header divider (after column headers) - changes ┬ to ┼
+    divider_header="${divider//${symbols[top_tee]}/${symbols[middle_tee]}}"
+    divider_header="${divider_header//${symbols[top_left]}/${symbols[left_tee]}}"
+    divider_header="${divider_header//${symbols[top_right]}/${symbols[right_tee]}}"
+    # Header divider without column delimiters
+    divider_header_no_delim="${divider//${symbols[top_tee]}/${symbols[horizonal_line]}}"
+    divider_header_no_delim="${divider_header_no_delim//${symbols[top_left]}/${symbols[left_tee]}}"
+    divider_header_no_delim="${divider_header_no_delim//${symbols[top_right]}/${symbols[right_tee]}}"
+    # Footer divider (bottom of table)
+    divider_footer="${divider//${symbols[top_tee]}/${symbols[bottom_tee]}}"
+    divider_footer="${divider_footer//${symbols[top_left]}/${symbols[bottom_left]}}"
+    divider_footer="${divider_footer//${symbols[top_right]}/${symbols[bottom_right]}}"
+    # Footer without column delimiters
+    divider_footer_no_delim="${divider//${symbols[top_tee]}/${symbols[horizonal_line]}}"
+    divider_footer_no_delim="${divider_footer_no_delim//${symbols[top_left]}/${symbols[bottom_left]}}"
+    divider_footer_no_delim="${divider_footer_no_delim//${symbols[top_right]}/${symbols[bottom_right]}}"
+    # Row divider (between rows)
+    divider_row="${divider_header}"
 
     if [[ -n "${title}" ]]; then
 
         if [[ ${style} == "ascii" ]]; then
-            printf "== ${title} ==\n\n%s\n" "${divider}"
+            output+="== ${title} =="$'\n\n'"${divider}"$'\n'
         else
-            local title_nocolor
-            title_nocolor=$(echo "${title}" | noansi)
+            local title_nocolor title_line title_padding
+            # Strip ANSI without subshell if possible
+            if [[ "$title" != *$'\e'* ]]; then
+                title_nocolor="$title"
+            else
+                title_nocolor="${title//$'\e'\[*([0-9;])m/}"
+            fi
 
             # Use actual divider width (includes column separators) minus title and fixed frame chars
-            len=$(( ${#divider} - ${#title_nocolor} - 9 ))
+            # Fixed chars: ╒══(3) + space(1) + space(1) + ══╕(3) = 8
+            len=$(( ${#divider} - ${#title_nocolor} - 8 ))
 
-            printf "╒══__TITLE__%${len}s ══╕\n" | sed -e "s| |═|g" -e "s|__TITLE__| ${title} |"
+            # Build title line without subshell
+            printf -v title_padding '%*s' "$len" ""
+            title_padding="${title_padding// /═}"
+            output+="╒══ ${title} ${title_padding}══╕"$'\n'
 
             if [[ ${headers_delim} -eq 1 ]]; then
-                printf "${divider}\n" | sed \
-                    -e "s|${symbols[top_left]}|${symbols[left_tee]}|" \
-                    -e "s|${symbols[top_right]}|${symbols[right_tee]}|"
+                output+="${divider_title}"$'\n'
             else
-                printf "${symbols[vertical_line]}%$(( divider_len + 4 ))s${symbols[vertical_line]}\n"
+                local blank_line
+                printf -v blank_line '%*s' "$(( divider_len + 4 ))" ""
+                output+="${symbols[vertical_line]}${blank_line}${symbols[vertical_line]}"$'\n'
             fi
         fi
 
     else
-        printf "%s\n" ${divider}
+        output+="${divider}"$'\n'
     fi
 
     # Now iterate over each row and print each row and it's row delimiter.
@@ -258,21 +315,25 @@ __etable_internal_ascii()
         # Split this row on the column delimiter and then iterate over each part and print it padded out to the right
         # width.
         array_init parts "${line}" "|"
-        printf "${symbols[vertical_line]}"
+        output+="${symbols[vertical_line]}"
 
         local idx=0
         for idx in ${column_indexes[*]}; do
             part=${parts[$idx]:-}
-            part_len=$(echo -n "${part}" | noansi | wc -c)
+            part_len=$(__visible_len "${part}")
             pad=$(( lengths[$idx] - part_len + 1 ))
 
+            # Build padding string without subshell
+            local padding=""
+            printf -v padding '%*s' "$pad" ""
+
             if [[ ${column_delim} -eq 1 || ${idx} -eq $(( ${#parts[@]} - 1 )) ]]; then
-                printf " %s%${pad}s${symbols[vertical_line]}" "${part}" " "
+                output+=" ${part}${padding}${symbols[vertical_line]}"
             else
-                printf " %s%${pad}s " "${part}" " "
+                output+=" ${part}${padding} "
             fi
         done
-        printf $'\n'
+        output+=$'\n'
 
         # Print either header/footer delimiter if we're on the first or last row, or optionally print the row line
         # separator if requested.
@@ -280,72 +341,81 @@ __etable_internal_ascii()
         if [[ ${lnum} -eq 1 ]]; then
 
             if [[ ${style} == "ascii" ]]; then
-                echo "${divider}"
+                output+="${divider}"$'\n'
             else
-
                 if [[ ${column_delim} -eq 0 ]]; then
-                    echo "${divider}" | sed -e "s/${symbols[top_tee]}/${symbols[horizonal_line]}/g" \
-                                            -e "s/${symbols[top_left]}/${symbols[left_tee]}/g"  \
-                                            -e "s/${symbols[top_right]}/${symbols[right_tee]}/g"
+                    output+="${divider_header_no_delim}"$'\n'
                 else
-                    echo "${divider}" | sed -e "s/${symbols[top_tee]}/${symbols[middle_tee]}/g" \
-                                            -e "s/${symbols[top_left]}/${symbols[left_tee]}/g"  \
-                                            -e "s/${symbols[top_right]}/${symbols[right_tee]}/g"
+                    output+="${divider_header}"$'\n'
                 fi
             fi
 
         elif [[ ${lnum} -eq $(( ${#entries[@]} + 1 )) ]]; then
 
             if [[ ${column_delim} -eq 0 ]]; then
-                echo "${divider}" | sed -e "s/${symbols[top_tee]}/${symbols[horizonal_line]}/g" \
-                                        -e "s/${symbols[top_left]}/${symbols[bottom_left]}/g"   \
-                                        -e "s/${symbols[top_right]}/${symbols[bottom_right]}/g"
+                output+="${divider_footer_no_delim}"$'\n'
             else
-                echo "${divider}" | sed -e "s/${symbols[top_tee]}/${symbols[bottom_tee]}/g"     \
-                                        -e "s/${symbols[top_left]}/${symbols[bottom_left]}/g"   \
-                                        -e "s/${symbols[top_right]}/${symbols[bottom_right]}/g"
+                output+="${divider_footer}"$'\n'
             fi
 
         elif [[ ${rowlines} -eq 1 ]]; then
-            echo "${divider}" | sed -e "s/${symbols[top_left]}/${symbols[left_tee]}/g"  \
-                                    -e "s/${symbols[top_tee]}/${symbols[middle_tee]}/g" \
-                                    -e "s/${symbols[top_right]}/${symbols[right_tee]}/g"
+            output+="${divider_row}"$'\n'
         fi
     done
+
+    # Print entire table at once
+    printf '%s' "${output}"
 }
 
 # Internal helper version of etable to generate an HTML table
 __etable_internal_html()
 {
-    echo '<table>'
-    echo '    <tbody>'
+    local output=""
+    output+='<table>'$'\n'
+    output+='    <tbody>'$'\n'
+
+    # Fast ANSI strip - avoids subshell when no ANSI codes
+    __strip_ansi()
+    {
+        local text="$1"
+        if [[ "$text" != *$'\e'* ]]; then
+            echo "$text"
+        else
+            echo "${text//$'\e'\[*([0-9;])m/}"
+        fi
+    }
 
     # Column headers
-    echo "        <tr>"
-    local part parts
+    output+="        <tr>"$'\n'
+    local part parts stripped
     array_init parts "${columns}" "|"
     for part in "${parts[@]}"; do
-        echo "            <th><p><strong>$(echo "${part}" | noansi)</strong></p></th>"
+        stripped=$(__strip_ansi "$part")
+        output+="            <th><p><strong>${stripped}</strong></p></th>"$'\n'
     done
-    echo "        </tr>"
+    output+="        </tr>"$'\n'
 
     # Each row
     local line
     for line in "${entries[@]}"; do
-        echo "        <tr>"
+        output+="        <tr>"$'\n'
 
         local part parts
         array_init parts "${line}" "|"
         for part in "${parts[@]}"; do
-            echo "            <td><p>$(echo "${part}" | noansi)</p></td>"
+            stripped=$(__strip_ansi "$part")
+            output+="            <td><p>${stripped}</p></td>"$'\n'
         done
 
-        echo "        </tr>"
+        output+="        </tr>"$'\n'
     done
 
     # Footer
-    echo "    </tbody>"
-    echo "</table>"
+    output+="    </tbody>"$'\n'
+    output+="</table>"$'\n'
+
+    # Print entire table at once
+    printf '%s' "${output}"
 }
 
 opt_usage etable_values <<'END'

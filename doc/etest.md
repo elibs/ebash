@@ -190,14 +190,14 @@ outputs and change the color, etc.
 <p>
 
 ```shell
-etestmsg "Installing into ubuntu18.04 container"
+etestmsg "Installing into ubuntu22.04 container"
 container_id=$(docker run \
                     --env "DEBIAN_FRONTEND=noninteractive"           \
                     --detach                                         \
                     --volume "${builds}:${builds}"                   \
                     --volume "${install_script}:${install_script}"   \
                     --workdir "${builds}"                            \
-                    ubuntu:18.04                                     \
+                    ubuntu:22.04                                     \
                     "${install_script}")
 ```
 </p>

@@ -166,6 +166,8 @@ docker_build()
     if [[ -n "$(docker images --quiet "${image}" 2>/dev/null)" ]]; then
 
         einfo "Using local ${image}"
+        # Only create build.log if it doesn't already exist (preserves previous build output)
+        [[ -f "${buildlog}" ]] || echo "# Build skipped - using cached local image: ${image}" > "${buildlog}"
         docker history "${image}" > "${histfile}"
         docker inspect "${image}" > "${inspfile}"
 
@@ -182,6 +184,8 @@ docker_build()
 
         if docker pull "${image}" 2>/dev/null; then
             einfo "Using pulled ${image}"
+            # Only create build.log if it doesn't already exist (preserves previous build output)
+            [[ -f "${buildlog}" ]] || echo "# Build skipped - using pulled image: ${image}" > "${buildlog}"
             docker history "${image}" > "${histfile}"
             docker inspect "${image}" > "${inspfile}"
 
@@ -681,6 +685,11 @@ docker_export()
     local convert_dir convert_out
     convert_dir=$(mktemp --tmpdir --directory docker-image-export-XXXXXX)
     convert_out=$(mktemp --tmpdir docker-image-export-XXXXXX)
+
+    # Cleanup temp files/dirs - use chmod to handle files with special permissions (setuid, etc.)
+    trap_add "rm -f ${tmpout} ${convert_out} 2>/dev/null || true"
+    trap_add "chmod -R u+rwx ${convert_dir} 2>/dev/null; rm -rf ${convert_dir} 2>/dev/null || true"
+
     tar -C "${convert_dir}" -xzf "${tmpout}"
 
     (
@@ -780,7 +789,7 @@ __docker_setup_ssh_port_forwarding()
     # (3) If DOCKER_CONTEXT is set that will be what is returned from the `docker context` command.
     local docker_context docker_user docker_host docker_port
     $(tryrc --stdout docker_host "docker context inspect 2>/dev/null | jq --raw-output '.[0].Endpoints.docker.Host'")
-    if [[ ${rc} -ne 0 ]]; then
+    if [[ ${rc} -ne 0 || -z "${docker_host}" || "${docker_host}" == "null" ]]; then
         docker_host="${DOCKER_HOST:-}"
     fi
     edebug "Docker context $(lval docker_host)"

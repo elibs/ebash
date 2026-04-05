@@ -68,13 +68,13 @@ ETEST_docker_build()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build --name "elibs/ebash"
+    docker_build --name "localhost/elibs/ebash"
 
     etestmsg "Validating docker_build artifacts"
     find ".work/docker/ebash" -ls
@@ -92,7 +92,7 @@ ETEST_docker_build()
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
-    assert_eq "elibs/ebash:$(cat .work/docker/ebash/sha.short)" "${image}"
+    assert_eq "localhost/elibs/ebash:$(cat .work/docker/ebash/sha.short)" "${image}"
     etestmsg "$(lval image)"
     trap_add "docker rmi --force ${image}"
 
@@ -104,15 +104,15 @@ ETEST_docker_build_and_pretend()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     etestmsg "Building docker image (PRETEND)"
-    $(tryrc docker_build     \
-        --name "elibs/ebash" \
-        --pretend            \
+    $(tryrc docker_build                  \
+        --name "localhost/elibs/ebash" \
+        --pretend                         \
     )
     assert_eq 1 "${rc}"
 
@@ -142,7 +142,7 @@ ETEST_docker_build_args()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-'END' >Dockerfile
-	FROM alpine:edge
+	FROM rockylinux:9
 	ARG ARTIST
 	ARG SONG
 	RUN echo "${ARTIST}/${SONG}"
@@ -150,11 +150,11 @@ ETEST_docker_build_args()
     cat Dockerfile
 
     etestmsg "Building docker image (pretend)"
-    $(tryrc docker_build           \
-        --pretend                  \
-        --name "elibs/ebash"       \
-        --build-arg "ARTIST=James" \
-        --build-arg "SONG=Laid"    \
+    $(tryrc docker_build                  \
+        --pretend                         \
+        --name "localhost/elibs/ebash" \
+        --build-arg "ARTIST=James"        \
+        --build-arg "SONG=Laid"           \
     )
     assert_eq 1 "${rc}"
 
@@ -178,7 +178,7 @@ ETEST_docker_ibuild_args()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-'END' >Dockerfile
-	FROM alpine:edge
+	FROM rockylinux:9
 	ARG ARTIST
 	ARG SONG
 	RUN echo "${ARTIST}/${SONG}"
@@ -186,11 +186,11 @@ ETEST_docker_ibuild_args()
     cat Dockerfile
 
     etestmsg "Building docker image (pretend)"
-    $(tryrc docker_build           \
-        --pretend                  \
-        --name "elibs/ebash"       \
-        --ibuild-arg "ARTIST=James" \
-        --ibuild-arg "SONG=Laid"    \
+    $(tryrc docker_build                   \
+        --pretend                          \
+        --name "localhost/elibs/ebash"  \
+        --ibuild-arg "ARTIST=James"        \
+        --ibuild-arg "SONG=Laid"           \
     )
     assert_eq 1 "${rc}"
 
@@ -211,15 +211,19 @@ ETEST_docker_ibuild_args()
 
 ETEST_docker_build_cache_from()
 {
+    # Skip on podman - it doesn't support --cache-from with tags
+    # Podman masquerades as docker but "docker info" shows buildahVersion
+    $(skip_if "command docker info |& grep -q buildahVersion")
+
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build --name "elibs/ebash" --cache-from "alpine:latest"
+    docker_build --name "localhost/elibs/ebash" --cache-from "alpine:latest"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -248,14 +252,14 @@ ETEST_docker_build_custom_dockerfile()
     local file="Dockerfile.foobar"
     etestmsg "Creating Dockerfile=${file}"
 	cat <<-END >${file}
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat "${file}"
 
     etestmsg "Building docker image"
-    docker_build             \
-        --name "elibs/ebash" \
+    docker_build                          \
+        --name "localhost/elibs/ebash" \
         --file "${file}"
 
     etestmsg "Validating docker_build artifacts"
@@ -280,19 +284,19 @@ ETEST_docker_build_custom_dockerfile()
 }
 
 # Custom dockerfile and custom artifact name
-ETEST_docker_build_custom_dockerfile()
+ETEST_docker_build_custom_dockerfile_and_artifact()
 {
     local file="Dockerfile.foobar"
     etestmsg "Creating Dockerfile=${file}"
 	cat <<-END >${file}
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat "${file}"
 
     etestmsg "Building docker image"
-    docker_build                   \
-        --name "elibs_ebash"       \
+    docker_build                  \
+        --name "elibs_ebash"   \
         --file "${file}"
 
     etestmsg "Validating docker_build artifacts"
@@ -320,14 +324,14 @@ ETEST_docker_custom_shafunc()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build             \
-        --name "elibs/ebash" \
+    docker_build                          \
+        --name "localhost/elibs/ebash" \
         --shafunc sha512
 
     assert_eq "sha512" "$(cat .work/docker/ebash/sha.func)"
@@ -358,22 +362,22 @@ ETEST_docker_build_tags()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     local tags=(
-        "elibs/ebash:etest-$$-tag1"
-        "elibs/ebash:etest-$$-tag2"
-        "elibs/ebash-cicd:$$"
-        "foo"
-        "bar"
-        "zap"
+        "localhost/elibs/ebash:${FUNCNAME[0]}-tag1"
+        "localhost/elibs/ebash:${FUNCNAME[0]}-tag2"
+        "localhost/elibs/ebash-cicd:${FUNCNAME[0]}"
+        "localhost/foo:${FUNCNAME[0]}"
+        "localhost/bar:${FUNCNAME[0]}"
+        "localhost/zap:${FUNCNAME[0]}"
     )
 
     etestmsg "Building docker image"
-    eval "docker_build --name elibs/ebash $(array_join --before tags ' --tag ')"
+    eval "docker_build --name localhost/elibs/ebash $(array_join --before tags ' --tag ')"
     trap_add "docker rmi --force ${tags[*]}"
 
     etestmsg "Validating docker_build artifacts"
@@ -405,24 +409,25 @@ ETEST_docker_build_tags()
 # Verify pushing tags works properly. Mock out docker() so that we don't have to actually have an upstream to push to.
 ETEST_docker_build_tags_push()
 {
+    etestmsg "PWD=${PWD}"
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     local tags=(
-        "elibs/ebash:etest-$$-tag1"
-        "elibs/ebash:etest-$$-tag2"
-        "elibs/ebash-cicd:$$"
-        "foo"
-        "bar"
-        "zap"
+        "localhost/elibs/ebash:${FUNCNAME[0]}-tag1"
+        "localhost/elibs/ebash:${FUNCNAME[0]}-tag2"
+        "localhost/elibs/ebash-cicd:${FUNCNAME[0]}"
+        "localhost/foo:${FUNCNAME[0]}"
+        "localhost/bar:${FUNCNAME[0]}"
+        "localhost/zap:${FUNCNAME[0]}"
     )
 
     etestmsg "Building docker image"
-    eval "docker_build --name elibs/ebash --username neo --password matrix $(array_join --before tags ' --tag ') --push"
+    eval "docker_build --name localhost/elibs/ebash --username neo --password matrix $(array_join --before tags ' --tag ') --push"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -464,13 +469,13 @@ ETEST_docker_build_twice()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build --name "elibs/ebash"
+    docker_build --name "localhost/elibs/ebash"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists \
@@ -497,9 +502,9 @@ ETEST_docker_build_twice()
     grep 'pretend="0"' ".work/docker/ebash/options"
 
     etestmsg "Building docker image (AGAIN)"
-    docker_build         \
-        --pretend        \
-        --name "elibs/ebash"
+    docker_build                          \
+        --pretend                         \
+        --name "localhost/elibs/ebash"
 
     for part in build.log dockerfile history image inspect sha sha.short sha.detail; do
         etestmsg "Checking ${part}"
@@ -507,15 +512,11 @@ ETEST_docker_build_twice()
         # a false-positive failure. We don't actually care about that part of the history file so just remove it from
         # both files before we diff.
         if [[ "${part}" == "history" ]]; then
-
-            diff ".work/docker/ebash/${part}.orig" ".work/docker/ebash/${part}" || true
-
-            sed -i -e 's|[0-9]\+ seconds* ago\s*|1 second ago        |' \
-                   -e 's|Less than a second ago\s*|1 second ago        |' \
-                ".work/docker/ebash/${part}.orig" ".work/docker/ebash/${part}"
+            # The CREATED column has timestamps that change between runs. Remove that column for comparison.
+            diff <(cut -d' ' -f1 ".work/docker/ebash/${part}.orig") <(cut -d' ' -f1 ".work/docker/ebash/${part}")
+        else
+            diff ".work/docker/ebash/${part}.orig" ".work/docker/ebash/${part}"
         fi
-
-        diff ".work/docker/ebash/${part}.orig" ".work/docker/ebash/${part}"
     done
     grep 'pretend="1"' ".work/docker/ebash/options"
 
@@ -529,13 +530,13 @@ ETEST_docker_build_twice_changed()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build --name "elibs/ebash"
+    docker_build --name "localhost/elibs/ebash"
 
     etestmsg "Validating docker_build artifacts"
     assert_exists                       \
@@ -562,16 +563,16 @@ ETEST_docker_build_twice_changed()
 
     etestmsg "Modifying Dockerfile"
     cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	ENV TIMESTAMP $(etimestamp)
 	END
     cat Dockerfile
 
     etestmsg "Building docker image (AGAIN)"
-    $(tryrc docker_build     \
-        --pretend            \
-        --name "elibs/ebash" \
+    $(tryrc docker_build                  \
+        --pretend                         \
+        --name "localhost/elibs/ebash" \
     )
 
     assert_eq 1 "${rc}"
@@ -586,7 +587,7 @@ ETEST_docker_build_overlay()
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
 	FROM ubuntu:20.04
-	ENV CREATOR etest-$$
+	ENV CREATOR ${FUNCNAME[0]}
 	ENTRYPOINT ["sleep", "infinity"]
 	END
     cat Dockerfile
@@ -596,12 +597,12 @@ ETEST_docker_build_overlay()
     touch "overlay/etc/foo.cfg"
 
     etestmsg "Building docker image"
-    docker_build \
-        --name "elibs/ebash" \
-        --overlay ebash      \
-        --overlay systemd    \
-        --overlay selinux    \
-        --overlay rsyslog    \
+    docker_build                          \
+        --name "localhost/elibs/ebash" \
+        --overlay ebash                   \
+        --overlay systemd                 \
+        --overlay selinux                 \
+        --overlay rsyslog                 \
         --overlay-tree overlay
 
     cat ".work/docker/ebash/dockerfile"
@@ -614,7 +615,7 @@ ETEST_docker_build_overlay()
         'cache_from=""'
         'file="Dockerfile"'
         'ibuild_arg=()'
-        'name="elibs/ebash"'
+        'name="localhost/elibs/ebash"'
         'overlay=("ebash" "systemd" "selinux" "rsyslog")'
         'overlay_tree="overlay"'
         'password=""'
@@ -723,7 +724,7 @@ ETEST_docker_build_overlay_systemctl_wrapper()
 
     etestmsg "Building docker image"
     docker_build \
-        --name "elibs/ebash"                   \
+        --name "localhost/elibs/ebash"                   \
         --file "${TEST_DIR_OUTPUT}/Dockerfile" \
         --overlay "ebash"                      \
         --overlay "systemd"
@@ -803,7 +804,7 @@ ETEST_docker_build_overlay_systemctl_wrapper_enabled()
 
     etestmsg "Building docker image"
     docker_build \
-        --name "elibs/ebash"                   \
+        --name "localhost/elibs/ebash"                   \
         --file "${TEST_DIR_OUTPUT}/Dockerfile" \
         --overlay "ebash"                      \
         --overlay "systemd"
@@ -837,8 +838,8 @@ ETEST_docker_depends_sha()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
@@ -848,7 +849,7 @@ ETEST_docker_depends_sha()
 
     etestmsg "Computing Dependency SHA"
     docker_depends_sha \
-        --name "elibs/ebash" \
+        --name "localhost/elibs/ebash" \
         --overlay systemd    \
         --overlay selinux    \
         --overlay rsyslog    \
@@ -866,7 +867,7 @@ ETEST_docker_depends_sha()
         ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was not built"
-    image="elibs/ebash:$(cat .work/docker/ebash/sha.short)"
+    image="localhost/elibs/ebash:$(cat .work/docker/ebash/sha.short)"
     etestmsg "$(lval image)"
     assert_docker_image_not_exists "${image}"
 
@@ -908,8 +909,8 @@ ETEST_docker_depends_sha_exclude()
 {
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	COPY foo /foo
 	END
     cat Dockerfile
@@ -933,7 +934,7 @@ ETEST_docker_depends_sha_exclude()
 
     etestmsg "Computing Dependency SHA"
     docker_depends_sha \
-        --name "elibs/ebash" \
+        --name "localhost/elibs/ebash" \
 
     cat ".work/docker/ebash/dockerfile"
 
@@ -947,7 +948,7 @@ ETEST_docker_depends_sha_exclude()
         ".work/docker/ebash/sha.detail" \
 
     etestmsg "Validating Docker Image was not built"
-    image="elibs/ebash:$(cat .work/docker/ebash/sha.short)"
+    image="localhost/elibs/ebash:$(cat .work/docker/ebash/sha.short)"
     etestmsg "$(lval image)"
     assert_docker_image_not_exists "${image}"
 
@@ -989,13 +990,13 @@ ETEST_docker_export_tgz()
 
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build --name "elibs/ebash"
+    docker_build --name "localhost/elibs/ebash"
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"
@@ -1018,13 +1019,13 @@ ETEST_docker_export_squashfs()
 
     etestmsg "Creating Dockerfile"
 	cat <<-END >Dockerfile
-	FROM alpine:edge
-	ENV CREATOR etest-$$
+	FROM rockylinux:9
+	ENV CREATOR ${FUNCNAME[0]}
 	END
     cat Dockerfile
 
     etestmsg "Building docker image"
-    docker_build --name "elibs/ebash"
+    docker_build --name "localhost/elibs/ebash"
 
     etestmsg "Validating Docker Image was built"
     image="$(cat .work/docker/ebash/image)"

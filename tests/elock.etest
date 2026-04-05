@@ -7,7 +7,8 @@
 # as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
 # version.
 
-[[ ${EBASH_OS} == Linux ]] || return 0
+# elock is now cross-platform (flock on Linux, mkdir spinlock on macOS)
+# Some tests are Linux-only due to flock-specific kernel behavior
 
 ETEST_elock()
 {
@@ -48,6 +49,9 @@ ETEST_elock_recursive()
 
 ETEST_elock_auto_unlock()
 {
+    # Linux-only: flock auto-releases on process exit; mkdir locks don't
+    $(skip_if "! os linux")
+
     (
         etimeout -t=1s elock lfile
     )
@@ -59,6 +63,9 @@ ETEST_elock_auto_unlock()
 
 ETEST_elock_concurrent()
 {
+    # Linux-only: relies on flock auto-release when subshell exits
+    $(skip_if "! os linux")
+
     (
         elock lfile
 
@@ -112,8 +119,10 @@ ETEST_elock_inherit()
 
 # More extensive version of the above that actually UNLOCKS the lock inside a subshell. The effect of this is that the
 # parent then sees the lockfile as unlocked and can then re-lock the lockfile.
+# Linux-only: flock state is kernel-level and shared across fork; mkdir locks track state in process-local FDMAP.
 ETEST_elock_inherit_unlock()
 {
+    $(skip_if "! os linux")
     elock lfile
     assert elock_locked lfile
 
@@ -130,4 +139,49 @@ ETEST_elock_inherit_unlock()
     # At this point we'll have a stale entry in our lock map. elock should handle this gracefully.
     elock lfile
     assert elock_locked lfile
+}
+
+# Test elock_locked and elock_unlocked directly
+ETEST_elock_locked_unlocked()
+{
+    # Initially unlocked
+    assert_true  elock_unlocked lfile
+    assert_false elock_locked   lfile
+
+    # After locking
+    elock lfile
+    assert_true  elock_locked   lfile
+    assert_false elock_unlocked lfile
+
+    # After unlocking
+    eunlock lfile
+    assert_true  elock_unlocked lfile
+    assert_false elock_locked   lfile
+}
+
+# Test that locking works with filenames containing spaces
+ETEST_elock_filename_with_spaces()
+{
+    local fname="file with spaces"
+    touch "${fname}"
+
+    elock "${fname}"
+    assert_true elock_locked "${fname}"
+
+    eunlock "${fname}"
+    assert_true elock_unlocked "${fname}"
+}
+
+# Test Darwin-specific: verify lock directory is cleaned up after eunlock
+ETEST_elock_darwin_cleanup()
+{
+    $(skip_if "! os darwin")
+
+    elock lfile
+    assert_exists "lfile.lock"
+    assert_true   elock_locked lfile
+
+    eunlock lfile
+    assert_not_exists "lfile.lock"
+    assert_true       elock_unlocked lfile
 }

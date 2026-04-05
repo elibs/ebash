@@ -42,7 +42,6 @@ run_single_test()
         jobs                 \
         progress             \
         repeat=REPEAT_STRING \
-        retries              \
         timeout              \
         total_timeout        \
         verbose
@@ -74,133 +73,124 @@ run_single_test()
         suite="$(basename "${testname}")"
     fi
 
-    local attempt=0
-    for (( attempt=0; attempt <= ${retries}; attempt++ )); do
+    # We want to make sure that any traps from the tests execute _before_ we run teardown, and also we don't want
+    # the teardown to run inside the test-specific cgroup. This subshell solves both issues.
+    try
+    {
+        export EBASH EBASH_HOME TEST_DIR_OUTPUT=${testdir}
+        local ETEST_SKIP_FILE=0
+        if [[ -n ${source} ]] ; then
+            source "${source}"
 
-        rc=0
+            # If the test name we were provided doesn't exist after sourcing this script then there is some
+            # conditional in the test that is designed to prevent us from running it so we should simply return.
+            if ! is_function ${testname}; then
+                edebug "Skipping $(lval source testname)"
+                return 0
+            fi
+        fi
 
-        # We want to make sure that any traps from the tests execute _before_ we run teardown, and also we don't want
-        # the teardown to run inside the test-specific cgroup. This subshell solves both issues.
-        try
-        {
-            export EBASH EBASH_HOME TEST_DIR_OUTPUT=${testdir}
+        # Pretend that the test _not_ executing inside a try/catch so that the error stack will get printed if part
+        # of the test fails, as if etest weren't running it inside a try/catch
+        __EBASH_INSIDE_TRY=0
+
+        # Create our temporary workspace in the directory specified by the caller
+        efreshdir "${testdir}"
+        mkdir "${testdir}/tmp"
+        TMPDIR="$(readlink -m ${testdir}/tmp)"
+        export TMPDIR
+
+        # Move test process into cgroup. Skip cgroup_create since global_setup already created ETEST_CGROUP.
+        if cgroup_supported; then
+            cgroup_move ${ETEST_CGROUP} ${BASHPID}
+        fi
+
+        # Determine the command that etest needs to run.
+        # Also set ETEST_COMMAND in case caller wants to know what command is being run inside Setup or suite_setup, etc.
+        local command="${testname}"
+        if ! is_function "${testname}" ; then
+            command="${PWD}/${testname}"
+        fi
+        ETEST_COMMAND="${command}"
+
+        cd "${testdir}"
+
+        # Run suite setup function if provided and we're on the first test.
+        # Skip if ETEST_SKIP_FILE was set by skip_file_if when the file was sourced.
+        if is_function suite_setup && [[ ${testidx} -eq 0 ]] && [[ ${ETEST_SKIP_FILE:-0} -ne 1 ]]; then
+            etestmsg "Running suite_setup $(lval testidx testidx_total)"
+            (
+                if cgroup_supported; then
+                    cgroup_move "${ETEST_CGROUP_BASE}" ${BASHPID}
+                fi
+                suite_setup
+            )
+        fi
+
+        # Register __suite_teardown function as a trap callback and trigger it when the test receives an interrupt.
+        # If running the last test case, instead of triggering it by interrupt, always trigger it at the end of the test.
+        if [[ ${testidx} -eq ${testidx_total} ]]; then
+            trap_add __suite_teardown EXIT
+        else
+            trap_add __suite_teardown "${DIE_SIGNALS[@]}"
+        fi
+
+        # Register trap to ensure we call teardown regardless of how we exit this subshell.
+        trap_add __teardown
+
+        # Run optional test setup function if provided
+        if is_function setup ; then
+            etestmsg "Running setup"
+            setup
+        fi
+
+        : ${ETEST_TIMEOUT:=${timeout}}
+        : ${ETEST_JOBS:=${jobs}}
+        etestmsg "Running $(lval command testidx testidx_total timeout=ETEST_TIMEOUT jobs=ETEST_JOBS)"
+
+        if [[ -n "${ETEST_TIMEOUT}" && "${ETEST_TIMEOUT}" != "infinity" ]]; then
+            etimeout --timeout="${ETEST_TIMEOUT}" "${command}"
+        else
+            "${command}"
+        fi
+    }
+    catch
+    {
+        rc=$?
+
+        # If failfast flag is enabled and is not running the last test case, call __suite_teardown in the catch block.
+        # Otherwise, nothing to do here as __suite_teardown will be triggered at the end of the test.
+        if [[ ${failfast} -eq 1 && ${testidx} -ne ${testidx_total} ]]; then
             if [[ -n ${source} ]] ; then
                 source "${source}"
-
-                # If the test name we were provided doesn't exist after sourcing this script then there is some
-                # conditional in the test that is designed to prevent us from running it so we should simply return.
-                if ! is_function ${testname}; then
-                    edebug "Skipping $(lval source testname)"
-                    return 0
-                fi
             fi
-
-            # Pretend that the test _not_ executing inside a try/catch so that the error stack will get printed if part
-            # of the test fails, as if etest weren't running it inside a try/catch
-            __EBASH_INSIDE_TRY=0
-
-            # Create our temporary workspace in the directory specified by the caller
-            efreshdir "${testdir}"
-            mkdir "${testdir}/tmp"
-            TMPDIR="$(readlink -m ${testdir}/tmp)"
-            export TMPDIR
-
-            # Move test process into cgroup. Skip cgroup_create since global_setup already created ETEST_CGROUP.
-            if cgroup_supported; then
-                cgroup_move ${ETEST_CGROUP} ${BASHPID}
-            fi
-
-            # Determine the command that etest needs to run.
-            # Also set ETEST_COMMAND in case caller wants to know what command is being run inside Setup or suite_setup, etc.
-            local command="${testname}"
-            if ! is_function "${testname}" ; then
-                command="${PWD}/${testname}"
-            fi
-            ETEST_COMMAND="${command}"
-
-            cd "${testdir}"
-
-            # Run suite setup function if provided and we're on the first test.
-            if is_function suite_setup && [[ ${testidx} -eq 0 ]]; then
-                etestmsg "Running suite_setup $(lval testidx testidx_total)"
-                (
-                    if cgroup_supported; then
-                        cgroup_move "${ETEST_CGROUP_BASE}" ${BASHPID}
-                    fi
-                    suite_setup
-                )
-            fi
-
-            # Register __suite_teardown function as a trap callback and trigger it when the test receives an interrupt.
-            # If running the last test case, instead of triggering it by interrupt, always trigger it at the end of the test.
-            if [[ ${testidx} -eq ${testidx_total} ]]; then
-                trap_add __suite_teardown EXIT
-            else
-                trap_add __suite_teardown "${DIE_SIGNALS[@]}"
-            fi
-
-            # Register trap to ensure we call teardown regardless of how we exit this subshell.
-            trap_add __teardown
-
-            # Run optional test setup function if provided
-            if is_function setup ; then
-                etestmsg "Running setup"
-                setup
-            fi
-
-            : ${ETEST_TIMEOUT:=${timeout}}
-            : ${ETEST_JOBS:=${jobs}}
-            etestmsg "Running $(lval command attempt retries testidx testidx_total timeout=ETEST_TIMEOUT jobs=ETEST_JOBS)"
-
-            if [[ -n "${ETEST_TIMEOUT}" && "${ETEST_TIMEOUT}" != "infinity" ]]; then
-                etimeout --timeout="${ETEST_TIMEOUT}" "${command}"
-            else
-                "${command}"
-            fi
-        }
-        catch
-        {
-            rc=$?
-
-            # If failfast flag is enabled and is not running the last test case, call __suite_teardown in the catch block.
-            # Otherwise, nothing to do here as __suite_teardown will be triggered at the end of the test.
-            if [[ ${failfast} -eq 1 && ${testidx} -ne ${testidx_total} ]]; then
-                if [[ -n ${source} ]] ; then
-                    source "${source}"
-                fi
-                __suite_teardown
-            fi
-        }
-        edebug "Finished $(lval testname display_testname rc attempt retries)"
-
-        # NOTE: Process and mount leak detection is deferred to global_teardown for efficiency.
-        # Per-test leak checking added significant overhead and global_teardown catches all leaks anyway.
-        # This isn't really an issue anymore like it was 10 years ago as we're running inside docker now.
-
-        if [[ ${rc} -eq 0 ]]; then
-            break
+            __suite_teardown
         fi
-    done
+    }
+    edebug "Finished $(lval testname display_testname rc)"
+
+    # NOTE: Process and mount leak detection is deferred to global_teardown for efficiency.
+    # Per-test leak checking added significant overhead and global_teardown catches all leaks anyway.
+    # This isn't really an issue anymore like it was 10 years ago as we're running inside docker now.
 
     if ! array_contains TEST_SUITES "${suite}"; then
         TEST_SUITES+=( "${suite}" )
     fi
 
-    # If the test eventually passed (rc==0) but we had to try more than one time (attempt > 0) then by definition
-    # this is a flaky test.
-    if [[ ${rc} -eq 0 && ${attempt} -gt 0 ]]; then
-        TESTS_FLAKY[$suite]+="${testname} "
-        (( NUM_TESTS_FLAKY += 1 ))
-    fi
-
     if [[ ${rc} -eq 0 ]]; then
         einfo "$(ecolor green)${display_testname} PASSED."
         TESTS_PASSED[$suite]+="${testname} "
-        (( NUM_TESTS_PASSED += 1 ))
+        NUM_TESTS_PASSED=$(( NUM_TESTS_PASSED + 1 ))
+    elif [[ ${rc} -eq 77 ]]; then
+        # Exit code 77 is the standard convention for skipped tests
+        einfo "$(ecolor bold yellow)${display_testname} SKIPPED."
+        TESTS_SKIPPED[$suite]+="${testname} "
+        NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + 1 ))
+        rc=0  # Don't treat skipped as failure for eend
     else
         eerror "${display_testname} FAILED."
         TESTS_FAILED[$suite]+="${testname} "
-        (( NUM_TESTS_FAILED += 1 ))
+        NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + 1 ))
     fi
 
     eend --inline --inline-offset=${einfo_message_length} ${rc} &>>${ETEST_OUT}
@@ -214,8 +204,7 @@ run_single_test()
         eerror "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
     fi
 
-    # If jobs==0 update status json file inline. Otherwise this happens in chunks as jobs are finished
-    # for parallel execution in __process_completed_jobs.
+    # If jobs==0 update status json file inline. Otherwise this happens in the parallel execution loop.
     # Only update every 10 tests or on the last test to reduce I/O overhead.
     if [[ ${jobs} -eq 0 ]]; then
         if (( (NUM_TESTS_PASSED + NUM_TESTS_FAILED) % 10 == 0 )) || [[ ${testidx} -eq ${testidx_total} ]]; then
@@ -261,6 +250,30 @@ run_etest_file()
 
     EMSG_PREFIX="" einfo "${testfile}" &>>${ETEST_OUT}
 
+    # Source the file first to check for skip_file_if
+    local ETEST_SKIP_FILE=0
+    source "${testfile}"
+
+    # If the file set ETEST_SKIP_FILE=1, mark all tests as skipped
+    if [[ ${ETEST_SKIP_FILE} -eq 1 ]]; then
+        local suite
+        suite="$(basename "${testfile}" ".etest")"
+        ewarn "Skipping all tests in ${testfile}"
+
+        for testfunc in "${functions[@]}"; do
+            local display_testname="${testfile}:${testfunc}"
+            einfo "$(ecolor bold yellow)${display_testname} SKIPPED." &>>${ETEST_OUT}
+            TESTS_SKIPPED[$suite]+="${testfunc} "
+            NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + 1 ))
+            NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + 1 ))
+        done
+
+        if ! array_contains TEST_SUITES "${suite}"; then
+            TEST_SUITES+=( "${suite}" )
+        fi
+        return 0
+    fi
+
     # Run all tests for this suite
     local idx
     for idx in $(array_indexes functions); do
@@ -297,12 +310,13 @@ run_all_tests()
         OS+=" (native)"
     fi
 
-    local etest_name="ETEST ${EBASH_VERSION:-}"
+    local etest_name
+    etest_name="$(ecolor bold cyan)ETEST$(ecolor bold magenta) ${EBASH_VERSION:-}$(ecolor reset)"
     if [[ -n "${name}" ]]; then
         etest_name+=" - \"${name//_/ }\""
     fi
 
-    local banner_args=(OS debug exclude failfast filter jobs repeat=REPEAT_STRING retries timeout total_timeout verbose)
+    local banner_args=(OS debug exclude failfast filter jobs repeat=REPEAT_STRING timeout total_timeout verbose)
     [[ -n "${directory}" ]] && banner_args+=(directory)
 
     if [[ "${verbose}" -eq 1 ]]; then
@@ -311,13 +325,19 @@ run_all_tests()
         ebanner --uppercase "${etest_name}" "${banner_args[@]}" &>>${ETEST_OUT}
     fi
 
-    # Reset all counters at the start of each run (important for repeat mode)
+    # Reset all counters and arrays at the start of each run (important for repeat mode)
     NUM_TESTS_QUEUED=${NUM_TESTS_TOTAL}
     NUM_TESTS_EXECUTED=0
     NUM_TESTS_PASSED=0
     NUM_TESTS_FAILED=0
-    NUM_TESTS_FLAKY=0
+    NUM_TESTS_SKIPPED=0
     PERCENT=0
+    TESTS_PASSED=()
+    TESTS_FAILED=()
+    TESTS_SKIPPED=()
+    SUITE_DURATION=()
+    TESTS_DURATION=()
+    TEST_SUITES=()
 
     if [[ ${jobs} -gt 0 ]]; then
         elogfile_kill --all
@@ -365,29 +385,40 @@ __run_all_tests_serially()
 __worker_main()
 {
     local worker_id=$1
-    local counter_file="${logdir}/jobs/counter"
-    local counter_lock="${logdir}/jobs/counter.lock"
+    local counter_file="${jobdir}/counter"
+    local counter_lock="${jobdir}/counter.lock"
+    local abort_file="${jobdir}/abort"
     local job_total=$2
     local last_sourced_file=""
+    local last_sourced_skip=0
+
+    local stop_file="${jobdir}/stop"
 
     while true; do
-        # Atomically claim next job index
-        local job_idx
-        job_idx=$(
-            flock "${counter_lock}" -c "
-                read n < '${counter_file}' 2>/dev/null || n=0
-                echo \$n
-                echo \$(( n + 1 )) > '${counter_file}'
-            "
-        )
+        # Check for stop signal (normal termination) or abort signal (failfast)
+        [[ -f "${stop_file}" ]] && break
+        [[ -f "${abort_file}" ]] && break
 
-        # Exit if no more jobs
-        [[ ${job_idx} -ge ${job_total} ]] && break
+        # Atomically claim next job index using elock (cross-platform)
+        local job_idx
+        elock "${counter_lock}"
+        read job_idx < "${counter_file}" 2>/dev/null || job_idx=0
+        echo $(( job_idx + 1 )) > "${counter_file}"
+        eunlock "${counter_lock}"
+
+        # No more jobs available - wait for shutdown signal
+        if [[ ${job_idx} -ge ${job_total} ]]; then
+            sleep 0.1
+            continue
+        fi
 
         local job_spec="${etest_jobs_queued[$job_idx]}"
         local testfile="${job_spec%%:*}"
         local single_func="${job_spec#*:}"
-        local jobpath="${logdir}/jobs/${job_idx}"
+        local jobpath="${jobdir}/${job_idx}"
+
+        # Write our PID so crash detection knows which job we're running
+        echo "${BASHPID}" > "${jobpath}/worker.pid"
 
         # Redirect output to job log
         exec &> "${jobpath}/output.log"
@@ -397,21 +428,31 @@ __worker_main()
         [[ ${jobs_progress} -eq 0 ]] && ETEST_OUT="${jobpath}/etest.out"
         TEST_OUT="/dev/null"
 
-        # Reset counters for this job
+        # Reset counters and arrays for this job (critical: arrays must be reset to prevent accumulation across jobs)
         NUM_TESTS_EXECUTED=0
         NUM_TESTS_PASSED=0
         NUM_TESTS_FAILED=0
-        NUM_TESTS_FLAKY=0
+        NUM_TESTS_SKIPPED=0
+        TESTS_PASSED=()
+        TESTS_FAILED=()
+        TESTS_SKIPPED=()
         TESTS_DURATION=()
 
         local suite="" start_time=${SECONDS}
 
         # Source file if different from last (caching optimization)
+        # ETEST_SKIP_FILE may be set by skip_file_if in the sourced file
+        local ETEST_SKIP_FILE=0
         if [[ "${testfile}" != "${last_sourced_file}" && "${testfile}" =~ \.etest$ ]]; then
-            # Clear previous file's setup/teardown to avoid bleed
-            unset -f setup teardown 2>/dev/null
+            # Clear previous file's setup/teardown/suite functions to avoid bleed
+            unset -f setup teardown suite_setup suite_teardown 2>/dev/null
+            ETEST_SKIP_FILE=0
             source "${testfile}"
             last_sourced_file="${testfile}"
+            last_sourced_skip=${ETEST_SKIP_FILE}
+        else
+            # Use cached skip status for same file
+            ETEST_SKIP_FILE=${last_sourced_skip}
         fi
 
         # Run the test
@@ -423,7 +464,17 @@ __worker_main()
                 testfilename=$(basename "${testfile}")
                 testdir="${workdir}/${testfilename}/${single_func}"
                 EMSG_PREFIX="" einfo "${testfile}:${single_func}" &>>${ETEST_OUT}
-                run_single_test --testdir "${testdir}" --source "${testfile}" "${single_func}"
+
+                # Check if file was skipped via skip_file_if
+                if [[ ${ETEST_SKIP_FILE} -eq 1 ]]; then
+                    local display_testname="${testfile}:${single_func}"
+                    einfo "$(ecolor bold yellow)${display_testname} SKIPPED."
+                    TESTS_SKIPPED[$suite]+="${single_func} "
+                    NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + 1 ))
+                    NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + 1 ))
+                else
+                    run_single_test --testdir "${testdir}" --source "${testfile}" "${single_func}"
+                fi
             else
                 # File-level job (serial file)
                 run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
@@ -454,16 +505,16 @@ __worker_main()
             testfile="${testfile}"                     \
             num_tests_passed="${NUM_TESTS_PASSED}"     \
             num_tests_failed="${NUM_TESTS_FAILED}"     \
-            num_tests_flaky="${NUM_TESTS_FLAKY}"       \
+            num_tests_skipped="${NUM_TESTS_SKIPPED}"   \
             num_tests_executed="${NUM_TESTS_EXECUTED}" \
             tests_passed="${TESTS_PASSED[$suite]:-}"   \
             tests_failed="${TESTS_FAILED[$suite]:-}"   \
-            tests_flaky="${TESTS_FLAKY[$suite]:-}"
+            tests_skipped="${TESTS_SKIPPED[$suite]:-}"
 
         pack_save info "${jobpath}/info.pack"
 
-        # Signal completion by writing job index to done file (with flock for atomicity)
-        flock "${logdir}/jobs/done.lock" -c "echo '${job_idx}' >> '${logdir}/jobs/done'"
+        # Signal completion by creating per-job done marker (cross-platform, no flock needed)
+        touch "${jobpath}/done"
     done
 }
 
@@ -489,38 +540,26 @@ __run_all_tests_parallel()
         fi
     done
 
-    # Shuffle job queue if requested to avoid clustering CPU-intensive tests
-    if [[ ${shuffle:-0} -eq 1 ]]; then
-        local shuffled
-        readarray -t shuffled < <(printf '%s\n' "${etest_jobs_queued[@]}" | shuf)
-        etest_jobs_queued=( "${shuffled[@]}" )
-    fi
-
     local etest_job_total=${#etest_jobs_queued[@]}
-    efreshdir "${logdir}/jobs"
+    local jobdir="${logdir}/jobs"
+    efreshdir "${jobdir}"
 
     # Pre-create all job directories upfront
     local _i
     for (( _i=0; _i < etest_job_total; _i++ )); do
-        mkdir "${logdir}/jobs/${_i}"
+        mkdir "${jobdir}/${_i}"
     done
 
-    # Initialize counter-based job queue
-    echo "0" > "${logdir}/jobs/counter"
-    touch "${logdir}/jobs/counter.lock"
-    touch "${logdir}/jobs/done"
-    touch "${logdir}/jobs/done.lock"
-
-    # Cache nproc for progress updates
-    local etest_nproc
-    etest_nproc=$(nproc 2>/dev/null) || etest_nproc=1
+    # Initialize counter-based job queue (locking handled by elock)
+    echo "0" > "${jobdir}/counter"
 
     # Create eprogress status file
-    local etest_progress_file="${logdir}/jobs/progress.txt"
+    local etest_progress_file="${jobdir}/progress.txt"
     local etest_eprogress_pids=()
     NUM_TESTS_RUNNING=${jobs}
     NUM_TESTS_QUEUED=$(( etest_job_total - jobs ))
     [[ ${NUM_TESTS_QUEUED} -lt 0 ]] && NUM_TESTS_QUEUED=0
+
     __update_jobs_progress_file
 
     if [[ ${jobs_progress} -eq 1 ]]; then
@@ -547,8 +586,8 @@ __run_all_tests_parallel()
     # Add trap to kill workers on exit
     trap_add "for p in ${worker_pids[*]}; do ekill \$p 2>/dev/null; done"
 
-    # Monitor progress by watching the done file
-    local last_done_count=0 done_count=0
+    # Monitor progress by checking per-job done markers
+    local done_count=0
     declare -A processed_jobs=()
 
     while true; do
@@ -560,83 +599,166 @@ __run_all_tests_parallel()
             fi
         done
 
-        # Process newly completed jobs
-        if [[ -s "${logdir}/jobs/done" ]]; then
-            local job_idx
-            while read -r job_idx; do
-                [[ -z "${job_idx}" ]] && continue
-                [[ -n "${processed_jobs[$job_idx]:-}" ]] && continue
+        # Process newly completed jobs by checking for per-job done markers
+        local job_idx jobs_this_batch=0
+        for (( job_idx=0; job_idx < etest_job_total; job_idx++ )); do
+            [[ -n "${processed_jobs[$job_idx]:-}" ]] && continue
 
-                local path="${logdir}/jobs/${job_idx}"
-                if [[ -f "${path}/info.pack" ]]; then
-                    local info=""
-                    pack_load info "${path}/info.pack"
-                    $(pack_import info)
+            local path="${jobdir}/${job_idx}"
+            # Check for done marker file (cross-platform, no flock needed)
+            [[ -f "${path}/done" ]] || continue
 
-                    processed_jobs[$job_idx]=1
+            if [[ -f "${path}/info.pack" ]]; then
+                local info=""
+                pack_load info "${path}/info.pack"
+                $(pack_import info)
 
-                    eval "$(echo "${tests_duration}" | base64 --decode)"
-                    for key in "${!tests_duration[@]}"; do
-                        TESTS_DURATION[$key]=${tests_duration[$key]}
-                    done
+                processed_jobs[$job_idx]=1
 
-                    SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
-                    NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + num_tests_executed ))
-                    NUM_TESTS_PASSED=$(( NUM_TESTS_PASSED + num_tests_passed ))
-                    NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + num_tests_failed ))
-                    NUM_TESTS_FLAKY=$(( NUM_TESTS_FLAKY + num_tests_flaky ))
+                eval "$(echo "${tests_duration}" | base64 --decode)"
+                for key in "${!tests_duration[@]}"; do
+                    TESTS_DURATION[$key]=${tests_duration[$key]}
+                done
 
-                    [[ -n "${tests_passed}" ]] && TESTS_PASSED[$suite]+="${tests_passed} "
-                    [[ -n "${tests_failed}" ]] && TESTS_FAILED[$suite]+="${tests_failed} "
-                    [[ -n "${tests_flaky}" ]]  && TESTS_FLAKY[$suite]+="${tests_flaky} "
+                SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
+                NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + num_tests_executed ))
+                NUM_TESTS_PASSED=$(( NUM_TESTS_PASSED + num_tests_passed ))
+                NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + num_tests_failed ))
+                NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + ${num_tests_skipped:-0} ))
 
-                    if ! array_contains TEST_SUITES "${suite}"; then
-                        TEST_SUITES+=( "${suite}" )
-                    fi
+                [[ -n "${tests_passed}" ]] && TESTS_PASSED[$suite]+="${tests_passed} "
+                [[ -n "${tests_failed}" ]] && TESTS_FAILED[$suite]+="${tests_failed} "
+                [[ -n "${tests_skipped:-}" ]] && TESTS_SKIPPED[$suite]+="${tests_skipped} "
 
-                    sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
-                    if [[ ${jobs_progress} -eq 0 ]]; then
-                        local _fd_path
-                        _fd_path="$(fd_path)/${ETEST_STDERR_FD}"
-                        if [[ ${verbose} -eq 0 ]]; then
-                            cat "${path}/etest.out" >> "${_fd_path}"
-                        else
-                            sed '/• PROGRESS.*/d' "${path}/output.log" >> "${_fd_path}"
-                        fi
-                    fi
+                if ! array_contains TEST_SUITES "${suite}"; then
+                    TEST_SUITES+=( "${suite}" )
+                fi
 
-                    # Check failfast
-                    if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]]; then
-                        eerror "Failure encountered and failfast=1" &>> ${ETEST_OUT}
-                        for pid in "${worker_pids[@]}"; do
-                            ekill "${pid}" 2>/dev/null || true
-                        done
-                        break 2
+                sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
+                if [[ ${jobs_progress} -eq 0 ]]; then
+                    local _fd_path
+                    _fd_path="$(fd_path)/${ETEST_STDERR_FD}"
+                    if [[ ${verbose} -eq 0 ]]; then
+                        cat "${path}/etest.out" >> "${_fd_path}"
+                    else
+                        sed '/• PROGRESS.*/d' "${path}/output.log" >> "${_fd_path}"
                     fi
                 fi
-            done < "${logdir}/jobs/done"
-        fi
+
+                # Update progress every 10 jobs for smoother display
+                (( ++jobs_this_batch ))
+                if (( jobs_this_batch % 10 == 0 )); then
+                    __update_jobs_progress_file
+                fi
+
+                # Check failfast - signal workers to stop via abort file
+                if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]]; then
+                    touch "${jobdir}/abort"
+                    break 2
+                fi
+            fi
+        done
 
         # Update progress display
         NUM_TESTS_RUNNING=${workers_alive}
         local claimed
-        claimed=$(cat "${logdir}/jobs/counter" 2>/dev/null || echo 0)
+        claimed=$(cat "${jobdir}/counter" 2>/dev/null || echo 0)
         NUM_TESTS_QUEUED=$(( etest_job_total - claimed ))
         [[ ${NUM_TESTS_QUEUED} -lt 0 ]] && NUM_TESTS_QUEUED=0
         __update_jobs_progress_file
         create_status_json
 
-        # Exit when all jobs processed
-        [[ ${#processed_jobs[@]} -ge ${etest_job_total} ]] && break
-        [[ ${workers_alive} -eq 0 ]] && break
+        # Check for crashed workers - ANY worker death before stop signal is a crash
+        local wpid wrc
+        for wpid in "${worker_pids[@]}"; do
+            if ! kill -0 "${wpid}" 2>/dev/null; then
+                # Worker is dead but we never told it to stop - this is a crash
+                wait "${wpid}" 2>/dev/null && wrc=0 || wrc=$?
+
+                # Kill eprogress FIRST so our output isn't mangled by terminal codes
+                array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
+                eprogress_kill --rc=1 &>> ${ETEST_OUT} || true
+
+                # Find which job this worker was running
+                local crashed_job="" crashed_jobpath="" j
+                for (( j=0; j < etest_job_total; j++ )); do
+                    local jpath="${jobdir}/${j}"
+                    if [[ -f "${jpath}/worker.pid" ]] && [[ ! -f "${jpath}/done" ]]; then
+                        local job_pid
+                        job_pid=$(cat "${jpath}/worker.pid" 2>/dev/null || echo "")
+                        if [[ "${job_pid}" == "${wpid}" ]]; then
+                            crashed_job="${etest_jobs_queued[$j]}"
+                            crashed_jobpath="${jpath}"
+                            break
+                        fi
+                    fi
+                done
+
+                # Record crash as a test failure so --failure-output shows it
+                local jobs_remaining
+                jobs_remaining=$(( etest_job_total - ${#processed_jobs[@]} ))
+
+                if [[ -n "${crashed_job}" ]]; then
+                    local testfile="${crashed_job%%:*}"
+                    local testfunc="${crashed_job#*:}"
+                    local suite
+                    suite="$(basename "${testfile}" .etest)"
+
+                    # Add to TESTS_FAILED so failure output picks it up
+                    TESTS_FAILED[$suite]+="${testfunc} "
+                    NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + 1 ))
+                    if ! array_contains TEST_SUITES "${suite}"; then
+                        TEST_SUITES+=( "${suite}" )
+                    fi
+
+                    # Append crashed job output to ETEST_LOG so __extract_test_output can find it
+                    # Format matches what run_single_test produces for proper extraction
+                    {
+                        echo ""
+                        echo "+------------------------------------------+"
+                        echo "| ${testfunc}"
+                        echo "+------------------------------------------+"
+                        echo ""
+                        echo "[WORKER CRASHED - exit code ${wrc}]"
+                        echo ""
+                        if [[ -f "${crashed_jobpath}/output.log" ]]; then
+                            cat "${crashed_jobpath}/output.log"
+                        fi
+                        echo ""
+                        echo "${testfunc} FAILED."
+                    } >> "${ETEST_LOG}"
+                fi
+
+                eerror "Worker ${wpid} crashed (exit code ${wrc}), jobs: ${#processed_jobs[@]}/${etest_job_total} done"
+                if [[ -n "${crashed_job}" ]]; then
+                    eerror "Crashed job: ${crashed_job} (log: jobs/${j}/output.log)"
+                fi
+
+                # Kill remaining workers and signal abort
+                for wpid in "${worker_pids[@]}"; do
+                    kill "${wpid}" 2>/dev/null || true
+                done
+                touch "${jobdir}/abort"
+                break 2
+            fi
+        done
+
+        # All jobs processed - signal workers to stop
+        if [[ ${#processed_jobs[@]} -ge ${etest_job_total} ]]; then
+            touch "${jobdir}/stop"
+            break
+        fi
 
         # Small sleep to avoid busy polling
         sleep 0.1
     done
 
-    # Wait for any remaining workers
+    # Wait for any remaining workers and check exit codes
+    local worker_failed=0
     for pid in "${worker_pids[@]}"; do
-        wait "${pid}" 2>/dev/null || true
+        if ! wait "${pid}" 2>/dev/null; then
+            worker_failed=1
+        fi
     done
 
     # Final progress update
@@ -648,6 +770,39 @@ __run_all_tests_parallel()
     # Update pids and kill eprogress
     array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
     eprogress_kill --rc=${NUM_TESTS_FAILED} &>> ${ETEST_OUT}
+
+    # Display prominent failfast abort message if we aborted early and populate TESTS_SKIPPED
+    if [[ -f "${jobdir}/abort" ]]; then
+        # Populate TESTS_SKIPPED with unprocessed jobs
+        local job_idx job_spec testfile func suite
+        for job_idx in "${!etest_jobs_queued[@]}"; do
+            [[ -n "${processed_jobs[$job_idx]:-}" ]] && continue
+            job_spec="${etest_jobs_queued[$job_idx]}"
+            testfile="${job_spec%%:*}"
+            func="${job_spec#*:}"
+            suite="$(basename "${testfile}" .etest)"
+            if [[ -n "${func}" ]]; then
+                TESTS_SKIPPED[$suite]+="${func} "
+                NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + 1 ))
+            else
+                # File-level job - count functions from TEST_FUNCTIONS_TO_RUN
+                local funcs_list="${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
+                if [[ -n "${funcs_list}" ]]; then
+                    TESTS_SKIPPED[$suite]+="${funcs_list} "
+                    local funcs_arr
+                    array_init funcs_arr "${funcs_list}"
+                    NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + ${#funcs_arr[@]} ))
+                fi
+            fi
+            if ! array_contains TEST_SUITES "${suite}"; then
+                TEST_SUITES+=( "${suite}" )
+            fi
+        done
+
+        echo &>> ${ETEST_OUT}
+        eerror "Aborted early due to failfast after ${NUM_TESTS_FAILED} failure(s)" &>> ${ETEST_OUT}
+        ewarn "Skipped ${NUM_TESTS_SKIPPED} remaining test(s)" &>> ${ETEST_OUT}
+    fi
 
     # Display results table
     if [[ ${jobs_progress} -eq 1 ]]; then
@@ -661,6 +816,13 @@ __update_jobs_progress_file()
 {
     local tmpfile="${etest_progress_file}.tmp"
     local width="${#NUM_TESTS_TOTAL}"
+
+    # Compute percent complete
+    if [[ "${NUM_TESTS_TOTAL}" -eq 0 ]]; then
+        PERCENT="0"
+    else
+        PERCENT=$((200*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} % 2 + 100*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL}))
+    fi
 
     {
         printf "  Queued: $(ecolor dim)%*s" ${width} ${NUM_TESTS_QUEUED}
@@ -680,123 +842,16 @@ __update_jobs_progress_file()
             ecolor reset
         fi
 
-        if [[ "${NUM_TESTS_FLAKY}" -gt 0 ]]; then
-            printf "  Flaky: $(ecolor bold yellow)%*s" ${width} ${NUM_TESTS_FLAKY}
+        if [[ "${NUM_TESTS_SKIPPED:-0}" -gt 0 ]]; then
+            printf "  Skipped: $(ecolor bold yellow)%*s" ${width} ${NUM_TESTS_SKIPPED}
             ecolor reset
         fi
-
-        # Show CPU usage as percentage (load / cores * 100)
-        # Uses etest_nproc cached at parallel run start to avoid subprocess per update
-        # Use read builtin (single line) + bash string manipulation instead of cut subprocess
-        local load cpu_pct _loadavg=""
-        read _loadavg < /proc/loadavg 2>/dev/null || _loadavg="0"
-        load="${_loadavg%% *}"  # First space-separated field
-        [[ -z "${load}" ]] && load="0"
-        cpu_pct=$(( (${load%.*} * 100) / etest_nproc ))
-        printf "  CPU: $(ecolor cyan)%3d%%" "${cpu_pct}"
-        ecolor reset
-
 
         echo -n " "
 
     } > "${tmpfile}" 2>/dev/null || true
 
     mv "${tmpfile}" "${etest_progress_file}" 2>/dev/null || true
-}
-
-# __process_completed_jobs is a special internal helper function called by __run_all_tests_parallel to process any jobs
-# which may have run to completion. Essentially this captures the return code of the process and collects some stats
-# about the job that are stored in global variables and then updates our internal job related lists accordingly.
-#
-# NOTE: The concurrent reading and writing of the global variables is safe as each job runs in an isolated subshell. The
-# stats are specific to a single suite which is the granularity if our parallelism.
-__process_completed_jobs()
-{
-    for pid in ${etest_jobs_running[*]:-}; do
-
-        # Check if process is still actively running (not exited or zombie)
-        # ps -p returns true for zombies, so also check /proc state
-        # Format: "pid (comm) state ..." - must parse after closing paren since comm can have spaces
-        if process_running "${pid}"; then
-            local state=""
-            state=$(sed 's/.*) //' "/proc/${pid}/stat" 2>/dev/null | cut -c1) || true
-            if [[ "${state}" != "Z" ]]; then
-                continue
-            fi
-        fi
-
-        path=${pidmap[$pid]}
-
-        # Capture PID and wait for the process to exit. Then capture all info from on-disk pack
-        wait "${pid}" || true
-        assert_exists "${path}/info.pack"
-        local info=""
-        pack_load info "${path}/info.pack"
-        $(pack_import info)
-
-        etest_jobs_finished+=( ${pid} )
-        array_remove etest_jobs_running ${pid}
-        NUM_TESTS_RUNNING=${#etest_jobs_running[@]}
-
-        # Unpack base64 encoded "tests_duration" associative array and from this specific test instance and copy those
-        # values into the gloval TESTS_DURATION associative array.
-        eval "$(echo "${tests_duration}" | base64 --decode)"
-        local key
-        for key in "${!tests_duration[@]}"; do
-            TESTS_DURATION[$key]=${tests_duration[$key]}
-        done
-
-        # Update global stats
-        SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
-        NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + num_tests_executed ))
-        NUM_TESTS_PASSED=$(( NUM_TESTS_PASSED + num_tests_passed ))
-        NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + num_tests_failed ))
-        NUM_TESTS_FLAKY=$(( NUM_TESTS_FLAKY + num_tests_flaky ))
-        NUM_TESTS_QUEUED=$(( NUM_TESTS_TOTAL - NUM_TESTS_EXECUTED - NUM_TESTS_RUNNING ))
-        if [[ ${NUM_TESTS_QUEUED} -lt 0 ]]; then
-            NUM_TESTS_QUEUED=0
-        fi
-
-        # Update list of tests
-        if [[ -n "${tests_passed}" ]]; then
-            TESTS_PASSED[$suite]+="${tests_passed} "
-        fi
-
-        if [[ -n "${tests_failed}" ]]; then
-            TESTS_FAILED[$suite]+="${tests_failed} "
-        fi
-
-        if [[ -n "${tests_flaky}" ]]; then
-            TESTS_FLAKY[$suite]+="${tests_flaky} "
-        fi
-
-        # Update our final status json file with new results
-        create_status_json
-
-        if ! array_contains TEST_SUITES "${suite}"; then
-            TEST_SUITES+=( "${suite}" )
-        fi
-
-        if edebug_enabled; then
-            einfo "Job finished: $(lval pid path etest_jobs_finished etest_job_total etest_job_count)"
-            pack_to_json info | jq --color-output --sort-keys .
-        fi
-
-        # Append the output of this completed job to our LOG file
-        #
-        # NOTE: Strip out PROGRESS as it's confusing and incorrect since jobs finish out of order.
-        cat "${path}/output.log" | sed '/• PROGRESS.*/d' >> "${ETEST_LOG}"
-
-        # If jobs_progress mode is disabled then display etest status in non-verbose mode or display the actual test
-        # output in verbose mode.
-        #
-        # NOTE: Strip out PROGRESS as it's confusing and incorrect since jobs finish out of order.
-        if [[ ${jobs_progress} -eq 0 && ${verbose} -eq 0 ]]; then
-            cat "${path}/etest.out" >> "$(fd_path)/${ETEST_STDERR_FD}"
-        elif [[ ${jobs_progress} -eq 0 && ${verbose} -eq 1 ]]; then
-            cat "${path}/output.log" | sed '/• PROGRESS.*/d' >> "$(fd_path)/${ETEST_STDERR_FD}"
-        fi
-    done
 }
 
 # Display a summary table of results aggregated by suite (file).
@@ -806,12 +861,12 @@ __display_results_table()
     echo
 
     declare -a table
-    array_init_nl table "Suite|Result|# Passed|# Failed|# Flaky"
+    array_init_nl table "Suite|Result|# Passed|# Failed|# Skipped"
 
     local suite_name
     for suite_name in "${TEST_SUITES[@]}"; do
         # Count tests from space-separated lists
-        local passed=0 failed=0 flaky=0
+        local passed=0 failed=0 skipped=0
         local test_list
 
         if [[ -n "${TESTS_PASSED[$suite_name]:-}" ]]; then
@@ -822,32 +877,32 @@ __display_results_table()
             array_init test_list "${TESTS_FAILED[$suite_name]}"
             failed=${#test_list[@]}
         fi
-        if [[ -n "${TESTS_FLAKY[$suite_name]:-}" ]]; then
-            array_init test_list "${TESTS_FLAKY[$suite_name]}"
-            flaky=${#test_list[@]}
+        if [[ -n "${TESTS_SKIPPED[$suite_name]:-}" ]]; then
+            array_init test_list "${TESTS_SKIPPED[$suite_name]}"
+            skipped=${#test_list[@]}
         fi
 
         # Derive status
         local status
         if [[ ${failed} -ne 0 ]]; then
             status="$(ecolor bold red)FAILED$(ecolor none)"
-        elif [[ ${flaky} -ne 0 ]]; then
-            status="$(ecolor bold yellow)FLAKY$(ecolor none)"
+        elif [[ ${skipped} -gt 0 && ${passed} -eq 0 ]]; then
+            status="$(ecolor bold yellow)SKIPPED$(ecolor none)"
         else
             status="$(ecolor bold green)PASSED$(ecolor none)"
         fi
 
         # Color annotate counts
         local failed_display="${failed}"
-        local flaky_display="${flaky}"
+        local skipped_display="${skipped}"
         if [[ ${failed} -gt 0 ]]; then
             failed_display="$(ecolor bold red)${failed}$(ecolor none)"
         fi
-        if [[ ${flaky} -gt 0 ]]; then
-            flaky_display="$(ecolor bold yellow)${flaky}$(ecolor none)"
+        if [[ ${skipped} -gt 0 ]]; then
+            skipped_display="$(ecolor bold yellow)${skipped}$(ecolor none)"
         fi
 
-        array_add_nl table "${suite_name}|${status}|${passed}|${failed_display}|${flaky_display}"
+        array_add_nl table "${suite_name}|${status}|${passed}|${failed_display}|${skipped_display}"
     done
 
     etable --style=boxart --title="$(ecolor bold)Test Results$(ecolor none)" "${table[@]}"
