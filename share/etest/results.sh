@@ -53,9 +53,10 @@ create_status_json()
         pids=( $(nodie_on_error; process_tree 2>/dev/null) ) || pids=()
     fi
 
-    local _failed_json _passed_json
+    local _failed_json _passed_json _skipped_json
     _failed_json=$(print_tests_json_array TESTS_FAILED "    ")
     _passed_json=$(print_tests_json_array TESTS_PASSED "    ")
+    _skipped_json=$(print_tests_json_array TESTS_SKIPPED "    ")
 
 	cat <<-EOF > ${ETEST_JSON}.tmp
 	{
@@ -67,11 +68,13 @@ create_status_json()
 	    "numTestsExecuted": ${NUM_TESTS_EXECUTED},
 	    "numTestsFailed": ${NUM_TESTS_FAILED},
 	    "numTestsPassed": ${NUM_TESTS_PASSED},
+	    "numTestsSkipped": ${NUM_TESTS_SKIPPED},
 	    "numTestsTotal": ${NUM_TESTS_TOTAL},
 	    "percent": ${PERCENT},
 	    "pids": $(array_to_json pids),
 	    "testsFailed": ${_failed_json},
-	    "testsPassed": ${_passed_json}
+	    "testsPassed": ${_passed_json},
+	    "testsSkipped": ${_skipped_json}
 	}
 	EOF
 
@@ -282,7 +285,7 @@ create_xml()
             "$(etimestamp_rfc3339)"      \
             "${NUM_TESTS_EXECUTED}"      \
             "${NUM_TESTS_FAILED}"        \
-            "${NUM_TESTS_SKIPPED:-0}"    \
+            "${NUM_TESTS_SKIPPED}"       \
             "${DURATION}"
 
         for suite in "${TEST_SUITES[@]}"; do
