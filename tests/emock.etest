@@ -49,7 +49,7 @@ ETEST_emock_filesystem()
     $(skip_if "! running_in_docker")
 
     # Use local binary to avoid conflicts with other filesystem mock tests running in parallel
-    local test_binary="tty"
+    local test_binary="tsort"
     local test_binary_path
     test_binary_path="$(which ${test_binary})"
 

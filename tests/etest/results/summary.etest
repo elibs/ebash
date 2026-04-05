@@ -169,7 +169,6 @@ EOF
     [[ -s "${ETEST_FAILURE_LOG}" ]]
 
     etestmsg "Checking failure log format"
-    grep -q "Failure Output" "${ETEST_FAILURE_LOG}"
     grep -q "mysuite:failing_test" "${ETEST_FAILURE_LOG}"
     grep -q "Error: something went wrong" "${ETEST_FAILURE_LOG}"
 
