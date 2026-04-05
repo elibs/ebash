@@ -48,6 +48,11 @@ ETEST_emock_filesystem()
     # Skip if we are not running in docker to avoid changing root filesystem
     $(skip_if "! running_in_docker")
 
+    # Use local binary to avoid conflicts with other filesystem mock tests running in parallel
+    local test_binary="tty"
+    local test_binary_path
+    test_binary_path="$(which ${test_binary})"
+
     etestmsg "Mocking ${test_binary} with full path and --filesystem"
     emock --filesystem "${test_binary_path}"
     trap_add "eunmock ${test_binary_path}"
@@ -63,12 +68,17 @@ ETEST_emock_filesystem_multiple()
     # Skip if we are not running in docker to avoid changing root filesystem
     $(skip_if "! running_in_docker")
 
+    # Use local binary to avoid conflicts with other filesystem mock tests running in parallel
+    local test_binary="tput"
+    local test_binary_path
+    test_binary_path="$(which ${test_binary})"
+
     etestmsg "Mocking ${test_binary} with full path and --filesystem"
     emock --filesystem "${test_binary_path}"
     assert_eq "file" "$(type -t ${test_binary_path})"
     assert_eq "file" "$(type -t ${test_binary_path}_real)"
     assert_eq "filesystem" "$(emock_mode "${test_binary}")"
-    assert_not_match "$(file -L "${test_bianry_path}")" "ELF"
+    assert_not_match "$(file -L "${test_binary_path}")" "ELF"
 
     etestmsg "Mocking ${test_binary} with --filesystem and --return 1"
     emock --filesystem --return 1 "${test_binary_path}"
