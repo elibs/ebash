@@ -150,23 +150,8 @@ create_failure_output()
 
     # Write plain text (no ANSI codes) to the failure log file
     {
-        local cols text="Failure Output" inner padding
+        local cols suite test_name
         cols=$(tput cols)
-        inner=$(( cols - 2 ))
-        padding=$(( inner - 2 - ${#text} ))
-
-        # Create repeated character strings using pure bash
-        local __border __spaces
-        printf -v __border '%*s' "${inner}" ''
-        __border="${__border// /═}"
-        printf -v __spaces '%*s' "${padding}" ''
-
-        echo
-        printf '╔%s╗\n' "${__border}"
-        printf '║  %s%s║\n' "${text}" "${__spaces}"
-        printf '╚%s╝\n' "${__border}"
-
-        local suite test_name
         for suite in "${!TESTS_FAILED[@]}"; do
             for test_name in ${TESTS_FAILED[$suite]}; do
                 echo
@@ -186,17 +171,19 @@ create_failure_output()
 
     # Optionally display to stderr with colors
     if [[ "${failure_output}" -eq 1 ]]; then
-        local line
-        while IFS= read -r line; do
-            # Color the box border and header lines
-            if [[ "${line}" == "╔"* ]] || [[ "${line}" == "╚"* ]] || [[ "${line}" == "║"* ]]; then
-                echo "$(ecolor bold red)${line}$(ecolor off)"
-            elif [[ "${line}" == "● "* ]]; then
-                echo "$(ecolor red)${line}$(ecolor off)"
-            else
-                echo "${line}"
-            fi
-        done < "${ETEST_FAILURE_LOG}" >&${ETEST_STDERR_FD}
+        {
+            COLOR_BANNER="red" ebanner "Failure Output" 2>&1
+
+            local line
+            while IFS= read -r line; do
+                # Color the test header lines
+                if [[ "${line}" == "● "* ]]; then
+                    echo "$(ecolor red)${line}$(ecolor off)"
+                else
+                    echo "${line}"
+                fi
+            done < "${ETEST_FAILURE_LOG}"
+        } >&${ETEST_STDERR_FD}
     fi
 }
 
@@ -212,20 +199,7 @@ create_summary()
 
     {
         if array_not_empty TESTS_FAILED; then
-            local cols text="Failed Tests" inner padding
-            cols=$(tput cols)
-            inner=$(( cols - 2 ))
-            padding=$(( inner - 2 - ${#text} ))
-
-            local __border __spaces
-            printf -v __border '%*s' "${inner}" ''
-            __border="${__border// /═}"
-            printf -v __spaces '%*s' "${padding}" ''
-
-            echo
-            echo "$(ecolor bold red)╔${__border}╗$(ecolor off)"
-            echo "$(ecolor bold red)║  ${text}${__spaces}║$(ecolor off)"
-            echo "$(ecolor bold red)╚${__border}╝$(ecolor off)"
+            COLOR_BANNER="red" ebanner "Failed Tests" 2>&1
 
             local failed_test
             # shellcheck disable=SC2068 # Intentional word splitting for space-separated test names
@@ -236,7 +210,7 @@ create_summary()
             echo
             local plural=""
             [[ ${NUM_TESTS_FAILED} -ne 1 ]] && plural="S"
-            echo "$(ecolor bold red)  ${NUM_TESTS_FAILED} FAILED TEST${plural}$(ecolor off)"
+            echo "$(ecolor red)  ${NUM_TESTS_FAILED} FAILED TEST${plural}$(ecolor off)"
             echo
         fi
 
@@ -268,7 +242,7 @@ create_summary()
             "$(ecolor bold green)>>" "$(ecolor off)" \
             "$(ecolor bold)" "${total}" "$(ecolor off)" \
             "$(ecolor bold green)" "${NUM_TESTS_PASSED}" "$(ecolor off)" \
-            "$(ecolor bold red)" "${NUM_TESTS_FAILED}" "$(ecolor off)" \
+            "$(ecolor red)" "${NUM_TESTS_FAILED}" "$(ecolor off)" \
             "$(ecolor bold yellow)" "${NUM_TESTS_SKIPPED}" "$(ecolor off)"
 
         # Runtime
@@ -291,7 +265,7 @@ create_summary()
 
         echo
         if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
-            echo "$(ecolor bold red)Test failures:$(ecolor off) $(ecolor bold red)${rel_failure_log}$(ecolor off)"
+            echo "$(ecolor red)Test failures:$(ecolor off) $(ecolor red)${rel_failure_log}$(ecolor off)"
         fi
         echo "$(ecolor cyan)Test output:  $(ecolor off) $(ecolor magenta)${rel_log}$(ecolor off)"
         echo "$(ecolor cyan)JUnit XML:    $(ecolor off) $(ecolor magenta)${rel_xml}$(ecolor off)"
