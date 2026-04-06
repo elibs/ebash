@@ -620,9 +620,11 @@ __run_all_tests_parallel()
                 # Update progress every 10 jobs for smoother display
                 (( ++jobs_this_batch ))
                 if (( jobs_this_batch % 10 == 0 )); then
+
                     # Recalculate counters before updating progress file
-                    local _completed=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
-                    local _remaining=$(( NUM_TESTS_TOTAL - _completed ))
+                    local _completed _remaining
+                    _completed=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
+                    _remaining=$(( NUM_TESTS_TOTAL - _completed ))
                     NUM_TESTS_QUEUED=$(( _remaining - NUM_TESTS_RUNNING ))
                     [[ ${NUM_TESTS_QUEUED} -lt 0 ]] && NUM_TESTS_QUEUED=0
                     __update_jobs_progress_file
@@ -638,8 +640,10 @@ __run_all_tests_parallel()
 
         # Update progress display - calculate from known-good values so numbers add up
         # Total = Queued + Running + Passed + Failed + Skipped
-        local completed=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
-        local remaining=$(( NUM_TESTS_TOTAL - completed ))
+        local completed remaining
+        completed=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
+        remaining=$(( NUM_TESTS_TOTAL - completed ))
+
         # Running can't exceed remaining tests or alive workers
         NUM_TESTS_RUNNING=${workers_alive}
         [[ ${NUM_TESTS_RUNNING} -gt ${remaining} ]] && NUM_TESTS_RUNNING=${remaining}
