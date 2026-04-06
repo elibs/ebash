@@ -1,16 +1,14 @@
-name: "CI/CD"
+name: "CI"
 
-# Controls when the action will run. Triggers the workflow on push or pull request events but only for the master branch
+# Run CI on all branches
 on:
   push:
-    branches-ignore:
-      - 'main'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# GLobal environment variables
+# Global environment variables
 env:
   COLOR_DEBUG: "dim blue"
   COLUMNS: 120
@@ -25,7 +23,7 @@ env:
 
 #-----------------------------------------------------------------------------------------------------------------------
 #
-# Pipeline Jobs
+# Jobs
 #
 #-----------------------------------------------------------------------------------------------------------------------
 jobs:
@@ -127,7 +125,7 @@ jobs:
     name: "Release"
     needs: [Linux, MacOS]
     runs-on: ubuntu-latest
-    if: success() && github.ref == 'refs/heads/develop'
+    if: success() && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -135,6 +133,9 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.CICD_TOKEN }}
+
+      - name: Install Dependencies
+        run: install/all
 
       - name: Version
         id: version
@@ -158,8 +159,10 @@ jobs:
             # Create and push new version tag
             bin/ebash cicd_create_next_version_tag --push
 
-      - name: Release
-        run: bin/ebash cicd_release
+      - name: Publish Docs
+        run: bin/edoc --publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v2

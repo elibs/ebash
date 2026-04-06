@@ -31,7 +31,7 @@ setup()
     # environment and make tighter assertions.
     etestmsg "Mocking out git repository"
     git init
-    git checkout -b 'develop'
+    git checkout -b 'main'
     git remote add origin git@github.com:elibs/etest.git
     git remote set-url origin git@github.com:elibs/etest.git
     touch "file1.txt"
@@ -53,7 +53,7 @@ ETEST_cicd_info()
 
     etestmsg "Validating CI/CD Info"
     assert_eq "v1.0.0"                              "${base_tag}"
-    assert_eq "develop"                             "${branch}"
+    assert_eq "main"                                "${branch}"
     assert_eq "$(git rev-parse HEAD)"               "${commit}"
     assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
     assert_eq "1"                                   "${major}"
@@ -81,7 +81,7 @@ ETEST_cicd_info_notags()
 
     etestmsg "Validating CI/CD Info"
     assert_eq "v0.0.0"                              "${base_tag}"
-    assert_eq "develop"                             "${branch}"
+    assert_eq "main"                                "${branch}"
     assert_eq "$(git rev-parse HEAD)"               "${commit}"
     assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
     assert_eq "0"                                   "${major}"
@@ -112,7 +112,7 @@ ETEST_cicd_info_offset()
 
     etestmsg "Validating CI/CD Info"
     assert_eq "v1.0.0"                              "${base_tag}"
-    assert_eq "develop"                             "${branch}"
+    assert_eq "main"                                "${branch}"
     assert_eq "$(git rev-parse HEAD)"               "${commit}"
     assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
     assert_eq "1"                                   "${major}"
@@ -137,7 +137,7 @@ ETEST_cicd_info_print()
 
 	cat > expect <<-EOF
 	base_tag="v1.0.0"
-	branch="develop"
+	branch="main"
 	commit="${commit}"
 	commit_short="${commit_short}"
 	major="1"
@@ -172,7 +172,7 @@ ETEST_cicd_info_print_json()
 	cat > expect.json <<-EOF
 	{
 	  "base_tag": "v1.0.0",
-	  "branch": "develop",
+	  "branch": "main",
 	  "commit": "${commit}",
 	  "commit_short": "${commit_short}",
 	  "major": "1",
@@ -207,7 +207,7 @@ ETEST_cicd_info_print_uppercase()
 
 	cat > expect <<-EOF
 	BASE_TAG="v1.0.0"
-	BRANCH="develop"
+	BRANCH="main"
 	COMMIT="${commit}"
 	COMMIT_SHORT="${commit_short}"
 	MAJOR="1"
@@ -247,7 +247,7 @@ ETEST_cicd_create_next_version_tag()
 
     etestmsg "Validating CI/CD Info"
     assert_eq "v1.0.1"                              "${base_tag}"
-    assert_eq "develop"                             "${branch}"
+    assert_eq "main"                                "${branch}"
     assert_eq "$(git rev-parse HEAD)"               "${commit}"
     assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
     assert_eq "1"                                   "${major}"
@@ -278,8 +278,24 @@ ETEST_cicd_create_next_version_tag_push()
 
     etestmsg "$(lval git_tags_pushed)"
     assert_eq 2                     "$(array_size git_tags_pushed)"
-    assert_eq "develop"             "${git_tags_pushed[0]}"
+    assert_eq "main"                "${git_tags_pushed[0]}"
     assert_eq "${version_tag}"      "${git_tags_pushed[1]}"
+}
+
+ETEST_cicd_create_next_version_tag_custom_branch()
+{
+    etestmsg "Create and switch to develop branch"
+    git checkout -b "develop"
+
+    etestmsg "Creating next version tag with --branch develop"
+    cicd_create_next_version_tag --branch develop
+    cicd_info info
+    $(pack_import info)
+    cicd_print --json info
+
+    etestmsg "Validating tag was created"
+    assert_eq "v1.0.1"  "${version_tag}"
+    assert_eq "develop" "${branch}"
 }
 
 ETEST_cicd_create_next_version_branch_error()
@@ -298,25 +314,36 @@ ETEST_cicd_create_next_version_branch_error()
     assert_false cicd_create_next_version_tag --push
 }
 
-ETEST_cicd_release()
+ETEST_cicd_release_two_branch()
 {
+    etestmsg "Create develop branch for two-branch workflow test"
+    git checkout -b "develop"
+
     # Create CICD Pack
     etestmsg "Test CI/CD Info"
     cicd_info info
     $(pack_import info)
     cicd_print --json info
 
-    etestmsg "Creating next version tag"
-    cicd_create_next_version_tag
+    etestmsg "Creating next version tag on develop"
+    cicd_create_next_version_tag --branch develop
     cicd_info info
     $(pack_import info)
     cicd_print --json info
 
-    etestmsg "Testing git_release with mock push"
-    cicd_release
+    etestmsg "Testing cicd_release with two-branch workflow"
+    cicd_release --from develop --to main
     etestmsg "$(lval git_tags_pushed)"
     assert_eq 1           "$(array_size git_tags_pushed)"
     assert_eq "HEAD:main" "${git_tags_pushed[0]}"
+}
+
+ETEST_cicd_release_single_branch()
+{
+    etestmsg "Testing cicd_release with single-branch workflow (no-op)"
+    cicd_release --from main --to main
+    etestmsg "$(lval git_tags_pushed)"
+    assert_eq 0 "$(array_size git_tags_pushed)"
 }
 
 ETEST_cicd_release_branch_error()
@@ -332,7 +359,7 @@ ETEST_cicd_release_branch_error()
     assert_eq "feature/foo" "${branch}"
 
     etestmsg "Verifying cicd_release fails due to feature branch"
-    assert_false cicd_release
+    assert_false cicd_release --from develop --to main
     assert_eq 0           "$(array_size git_tags_pushed)"
 }
 
@@ -351,7 +378,7 @@ ETEST_cicd_info_rc_suffix()
     etestmsg "Validating CI/CD Info"
     # The -rc1 suffix is stripped when calculating base_tag and version components
     assert_eq "v2.1.0"                              "${base_tag}"
-    assert_eq "develop"                             "${branch}"
+    assert_eq "main"                                "${branch}"
     assert_eq "$(git rev-parse HEAD)"               "${commit}"
     assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
     assert_eq "2"                                   "${major}"
@@ -389,7 +416,7 @@ ETEST_cicd_info_rc_suffix_with_offset()
     etestmsg "Validating CI/CD Info"
     # The -rc1-1-g<hash> suffix is stripped when calculating base_tag
     assert_eq "v2.1.0"                              "${base_tag}"
-    assert_eq "develop"                             "${branch}"
+    assert_eq "main"                                "${branch}"
     assert_eq "$(git rev-parse HEAD)"               "${commit}"
     assert_eq "$(git rev-parse HEAD | cut -c1-10)"  "${commit_short}"
     assert_eq "2"                                   "${major}"
