@@ -188,6 +188,7 @@ if ! cgroup_supported ; then
 else
     # Nest etest cgroup under current cgroup to avoid conflicts with systemd/containers
     ETEST_CGROUP_BASE="$(cgroup_current)/etest"
+    ETEST_CGROUP_BASE="${ETEST_CGROUP_BASE#/}"
 fi
 export ETEST_CGROUP_BASE
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
