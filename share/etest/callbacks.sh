@@ -13,7 +13,7 @@
 
 global_setup()
 {
-    ecolor hide_cursor &>>${ETEST_OUT}
+    ecolor hide_cursor 2>&${ETEST_STDERR_FD}
     edebug "Running global_setup"
 
     # Create a specific directory to run this test in. That way the test can create whatever directories and files it
@@ -32,7 +32,7 @@ global_setup()
 
 global_teardown()
 {
-    ecolor show_cursor &>>${ETEST_OUT}
+    ecolor show_cursor 2>&${ETEST_STDERR_FD}
 
     edebug "Running global_teardown: PID=$$ BASHPID=${BASHPID} PPID=${PPID}"
 

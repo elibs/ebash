@@ -105,7 +105,7 @@ $(opt_parse \
 
 # Default values we will override later. These are needed so if we get an assert failure or die failure in arg
 # validation they don't fail because of undefined variables.
-ETEST_OUT="/dev/null"
+ETEST_STDERR_FD=2
 TEST_OUT="/dev/null"
 
 # Verify --jobs is a valid integer.
@@ -192,7 +192,6 @@ fi
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
 # Setup logfile
-exec {ETEST_STDERR_FD}<&2
 artifact_name="${logdir}/${name:-etest}"
 artifact_name="${artifact_name// /_}"
 ETEST_LOG="${artifact_name}.log"
@@ -202,14 +201,18 @@ ETEST_VCS="${artifact_name}.vcs.json"
 ETEST_XML="${artifact_name}.xml"
 ETEST_FAILURE_LOG="${artifact_name}.failure.log"
 
-# Setup redirection for "etest" and actual "test" output
+# Setup redirection for "etest" and actual "test" output.
+#
+# ETEST_STDERR_FD is a file descriptor used for etest's own output (progress messages, banners, etc.). We use fd
+# redirection (e.g., `2>&${ETEST_STDERR_FD}`) rather than path-based redirection (e.g., `&>>/proc/self/fd/N`) because
+# path-based redirection fails when stderr is a socket (e.g., when running under systemd with journal logging).
 if [[ ${silent} -eq 1 ]]; then
-    ETEST_OUT="/dev/null"
+    exec {ETEST_STDERR_FD}>/dev/null
     TEST_OUT="/dev/null"
 elif [[ ${verbose} -eq 0 ]]; then
-    ETEST_OUT="$(fd_path)/${ETEST_STDERR_FD}"
+    exec {ETEST_STDERR_FD}>&2
     TEST_OUT="/dev/null"
 else
-    ETEST_OUT="/dev/null"
+    exec {ETEST_STDERR_FD}>/dev/null
     TEST_OUT="/dev/stderr"
 fi

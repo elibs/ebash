@@ -25,7 +25,7 @@ die_handler()
         # eerror_stacktrace and die itself. Also skip over the initial error message since we already displayed it.
         eerror_stacktrace -f=4 -s
 
-    fi &>>${ETEST_OUT}
+    fi 2>&${ETEST_STDERR_FD}
 
     exit ${rc}
 }
