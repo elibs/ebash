@@ -20,7 +20,6 @@ MOCKS=(
     "cgroup_supported"
     "cgroup_move"
     "efreshdir"
-    "elogfile_kill"
 )
 
 # Create a bunch of mocks for cgroup related functions.
@@ -74,7 +73,7 @@ ETEST_global_setup_with_cgroups()
     assert_emock_called_with "cgroup_create" 0 \
         "${ETEST_CGROUP}"
     assert_emock_called_with "cgroup_move"   0 \
-        "${ETEST_CGROUP_BASE}" $$ $(elogfile_pids)
+        "${ETEST_CGROUP_BASE}" $$
 }
 
 # Verify teardown works correctly without cgroups
@@ -89,7 +88,6 @@ ETEST_global_teardown_without_cgroups()
     etestmsg "Validating teardown code paths"
     assert_emock_called "assert_no_process_leaks" 1
     assert_emock_called "assert_no_mount_leaks"   1
-    assert_emock_called "elogfile_kill"           1
     assert_emock_called "cgroup_supported"        1
     assert_emock_called "cgroup_destroy"          0
 }
@@ -103,7 +101,6 @@ ETEST_global_teardown_with_cgroups()
     etestmsg "Validating we cleand up process and mount leaks"
     assert_emock_called "assert_no_process_leaks" 1
     assert_emock_called "assert_no_mount_leaks"   1
-    assert_emock_called "elogfile_kill"           1
     assert_emock_called "cgroup_supported"        1
     assert_emock_called "cgroup_destroy"          1
 
@@ -126,7 +123,6 @@ ETEST_global_teardown_with_cgroups_and_leaks()
     etestmsg "Validating we cleand up process and mount leaks"
     assert_emock_called "assert_no_process_leaks" 1
     assert_emock_called "assert_no_mount_leaks"   1
-    assert_emock_called "elogfile_kill"           1
     assert_emock_called "cgroup_supported"        1
     assert_emock_called "cgroup_destroy"          1
 

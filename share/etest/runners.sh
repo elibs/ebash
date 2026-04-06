@@ -204,13 +204,7 @@ run_single_test()
         eerror "${display_testname} failed and failfast=1" 2>&${ETEST_STDERR_FD}
     fi
 
-    # If jobs==0 update status json file inline. Otherwise this happens in the parallel execution loop.
-    # Only update every 10 tests or on the last test to reduce I/O overhead.
-    if [[ ${jobs} -eq 0 ]]; then
-        if (( (NUM_TESTS_PASSED + NUM_TESTS_FAILED) % 10 == 0 )) || [[ ${testidx} -eq ${testidx_total} ]]; then
-            create_status_json
-        fi
-    fi
+    # Note: create_status_json is called in the parallel execution loop
 }
 
 # A wrapper function that calls suite_teardown if it is defined by user.
@@ -339,38 +333,8 @@ run_all_tests()
     TESTS_DURATION=()
     TEST_SUITES=()
 
-    if [[ ${jobs} -gt 0 ]]; then
-        elogfile_kill --all
-        __run_all_tests_parallel
-    else
-        NUM_TESTS_RUNNING=1
-        __run_all_tests_serially
-        NUM_TESTS_RUNNING=0
-    fi
-}
-
-# __run_all_tests_serially is a special internal helper function which is called by its parent function run_all_tests to
-# run all tests one at a time in serial fashion.
-__run_all_tests_serially()
-{
-    for testfile in "${TEST_FILES_TO_RUN[@]}"; do
-
-        # Record start time of entire test suite
-        local suite_start_time="${SECONDS}"
-
-        # Run the test which could be a single test file or an entire suite (etest) file.
-        if [[ "${testfile}" =~ \.etest$ ]]; then
-            run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
-        else
-            run_single_test --testdir "${workdir}/$(basename ${testfile})" "${testfile}"
-        fi
-
-        if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-             die "Failure encountered and failfast=1" 2>&${ETEST_STDERR_FD}
-        fi
-
-        SUITE_DURATION[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
-    done
+    # All tests run through the parallel infrastructure. Serial mode is just jobs=1.
+    __run_all_tests_parallel
 }
 
 # __run_all_tests_parallel is a special internal helper function which is called by its parent function run_all_tests to
@@ -618,10 +582,12 @@ __run_all_tests_parallel()
 
                 processed_jobs[$job_idx]=1
 
-                eval "$(echo "${tests_duration}" | base64 --decode)"
-                for key in "${!tests_duration[@]}"; do
-                    TESTS_DURATION[$key]=${tests_duration[$key]}
-                done
+                if [[ -n "${tests_duration:-}" ]]; then
+                    eval "$(echo "${tests_duration}" | base64 --decode)"
+                    for key in "${!tests_duration[@]}"; do
+                        TESTS_DURATION[$key]=${tests_duration[$key]}
+                    done
+                fi
 
                 SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
                 NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + num_tests_executed ))
@@ -638,17 +604,29 @@ __run_all_tests_parallel()
                 fi
 
                 sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
+
+                # Output job results to terminal (when progress ticker is disabled)
                 if [[ ${jobs_progress} -eq 0 ]]; then
-                    if [[ ${verbose} -eq 0 ]]; then
-                        cat "${path}/etest.out" >&${ETEST_STDERR_FD}
-                    else
+                    if [[ ${verbose} -eq 1 ]]; then
+                        # Verbose mode: show full output
                         sed '/• PROGRESS.*/d' "${path}/output.log" >&${ETEST_STDERR_FD}
+                    else
+                        # Non-verbose: show compact output
+                        cat "${path}/etest.out" >&${ETEST_STDERR_FD}
                     fi
                 fi
 
                 # Update progress every 10 jobs for smoother display
+                # Update progress every 10 jobs for smoother display
                 (( ++jobs_this_batch ))
                 if (( jobs_this_batch % 10 == 0 )); then
+
+                    # Recalculate counters before updating progress file
+                    local _completed _remaining
+                    _completed=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
+                    _remaining=$(( NUM_TESTS_TOTAL - _completed ))
+                    NUM_TESTS_QUEUED=$(( _remaining - NUM_TESTS_RUNNING ))
+                    [[ ${NUM_TESTS_QUEUED} -lt 0 ]] && NUM_TESTS_QUEUED=0
                     __update_jobs_progress_file
                 fi
 
@@ -660,12 +638,16 @@ __run_all_tests_parallel()
             fi
         done
 
-        # Update progress display
+        # Update progress display - calculate from known-good values so numbers add up
+        # Total = Queued + Running + Passed + Failed + Skipped
+        local completed remaining
+        completed=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
+        remaining=$(( NUM_TESTS_TOTAL - completed ))
+
+        # Running can't exceed remaining tests or alive workers
         NUM_TESTS_RUNNING=${workers_alive}
-        local claimed
-        claimed=$(cat "${jobdir}/counter" 2>/dev/null || echo 0)
-        NUM_TESTS_QUEUED=$(( etest_job_total - claimed ))
-        [[ ${NUM_TESTS_QUEUED} -lt 0 ]] && NUM_TESTS_QUEUED=0
+        [[ ${NUM_TESTS_RUNNING} -gt ${remaining} ]] && NUM_TESTS_RUNNING=${remaining}
+        NUM_TESTS_QUEUED=$(( remaining - NUM_TESTS_RUNNING ))
         __update_jobs_progress_file
         create_status_json
 
@@ -820,6 +802,10 @@ __update_jobs_progress_file()
         PERCENT="0"
     else
         PERCENT=$((200*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} % 2 + 100*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL}))
+        # Don't show 100% if tests are still running
+        if [[ ${PERCENT} -eq 100 && ${NUM_TESTS_RUNNING} -gt 0 ]]; then
+            PERCENT=99
+        fi
     fi
 
     {

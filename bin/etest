@@ -130,17 +130,12 @@ if [[ -n "${total_timeout}" && "${total_timeout}" != "infinity" ]]; then
     trap_add "ekill ${watcher_pid} &>/dev/null" EXIT
 fi
 
-# Create logfile
+# Rotate log files
 elogrotate "${ETEST_LOG}"
 elogrotate "${ETEST_JSON}"
 elogrotate "${ETEST_OPTIONS}"
 elogrotate "${ETEST_XML}"
 elogrotate "${ETEST_FAILURE_LOG}"
-if [[ ${jobs} -eq 0 ]]; then
-    elogfile --cgroup=${ETEST_CGROUP} --rotate_count=10 --tail=${verbose} ${ETEST_LOG}
-else
-    elogfile --cgroup=${ETEST_CGROUP} --rotate_count=10 --tail=0 /dev/null
-fi
 
 # Create empty failure log so it exists even if tests abort early
 : > "${ETEST_FAILURE_LOG}"
