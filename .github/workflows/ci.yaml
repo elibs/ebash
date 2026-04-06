@@ -135,7 +135,7 @@ jobs:
           token: ${{ secrets.CICD_TOKEN }}
 
       - name: Install Dependencies
-        run: install/all
+        run: sudo install/all
 
       - name: Version
         id: version
