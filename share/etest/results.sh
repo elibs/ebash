@@ -132,8 +132,10 @@ __extract_test_output()
 
     [[ -z "${ETEST_LOG_NOANSI:-}" || ! -f "${ETEST_LOG_NOANSI}" ]] && return 0
 
+    # NOTE: Use "│ ${name} " (with trailing space) to avoid prefix matching.
+    # Without the space, "ETEST_foo" would match "ETEST_foo_bar".
     tac "${ETEST_LOG_NOANSI}" \
-        | sed -n "/${name}.*${status}/,/│ ${name}/p" \
+        | sed -n "/${name}.*${status}/,/│ ${name} /p" \
         | tac \
         | sed '1,/^└.*┘$/d'
 }

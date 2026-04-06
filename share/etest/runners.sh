@@ -582,10 +582,12 @@ __run_all_tests_parallel()
 
                 processed_jobs[$job_idx]=1
 
-                eval "$(echo "${tests_duration}" | base64 --decode)"
-                for key in "${!tests_duration[@]}"; do
-                    TESTS_DURATION[$key]=${tests_duration[$key]}
-                done
+                if [[ -n "${tests_duration:-}" ]]; then
+                    eval "$(echo "${tests_duration}" | base64 --decode)"
+                    for key in "${!tests_duration[@]}"; do
+                        TESTS_DURATION[$key]=${tests_duration[$key]}
+                    done
+                fi
 
                 SUITE_DURATION[${suite}]=$(( ${SUITE_DURATION[${suite}]:-0} + ${duration} ))
                 NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + num_tests_executed ))
@@ -615,8 +617,14 @@ __run_all_tests_parallel()
                 fi
 
                 # Update progress every 10 jobs for smoother display
+                # Update progress every 10 jobs for smoother display
                 (( ++jobs_this_batch ))
                 if (( jobs_this_batch % 10 == 0 )); then
+                    # Recalculate counters before updating progress file
+                    local _completed=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
+                    local _remaining=$(( NUM_TESTS_TOTAL - _completed ))
+                    NUM_TESTS_QUEUED=$(( _remaining - NUM_TESTS_RUNNING ))
+                    [[ ${NUM_TESTS_QUEUED} -lt 0 ]] && NUM_TESTS_QUEUED=0
                     __update_jobs_progress_file
                 fi
 
@@ -628,12 +636,14 @@ __run_all_tests_parallel()
             fi
         done
 
-        # Update progress display
+        # Update progress display - calculate from known-good values so numbers add up
+        # Total = Queued + Running + Passed + Failed + Skipped
+        local completed=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
+        local remaining=$(( NUM_TESTS_TOTAL - completed ))
+        # Running can't exceed remaining tests or alive workers
         NUM_TESTS_RUNNING=${workers_alive}
-        local claimed
-        claimed=$(cat "${jobdir}/counter" 2>/dev/null || echo 0)
-        NUM_TESTS_QUEUED=$(( etest_job_total - claimed ))
-        [[ ${NUM_TESTS_QUEUED} -lt 0 ]] && NUM_TESTS_QUEUED=0
+        [[ ${NUM_TESTS_RUNNING} -gt ${remaining} ]] && NUM_TESTS_RUNNING=${remaining}
+        NUM_TESTS_QUEUED=$(( remaining - NUM_TESTS_RUNNING ))
         __update_jobs_progress_file
         create_status_json
 
@@ -788,6 +798,10 @@ __update_jobs_progress_file()
         PERCENT="0"
     else
         PERCENT=$((200*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL} % 2 + 100*${NUM_TESTS_EXECUTED}/${NUM_TESTS_TOTAL}))
+        # Don't show 100% if tests are still running
+        if [[ ${PERCENT} -eq 100 && ${NUM_TESTS_RUNNING} -gt 0 ]]; then
+            PERCENT=99
+        fi
     fi
 
     {

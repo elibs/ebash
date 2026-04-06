@@ -110,7 +110,7 @@ assert_int_ge "${jobs}" 0 "jobs must be an integer value greater than or equal t
 # Treat jobs=0 as jobs=1. This unifies serial and parallel code paths - serial mode is just
 # parallel mode with a single worker. This eliminates the need for separate serial execution
 # logic and elogfile.
-[[ ${jobs} -eq 0 ]] && jobs=1
+[[ "${jobs}" == "0" ]] && jobs=1
 
 # Disable progress ticker in verbose mode - the ticker conflicts with verbose output
 if [[ ${verbose} -eq 1 ]]; then
