@@ -218,15 +218,15 @@ ETEST_syslog_custom_details_journald()
 
     local line="${LINENO}"
     syslog --priority emerg "Luke, I am your Father!" \
-        DIR=PWD            \
-        FOO=1              \
-        GROUP=ETEST_CGROUP \
-        HOME               \
-        LID=ETEST_PID      \
-        NAME=USER          \
-        OUT=ETEST_OUT      \
-        PWD                \
-        USER               \
+        DIR=PWD             \
+        FOO=1               \
+        GROUP=ETEST_CGROUP  \
+        HOME                \
+        LID=ETEST_PID       \
+        NAME=USER           \
+        OUT=ETEST_STDERR_FD \
+        PWD                 \
+        USER                \
 
     etestmsg "Verifying logger called with correct message"
     assert_emock_called_with "logger" 0 \
@@ -246,7 +246,7 @@ ETEST_syslog_custom_details_journald()
         LID=${ETEST_PID}
         MESSAGE="Luke, I am your Father!"
         NAME=${USER}
-        OUT=${ETEST_OUT}
+        OUT=${ETEST_STDERR_FD}
         PRIORITY=0
         PWD=${PWD}
         SYSLOG_IDENTIFIER=etest
@@ -264,15 +264,15 @@ ETEST_syslog_custom_details_syslog()
 
     local line="${LINENO}"
     syslog --priority emerg --syslog-details "Luke, I am your Father!" \
-        DIR=PWD            \
-        FOO=1              \
-        GROUP=ETEST_CGROUP \
-        HOME               \
-        LID=ETEST_PID      \
-        NAME=USER          \
-        OUT=ETEST_OUT      \
-        PWD                \
-        USER               \
+        DIR=PWD             \
+        FOO=1               \
+        GROUP=ETEST_CGROUP  \
+        HOME                \
+        LID=ETEST_PID       \
+        NAME=USER           \
+        OUT=ETEST_STDERR_FD \
+        PWD                 \
+        USER                \
 
     etestmsg "Verifying logger called with correct message"
 
@@ -286,7 +286,7 @@ ETEST_syslog_custom_details_syslog()
         [HOME]=${HOME}
         [LID]=${ETEST_PID}
         [NAME]=${USER}
-        [OUT]=${ETEST_OUT}
+        [OUT]=${ETEST_STDERR_FD}
         [PWD]=${PWD}
         [SYSLOG_IDENTIFIER]=etest
         [TID]=$BASHPID

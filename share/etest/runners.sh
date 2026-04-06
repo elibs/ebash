@@ -55,7 +55,7 @@ run_single_test()
         einfo_message=$(EMSG_PREFIX="" einfo -n "${testname}" 2>&1)
     fi
 
-    echo -n "${einfo_message}" &>>${ETEST_OUT}
+    echo -n "${einfo_message}" >&${ETEST_STDERR_FD}
     # Strip ANSI codes and get length (pure bash, no subprocesses)
     local einfo_message_stripped="${einfo_message//$'\e'\[*([0-9;])m/}"
     einfo_message_length=$(( ${#einfo_message_stripped} + 1 ))
@@ -193,7 +193,7 @@ run_single_test()
         NUM_TESTS_FAILED=$(( NUM_TESTS_FAILED + 1 ))
     fi
 
-    eend --inline --inline-offset=${einfo_message_length} ${rc} &>>${ETEST_OUT}
+    eend --inline --inline-offset=${einfo_message_length} ${rc} 2>&${ETEST_STDERR_FD}
 
     # Finally record the total duration of this test
     TESTS_DURATION[${testname}]=$(( ${SECONDS} - ${start_time} ))
@@ -201,7 +201,7 @@ run_single_test()
     # NOTE: If failfast is enabled don't DIE here just log the error for informational purposes and return.
     # etest already knows how to detect and report errors.
     if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-        eerror "${display_testname} failed and failfast=1" &>>${ETEST_OUT}
+        eerror "${display_testname} failed and failfast=1" 2>&${ETEST_STDERR_FD}
     fi
 
     # If jobs==0 update status json file inline. Otherwise this happens in the parallel execution loop.
@@ -248,7 +248,7 @@ run_etest_file()
         return 0
     fi
 
-    EMSG_PREFIX="" einfo "${testfile}" &>>${ETEST_OUT}
+    EMSG_PREFIX="" einfo "${testfile}" 2>&${ETEST_STDERR_FD}
 
     # Source the file first to check for skip_file_if
     local ETEST_SKIP_FILE=0
@@ -262,7 +262,7 @@ run_etest_file()
 
         for testfunc in "${functions[@]}"; do
             local display_testname="${testfile}:${testfunc}"
-            einfo "$(ecolor bold yellow)${display_testname} SKIPPED." &>>${ETEST_OUT}
+            einfo "$(ecolor bold yellow)${display_testname} SKIPPED." 2>&${ETEST_STDERR_FD}
             TESTS_SKIPPED[$suite]+="${testfunc} "
             NUM_TESTS_SKIPPED=$(( NUM_TESTS_SKIPPED + 1 ))
             NUM_TESTS_EXECUTED=$(( NUM_TESTS_EXECUTED + 1 ))
@@ -322,7 +322,7 @@ run_all_tests()
     if [[ "${verbose}" -eq 1 ]]; then
         ebanner --uppercase "${etest_name}" "${banner_args[@]}"
     else
-        ebanner --uppercase "${etest_name}" "${banner_args[@]}" &>>${ETEST_OUT}
+        ebanner --uppercase "${etest_name}" "${banner_args[@]}" 2>&${ETEST_STDERR_FD}
     fi
 
     # Reset all counters and arrays at the start of each run (important for repeat mode)
@@ -366,7 +366,7 @@ __run_all_tests_serially()
         fi
 
         if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-             die "Failure encountered and failfast=1" &>${ETEST_OUT}
+             die "Failure encountered and failfast=1" 2>&${ETEST_STDERR_FD}
         fi
 
         SUITE_DURATION[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
@@ -424,8 +424,11 @@ __worker_main()
         exec &> "${jobpath}/output.log"
 
         # Setup output files
-        ETEST_OUT="/dev/null"
-        [[ ${jobs_progress} -eq 0 ]] && ETEST_OUT="${jobpath}/etest.out"
+        if [[ ${jobs_progress} -eq 0 ]]; then
+            exec {ETEST_STDERR_FD}>"${jobpath}/etest.out"
+        else
+            exec {ETEST_STDERR_FD}>/dev/null
+        fi
         TEST_OUT="/dev/null"
 
         # Reset counters and arrays for this job (critical: arrays must be reset to prevent accumulation across jobs)
@@ -463,7 +466,7 @@ __worker_main()
                 local testfilename testdir
                 testfilename=$(basename "${testfile}")
                 testdir="${workdir}/${testfilename}/${single_func}"
-                EMSG_PREFIX="" einfo "${testfile}:${single_func}" &>>${ETEST_OUT}
+                EMSG_PREFIX="" einfo "${testfile}:${single_func}" 2>&${ETEST_STDERR_FD}
 
                 # Check if file was skipped via skip_file_if
                 if [[ ${ETEST_SKIP_FILE} -eq 1 ]]; then
@@ -566,10 +569,10 @@ __run_all_tests_parallel()
         EMSG_PREFIX= eprogress              \
             --style einfo                   \
             --file "${etest_progress_file}" \
-            "Total: $(ecolor bold)${NUM_TESTS_TOTAL}$(ecolor reset)" &>> ${ETEST_OUT}
+            "Total: $(ecolor bold)${NUM_TESTS_TOTAL}$(ecolor reset)" 2>&${ETEST_STDERR_FD}
 
         array_copy __EBASH_EPROGRESS_PIDS etest_eprogress_pids
-        trap_add "__EBASH_EPROGRESS_PIDS=( ${etest_eprogress_pids[*]} ); eprogress_kill -r=1 ${etest_eprogress_pids[*]} &>> ${ETEST_OUT}"
+        trap_add "__EBASH_EPROGRESS_PIDS=( ${etest_eprogress_pids[*]} ); eprogress_kill -r=1 ${etest_eprogress_pids[*]} 2>&${ETEST_STDERR_FD}"
         __EBASH_EPROGRESS_PIDS=()
     fi
 
@@ -636,12 +639,10 @@ __run_all_tests_parallel()
 
                 sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
                 if [[ ${jobs_progress} -eq 0 ]]; then
-                    local _fd_path
-                    _fd_path="$(fd_path)/${ETEST_STDERR_FD}"
                     if [[ ${verbose} -eq 0 ]]; then
-                        cat "${path}/etest.out" >> "${_fd_path}"
+                        cat "${path}/etest.out" >&${ETEST_STDERR_FD}
                     else
-                        sed '/• PROGRESS.*/d' "${path}/output.log" >> "${_fd_path}"
+                        sed '/• PROGRESS.*/d' "${path}/output.log" >&${ETEST_STDERR_FD}
                     fi
                 fi
 
@@ -677,7 +678,7 @@ __run_all_tests_parallel()
 
                 # Kill eprogress FIRST so our output isn't mangled by terminal codes
                 array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
-                eprogress_kill --rc=1 &>> ${ETEST_OUT} || true
+                eprogress_kill --rc=1 2>&${ETEST_STDERR_FD} || true
 
                 # Find which job this worker was running
                 local crashed_job="" crashed_jobpath="" j
@@ -766,7 +767,7 @@ __run_all_tests_parallel()
 
     # Update pids and kill eprogress
     array_copy etest_eprogress_pids __EBASH_EPROGRESS_PIDS
-    eprogress_kill --rc=${NUM_TESTS_FAILED} &>> ${ETEST_OUT}
+    eprogress_kill --rc=${NUM_TESTS_FAILED} 2>&${ETEST_STDERR_FD}
 
     # Display prominent failfast abort message if we aborted early and populate TESTS_SKIPPED
     if [[ -f "${jobdir}/abort" ]]; then
@@ -796,14 +797,14 @@ __run_all_tests_parallel()
             fi
         done
 
-        echo &>> ${ETEST_OUT}
-        eerror "Aborted early due to failfast after ${NUM_TESTS_FAILED} failure(s)" &>> ${ETEST_OUT}
-        ewarn "Skipped ${NUM_TESTS_SKIPPED} remaining test(s)" &>> ${ETEST_OUT}
+        echo >&${ETEST_STDERR_FD}
+        eerror "Aborted early due to failfast after ${NUM_TESTS_FAILED} failure(s)" 2>&${ETEST_STDERR_FD}
+        ewarn "Skipped ${NUM_TESTS_SKIPPED} remaining test(s)" 2>&${ETEST_STDERR_FD}
     fi
 
     # Display results table
     if [[ ${jobs_progress} -eq 1 ]]; then
-        __display_results_table &>> ${ETEST_OUT}
+        __display_results_table 2>&${ETEST_STDERR_FD}
     fi
 }
 
