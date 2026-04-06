@@ -186,8 +186,8 @@ edebug "$(lval TOPDIR TEST_DIR) $(opt_dump)"
 if ! cgroup_supported ; then
     export ETEST_CGROUP_BASE=unsupported
 else
-    # Global cgroup name for all unit tests run here
-    export ETEST_CGROUP_BASE="etest"
+    # Nest etest cgroup under current cgroup to avoid conflicts with systemd/containers
+    export ETEST_CGROUP_BASE="$(cgroup_current)/etest"
 fi
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
