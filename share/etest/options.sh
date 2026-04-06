@@ -184,11 +184,12 @@ EDEBUG=${debug}
 edebug "$(lval TOPDIR TEST_DIR) $(opt_dump)"
 
 if ! cgroup_supported ; then
-    export ETEST_CGROUP_BASE=unsupported
+    ETEST_CGROUP_BASE=unsupported
 else
     # Nest etest cgroup under current cgroup to avoid conflicts with systemd/containers
-    export ETEST_CGROUP_BASE="$(cgroup_current)/etest"
+    ETEST_CGROUP_BASE="$(cgroup_current)/etest"
 fi
+export ETEST_CGROUP_BASE
 export ETEST_CGROUP="${ETEST_CGROUP_BASE}/$$"
 
 # Setup logfile
