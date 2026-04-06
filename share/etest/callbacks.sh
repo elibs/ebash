@@ -20,11 +20,10 @@ global_setup()
     # needs and assuming the test succeeds we'll auto remove the directory after the test completes.
     efreshdir "${workdir}"
 
-    # If cgroups are enabled, create a new parent cgroup which will contain all our processes including the elogfile
-    # processes we already launched.
+    # If cgroups are enabled, create a new parent cgroup which will contain all our processes.
     if cgroup_supported; then
         cgroup_create ${ETEST_CGROUP}
-        cgroup_move ${ETEST_CGROUP_BASE} $$ $(elogfile_pids)
+        cgroup_move ${ETEST_CGROUP_BASE} $$
     fi
 
     edebug "Finished global_setup"
@@ -49,9 +48,6 @@ global_teardown()
     fi
 
     edebug "Finished global_teardown"
-
-    # Gracefully stop elogfile
-    elogfile_kill --all
 
     # Destroy parent cgroup
     if cgroup_supported; then

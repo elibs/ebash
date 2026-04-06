@@ -54,13 +54,9 @@ $(opt_parse \
     ":exclude x                    | Tests whose name or file match this regular expression will not be run."          \
     ":filter  f                    | Tests whose name or file match this (bash-style) regular expression will be run." \
     "+html    h=0                  | Produce an HTML logfile and strip color codes out of etest.log."                  \
-    ":jobs    j=0                  | Number of parallel jobs to run. If this is greater than 0, then the output will
-                                     show a progress bar to monitor the parallel jobs. There will be a separate state
-                                     directory for each job available in the jobs subdirectory under work directory.
-                                     Note that a value of 0 disables parallel job execution. A value of 1 only runs a
-                                     single job at a time but allows execution of the parallel job code paths. This
-                                     is useful as it allows consistency for the caller to just pass the value of nproc
-                                     into etest and the results and output will be identical."                         \
+    ":jobs    j=0                  | Number of parallel jobs to run. Output shows a progress bar to monitor jobs.
+                                     A value of 0 is treated as 1 (single worker). There will be a separate state
+                                     directory for each job available in the jobs subdirectory under work directory." \
     "+jobs_progress=1              | Show jobs eprogress summary ticker while running."                                \
     ":logdir log_dir               | Directory to place logs in. Defaults to the current directory."                   \
     "+mountns mount_ns=0           | Run tests inside a mount namespace."                                              \
@@ -111,9 +107,13 @@ TEST_OUT="/dev/null"
 # Verify --jobs is a valid integer.
 assert_int_ge "${jobs}" 0 "jobs must be an integer value greater than or equal to 0"
 
-# If running multiple jobs with verbosity we have to disable jobs_progress otherwise the job progess ticker and the
-# verbose output would write on top of one another.
-if [[ "${jobs}" != 0 && "${verbose}" != 0 ]]; then
+# Treat jobs=0 as jobs=1. This unifies serial and parallel code paths - serial mode is just
+# parallel mode with a single worker. This eliminates the need for separate serial execution
+# logic and elogfile.
+[[ ${jobs} -eq 0 ]] && jobs=1
+
+# Disable progress ticker in verbose mode - the ticker conflicts with verbose output
+if [[ ${verbose} -eq 1 ]]; then
     jobs_progress=0
 fi
 
@@ -214,7 +214,12 @@ if [[ ${silent} -eq 1 ]]; then
 elif [[ ${verbose} -eq 0 ]]; then
     exec {ETEST_STDERR_FD}>&2
     TEST_OUT="/dev/null"
+elif [[ ${jobs} -gt 0 ]]; then
+    # Parallel + verbose: test output is captured to logs and replayed via ETEST_STDERR_FD
+    exec {ETEST_STDERR_FD}>&2
+    TEST_OUT="/dev/null"
 else
+    # Serial + verbose: test output goes directly to stderr
     exec {ETEST_STDERR_FD}>/dev/null
     TEST_OUT="/dev/stderr"
 fi

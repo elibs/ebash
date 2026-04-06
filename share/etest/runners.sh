@@ -204,13 +204,7 @@ run_single_test()
         eerror "${display_testname} failed and failfast=1" 2>&${ETEST_STDERR_FD}
     fi
 
-    # If jobs==0 update status json file inline. Otherwise this happens in the parallel execution loop.
-    # Only update every 10 tests or on the last test to reduce I/O overhead.
-    if [[ ${jobs} -eq 0 ]]; then
-        if (( (NUM_TESTS_PASSED + NUM_TESTS_FAILED) % 10 == 0 )) || [[ ${testidx} -eq ${testidx_total} ]]; then
-            create_status_json
-        fi
-    fi
+    # Note: create_status_json is called in the parallel execution loop
 }
 
 # A wrapper function that calls suite_teardown if it is defined by user.
@@ -339,38 +333,8 @@ run_all_tests()
     TESTS_DURATION=()
     TEST_SUITES=()
 
-    if [[ ${jobs} -gt 0 ]]; then
-        elogfile_kill --all
-        __run_all_tests_parallel
-    else
-        NUM_TESTS_RUNNING=1
-        __run_all_tests_serially
-        NUM_TESTS_RUNNING=0
-    fi
-}
-
-# __run_all_tests_serially is a special internal helper function which is called by its parent function run_all_tests to
-# run all tests one at a time in serial fashion.
-__run_all_tests_serially()
-{
-    for testfile in "${TEST_FILES_TO_RUN[@]}"; do
-
-        # Record start time of entire test suite
-        local suite_start_time="${SECONDS}"
-
-        # Run the test which could be a single test file or an entire suite (etest) file.
-        if [[ "${testfile}" =~ \.etest$ ]]; then
-            run_etest_file "${testfile}" "${TEST_FUNCTIONS_TO_RUN[$testfile]:-}"
-        else
-            run_single_test --testdir "${workdir}/$(basename ${testfile})" "${testfile}"
-        fi
-
-        if [[ ${failfast} -eq 1 && ${NUM_TESTS_FAILED} -gt 0 ]] ; then
-             die "Failure encountered and failfast=1" 2>&${ETEST_STDERR_FD}
-        fi
-
-        SUITE_DURATION[$(basename ${testfile} .etest)]=$(( ${SECONDS} - ${suite_start_time} ))
-    done
+    # All tests run through the parallel infrastructure. Serial mode is just jobs=1.
+    __run_all_tests_parallel
 }
 
 # __run_all_tests_parallel is a special internal helper function which is called by its parent function run_all_tests to
@@ -638,11 +602,15 @@ __run_all_tests_parallel()
                 fi
 
                 sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
+
+                # Output job results to terminal (when progress ticker is disabled)
                 if [[ ${jobs_progress} -eq 0 ]]; then
-                    if [[ ${verbose} -eq 0 ]]; then
-                        cat "${path}/etest.out" >&${ETEST_STDERR_FD}
-                    else
+                    if [[ ${verbose} -eq 1 ]]; then
+                        # Verbose mode: show full output
                         sed '/• PROGRESS.*/d' "${path}/output.log" >&${ETEST_STDERR_FD}
+                    else
+                        # Non-verbose: show compact output
+                        cat "${path}/etest.out" >&${ETEST_STDERR_FD}
                     fi
                 fi
 
