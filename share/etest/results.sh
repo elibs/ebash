@@ -269,13 +269,15 @@ create_summary()
         rel_json=$(realpath --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_JSON}" 2>/dev/null) || rel_json="${ETEST_JSON}"
 
         echo
-        if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
-            echo "$(ecolor red)Test failures:$(ecolor off) $(ecolor red)${rel_failure_log}$(ecolor off)"
+        if [[ ${show_artifacts} -eq 1 ]]; then
+            if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
+                echo "$(ecolor red)Test failures:$(ecolor off) $(ecolor red)${rel_failure_log}$(ecolor off)"
+            fi
+            echo "$(ecolor cyan)Test output:  $(ecolor off) $(ecolor magenta)${rel_log}$(ecolor off)"
+            echo "$(ecolor cyan)JUnit XML:    $(ecolor off) $(ecolor magenta)${rel_xml}$(ecolor off)"
+            echo "$(ecolor cyan)Test details: $(ecolor off) $(ecolor magenta)${rel_json}$(ecolor off)"
+            echo
         fi
-        echo "$(ecolor cyan)Test output:  $(ecolor off) $(ecolor magenta)${rel_log}$(ecolor off)"
-        echo "$(ecolor cyan)JUnit XML:    $(ecolor off) $(ecolor magenta)${rel_xml}$(ecolor off)"
-        echo "$(ecolor cyan)Test details: $(ecolor off) $(ecolor magenta)${rel_json}$(ecolor off)"
-        echo
     } >&${ETEST_STDERR_FD}
 }
 
