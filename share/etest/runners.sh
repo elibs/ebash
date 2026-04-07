@@ -96,6 +96,7 @@ run_single_test()
 
         # Create our temporary workspace in the directory specified by the caller
         efreshdir "${testdir}"
+        exec &> "${testdir}/output.log"
         mkdir "${testdir}/tmp"
         TMPDIR="$(readlink -m ${testdir}/tmp)"
         export TMPDIR
@@ -384,7 +385,7 @@ __worker_main()
         # Write our PID so crash detection knows which job we're running
         echo "${BASHPID}" > "${jobpath}/worker.pid"
 
-        # Redirect output to job log
+        # Redirect worker output to job log (keeps console clean)
         exec &> "${jobpath}/output.log"
 
         # Setup output files
@@ -603,13 +604,14 @@ __run_all_tests_parallel()
                     TEST_SUITES+=( "${suite}" )
                 fi
 
-                sed '/• PROGRESS.*/d' "${path}/output.log" >> "${ETEST_LOG}"
+                # Aggregate job output to ETEST_LOG
+                cat "${path}/output.log" >> "${ETEST_LOG}"
 
                 # Output job results to terminal (when progress ticker is disabled)
                 if [[ ${jobs_progress} -eq 0 ]]; then
                     if [[ ${verbose} -eq 1 ]]; then
                         # Verbose mode: show full output
-                        sed '/• PROGRESS.*/d' "${path}/output.log" >&${ETEST_STDERR_FD}
+                        cat "${path}/output.log" >&${ETEST_STDERR_FD}
                     else
                         # Non-verbose: show compact output
                         cat "${path}/etest.out" >&${ETEST_STDERR_FD}
@@ -694,24 +696,33 @@ __run_all_tests_parallel()
                         TEST_SUITES+=( "${suite}" )
                     fi
 
-                    # Append crashed job output to ETEST_LOG so __extract_test_output can find it
-                    # Use ebanner to match run_single_test format for proper extraction
+                    # Determine testdir for the crashed test
+                    local testdir
+                    if [[ "${testfunc}" == ETEST_* ]]; then
+                        testdir="${workdir}/${suite}.etest/${testfunc}"
+                    else
+                        testdir="${workdir}/$(basename "${testfunc}")"
+                    fi
+
+                    # Append crash info to the per-test output.log (for __extract_test_output)
                     {
-                        ebanner --uppercase "${testfunc}"
                         echo ""
                         echo "[WORKER CRASHED - exit code ${wrc}]"
                         echo ""
-                        if [[ -f "${crashed_jobpath}/output.log" ]]; then
-                            cat "${crashed_jobpath}/output.log"
-                        fi
-                        echo ""
+                        echo "${testfunc} FAILED."
+                    } >> "${testdir}/output.log"
+
+                    # Append crash info to ETEST_LOG
+                    {
+                        ebanner --uppercase "${testfunc}"
+                        echo "[WORKER CRASHED - exit code ${wrc}]"
                         echo "${testfunc} FAILED."
                     } >> "${ETEST_LOG}"
                 fi
 
                 eerror "Worker ${wpid} crashed (exit code ${wrc}), jobs: ${#processed_jobs[@]}/${etest_job_total} done"
                 if [[ -n "${crashed_job}" ]]; then
-                    eerror "Crashed job: ${crashed_job} (log: jobs/${j}/output.log)"
+                    eerror "Crashed job: ${crashed_job}"
                 fi
 
                 # Kill remaining workers and signal abort
