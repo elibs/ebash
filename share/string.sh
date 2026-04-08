@@ -131,7 +131,10 @@ string_getline()
         "num    | Line number to fetch from the provided input string.")
 
     assert_num_gt "${num}" "0" "Line number must be > 0"
-    echo "${input}" | sed "${num}q;d"
+
+    # Use here-string instead of pipe to avoid SIGPIPE when sed quits early after finding the requested line.
+    # With a pipe, if sed exits before echo finishes writing, bash's error detection can catch the broken pipe.
+    sed "${num}q;d" <<< "${input}"
 }
 
 opt_usage lower_snake_case_to_title_case <<'END'

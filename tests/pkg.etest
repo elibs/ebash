@@ -17,7 +17,7 @@ suite_setup()
     pkg_known=bash
     pkg_installed=bash
     pkg_unknown=does-not-exist
-    pkg_candidates="hello banner lolcat fortune skaffold sqlite telnet terraform thanos tmux"
+    pkg_candidates="hello lolcat fortune figlet sqlite telnet tree htop tmux"
     pkg_installable=""
 
     # Find packages that we can install from pkg_candidates

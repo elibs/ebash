@@ -97,7 +97,11 @@ ETEST_syslog_backend_autodetect_journald_twice()
 ETEST_syslog_backend_env_journald()
 {
     EBASH_SYSLOG_BACKEND="journald"
-    emock logger
+
+    # Must use --stdin since syslog pipes data into logger when using journald backend.
+    # Without this, the mock exits before reading stdin, causing SIGPIPE/EPIPE which
+    # triggers bash's error detection intermittently.
+    emock --stdin logger
 
     syslog "foo"
 
@@ -127,7 +131,10 @@ ETEST_syslog_backend_env_invalid()
 
 ETEST_syslog_backend_journald()
 {
-    emock logger
+    # Must use --stdin since syslog pipes data into logger when using journald backend.
+    # Without this, the mock exits before reading stdin, causing SIGPIPE/EPIPE which
+    # triggers bash's error detection intermittently.
+    emock --stdin logger
 
     syslog --backend journald "foo"
 

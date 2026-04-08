@@ -149,12 +149,9 @@ ETEST_results_failure_log_format()
     NUM_TESTS_FAILED=1 TESTS_FAILED=( [mysuite]="ETEST_failing_test" )
     DURATION="${SECONDS}"
 
-    # Create a mock ETEST_LOG with test output that create_failure_output will extract from
-    # Must include banner format: "│ ETEST_name" line and "└...┘" end line (Unicode box-drawing)
-    cat > "${ETEST_LOG}" <<'EOF'
-│ ETEST_failing_test
-│
-└────┘
+    # Create a mock per-test output.log file that __extract_test_output will read
+    mkdir -p "${workdir}/mysuite.etest/ETEST_failing_test"
+    cat > "${workdir}/mysuite.etest/ETEST_failing_test/output.log" <<'EOF'
 [2024-01-01T00:00:00Z] Running command="ETEST_failing_test" attempt="0"
 Some test output here
 Error: something went wrong
@@ -183,17 +180,16 @@ ETEST_results_failure_log_multiple_suites()
     NUM_TESTS_FAILED=2 TESTS_FAILED=( [suite1]="ETEST_fail1" [suite2]="ETEST_fail2" )
     DURATION="${SECONDS}"
 
-    # Create mock ETEST_LOG with multiple test failures (including banner format with Unicode box-drawing)
-    cat > "${ETEST_LOG}" <<'EOF'
-│ ETEST_fail1
-│
-└────┘
+    # Create mock per-test output.log files that __extract_test_output will read
+    mkdir -p "${workdir}/suite1.etest/ETEST_fail1"
+    cat > "${workdir}/suite1.etest/ETEST_fail1/output.log" <<'EOF'
 [2024-01-01T00:00:00Z] Running command="ETEST_fail1" attempt="0"
 Suite1 failure output
 [2024-01-01T00:00:01Z] tests/suite1.etest:ETEST_fail1 FAILED.
-│ ETEST_fail2
-│
-└────┘
+EOF
+
+    mkdir -p "${workdir}/suite2.etest/ETEST_fail2"
+    cat > "${workdir}/suite2.etest/ETEST_fail2/output.log" <<'EOF'
 [2024-01-01T00:00:02Z] Running command="ETEST_fail2" attempt="0"
 Suite2 failure output
 [2024-01-01T00:00:03Z] tests/suite2.etest:ETEST_fail2 FAILED.

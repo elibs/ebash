@@ -107,37 +107,18 @@ create_options_json()
     mv "${ETEST_OPTIONS}.tmp" "${ETEST_OPTIONS}"
 }
 
-# Prepare an ANSI-stripped version of ETEST_LOG for efficient repeated extraction.
-# Call this once before multiple calls to __extract_test_output.
-__prepare_log_noansi()
-{
-    # Initialize to empty in case log doesn't exist
-    ETEST_LOG_NOANSI=""
-
-    if [[ -f "${ETEST_LOG}" ]]; then
-        # Insert .noansi before .log suffix (e.g., etest.log -> etest.noansi.log)
-        ETEST_LOG_NOANSI="${ETEST_LOG%.log}.noansi.log"
-        # Pipe through noansi (don't pass as argument, that uses sed -i which produces no output)
-        noansi < "${ETEST_LOG}" > "${ETEST_LOG_NOANSI}"
-    fi
-}
-
-# Extract test output from ETEST_LOG for a given test name and status (FAILED/SKIPPED).
-# Matches from test banner "│ ETEST_name" to the status line, strips ANSI codes and banner.
-# Requires ETEST_LOG_NOANSI to be prepared first via __prepare_log_noansi().
+# Extract test output from the per-test output file.
+# Each test writes its output to ${workdir}/${suite}.etest/${name}/output.log
 __extract_test_output()
 {
-    local name=$1
-    local status=$2
+    local suite=$1
+    local name=$2
 
-    [[ -z "${ETEST_LOG_NOANSI:-}" || ! -f "${ETEST_LOG_NOANSI}" ]] && return 0
+    local test_output="${workdir}/${suite}.etest/${name}/output.log"
+    [[ -f "${test_output}" ]] || return 0
 
-    # NOTE: Use "│ ${name} " (with trailing space) to avoid prefix matching.
-    # Without the space, "ETEST_foo" would match "ETEST_foo_bar".
-    tac "${ETEST_LOG_NOANSI}" \
-        | sed -n "/${name}.*${status}/,/│ ${name} /p" \
-        | tac \
-        | sed '1,/^└.*┘$/d'
+    # Strip ANSI codes and output the test content
+    noansi < "${test_output}"
 }
 
 create_failure_output()
@@ -146,10 +127,6 @@ create_failure_output()
     : > "${ETEST_FAILURE_LOG}"
 
     if array_empty TESTS_FAILED; then
-        return 0
-    fi
-
-    if [[ ! -f "${ETEST_LOG}" ]]; then
         return 0
     fi
 
@@ -169,7 +146,7 @@ create_failure_output()
                 echo "${label}${dashes}"
                 echo
 
-                __extract_test_output "${test_name}" "FAILED" | sed 's/^/   /'
+                __extract_test_output "${suite}" "${test_name}" | sed 's/^/   /'
             done
         done
     } > "${ETEST_FAILURE_LOG}"
@@ -194,10 +171,6 @@ create_failure_output()
 
 create_summary()
 {
-    # Prepare cached noansi version of log for efficient repeated extraction
-    # This is used by create_failure_output and later by create_xml
-    __prepare_log_noansi
-
     create_vcs_info
     pack_to_json VCS_INFO > "${ETEST_VCS}"
     create_status_json
@@ -318,19 +291,19 @@ create_xml()
                 local test_output=""
                 local error_line=""
                 local error_line_escaped=""
-                if [[ -f "${ETEST_LOG}" ]]; then
-                    # Extract test output and escape CDATA for XML
-                    test_output=$(__extract_test_output "${name}" "FAILED" | sed 's/]]>/]]]]><![CDATA[>/g')
 
-                    # Extract the error line (line before stacktrace), strip timestamp
-                    error_line=$(echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
+                # Extract test output and escape CDATA for XML
+                test_output=$(__extract_test_output "${suite}" "${name}" | sed 's/]]>/]]]]><![CDATA[>/g')
 
-                    # XML-escape for the attribute
-                    error_line_escaped="${error_line//&/\&amp;}"
-                    error_line_escaped="${error_line_escaped//</\&lt;}"
-                    error_line_escaped="${error_line_escaped//>/\&gt;}"
-                    error_line_escaped="${error_line_escaped//\"/\&quot;}"
-                fi
+                # Extract the error line (line before stacktrace), strip timestamp
+                error_line=$(echo "${test_output}" | awk '/:: [^ ]+:[0-9]+/{print prev; exit} {prev=$0}' | sed 's/^\[[^]]*\] //')
+
+                # XML-escape for the attribute
+                error_line_escaped="${error_line//&/\&amp;}"
+                error_line_escaped="${error_line_escaped//</\&lt;}"
+                error_line_escaped="${error_line_escaped//>/\&gt;}"
+                error_line_escaped="${error_line_escaped//\"/\&quot;}"
+
                 echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"${TESTS_DURATION[$name]:-0}\">"
                 echo "<failure message=\"${suite}:${name} — ${error_line_escaped:-failed}\" type=\"ERROR\"><![CDATA["
                 echo "${error_line:-No error details}"
@@ -351,8 +324,8 @@ create_xml()
             for name in ${testcases_skipped[*]:-}; do
                 local test_output=""
                 # Only try to extract output if the suite actually ran (has passed or failed tests)
-                if [[ ${suite_ran} -eq 1 && -f "${ETEST_LOG_NOANSI}" ]]; then
-                    test_output=$(__extract_test_output "${name}" "SKIPPED" | sed 's/]]>/]]]]><![CDATA[>/g')
+                if [[ ${suite_ran} -eq 1 ]]; then
+                    test_output=$(__extract_test_output "${suite}" "${name}" | sed 's/]]>/]]]]><![CDATA[>/g')
                 fi
 
                 echo "<testcase classname=\"${suite}\" name=\"${name}\" time=\"0\">"
