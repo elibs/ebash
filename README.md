@@ -1,7 +1,7 @@
 > **_NOTE:_** **Documentation is best viewed on [github-pages](https://elibs.github.io/ebash)**
 
 [![CI/CD](https://github.com/elibs/ebash/actions/workflows/pipeline.yml/badge.svg?branch=main)](https://github.com/elibs/ebash/actions/workflows/pipeline.yml)
-[![Version](https://img.shields.io/badge/version-v3.0.7-blue)](https://github.com/elibs/ebash/releases)
+[![Version](https://img.shields.io/badge/version-v3.0.8-blue)](https://github.com/elibs/ebash/releases)
 
 <p align="center">
     <img alt="Bash" src="https://raw.githubusercontent.com/odb/official-bash-logo/master/assets/Logos/Identity/PNG/BASH_logo-transparent-bg-color.png">
