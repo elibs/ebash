@@ -50,5 +50,5 @@ skip_file_if()
 {
     # shellcheck disable=SC2145
     # We do not want to use $* as that doesn't preserve word splitting that we want to honor
-    echo "eval if ${@}; then ewarn \"Skipping file: ${@}\"; ETEST_SKIP_FILE=1; fi"
+    echo "eval if ${@}; then ewarn \"Skipping file: ${@}\"; ETEST_SKIP_FILE=1; return 0; fi"
 }
