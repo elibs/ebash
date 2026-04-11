@@ -104,6 +104,28 @@ cgroup_supported()
             edebug "Missing writeable support for ${CGROUP_SYSFS}"
             return 1
         fi
+
+        # Probe test: verify we can actually create a cgroup and write to cgroup.procs.
+        # Some environments (e.g., unprivileged containers) have a writable cgroup directory
+        # but cannot actually perform cgroup operations.
+        local probe_cgroup="${CGROUP_SYSFS}/$(cat /proc/self/cgroup | cut -d: -f3)/ebash_probe_$$"
+        if ! mkdir -p "${probe_cgroup}" 2>/dev/null; then
+            edebug "Cannot create probe cgroup ${probe_cgroup}"
+            return 1
+        fi
+
+        # Try to write our PID to cgroup.procs (this is what actually fails in restricted containers)
+        if ! echo $$ > "${probe_cgroup}/cgroup.procs" 2>/dev/null; then
+            edebug "Cannot write to ${probe_cgroup}/cgroup.procs"
+            rmdir "${probe_cgroup}" 2>/dev/null || true
+            return 1
+        fi
+
+        # Move back to parent cgroup and clean up
+        local parent_cgroup="${probe_cgroup%/*}"
+        echo $$ > "${parent_cgroup}/cgroup.procs" 2>/dev/null || true
+        rmdir "${probe_cgroup}" 2>/dev/null || true
+
         __EBASH_CGROUP_SUPPORTED=1
         return 0
     else
