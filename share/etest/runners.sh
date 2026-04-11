@@ -308,7 +308,7 @@ run_all_tests()
     local etest_name
     etest_name="$(ecolor bold cyan)ETEST$(ecolor bold magenta) ${EBASH_VERSION:-}$(ecolor reset)"
     if [[ -n "${name}" ]]; then
-        etest_name+=" - \"${name//_/ }\""
+        etest_name+=" - $(ecolor bold magenta)${name//_/ }$(ecolor reset)"
     fi
 
     local banner_args=(OS debug exclude failfast filter jobs repeat=REPEAT_STRING timeout total_timeout verbose)
