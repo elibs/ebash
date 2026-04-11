@@ -486,7 +486,7 @@ ETEST_cicd_update_version_files()
     etestmsg "Test updating VERSION file"
     cicd_update_version_files --tag "v1.2.3" --version-file VERSION
     assert_exists VERSION
-    assert_eq "v1.2.3" "$(cat VERSION)"
+    assert_eq "v1.2.3 ($(date +%Y-%m-%d))" "$(cat VERSION)"
 
     etestmsg "Test updating README without existing badge"
     cat > README.md <<'EOF'
@@ -509,7 +509,7 @@ EOF
 
     etestmsg "Test with commit"
     cicd_update_version_files --tag "v3.0.0" --version-file VERSION --commit
-    assert_eq "v3.0.0" "$(cat VERSION)"
+    assert_eq "v3.0.0 ($(date +%Y-%m-%d))" "$(cat VERSION)"
     # Verify the commit was made
     assert_true git log -1 --oneline | grep -q "Update version to v3.0.0"
 }
