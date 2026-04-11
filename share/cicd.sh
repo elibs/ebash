@@ -267,8 +267,10 @@ cicd_update_version_files()
 
     # Update VERSION file if specified
     if [[ -n "${version_file}" ]]; then
-        einfo "Updating ${version_file} to ${tag}"
-        echo "${tag}" > "${version_file}"
+        local publish_date
+        publish_date=$(date +%Y-%m-%d)
+        einfo "Updating ${version_file} to ${tag} (${publish_date})"
+        echo "${tag} (${publish_date})" > "${version_file}"
         files_updated+=("${version_file}")
     fi
 
