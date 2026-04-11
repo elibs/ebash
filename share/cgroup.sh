@@ -108,7 +108,8 @@ cgroup_supported()
         # Probe test: verify we can actually create a cgroup and write to cgroup.procs.
         # Some environments (e.g., unprivileged containers) have a writable cgroup directory
         # but cannot actually perform cgroup operations.
-        local probe_cgroup="${CGROUP_SYSFS}/$(cat /proc/self/cgroup | cut -d: -f3)/ebash_probe_$$"
+        local probe_cgroup
+        probe_cgroup="${CGROUP_SYSFS}/$(cat /proc/self/cgroup | cut -d: -f3)/ebash_probe_$$"
         if ! mkdir -p "${probe_cgroup}" 2>/dev/null; then
             edebug "Cannot create probe cgroup ${probe_cgroup}"
             return 1
@@ -122,7 +123,8 @@ cgroup_supported()
         fi
 
         # Move back to parent cgroup and clean up
-        local parent_cgroup="${probe_cgroup%/*}"
+        local parent_cgroup
+        parent_cgroup="${probe_cgroup%/*}"
         echo $$ > "${parent_cgroup}/cgroup.procs" 2>/dev/null || true
         rmdir "${probe_cgroup}" 2>/dev/null || true
 
