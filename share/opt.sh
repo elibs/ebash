@@ -684,6 +684,7 @@ opt_parse_options()
                     # The value that will get assigned to this boolean option
                     local value=1
                     if [[ -n ${has_arg} ]] ; then
+                        # Value provided with = syntax (e.g., --flag=0)
                         if [[ "${opt_arg,,}" == @(t|true) ]]; then
                             opt_arg=1
                         elif [[ "${opt_arg,,}" == @(f|false) ]]; then
@@ -691,6 +692,15 @@ opt_parse_options()
                         fi
 
                         value=${opt_arg}
+                    elif [[ $# -ge 2 && "${2,,}" == @(0|1|t|true|f|false) ]]; then
+                        # Next arg looks like a boolean value, consume it (e.g., --flag 0)
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                        if [[ "${opt_arg,,}" == @(1|t|true) ]]; then
+                            value=1
+                        else
+                            value=0
+                        fi
                     fi
 
                     # Negate the value it was if the option starts with no
@@ -771,9 +781,18 @@ opt_parse_options()
 
                 elif [[ ${opt_type} == "boolean" ]] ; then
 
-                    # Boolean options may optionally be specified a value via -b=(0|1). Take it if it's there.
+                    # Boolean options may optionally be specified a value via -b=(0|1) or -b 0. Take it if it's there.
                     if [[ -n ${has_arg} ]] ; then
                         __EBASH_OPT[$canonical]=${opt_arg}
+                    elif [[ $# -ge 2 && "${2,,}" == @(0|1|t|true|f|false) ]]; then
+                        # Next arg looks like a boolean value, consume it
+                        opt_arg=$2
+                        shift && (( shift_count += 1 ))
+                        if [[ "${opt_arg,,}" == @(1|t|true) ]]; then
+                            __EBASH_OPT[$canonical]=1
+                        else
+                            __EBASH_OPT[$canonical]=0
+                        fi
                     else
                         __EBASH_OPT[$canonical]=1
                     fi

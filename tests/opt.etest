@@ -512,6 +512,35 @@ ETEST_opt_parse_boolean_specify()
     assert_eq "0" "${d}"
 }
 
+# Test that boolean options can be specified with space-separated values (e.g., --flag 0)
+# This is important for compatibility with callers that use "bool_str()" style argument building.
+ETEST_opt_parse_boolean_space_separated()
+{
+    # Test long options with space-separated values
+    set -- --alpha 0 --beta 1 --gamma true --delta false
+    $(opt_parse "+alpha" "+beta" "+gamma" "+delta")
+    assert_eq "0" "${alpha}"
+    assert_eq "1" "${beta}"
+    assert_eq "1" "${gamma}"
+    assert_eq "0" "${delta}"
+
+    # Test short options with space-separated values
+    set -- -a 0 -b 1 -c true -d false
+    $(opt_parse "+a" "+b" "+c" "+d")
+    assert_eq "0" "${a}"
+    assert_eq "1" "${b}"
+    assert_eq "1" "${c}"
+    assert_eq "0" "${d}"
+
+    # Test mixed with other options - boolean values should be consumed, not treated as positional args
+    set -- --flag 0 --name value --other 1 positional
+    $(opt_parse "+flag" ":name" "+other" "@args")
+    assert_eq "0" "${flag}"
+    assert_eq "value" "${name}"
+    assert_eq "1" "${other}"
+    assert_eq "positional" "${args[0]}"
+}
+
 ETEST_opt_parse_boolean_validate()
 {
     set -- -a=10
