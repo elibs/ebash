@@ -203,6 +203,7 @@ ETEST_OPTIONS="${artifact_name}_options.json"
 ETEST_VCS="${artifact_name}.vcs.json"
 ETEST_XML="${artifact_name}.xml"
 ETEST_FAILURE_LOG="${artifact_name}.failure.log"
+ETEST_RESULTS="${artifact_name}.results.log"
 
 # Setup redirection for "etest" and actual "test" output.
 #
