@@ -169,11 +169,39 @@ create_failure_output()
     fi
 }
 
+create_results_log()
+{
+    EFUNCS_COLOR=1
+    {
+        __display_results_table
+
+        local total
+        total=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
+        printf "%s%s Total: %s%d%s  Passed: %s%d%s  Failed: %s%d%s  Skipped: %s%d%s" \
+            "$(ecolor bold green)>>" "$(ecolor off)" \
+            "$(ecolor bold)" "${total}" "$(ecolor off)" \
+            "$(ecolor bold green)" "${NUM_TESTS_PASSED}" "$(ecolor off)" \
+            "$(ecolor red)" "${NUM_TESTS_FAILED}" "$(ecolor off)" \
+            "$(ecolor bold yellow)" "${NUM_TESTS_SKIPPED}" "$(ecolor off)"
+
+        local runtime
+        if [[ ${DURATION} -ge 60 ]]; then
+            runtime="$((DURATION / 60))m$((DURATION % 60))s"
+        else
+            runtime="${DURATION}s"
+        fi
+        printf "  %s(Runtime: %s)%s\n" \
+            "$(ecolor cyan)" "${runtime}" "$(ecolor off)"
+
+    } > "${ETEST_RESULTS}"
+}
+
 create_summary()
 {
     create_vcs_info
     pack_to_json VCS_INFO > "${ETEST_VCS}"
     create_status_json
+    create_results_log
 
     {
         if array_not_empty TESTS_FAILED; then
@@ -235,11 +263,12 @@ create_summary()
         echo
 
         # Log files (relative to original PWD when possible)
-        local rel_failure_log rel_log rel_xml rel_json
+        local rel_failure_log rel_log rel_xml rel_json rel_results
         rel_failure_log=$(realpath --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_FAILURE_LOG}" 2>/dev/null) || rel_failure_log="${ETEST_FAILURE_LOG}"
         rel_log=$(realpath  --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_LOG}"  2>/dev/null) || rel_log="${ETEST_LOG}"
         rel_xml=$(realpath  --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_XML}"  2>/dev/null) || rel_xml="${ETEST_XML}"
         rel_json=$(realpath --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_JSON}" 2>/dev/null) || rel_json="${ETEST_JSON}"
+        rel_results=$(realpath --relative-to="${ETEST_ORIGINAL_PWD}" "${ETEST_RESULTS}" 2>/dev/null) || rel_results="${ETEST_RESULTS}"
 
         echo
         if [[ ${show_artifacts} -eq 1 ]]; then
@@ -247,6 +276,7 @@ create_summary()
                 echo "$(ecolor red)Test failures:$(ecolor off) $(ecolor red)${rel_failure_log}$(ecolor off)"
             fi
             echo "$(ecolor cyan)Test output:  $(ecolor off) $(ecolor magenta)${rel_log}$(ecolor off)"
+            echo "$(ecolor cyan)Test results: $(ecolor off) $(ecolor magenta)${rel_results}$(ecolor off)"
             echo "$(ecolor cyan)JUnit XML:    $(ecolor off) $(ecolor magenta)${rel_xml}$(ecolor off)"
             echo "$(ecolor cyan)Test details: $(ecolor off) $(ecolor magenta)${rel_json}$(ecolor off)"
             echo
