@@ -275,10 +275,10 @@ create_summary()
             if [[ ${NUM_TESTS_FAILED} -gt 0 ]]; then
                 echo "$(ecolor red)Test failures:$(ecolor off) $(ecolor red)${rel_failure_log}$(ecolor off)"
             fi
+            echo "$(ecolor cyan)Test details: $(ecolor off) $(ecolor magenta)${rel_json}$(ecolor off)"
             echo "$(ecolor cyan)Test output:  $(ecolor off) $(ecolor magenta)${rel_log}$(ecolor off)"
             echo "$(ecolor cyan)Test results: $(ecolor off) $(ecolor magenta)${rel_results}$(ecolor off)"
             echo "$(ecolor cyan)JUnit XML:    $(ecolor off) $(ecolor magenta)${rel_xml}$(ecolor off)"
-            echo "$(ecolor cyan)Test details: $(ecolor off) $(ecolor magenta)${rel_json}$(ecolor off)"
             echo
         fi
     } >&${ETEST_STDERR_FD}

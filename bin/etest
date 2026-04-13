@@ -136,6 +136,7 @@ elogrotate "${ETEST_JSON}"
 elogrotate "${ETEST_OPTIONS}"
 elogrotate "${ETEST_XML}"
 elogrotate "${ETEST_FAILURE_LOG}"
+elogrotate "${ETEST_RESULTS}"
 
 # Create empty failure log so it exists even if tests abort early
 : > "${ETEST_FAILURE_LOG}"
