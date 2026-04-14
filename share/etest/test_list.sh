@@ -77,7 +77,7 @@ find_matching_tests()
             function="${grep_line#*:}"
             function="${function%%\(\)*}"
 
-            if [[ -n ${exclude} && ${function} =~ ${exclude} ]]; then
+            if [[ -n ${exclude} && ( ${function} =~ ${exclude} || ${testfile} =~ ${exclude} ) ]]; then
                 continue
             fi
 
