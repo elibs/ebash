@@ -103,7 +103,6 @@ $(opt_parse \
 # Default values we will override later. These are needed so if we get an assert failure or die failure in arg
 # validation they don't fail because of undefined variables.
 ETEST_STDERR_FD=2
-TEST_OUT="/dev/null"
 
 # Verify --jobs is a valid integer.
 assert_int_ge "${jobs}" 0 "jobs must be an integer value greater than or equal to 0"
@@ -212,16 +211,9 @@ ETEST_RESULTS="${artifact_name}.results.log"
 # path-based redirection fails when stderr is a socket (e.g., when running under systemd with journal logging).
 if [[ ${silent} -eq 1 ]]; then
     exec {ETEST_STDERR_FD}>/dev/null
-    TEST_OUT="/dev/null"
 elif [[ ${verbose} -eq 0 ]]; then
     exec {ETEST_STDERR_FD}>&2
-    TEST_OUT="/dev/null"
-elif [[ ${jobs} -gt 0 ]]; then
-    # Parallel + verbose: test output is captured to logs and replayed via ETEST_STDERR_FD
-    exec {ETEST_STDERR_FD}>&2
-    TEST_OUT="/dev/null"
 else
-    # Serial + verbose: test output goes directly to stderr
-    exec {ETEST_STDERR_FD}>/dev/null
-    TEST_OUT="/dev/stderr"
+    # Verbose mode: test output is captured to logs and replayed via ETEST_STDERR_FD
+    exec {ETEST_STDERR_FD}>&2
 fi
