@@ -168,6 +168,13 @@ run_single_test()
             __suite_teardown
         fi
     }
+
+    # Include the test's output in the job's output so verbose mode can display it.
+    # The test redirected its output to testdir/output.log (line 99), so we include it here.
+    if [[ -f "${testdir}/output.log" ]]; then
+        cat "${testdir}/output.log"
+    fi
+
     edebug "Finished $(lval testname display_testname rc)"
 
     # NOTE: Process and mount leak detection is deferred to global_teardown for efficiency.
@@ -394,7 +401,6 @@ __worker_main()
         else
             exec {ETEST_STDERR_FD}>/dev/null
         fi
-        TEST_OUT="/dev/null"
 
         # Reset counters and arrays for this job (critical: arrays must be reset to prevent accumulation across jobs)
         NUM_TESTS_EXECUTED=0

@@ -117,8 +117,8 @@ __extract_test_output()
     local test_output="${workdir}/${suite}.etest/${name}/output.log"
     [[ -f "${test_output}" ]] || return 0
 
-    # Strip ANSI codes and output the test content
-    noansi < "${test_output}"
+    # Strip ANSI codes and NUL bytes (which cause bash warnings in command substitution)
+    noansi < "${test_output}" | tr -d '\0'
 }
 
 create_failure_output()
