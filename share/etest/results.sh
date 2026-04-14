@@ -107,14 +107,16 @@ create_options_json()
     mv "${ETEST_OPTIONS}.tmp" "${ETEST_OPTIONS}"
 }
 
-# Extract test output from the per-test output file.
-# Each test writes its output to ${workdir}/${suite}.etest/${name}/output.log
+# Extract test output from the per-test state directory.
+# Test state (output.log, tmp/) lives in ${testdir}.state to prevent tests from
+# accidentally overwriting etest files when they create files in their working directory.
 __extract_test_output()
 {
     local suite=$1
     local name=$2
 
-    local test_output="${workdir}/${suite}.etest/${name}/output.log"
+    # statedir is always ${testdir}.state (sibling directory pattern)
+    local test_output="${workdir}/${suite}.etest/${name}.state/output.log"
     [[ -f "${test_output}" ]] || return 0
 
     # Strip ANSI codes and NUL bytes (which cause bash warnings in command substitution)
