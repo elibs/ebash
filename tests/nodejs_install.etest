@@ -188,7 +188,7 @@ ETEST_install_node_linux()
     done
 
     # Create the dummy tar.gz that efetch should download
-    pushd "${TEST_DIR_OUTPUT}/tmp"
+    pushd "${TMPDIR}"
     tar cvf - "${tarball_folder}" | gzip > "${tarball}"
     popd
 
