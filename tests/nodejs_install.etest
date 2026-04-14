@@ -170,8 +170,8 @@ ETEST_install_node_linux()
     local test_prefix_dir="${TEST_DIR_OUTPUT}/${test_prefix}"
 
     local tarball_folder="node-v${lts_version}-linux-x64"
-    local tarball="${TEST_DIR_OUTPUT}/tmp/${tarball_folder}.tar.gz"
-    local tarball_loc="${TEST_DIR_OUTPUT}/tmp/${tarball_folder}"
+    local tarball="${TMPDIR}/${tarball_folder}.tar.gz"
+    local tarball_loc="${TMPDIR}/${tarball_folder}"
     local test_url="https://nodejs.org/download/release/latest-${lts_codename}/node-v${lts_version}-linux-x64.tar.gz"
 
     # Create simulated extracted folder
@@ -188,7 +188,7 @@ ETEST_install_node_linux()
     done
 
     # Create the dummy tar.gz that efetch should download
-    pushd "${TEST_DIR_OUTPUT}/tmp"
+    pushd "${TMPDIR}"
     tar cvf - "${tarball_folder}" | gzip > "${tarball}"
     popd
 

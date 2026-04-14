@@ -21,6 +21,11 @@ run_single_test()
                           a function inside that file." \
         "testname       | Command to execute to run the test")
 
+    # statedir holds etest internal state (output.log, tmp/) as a sibling of testdir.
+    # This prevents tests from accidentally overwriting etest files when they create
+    # files in their working directory.
+    local statedir="${testdir}.state"
+
     local rc=0
 
     # Record start time of the test and at the end of the test we'll update the total duration for the test. This will
@@ -94,11 +99,14 @@ run_single_test()
         # of the test fails, as if etest weren't running it inside a try/catch
         __EBASH_INSIDE_TRY=0
 
-        # Create our temporary workspace in the directory specified by the caller
+        # Create test workspace and etest internal state directory.
+        # statedir holds etest's files (output.log, tmp/) separate from the test's workspace
+        # to prevent tests from accidentally overwriting them.
         efreshdir "${testdir}"
-        exec &> "${testdir}/output.log"
-        mkdir "${testdir}/tmp"
-        TMPDIR="$(readlink -m ${testdir}/tmp)"
+        efreshdir "${statedir}"
+        exec &> "${statedir}/output.log"
+        mkdir "${statedir}/tmp"
+        TMPDIR="$(readlink -m ${statedir}/tmp)"
         export TMPDIR
 
         # Move test process into cgroup. Skip cgroup_create since global_setup already created ETEST_CGROUP.
@@ -170,9 +178,9 @@ run_single_test()
     }
 
     # Include the test's output in the job's output so verbose mode can display it.
-    # The test redirected its output to testdir/output.log (line 99), so we include it here.
-    if [[ -f "${testdir}/output.log" ]]; then
-        cat "${testdir}/output.log"
+    # The test redirected its output to statedir/output.log (line 104), so we include it here.
+    if [[ -f "${statedir}/output.log" ]]; then
+        cat "${statedir}/output.log"
     fi
 
     edebug "Finished $(lval testname display_testname rc)"
@@ -702,13 +710,15 @@ __run_all_tests_parallel()
                         TEST_SUITES+=( "${suite}" )
                     fi
 
-                    # Determine testdir for the crashed test
-                    local testdir
+                    # Determine testdir and statedir for the crashed test
+                    # statedir is always ${testdir}.state (sibling directory pattern)
+                    local testdir statedir
                     if [[ "${testfunc}" == ETEST_* ]]; then
                         testdir="${workdir}/${suite}.etest/${testfunc}"
                     else
                         testdir="${workdir}/$(basename "${testfunc}")"
                     fi
+                    statedir="${testdir}.state"
 
                     # Append crash info to the per-test output.log (for __extract_test_output)
                     {
@@ -716,7 +726,7 @@ __run_all_tests_parallel()
                         echo "[WORKER CRASHED - exit code ${wrc}]"
                         echo ""
                         echo "${testfunc} FAILED."
-                    } >> "${testdir}/output.log"
+                    } >> "${statedir}/output.log"
 
                     # Append crash info to ETEST_LOG
                     {

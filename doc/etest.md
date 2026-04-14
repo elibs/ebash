@@ -28,6 +28,53 @@ is run on every commit against a massive [matrix](compatibility.md) of Linux Dis
 
 See [etest usage](binaries/etest.md)
 
+## Directory Structure
+
+When etest runs, it creates a working directory structure to isolate tests and capture output.
+Understanding this structure is helpful when debugging test failures or writing tests that create files.
+
+```text
+workdir/                              # e.g., /tmp/etest-XXXXX (--logdir controls this)
+├── suite.etest/                      # One directory per test suite
+│   ├── ETEST_foo/                    # testdir - test runs here (cd to this dir)
+│   │   └── <files created by test>   # Any files the test creates in CWD
+│   ├── ETEST_foo.state/              # statedir - etest internal state (sibling)
+│   │   ├── output.log                # Captured stdout/stderr from the test
+│   │   └── tmp/                      # TMPDIR for the test
+│   ├── ETEST_bar/
+│   ├── ETEST_bar.state/
+│   └── ...
+├── another-suite.etest/
+│   └── ...
+└── logs/
+    └── jobs/                         # Parallel worker management
+        ├── 0/                        # Job 0
+        │   ├── output.log            # Aggregated worker output
+        │   ├── worker.pid
+        │   └── done
+        ├── 1/
+        └── ...
+```
+
+### Key Directories
+
+- **testdir** (`${workdir}/${suite}.etest/${testfunc}/`): The working directory where each test runs.
+  Tests start with `cd` to this directory, so any files created with relative paths land here.
+
+- **statedir** (`${testdir}.state/`): A sibling directory where etest stores its internal files.
+  This separation prevents tests from accidentally overwriting etest's `output.log` when they create
+  files in their working directory.
+
+- **jobdir** (`${workdir}/logs/jobs/`): Contains per-job state for parallel test execution.
+  Each job gets a numbered subdirectory with worker output and status files.
+
+### Environment Variables
+
+Tests have access to these variables:
+
+- `TEST_DIR_OUTPUT`: Path to the test's working directory (same as testdir)
+- `TMPDIR`: Points to `${statedir}/tmp/` for temporary files
+
 ## Asserts
 
 ebash and etest provide an extremely rich interface for testing code via various `assert` functions. If an assertion
