@@ -848,13 +848,13 @@ __update_jobs_progress_file()
         printf "  Passed: $(ecolor bold green)%*s" ${width} ${NUM_TESTS_PASSED}
         ecolor reset
 
+        printf "  Skipped: $(ecolor bold yellow)%*s" ${width} ${NUM_TESTS_SKIPPED:-0}
+        ecolor reset
+
         if [[ "${NUM_TESTS_FAILED}" -gt 0 ]]; then
             printf "  Failed: $(ecolor bold red)%*s" ${width} ${NUM_TESTS_FAILED}
             ecolor reset
         fi
-
-        printf "  Skipped: $(ecolor bold yellow)%*s" ${width} ${NUM_TESTS_SKIPPED:-0}
-        ecolor reset
 
         echo -n " "
 
