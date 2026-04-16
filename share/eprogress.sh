@@ -98,11 +98,6 @@ eprogress()
                 printf "%s" "${file_content}"
             fi
 
-            # Check done flag early so we always display final file state before exiting
-            if [[ ${done} -eq 1 ]]; then
-                break
-            fi
-
             if [[ ${time} -eq 1 ]] ; then
 
                 # Terminal magic that moves our cursor to the bottom right corner of the screen then backs it up just
@@ -122,6 +117,11 @@ eprogress()
 
             # Clear to end of line after time display
             ecolor clear_to_eol
+
+            # Check done flag after displaying final file and time state
+            if [[ ${done} -eq 1 ]]; then
+                break
+            fi
 
             # Optionally sleep if delay was requested. Use background sleep + wait for interruptibility.
             if [[ -n "${delay}" ]]; then
