@@ -179,12 +179,12 @@ create_results_log()
 
         local total
         total=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
-        printf "%s%s Total: %s%d%s  Passed: %s%d%s  Failed: %s%d%s  Skipped: %s%d%s" \
+        printf "%s%s Total: %s%d%s  Passed: %s%d%s  Skipped: %s%d%s  Failed: %s%d%s" \
             "$(ecolor bold green)>>" "$(ecolor off)" \
             "$(ecolor bold)" "${total}" "$(ecolor off)" \
             "$(ecolor bold green)" "${NUM_TESTS_PASSED}" "$(ecolor off)" \
-            "$(ecolor red)" "${NUM_TESTS_FAILED}" "$(ecolor off)" \
-            "$(ecolor bold yellow)" "${NUM_TESTS_SKIPPED}" "$(ecolor off)"
+            "$(ecolor bold yellow)" "${NUM_TESTS_SKIPPED}" "$(ecolor off)" \
+            "$(ecolor red)" "${NUM_TESTS_FAILED}" "$(ecolor off)"
 
         local runtime
         if [[ ${DURATION} -ge 60 ]]; then
@@ -246,12 +246,12 @@ create_summary()
         echo
         local total
         total=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))
-        printf "%s%s Total: %s%d%s  Passed: %s%d%s  Failed: %s%d%s  Skipped: %s%d%s" \
+        printf "%s%s Total: %s%d%s  Passed: %s%d%s  Skipped: %s%d%s  Failed: %s%d%s" \
             "$(ecolor bold green)>>" "$(ecolor off)" \
             "$(ecolor bold)" "${total}" "$(ecolor off)" \
             "$(ecolor bold green)" "${NUM_TESTS_PASSED}" "$(ecolor off)" \
-            "$(ecolor red)" "${NUM_TESTS_FAILED}" "$(ecolor off)" \
-            "$(ecolor bold yellow)" "${NUM_TESTS_SKIPPED}" "$(ecolor off)"
+            "$(ecolor bold yellow)" "${NUM_TESTS_SKIPPED}" "$(ecolor off)" \
+            "$(ecolor red)" "${NUM_TESTS_FAILED}" "$(ecolor off)"
 
         # Runtime
         local runtime

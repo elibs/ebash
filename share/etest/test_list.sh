@@ -61,9 +61,9 @@ find_matching_tests()
     if [[ ${#all_etests[@]} -gt 0 ]]; then
         local grep_line testfile function grep_pattern
         if [[ ${disabled:-0} -eq 1 ]]; then
-            grep_pattern="^(DISABLED_)?ETEST_[a-zA-Z0-9_]+\(\)"
+            grep_pattern="^(DISABLED_)?ETEST[-_][a-zA-Z0-9_-]+\(\)"
         else
-            grep_pattern="^ETEST_[a-zA-Z0-9_]+\(\)"
+            grep_pattern="^ETEST[-_][a-zA-Z0-9_-]+\(\)"
         fi
 
         # Track functions per file to detect duplicates within the same file
@@ -72,8 +72,8 @@ find_matching_tests()
         local -a duplicate_errors=()
 
         while IFS= read -r grep_line; do
-            # Extract testfile (everything before :ETEST_ or :DISABLED_ETEST_)
-            testfile="${grep_line%%:*ETEST_*}"
+            # Extract testfile (everything before :ETEST or :DISABLED_ETEST)
+            testfile="${grep_line%%:*ETEST[-_]*}"
             function="${grep_line#*:}"
             function="${function%%\(\)*}"
 
