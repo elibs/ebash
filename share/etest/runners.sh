@@ -870,7 +870,7 @@ __display_results_table()
     echo
 
     declare -a table
-    array_init_nl table "Suite|Result|# Passed|# Failed|# Skipped"
+    array_init_nl table "Suite|Result|# Passed|# Skipped|# Failed"
 
     local suite_name
     for suite_name in "${TEST_SUITES[@]}"; do
@@ -911,7 +911,7 @@ __display_results_table()
             skipped_display="$(ecolor bold yellow)${skipped}$(ecolor none)"
         fi
 
-        array_add_nl table "${suite_name}|${status}|${passed}|${failed_display}|${skipped_display}"
+        array_add_nl table "${suite_name}|${status}|${passed}|${skipped_display}|${failed_display}"
     done
 
     etable --style=boxart --title="$(ecolor bold)Test Results$(ecolor none)" "${table[@]}"
