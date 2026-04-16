@@ -853,10 +853,8 @@ __update_jobs_progress_file()
             ecolor reset
         fi
 
-        if [[ "${NUM_TESTS_SKIPPED:-0}" -gt 0 ]]; then
-            printf "  Skipped: $(ecolor bold yellow)%*s" ${width} ${NUM_TESTS_SKIPPED}
-            ecolor reset
-        fi
+        printf "  Skipped: $(ecolor bold yellow)%*s" ${width} ${NUM_TESTS_SKIPPED:-0}
+        ecolor reset
 
         echo -n " "
 
