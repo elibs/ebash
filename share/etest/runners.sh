@@ -185,13 +185,15 @@ run_single_test()
                 # Non-final attempt: capture the return code WITHOUT dying so we can retry on failure.
                 $(tryrc -r=cmd_rc "${run_cmd[@]}")
 
-                # A skip (77) propagates immediately; a pass stops retrying; a failure falls through
+                # A skip (77) propagates immediately via `exit 77`; a pass stops retrying; a failure falls through
                 # and loops around to the next (final) attempt.
+                #
+                # NOTE: We can't just `return` here as that doesn't work well inside a try/catch and $(skip_if).
                 if [[ ${cmd_rc} -eq 77 ]]; then
-                    return 77
+                    exit 77
                 elif [[ ${cmd_rc} -eq 0 ]]; then
                     einfo "Flaky test passed on attempt ${attempt}/${etest_attempts}"
-                    return 0
+                    break
                 fi
             else
                 # Final attempt: run directly so a real failure produces a full stack trace and

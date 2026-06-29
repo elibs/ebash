@@ -100,6 +100,21 @@ write_fixture_normal_fail()
 EOF
 }
 
+write_fixture_flaky_skip()
+{
+    # FLAKY_ test that requests a skip on its (non-final) first attempt. The die after skip_if must never run --
+    # a skip has to short-circuit the retry loop. This exercises the skip-code (77) propagation path in
+    # share/etest/runners.sh.
+    sed 's/^ *| //' > "$1" <<'EOF'
+        | #!/usr/bin/env bash
+        | FLAKY_ETEST_skips_on_first_attempt()
+        | {
+        |     $(skip_if "true")
+        |     die "should never reach here -- skip must short-circuit before the retry"
+        | }
+EOF
+}
+
 #-----------------------------------------------------------------------------------------------------------------------
 # Layer A: Integration tests via nested etest subprocess
 #-----------------------------------------------------------------------------------------------------------------------
@@ -183,6 +198,30 @@ ETEST_flaky_passes_first_time()
     assert_eq 1 "${invocations}" "Expected 1 invocation but got ${invocations}"
 
     rm -f "${counter}" "${fixture}"
+}
+
+# A FLAKY_ test that requests a skip on its first attempt must be reported SKIPPED -- the skip code (77) must
+# short-circuit the retry loop instead of being treated as a failure to retry.
+ETEST_flaky_skip_reported_skipped()
+{
+    local fixture
+    fixture=$(mktemp --suffix=.etest)
+    write_fixture_flaky_skip "${fixture}"
+
+    etestmsg "Running nested etest with flaky_skip fixture"
+    local output rc=0
+    output=$(run_nested_etest --verbose "${fixture}") || rc=$?
+
+    etestmsg "Checking exit code is 0 (skip is not a failure)"
+    assert_eq 0 "${rc}" "Expected exit code 0 but got ${rc}"
+
+    etestmsg "Checking output reports SKIPPED"
+    assert_match "${output}" "SKIPPED"
+
+    etestmsg "Checking output does NOT report FAILED"
+    assert_not_match "${output}" "FAILED"
+
+    rm -f "${fixture}"
 }
 
 # A normal (non-flaky) ETEST_ that fails should NOT be retried -- it should fail immediately.
