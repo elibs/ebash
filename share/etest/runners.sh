@@ -52,10 +52,12 @@ run_single_test()
         verbose
 
     # If this file is being sourced then it's an ETEST so log it as a subtest via einfos. Otherwise log via einfo as a
-    # top-level test script.
+    # top-level test script. Strip any FLAKY_ prefix as well as the ETEST_ prefix so the subtest label reads as the
+    # bare test name (e.g. FLAKY_ETEST_foo -> foo).
     local einfo_message einfo_message_length
     if [[ -n "${source}" ]]; then
-        einfo_message=$(einfos -n "${testname#ETEST_}" 2>&1)
+        local short_testname="${testname#FLAKY_}"
+        einfo_message=$(einfos -n "${short_testname#ETEST_}" 2>&1)
     else
         einfo_message=$(EMSG_PREFIX="" einfo -n "${testname}" 2>&1)
     fi
@@ -155,13 +157,57 @@ run_single_test()
 
         : ${ETEST_TIMEOUT:=${timeout}}
         : ${ETEST_JOBS:=${jobs}}
-        etestmsg "Running $(lval command testidx testidx_total timeout=ETEST_TIMEOUT jobs=ETEST_JOBS)"
 
+        # Tests prefixed with FLAKY_ get one automatic retry: they run once, and if they fail they
+        # are given a second chance. If either attempt passes the test is considered PASSED; only if
+        # both attempts fail is it considered FAILED. Non-flaky tests use a single attempt and behave
+        # exactly as before. Note: only the test command itself is re-run -- setup, teardown and the
+        # suite_setup/suite_teardown hooks run exactly once regardless of retries.
+        local etest_attempts=1
+        [[ ${testname} == FLAKY_* ]] && etest_attempts=2
+
+        # Build the actual command to run, wrapping in etimeout only when a finite timeout is set.
+        local run_cmd=( "${command}" )
         if [[ -n "${ETEST_TIMEOUT}" && "${ETEST_TIMEOUT}" != "infinity" ]]; then
-            etimeout --timeout="${ETEST_TIMEOUT}" "${command}"
-        else
-            "${command}"
+            run_cmd=( etimeout --timeout="${ETEST_TIMEOUT}" "${command}" )
         fi
+
+        local attempt=1 cmd_rc=0
+        while [[ ${attempt} -le ${etest_attempts} ]]; do
+
+            if [[ ${attempt} -gt 1 ]]; then
+                ewarn "Flaky test failed on attempt $(( attempt - 1 ))/${etest_attempts}; retrying"
+            fi
+
+            etestmsg "Running $(lval command testidx testidx_total timeout=ETEST_TIMEOUT jobs=ETEST_JOBS attempt etest_attempts)"
+
+            if [[ ${attempt} -lt ${etest_attempts} ]]; then
+                # Non-final attempt: capture the return code WITHOUT dying so we can retry on failure.
+                $(tryrc -r=cmd_rc "${run_cmd[@]}")
+
+                # A skip (77) propagates immediately via `exit 77`; a pass stops retrying; a failure falls through
+                # and loops around to the next (final) attempt.
+                #
+                # NOTE: We can't just `return` here as that doesn't work well inside a try/catch and $(skip_if).
+                if [[ ${cmd_rc} -eq 77 ]]; then
+                    exit 77
+                elif [[ ${cmd_rc} -eq 0 ]]; then
+                    einfo "Flaky test passed on attempt ${attempt}/${etest_attempts}"
+                    break
+                fi
+            else
+                # Final attempt: run directly so a real failure produces a full stack trace and
+                # propagates up to the catch block below, exactly as a normal test failure would.
+                "${run_cmd[@]}"
+
+                # Reaching here on the final attempt of a flaky test means a retry succeeded.
+                if [[ ${etest_attempts} -gt 1 ]]; then
+                    einfo "Flaky test passed on attempt ${attempt}/${etest_attempts}"
+                fi
+            fi
+
+            (( ++attempt ))
+        done
     }
     catch
     {
@@ -712,8 +758,10 @@ __run_all_tests_parallel()
 
                     # Determine testdir and statedir for the crashed test
                     # statedir is always ${testdir}.state (sibling directory pattern)
+                    # A non-empty testfunc from a .etest file is a test function (ETEST_, FLAKY_ETEST_ or
+                    # DISABLED_ETEST_); otherwise it's a standalone executable test script.
                     local testdir statedir
-                    if [[ "${testfunc}" == ETEST_* ]]; then
+                    if [[ "${testfile}" == *.etest && -n "${testfunc}" ]]; then
                         testdir="${workdir}/${suite}.etest/${testfunc}"
                     else
                         testdir="${workdir}/$(basename "${testfunc}")"

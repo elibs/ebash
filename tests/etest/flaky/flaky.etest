@@ -1,0 +1,323 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026, Marshall McMullen <marshall.mcmullen@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of the Apache License
+# as published by the Apache Software Foundation, either version 2 of the License, or (at your option) any later
+# version.
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+# Tests: FLAKY_ test prefix with automatic single retry
+#
+# These tests verify that FLAKY_ETEST_ functions are discovered by default, retried once on failure,
+# and reported correctly. Each test spawns a nested etest subprocess over a fixture file and inspects
+# its output and exit code.
+#
+#-----------------------------------------------------------------------------------------------------------------------
+
+# Run nested etest in a clean environment to avoid inheriting parent etest variables.
+# Modeled after tests/etest/options/logdir.etest::run_nested_etest.
+run_nested_etest()
+{
+    mkdir -p nested_etest
+    (
+        cd nested_etest
+        env -i HOME="${HOME}" PATH="${PATH}" TERM="${TERM}" \
+            FLAKY_MARKER="${FLAKY_MARKER:-}" \
+            FLAKY_COUNTER="${FLAKY_COUNTER:-}" \
+            "${EBASH_HOME}/bin/etest" "$@" 2>&1
+    )
+}
+
+# Fixture writers. Each emits a throwaway .etest file body to the path given in $1.
+#
+# Fixtures are generated as temp files OUTSIDE the tests/ tree on purpose: the top-level CI test run discovers
+# tests by recursing the tests/ directory for *.etest files (see .ebash etest.tests and test_list.sh), so any
+# fixture committed under tests/ would be run directly -- without the FLAKY_MARKER/FLAKY_COUNTER setup the nested
+# wrapper provides -- and would fail. Generating them inline keeps them invisible to discovery; they are only ever
+# sourced by the nested etest subprocess that is explicitly handed their path.
+#
+# Each heredoc uses a '|' margin marker that "sed 's/^ *| //'" strips when writing the fixture file. This is NOT
+# cosmetic: discovery greps each .etest file for "^(FLAKY_)?ETEST..()" (test_list.sh), and that grep cannot tell a
+# heredoc body apart from real code. Without the marker the embedded "FLAKY_ETEST_*()" lines would sit at column 0
+# in THIS file and be discovered as phantom tests of the flaky suite. The marker keeps them indented here while the
+# stripped output still has the column-0 function definitions the nested etest needs to discover.
+write_fixture_flaky_pass()
+{
+    # FLAKY_ test that fails on the first attempt and passes on the second. Uses FLAKY_MARKER (an absolute path
+    # outside testdir) to track which attempt we are on.
+    sed 's/^ *| //' > "$1" <<'EOF'
+        | #!/usr/bin/env bash
+        | FLAKY_ETEST_fails_then_passes()
+        | {
+        |     if [[ -f "${FLAKY_MARKER}" ]]; then
+        |         einfo "second attempt: passing"
+        |     else
+        |         touch "${FLAKY_MARKER}"
+        |         die "first attempt: failing on purpose"
+        |     fi
+        | }
+EOF
+}
+
+write_fixture_flaky_fail()
+{
+    # FLAKY_ test that fails on both attempts.
+    sed 's/^ *| //' > "$1" <<'EOF'
+        | #!/usr/bin/env bash
+        | FLAKY_ETEST_always_fails()
+        | {
+        |     die "this test always fails"
+        | }
+EOF
+}
+
+write_fixture_flaky_first_pass()
+{
+    # FLAKY_ test that passes on the first attempt (no retry needed). Uses FLAKY_COUNTER (an absolute path outside
+    # testdir) to record invocation count.
+    sed 's/^ *| //' > "$1" <<'EOF'
+        | #!/usr/bin/env bash
+        | FLAKY_ETEST_passes_first_time()
+        | {
+        |     # Append a line to the counter file so the outer test can verify we were only called once.
+        |     echo "invoked" >> "${FLAKY_COUNTER}"
+        |     einfo "passing on first attempt"
+        | }
+EOF
+}
+
+write_fixture_normal_fail()
+{
+    # A normal (non-flaky) ETEST_ that fails once. Regression guard: verifies non-flaky tests do NOT get a retry.
+    sed 's/^ *| //' > "$1" <<'EOF'
+        | #!/usr/bin/env bash
+        | ETEST_normal_fails_once()
+        | {
+        |     die "normal test failing -- should not be retried"
+        | }
+EOF
+}
+
+write_fixture_flaky_skip()
+{
+    # FLAKY_ test that requests a skip on its (non-final) first attempt. The die after skip_if must never run --
+    # a skip has to short-circuit the retry loop. This exercises the skip-code (77) propagation path in
+    # share/etest/runners.sh.
+    sed 's/^ *| //' > "$1" <<'EOF'
+        | #!/usr/bin/env bash
+        | FLAKY_ETEST_skips_on_first_attempt()
+        | {
+        |     $(skip_if "true")
+        |     die "should never reach here -- skip must short-circuit before the retry"
+        | }
+EOF
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Layer A: Integration tests via nested etest subprocess
+#-----------------------------------------------------------------------------------------------------------------------
+
+# A FLAKY_ test that fails on the first attempt and passes on the second should be reported PASSED.
+ETEST_flaky_fails_then_passes()
+{
+    local marker
+    marker=$(mktemp)
+    rm -f "${marker}"
+    FLAKY_MARKER="${marker}"
+
+    local fixture
+    fixture=$(mktemp --suffix=.etest)
+    write_fixture_flaky_pass "${fixture}"
+
+    etestmsg "Running nested etest with flaky_pass fixture"
+    local output rc=0
+    output=$(run_nested_etest --verbose "${fixture}") || rc=$?
+
+    etestmsg "Checking exit code is 0 (PASSED)"
+    assert_eq 0 "${rc}" "Expected exit code 0 but got ${rc}"
+
+    etestmsg "Checking output reports PASSED"
+    assert_match "${output}" "PASSED"
+
+    etestmsg "Checking output contains retry note"
+    assert_match "${output}" "passed on attempt 2"
+
+    rm -f "${marker}" "${fixture}"
+}
+
+# A FLAKY_ test that fails on both attempts should be reported FAILED.
+ETEST_flaky_always_fails()
+{
+    local fixture
+    fixture=$(mktemp --suffix=.etest)
+    write_fixture_flaky_fail "${fixture}"
+
+    etestmsg "Running nested etest with flaky_fail fixture"
+    local output rc=0
+    output=$(run_nested_etest --verbose "${fixture}") || rc=$?
+
+    etestmsg "Checking exit code is non-zero (FAILED)"
+    assert_ne 0 "${rc}" "Expected non-zero exit code but got 0"
+
+    etestmsg "Checking output reports FAILED"
+    assert_match "${output}" "FAILED"
+
+    etestmsg "Checking output contains retry warning"
+    assert_match "${output}" "retrying"
+
+    rm -f "${fixture}"
+}
+
+# A FLAKY_ test that passes on the first attempt should be reported PASSED with only one invocation.
+ETEST_flaky_passes_first_time()
+{
+    local counter
+    counter=$(mktemp)
+    : > "${counter}"
+    FLAKY_COUNTER="${counter}"
+
+    local fixture
+    fixture=$(mktemp --suffix=.etest)
+    write_fixture_flaky_first_pass "${fixture}"
+
+    etestmsg "Running nested etest with flaky_first_pass fixture"
+    local output rc=0
+    output=$(run_nested_etest --verbose "${fixture}") || rc=$?
+
+    etestmsg "Checking exit code is 0 (PASSED)"
+    assert_eq 0 "${rc}" "Expected exit code 0 but got ${rc}"
+
+    etestmsg "Checking output reports PASSED"
+    assert_match "${output}" "PASSED"
+
+    etestmsg "Checking test was only invoked once"
+    local invocations
+    invocations=$(wc -l < "${counter}")
+    assert_eq 1 "${invocations}" "Expected 1 invocation but got ${invocations}"
+
+    rm -f "${counter}" "${fixture}"
+}
+
+# A FLAKY_ test that requests a skip on its first attempt must be reported SKIPPED -- the skip code (77) must
+# short-circuit the retry loop instead of being treated as a failure to retry.
+ETEST_flaky_skip_reported_skipped()
+{
+    local fixture
+    fixture=$(mktemp --suffix=.etest)
+    write_fixture_flaky_skip "${fixture}"
+
+    etestmsg "Running nested etest with flaky_skip fixture"
+    local output rc=0
+    output=$(run_nested_etest --verbose "${fixture}") || rc=$?
+
+    etestmsg "Checking exit code is 0 (skip is not a failure)"
+    assert_eq 0 "${rc}" "Expected exit code 0 but got ${rc}"
+
+    etestmsg "Checking output reports SKIPPED"
+    assert_match "${output}" "SKIPPED"
+
+    etestmsg "Checking output does NOT report FAILED"
+    assert_not_match "${output}" "FAILED"
+
+    rm -f "${fixture}"
+}
+
+# A normal (non-flaky) ETEST_ that fails should NOT be retried -- it should fail immediately.
+# This is a regression guard ensuring the retry logic only applies to FLAKY_ tests.
+ETEST_normal_test_not_retried()
+{
+    local fixture
+    fixture=$(mktemp --suffix=.etest)
+    write_fixture_normal_fail "${fixture}"
+
+    etestmsg "Running nested etest with normal_fail fixture"
+    local output rc=0
+    output=$(run_nested_etest --verbose "${fixture}") || rc=$?
+
+    etestmsg "Checking exit code is non-zero (FAILED)"
+    assert_ne 0 "${rc}" "Expected non-zero exit code but got 0"
+
+    etestmsg "Checking output reports FAILED"
+    assert_match "${output}" "FAILED"
+
+    etestmsg "Checking output does NOT contain retry warning"
+    assert_not_match "${output}" "retrying"
+
+    rm -f "${fixture}"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Layer B: In-process unit checks (no subprocess needed)
+#-----------------------------------------------------------------------------------------------------------------------
+
+# The flaky predicate pattern-matches correctly.
+# Use a helper function since [[ ... ]] is a keyword and can't be passed as args to assert_true.
+_matches_flaky()
+{
+    [[ "$1" == FLAKY_* ]]
+}
+
+ETEST_flaky_predicate()
+{
+    etestmsg "FLAKY_ETEST_foo should match FLAKY_*"
+    assert_true _matches_flaky "FLAKY_ETEST_foo"
+
+    etestmsg "ETEST_foo should NOT match FLAKY_*"
+    assert_false _matches_flaky "ETEST_foo"
+
+    etestmsg "DISABLED_ETEST_foo should NOT match FLAKY_*"
+    assert_false _matches_flaky "DISABLED_ETEST_foo"
+}
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Layer C: Discovery visibility (FLAKY_ listed by default, DISABLED_ not)
+#-----------------------------------------------------------------------------------------------------------------------
+
+ETEST_flaky_discovered_by_default()
+{
+    local fixture
+    fixture=$(mktemp --suffix=.etest)
+    write_fixture_flaky_pass "${fixture}"
+
+    etestmsg "Running nested etest --print on fixture"
+    local output
+    output=$(run_nested_etest --print "${fixture}")
+
+    etestmsg "Checking FLAKY_ETEST_ is listed"
+    assert_match "${output}" "FLAKY_ETEST_fails_then_passes"
+
+    rm -f "${fixture}"
+}
+
+ETEST_disabled_not_discovered_by_default()
+{
+    # Create a temporary fixture with both DISABLED_ and FLAKY_ tests. The '|' margin marker (stripped by sed) keeps
+    # these embedded test definitions from being discovered as phantom tests of THIS file -- see the fixture writers.
+    local tmpfile
+    tmpfile=$(mktemp --suffix=.etest)
+    sed 's/^ *| //' > "${tmpfile}" <<'EOF'
+        | #!/usr/bin/env bash
+        | FLAKY_ETEST_visible()
+        | {
+        |     true
+        | }
+        | DISABLED_ETEST_hidden()
+        | {
+        |     true
+        | }
+EOF
+
+    etestmsg "Running nested etest --print (no --disabled)"
+    local output
+    output=$(run_nested_etest --print "${tmpfile}")
+
+    etestmsg "Checking FLAKY_ETEST_ is listed"
+    assert_match "${output}" "FLAKY_ETEST_visible"
+
+    etestmsg "Checking DISABLED_ETEST_ is NOT listed"
+    assert_not_match "${output}" "DISABLED_ETEST_hidden"
+
+    rm -f "${tmpfile}"
+}

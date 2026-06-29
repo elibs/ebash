@@ -155,6 +155,40 @@ match a pattern (`--exclude` / `-x`), and more.
 
 There are literally thousands of tests to look at for examples [here](https://github.com/elibs/ebash/tree/master/tests).
 
+## Test name prefixes
+
+In addition to the standard `ETEST_` prefix, etest recognizes two special prefixes that change how a test is
+discovered and run:
+
+| Prefix            | Discovered by default? | Behavior                                                                   |
+|-------------------|------------------------|----------------------------------------------------------------------------|
+| `ETEST_`          | Yes                    | Standard test. Runs once. Pass on `0`, skip on `77`, fail otherwise.       |
+| `FLAKY_ETEST_`    | Yes                    | Known-flaky test. Runs once; if it fails it is automatically retried once. |
+| `DISABLED_ETEST_` | No (use `--disabled`)  | Excluded from normal runs. Run explicitly with `etest --disabled`.         |
+
+### Flaky tests
+
+Tests that are known to fail intermittently (e.g. due to timing or external races) can be prefixed with
+`FLAKY_ETEST_` instead of `ETEST_`. A flaky test is still discovered and run by default, but if it fails on its
+first attempt it is given a second chance:
+
+- If either attempt passes, the test is reported as **PASSED** (a note is written to the test log indicating that
+  it passed on retry, so genuinely flaky tests remain easy to find).
+- Only if **both** attempts fail is the test reported as **FAILED**, with the full stack trace from the final attempt.
+
+```shell
+FLAKY_ETEST_sometimes_races()
+{
+    # Runs once; automatically retried a single time if it fails.
+    do_something_racy
+}
+```
+
+Only the test function itself is retried -- `setup`, `teardown`, `suite_setup` and `suite_teardown` run exactly
+once regardless of retries. A flaky test that needs a clean slate between attempts should perform its own cleanup at
+the top of the function. Flakiness and `--repeat` are independent: under `--repeat=N` a flaky test gets up to two
+attempts within each of the `N` iterations.
+
 ## Test verbosity
 
 That listing of test passes and failures looks nice, but when your test fails, it's not particularly helpful.But
