@@ -188,10 +188,10 @@ run_single_test()
                 # A skip (77) propagates immediately; a pass stops retrying; a failure falls through
                 # and loops around to the next (final) attempt.
                 if [[ ${cmd_rc} -eq 77 ]]; then
-                    exit 77
+                    return 77
                 elif [[ ${cmd_rc} -eq 0 ]]; then
                     einfo "Flaky test passed on attempt ${attempt}/${etest_attempts}"
-                    break
+                    return 0
                 fi
             else
                 # Final attempt: run directly so a real failure produces a full stack trace and
@@ -204,7 +204,7 @@ run_single_test()
                 fi
             fi
 
-            : $(( ++attempt ))
+            (( ++attempt ))
         done
     }
     catch
