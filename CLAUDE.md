@@ -39,6 +39,7 @@ type -P podman &>/dev/null && echo "podman available"
 ## Writing Tests
 
 Tests are bash functions prefixed with `ETEST_` in `.etest` files.
+Use `FLAKY_ETEST_` prefix for known-flaky tests (automatically retried once on failure).
 Use `DISABLED_ETEST_` prefix to exclude tests from normal runs (run with `etest --disabled`):
 
 ```bash

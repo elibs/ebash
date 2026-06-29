@@ -57,13 +57,14 @@ find_matching_tests()
 
     # Build function list for all .etest files in a single grep pass (much faster than per-file grep)
     # Output format: "filepath:ETEST_funcname()" - we parse this to build TEST_FUNCTIONS_TO_RUN
-    # When --disabled is set, also include DISABLED_ETEST_ functions
+    # FLAKY_ETEST_ functions are discovered (and run with one automatic retry) by default.
+    # When --disabled is set, also include DISABLED_ETEST_ functions.
     if [[ ${#all_etests[@]} -gt 0 ]]; then
         local grep_line testfile function grep_pattern
         if [[ ${disabled:-0} -eq 1 ]]; then
-            grep_pattern="^(DISABLED_)?ETEST[-_][a-zA-Z0-9_-]+\(\)"
+            grep_pattern="^(DISABLED_|FLAKY_)?ETEST[-_][a-zA-Z0-9_-]+\(\)"
         else
-            grep_pattern="^ETEST[-_][a-zA-Z0-9_-]+\(\)"
+            grep_pattern="^(FLAKY_)?ETEST[-_][a-zA-Z0-9_-]+\(\)"
         fi
 
         # Track functions per file to detect duplicates within the same file
