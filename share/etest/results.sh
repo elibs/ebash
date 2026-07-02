@@ -235,14 +235,7 @@ create_summary()
 
     # Print gotest-style summary with file locations
     {
-        local cols line
-        cols=$(tput cols)
-        printf -v line '%*s' "${cols}" ''
-        line="${line// /─}"
-
         # Test counts
-        echo
-        echo "$(ecolor cyan)${line}$(ecolor off)"
         echo
         local total
         total=$(( NUM_TESTS_PASSED + NUM_TESTS_FAILED + NUM_TESTS_SKIPPED ))

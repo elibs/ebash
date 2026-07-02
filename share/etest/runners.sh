@@ -769,6 +769,8 @@ __run_all_tests_parallel()
                     statedir="${testdir}.state"
 
                     # Append crash info to the per-test output.log (for __extract_test_output)
+                    # Create statedir if it doesn't exist (worker may have crashed before creating it)
+                    mkdir -p "${statedir}"
                     {
                         echo ""
                         echo "[WORKER CRASHED - exit code ${wrc}]"
