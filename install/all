@@ -17,7 +17,7 @@ set -e
 ########################################################################################################################
 
 if [ -z "${EBASH_HOME}" ]; then
-    EBASH_HOME="$(dirname $0)/.."
+    EBASH_HOME="$(dirname "$(readlink -f "$0")")"/..
 fi
 
 ${EBASH_HOME}/install/depends
