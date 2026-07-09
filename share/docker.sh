@@ -545,7 +545,7 @@ __docker_depends_sha()
 
                 if ! grep -q '^EBASH_HOME="/opt/ebash$"' "${bin}"; then
                     edebug "Updating EBASH_HOME in ${bin} to /opt/ebash"
-                    sed -i 's|: ${EBASH_HOME:=$(dirname $0)/..}|EBASH_HOME="/opt/ebash"|' "${bin}"
+                    sed -i 's|: ${EBASH_HOME:=$(dirname "$(readlink -f "$0")")/..}|EBASH_HOME="/opt/ebash"|' "${bin}"
                 fi
             done
 
